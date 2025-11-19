@@ -121,6 +121,7 @@ MODULE xas_tdp_atom
                                               xc_dset_get_derivative,&
                                               xc_dset_release
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
+                                              xc_derivative_p_type,&
                                               xc_derivative_type
    USE xc_derivatives,                  ONLY: xc_functionals_eval,&
                                               xc_functionals_get_needs
@@ -2874,7 +2875,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: i, maxso, na, nr, nset, nsotot, nspins, &
-                                                            ri_nsgf, ub
+                                                            ri_nsgf
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fxc, int_so
       REAL(dp), DIMENSION(:, :), POINTER                 :: ri_sphi_so
       TYPE(cp_3d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: d2e
@@ -2882,9 +2883,9 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_derivative_p_type), DIMENSION(3)           :: derivs
 
-      NULLIFY (grid_atom, deriv, ri_basis, ri_sphi_so, qs_kind_set, dft_control)
+      NULLIFY (grid_atom, ri_basis, ri_sphi_so, qs_kind_set, dft_control)
 
       ! Initialization
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control)
@@ -2899,12 +2900,14 @@ CONTAINS
 
       ! Get the second derivatives
       ALLOCATE (d2e(3))
-      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
-      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
-      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
+      derivs(1)%deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
+      derivs(2)%deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
+      derivs(3)%deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
+      DO i = 1, 3
+         IF (ASSOCIATED(derivs(i)%deriv)) THEN
+            CALL xc_derivative_get(derivs(i)%deriv, deriv_data=d2e(i)%array)
+         END IF
+      END DO
 
       ! Allocate some work arrays
       ALLOCATE (fxc(na, nr))
@@ -2912,18 +2915,17 @@ CONTAINS
 
       ! Integrate for all three derivatives, taking the grid weight into account
       ! If closed shell, do not need to integrate beta-beta as it is the same as alpha-alpha
-      ub = 2; IF (nspins == 2) ub = 3
-      DO i = 1, ub
-
+      DO i = 1, nspins + 1
          int_so = 0.0_dp
-         fxc(:, :) = d2e(i)%array(:, :, 1)*grid_atom%weight(:, :)
-         CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
+         IF (ASSOCIATED(derivs(i)%deriv)) THEN
+            fxc(:, :) = d2e(i)%array(:, :, 1)*grid_atom%weight(:, :)
+            CALL integrate_so_prod(int_so, fxc, ikind, xas_atom_env, qs_env)
+         END IF
 
          !contract into sgf. Array allocated on current processor only
          ALLOCATE (int_fxc(iatom, i)%array(ri_nsgf, ri_nsgf))
          int_fxc(iatom, i)%array = 0.0_dp
          CALL contract_so2sgf(int_fxc(iatom, i)%array, int_so, ri_basis, ri_sphi_so)
-
       END DO
 
    END SUBROUTINE integrate_sc_fxc
@@ -2976,18 +2978,28 @@ CONTAINS
 
       ALLOCATE (d1e(2))
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
-      CALL xc_derivative_get(deriv, deriv_data=d1e(1)%array)
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=d1e(1)%array)
+      END IF
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob])
-      CALL xc_derivative_get(deriv, deriv_data=d1e(2)%array)
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=d1e(2)%array)
+      END IF
 
       ! In case rhoa -> rhob, take the limit, which involves the (already computed) second derivatives
       ALLOCATE (d2e(3))
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
+      END IF
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
+      END IF
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
+      END IF
 
       !Compute the kernel on the grid. Already take weight into acocunt there
       ALLOCATE (fxc(na, nr))

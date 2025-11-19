@@ -93,10 +93,10 @@ MODULE rt_propagation_types
       TYPE(rtp_rho_type), POINTER                   :: rho => NULL()
       TYPE(rtp_mos_type), POINTER                   :: mos => NULL()
       ! Moment trace, Indices : Spin, direction, time index
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER   :: moments
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER   :: moments => NULL()
       ! Fields do not have a spin index
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER     :: fields
-      REAL(KIND=dp), DIMENSION(:), POINTER          :: times
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER     :: fields => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: times => NULL()
       REAL(KIND=dp)                                 :: energy_old = 0.0_dp
       REAL(KIND=dp)                                 :: energy_new = 0.0_dp
       REAL(KIND=dp)                                 :: dt = 0.0_dp

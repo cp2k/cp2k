@@ -196,12 +196,14 @@ CONTAINS
             CPABORT("RIXS only implemented for singlet and spin-conserving excitations")
          END IF
 
-         IF (dft_control%uks) THEN
-            uks = .TRUE.
-            WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Unrestricted Open-Shell Kohn-Sham"
-         ELSE IF (dft_control%roks) THEN
-            roks = .TRUE.
-            WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
+         IF (output_unit > 0) THEN
+            IF (dft_control%uks) THEN
+               uks = .TRUE.
+               WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Unrestricted Open-Shell Kohn-Sham"
+            ELSE IF (dft_control%roks) THEN
+               roks = .TRUE.
+               WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
+            END IF
          END IF
 
          core_state => rixs_env%core_state

@@ -266,6 +266,7 @@ CONTAINS
 
             CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
                                                 qs_env_contact=qs_env_contact)
+            IF (log_unit > 0) WRITE (log_unit, '(/,T2,79("-"))')
          END IF
       END DO
 
@@ -273,6 +274,7 @@ CONTAINS
       IF (log_unit > 0) &
          WRITE (log_unit, '(/,T2,A,T70)') "NEGF| Construct the Kohn-Sham matrix for the entire system"
       CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
+      IF (log_unit > 0) WRITE (log_unit, '(/,T2,79("-"))')
 
       ! *** obtain relevant Kohn-Sham matrix blocks for each contact with no separate FORCE_ENV ***
       DO icontact = 1, ncontacts

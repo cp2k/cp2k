@@ -4643,6 +4643,10 @@
 
 #if defined(__parallel)
       INTEGER :: ierr
+#if defined(__MPI_F08)
+      ! Even OpenMPI 5.x misses mpi_get_address in the F08 interface
+      EXTERNAL                                          :: mpi_get_address
+#endif
 #endif
 
       NULLIFY (type_descriptor%subtype)

@@ -463,10 +463,10 @@ CONTAINS
             ! to access the dbcsr block at the same time. Prevent that by CRITICAL section but keep
             ! computations before hand in order to retain speed
 
-!$OMP CRITICAL
+!$OMP CRITICAL(contract3_o3c)
             CALL dbcsr_get_block_p(matrix=matrix, row=irow, col=icol, BLOCK=pblock, found=found)
             CALL daxpy(s1*s2, 1.0_dp, work(:, :), 1, pblock(:, :), 1)
-!$OMP END CRITICAL
+!$OMP END CRITICAL(contract3_o3c)
 
             DEALLOCATE (work)
          END IF

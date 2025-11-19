@@ -94,9 +94,9 @@ CONTAINS
          IF (.NOT. found) CPABORT("Tensor block 2 not found")
 
          IF (.NOT. blocks_equal(blk_data1, blk_data2)) THEN
-!$OMP CRITICAL
+!$OMP ATOMIC WRITE
             dbt_equal = .FALSE.
-!$OMP END CRITICAL
+!$OMP END ATOMIC
          END IF
       END DO
 
