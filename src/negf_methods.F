@@ -244,15 +244,15 @@ CONTAINS
             WRITE (log_unit, "(  ' ------------------')")
             WRITE (log_unit, "(' From the force environment:',I16)") negf_control%contacts(icontact)%force_env_index
             WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%contacts(icontact)%atomlist_bulk)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact (from the entire sysem):')")
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact (from the entire system):')")
             IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
             WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") SIZE(negf_env%contacts(icontact)%atomlist_cell0)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire sysem):')")
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire system):')")
             IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
             IF (verbose_output) WRITE (log_unit, "(' Direction of an electrode: ',I16)") negf_env%contacts(icontact)%direction_axis
             n = SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1)
             WRITE (sfmt, "('(',i0,'(E15.5))')") n
-            WRITE (log_unit, "(' The number of atomic orbtals:',I14)") n
+            WRITE (log_unit, "(' The number of atomic orbitals:',I14)") n
             ! print the electrode Hamiltonians for check and debuging
             IF (debug_output) THEN
                DO k = 1, dft_control%nspins
@@ -282,7 +282,7 @@ CONTAINS
          IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
          n = SIZE(negf_env%h_s(1)%local_data, 1)
          WRITE (sfmt, "('(',i0,'(E15.5))')") n
-         WRITE (log_unit, "(' The number of atomic orbtals:',I14)") n
+         WRITE (log_unit, "(' The number of atomic orbitals:',I14)") n
          ! print the full scattering region Hamiltonians for check and debuging
          IF (debug_output) THEN
             DO k = 1, dft_control%nspins

@@ -351,4 +351,3 @@ CONTAINS
    END SUBROUTINE comab_opr
 
 END MODULE commutator_rkinetic
-

@@ -133,8 +133,7 @@ CONTAINS
 
       ! Array collected is used as a bit field.
       ! It's of type integer in order to use the convenient MINLOC routine.
-      ALLOCATE (collected(list_size(timer_env%routine_stats)))
-      collected(:) = 0
+      ALLOCATE (collected(list_size(timer_env%routine_stats)), SOURCE=0)
 
       DO
          ! does any rank have uncollected stats?
