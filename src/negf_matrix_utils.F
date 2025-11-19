@@ -194,7 +194,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CLASS(mp_comm_type), INTENT(in)                     :: mpi_comm_global
+      CLASS(mp_comm_type), INTENT(in)                    :: mpi_comm_global
       LOGICAL, INTENT(in)                                :: do_upper_diag, do_lower
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_sym_dbcsr_to_fm_submat'
