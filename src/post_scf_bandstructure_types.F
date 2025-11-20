@@ -222,7 +222,8 @@ MODULE post_scf_bandstructure_types
                                                       atoms_i_t_group, &
                                                       atoms_j_t_group
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: skip_Sigma_occ, &
-                                                      skip_Sigma_vir
+                                                      skip_Sigma_vir, &
+                                                      skip_chi
       ! Marek : rtbse_method
       INTEGER                                      :: rtp_method = rtp_method_bse
 
@@ -238,7 +239,8 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
       CHARACTER(LEN=default_string_length)         :: prefix = ""
-      INTEGER                                      :: unit_nr = -1
+      INTEGER                                      :: unit_nr = -1, &
+                                                      unit_nr_contract = -1
 
       ! parameters and data for basis sets
       TYPE(gto_basis_set_p_type), &
@@ -311,6 +313,10 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE    :: v_xc_n
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)      :: t_3c_int
 
+      !MG: Print options
+      LOGICAL                                           :: print_contract = .FALSE.,&
+                                                         print_contract_verbose = .FALSE.
+
    END TYPE post_scf_bandstructure_type
 
 CONTAINS
@@ -359,6 +365,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%atoms_j_t_group)) DEALLOCATE (bs_env%atoms_j_t_group)
       IF (ALLOCATED(bs_env%skip_Sigma_occ)) DEALLOCATE (bs_env%skip_Sigma_occ)
       IF (ALLOCATED(bs_env%skip_Sigma_vir)) DEALLOCATE (bs_env%skip_Sigma_vir)
+      IF (ALLOCATED(bs_env%skip_chi)) DEALLOCATE (bs_env%skip_chi)
       IF (ALLOCATED(bs_env%read_chi)) DEALLOCATE (bs_env%read_chi)
       IF (ALLOCATED(bs_env%calc_chi)) DEALLOCATE (bs_env%calc_chi)
       IF (ALLOCATED(bs_env%Sigma_c_exists)) DEALLOCATE (bs_env%Sigma_c_exists)

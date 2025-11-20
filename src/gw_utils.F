@@ -289,7 +289,14 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
+      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
+      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
 
+      IF (bs_env%print_contract) THEN
+         bs_env%unit_nr_contract = bs_env%unit_nr
+      ELSE
+         bs_env%unit_nr_contract = 0
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
@@ -1116,6 +1123,9 @@ CONTAINS
       ALLOCATE (bs_env%skip_Sigma_vir(n_intervals_i, n_intervals_j))
       bs_env%skip_Sigma_occ(:, :) = .FALSE.
       bs_env%skip_Sigma_vir(:, :) = .FALSE.
+
+      ALLOCATE (bs_env%skip_chi(n_intervals_i, n_intervals_j))
+      bs_env%skip_chi(:, :) = .FALSE.
 
       ! choose atomic range for µ and σ ("inner loop (IL) atom") in
       ! M_λνP(iτ) = sum_µ (µν|P) G^occ_µλ(i|τ|,k=0)

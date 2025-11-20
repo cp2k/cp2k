@@ -85,6 +85,13 @@ MODULE gw_large_cell_gamma
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
    USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
+   USE dbt_api,                         ONLY: &
+        dbt_clear, dbt_create, dbt_destroy, dbt_filter, dbt_iterator_blocks_left, &
+        dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
+        dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
+   USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -158,6 +165,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_RI, i_atoms, IL_atoms, j_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       LOGICAL                                            :: dist_too_long_i, dist_too_long_j
@@ -168,7 +176,7 @@ CONTAINS
                                                             t_3c_x_Gvir_2
 
       CALL timeset(routineN, handle)
-
+      
       DO i_t = 1, bs_env%num_time_freq_points
 
          t1 = m_walltime()
@@ -220,6 +228,8 @@ CONTAINS
                   i_atoms = bs_env%i_atom_intervals(1:2, i_intval_idx)
                   j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
 
+                  IF (bs_env%skip_chi(i_intval_idx, j_intval_idx)) CYCLE
+
                   DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
 
                      IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
@@ -268,8 +278,12 @@ CONTAINS
                                     contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
                                     contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
                                     bounds_1=bounds_comb, bounds_2=bounds_RI, bounds_3=bounds_RI, &
-                                    filter_eps=bs_env%eps_filter, move_data=.TRUE., &
-                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cGT")
+                                    filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop, &
+                        unit_nr=bs_env%unit_nr_contract, &
+                        log_verbose=bs_env%print_contract_verbose)!char_id_gw="cGT")
+                  
+                  
+                  IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
                END DO ! j_atoms
             END DO ! i_atoms
@@ -588,9 +602,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_integrals'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, deduce_bound_switch
+      !, atom_1, &
+      ! atom_2
       INTEGER, DIMENSION(2)                              :: my_atoms_AO_1, my_atoms_AO_2, my_atoms_RI
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_array
+      ! TYPE(cell_type), POINTER                           :: cell
+      ! TYPE(dbt_iterator_type)                            :: iter
+      ! TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      ! REAL(KIND=dp)                                      :: abs_rab, max_dist_AO_atoms
+      ! REAL(KIND=dp), DIMENSION(3)                        :: rab
+      ! INTEGER, DIMENSION(3)                              :: atom_ind
 
       CALL timeset(routineN, handle)
 
@@ -599,19 +621,31 @@ CONTAINS
 
       ALLOCATE (t_3c_array(1, 1))
       CALL dbt_create(t_3c, t_3c_array(1, 1))
-
+      deduce_bound_switch = 0
       IF (PRESENT(atoms_AO_1)) THEN
-         my_atoms_AO_1 = atoms_AO_1
+         IF (atoms_AO_1(1) < 0 .OR. atoms_AO_1(2) < 0) THEN
+            deduce_bound_switch = 1
+         ELSE
+            my_atoms_AO_1 = atoms_AO_1
+         END IF
       ELSE
          my_atoms_AO_1 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_AO_2)) THEN
-         my_atoms_AO_2 = atoms_AO_2
+         IF (atoms_AO_2(1) < 0 .OR. atoms_AO_2(2) < 0) THEN
+            deduce_bound_switch = 2
+         ELSE
+            my_atoms_AO_2 = atoms_AO_2
+         END IF
       ELSE
          my_atoms_AO_2 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_RI)) THEN
-         my_atoms_RI = atoms_RI
+         IF (atoms_RI(1) < 0 .OR. atoms_RI(2) < 0) THEN
+            deduce_bound_switch = 3
+         ELSE
+            my_atoms_RI = atoms_RI
+         END IF
       ELSE
          my_atoms_RI = [1, bs_env%n_atom]
       END IF
@@ -634,6 +668,40 @@ CONTAINS
 
       CALL dbt_destroy(t_3c_array(1, 1))
       DEALLOCATE (t_3c_array)
+
+      ! CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+
+      ! SELECT CASE (deduce_bound_switch)
+      ! CASE (1)
+
+      ! CASE (2)
+
+      ! CASE (3)
+
+      ! END SELECT
+      
+
+! !$OMP PARALLEL DEFAULT(NONE) &
+! !$OMP SHARED(t_3c, max_dist_AO_atoms, num_cells, index_to_cell, particle_set, cell) &
+! !$OMP PRIVATE(iter,atom_ind,rab, abs_rab, atom_1, atom_2)
+      ! CALL dbt_iterator_start(iter, t_3c)
+      ! DO WHILE (dbt_iterator_blocks_left(iter))
+      !    CALL dbt_iterator_next_block(iter, atom_ind)
+
+      !    atom_1 = atom_ind(2)
+      !    atom_2 = atom_ind(3)
+
+      !    rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
+
+      !    abs_rab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
+
+      !    max_dist_AO_atoms = MAX(max_dist_AO_atoms, abs_rab)
+
+      ! END DO
+      ! CALL dbt_iterator_stop(iter)
+! !$OMP END PARALLEL
+
+      !CALL para_env%max(max_dist_AO_atoms)
 
       CALL timestop(handle)
 
@@ -689,7 +757,8 @@ CONTAINS
                         bounds_2=bounds_comb, &
                         bounds_3=bounds_ao_1, &
                         filter_eps=bs_env%eps_filter, &
-                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="G3c")
+                        unit_nr=bs_env%unit_nr_contract, &
+                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="G3c")
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -2015,7 +2084,8 @@ CONTAINS
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
                            bounds_1=bounds_P, bounds_2=bounds_Q, bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter, &
-                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="3cW")
+                        unit_nr=bs_env%unit_nr_contract, &
+                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="3cW")
 
       END DO ! RI_atoms
 
@@ -2111,7 +2181,8 @@ CONTAINS
                            bounds_1=bounds_mu, bounds_2=bounds_nu, &
                            bounds_3=bounds_comb, &
                            filter_eps=bs_env%eps_filter, &
-                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cS1")
+                        unit_nr=bs_env%unit_nr_contract, &
+                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS1")
 
       END DO ! IL_atoms
 
@@ -2132,7 +2203,8 @@ CONTAINS
                         bounds_1=bounds_comb, bounds_2=bounds_full_ao, &
                         bounds_3=bounds_full_ao, &
                         filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
-                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cS2")
+                        unit_nr=bs_env%unit_nr_contract, &
+                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
 
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
@@ -2195,17 +2267,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_skipping'
 
       INTEGER                                            :: handle, i_intval_idx, j_intval_idx, &
-                                                            n_skip
+                                                            n_skip_sigma, n_skip_chi
 
       CALL timeset(routineN, handle)
 
-      n_skip = 0
+      n_skip_sigma = 0
+      n_skip_chi = 0
 
       DO i_intval_idx = 1, bs_env%n_intervals_i
          DO j_intval_idx = 1, bs_env%n_intervals_j
             IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
                 bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) THEN
-               n_skip = n_skip + 1
+               n_skip_sigma = n_skip_sigma + 1
+            END IF
+            IF (bs_env%skip_chi(i_intval_idx, j_intval_idx)) THEN
+               n_skip_chi = n_skip_chi + 1
             END IF
          END DO
       END DO
@@ -2213,7 +2289,10 @@ CONTAINS
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
             'Sparsity of Σ^c(iτ,k=0): Percentage of skipped atom pairs:', &
-            REAL(100*n_skip, KIND=dp)/REAL(i_intval_idx*j_intval_idx, KIND=dp), ' %'
+            REAL(100*n_skip_sigma, KIND=dp)/REAL(i_intval_idx*j_intval_idx, KIND=dp), ' %'
+         WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
+            'Sparsity of χ(iτ,k=0): Percentage of skipped atom pairs:', &
+            REAL(100*n_skip_chi, KIND=dp)/REAL(i_intval_idx*j_intval_idx, KIND=dp), ' %'
       END IF
 
       CALL timestop(handle)
