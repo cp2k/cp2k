@@ -116,12 +116,12 @@ CONTAINS
          ndata_send_mythread(iproc) = ndata_send_mythread(iproc) + PRODUCT(blk_size)
       END DO
       CALL dbt_iterator_stop(iter)
-!$OMP CRITICAL(dbt_reshape)
+!$OMP CRITICAL(omp_dbt_reshape)
       nblks_send_total(:) = nblks_send_total(:) + nblks_send_mythread(:)
       ndata_send_total(:) = ndata_send_total(:) + ndata_send_mythread(:)
       nblks_send_mythread(:) = nblks_send_total(:) ! current totals indicate slot for this thread
       ndata_send_mythread(:) = ndata_send_total(:)
-!$OMP END CRITICAL(dbt_reshape)
+!$OMP END CRITICAL(omp_dbt_reshape)
 !$OMP BARRIER
 
 !$OMP MASTER
