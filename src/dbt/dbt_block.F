@@ -371,11 +371,11 @@ CONTAINS
             IF (checker_tr(ind_2d(1), ind_2d(2))) CYCLE
             IF (ind_2d(1) > ind_2d(2)) CALL swap(ind_2d(1), ind_2d(2))
          END IF
-!$OMP CRITICAL(dbt_reserve_blocks_tensor_to_matrix)
+!$OMP CRITICAL(omp_dbt_reserve_blocks_tensor_to_matrix)
          iblk = iblk + 1
          blk_ind_1(iblk) = ind_2d(1)
          blk_ind_2(iblk) = ind_2d(2)
-!$OMP END CRITICAL(dbt_reserve_blocks_tensor_to_matrix)
+!$OMP END CRITICAL(omp_dbt_reserve_blocks_tensor_to_matrix)
       END DO
       CALL dbt_iterator_stop(iter)
 !$OMP END PARALLEL

@@ -4062,11 +4062,11 @@ CONTAINS
          CALL dbt_iterator_next_block(iter, ind)
          CALL dbt_get_block(rho_ao_t, ind, blk, found)
          IF (found) THEN
-!$OMP CRITICAL(get_RI_density_coeffs)
+!$OMP CRITICAL(omp_get_RI_density_coeffs)
             nblks = nblks + 1
             idx1(nblks) = ind(1)
             idx2(nblks) = ind(2)
-!$OMP END CRITICAL(get_RI_density_coeffs)
+!$OMP END CRITICAL(omp_get_RI_density_coeffs)
             DEALLOCATE (blk)
          END IF
       END DO
@@ -4090,9 +4090,9 @@ CONTAINS
          IF (found) THEN
             ALLOCATE (blk_3d(SIZE(blk, 1), SIZE(blk, 2), 1))
             blk_3d(:, :, 1) = blk(:, :)
-!$OMP CRITICAL(get_RI_density_coeffs)
+!$OMP CRITICAL(omp_get_RI_density_coeffs)
             CALL dbt_put_block(rho_ao_t_3d, [ind(1), ind(2), 1], [SIZE(blk, 1), SIZE(blk, 2), 1], blk_3d)
-!$OMP END CRITICAL(get_RI_density_coeffs)
+!$OMP END CRITICAL(omp_get_RI_density_coeffs)
             DEALLOCATE (blk, blk_3d)
          END IF
       END DO
@@ -4202,9 +4202,9 @@ CONTAINS
          IF (found) THEN
 
             idx = SUM(ri_data%bsizes_RI_split(1:ind(1) - 1))
-!$OMP CRITICAL(get_RI_density_coeffs)
+!$OMP CRITICAL(omp_get_RI_density_coeffs)
             density_coeffs(idx + 1:idx + ri_data%bsizes_RI_split(ind(1))) = blk(:, 1)
-!$OMP END CRITICAL(get_RI_density_coeffs)
+!$OMP END CRITICAL(omp_get_RI_density_coeffs)
             DEALLOCATE (blk)
          END IF
       END DO
