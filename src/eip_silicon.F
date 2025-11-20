@@ -1184,10 +1184,10 @@ CONTAINS
 ! PARALLEL CASE
 ! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
-!$OMP CRITICAL(eip_bazant_silicon)
+!$OMP CRITICAL(omp_eip_bazant_silicon)
          ALLOCATE (txyz(3, nat), s2(max_nbrs, 8), s3(max_nbrs, 7), sz(max_nbrs, 6), &
                    num2(max_nbrs), num3(max_nbrs), numz(max_nbrs))
-!$OMP END CRITICAL(eip_bazant_silicon)
+!$OMP END CRITICAL(omp_eip_bazant_silicon)
          IF (iam == 0) THEN
             ener = 0.e0_dp
             ener2 = 0.e0_dp
@@ -1213,7 +1213,7 @@ CONTAINS
                           num2, s3(1, 1), s3(1, 2), s3(1, 3), s3(1, 4), s3(1, 5), s3(1, 6), s3(1, 7), &
                           num3, sz(1, 1), sz(1, 2), sz(1, 3), sz(1, 4), sz(1, 5), sz(1, 6), numz)
 
-!$OMP CRITICAL(eip_bazant_silicon)
+!$OMP CRITICAL(omp_eip_bazant_silicon)
          ener = ener + tener
          ener2 = ener2 + tener2
          coord = coord + tcoord
@@ -1225,7 +1225,7 @@ CONTAINS
             fxyz(3, iat) = fxyz(3, iat) + txyz(3, iat)
          END DO
          DEALLOCATE (txyz, s2, s3, sz, num2, num3, numz)
-!$OMP END CRITICAL(eip_bazant_silicon)
+!$OMP END CRITICAL(omp_eip_bazant_silicon)
 
       ELSE
 ! SERIAL CASE
@@ -2349,9 +2349,9 @@ CONTAINS
 ! PARALLEL CASE
 ! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
-!$OMP CRITICAL(eip_lenosky_silicon)
+!$OMP CRITICAL(omp_eip_lenosky_silicon)
          ALLOCATE (txyz(3, nat), f2ij(3, npjx), f3ij(3, npjkx), f3ik(3, npjkx))
-!$OMP END CRITICAL(eip_lenosky_silicon)
+!$OMP END CRITICAL(omp_eip_lenosky_silicon)
          IF (iam == 0) THEN
             ener = 0.e0_dp
             ener2 = 0.e0_dp
@@ -2373,7 +2373,7 @@ CONTAINS
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
          CALL subfeniat_l(iat1, iat2, nat, lsta, lstb, rel, tener, tener2, &
                           tcoord, tcoord2, nnbrx, txyz, f2ij, npjx, f3ij, npjkx, f3ik, istop)
-!$OMP CRITICAL(eip_lenosky_silicon)
+!$OMP CRITICAL(omp_eip_lenosky_silicon)
          ener = ener + tener
          ener2 = ener2 + tener2
          coord = coord + tcoord
@@ -2385,7 +2385,7 @@ CONTAINS
             fxyz(3, iat) = fxyz(3, iat) + txyz(3, iat)
          END DO
          DEALLOCATE (txyz, f2ij, f3ij, f3ik)
-!$OMP END CRITICAL(eip_lenosky_silicon)
+!$OMP END CRITICAL(omp_eip_lenosky_silicon)
 
       ELSE
 ! SERIAL CASE

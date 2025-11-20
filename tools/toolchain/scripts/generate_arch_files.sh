@@ -400,14 +400,10 @@ EOF
     cat << EOF >> $__filename
 #
 # Required due to memory leak that occurs if high optimisations are used
-mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
-	\\\$(FC) -c \\\$(subst -O2,-O0,\\\$(FCFLAGS)) \\\$<
+#mp2_optimize_ri_basis.o: FCFLAGS += -O0
 # Required due to SEGFAULTS occurring for higher optimisation levels
-paw_basis_types.o: paw_basis_types.F
-	\\\$(FC) -c \\\$(subst -O2,-O1,\\\$(FCFLAGS)) \\\$<
-# Reduce compilation time
-hfx_contraction_methods.o: hfx_contraction_methods.F
-	\\\$(FC) -c \\\$(subst -O2,-O1,\\\$(FCFLAGS)) \\\$<
+hfx_contraction_methods.o: FCFLAGS += -O1
+#paw_basis_types.o: FCFLAGS += -O1
 EOF
   fi
   # replace variable values in output file using eval
