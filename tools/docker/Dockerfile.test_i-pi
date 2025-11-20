@@ -20,11 +20,14 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./tools/toolchain/scripts/get_openblas_arch.sh \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
+# TODO: Re-enable tblite once the dftd4 installation is fixed.
+# https://github.com/cp2k/cp2k/issues/4362
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=no \
     --with-dbcsr \
     --with-gcc=system \
+    --with-tblite=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
