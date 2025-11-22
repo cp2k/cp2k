@@ -49,7 +49,8 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-std=c11>"
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-g;-fno-omit-frame-pointer>"
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
-)
+  # Unfortunately, this doesn't work :-(
+  "$<$<COMPILE_LANGUAGE:HIP>:-Wno-error=unused-command-line-argument>")
 
 # Release
 add_compile_options(
@@ -89,8 +90,10 @@ add_link_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-fsanitize=leak>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-fsanitize=leak>")
 
-# TODO Prevent CMake from wrongly adding -fbacktrace and
-# -fallow-argument-mismatch to CFLAGS. add_compile_options(
+# TODO Re-enable once CMake stops adding invalid arguments to CFLAGS:
+# https://gitlab.kitware.com/cmake/cmake/-/issues/27231
+#
+# add_compile_options(
 # "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wall;-Wextra;-Werror>"
 # "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-Wall;-Wextra;-Werror>"
 # )

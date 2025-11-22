@@ -3,7 +3,7 @@
 # Usage: podman build --shm-size=1g -f ./Dockerfile.test_hip_rocm_Mi100 ../../
 #
 
-FROM rocm/dev-ubuntu-22.04:5.3.2-complete
+FROM rocm/dev-ubuntu-24.04:7.1-complete
 
 # Install some Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -41,7 +41,7 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-hip=yes \
     --gpu-ver=Mi100 \
-    --with-dbcsr=no \
+    --with-dbcsr \
     --with-tblite=no \
     --dry-run
 

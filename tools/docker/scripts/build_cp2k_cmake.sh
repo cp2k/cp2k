@@ -21,7 +21,8 @@ source ./cmake/cmake_cp2k.sh "${PROFILE}" "${VERSION}"
 
 # Compile CP2K
 echo -en '\nCompiling CP2K ... '
-if ninja --verbose &> ninja.log; then
+#if ninja --verbose &> ninja.log; then
+if ninja --verbose; then
   echo "done"
 else
   echo -e "failed.\n\n"

@@ -96,7 +96,7 @@ def main() -> None:
 
         with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
-            f.write(build("psmp", "local_hip"))
+            f.write(install_cp2k_cmake(f"toolchain_hip_{gpu_ver}", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
         f.write(install_deps_toolchain(with_dbcsr="no"))
@@ -168,19 +168,6 @@ CMD ["./test_regtest.sh", "{arch}", "{version}"]
 
 #EOF
 """
-    )
-
-
-# ======================================================================================
-def build(version: str, arch: str = "local") -> str:
-    return (
-        install_cp2k(version=version, arch=arch)
-        + rf"""
-# Run build test.
-COPY ./tools/docker/scripts/test_build.sh .
-RUN ./test_build.sh "{arch}" "{version}" 2>&1 | tee report.log
-"""
-        + print_cached_report()
     )
 
 
@@ -571,7 +558,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 # ======================================================================================
 def install_deps_toolchain_hip_rocm(gpu_ver: str) -> str:
     return rf"""
-FROM rocm/dev-ubuntu-22.04:5.3.2-complete
+FROM rocm/dev-ubuntu-24.04:7.1-complete
 
 # Install some Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -593,7 +580,7 @@ RUN hipconfig
         mpi_mode="mpich",
         enable_hip="yes",
         gpu_ver=gpu_ver,
-        with_dbcsr="no",
+        with_dbcsr="",
     )
 
 
