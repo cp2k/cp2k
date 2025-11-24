@@ -69,6 +69,7 @@ MODULE cp_output_handling_openpmd
    PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_openpmd_output_finalize
    PUBLIC :: cp_openpmd_get_default_extension
+   PUBLIC :: cp_openpmd_close_iteration
 
 #ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
@@ -685,6 +686,17 @@ CONTAINS
       CPABORT("CP2K compiled without the openPMD-api")
 #endif
    END SUBROUTINE cp_openpmd_print_key_finished_output
+
+   SUBROUTINE cp_openpmd_close_iteration(openpmd_basename, handle)
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      INTEGER, INTENT(IN) :: handle
+      TYPE(cp_openpmd_per_callsite_value_type) :: series_data
+      TYPE(openpmd_iteration_type) :: iteration
+
+      series_data = cp_openpmd_get_value_filedata(TRIM(openpmd_basename))
+      iteration = series_data%output_series%write_iteration(series_data%iteration_counter%flat_iteration)
+      CALL iteration%close()
+   END SUBROUTINE
 
    FUNCTION cp_openpmd_get_default_extension() RESULT(extension)
       CHARACTER(len=default_string_length)               :: extension

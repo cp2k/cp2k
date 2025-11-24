@@ -103,6 +103,7 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: as_attributable => openpmd_iteration_as_attributable
       PROCEDURE, PUBLIC :: get_mesh => openpmd_iteration_get_mesh
       PROCEDURE, PUBLIC :: get_particle_species => openpmd_iteration_get_particle_species
+      PROCEDURE, PUBLIC :: close => openpmd_iteration_close
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -657,6 +658,30 @@ MODULE openPMD_api
                   this%c_ptr, name//C_NULL_CHAR, particle_species%c_ptr)
          CPASSERT(C_ASSOCIATED(particle_species%c_ptr))
       END FUNCTION openpmd_iteration_get_particle_species
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+! **************************************************************************************************
+      SUBROUTINE openpmd_iteration_close(iteration)
+         CLASS(openpmd_iteration_type), INTENT(INOUT)           :: iteration
+
+         INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+! **************************************************************************************************
+            SUBROUTINE openpmd_c_iteration_close(iteration) &
+               BIND(C, name="openPMD_Iteration_close")
+               IMPORT :: C_PTR
+               TYPE(C_PTR), VALUE :: iteration
+            END SUBROUTINE openpmd_c_iteration_close
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(iteration%c_ptr))
+         CALL openpmd_c_iteration_close(iteration=iteration%c_ptr)
+         iteration%c_ptr = C_NULL_PTR
+      END SUBROUTINE openpmd_iteration_close
 
 ! **************************************************************************************************
 !> \brief ...
