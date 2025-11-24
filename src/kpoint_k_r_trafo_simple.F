@@ -10,12 +10,13 @@
 !> \note This code is less performant/more memory consuming than the methods in kpoint_methods.F
 !>       Use only when transformations are not the computational bottleneck.
 !> \par History
-!>       2025.11 created [Stepan Marek]
+!>       11.2025 created [Stepan Marek]
 !> \author Stepan Marek
 ! **************************************************************************************************
 MODULE kpoint_k_r_trafo_simple
    USE kinds,                             ONLY: dp
-   USE mathconstants,                     ONLY: twopi
+   USE mathconstants,                     ONLY: twopi, &
+                                                z_zero
    USE cp_dbcsr_api,                      ONLY: dbcsr_p_type, &
                                                 dbcsr_type, &
                                                 dbcsr_get_info, &
@@ -29,6 +30,8 @@ MODULE kpoint_k_r_trafo_simple
                                                 neighbor_list_iterator_create, &
                                                 neighbor_list_iterator_release
    USE kpoint_types,                      ONLY: kpoint_type
+   USE cp_cfm_types,                      ONLY: cp_cfm_type
+   USE cp_fm_types,                       ONLY: cp_fm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +41,11 @@ MODULE kpoint_k_r_trafo_simple
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_k_r_trafo_simple'
 
    PUBLIC :: replicate_rs_matrices, &
-      rs_to_kp
+      rs_to_kp, &
+      fm_rs_to_kp, &
+      add_kp_to_all_rs, &
+      fm_add_kp_to_all_rs, &
+      add_kp_to_rs
 
 CONTAINS
 ! **************************************************************************************************
@@ -226,12 +233,12 @@ CONTAINS
    END SUBROUTINE write_block_no_sym
 ! **************************************************************************************************
 !> \brief Integrate RS matrices (stored as Fortran array) into a kpoint matrix at given kp
-!> \param ks_real Array of resulting transformed 
 !> \param rs_real Multidimensional array of real parts of the matrix
-!> \param array Multidimensional array - matrices are duplicated on each MPI rank
+!> \param ks_real Array of resulting transformed 
 !> \param index_to_cell Gets the image cell coordinates from the rs_dbcsr index
-!> \param cell_to_index Gets the rs_dbcsr index from image cell coordinates
-!> \param deriv_direction Derivative direction - vector to take scalar product with the gradient
+!> \param xkp Single kpoint where the transformation is evalued at
+!> \param deriv_direction Derivative direction - indicates along which cartesian direction to take the derivative
+!> \param hmat Cell size matrix, required for the derivative
 !> \author Stepan Marek
 !> \date 11.2025
 ! **************************************************************************************************
@@ -248,51 +255,79 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN="rs_to_kp"
       INTEGER                                            :: handle, i, &
                                                             n_images
-                                                            ! row_size, &
-                                                            ! col_size, &
-                                                            ! n_images, &
-                                                            ! i, j, k
-      ! REAL(kind=dp)                                      :: cosfactor, &
-      !                                                       sinfactor
-      ! LOGICAL                                            :: derivs_required
 
       CALL timeset(routineN, handle)
       ! Get matrix constants
       n_images = SIZE(rs_real, 1)
       ! Get the required derivatives for the deriv direction
-      ! derivs_required = .FALSE.
-      ! IF (PRESENT(deriv_direction)) THEN
-      !    derivs_required = (deriv_direction /= 0)
-      !    IF (.NOT. PRESENT(hmat)) THEN
-      !       CALL cp_abort(__LOCATION__, "derivative requested but h matrix not provided")
-      !    END IF
-      ! END IF
+      IF (PRESENT(deriv_direction)) THEN
+         IF (.NOT. PRESENT(hmat) .AND. deriv_direction /= 0) THEN
+            CALL cp_abort(__LOCATION__, "Derivative requested but h matrix not provided!")
+         END IF
+      END IF
       ! Now, iterate over realspace and build the sum
-      ! TODO : OMP
       ks_complex(:,:) = CMPLX(0.0, 0.0, kind=dp)
       DO i=1,n_images
-         CALL add_rs_to_kp(ks_complex, rs_real, xkp, i, index_to_cell, deriv_direction, hmat)
-         ! ! Construct the phase and factors
-         ! deriv_factor = 1.0_dp
-         ! IF (derivs_required) THEN
-         !    cell_vectors = MATMUL(hmat, REAL(index_to_cell(1:3, i), dp))
-         !    deriv_factor = cell_vectors(deriv_direction)
-         ! END IF
-         ! cosfactor = COS(twopi * SUM(xkp * index_to_cell(:,i)))
-         ! sinfactor = SIN(twopi * SUM(xkp * index_to_cell(:,i)))
-         ! DO j=1,row_size
-         !    DO k=1,col_size
-         !       ks_real(j,k) = ks_real(j,k) + deriv_factor * cosfactor * rs_real(i, j, k)
-         !       ks_imag(j,k) = ks_imag(j,k) + deriv_factor * sinfactor * rs_real(i, j, k)
-         !    END DO
-         ! END DO
+         CALL add_rs_to_kp(ks_complex, rs_real(:,:,i), xkp, i, index_to_cell, deriv_direction, hmat)
       END DO
       CALL timestop(handle)
    END SUBROUTINE rs_to_kp
-   ! Extra routine, reusing the same code for fm-type transform
+! **************************************************************************************************
+!> \brief Transforms array of fm RS matrices into cfm k-space matrix, at given kpoint index
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \param cfm_kp The resulting complex fm matrix, containing the k-space matrix elements
+!> \param fm_rs The real space matrix array
+!> \param kpoints Structure containing information about number, positions, weights etc. of kpoints
+!> \param ikp Index of the target kpoint at which the transformation is evaluated
+! **************************************************************************************************
+   SUBROUTINE fm_rs_to_kp(cfm_kp, fm_rs, kpoints, ikp)
+      TYPE(cp_cfm_type)                                  :: cfm_kp
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_rs
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: ikp
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_rs_to_kp'
+
+      INTEGER                                            :: handle, img, nimages, nimages_fm_rs
+
+      CALL timeset(routineN, handle)
+
+      nimages = SIZE(kpoints%index_to_cell, 2)
+      nimages_fm_rs = SIZE(fm_rs)
+
+      IF (nimages /= nimages_fm_rs) CALL cp_abort(__LOCATION__, "Index to cell and provided fm "// &
+                                                  "array are inconsistent.")
+
+      cfm_kp%local_data(:, :) = z_zero
+      DO img = 1, nimages
+
+         CALL add_rs_to_kp(cfm_kp%local_data, fm_rs(img)%local_data, kpoints%xkp(1:3, ikp), &
+                           img, kpoints%index_to_cell)
+
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE fm_rs_to_kp
+! **************************************************************************************************
+!> \brief Adds a single RS array with correct phase factor to the target k-space argument
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Added k-derivative option [Shridhar Shanbhag]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \note Always produces non-symmetric matrix, given a non-symmetric RS array
+!> \param ks_array_out The array representing (part) of the complex k-space matrix
+!> \param rs_array_in The RS input array
+!> \param xkp The kpoint coordinates, in units of unit cell
+!> \param imindex The RS index, used for index to cell determination
+!> \param index_to_cell Getting cell coordinates from the imindex
+!> \param deriv_direction The cartesian direction of the derivative
+!> \param hmat The unit cell dimensions
+! **************************************************************************************************
    SUBROUTINE add_rs_to_kp(ks_array_out, rs_array_in, xkp, imindex, index_to_cell, deriv_direction, hmat)
       COMPLEX(kind=dp), DIMENSION(:,:), INTENT(INOUT)    :: ks_array_out
-      REAL(kind=dp), DIMENSION(:,:,:), INTENT(IN)        :: rs_array_in
+      REAL(kind=dp), DIMENSION(:,:), INTENT(IN)          :: rs_array_in
       REAL(kind=dp), DIMENSION(3), INTENT(IN)            :: xkp
       INTEGER, INTENT(IN)                                :: imindex
       INTEGER, DIMENSION(:,:), INTENT(IN)                :: index_to_cell
@@ -320,8 +355,135 @@ CONTAINS
       DO i=1, SIZE(ks_array_out, 1)
          DO j=1, SIZE(ks_array_out, 2)
             ks_array_out(i,j) = ks_array_out(i, j) + &
-                                deriv_factor * phase_factor * rs_array_in(i, j, imindex)
+                                deriv_factor * phase_factor * rs_array_in(i, j)
          END DO
       END DO
    END SUBROUTINE add_rs_to_kp
+! **************************************************************************************************
+!> \brief Adds given kpoint matrix to all rs matrices
+!> \note Part of transform in parallelism over k-points (hence why not for a single rs cell)
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \param cfm_kp The resulting complex fm matrix, containing the k-space matrix elements
+!> \param fm_rs The real space matrix array
+!> \param kpoints Structure containing information about number, positions, weights etc. of kpoints
+!> \param ikp Index of the target kpoint at which the transformation is evaluated
+! **************************************************************************************************
+   SUBROUTINE add_kp_to_all_rs(array_kp, array_rs, kpoints, ikp, index_to_cell_ext)
+      COMPLEX(kind=dp), DIMENSION(:,:)                   :: array_kp
+      REAL(kind=dp), DIMENSION(:,:,:)                    :: array_rs
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: ikp
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: index_to_cell_ext
+      CHARACTER(len=*), PARAMETER                        :: routineN="add_kp_to_all_rs"
+      INTEGER, DIMENSION(:,:), POINTER                   :: index_to_cell
+      INTEGER                                            :: img, handle
+      INTEGER, DIMENSION(3)                              :: cell
+
+      index_to_cell => kpoints%index_to_cell
+      IF (PRESENT(index_to_cell_ext)) index_to_cell => index_to_cell_ext
+
+      CALL timeset(routineN, handle)
+
+      IF (SIZE(array_rs, 3) /= SIZE(index_to_cell, 2)) CALL cp_abort(__LOCATION__, &
+         "The provided RS array and cell_to_index array are inconsistent.")
+
+      DO img=1, SIZE(array_rs, 3)
+         cell(:) = index_to_cell(:, img)
+         CALL add_kp_to_rs(array_kp, array_rs(:, :, img), cell, kpoints, ikp)
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE add_kp_to_all_rs
+! **************************************************************************************************
+!> \brief Adds given kpoint matrix to a single rs matrix
+!> \note Part of transform in parallelism over k-points (hence why not for a single rs cell)
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \param cfm_kp The input complex fm matrix, containing the k-space matrix elements
+!> \param fm_rs The real space matrix array
+!> \param kpoints Structure containing information about number, positions, weights etc. of kpoints
+!> \param ikp Index of the target kpoint at which the transformation is evaluated
+! **************************************************************************************************
+   SUBROUTINE fm_add_kp_to_all_rs(cfm_kp, fm_rs, kpoints, ikp)
+      TYPE(cp_cfm_type)                                  :: cfm_kp
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_rs
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: ikp
+      CHARACTER(len=*), PARAMETER                        :: routineN="fm_add_kp_all_rs"
+      INTEGER                                            :: handle, img
+      INTEGER, DIMENSION(3)                              :: cell
+
+      CALL timeset(routineN, handle)
+
+      IF (SIZE(fm_rs, 1) /= SIZE(kpoints%index_to_cell, 2)) CALL cp_abort(__LOCATION__, &
+         "The provided RS array and cell_to_index array are inconsistent.")
+
+      DO img=1,SIZE(fm_rs, 1)
+         cell(:) = kpoints%index_to_cell(:, img)
+         CALL add_kp_to_rs(cfm_kp%local_data, fm_rs(img)%local_data, cell, kpoints, ikp)
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE fm_add_kp_to_all_rs
+! **************************************************************************************************
+!> \brief Adds given kpoint matrix to a single rs matrix
+!> \note Part of transform in parallelism over k-points (hence why not for a single rs cell)
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \param array_kp The resulting complex fm matrix, containing the k-space matrix elements
+!> \param array_rs The real space matrix array
+!> \param cell The image cell of the target RS matrix
+!> \param kpoints Structure containing information about number, positions, weights etc. of kpoints
+!> \param ikp Index of the target kpoint at which the transformation is evaluated
+! **************************************************************************************************
+   SUBROUTINE add_kp_to_rs(array_kp, array_rs, cell, kpoints, ikp)
+      COMPLEX(kind=dp), DIMENSION(:,:)                   :: array_kp
+      REAL(kind=dp), DIMENSION(:, :)                     :: array_rs
+      INTEGER, DIMENSION(3)                              :: cell
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: ikp
+      REAL(kind=dp)                                      :: phase
+
+      ! Determine the phase
+      phase = twopi * SUM(kpoints%xkp(:, ikp) * cell(:))
+      ! The array is real - it is assumed that imaginary parts cancel each other, so they are not handled
+      ! Then e^(-i phi) S(k) = Re(S(k)) cos(phi) - i sin (phi) i Im(S(k)) = 
+      ! = Re(S(k)) cos(phi) + Im(S(k)) sin(phi)
+      array_rs(:, :) = array_rs(:, :) + (REAL(array_kp(:,:)) * COS(phase) + &
+                       AIMAG(array_kp(:,:)) * SIN(phase)) * kpoints%wkp(ikp)
+   END SUBROUTINE add_kp_to_rs
+! **************************************************************************************************
+!> \brief Calculates the inverse transform, assuming all kpoints are present on the given rank
+!> \note Part of transform in parallelism over k-points
+!> \par History
+!>    05.2024 Created [Jan Wilhelm]
+!>    11.2025 Moved to general file [Stepan Marek]
+!> \param array_kp The input complex fm matrix, containing the k-space matrix elements
+!> \param array_rs The output real space matrix array
+!> \param cell The image cell of the target RS matrix
+!> \param kpoints Structure containing information about number, positions, weights etc. of kpoints
+! **************************************************************************************************
+   SUBROUTINE kp_to_rs(array_kp, array_rs, cell, kpoints)
+      COMPLEX(kind=dp), DIMENSION(:,:,:)                 :: array_kp
+      REAL(kind=dp), DIMENSION(:,:)                      :: array_rs
+      INTEGER, DIMENSION(3)                              :: cell
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      CHARACTER(len=*), PARAMETER                        :: routineN="kp_to_rs"
+      INTEGER                                            :: handle, ikp
+
+      IF (kpoints%nkp /= SIZE(array_kp, 3)) CALL cp_abort(__LOCATION__, &
+         "Provided kpoints and array_kp are inconsistent.")
+
+      CALL timeset(routineN, handle)
+
+      array_rs(:,:) = 0.0_dp
+      DO ikp=1, kpoints%nkp
+         CALL add_kp_to_rs(array_kp(:,:,ikp), array_rs, cell, kpoints, ikp)
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE kp_to_rs
 END MODULE kpoint_k_r_trafo_simple

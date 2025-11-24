@@ -32,10 +32,13 @@ MODULE gw_small_cell_full_kp
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
-   USE gw_kp_to_real_space_and_back,    ONLY: add_ikp_to_all_rs,&
-                                              fm_add_ikp_to_rs,&
-                                              fm_trafo_rs_to_ikp
-   USE kpoint_k_r_trafo_simple,         ONLY: trafo_rs_to_ikp => rs_to_kp
+!    USE gw_kp_to_real_space_and_back,    ONLY: add_ikp_to_all_rs,&
+!                                               fm_add_ikp_to_rs,&
+!                                               fm_trafo_rs_to_ikp
+   USE kpoint_k_r_trafo_simple,         ONLY: trafo_rs_to_ikp => rs_to_kp, &
+                                              fm_trafo_rs_to_ikp => fm_rs_to_kp, &
+                                              add_ikp_to_all_rs => add_kp_to_all_rs, &
+                                              fm_add_ikp_to_rs => fm_add_kp_to_all_rs
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
