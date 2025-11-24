@@ -1494,6 +1494,7 @@ CONTAINS
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
 
          END DO
+         CALL mo_section%close_iteration("dft-mo", handle)
       END IF
 
       CALL timestop(handle)
@@ -1840,10 +1841,17 @@ CONTAINS
 
                CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
                                              stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
-         CALL elf_section_key%print_key_finished_output(unit_nr, logger, input, elf_section_key%absolute_section_key, mpi_io=mpi_io)
+               CALL elf_section_key%print_key_finished_output(
+                unit_nr,
+                logger,
+                input,
+                elf_section_key%absolute_section_key,
+                mpi_io=mpi_io)
 
                CALL auxbas_pw_pool%give_back_pw(elf_r(ispin))
             END DO
+
+            CALL elf_section_key%close_iteration("dft-elf", handle)
 
             ! deallocate
             DEALLOCATE (elf_r)
@@ -2537,6 +2545,7 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
+            CALL e_density_section%close_iteration("dft-total-electron-density", handle)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
                CALL pw_zero(rho_elec_gspace)
@@ -2583,6 +2592,7 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
+               CALL e_density_section%close_iteration("dft-total-spin-density", handle)
             END IF
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -2641,6 +2651,7 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
+               CALL e_density_section%close_iteration("dft-electron-density", handle)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             ELSE
                filename = "ELECTRON_DENSITY"
@@ -2664,6 +2675,7 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
+               CALL e_density_section%close_iteration("dft-electron-density", handle)
             END IF ! nspins
 
          ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
@@ -2720,6 +2732,7 @@ CONTAINS
                                             mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
+            CALL e_density_section%close_iteration("dft-electron-density", handle)
 
             !------------
             IF (dft_control%nspins > 1) THEN
@@ -2762,6 +2775,7 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
+            CALL e_density_section%close_iteration("dft-electron-density", handle)
             END IF ! nspins
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             DEALLOCATE (my_Q0)
