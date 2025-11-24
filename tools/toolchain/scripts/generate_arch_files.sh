@@ -396,14 +396,14 @@ EOF
 FYPPFLAGS   = -n --line-marker-format=gfortran5
 EOF
   fi
-  if [ "${with_intel}" != "__DONTUSE__" ]; then
+  if [ "${with_ifx}" != "no" ]; then
     cat << EOF >> $__filename
 #
 # Required due to memory leak that occurs if high optimisations are used
-#mp2_optimize_ri_basis.o: FCFLAGS += -O0
+mp2_optimize_ri_basis.o: FCFLAGS += -O0
 # Required due to SEGFAULTS occurring for higher optimisation levels
 hfx_contraction_methods.o: FCFLAGS += -O1
-#paw_basis_types.o: FCFLAGS += -O1
+paw_basis_types.o: FCFLAGS += -O1
 EOF
   fi
   # replace variable values in output file using eval
