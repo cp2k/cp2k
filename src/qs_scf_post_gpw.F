@@ -51,9 +51,9 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_print_key_finished_output,&
-                                              cp_openpmd_print_key_unit_nr,&
-                                              cp_openpmd_close_iteration
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_close_iteration,&
+                                              cp_openpmd_print_key_finished_output,&
+                                              cp_openpmd_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
@@ -438,6 +438,12 @@ CONTAINS
       END IF
    END SUBROUTINE cp_forward_print_key_finished_output
 
+! **************************************************************************************************
+!> \brief ...
+!> \param self ...
+!> \param openpmd_basename ...
+!> \param handle ...
+! **************************************************************************************************
    SUBROUTINE cp_forward_close_iteration(self, openpmd_basename, handle)
       CLASS(cp_section_key), INTENT(IN) :: self
       CHARACTER(len=*), INTENT(IN)             :: openpmd_basename
@@ -1844,11 +1850,11 @@ CONTAINS
                CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
                                              stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                CALL elf_section_key%print_key_finished_output(
-                unit_nr,
-                logger,
-                input,
-                elf_section_key%absolute_section_key,
-                mpi_io=mpi_io)
+               unit_nr,
+               logger,
+               input,
+               elf_section_key%absolute_section_key,
+               mpi_io = mpi_io)
 
                CALL auxbas_pw_pool%give_back_pw(elf_r(ispin))
             END DO

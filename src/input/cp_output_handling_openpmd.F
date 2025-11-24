@@ -696,7 +696,7 @@ CONTAINS
       series_data = cp_openpmd_get_value_filedata(TRIM(openpmd_basename))
       iteration = series_data%output_series%write_iteration(series_data%iteration_counter%flat_iteration)
       CALL iteration%close()
-   END SUBROUTINE
+   END SUBROUTINE cp_openpmd_close_iteration
 
    FUNCTION cp_openpmd_get_default_extension() RESULT(extension)
       CHARACTER(len=default_string_length)               :: extension
