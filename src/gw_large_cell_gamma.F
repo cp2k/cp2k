@@ -2267,7 +2267,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_skipping'
 
       INTEGER                                            :: handle, i_intval_idx, j_intval_idx, &
-                                                            n_skip_sigma, n_skip_chi
+                                                            n_skip_sigma, n_skip_chi, n_pairs
 
       CALL timeset(routineN, handle)
 
@@ -2286,13 +2286,21 @@ CONTAINS
          END DO
       END DO
 
+      n_pairs = bs_env%n_intervals_i*bs_env%n_intervals_j
+
+      CALL bs_env%para_env_tensor%sum(n_skip_sigma)
+      CALL bs_env%para_env_tensor%sum(n_skip_chi)
+      CALL bs_env%para_env_tensor%sum(n_pairs)
+
+
+
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
             'Sparsity of Σ^c(iτ,k=0): Percentage of skipped atom pairs:', &
-            REAL(100*n_skip_sigma, KIND=dp)/REAL(i_intval_idx*j_intval_idx, KIND=dp), ' %'
+            REAL(100*n_skip_sigma, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
             'Sparsity of χ(iτ,k=0): Percentage of skipped atom pairs:', &
-            REAL(100*n_skip_chi, KIND=dp)/REAL(i_intval_idx*j_intval_idx, KIND=dp), ' %'
+            REAL(100*n_skip_chi, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
       END IF
 
       CALL timestop(handle)
