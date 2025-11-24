@@ -34,8 +34,8 @@ MODULE gw_small_cell_full_kp
                                               local_dbt_to_global_fm
    USE gw_kp_to_real_space_and_back,    ONLY: add_ikp_to_all_rs,&
                                               fm_add_ikp_to_rs,&
-                                              fm_trafo_rs_to_ikp,&
-                                              trafo_rs_to_ikp
+                                              fm_trafo_rs_to_ikp
+   USE kpoint_k_r_trafo_simple,         ONLY: trafo_rs_to_ikp => rs_to_kp
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -163,8 +163,8 @@ CONTAINS
 
                DO i_cell_R2 = 1, bs_env%nimages_3c
 
-                  cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
-                  cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+                  cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
+                  cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
                   ! R_1 = R_2 + ΔR (from ΔR = R_2 - R_1)
                   CALL add_R(cell_R2, cell_DR, bs_env%index_to_cell_3c, cell_R1, &
@@ -300,14 +300,14 @@ CONTAINS
 
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_int)
 
-      cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-      cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
+      cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+      cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
 
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
 
          IF (skip_DR_R1_S_Gx3c(i_task_Delta_R_local, i_cell_R1, i_cell_S)) CYCLE
 
-         cell_S(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S, 1:3)
+         cell_S(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_S)
          cell_R1_plus_cell_S(1:3) = cell_R1(1:3) + cell_S(1:3)
 
          CALL is_cell_in_index_to_cell(cell_R1_plus_cell_S, bs_env%index_to_cell_3c, cell_found)
@@ -499,9 +499,9 @@ CONTAINS
 
             i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
 
-            cell_R(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
-            cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
-            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+            cell_R(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R)
+            cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
+            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
             ! R_1 = R_2 + ΔR (from ΔR = R_2 - R_1)
             CALL add_R(cell_R2, cell_DR, bs_env%index_to_cell_3c, cell_R1, &
@@ -1175,8 +1175,8 @@ CONTAINS
 
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
-         cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+         cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
          ! S_1 = R_1 + ΔR (from ΔR = S_1 - R_1)
          CALL add_R(cell_R1, cell_DR, bs_env%index_to_cell_3c, cell_S1, &
@@ -1185,7 +1185,7 @@ CONTAINS
 
          DO i_cell_R2 = 1, bs_env%nimages_scf_desymm
 
-            cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R2, 1:3)
+            cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R2)
 
             ! R_2 - R_1
             CALL add_R(cell_R2, -cell_R1, bs_env%index_to_cell_3c, cell_R2_m_R1, &
@@ -1276,8 +1276,8 @@ CONTAINS
 
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
-         cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+         cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
          ! S_1 = R_1 + ΔR (from ΔR = S_1 - R_1)
          CALL add_R(cell_R1, cell_DR, bs_env%index_to_cell_3c, cell_S1, cell_found, &
@@ -1288,7 +1288,7 @@ CONTAINS
 
             IF (bs_env%skip_DR_R1_S2_Gx3c_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_S2)) CYCLE
 
-            cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S2, 1:3)
+            cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_S2)
             cell_m_R1(1:3) = -cell_R1(1:3)
             cell_S1_p_S2_m_R1(1:3) = cell_S1(1:3) + cell_S2(1:3) - cell_R1(1:3)
 
@@ -1335,7 +1335,7 @@ CONTAINS
 
             IF (bs_env%skip_DR_R1_R_MxM_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_R)) CYCLE
 
-            cell_R = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
+            cell_R = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R)
 
             ! R_1 - R
             CALL add_R(cell_R1, -cell_R, bs_env%index_to_cell_3c, cell_R1_minus_R, &

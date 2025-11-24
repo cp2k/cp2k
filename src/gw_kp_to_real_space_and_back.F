@@ -28,7 +28,7 @@ MODULE gw_kp_to_real_space_and_back
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_kp_to_real_space_and_back'
 
-   PUBLIC :: fm_trafo_rs_to_ikp, trafo_rs_to_ikp, trafo_ikp_to_rs, fm_add_ikp_to_rs, &
+   PUBLIC :: fm_trafo_rs_to_ikp, trafo_ikp_to_rs, fm_add_ikp_to_rs, &
              add_ikp_to_all_rs
 
 CONTAINS
@@ -52,7 +52,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nimages = SIZE(kpoints%index_to_cell, 1)
+      nimages = SIZE(kpoints%index_to_cell, 2)
       nimages_fm_rs = SIZE(fm_rs)
 
       CPASSERT(nimages == nimages_fm_rs)
@@ -69,40 +69,40 @@ CONTAINS
 
    END SUBROUTINE fm_trafo_rs_to_ikp
 
-! **************************************************************************************************
-!> \brief ...
-!> \param array_rs ...
-!> \param array_kp ...
-!> \param index_to_cell ...
-!> \param xkp ...
-! **************************************************************************************************
-   SUBROUTINE trafo_rs_to_ikp(array_rs, array_kp, index_to_cell, xkp)
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: array_rs
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: array_kp
-      INTEGER, DIMENSION(:, :)                           :: index_to_cell
-      REAL(KIND=dp)                                      :: xkp(3)
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_rs_to_ikp'
-
-      INTEGER                                            :: handle, i_cell, nimages
-
-      CALL timeset(routineN, handle)
-
-      nimages = SIZE(index_to_cell, 1)
-
-      CPASSERT(nimages == SIZE(array_rs, 3))
-
-      array_kp(:, :) = 0.0_dp
-      DO i_cell = 1, nimages
-
-         CALL add_rs_to_ikp(array_rs(:, :, i_cell), array_kp, index_to_cell, xkp, i_cell)
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE trafo_rs_to_ikp
-
+! ! **************************************************************************************************
+! !> \brief ...
+! !> \param array_rs ...
+! !> \param array_kp ...
+! !> \param index_to_cell ...
+! !> \param xkp ...
+! ! **************************************************************************************************
+!    SUBROUTINE trafo_rs_to_ikp(array_rs, array_kp, index_to_cell, xkp)
+!       REAL(KIND=dp), DIMENSION(:, :, :)                  :: array_rs
+!       COMPLEX(KIND=dp), DIMENSION(:, :)                  :: array_kp
+!       INTEGER, DIMENSION(:, :)                           :: index_to_cell
+!       REAL(KIND=dp)                                      :: xkp(3)
+! 
+!       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_rs_to_ikp'
+! 
+!       INTEGER                                            :: handle, i_cell, nimages
+! 
+!       CALL timeset(routineN, handle)
+! 
+!       nimages = SIZE(index_to_cell, 1)
+! 
+!       CPASSERT(nimages == SIZE(array_rs, 3))
+! 
+!       array_kp(:, :) = 0.0_dp
+!       DO i_cell = 1, nimages
+! 
+!          CALL add_rs_to_ikp(array_rs(:, :, i_cell), array_kp, index_to_cell, xkp, i_cell)
+! 
+!       END DO
+! 
+!       CALL timestop(handle)
+! 
+!    END SUBROUTINE trafo_rs_to_ikp
+! 
 ! **************************************************************************************************
 !> \brief ...
 !> \param array_rs ...
@@ -126,9 +126,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      arg = REAL(index_to_cell(i_cell, 1), dp)*xkp(1) + &
-            REAL(index_to_cell(i_cell, 2), dp)*xkp(2) + &
-            REAL(index_to_cell(i_cell, 3), dp)*xkp(3)
+      arg = REAL(index_to_cell(1, i_cell), dp)*xkp(1) + &
+            REAL(index_to_cell(2, i_cell), dp)*xkp(2) + &
+            REAL(index_to_cell(3, i_cell), dp)*xkp(3)
 
       expikR = z_one*COS(twopi*arg) + gaussi*SIN(twopi*arg)
 
@@ -191,20 +191,20 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nimages = SIZE(kpoints%index_to_cell, 1)
+      nimages = SIZE(kpoints%index_to_cell, 2)
       nimages_fm_rs = SIZE(fm_rs)
 
       CPASSERT(nimages == nimages_fm_rs)
 
-      ALLOCATE (index_to_cell(nimages, 3))
-      index_to_cell(1:nimages, 1:3) = kpoints%index_to_cell(1:nimages, 1:3)
+      ALLOCATE (index_to_cell(3, nimages))
+      index_to_cell(1:3, 1:nimages) = kpoints%index_to_cell(1:3, 1:nimages)
 
       DO img = 1, nimages
 
          IF (ikp == 1) CALL cp_fm_set_all(fm_rs(img), 0.0_dp)
 
          CALL add_ikp_to_rs(cfm_ikp%local_data(:, :), fm_rs(img)%local_data, &
-                            index_to_cell(img, 1:3), kpoints, ikp)
+                            index_to_cell(1:3, img), kpoints, ikp)
 
       END DO
 
@@ -240,11 +240,11 @@ CONTAINS
          index_to_cell => kpoints%index_to_cell
       END IF
 
-      nimages = SIZE(index_to_cell, 1)
+      nimages = SIZE(index_to_cell, 2)
       CPASSERT(SIZE(array_rs, 3) == nimages)
       DO img = 1, nimages
 
-         cell(1:3) = index_to_cell(img, 1:3)
+         cell(1:3) = index_to_cell(1:3, img)
 
          CALL add_ikp_to_rs(array_kp, array_rs(:, :, img), cell, kpoints, ikp)
 

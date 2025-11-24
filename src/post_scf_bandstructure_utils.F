@@ -447,7 +447,7 @@ CONTAINS
       IF (ASSOCIATED(kpoints%cell_to_index)) DEALLOCATE (kpoints%cell_to_index)
 
       ALLOCATE (kpoints%cell_to_index(-cixd(1):cixd(1), -cixd(2):cixd(2), -cixd(3):cixd(3)))
-      ALLOCATE (kpoints%index_to_cell(nimages, 3))
+      ALLOCATE (kpoints%index_to_cell(3, nimages))
 
       img = 0
       DO i_cell_x = -cixd(1), cixd(1)
@@ -455,7 +455,7 @@ CONTAINS
             DO k_cell_z = -cixd(3), cixd(3)
                img = img + 1
                kpoints%cell_to_index(i_cell_x, j_cell_y, k_cell_z) = img
-               kpoints%index_to_cell(img, 1:3) = [i_cell_x, j_cell_y, k_cell_z]
+               kpoints%index_to_cell(1:3, img) = [i_cell_x, j_cell_y, k_cell_z]
             END DO
          END DO
       END DO
@@ -533,7 +533,7 @@ CONTAINS
 
       IF (ASSOCIATED(kpoints%index_to_cell)) DEALLOCATE (kpoints%index_to_cell)
 
-      ALLOCATE (kpoints%index_to_cell(bs_env%nimages_scf_desymm, 3))
+      ALLOCATE (kpoints%index_to_cell(3, bs_env%nimages_scf_desymm))
       kpoints%index_to_cell(:, :) = bs_env%kpoints_scf_desymm%index_to_cell(:, :)
 
       u = bs_env%unit_nr

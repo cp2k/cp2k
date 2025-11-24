@@ -320,6 +320,7 @@ list(
   kg_vertex_coloring_methods.F
   kpoint_coulomb_2c.F
   kpoint_io.F
+  kpoint_k_r_trafo_simple.F
   kpoint_methods.F
   kpoint_transitional.F
   kpoint_types.F
