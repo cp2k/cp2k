@@ -133,7 +133,8 @@ MODULE qs_active_space_methods
                                    set_qs_env
    USE qs_integrate_potential, ONLY: integrate_v_rspace
    USE qs_kind_types, ONLY: qs_kind_type
-   USE qs_ks_methods, ONLY: qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix
+   USE qs_ks_methods, ONLY: qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
+                            evaluate_core_matrix_traces
    USE qs_ks_types, ONLY: qs_ks_did_change, &
                           qs_ks_env_type, set_ks_env
    USE qs_mo_io, ONLY: write_mo_set_to_output_unit
@@ -223,8 +224,8 @@ CONTAINS
       LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
                                                             ex_perd, ex_rcut, explicit, &
                                                             stop_after_print, store_wfn
-      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_omega, &
-         eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
+      REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
+         eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -305,6 +306,10 @@ CONTAINS
       IF (MOD(nelec_inactive, 2) /= 0) THEN
          CPABORT("The remaining number of inactive electrons has to be even.")
       END IF
+
+      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
+      active_space_env%alpha = alpha
 
       IF (iw > 0) THEN
          WRITE (iw, '(T3,A,T70,I10)') "Total number of electrons", nelec_total
@@ -1010,7 +1015,7 @@ CONTAINS
       IF (ASSOCIATED(xc_section)) THEN
          CALL section_vals_get(xc_section, explicit=explicit)
       END IF
-      IF (.NOT.explicit) THEN
+      IF (.NOT. explicit) THEN
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
       ! set the xc_section
@@ -2908,9 +2913,9 @@ CONTAINS
       MARK_USED(as_input)
 #else
 
-      INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter, ispin, nelectron_total
+      INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter, nelectron_total
       LOGICAL                                            :: converged, do_scf_embedding, ionode
-      REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
+      REAL(KIND=dp)                                      :: delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
       CHARACTER(LEN=default_string_length)               :: basis_type
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2925,8 +2930,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: h_matrix, ks_matrix
-      TYPE(section_vals_type), POINTER                   :: hfx_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section, input
 
       CALL timeset(routineN, handle)
 
@@ -2945,10 +2949,6 @@ CONTAINS
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
       IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
-      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
-      ! alpha = 0.0
-      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
-      active_space_env%alpha = alpha
 
       ! create the socket and wait for the client to connect
       CALL initialize_socket(socket_fd, client_fd, as_input, ionode)
@@ -2959,37 +2959,37 @@ CONTAINS
 
       ! get pointer to density in ao basis
       CALL get_qs_env(qs_env, rho=rho, energy=energy, dft_control=dft_control, &
-                     matrix_ks_kp=ks_matrix, matrix_h_kp=h_matrix, ks_env=ks_env)
+                      ks_env=ks_env, input=input)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-      ispin=1
-      ! CALL cp_dbcsr_write_sparse_matrix(ks_matrix(ispin, 1)%matrix, 4, 4, qs_env, para_env, &
-      !                                   output_unit=iw, omit_headers=.FALSE.)
 
-      ! for SRSH functionals we need to redefine the functional and compute LR HFx
-      ! if there was HFx in the SCF functional, release it
-      IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
+      ! only rebuild the hf section if different from the dft one
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      IF (.NOT.ASSOCIATED(active_space_env%xc_section, xc_section)) THEN
 
-      CALL get_qs_env(qs_env, nelectron_total=nelectron_total, atomic_kind_set=atomic_kind_set,&
-      qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
-      IF (dft_control%do_admm) THEN
-         basis_type = 'AUX_FIT'
-      ELSE
-         basis_type = 'ORB'
-      END IF
-      hfx_section => section_vals_get_subs_vals(active_space_env%xc_section, "HF")
-      CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
+         IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
+
+         CALL get_qs_env(qs_env, nelectron_total=nelectron_total, atomic_kind_set=atomic_kind_set, &
+                        qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
+         IF (dft_control%do_admm) THEN
+            basis_type = 'AUX_FIT'
+         ELSE
+            basis_type = 'ORB'
+         END IF
+         hfx_section => section_vals_get_subs_vals(active_space_env%xc_section, "HF")
+         CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
                         qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
                         nelectron_total=nelectron_total)
 
-      qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
+         qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
 
-      ! a bit of a hack: this forces a new re-init of HFX
-      CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
-      CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
-                                        just_energy=.FALSE., &
-                                        ext_xc_section=active_space_env%xc_section)
-      WRITE (UNIT=iw, FMT="(T3,A,T56,F25.14)") &
-      "Hartree-Fock Exchange energy:                  ", energy%ex
+         ! a bit of a hack: this forces a new re-init of HFX
+         CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                          just_energy=.FALSE., &
+                                          ext_xc_section=active_space_env%xc_section)
+         ! we need to reset it to false
+         CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
+      END IF
 
       ! transform KS/Fock, Vxc and Hcore to AS MO basis
       CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
@@ -2998,15 +2998,12 @@ CONTAINS
       ! calculate inactive energy and embedding potential
       CALL subspace_fock_matrix(active_space_env)
 
-      ! CALL cp_dbcsr_write_sparse_matrix(ks_matrix(ispin, 1)%matrix, 4, 4, qs_env, para_env, &
-      !                                   output_unit=iw, omit_headers=.FALSE.)
-
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
-         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", alpha
+         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", active_space_env%alpha
 
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
@@ -3052,9 +3049,13 @@ CONTAINS
          ! calculate F_ks in AO basis (which contains Vxc) with the new density
          CALL qs_rho_update_rho(rho, qs_env=qs_env) ! updates rho_r and rho_g using rho_ao
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.) ! set flags about the change
-         ! TODO: this is the problem as it calls the build_kohn_sham routine without the new xc_section
-         ! and therefore adds the input xc section on top
-         CALL qs_ks_update_qs_env(qs_env) ! this call actually calculates F_ks
+         ! Re-evaluate the traces between the density matrix and the core Hamiltonians
+         CALL evaluate_core_matrix_traces(qs_env)
+         ! the ks matrix will be rebuilt so this is fine now
+         ! CALL set_ks_env(qs_env%ks_env, potential_changed=.FALSE.)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=active_space_env%xc_section)
 
          ! update the reference energy
          active_space_env%energy_ref = energy%total

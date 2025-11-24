@@ -59,8 +59,7 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -146,7 +145,7 @@ MODULE qs_ks_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
-             qs_ks_allocate_basics, evaluate_core_matrix_p_mix_new
+             qs_ks_allocate_basics, evaluate_core_matrix_p_mix_new, evaluate_core_matrix_traces
 
 CONTAINS
 
@@ -160,6 +159,7 @@ CONTAINS
 !>        ks matrix. Defaults to false
 !> \param print_active ...
 !> \param ext_ks_matrix ...
+!> \param ext_xc_section ...
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -181,7 +181,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
-      TYPE(section_vals_type), POINTER, OPTIONAL         :: ext_xc_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 

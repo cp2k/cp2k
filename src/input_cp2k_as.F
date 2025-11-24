@@ -25,6 +25,7 @@ MODULE input_cp2k_as
         eri_operator_trunc, eri_operator_yukawa, gaussian, manual_selection, mao_projection, &
         no_solver, qiskit_solver, wannier_projection
    USE input_cp2k_loc,                  ONLY: create_localize_section
+   USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -33,7 +34,6 @@ MODULE input_cp2k_as
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               lchar_t,&

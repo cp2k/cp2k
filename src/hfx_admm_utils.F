@@ -1128,6 +1128,7 @@ CONTAINS
 !> \param just_energy ...
 !> \param v_rspace_new ...
 !> \param v_tau_rspace ...
+!> \param ext_xc_section ...
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! **************************************************************************************************
@@ -1141,7 +1142,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_rspace_new, v_tau_rspace
-      TYPE(section_vals_type), POINTER, OPTIONAL         :: ext_xc_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix'
 
