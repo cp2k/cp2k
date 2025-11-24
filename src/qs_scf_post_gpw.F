@@ -51,7 +51,7 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_close_iteration,&
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_close_iterations,&
                                               cp_openpmd_print_key_finished_output,&
                                               cp_openpmd_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
@@ -242,7 +242,6 @@ MODULE qs_scf_post_gpw
       PROCEDURE, PUBLIC :: write_pw => cp_forward_write_pw
       ! Close either the Cube or openPMD file
       PROCEDURE, PUBLIC :: print_key_finished_output => cp_forward_print_key_finished_output
-      PROCEDURE, PUBLIC :: close_iteration => cp_forward_close_iteration
       ! Helpers
       PROCEDURE, PUBLIC :: do_openpmd => cp_section_key_do_openpmd
       PROCEDURE, PUBLIC :: do_cubes => cp_section_key_do_cubes
@@ -435,22 +434,6 @@ CONTAINS
       CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
       END IF
    END SUBROUTINE cp_forward_print_key_finished_output
-
-! **************************************************************************************************
-!> \brief ...
-!> \param self ...
-!> \param openpmd_basename ...
-!> \param handle ...
-! **************************************************************************************************
-   SUBROUTINE cp_forward_close_iteration(self, openpmd_basename, handle)
-      CLASS(cp_section_key), INTENT(IN) :: self
-      CHARACTER(len=*), INTENT(IN)             :: openpmd_basename
-      INTEGER, INTENT(IN) :: handle
-
-      IF (self%grid_output == grid_output_openpmd) THEN
-         CALL cp_openpmd_close_iteration(openpmd_basename, handle)
-      END IF
-   END SUBROUTINE cp_forward_close_iteration
 
    !
 ! **************************************************************************************************
@@ -1127,6 +1110,8 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       END IF
 
+      CALL cp_openpmd_close_iterations()
+
       CALL timestop(handle)
 
    END SUBROUTINE scf_post_calculation_gpw
@@ -1400,7 +1385,6 @@ CONTAINS
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
          END DO
-         CALL mo_section%close_iteration("dft-mo", handle)
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
 
@@ -1500,7 +1484,6 @@ CONTAINS
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
 
          END DO
-         CALL mo_section%close_iteration("dft-mo", handle)
       END IF
 
       CALL timestop(handle)
@@ -1847,17 +1830,15 @@ CONTAINS
 
                CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
                                              stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
-               CALL elf_section_key%print_key_finished_output(
-               unit_nr,
-               logger,
-               input,
-               elf_section_key%absolute_section_key,
-               mpi_io = mpi_io)
+               CALL elf_section_key%print_key_finished_output( &
+                  unit_nr, &
+                  logger, &
+                  input, &
+                  elf_section_key%absolute_section_key, &
+                  mpi_io=mpi_io)
 
                CALL auxbas_pw_pool%give_back_pw(elf_r(ispin))
             END DO
-
-            CALL elf_section_key%close_iteration("dft-elf", handle)
 
             ! deallocate
             DEALLOCATE (elf_r)
@@ -2551,7 +2532,6 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
-            CALL e_density_section%close_iteration("dft-total-electron-density", handle)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
                CALL pw_zero(rho_elec_gspace)
@@ -2598,7 +2578,6 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
-               CALL e_density_section%close_iteration("dft-total-spin-density", handle)
             END IF
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -2657,7 +2636,6 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
-               CALL e_density_section%close_iteration("dft-electron-density", handle)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             ELSE
                filename = "ELECTRON_DENSITY"
@@ -2681,7 +2659,6 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
-               CALL e_density_section%close_iteration("dft-electron-density", handle)
             END IF ! nspins
 
          ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
@@ -2738,7 +2715,6 @@ CONTAINS
                                             mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
-            CALL e_density_section%close_iteration("dft-electron-density", handle)
 
             !------------
             IF (dft_control%nspins > 1) THEN
@@ -2781,7 +2757,6 @@ CONTAINS
                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
-            CALL e_density_section%close_iteration("dft-electron-density", handle)
             END IF ! nspins
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             DEALLOCATE (my_Q0)

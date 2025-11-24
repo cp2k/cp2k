@@ -69,7 +69,7 @@ MODULE cp_output_handling_openpmd
    PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_openpmd_output_finalize
    PUBLIC :: cp_openpmd_get_default_extension
-   PUBLIC :: cp_openpmd_close_iteration
+   PUBLIC :: cp_openpmd_close_iterations
 
 #ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
@@ -687,16 +687,23 @@ CONTAINS
 #endif
    END SUBROUTINE cp_openpmd_print_key_finished_output
 
-   SUBROUTINE cp_openpmd_close_iteration(openpmd_basename, handle)
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
-      INTEGER, INTENT(IN) :: handle
+   SUBROUTINE cp_openpmd_close_iterations()
+#ifdef __OPENPMD
+      INTEGER                                  :: handle
+      CHARACTER(len=*), PARAMETER              :: routineN = 'cp_openpmd_close_iterations'
       TYPE(cp_openpmd_per_callsite_value_type) :: series_data
-      TYPE(openpmd_iteration_type) :: iteration
+      TYPE(openpmd_iteration_type)             :: iteration
+      INTEGER                                  :: i
 
-      series_data = cp_openpmd_get_value_filedata(TRIM(openpmd_basename))
-      iteration = series_data%output_series%write_iteration(series_data%iteration_counter%flat_iteration)
-      CALL iteration%close()
-   END SUBROUTINE cp_openpmd_close_iteration
+      CALL timeset(routineN, handle)
+      DO i = 1, cp_num_openpmd_per_callsite
+         series_data = cp_openpmd_per_callsite(i)%value
+         iteration = series_data%output_series%write_iteration(series_data%iteration_counter%flat_iteration)
+         CALL iteration%close()
+      END DO
+      CALL timestop(handle)
+#endif
+   END SUBROUTINE cp_openpmd_close_iterations
 
    FUNCTION cp_openpmd_get_default_extension() RESULT(extension)
       CHARACTER(len=default_string_length)               :: extension
