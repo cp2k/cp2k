@@ -52,7 +52,8 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_output_handling_openpmd,      ONLY: cp_openpmd_print_key_finished_output,&
-                                              cp_openpmd_print_key_unit_nr
+                                              cp_openpmd_print_key_unit_nr,&
+                                              cp_openpmd_close_iteration
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
@@ -241,6 +242,7 @@ MODULE qs_scf_post_gpw
       PROCEDURE, PUBLIC :: write_pw => cp_forward_write_pw
       ! Close either the Cube or openPMD file
       PROCEDURE, PUBLIC :: print_key_finished_output => cp_forward_print_key_finished_output
+      PROCEDURE, PUBLIC :: close_iteration => cp_forward_close_iteration
       ! Helpers
       PROCEDURE, PUBLIC :: do_openpmd => cp_section_key_do_openpmd
       PROCEDURE, PUBLIC :: do_cubes => cp_section_key_do_cubes
@@ -435,6 +437,16 @@ CONTAINS
       CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
       END IF
    END SUBROUTINE cp_forward_print_key_finished_output
+
+   SUBROUTINE cp_forward_close_iteration(self, openpmd_basename, handle)
+      CLASS(cp_section_key), INTENT(IN) :: self
+      CHARACTER(len=*), INTENT(IN)             :: openpmd_basename
+      INTEGER, INTENT(IN) :: handle
+
+      IF (self%grid_output == grid_output_openpmd) THEN
+         CALL cp_openpmd_close_iteration(openpmd_basename, handle)
+      END IF
+   END SUBROUTINE cp_forward_close_iteration
 
    !
 ! **************************************************************************************************
@@ -1384,6 +1396,7 @@ CONTAINS
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
          END DO
+         CALL mo_section%close_iteration("dft-mo", handle)
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
 
