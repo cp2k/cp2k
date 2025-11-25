@@ -58,7 +58,7 @@ MODULE gw_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
-   USE kpoint_k_r_trafo_simple,         ONLY: trafo_rs_to_ikp => rs_to_kp
+   USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
                                               ri_rpa_g0w0_crossing_newton,&
@@ -2950,7 +2950,7 @@ CONTAINS
          ikp_local = ikp_local + 1
 
          ! M(k) = sum_R e^ikR M^R
-         CALL trafo_rs_to_ikp(M_R, M(:, :, ikp_local), &
+         CALL rs_to_kp(M_R, M(:, :, ikp_local), &
                               bs_env%kpoints_scf_desymm%index_to_cell, &
                               bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
