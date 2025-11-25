@@ -216,6 +216,7 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       CHARACTER(len=default_path_length)                 :: qcschema_filename
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: as_solver, eri_method, eri_operator, eri_print, group_size, handle, i, iatom, &
          ishell, isp, ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, &
          nelec_active, nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
@@ -230,6 +231,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
       TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -237,20 +239,24 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_target_active, fm_target_inactive, &
                                                             fmat, mo_coeff, mo_ref, mo_target
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qcschema_type)                                :: qcschema_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling, as_input, input, &
                                                             loc_print, loc_section, print_orb, &
-                                                            xc_section
+                                                            xc_section, hfx_section
 
       !--------------------------------------------------------------------------------------------!
 
@@ -1021,14 +1027,49 @@ CONTAINS
       ! figure out if we have a new xc section for the AS
       xc_section => section_vals_get_subs_vals(input, "DFT%ACTIVE_SPACE%XC")
       explicit = .FALSE.
-      IF (ASSOCIATED(xc_section)) THEN
-         CALL section_vals_get(xc_section, explicit=explicit)
-      END IF
-      IF (.NOT. explicit) THEN
+      IF (ASSOCIATED(xc_section)) CALL section_vals_get(xc_section, explicit=explicit)
+
+      ! rebuild KS matrix if needed
+      IF (explicit) THEN
+         ! release the hfx data if it was part of the SCF functional
+         IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
+         ! also release the admm environment in case we are using admm
+         IF (ASSOCIATED(qs_env%admm_env)) CALL admm_env_release(qs_env%admm_env)
+
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                         particle_set=particle_set, cell=cell, ks_env=ks_env)
+         IF (dft_control%do_admm) THEN
+            basis_type = 'AUX_FIT'
+         ELSE
+            basis_type = 'ORB'
+         END IF
+         hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+         CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
+                        qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
+                        nelectron_total=nelec_total)
+
+         qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
+
+         ! a bit of a hack: this forces a new re-init of HFX
+         CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                          just_energy=.FALSE., &
+                                          ext_xc_section=xc_section)
+         ! we need to reset it to false
+         CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
+      ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
       ! set the xc_section
       active_space_env%xc_section => xc_section
+
+      CALL get_qs_env(qs_env, energy=energy)
+      ! transform KS/Fock, Vxc and Hcore to AS MO basis
+      CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
+      ! set the reference energy in the active space
+      active_space_env%energy_ref = energy%total
+      ! calculate inactive energy and embedding potential
+      CALL subspace_fock_matrix(active_space_env)
 
       ! associate the active space environment with the qs environment
       CALL set_qs_env(qs_env, active_space=active_space_env)
@@ -2922,24 +2963,17 @@ CONTAINS
       MARK_USED(as_input)
 #else
 
-      INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter, nelectron_total
+      INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter
       LOGICAL                                            :: converged, do_scf_embedding, ionode
       REAL(KIND=dp)                                      :: delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
-      CHARACTER(LEN=default_string_length)               :: basis_type
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section, input
 
       CALL timeset(routineN, handle)
 
@@ -2967,48 +3001,8 @@ CONTAINS
       CALL send_eri_to_client(client_fd, active_space_env, para_env)
 
       ! get pointer to density in ao basis
-      CALL get_qs_env(qs_env, rho=rho, energy=energy, dft_control=dft_control, &
-                      ks_env=ks_env, input=input)
+      CALL get_qs_env(qs_env, rho=rho, energy=energy, ks_env=ks_env)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-      ! only rebuild the hf section if different from the dft one
-      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      IF (.NOT. ASSOCIATED(active_space_env%xc_section, xc_section)) THEN
-
-         ! release the hfx data if it was part of the SCF functional
-         IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
-         ! also release the admm environment in case we are using admm
-         IF (ASSOCIATED(qs_env%admm_env)) CALL admm_env_release(qs_env%admm_env)
-
-         CALL get_qs_env(qs_env, nelectron_total=nelectron_total, atomic_kind_set=atomic_kind_set, &
-                         qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
-         IF (dft_control%do_admm) THEN
-            basis_type = 'AUX_FIT'
-         ELSE
-            basis_type = 'ORB'
-         END IF
-         hfx_section => section_vals_get_subs_vals(active_space_env%xc_section, "HF")
-         CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
-                         nelectron_total=nelectron_total)
-
-         qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
-
-         ! a bit of a hack: this forces a new re-init of HFX
-         CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
-         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
-                                           just_energy=.FALSE., &
-                                           ext_xc_section=active_space_env%xc_section)
-         ! we need to reset it to false
-         CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
-      END IF
-
-      ! transform KS/Fock, Vxc and Hcore to AS MO basis
-      CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
-      ! set the reference energy in the active space
-      active_space_env%energy_ref = energy%total
-      ! calculate inactive energy and embedding potential
-      CALL subspace_fock_matrix(active_space_env)
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
