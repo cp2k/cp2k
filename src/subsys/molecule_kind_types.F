@@ -24,12 +24,13 @@ MODULE molecule_kind_types
                                               use_perd_yz,&
                                               use_perd_z
    USE colvar_types,                    ONLY: &
-        acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, angle_colvar_id, colvar_counters, &
-        combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
-        hydronium_dist_colvar_id, hydronium_shell_colvar_id, no_colvar_id, &
-        plane_distance_colvar_id, plane_plane_angle_colvar_id, population_colvar_id, &
-        qparm_colvar_id, reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
-        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+        Wc_colvar_id, acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, angle_colvar_id, &
+        colvar_counters, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
+        distance_from_path_colvar_id, gyration_colvar_id, hbp_colvar_id, hydronium_dist_colvar_id, &
+        hydronium_shell_colvar_id, mindist_colvar_id, no_colvar_id, plane_distance_colvar_id, &
+        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
+        reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
+        torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -203,7 +204,8 @@ MODULE molecule_kind_types
              get_molecule_kind_set, &
              set_molecule_kind, &
              write_molecule_kind_set, &
-             setup_colvar_counters
+             setup_colvar_counters, &
+             write_colvar_constraint
 
    ! Public data types
    PUBLIC :: atom_type, &
@@ -1026,5 +1028,102 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_molecule_kind_set
+
+! **************************************************************************************************
+!> \brief Write collective variable constraint information to output unit
+!> \param colvar_constraint Data set of the collective variable constraint
+!> \param icolv Collective variable number (index)
+!> \param iw Logical unit number of the output unit
+!> \author Matthias Krack (25.11.2025)
+! **************************************************************************************************
+   SUBROUTINE write_colvar_constraint(colvar_constraint, icolv, iw)
+
+      TYPE(colvar_constraint_type), INTENT(IN), POINTER  :: colvar_constraint
+      INTEGER, INTENT(IN)                                :: icolv, iw
+
+      CHARACTER(LEN=30)                                  :: type_string
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(colvar_constraint))
+         WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+            "COLVAR| Number", icolv
+         SELECT CASE (colvar_constraint%type_id)
+         CASE (no_colvar_id)
+            type_string = "Undefined"
+         CASE (dist_colvar_id)
+            type_string = "Distance"
+         CASE (coord_colvar_id)
+            type_string = "Coordination number"
+         CASE (torsion_colvar_id)
+            type_string = "Torsion"
+         CASE (angle_colvar_id)
+            type_string = "Angle"
+         CASE (plane_distance_colvar_id)
+            type_string = "Plane distance"
+         CASE (rotation_colvar_id)
+            type_string = "Rotation"
+         CASE (dfunct_colvar_id)
+            type_string = "Distance function"
+         CASE (qparm_colvar_id)
+            type_string = "Q parameter"
+         CASE (hydronium_shell_colvar_id)
+            type_string = "Hydronium shell"
+         CASE (reaction_path_colvar_id)
+            type_string = "Reaction path"
+         CASE (combine_colvar_id)
+            type_string = "Combine"
+         CASE (population_colvar_id)
+            type_string = "Population"
+         CASE (plane_plane_angle_colvar_id)
+            type_string = "Angle plane-plane"
+         CASE (gyration_colvar_id)
+            type_string = "Gyration radius"
+         CASE (rmsd_colvar_id)
+            type_string = "RMSD"
+         CASE (distance_from_path_colvar_id)
+            type_string = "Distance from path"
+         CASE (xyz_diag_colvar_id)
+            type_string = "XYZ diag"
+         CASE (xyz_outerdiag_colvar_id)
+            type_string = "XYZ outerdiag"
+         CASE (u_colvar_id)
+            type_string = "U"
+         CASE (Wc_colvar_id)
+            type_string = "WC"
+         CASE (HBP_colvar_id)
+            type_string = "HBP"
+         CASE (ring_puckering_colvar_id)
+            type_string = "Ring puckering"
+         CASE (mindist_colvar_id)
+            type_string = "Distance point-plane"
+         CASE (acid_hyd_dist_colvar_id)
+            type_string = "Acid hydronium distance"
+         CASE (acid_hyd_shell_colvar_id)
+            type_string = "Acid hydronium shell"
+         CASE (hydronium_dist_colvar_id)
+            type_string = "Hydronium distance"
+         CASE DEFAULT
+            CPABORT("Invalid collective variable ID specified. Check the code!")
+         END SELECT
+         IF (colvar_constraint%restraint%active) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
+               "COLVAR| Restraint type", ADJUSTR(TRIM(type_string))
+            WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+               "COLVAR| Restraint constant k", colvar_constraint%restraint%k0
+         ELSE
+            WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
+               "COLVAR| Constraint type", ADJUSTR(TRIM(type_string))
+         END IF
+         WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+            "COLVAR| Target value", colvar_constraint%expected_value, &
+            "COLVAR| Target value growth speed", colvar_constraint%expected_value_growth_speed
+         IF (colvar_constraint%use_points) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,T78,A3)") "COLVAR| Use points", "Yes"
+         ELSE
+            WRITE (UNIT=iw, FMT="(T2,A,T79,A2)") "COLVAR| Use points", "No"
+         END IF
+      END IF
+
+   END SUBROUTINE write_colvar_constraint
 
 END MODULE molecule_kind_types

@@ -184,8 +184,8 @@ MODULE colvar_types
       INTEGER                         :: l = 0
       INTEGER                         :: n_atoms_to = 0, &
                                          n_atoms_from = 0
-      INTEGER, POINTER, DIMENSION(:) :: i_at_from => NULL(), &
-                                        i_at_to => NULL()
+      INTEGER, POINTER, DIMENSION(:)  :: i_at_from => NULL(), &
+                                         i_at_to => NULL()
       REAL(KIND=dp)                   :: rcut = 0.0_dp, rstart = 0.0_dp
       LOGICAL                         :: include_images = .FALSE.
    END TYPE qparm_colvar_type
@@ -237,35 +237,35 @@ MODULE colvar_types
 
 ! **************************************************************************************************
    TYPE reaction_path_colvar_type
-      INTEGER                                  :: type_id = -1
-      INTEGER                                  :: n_components = -1, nr_frames = -1, subset = -1
-      INTEGER, DIMENSION(2)                     :: function_bounds = -1
-      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd => NULL()
-      LOGICAL                                  :: align_frames = .FALSE., dist_rmsd = .FALSE., rmsd = .FALSE.
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_vals => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref => NULL()
-      REAL(KIND=dp)                            :: lambda = 0.0_dp
-      REAL(KIND=dp)                            :: step_size = 0.0_dp
+      INTEGER                                    :: type_id = -1
+      INTEGER                                    :: n_components = -1, nr_frames = -1, subset = -1
+      INTEGER, DIMENSION(2)                      :: function_bounds = -1
+      INTEGER, POINTER, DIMENSION(:)             :: i_rmsd => NULL()
+      LOGICAL                                    :: align_frames = .FALSE., dist_rmsd = .FALSE., rmsd = .FALSE.
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: f_vals => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: r_ref => NULL()
+      REAL(KIND=dp)                              :: lambda = 0.0_dp
+      REAL(KIND=dp)                              :: step_size = 0.0_dp
       TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p => NULL()
    END TYPE reaction_path_colvar_type
 
 ! **************************************************************************************************
    TYPE combine_colvar_type
-      INTEGER                                  :: type_id = -1
+      INTEGER                                    :: type_id = -1
       TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_p => NULL()
-      REAL(KIND=dp)                            :: lerr = 0.0_dp, dx = 0.0_dp
-      CHARACTER(LEN=default_path_length)       :: FUNCTION = ""
+      REAL(KIND=dp)                              :: lerr = 0.0_dp, dx = 0.0_dp
+      CHARACTER(LEN=default_path_length)         :: FUNCTION = ""
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER               :: c_parameters => NULL(), variables => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: v_parameters => NULL()
+         DIMENSION(:), POINTER                   :: c_parameters => NULL(), variables => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: v_parameters => NULL()
    END TYPE combine_colvar_type
 ! **************************************************************************************************
    TYPE rmsd_colvar_type
       INTEGER                                  :: n_atoms = 0, nr_frames = 0, subset = 0
-      INTEGER, POINTER, DIMENSION(:)          :: i_rmsd => NULL()
+      INTEGER, POINTER, DIMENSION(:)           :: i_rmsd => NULL()
       LOGICAL                                  :: align_frames = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER     :: weights => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_ref => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_ref => NULL()
    END TYPE rmsd_colvar_type
 
 ! **************************************************************************************************
@@ -273,7 +273,7 @@ MODULE colvar_types
       INTEGER :: type_id = -1
       INTEGER, DIMENSION(:), POINTER          :: atoms => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER    :: weights => NULL()
-      REAL(KIND=dp), DIMENSION(3)              :: r = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)             :: r = 0.0_dp
    END TYPE point_type
 
 ! **************************************************************************************************
@@ -290,7 +290,7 @@ MODULE colvar_types
       LOGICAL                                  :: use_pbc = .FALSE.
       INTEGER, DIMENSION(2)                    :: i_atoms = 0
       INTEGER, DIMENSION(2)                    :: components = 0
-      REAL(KIND=dp), DIMENSION(3, 2)            :: r0 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 2)           :: r0 = 0.0_dp
    END TYPE xyz_outerdiag_colvar_type
 
 ! **************************************************************************************************
@@ -311,7 +311,7 @@ MODULE colvar_types
       INTEGER                         :: nPoints = -1 ! number of the points in the path
       INTEGER, POINTER                :: ids(:, :) => NULL() ! first is the Od, second the H,
       ! third the Oa and contains a row for each intermediate point in the path
-      REAL(KIND=dp), POINTER           :: ewc(:) => NULL() ! one for each point in the path
+      REAL(KIND=dp), POINTER          :: ewc(:) => NULL() ! one for each point in the path
       REAL(KIND=dp)                   :: rcut = 0.0_dp
       REAL(KIND=dp)                   :: shift = 0.0_dp ! shift applied for each term in the collective variable
    END TYPE HBP_colvar_type
@@ -325,15 +325,15 @@ MODULE colvar_types
 
 ! **************************************************************************************************
    TYPE mindist_colvar_type
-      LOGICAL                    :: use_kinds_from = .FALSE., use_kinds_to = .FALSE.
+      LOGICAL                         :: use_kinds_from = .FALSE., use_kinds_to = .FALSE.
       INTEGER                         :: n_coord_to = 0, &
                                          n_coord_from = 0, &
                                          n_dist_from = 0, &
                                          p_exp = 0, &
                                          q_exp = 0
-      INTEGER, POINTER, DIMENSION(:) :: i_coord_from => NULL(), &
-                                        i_coord_to => NULL(), &
-                                        i_dist_from => NULL()
+      INTEGER, POINTER, DIMENSION(:)  :: i_coord_from => NULL(), &
+                                         i_coord_to => NULL(), &
+                                         i_dist_from => NULL()
       CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: k_coord_from => NULL(), &
                                                                      k_coord_to => NULL()
       REAL(KIND=dp)                   :: lambda = 0.0_dp, r_cut = 0.0_dp

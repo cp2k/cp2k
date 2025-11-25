@@ -488,7 +488,9 @@ CONTAINS
             topology%const_colv = .TRUE.
             DO ig = 1, ncons
                CALL section_vals_val_get(collective_section, "COLVAR", i_rep_section=ig, i_val=icolvar)
-               CPASSERT(icolvar <= SIZE(colvar_p))
+               IF (icolvar > SIZE(colvar_p)) THEN
+                  CPABORT("More collective constraints than collective variables specified.")
+               END IF
             END DO
             cons_info%nconst_colv = ncons
             ALLOCATE (cons_info%const_colv_mol(ncons))

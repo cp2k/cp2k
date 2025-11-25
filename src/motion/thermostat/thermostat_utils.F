@@ -44,7 +44,8 @@ MODULE thermostat_utils
                                               mp_para_env_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
-                                              molecule_kind_type
+                                              molecule_kind_type,&
+                                              write_colvar_constraint
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
@@ -153,7 +154,7 @@ CONTAINS
       TYPE(thermostats_type), POINTER                    :: thermostats
       TYPE(cell_type), POINTER                           :: cell
       TYPE(simpar_type), POINTER                         :: simpar
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
@@ -162,13 +163,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: region
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
-      INTEGER                                            :: iw, natom, nconstraint_ext, &
+      INTEGER                                            :: icolv, iw, natom, nconstraint_ext, &
                                                             nconstraint_int, nrestraints_int, &
                                                             rot_dof, roto_trasl_dof
       TYPE(cp_logger_type), POINTER                      :: logger
 
-! Retrieve information on number of atoms, constraints (external and internal)
+      CPASSERT(ASSOCIATED(gci))
 
+      ! Retrieve information on number of atoms, constraints (external and internal)
       CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set, &
                                  natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
@@ -208,6 +210,11 @@ CONTAINS
          WRITE (iw, '(T2,A,T71,I10)') &
             'DOF| Number of intramolecular restraints', nrestraints_int, &
             'DOF| Number of intermolecular restraints', gci%nrestraint
+         IF (ASSOCIATED(gci%colv_list)) THEN
+            DO icolv = 1, SIZE(gci%colv_list)
+               CALL write_colvar_constraint(gci%colv_list(icolv), icolv, iw)
+            END DO
+         END IF
       END IF
       CALL cp_print_key_finished_output(iw, logger, print_section, &
                                         "PROGRAM_RUN_INFO")
