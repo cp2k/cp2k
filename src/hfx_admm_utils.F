@@ -159,11 +159,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param calculate_forces ...
+!> \param ext_xc_section ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_admm_init(qs_env, calculate_forces)
+   SUBROUTINE hfx_admm_init(qs_env, calculate_forces, ext_xc_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_admm_init'
 
@@ -208,6 +210,7 @@ CONTAINS
       IF (PRESENT(calculate_forces)) calc_forces = .TRUE.
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      IF (PRESENT(ext_xc_section)) hfx_sections => section_vals_get_subs_vals(ext_xc_section, "HF")
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
       IF (n_rep_hf > 1) &
@@ -220,6 +223,7 @@ CONTAINS
          CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          CALL set_qs_env(qs_env, admm_env=admm_env)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
          CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
                                      admm_env=admm_env)
 

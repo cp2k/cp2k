@@ -504,7 +504,11 @@ CONTAINS
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
-         CALL hfx_admm_init(qs_env, calculate_forces)
+         IF (PRESENT(ext_xc_section)) THEN
+            CALL hfx_admm_init(qs_env, calculate_forces, ext_xc_section)
+         ELSE
+            CALL hfx_admm_init(qs_env, calculate_forces)
+         END IF
 
          IF (dft_control%do_admm_mo) THEN
             IF (qs_env%run_rtp) THEN

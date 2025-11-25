@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE qs_active_space_methods
    USE admm_types, ONLY: admm_type, &
-                         get_admm_env
+                         get_admm_env, &
+                         admm_env_release
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE basis_set_types, ONLY: allocate_sto_basis_set, &
                               create_gto_from_sto_basis, &
@@ -247,8 +248,9 @@ CONTAINS
       TYPE(qcschema_type)                                :: qcschema_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: as_input, input, loc_print, loc_section, &
-                                                            print_orb, xc_section
+      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling, as_input, input, &
+                                                            loc_print, loc_section, print_orb, &
+                                                            xc_section
 
       !--------------------------------------------------------------------------------------------!
 
@@ -273,7 +275,14 @@ CONTAINS
       ! k-points?
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
       IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "k-points not supported in active space interface")
+         CALL cp_abort(__LOCATION__, "k-points not supported in active space module")
+      END IF
+
+      ! adiabatic rescaling?
+      adiabatic_rescaling => section_vals_get_subs_vals(input, "DFT%XC%ADIABATIC_RESCALING")
+      CALL section_vals_get(adiabatic_rescaling, explicit=explicit)
+      IF (explicit) THEN
+         CALL cp_abort(__LOCATION__, "Adiabatic rescaling not supported in active space module")
       END IF
 
       NULLIFY (active_space_env)
@@ -2964,12 +2973,15 @@ CONTAINS
 
       ! only rebuild the hf section if different from the dft one
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      IF (.NOT.ASSOCIATED(active_space_env%xc_section, xc_section)) THEN
+      IF (.NOT. ASSOCIATED(active_space_env%xc_section, xc_section)) THEN
 
+         ! release the hfx data if it was part of the SCF functional
          IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
+         ! also release the admm environment in case we are using admm
+         IF (ASSOCIATED(qs_env%admm_env)) CALL admm_env_release(qs_env%admm_env)
 
          CALL get_qs_env(qs_env, nelectron_total=nelectron_total, atomic_kind_set=atomic_kind_set, &
-                        qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
+                         qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
          IF (dft_control%do_admm) THEN
             basis_type = 'AUX_FIT'
          ELSE
@@ -2977,16 +2989,16 @@ CONTAINS
          END IF
          hfx_section => section_vals_get_subs_vals(active_space_env%xc_section, "HF")
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                        qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
-                        nelectron_total=nelectron_total)
+                         qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
+                         nelectron_total=nelectron_total)
 
          qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
 
          ! a bit of a hack: this forces a new re-init of HFX
          CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
          CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
-                                          just_energy=.FALSE., &
-                                          ext_xc_section=active_space_env%xc_section)
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=active_space_env%xc_section)
          ! we need to reset it to false
          CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
       END IF
