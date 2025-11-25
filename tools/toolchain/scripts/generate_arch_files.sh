@@ -137,12 +137,6 @@ fi
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
 if [ "${with_intel}" != "__DONTUSE__" ]; then
-  if [ "${with_ifx}" == "no" ]; then
-    CC_arch+=" IF_MPI(-cc=${I_MPI_CC}|)"
-    CXX_arch+=" IF_MPI(-cxx=${I_MPI_CXX}|)"
-    FC_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
-    LD_arch+=" IF_MPI(-fc=${I_MPI_FC}|)"
-  fi
   CFLAGS="${G_CFLAGS} -std=c17 -Wall \$(DFLAGS)"
   CXXFLAGS="${G_CFLAGS} -std=c++17 -Wall \$(DFLAGS)"
   FCFLAGS="${FCFLAGS} -diag-disable=8291 -diag-disable=8293 -fpp -fpscomp logicals -free"
@@ -396,15 +390,24 @@ EOF
 FYPPFLAGS   = -n --line-marker-format=gfortran5
 EOF
   fi
-  if [ "${with_ifx}" != "no" ]; then
-    cat << EOF >> $__filename
+  if [ "${with_intel}" != "__DONTUSE__" ]; then
+    if [ "${with_ifx}" != "__DONTUSE__" ]; then
+      cat << EOF >> $__filename
 #
-# Required due to memory leak that occurs if high optimisations are used
+# IFX workarounds
+hfx_contraction_methods.o: FCFLAGS += -O1
+EOF
+    else # IFORT
+      cat << EOF >> $__filename
+#
+# IFORT workarounds
 mp2_optimize_ri_basis.o: FCFLAGS += -O0
-# Required due to SEGFAULTS occurring for higher optimisation levels
 hfx_contraction_methods.o: FCFLAGS += -O1
 paw_basis_types.o: FCFLAGS += -O1
+# ICX workaround (used along with IFORT)
+grid_dgemm_prepare_pab.o: CFLAGS += -O2
 EOF
+    fi
   fi
   # replace variable values in output file using eval
   local __TMPL=$(cat $__filename)
