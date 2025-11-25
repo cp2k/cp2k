@@ -306,7 +306,7 @@ CONTAINS
       END IF
       ! TDA forces. Calculates and adds all missing terms for the response vector, Eq. 49.
       CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
-      ! Rotate res vector cpmos into original frame of occupied orbitals. Why do we need this?
+      ! Rotate res vector cpmos into original frame of occupied orbitals.
       CALL tddfpt_resvec3(qs_env, ex_env%cpmos, work_matrices)
 
       CALL dbcsr_deallocate_matrix_set(matrix_pe_symm)

@@ -239,8 +239,6 @@ CONTAINS
                CALL p_env_release(p_env)
                !
                CALL replicate_qs_force(td_force, para_env)
-               CALL pforce(iwunit, gs_force, atomic_kind_set, natom)
-               CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                CALL sum_qs_force(td_force, gs_force)
                CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                !
