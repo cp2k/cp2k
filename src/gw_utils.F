@@ -58,7 +58,6 @@ MODULE gw_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
-   USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
                                               ri_rpa_g0w0_crossing_newton,&
@@ -74,6 +73,7 @@ MODULE gw_utils
                                               default_string_length,&
                                               dp,&
                                               int_8
+   USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
@@ -2951,8 +2951,8 @@ CONTAINS
 
          ! M(k) = sum_R e^ikR M^R
          CALL rs_to_kp(M_R, M(:, :, ikp_local), &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! compute condition number of M_PQ(k)
          CALL power(M(:, :, ikp_local), 1.0_dp, 0.0_dp, cond_nr, min_ev_ikp, max_ev_ikp)

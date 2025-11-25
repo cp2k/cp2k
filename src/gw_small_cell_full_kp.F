@@ -32,10 +32,6 @@ MODULE gw_small_cell_full_kp
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
-   USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp, &
-                                              fm_rs_to_kp, &
-                                              add_kp_to_all_rs, &
-                                              fm_add_kp_to_all_rs
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -46,6 +42,10 @@ MODULE gw_small_cell_full_kp
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
+   USE kpoint_k_r_trafo_simple,         ONLY: add_kp_to_all_rs,&
+                                              fm_add_kp_to_all_rs,&
+                                              fm_rs_to_kp,&
+                                              rs_to_kp
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -443,7 +443,7 @@ CONTAINS
 
          ! trafo k-point k -> cell S:  G^occ/vir_µλ(i|τ|,k) -> G^occ/vir,S_µλ(i|τ|)
          CALL fm_add_kp_to_all_rs(bs_env%cfm_work_mo_2, bs_env%fm_G_S, &
-                               bs_env%kpoints_scf_desymm, ikp)
+                                  bs_env%kpoints_scf_desymm, ikp)
 
       END DO ! ikp
 
@@ -618,7 +618,7 @@ CONTAINS
 
             ! 1. χ_PQ^R(iω_j) -> χ_PQ(iω_j,k)
             CALL rs_to_kp(chi_R, chi_k_w, bs_env%kpoints_scf_desymm%index_to_cell, &
-                                 bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+                          bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
             CALL power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
@@ -654,7 +654,7 @@ CONTAINS
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
             CALL add_kp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
-                                   index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
+                                  index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
 
          END DO ! ikp
 
@@ -751,8 +751,8 @@ CONTAINS
 
          ! M(k) = sum_R e^ikR M^R
          CALL rs_to_kp(M_R, M_inv(:, :, ikp_local), &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
          CALL power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
@@ -830,16 +830,16 @@ CONTAINS
 
          ! M(k) = sum_R e^ikR M^R
          CALL rs_to_kp(M_R, M_inv, &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
          CALL power(M_inv, -1.0_dp, 0.0_dp)
 
          ! W(k) = sum_R e^ikR W^R [only R in the supercell that is determined by the SCF k-mesh]
          CALL rs_to_kp(W_R, W_k, &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! 2e. M^-1(k) W^trunc(k)
          CALL ZGEMM("N", "N", n_RI, n_RI, n_RI, z_one, M_inv, n_RI, W_k, n_RI, z_zero, work, n_RI)
@@ -1066,10 +1066,10 @@ CONTAINS
          IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
          ! V_tr(k) = sum_R e^ikR V_tr^R
          CALL rs_to_kp(V_tr_R, V_tr_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k)    = sum_R e^ikR M^R
          CALL rs_to_kp(M_R, M_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k) -> M^-1(k)
          CALL power(M_kp, -1.0_dp, 0.0_dp)
          ! M^-1(k) * V_tr(k)
