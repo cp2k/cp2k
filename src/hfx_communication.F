@@ -98,6 +98,8 @@ CONTAINS
       full_density = 0.0_dp
       ALLOCATE (sendbuffer(number_of_p_entries))
       ALLOCATE (recbuffer(number_of_p_entries))
+      sendbuffer = 0.0_dp
+      recbuffer = 0.0_dp
 
       i = 1
       CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
