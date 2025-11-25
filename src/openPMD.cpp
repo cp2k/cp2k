@@ -118,6 +118,12 @@ int openPMD_Series_write_Iteration(
     // out
     openPMD_Iteration *iteration);
 
+int openPMD_Series_get_Iteration(
+    // in
+    openPMD_Series series, openPMD_Iteration_Index_t index,
+    // out
+    openPMD_Iteration *iteration);
+
 int openPMD_Series_upcast_to_Attributable(
     // in
     openPMD_Series series,
@@ -166,6 +172,10 @@ int openPMD_Iteration_get_particle_species(
     openPMD_ParticleSpecies *particle_species);
 
 int openPMD_Iteration_close(
+    // in
+    openPMD_Iteration iteration);
+
+int openPMD_Iteration_closed(
     // in
     openPMD_Iteration iteration);
 
@@ -612,6 +622,15 @@ int openPMD_Series_write_Iteration(openPMD_Series series_param,
   return 0;
 }
 
+int openPMD_Series_get_Iteration(openPMD_Series series_param,
+                                 openPMD_Iteration_Index_t index,
+                                 openPMD_Iteration *iteration) {
+  auto series = reinterpret_cast<openPMD::Series *>(series_param);
+  auto &res_iteration = series->iterations[index];
+  *reinterpret_cast<openPMD::Iteration **>(iteration) = &res_iteration;
+  return 0;
+}
+
 int openPMD_Series_upcast_to_Attributable(
     // in
     openPMD_Series series,
@@ -701,6 +720,11 @@ int openPMD_Iteration_close(openPMD_Iteration iteration_param) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
   iteration->close();
   return 0;
+}
+
+int openPMD_Iteration_closed(openPMD_Iteration iteration_param) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  return iteration->closed();
 }
 
 int openPMD_Mesh_upcast_to_RecordComponent(

@@ -445,9 +445,28 @@ CONTAINS
       CHARACTER(len=default_string_length), SAVE :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
+      INTEGER                                  :: handle
+      TYPE(cp_openpmd_per_callsite_value_type) :: series_data
+      TYPE(openpmd_iteration_type)             :: iteration
+      INTEGER                                  :: i
+
       basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
 
       file_index = cp_openpmd_get_index_filedata(basename_copied)
+
+      CALL timeset('openpmd_close_iterations', handle)
+      DO i = 1, cp_num_openpmd_per_callsite
+         IF (i /= file_index) THEN
+            series_data = cp_openpmd_per_callsite(i)%value
+            iteration = series_data%output_series%get_iteration( &
+                        series_data%iteration_counter%flat_iteration)
+            IF (.NOT. iteration%closed()) THEN
+               CALL iteration%close()
+            END IF
+         END IF
+      END DO
+      CALL timestop(handle)
+
       IF (file_index /= -1) RETURN
 
 #ifndef _WIN32
@@ -690,16 +709,18 @@ CONTAINS
    SUBROUTINE cp_openpmd_close_iterations()
 #ifdef __OPENPMD
       INTEGER                                  :: handle
-      CHARACTER(len=*), PARAMETER              :: routineN = 'cp_openpmd_close_iterations'
       TYPE(cp_openpmd_per_callsite_value_type) :: series_data
       TYPE(openpmd_iteration_type)             :: iteration
       INTEGER                                  :: i
 
-      CALL timeset(routineN, handle)
+      CALL timeset('cp_openpmd_close_iterations', handle)
       DO i = 1, cp_num_openpmd_per_callsite
          series_data = cp_openpmd_per_callsite(i)%value
-         iteration = series_data%output_series%write_iteration(series_data%iteration_counter%flat_iteration)
-         CALL iteration%close()
+         iteration = series_data%output_series%get_iteration( &
+                     series_data%iteration_counter%flat_iteration)
+         IF (.NOT. iteration%closed()) THEN
+            CALL iteration%close()
+         END IF
       END DO
       CALL timestop(handle)
 #endif

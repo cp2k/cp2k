@@ -94,6 +94,7 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: close => openpmd_series_close
       PROCEDURE, PUBLIC :: present => openpmd_series_present
       PROCEDURE, PUBLIC :: write_iteration => openpmd_series_write_iteration
+      PROCEDURE, PUBLIC :: get_iteration => openpmd_series_get_iteration
    END TYPE openpmd_series_type
 
    TYPE openpmd_iteration_type
@@ -104,6 +105,7 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: get_mesh => openpmd_iteration_get_mesh
       PROCEDURE, PUBLIC :: get_particle_species => openpmd_iteration_get_particle_species
       PROCEDURE, PUBLIC :: close => openpmd_iteration_close
+      PROCEDURE, PUBLIC :: closed => openpmd_iteration_closed
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -449,6 +451,30 @@ MODULE openPMD_api
          CPASSERT(C_ASSOCIATED(iteration%c_ptr))
       END FUNCTION openpmd_series_write_iteration
 
+      FUNCTION openpmd_series_get_iteration(this, index) RESULT(iteration)
+         CLASS(openpmd_series_type)                          :: this
+         INTEGER, TARGET                                    :: index
+         TYPE(openpmd_iteration_type)                       :: iteration
+
+         INTEGER(8)                                         :: cast_index
+         INTEGER(kind=C_INT)                                :: status
+         INTERFACE
+            FUNCTION openpmd_c_series_get_iteration(series, index, iteration) RESULT(status) &
+               BIND(C, name="openPMD_Series_get_Iteration")
+               IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T
+               TYPE(C_PTR), VALUE :: series
+               INTEGER(kind=C_INT64_T), VALUE :: index
+               TYPE(C_PTR) :: iteration
+               INTEGER(KIND=C_INT) :: status
+            END FUNCTION openpmd_c_series_get_iteration
+         END INTERFACE
+
+         CPASSERT(.NOT. C_ASSOCIATED(iteration%c_ptr))
+         cast_index = index
+         status = openpmd_c_series_get_iteration(this%c_ptr, cast_index, iteration%c_ptr)
+         CPASSERT(C_ASSOCIATED(iteration%c_ptr))
+      END FUNCTION openpmd_series_get_iteration
+
 ! **************************************************************************************************
 !> \brief ...
 !> \return ...
@@ -682,6 +708,34 @@ MODULE openPMD_api
          CALL openpmd_c_iteration_close(iteration=iteration%c_ptr)
          iteration%c_ptr = C_NULL_PTR
       END SUBROUTINE openpmd_iteration_close
+
+      FUNCTION openpmd_iteration_closed(iteration) RESULT(res)
+         CLASS(openpmd_iteration_type), INTENT(IN)           :: iteration
+         LOGICAL :: res
+
+         INTEGER(kind=C_INT) :: res_tmp
+
+         INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+! **************************************************************************************************
+            FUNCTION openpmd_c_iteration_closed(iteration) RESULT(res) &
+               BIND(C, name="openPMD_Iteration_closed")
+               IMPORT :: C_PTR, C_INT
+               TYPE(C_PTR), VALUE :: iteration
+               INTEGER(kind=C_INT) :: res
+            END FUNCTION openpmd_c_iteration_closed
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(iteration%c_ptr))
+         res_tmp = openpmd_c_iteration_closed(iteration=iteration%c_ptr)
+         IF (res_tmp == 0) THEN
+            res = .FALSE.
+         ELSE
+            res = .TRUE.
+         END IF
+      END FUNCTION openpmd_iteration_closed
 
 ! **************************************************************************************************
 !> \brief ...
