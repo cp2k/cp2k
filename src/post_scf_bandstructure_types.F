@@ -89,6 +89,10 @@ MODULE post_scf_bandstructure_types
                                                       i_ao_end_from_atom, &
                                                       i_RI_start_from_atom, &
                                                       i_RI_end_from_atom
+      INTEGER, DIMENSION(:,:), ALLOCATABLE         :: min_RI_idx_from_AO_AO_atom, &
+                                                      max_RI_idx_from_AO_AO_atom, &
+                                                      min_AO_idx_from_RI_AO_atom, &
+                                                      max_AO_idx_from_RI_AO_atom
       INTEGER, DIMENSION(2)                        :: n_occ = -1, &
                                                       n_vir = -1
       REAL(KIND=dp)                                :: spin_degeneracy = -1.0_dp
@@ -359,6 +363,10 @@ CONTAINS
       IF (ALLOCATED(bs_env%i_ao_end_from_atom)) DEALLOCATE (bs_env%i_ao_end_from_atom)
       IF (ALLOCATED(bs_env%i_RI_start_from_atom)) DEALLOCATE (bs_env%i_RI_start_from_atom)
       IF (ALLOCATED(bs_env%i_RI_end_from_atom)) DEALLOCATE (bs_env%i_RI_end_from_atom)
+      IF (ALLOCATED(bs_env%min_RI_idx_from_AO_AO_atom)) DEALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom)
+      IF (ALLOCATED(bs_env%max_RI_idx_from_AO_AO_atom)) DEALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom)
+      IF (ALLOCATED(bs_env%min_AO_idx_from_RI_AO_atom)) DEALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom)
+      IF (ALLOCATED(bs_env%max_AO_idx_from_RI_AO_atom)) DEALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom)
       IF (ALLOCATED(bs_env%i_atom_intervals)) DEALLOCATE (bs_env%i_atom_intervals)
       IF (ALLOCATED(bs_env%j_atom_intervals)) DEALLOCATE (bs_env%j_atom_intervals)
       IF (ALLOCATED(bs_env%atoms_i_t_group)) DEALLOCATE (bs_env%atoms_i_t_group)

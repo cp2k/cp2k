@@ -265,12 +265,18 @@ CONTAINS
                   ! "comb" (combined index)
                   !   ->  λ   bounds from j_atoms
                   !   ->  ν   bounds from i_atoms
-                  ! P,Q   unbound, full RI
+                  ! P   -> sparse in ν and µ (see 3.)
+                  ! Q   -> sparse in λ and σ (see 5.)
                   bounds_comb(1:2, 1) = [bs_env%i_ao_start_from_atom(j_atoms(1)), &
                                          bs_env%i_ao_end_from_atom(j_atoms(2))]
                   bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                                          bs_env%i_ao_end_from_atom(i_atoms(2))]
-                  bounds_RI(1:2) = [1, bs_env%n_RI]
+
+                  ! CALL get_bounds_from_atoms(bounds_RI, i_atoms, j_atoms, &
+                  !                           bs_env%min_RI_idx_from_AO_AO_atom, &
+                  !                           bs_env%max_RI_idx_from_AO_AO_atom)
+                  bounds_RI(1) = bs_env%min_RI_idx_from_AO_AO_atom(i_atoms(1), j_atoms(1))
+                  bounds_RI(2) = bs_env%max_RI_idx_from_AO_AO_atom(i_atoms(2), j_atoms(2))
 
                   CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
                                     tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
@@ -602,17 +608,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_integrals'
 
-      INTEGER                                            :: handle, deduce_bound_switch
-      !, atom_1, &
-      ! atom_2
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(2)                              :: my_atoms_AO_1, my_atoms_AO_2, my_atoms_RI
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_array
-      ! TYPE(cell_type), POINTER                           :: cell
-      ! TYPE(dbt_iterator_type)                            :: iter
-      ! TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      ! REAL(KIND=dp)                                      :: abs_rab, max_dist_AO_atoms
-      ! REAL(KIND=dp), DIMENSION(3)                        :: rab
-      ! INTEGER, DIMENSION(3)                              :: atom_ind
 
       CALL timeset(routineN, handle)
 
@@ -621,31 +619,19 @@ CONTAINS
 
       ALLOCATE (t_3c_array(1, 1))
       CALL dbt_create(t_3c, t_3c_array(1, 1))
-      deduce_bound_switch = 0
+
       IF (PRESENT(atoms_AO_1)) THEN
-         IF (atoms_AO_1(1) < 0 .OR. atoms_AO_1(2) < 0) THEN
-            deduce_bound_switch = 1
-         ELSE
             my_atoms_AO_1 = atoms_AO_1
-         END IF
       ELSE
          my_atoms_AO_1 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_AO_2)) THEN
-         IF (atoms_AO_2(1) < 0 .OR. atoms_AO_2(2) < 0) THEN
-            deduce_bound_switch = 2
-         ELSE
             my_atoms_AO_2 = atoms_AO_2
-         END IF
       ELSE
          my_atoms_AO_2 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_RI)) THEN
-         IF (atoms_RI(1) < 0 .OR. atoms_RI(2) < 0) THEN
-            deduce_bound_switch = 3
-         ELSE
             my_atoms_RI = atoms_RI
-         END IF
       ELSE
          my_atoms_RI = [1, bs_env%n_atom]
       END IF
@@ -668,40 +654,6 @@ CONTAINS
 
       CALL dbt_destroy(t_3c_array(1, 1))
       DEALLOCATE (t_3c_array)
-
-      ! CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
-
-      ! SELECT CASE (deduce_bound_switch)
-      ! CASE (1)
-
-      ! CASE (2)
-
-      ! CASE (3)
-
-      ! END SELECT
-      
-
-! !$OMP PARALLEL DEFAULT(NONE) &
-! !$OMP SHARED(t_3c, max_dist_AO_atoms, num_cells, index_to_cell, particle_set, cell) &
-! !$OMP PRIVATE(iter,atom_ind,rab, abs_rab, atom_1, atom_2)
-      ! CALL dbt_iterator_start(iter, t_3c)
-      ! DO WHILE (dbt_iterator_blocks_left(iter))
-      !    CALL dbt_iterator_next_block(iter, atom_ind)
-
-      !    atom_1 = atom_ind(2)
-      !    atom_2 = atom_ind(3)
-
-      !    rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
-
-      !    abs_rab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
-
-      !    max_dist_AO_atoms = MAX(max_dist_AO_atoms, abs_rab)
-
-      ! END DO
-      ! CALL dbt_iterator_stop(iter)
-! !$OMP END PARALLEL
-
-      !CALL para_env%max(max_dist_AO_atoms)
 
       CALL timestop(handle)
 
@@ -733,14 +685,18 @@ CONTAINS
       ! Bounds reduce needed memory and therefore scaling behavior
       ! Operations are of the form, e.g, M_Pνλ = sum_µ (Pν|µ) G_λµ
       ! "comb" (combined index)
-      !   ->  Q   no bounds
+      !   ->  P   sparse in ν and µ
       !   ->  λ   bounds from j_atoms (via atoms_AO_1)
       ! µ   bounds from inner loop "IL" indices
       ! ν   bounds from i_atoms (via atoms_AO_2)
 
       bounds_IL(1:2) = [bs_env%i_ao_start_from_atom(atoms_IL(1)), &
                         bs_env%i_ao_end_from_atom(atoms_IL(2))]
-      bounds_comb(1:2, 1) = [1, bs_env%n_RI]
+
+      ! P index
+      bounds_comb(1:2, 1) = [bs_env%min_RI_idx_from_AO_AO_atom(atoms_IL(1), atoms_AO_2(1)), &
+                           bs_env%max_RI_idx_from_AO_AO_atom(atoms_IL(2), atoms_AO_2(2))]
+
       bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(atoms_AO_2(1)), &
                              bs_env%i_ao_end_from_atom(atoms_AO_2(2))]
       bounds_ao_1(1:2) = [bs_env%i_ao_start_from_atom(atoms_AO_1(1)), &
@@ -2052,14 +2008,13 @@ CONTAINS
       ! Bounds:
       ! "AO"
       !  ->  ν (AO_1 in compute_3c_integrals)  bounds from i_atoms
-      !  ->  σ (AO_2 in compute_3c_integrals)  no bounds
+      !  ->  σ (AO_2 in compute_3c_integrals)  sparse in ν and P
       ! Q   bounds from j_atoms
       ! P   bounds from inner loop indices
 
       bounds_ao(1:2, 1) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                            bs_env%i_ao_end_from_atom(i_atoms(2))]
-      bounds_ao(1:2, 2) = [bs_env%i_ao_start_from_atom(1), &
-                           bs_env%i_ao_end_from_atom(bs_env%n_atom)]
+
 
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
@@ -2069,6 +2024,8 @@ CONTAINS
 
          bounds_P(1:2) = [bs_env%i_RI_start_from_atom(RI_atoms(1)), &
                           bs_env%i_RI_end_from_atom(RI_atoms(2))]
+         bounds_ao(1:2, 2) = [bs_env%min_AO_idx_from_RI_AO_atom(RI_atoms(1), i_atoms(1)), &
+                              bs_env%max_AO_idx_from_RI_AO_atom(RI_atoms(2), i_atoms(2))]
 
          ! 1. compute 3-center integrals (P|µν) ("|": truncated Coulomb operator)
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
@@ -2126,8 +2083,8 @@ CONTAINS
 
       INTEGER :: handle, inner_loop_atoms_interval_index
       INTEGER(KIND=int_8)                                :: flop
-      INTEGER, DIMENSION(2)                              :: bounds_full_ao, bounds_mu, bounds_nu, &
-                                                            bounds_Q, IL_atoms
+      INTEGER, DIMENSION(2)                              :: bounds_mu, bounds_nu, &
+                                                            bounds_Q, IL_atoms, bounds_ao
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
       TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
@@ -2147,17 +2104,14 @@ CONTAINS
       ! Bounds:
       ! "comb" (combined index)
       !   ->  Q   bounds from j_atoms
-      !   ->  λ (AO_1 in compute_3c_integrals)  no bounds
+      !   ->  λ (AO_1 in compute_3c_integrals)  sparse in Q and µ
       ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices
       ! ν   bounds from i_atoms
       
-      bounds_full_ao(1:2) = [1, &
-                             bs_env%n_ao]
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
 
       bounds_comb(1:2, 1) = bounds_Q(1:2)
-      bounds_comb(1:2, 2) = bounds_full_ao(1:2)
 
       bounds_nu(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                         bs_env%i_ao_end_from_atom(i_atoms(2))]
@@ -2167,6 +2121,8 @@ CONTAINS
 
          bounds_mu(1:2) = [bs_env%i_ao_start_from_atom(IL_atoms(1)), &
                            bs_env%i_ao_end_from_atom(IL_atoms(2))]
+         bounds_comb(1:2, 2) = [bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1), IL_atoms(1)), &
+                              bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), IL_atoms(2))]
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
                                    atoms_RI=j_atoms, atoms_AO_2=IL_atoms)
@@ -2193,6 +2149,10 @@ CONTAINS
       ! Bounds as above, new "comb" with upper ingredients
       bounds_comb(1:2, 1) = bounds_Q(1:2)
       bounds_comb(1:2, 2) = bounds_nu(1:2)
+
+      bounds_ao(1:2) = [bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1), i_atoms(1)), &
+                           bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), i_atoms(2))]
+
       CALL dbt_contract(alpha=sign_Sigma, &
                         tensor_1=t_3c_x_W, &
                         tensor_2=t_3c_x_G_2, &
@@ -2200,8 +2160,8 @@ CONTAINS
                         tensor_3=t_2c_Sigma, &
                         contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                         contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
-                        bounds_1=bounds_comb, bounds_2=bounds_full_ao, &
-                        bounds_3=bounds_full_ao, &
+                        bounds_1=bounds_comb, bounds_2=bounds_ao, &
+                        bounds_3=bounds_ao, &
                         filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
                         unit_nr=bs_env%unit_nr_contract, &
                         log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
@@ -2584,5 +2544,25 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo
+
+   SUBROUTINE get_bounds_from_atoms(bounds_out, atoms_i, atoms_j, indices_min, indices_max)
+
+      INTEGER, DIMENSION(2), INTENT(OUT)                  :: bounds_out
+      INTEGER, DIMENSION(2), INTENT(IN)                   :: atoms_i, atoms_j
+      INTEGER, DIMENSION(:,:), POINTER       :: indices_min, indices_max
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bounds_from_atoms'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      
+      bounds_out(1) = indices_min(atoms_i(1), atoms_j(1))
+      bounds_out(2) = indices_max(atoms_i(2), atoms_j(2))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_bounds_from_atoms
+
 
 END MODULE gw_large_cell_gamma

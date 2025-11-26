@@ -793,7 +793,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_sparsity_3c'
 
       INTEGER                                            :: handle, n_atom_step, RI_atom
-      INTEGER(int_8)                                     :: mem, non_zero_elements_sum, nze
+      INTEGER(int_8)                                     :: non_zero_elements_sum, nze
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(dbt_type)                                     :: t_3c_global
@@ -808,11 +808,19 @@ CONTAINS
                        bs_env%sizes_RI, bs_env%sizes_AO, &
                        create_nl_3c=.TRUE., nl_3c=nl_3c_global, qs_env=qs_env)
 
-      CALL m_memory(mem)
-      CALL bs_env%para_env%max(mem)
-
       ALLOCATE (t_3c_global_array(1, 1))
       CALL dbt_create(t_3c_global, t_3c_global_array(1, 1))
+
+      ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
+      ! (Filled during loop)
+      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_ao,bs_env%n_ao))
+      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_ao,bs_env%n_ao))
+      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_RI,bs_env%n_ao))
+      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_RI,bs_env%n_ao))
+      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = 1
+      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI
+      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = 1
+      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -845,10 +853,18 @@ CONTAINS
          occupation_sum = occupation_sum + occ
 
          CALL get_max_dist_AO_atoms(t_3c_global_array(1, 1), max_dist_AO_atoms, qs_env)
+         
+         ! Extract indices per block
+         CALL get_i_j_atom_ranges(t_3c_global_array(1, 1), bs_env)
 
          CALL dbt_clear(t_3c_global_array(1, 1))
 
       END DO
+      
+      CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
+      CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
+      CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
+      CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
 
       t2 = m_walltime()
 
@@ -876,6 +892,75 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_sparsity_3c
+
+   SUBROUTINE get_i_j_atom_ranges(t_3c, bs_env)
+      TYPE(dbt_type)      :: t_3c
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_i_j_atom_ranges'
+
+      INTEGER                                            :: handle, atom_min_RI, atom_max_RI, &
+                                                            my_min_RI_idx_from_AO_AO_atom, &
+                                                            my_max_RI_idx_from_AO_AO_atom, &
+                                                            atom_min_AO, atom_max_AO, &
+                                                            my_min_AO_idx_from_RI_AO_atom, &
+                                                            my_max_AO_idx_from_RI_AO_atom
+      TYPE(dbt_iterator_type)                            :: iter
+      INTEGER, DIMENSION(3)                              :: atom_ind
+
+      CALL timeset(routineN, handle)
+      
+      
+      ! Loop over blocks in 3c, for given min_atom: RI_min/max index from min_atom
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_3c, bs_env) &
+!$OMP PRIVATE(iter,atom_ind, atom_min_RI, atom_max_RI, &
+!$OMP my_min_RI_idx_from_AO_AO_atom, my_max_RI_idx_from_AO_AO_atom, &
+!$OMP atom_min_AO, atom_max_AO, &
+!$OMP my_min_AO_idx_from_RI_AO_atom, my_max_AO_idx_from_RI_AO_atom)
+      my_min_RI_idx_from_AO_AO_atom = 1
+      my_max_RI_idx_from_AO_AO_atom = bs_env%n_RI
+      my_min_AO_idx_from_RI_AO_atom = 1
+      my_max_AO_idx_from_RI_AO_atom = bs_env%n_AO
+      CALL dbt_iterator_start(iter, t_3c)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, atom_ind)
+
+         ! First for RI indices (on atom 1)
+         atom_min_RI = MIN(atom_ind(2), atom_ind(3))
+         atom_max_RI = MAX(atom_ind(2), atom_ind(3))
+         my_min_RI_idx_from_AO_AO_atom = MIN(bs_env%i_RI_start_from_atom(atom_min_RI), &
+                                             my_min_RI_idx_from_AO_AO_atom)
+         my_max_RI_idx_from_AO_AO_atom = MAX(bs_env%i_RI_end_from_atom(atom_max_RI), &
+                                             my_max_RI_idx_from_AO_AO_atom)
+
+         ! Now for AO indices (take atom 2)
+         atom_min_AO = MIN(atom_ind(1), atom_ind(3))
+         atom_max_AO = MAX(atom_ind(1), atom_ind(3))
+         my_min_AO_idx_from_RI_AO_atom = MIN(bs_env%i_ao_start_from_atom(atom_min_AO), &
+                                             my_min_AO_idx_from_RI_AO_atom)
+         my_max_AO_idx_from_RI_AO_atom = MAX(bs_env%i_ao_end_from_atom(atom_max_AO), &
+                                             my_max_AO_idx_from_RI_AO_atom)
+
+
+         !Write to environment
+         bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3)) = &
+            my_min_RI_idx_from_AO_AO_atom
+         bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3)) = &
+            my_max_RI_idx_from_AO_AO_atom
+
+         bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3)) = &
+            my_min_AO_idx_from_RI_AO_atom
+         bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3)) = &
+            my_max_AO_idx_from_RI_AO_atom
+      END DO
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_i_j_atom_ranges
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1298,7 +1383,6 @@ CONTAINS
 
       INTEGER                                            :: color_sub, dummy_1, dummy_2, handle, &
                                                             num_pe, num_t_groups, u
-      INTEGER(KIND=int_8)                                :: mem
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1336,9 +1420,6 @@ CONTAINS
                             bs_env%atoms_j_t_group(1:2, color_sub + 1), &
                             dummy_1, dummy_2, color_sub, bs_env)
       END DO
-
-      CALL m_memory(mem)
-      CALL bs_env%para_env%max(mem)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
@@ -3332,5 +3413,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE correct_obvious_fitting_fails
-
+   
 END MODULE gw_utils
