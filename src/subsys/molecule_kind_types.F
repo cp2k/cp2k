@@ -35,6 +35,7 @@ MODULE molecule_kind_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_field_kind_types,          ONLY: &
         bend_kind_type, bond_kind_type, do_ff_undef, impr_kind_dealloc_ref, impr_kind_type, &
         opbend_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, &
@@ -205,7 +206,9 @@ MODULE molecule_kind_types
              set_molecule_kind, &
              write_molecule_kind_set, &
              setup_colvar_counters, &
-             write_colvar_constraint
+             write_colvar_constraint, &
+             write_g3x3_constraint, &
+             write_g4x6_constraint
 
    ! Public data types
    PUBLIC :: atom_type, &
@@ -1109,7 +1112,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
                "COLVAR| Restraint type", ADJUSTR(TRIM(type_string))
             WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
-               "COLVAR| Restraint constant k", colvar_constraint%restraint%k0
+               "COLVAR| Restraint constant k [a.u.]", colvar_constraint%restraint%k0
          ELSE
             WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
                "COLVAR| Constraint type", ADJUSTR(TRIM(type_string))
@@ -1125,5 +1128,79 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_colvar_constraint
+
+! **************************************************************************************************
+!> \brief Write G3x3 constraint information to output unit
+!> \param g3x3_constraint Data set of the g3x3 constraint
+!> \param ig3x3 G3x3 constraint/restraint number (index)
+!> \param iw Logical unit number of the output unit
+!> \author Matthias Krack (26.11.2025)
+! **************************************************************************************************
+   SUBROUTINE write_g3x3_constraint(g3x3_constraint, ig3x3, iw)
+
+      TYPE(g3x3_constraint_type), INTENT(IN), POINTER    :: g3x3_constraint
+      INTEGER, INTENT(IN)                                :: ig3x3, iw
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(g3x3_constraint))
+         IF (g3x3_constraint%restraint%active) THEN
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "G3X3| Number (restraint)", ig3x3
+            WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+               "G3X3| Restraint constant k [a.u.]", g3x3_constraint%restraint%k0
+         ELSE
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "G3X3| Number (constraint)", ig3x3
+         END IF
+         WRITE (UNIT=iw, FMT="(T2,A,T71,I10)") &
+            "G3X3| Atom index a", g3x3_constraint%a, &
+            "G3X3| Atom index b", g3x3_constraint%b, &
+            "G3X3| Atom index c", g3x3_constraint%c
+         WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+            "G3X3| Distance (a,b) [Angstrom]", cp_unit_from_cp2k(g3x3_constraint%dab, "Angstrom"), &
+            "G3X3| Distance (a,c) [Angstrom]", cp_unit_from_cp2k(g3x3_constraint%dac, "Angstrom"), &
+            "G3X3| Distance (b,c) [Angstrom]", cp_unit_from_cp2k(g3x3_constraint%dbc, "Angstrom")
+      END IF
+
+   END SUBROUTINE write_g3x3_constraint
+
+! **************************************************************************************************
+!> \brief Write G4x6 constraint information to output unit
+!> \param g4x6_constraint Data set of the g4x6 constraint
+!> \param ig4x6 G4x6 constraint/restraint number (index)
+!> \param iw Logical unit number of the output unit
+!> \author Matthias Krack (26.11.2025)
+! **************************************************************************************************
+   SUBROUTINE write_g4x6_constraint(g4x6_constraint, ig4x6, iw)
+
+      TYPE(g4x6_constraint_type), INTENT(IN), POINTER    :: g4x6_constraint
+      INTEGER, INTENT(IN)                                :: ig4x6, iw
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(g4x6_constraint))
+         IF (g4x6_constraint%restraint%active) THEN
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "G4X6| Number (restraint)", ig4x6
+            WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+               "G4X6| Restraint constant k [a.u.]", g4x6_constraint%restraint%k0
+         ELSE
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "G4X6| Number (constraint)", ig4x6
+         END IF
+         WRITE (UNIT=iw, FMT="(T2,A,T71,I10)") &
+            "G4X6| Atom index a", g4x6_constraint%a, &
+            "G4X6| Atom index b", g4x6_constraint%b, &
+            "G4X6| Atom index c", g4x6_constraint%c, &
+            "G4X6| Atom index c", g4x6_constraint%d
+         WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+            "G4X6| Distance (a,b) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dab, "Angstrom"), &
+            "G4X6| Distance (a,c) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dac, "Angstrom"), &
+            "G4X6| Distance (a,d) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dad, "Angstrom"), &
+            "G4X6| Distance (b,c) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dbc, "Angstrom"), &
+            "G4X6| Distance (b,d) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dbd, "Angstrom"), &
+            "G4X6| Distance (c,d) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dcd, "Angstrom")
+      END IF
+
+   END SUBROUTINE write_g4x6_constraint
 
 END MODULE molecule_kind_types

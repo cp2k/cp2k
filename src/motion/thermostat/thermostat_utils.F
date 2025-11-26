@@ -45,7 +45,9 @@ MODULE thermostat_utils
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type,&
-                                              write_colvar_constraint
+                                              write_colvar_constraint,&
+                                              write_g3x3_constraint,&
+                                              write_g4x6_constraint
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
@@ -163,7 +165,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: region
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
-      INTEGER                                            :: icolv, iw, natom, nconstraint_ext, &
+      INTEGER                                            :: ic, iw, natom, nconstraint_ext, &
                                                             nconstraint_int, nrestraints_int, &
                                                             rot_dof, roto_trasl_dof
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -211,8 +213,18 @@ CONTAINS
             'DOF| Number of intramolecular restraints', nrestraints_int, &
             'DOF| Number of intermolecular restraints', gci%nrestraint
          IF (ASSOCIATED(gci%colv_list)) THEN
-            DO icolv = 1, SIZE(gci%colv_list)
-               CALL write_colvar_constraint(gci%colv_list(icolv), icolv, iw)
+            DO ic = 1, SIZE(gci%colv_list)
+               CALL write_colvar_constraint(gci%colv_list(ic), ic, iw)
+            END DO
+         END IF
+         IF (ASSOCIATED(gci%g3x3_list)) THEN
+            DO ic = 1, SIZE(gci%g3x3_list)
+               CALL write_g3x3_constraint(gci%g3x3_list(ic), ic, iw)
+            END DO
+         END IF
+         IF (ASSOCIATED(gci%g4x6_list)) THEN
+            DO ic = 1, SIZE(gci%g4x6_list)
+               CALL write_g4x6_constraint(gci%g4x6_list(ic), ic, iw)
             END DO
          END IF
       END IF
