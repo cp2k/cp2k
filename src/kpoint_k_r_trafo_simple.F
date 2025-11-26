@@ -61,11 +61,10 @@ CONTAINS
       ! dimension 1 : spin, dimension 2 : image cell index
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rs_dbcsr_in
       TYPE(kpoint_type), POINTER                         :: kpoint_in
+      ! dim 1 : spin, dim 2 : matrix rows, dim 3 : matrix cols, dim 4 : image index
       REAL(kind=dp), DIMENSION(:, :, :, :)               :: rs_array_out
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'replicate_rs_matrices'
-
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'replicate_rs_matrices'
       CHARACTER                                          :: matrix_sym
       INTEGER                                            :: handle, iatom, ispin, jatom, n_spin, &
                                                             src_index
@@ -75,16 +74,6 @@ CONTAINS
          DIMENSION(:), POINTER                           :: iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp_src
-
-! dimension 1 : spin/derivs, dimension 2 : image cell index, dimension 3 : rows, dimension 4 : cols
-!i, j, &
-      !row_offset, col_offset, &
-
-!src_index, &
-!col_size, row_size
-! INTEGER, DIMENSION(:), POINTER                     :: row_offsets, col_offsets
-! REAL(kind=dp), DIMENSION(:,:), POINTER             :: block
-! LOGICAL                                            :: found
 
       CALL timeset(routineN, handle)
 
@@ -125,7 +114,7 @@ CONTAINS
 !> \param jatom second atom index
 !> \param cell Current cell (of second atom)
 !> \param matrix_in DBCSR matrix input, symmetric assumed (A_(mu nu)^(R) = A_(nu mu)^(-R))
-!> \param array_out Multidimensional array - dim 1 : rs_index, dim 2 : rows, dim 3 : cols
+!> \param array_out Multidimensional array - dim 1 : rows, dim 2 : cols, dim 3 : rs_index
 !> \param cell_to_index_out Mapping of cell coords to rs_indices
 !> \date 11.2025
 !> \author Stepan Marek
@@ -176,8 +165,8 @@ CONTAINS
          i_g = i + row_offset - 1
          DO j = 1, col_size
             j_g = j + col_offset - 1
-            array_out(dest_index, i_g, j_g) = block(i, j)
-            IF (iatom /= jatom) array_out(dest_index_t, j_g, i_g) = block(i, j)
+            array_out(i_g, j_g, dest_index) = block(i, j)
+            IF (iatom /= jatom) array_out(j_g, i_g, dest_index_t) = block(i, j)
          END DO
       END DO
       !$OMP END PARALLEL DO
@@ -188,7 +177,7 @@ CONTAINS
 !> \param jatom second atom index
 !> \param cell Current cell (of second atom)
 !> \param matrix_in DBCSR matrix input, symmetric assumed (A_(mu nu)^(R) = A_(nu mu)^(-R))
-!> \param array_out Multidimensional array - dim 1 : rs_index, dim 2 : rows, dim 3 : cols
+!> \param array_out Multidimensional array - dim 1 : rows, dim 2 : cols, dim 3 : rs_index
 !> \param cell_to_index_out Mapping of cell coords to rs_indices
 !> \date 11.2025
 !> \author Stepan Marek
@@ -219,7 +208,7 @@ CONTAINS
          i_g = i + row_offset - 1
          DO j = 1, col_size
             j_g = j + col_offset - 1
-            array_out(dest_index, i_g, j_g) = block(i, j)
+            array_out(i_g, j_g, dest_index) = block(i, j)
          END DO
       END DO
       !$OMP END PARALLEL DO
