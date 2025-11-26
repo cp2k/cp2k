@@ -74,7 +74,8 @@ MODULE qs_wf_history_methods
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        wfi_aspc_nr, wfi_gext_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_aspc_nr, wfi_gext_nr, wfi_gext_qtr_nr, &
+        wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
@@ -566,6 +567,10 @@ CONTAINS
          wf_history%memory_depth = extrapolation_order
          wf_history%store_wf = .TRUE.
          wf_history%store_overlap = .TRUE.
+      CASE (wfi_gext_qtr_nr)
+         wf_history%memory_depth = extrapolation_order
+         wf_history%store_wf = .TRUE.
+         wf_history%store_overlap = .TRUE.
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -651,6 +656,8 @@ CONTAINS
          res = "ASPC"
       CASE (wfi_gext_nr)
          res = "GEXT"
+      CASE (wfi_gext_qtr_nr)
+         res = "GEXT_QTR"
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -1196,9 +1203,90 @@ CONTAINS
             CALL cp_fm_create(tmp_square, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            CALL save_matrix_bin(mo_coeff, "matrices/C", wf_history%snapshot_count)
+            CALL save_matrix(mo_coeff%local_data,n,k,"matrices/C", wf_history%snapshot_count)
             CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
-            CALL save_matrix_bin(tmp_square, "matrices/S", wf_history%snapshot_count)
+            CALL save_matrix(tmp_square%local_data,n,n,"matrices/S", wf_history%snapshot_count)
+            CALL cp_fm_release(tmp_square)
+
+            ! do the linear combination of previous PSs
+            CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+            DO i = 1, nvec
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
+               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, coeffs(i), fm_tmp)
+            END DO
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
+            CALL reorthogonalize_vectors(qs_env, &
+                                         v_matrix=mo_coeff, &
+                                         n_col=k)
+            CALL calculate_density_matrix(mo_set=mos(ispin), &
+                                          density_matrix=rho_ao(ispin)%matrix)
+         END DO
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+         DEALLOCATE(coeffs)
+
+      CASE (wfi_gext_qtr_nr)
+         CPASSERT(.NOT. do_kpoints)
+         CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
+
+         ! figure out the actual number of vectors to use in the extrapolation:
+         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         IF (nvec >= wf_history%memory_depth) THEN
+            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            END IF
+         END IF
+         CPASSERT(nvec .GT. 0)
+
+         ! get the coefficients for the fitting
+         ALLOCATE(coeffs(nvec))
+         NULLIFY (matrix_s)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
+
+         my_orthogonal_wf = .TRUE.
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+         DO ispin = 1, SIZE(mos)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+            CALL cp_fm_get_info(mo_coeff, &
+                                nrow_global=n, &
+                                ncol_global=k, &
+                                matrix_struct=matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=k, &
+                                     ncol_global=k)
+            CALL cp_fm_create(csc, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+
+            !cmn: debug save the matrices to file
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=n, &
+                                     ncol_global=n)
+            CALL cp_fm_create(tmp_square, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+            WRITE(6,*) "SHAPE", shape(mo_coeff%local_data), n, k
+            CALL save_matrix(mo_coeff%local_data,n,k,"matrices/C", wf_history%snapshot_count)
+            CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
+            CALL save_matrix(tmp_square%local_data,n,n,"matrices/S", wf_history%snapshot_count)
             CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
@@ -1798,17 +1886,34 @@ CONTAINS
 
    END SUBROUTINE wfi_purge_history
 
-   SUBROUTINE save_matrix_bin(matrix, basename, frame)
-      type(cp_fm_type), intent(in) :: matrix
+   subroutine save_matrix(a,m,n,basename,frame)
+      integer, intent(in) :: m, n, frame
+      real(kind=dp), intent(in) :: a(m,n)
       character(len=*), intent(in) :: basename
-      integer, intent(in) :: frame
+      integer :: i, j
       character(len=256) :: path
-      WRITE(path, "(A, I0.6, A)") trim(basename), frame, ".bin"
-      OPEN(100,file=trim(path),form="unformatted",access="stream", &
-         & action="write",status="replace")
-      CALL cp_fm_write_unformatted(matrix, 100)
-      CLOSE(100)
-   END SUBROUTINE save_matrix_bin
+      write(path, '(A, I0.6, A)') trim(basename), frame, '.dat'
+      open(100,file=trim(path),form="formatted")
+      do i = 1, m
+          do j = 1, n
+              write(100,'(F20.10)',advance="no") a(i,j)
+          end do
+          write(100,*)
+      end do
+      close(100)
+   end subroutine save_matrix
+
+   subroutine save_matrix_bin(a,m,n,basename,frame)
+       integer, intent(in) :: m, n, frame
+       real(kind=dp), intent(in) :: a(m,n)
+       character(len=*), intent(in) :: basename
+       character(len=256) :: path
+       write(path, "(A, I0.6, A)") trim(basename), frame, ".bin"
+       open(100,file=trim(path),form="unformatted",access="stream", &
+           & action="write",status="replace")
+       write(100) a
+       close(100)
+   end subroutine save_matrix_bin
 
    SUBROUTINE fitting_interface(wf_history, current_overlap, nvec, coeffs)
       INTEGER, INTENT(IN) :: nvec
@@ -1855,8 +1960,8 @@ CONTAINS
          CALL square_to_lt(square_fm%local_data,d(:,i),n)
       END DO
 
-      CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
-      !CALL tr_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
+      !CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
+      CALL tr_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
       IF (error.ne.0) THEN
          CPABORT("Fitting failed.")
       END IF
@@ -2140,6 +2245,7 @@ CONTAINS
          CALL dbcsr_copy(tmp_i, state%overlap)
          CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
          CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_diff, 0.0_dp, tmp_k)
+         !CALL dbcsr_dot(tmp_i, target_diff, b(i-1))
          CALL dbcsr_trace(tmp_k, b(i-1))
 
          DO j = 2, i
