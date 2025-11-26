@@ -241,7 +241,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ! Get matrix constants
-      n_images = SIZE(rs_real, 1)
+      n_images = SIZE(rs_real, 3)
       ! Get the required derivatives for the deriv direction
       IF (PRESENT(deriv_direction)) THEN
          IF (.NOT. PRESENT(hmat) .AND. deriv_direction /= 0) THEN
