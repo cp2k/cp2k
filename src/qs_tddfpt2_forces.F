@@ -196,6 +196,13 @@ CONTAINS
          do_sf = .TRUE.
       END IF
 
+      ! disable RES-TDDFPT for now
+      DO ispin = 1, nspins
+         IF (gs_mos(ispin)%nmo_occ /= gs_mos(ispin)%nmo_active) THEN
+            CALL cp_abort(__LOCATION__, "RES-TDDFPT Forces NYA")
+         END IF
+      END DO
+
       ! rhs of linres equation
       IF (ASSOCIATED(ex_env%cpmos)) THEN
          DO ispin = 1, SIZE(ex_env%cpmos)
@@ -261,7 +268,6 @@ CONTAINS
          END DO
       END IF
       !
-
       CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
       DO ispin = 1, nspins
          ALLOCATE (ex_env%matrix_hz(ispin)%matrix)

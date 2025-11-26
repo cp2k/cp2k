@@ -22,7 +22,6 @@ MODULE qs_tddfpt2_fhxc_forces
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -32,7 +31,6 @@ MODULE qs_tddfpt2_fhxc_forces
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_columns,&
                                               cp_fm_geadd,&
-                                              cp_fm_norm,&
                                               cp_fm_row_scale,&
                                               cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
@@ -192,7 +190,8 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
-      TYPE(cp_fm_type)                                   :: avamat, cpscr, cvcmat, vcvec
+      TYPE(cp_fm_type)                                   :: avamat, avcmat, cpscr, cvcmat, vavec, &
+                                                            vcvec
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, evect
       TYPE(cp_fm_type), POINTER                          :: mos, mos2, mosa, mosa2
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -266,21 +265,20 @@ CONTAINS
       IF (nspins == 2) focc = 0.5_dp
       nsev = SIZE(evect, 1)
       DO ispin = 1, nsev
+         CALL cp_fm_get_info(evect(ispin), ncol_global=nactive(ispin))
          ! Calculate (C*X^T + X*C^T)/2
          CALL dbcsr_set(matrix_px1(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
                                     matrix_v=evect(ispin), &
                                     matrix_g=gs_mos(ispin)%mos_active, &
-                                    ncol=norb(ispin), alpha=2.0_dp*focc, symmetry_mode=1)
+                                    ncol=nactive(ispin), alpha=2.0_dp*focc, symmetry_mode=1)
 
          ! Calculate (C*X^T - X*C^T)/2
          CALL dbcsr_set(matrix_px1_asymm(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
                                     matrix_v=gs_mos(ispin)%mos_active, &
                                     matrix_g=evect(ispin), &
-                                    ncol=norb(ispin), alpha=2.0_dp*focc, &
+                                    ncol=nactive(ispin), alpha=2.0_dp*focc, &
                                     symmetry_mode=-1)
       END DO
       !
@@ -1263,15 +1261,20 @@ CONTAINS
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct, nrow_global=nao)
          !
          CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=nactive(spin), &
-                                  ncol_global=norb(ispin), para_env=fm_struct%para_env)
+                                  ncol_global=nactive(ispin), para_env=fm_struct%para_env)
          CALL cp_fm_create(avamat, fm_struct_mat)
          CALL cp_fm_struct_release(fm_struct_mat)
-         !
-         CALL cp_fm_create(vcvec, gs_mos(ispin)%mos_occ%matrix_struct, "vcvec")
+         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=nactive(spin), &
+                                  ncol_global=norb(ispin), para_env=fm_struct%para_env)
+         CALL cp_fm_create(avcmat, fm_struct_mat)
+         CALL cp_fm_struct_release(fm_struct_mat)
          CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb(spin), &
                                   ncol_global=norb(ispin), para_env=fm_struct%para_env)
          CALL cp_fm_create(cvcmat, fm_struct_mat)
          CALL cp_fm_struct_release(fm_struct_mat)
+         !
+         CALL cp_fm_create(vcvec, gs_mos(ispin)%mos_occ%matrix_struct, "vcvec")
+         CALL cp_fm_create(vavec, gs_mos(ispin)%mos_active%matrix_struct, "vavec")
 
          ! Allocate and initialize the Lambda matrix
          ALLOCATE (matrix_wx1(ispin)%matrix)
@@ -1281,26 +1284,18 @@ CONTAINS
 
          ! Add Hartree contributions to the perturbation vector
          IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
-!deb
-            WRITE (6, *) "CPMOS FHXC 1  ", cp_fm_norm(cpmos(1), "F")
-            WRITE (6, *) "HX    FHXC 1 ", dbcsr_frobenius_norm(matrix_hx(1)%matrix)
-!deb
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin), &
                                          cpscr, nactive(ispin), alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb(ispin), &
                                          alpha=1.0_dp, beta=0.0_dp)
             CALL parallel_gemm("T", "N", nactive(ispin), norb(ispin), nao, 1.0_dp, &
-                               mosa, vcvec, 0.0_dp, avamat)
+                               mosa, vcvec, 0.0_dp, avcmat)
             CALL parallel_gemm("N", "N", nao, norb(ispin), nactive(ispin), 1.0_dp, &
-                               evect(ispin), avamat, 0.0_dp, vcvec)
+                               evect(ispin), avcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), norb(ispin), alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
                                        ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
-!deb
-            WRITE (6, *) "CPMOS FHXC 2  ", cp_fm_norm(cpmos(1), "F")
-            WRITE (6, *) "CPSCR FHXC 2  ", cp_fm_norm(cpscr, "F")
-!deb
          END IF
          ! Add exchange-correlation kernel and exchange-correlation kernel derivative contributions to the response vector
          IF ((myfun /= xc_none) .AND. (tddfpt_control%spinflip /= tddfpt_sf_col)) THEN
@@ -1319,10 +1314,10 @@ CONTAINS
                                             norb(ispin), alpha=1.0_dp, beta=0.0_dp)
                ! Ca^T*F*Cb
                CALL parallel_gemm("T", "N", nactive(spin), norb(ispin), nao, 1.0_dp, &
-                                  mosa, vcvec, 0.0_dp, avamat)
+                                  mosa, vcvec, 0.0_dp, avcmat)
                ! X*Ca^T*F*Cb
                CALL parallel_gemm("N", "N", nao, norb(ispin), nactive(spin), 1.0_dp, &
-                                  evect(spin), avamat, 0.0_dp, vcvec)
+                                  evect(spin), avcmat, 0.0_dp, vcvec)
                ! -S*X*Ca^T*F*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                             norb(ispin), alpha=-focc, beta=1.0_dp)
@@ -1372,10 +1367,10 @@ CONTAINS
                                             alpha=1.0_dp, beta=1.0_dp)
                ! Ca^T*F*Cb
                CALL parallel_gemm("T", "N", nactive(spin), norb(ispin), nao, 1.0_dp, &
-                                  mosa, vcvec, 0.0_dp, avamat)
+                                  mosa, vcvec, 0.0_dp, avcmat)
                ! X*Ca^T*F*Cb
                CALL parallel_gemm("N", "N", nao, norb(ispin), nactive(spin), 1.0_dp, &
-                                  evect(spin), avamat, 0.0_dp, vcvec)
+                                  evect(spin), avcmat, 0.0_dp, vcvec)
                ! -S*X*Ca^T*F*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                             norb(ispin), alpha=-focc, beta=1.0_dp)
@@ -1397,8 +1392,10 @@ CONTAINS
          !
          CALL cp_fm_release(cpscr)
          CALL cp_fm_release(avamat)
-         CALL cp_fm_release(vcvec)
+         CALL cp_fm_release(avcmat)
          CALL cp_fm_release(cvcmat)
+         CALL cp_fm_release(vcvec)
+         CALL cp_fm_release(vavec)
       END DO
 
       IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
