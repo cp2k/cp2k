@@ -53,6 +53,7 @@ CONTAINS
 !> \param rs_dbcsr_in Array of dbcsr matrices
 !> \param kpoint_in The kpoint environment of the source matrix (providing neighbor list and cell_to_index)
 !> \param rs_array_out Multidimensional array - matrices are duplicated on each MPI rank
+!>                     dim  1 : spin, dim 2 : rows, dim 3 : cols, dim 4 : image index
 !> \param cell_to_index_out Cell to index array for the destination array
 !> \date 11.2025
 !> \author Stepan Marek
@@ -61,10 +62,11 @@ CONTAINS
       ! dimension 1 : spin, dimension 2 : image cell index
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rs_dbcsr_in
       TYPE(kpoint_type), POINTER                         :: kpoint_in
-      ! dim 1 : spin, dim 2 : matrix rows, dim 3 : matrix cols, dim 4 : image index
       REAL(kind=dp), DIMENSION(:, :, :, :)               :: rs_array_out
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_out
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'replicate_rs_matrices'
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'replicate_rs_matrices'
+
       CHARACTER                                          :: matrix_sym
       INTEGER                                            :: handle, iatom, ispin, jatom, n_spin, &
                                                             src_index
@@ -215,8 +217,8 @@ CONTAINS
    END SUBROUTINE write_block_no_sym
 ! **************************************************************************************************
 !> \brief Integrate RS matrices (stored as Fortran array) into a kpoint matrix at given kp
-!> \param rs_real Multidimensional array of real parts of the matrix
-!> \param ks_complex ...
+!> \param rs_real Multidimensional array of real parts of the matrix, dim 1 : rows, dim 2 : cols, dim 3 : image index
+!> \param ks_complex Target complex k-space matrix
 !> \param index_to_cell Gets the image cell coordinates from the rs_dbcsr index
 !> \param xkp Single kpoint where the transformation is evalued at
 !> \param deriv_direction Derivative direction - indicates along which cartesian direction to take the derivative
@@ -225,7 +227,6 @@ CONTAINS
 !> \author Stepan Marek
 ! **************************************************************************************************
    SUBROUTINE rs_to_kp(rs_real, ks_complex, index_to_cell, xkp, deriv_direction, hmat)
-      ! index 1 : rows, index 2 : columns of the matrix, Index 3 : image cell index
       REAL(kind=dp), DIMENSION(:, :, :), INTENT(IN)      :: rs_real
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(OUT)     :: ks_complex
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
@@ -237,9 +238,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_to_kp'
 
       INTEGER                                            :: handle, i, n_images
-
-! Index 1 : rows, Index 2 : columns of the matrix (AO or MO indices)
-! Index 1 : direction, index 2 : image cell index
 
       CALL timeset(routineN, handle)
       ! Get matrix constants
