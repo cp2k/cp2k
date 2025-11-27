@@ -115,8 +115,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_energy_diff'
 
-      INTEGER                                            :: handle, ispin, ivect, nactive, nao, &
-                                                            nspins, nvects, spin2
+      INTEGER                                            :: handle, i, ispin, ivect, j, nactive, &
+                                                            nao, nspins, nvects, spin2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals_active
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: hevec
 
@@ -129,6 +130,11 @@ CONTAINS
          CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
          CALL cp_fm_create(hevec, matrix_struct)
+         ALLOCATE (evals_active(nactive))
+         DO i = 1, nactive
+            j = gs_mos(ispin)%index_active(i)
+            evals_active(i) = gs_mos(ispin)%evals_occ(j)
+         END DO
 
          IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
             spin2 = ispin
@@ -148,12 +154,13 @@ CONTAINS
                                   0.0_dp, hevec)
             ELSE
                CALL cp_fm_to_fm(S_evects(ispin, ivect), hevec)
-               CALL cp_fm_column_scale(hevec, gs_mos(ispin)%evals_occ)
+               CALL cp_fm_column_scale(hevec, evals_active)
             END IF
 
             ! KS * C1 - S * C1 * occupied_orbital_energies
             CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect), -1.0_dp, hevec)
          END DO
+         DEALLOCATE (evals_active)
          CALL cp_fm_release(hevec)
       END DO
 
@@ -585,7 +592,7 @@ CONTAINS
             alpha = 2.0_dp
          END IF
 
-         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+         CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
          DO ispin = 1, nspins
             CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
          END DO
@@ -607,8 +614,8 @@ CONTAINS
 
                !The symmetric density matrix
                CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
-                                  gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
-               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
+                                  gs_mos(ispin)%mos_active, 0.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_active, &
                                   evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_symm(ispin)%matrix, 0.0_dp)
@@ -634,11 +641,11 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+                                     gs_mos(ispin)%mos_active, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
-                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, gs_mos(ispin)%mos_active, &
                                                Aop_evects(ispin, ivect), ncol=nactive(ispin), &
                                                alpha=alpha, beta=1.0_dp)
                END DO
@@ -649,8 +656,8 @@ CONTAINS
 
                !The symmetric density matrix
                CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
-                                  gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
-               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_occ, &
+                                  gs_mos(ispin)%mos_active, 0.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_active, &
                                   evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_asymm(ispin)%matrix, 0.0_dp)
@@ -676,11 +683,11 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+                                     gs_mos(ispin)%mos_active, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
-                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, gs_mos(ispin)%mos_active, &
                                                Aop_evects(ispin, ivect), ncol=nactive(ispin), &
                                                alpha=alpha, beta=1.0_dp)
                END DO
@@ -741,7 +748,7 @@ CONTAINS
       alpha = 2.0_dp
       IF (nspins > 1) alpha = 1.0_dp
 
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+      CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
       CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
       DO ispin = 1, nspins
          CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
@@ -752,8 +759,8 @@ CONTAINS
       DO ivect = 1, nvects
          DO ispin = 1, nspins
             CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect), &
-                               gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
-            CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp*symmetry, gs_mos(ispin)%mos_occ, &
+                               gs_mos(ispin)%mos_active, 0.0_dp, wfm_rho_orb)
+            CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp*symmetry, gs_mos(ispin)%mos_active, &
                                evects(ispin, ivect), 1.0_dp, wfm_rho_orb)
             CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
             CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
@@ -772,7 +779,7 @@ CONTAINS
             CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
                                admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
             CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+                               gs_mos(ispin)%mos_active, 1.0_dp, Aop_evects(ispin, ivect))
          END DO
       END DO
 

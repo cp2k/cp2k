@@ -11,7 +11,9 @@ MODULE qs_tddfpt2_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE bibliography,                    ONLY: Sertcan2024,&
+   USE bibliography,                    ONLY: Hehn2022,&
+                                              Hehn2024,&
+                                              Sertcan2024,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
@@ -182,6 +184,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
+      CALL cite_reference(Hehn2022)
+      CALL cite_reference(Hehn2024)
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) CALL cite_reference(Sertcan2024)
 
       nspins = dft_control%nspins
@@ -191,6 +195,14 @@ CONTAINS
       ELSE
          do_sf = .TRUE.
       END IF
+
+      ! disable RES-TDDFPT for now
+      DO ispin = 1, nspins
+         IF (gs_mos(ispin)%nmo_occ /= gs_mos(ispin)%nmo_active) THEN
+            CALL cp_abort(__LOCATION__, "RES-TDDFPT Forces NYA")
+         END IF
+      END DO
+
       ! rhs of linres equation
       IF (ASSOCIATED(ex_env%cpmos)) THEN
          DO ispin = 1, SIZE(ex_env%cpmos)
@@ -237,7 +249,7 @@ CONTAINS
             spin = ispin
          END IF
          ! Add difference density to matrix_pe
-         CALL tddfpt_resvec1(ex_env%evect(spin), gs_mos(spin)%mos_occ, &
+         CALL tddfpt_resvec1(ex_env%evect(spin), gs_mos(spin)%mos_active, &
                              matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix, ispin, do_sf)
       END DO
       !
@@ -256,7 +268,6 @@ CONTAINS
          END DO
       END IF
       !
-
       CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
       DO ispin = 1, nspins
          ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
@@ -417,7 +428,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct'
 
-      INTEGER                                            :: handle, iounit, ispin, natom, norb, &
+      INTEGER                                            :: handle, iounit, ispin, nact, natom, &
                                                             nspins, spin
       LOGICAL                                            :: do_sf
       REAL(KIND=dp)                                      :: evalue
@@ -487,8 +498,8 @@ CONTAINS
          ! For spin-flip excitations only the beta component of the Lambda matrix
          ! contains the excitation energy term
          IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
-            CALL cp_fm_get_info(gs_mos(spin)%mos_occ, ncol_global=norb)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(spin), ncol=norb)
+            CALL cp_fm_get_info(evect(spin), ncol_global=nact)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(spin), ncol=nact)
             evalue = ex_env%evalue
             IF (tddfpt_control%oe_corr == oe_shift) THEN
                evalue = ex_env%evalue - tddfpt_control%ev_shift
@@ -498,7 +509,7 @@ CONTAINS
          ! For spin-flip excitations only the alpha component of the Lambda matrix
          ! contains the occupied MO energy term
          IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
-            CALL calculate_wx_matrix(gs_mos(ispin)%mos_occ, evect(spin), matrix_ks(ispin)%matrix, &
+            CALL calculate_wx_matrix(gs_mos(ispin)%mos_active, evect(spin), matrix_ks(ispin)%matrix, &
                                      matrix_wz(ispin)%matrix)
          END IF
       END DO
@@ -536,7 +547,6 @@ CONTAINS
          ! For spin-flip excitations only the alpha component of Lambda has contributions
          ! of this term, so skip beta
          IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
             evalue = ex_env%evalue
             IF (tddfpt_control%oe_corr == oe_shift) THEN
                evalue = ex_env%evalue - tddfpt_control%ev_shift
@@ -546,7 +556,7 @@ CONTAINS
             ELSE
                spin = ispin
             END IF
-            CALL calculate_xwx_matrix(gs_mos(ispin)%mos_occ, evect(ispin), matrix_s(1)%matrix, &
+            CALL calculate_xwx_matrix(gs_mos(ispin)%mos_active, evect(ispin), matrix_s(1)%matrix, &
                                       matrix_ks(spin)%matrix, matrix_wz(ispin)%matrix, evalue)
          END IF
       END DO
@@ -612,29 +622,31 @@ CONTAINS
 !> \brief Build the spin difference density,
 !>           matrix_pe = matrix_pe + X*X^T - (C*X^T*S*X*C^T + (C*X^T*S*X*C^T)^T)/2
 !> \param evect ...
-!> \param mos_occ ...
+!> \param mos_active ...
 !> \param matrix_s ...
 !> \param matrix_pe ...
 !> \param spin ...
 !> \param do_sf ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_resvec1(evect, mos_occ, matrix_s, matrix_pe, spin, do_sf)
+   SUBROUTINE tddfpt_resvec1(evect, mos_active, matrix_s, matrix_pe, spin, do_sf)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_occ
+      TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_active
       TYPE(dbcsr_type), POINTER                          :: matrix_s, matrix_pe
       INTEGER, INTENT(IN)                                :: spin
       LOGICAL, INTENT(IN)                                :: do_sf
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec1'
 
-      INTEGER                                            :: handle, iounit, nao, norb
+      INTEGER                                            :: handle, iounit, nact, nao, norb
       REAL(KIND=dp)                                      :: tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstruct2
       TYPE(cp_fm_type)                                   :: cxmat, xxmat
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(mos_occ, nrow_global=nao, ncol_global=norb)
+      CALL cp_fm_get_info(mos_active, nrow_global=nao, ncol_global=norb)
+      CALL cp_fm_get_info(evect, nrow_global=nao, ncol_global=nact)
+      CPASSERT(norb == nact)
 
       ! matrix_pe = X*X^T
       IF (.NOT. do_sf .OR. (do_sf .AND. (spin == 2))) THEN
@@ -655,10 +667,10 @@ CONTAINS
          ! (S*X)^T*X
          CALL parallel_gemm('T', 'N', norb, norb, nao, 1.0_dp, cxmat, evect, 0.0_dp, xxmat)
          ! C*X^T*S*X
-         CALL parallel_gemm('N', 'N', nao, norb, norb, 1.0_dp, mos_occ, xxmat, 0.0_dp, cxmat)
+         CALL parallel_gemm('N', 'N', nao, norb, norb, 1.0_dp, mos_active, xxmat, 0.0_dp, cxmat)
          CALL cp_fm_release(xxmat)
          ! matrix_pe = matrix_pe - (C*(C^T*X^T*S*X)^T + C^T*(C^T*X^T*S*X))/2
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_occ, matrix_g=cxmat, &
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_active, matrix_g=cxmat, &
                                     ncol=norb, alpha=-1.0_dp, symmetry_mode=1)
          CALL cp_fm_release(cxmat)
       END IF
@@ -1431,8 +1443,6 @@ CONTAINS
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-
-      MARK_USED(work_matrices)
 
       CALL timeset(routineN, handle)
 

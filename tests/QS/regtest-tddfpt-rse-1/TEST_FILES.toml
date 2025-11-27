@@ -1,0 +1,13 @@
+# 
+"h2o_01.inp"                            = [{matcher="M037", tol=4.0E-06, ref=0.874827E+00}]
+"h2o_02.inp"                            = [{matcher="M037", tol=4.0E-06, ref=26.43662E+00}]
+"h2o_03.inp"                            = [{matcher="M037", tol=4.0E-06, ref=0.489483E+00}]
+"h2o_04.inp"                            = [{matcher="M037", tol=4.0E-06, ref=27.18182E+00}]
+"h2o_05.inp"                            = [{matcher="M037", tol=4.0E-06, ref=0.656555E+00}]
+"h2o_06.inp"                            = [{matcher="M037", tol=4.0E-06, ref=27.18380E+00}]
+#"dip01.inp"                             = []
+#"dip02.inp"                             = []
+#"dip03.inp"                             = []
+#"dip04.inp"                             = []
+#
+#EOF

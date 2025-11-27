@@ -1806,6 +1806,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! RSE subsection
+      CALL create_res_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL keyword_create(keyword, __LOCATION__, name="DO_BSE", &
                           description="Choosing BSE kernel.", &
                           usage="DO_BSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -2085,6 +2090,61 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_stda_section
+
+! **************************************************************************************************
+!> \brief creates the RES input section (Reduced Excitation Space)
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_res_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="REDUCED_EXCITATION_SPACE", &
+                          description="Sets up a restricted (reduced) excitation space for TDDFT", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of RES calculation.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
+                          description="Upper and lower cutoffs [eV] for orbitals to be included for excitations. ", &
+                          usage="ENERGY_WINDOW -5.0 0.0", default_r_vals=[-1.0E10_dp, 1.0E10_dp], &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UPPER_ENERGY_CUTOFF", &
+                          description="Upper energy cutoff for orbitals to be included in excitations.", &
+                          usage="UPPER_ENERGY_CUTOFF -5.0", default_r_val=1.0E10_dp, &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LOWER_ENERGY_CUTOFF", &
+                          description="Lower energy cutoff for orbitals to be included in excitations.", &
+                          usage="LOWER_ENERGY_CUTOFF -5.0", default_r_val=-1.0E10_dp, &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULE_LIST", &
+                          description="Indices of molecules to be excited. "// &
+                          "This implies the calculation of molecular states through orbital location "// &
+                          "and subspace diagonalization.", &
+                          usage="MOLECULE_LIST {integer}  {integer} ..  {integer} ", &
+                          n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_res_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for electronic band structure calculations

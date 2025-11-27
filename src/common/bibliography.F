@@ -90,7 +90,7 @@ MODULE bibliography
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
-                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025
+                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024
 
 CONTAINS
 
@@ -1926,6 +1926,18 @@ CONTAINS
                          title="Benchmarking Excited-State Calculations Using Exciton Properties", &
                          source="J. Chem. Theory Comput.", volume="14", pages="710-725", &
                          year=2018, doi="10.1021/acs.jctc.7b01145 ")
+
+      CALL add_reference(key=Hehn2022, &
+                         authors=s2a("A. Hehn", "B. Sertcan", "F. Belleflamme", "S.K. Chulkov", "M. B. Watkins", "J. Hutter"), &
+                         title="Excited-State Properties for Extended Systems: Efficient Hybrid Density Functional Methods", &
+                         source="J. Chem. Theory Comput.", volume="18", pages="4186-4202", &
+                         year=2022, doi="10.1021/acs.jctc.2c00144")
+
+      CALL add_reference(key=Hehn2024, &
+                         authors=s2a("A. Hehn", "B. Sertcan", "F. Belleflamme", "S.K. Chulkov", "M. B. Watkins", "J. Hutter"), &
+               title="Correction to 'Excited-State Properties for Extended Systems: Efficient Hybrid Density Functional Methods'", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="4949-4949", &
+                         year=2024, doi="10.1021/acs.jctc.4c00604")
 
       CALL add_reference(key=Sertcan2024, &
                          authors=s2a("B. Sertcan-Gokmen", "J. Hutter", "A. Hehn"), &

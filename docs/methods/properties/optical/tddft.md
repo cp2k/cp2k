@@ -508,5 +508,5 @@ orbitals. It is possible to print the NTOs as `CUBE_FILES` or in Molden format, 
 being activated with the keyword
 [MOS_MOLDEN](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.MOS_MOLDEN).
 
-[hehn2022]: https://doi.org/10.1021/acs.jctc.2c00144
+[hehn2022]: #Hehn2022
 [strand2019]: https://doi.org/10.1063/1.5078682

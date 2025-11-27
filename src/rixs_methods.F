@@ -421,8 +421,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
 
-      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
-                                                            nstates
+      INTEGER                                            :: ispin, istate, nactive, ncol, nrow, &
+                                                            nspins, nstates
       REAL(kind=dp)                                      :: diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
@@ -457,6 +457,13 @@ CONTAINS
          END IF
 
          CALL cp_fm_to_fm(rotated_mo_coeffs, mo_occ(ispin))
+
+         ! rotation of transition vectors
+         CALL cp_fm_get_info(matrix=evects(ispin, 1), ncol_global=nactive)
+         IF (nactive /= ncol) THEN
+            CALL cp_warn(__LOCATION__, "RIXS with reduced occupied state TDDFPT not possible")
+            CPABORT("rotate_vectors in rixs_method")
+         END IF
 
          nstates = SIZE(evects, DIM=2)
          DO istate = 1, nstates

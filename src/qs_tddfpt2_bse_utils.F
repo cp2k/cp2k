@@ -74,8 +74,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'zeroth_order_gw'
 
-      INTEGER                                            :: handle, i, ispin, ivect, nactive, nao, &
-                                                            nmo, nspins, nvects, occ, virt
+      INTEGER                                            :: handle, i, ispin, ivect, j, nactive, &
+                                                            nao, nmo, nspins, nvects, occ, virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: gw_occ, gw_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, matrix_struct
@@ -99,6 +99,8 @@ CONTAINS
 
       DO ispin = 1, nspins
 
+         CPASSERT(.NOT. ASSOCIATED(gs_mos(ispin)%evals_occ_matrix))
+
          CALL dbcsr_create(matrixf, template=matrix_s)
          nmo = SIZE(ex_env%gw_eigen)
          CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
@@ -107,6 +109,7 @@ CONTAINS
          CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
 
          occ = SIZE(gs_mos(ispin)%evals_occ)
+         nactive = gs_mos(ispin)%nmo_active
          nmo = SIZE(ex_env%gw_eigen)
          virt = SIZE(gs_mos(ispin)%evals_virt)
          NULLIFY (fmstruct)
@@ -137,9 +140,12 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix_s, fms)
 
          ALLOCATE (gw_virt(virt))
-         ALLOCATE (gw_occ(occ))
+         ALLOCATE (gw_occ(nactive))
          gw_virt(1:virt) = ex_env%gw_eigen(occ + 1:nmo)
-         gw_occ(1:occ) = ex_env%gw_eigen(1:occ)
+         DO i = 1, nactive
+            j = gs_mos(ispin)%index_active(i)
+            gw_occ(i) = ex_env%gw_eigen(j)
+         END DO
 
          CALL cp_fm_set_all(matrixtmp, 0.0_dp)
          DO i = 1, virt

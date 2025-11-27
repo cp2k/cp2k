@@ -514,6 +514,7 @@ CONTAINS
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param evals              TDDFPT eigenvalues
+!> \param gs_mos ...
 !> \param ostrength          TDDFPT oscillator strength
 !> \param mult               multiplicity
 !> \param dipole_op_mos_occ  action of the dipole operator on the ground state wave function
@@ -532,11 +533,13 @@ CONTAINS
 !>       \f[ t_d(spin) = Tr[evects^T dipole\_op\_mos\_occ(d, spin)] .\f]
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &
+   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, gs_mos, ostrength, mult, &
                                    dipole_op_mos_occ, dipole_form)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: ostrength
       INTEGER, INTENT(in)                                :: mult
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: dipole_op_mos_occ
@@ -546,10 +549,12 @@ CONTAINS
 
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
-      INTEGER                                            :: handle, ideriv, ispin, istate, nspins, &
-                                                            nstates
+      INTEGER                                            :: handle, i, ideriv, ispin, istate, j, &
+                                                            nactive, nao, nocc, nspins, nstates
       REAL(kind=dp)                                      :: osc_strength
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_dipoles
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type)                                   :: dipact
 
       CALL timeset(routineN, handle)
 
@@ -591,10 +596,26 @@ CONTAINS
       ! nspins == 1 .AND. mult == 3 : spin-flip transitions are forbidden due to symmetry reasons
       IF (nspins > 1 .OR. mult == 1) THEN
          DO ispin = 1, nspins
-            DO ideriv = 1, nderivs
-               CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin), &
-                                trans_dipoles(:, ideriv, ispin))
-            END DO
+            CALL cp_fm_get_info(dipole_op_mos_occ(1, ispin), nrow_global=nao, ncol_global=nocc)
+            CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive)
+            IF (nocc == nactive) THEN
+               DO ideriv = 1, nderivs
+                  CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin), &
+                                   trans_dipoles(:, ideriv, ispin))
+               END DO
+            ELSE
+               CALL cp_fm_get_info(evects(ispin, 1), matrix_struct=matrix_struct)
+               CALL cp_fm_create(dipact, matrix_struct)
+               DO ideriv = 1, nderivs
+                  DO i = 1, nactive
+                     j = gs_mos(ispin)%index_active(i)
+                     CALL cp_fm_to_fm(dipole_op_mos_occ(ideriv, ispin), dipact, &
+                                      ncol=1, source_start=j, target_start=i)
+                  END DO
+                  CALL cp_fm_trace(evects(ispin, :), dipact, trans_dipoles(:, ideriv, ispin))
+               END DO
+               CALL cp_fm_release(dipact)
+            END IF
          END DO
 
          IF (nspins == 1) THEN
@@ -639,7 +660,8 @@ CONTAINS
 !>    * 05.2016 created as 'tddfpt_print_summary' [Sergey Chulkov]
 !>    * 08.2018 splited of from 'tddfpt_print_summary' [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, spinflip, min_amplitude)
+   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, spinflip, &
+                                               min_amplitude)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
@@ -656,15 +678,15 @@ CONTAINS
                                                             istate, nao, ncols_local, nrows_local, &
                                                             nspins, nstates, spin2, state_spin, &
                                                             state_spin2
-      INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
-                                                            nexcs_local, nexcs_max_local, &
+      INTEGER(kind=int_8)                                :: iexc, imo_act, imo_occ, imo_virt, ind, &
+                                                            nexcs, nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:)     :: inds_local, inds_recv, nexcs_recv
       INTEGER(kind=int_8), DIMENSION(1)                  :: nexcs_send
-      INTEGER(kind=int_8), DIMENSION(maxspins)           :: nmo_occ8, nmo_virt8
+      INTEGER(kind=int_8), DIMENSION(maxspins)           :: nactive8, nmo_occ8, nmo_virt8
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_occ, nmo_virt
       LOGICAL                                            :: do_exc_analysis
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights_local, weights_neg_abs_recv, &
                                                             weights_recv
@@ -687,6 +709,8 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
 
       DO ispin = 1, nspins
+         nactive(ispin) = gs_mos(ispin)%nmo_active
+         nactive8(ispin) = INT(nactive(ispin), kind=int_8)
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
          nmo_occ8(ispin) = SIZE(gs_mos(ispin)%evals_occ, kind=int_8)
@@ -735,9 +759,10 @@ CONTAINS
                                          ncol=nmo_virt(spin2), alpha=1.0_dp, beta=0.0_dp)
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(spin2), ncol_global=nmo_occ(ispin), &
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(spin2), ncol_global=nactive(ispin), &
                                      context=blacs_env)
             CALL cp_fm_create(weights_fm(ispin), fm_struct)
+            CALL cp_fm_set_all(weights_fm(ispin), 0.0_dp)
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
@@ -762,7 +787,7 @@ CONTAINS
                   spin2 = 2
                END IF
                ! compute excitation amplitudes
-               CALL parallel_gemm('T', 'N', nmo_virt(spin2), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin), &
+               CALL parallel_gemm('T', 'N', nmo_virt(spin2), nactive(ispin), nao, 1.0_dp, S_mos_virt(ispin), &
                                   evects(ispin, istate), 0.0_dp, weights_fm(ispin))
 
                CALL cp_fm_get_info(weights_fm(ispin), nrow_local=nrows_local, ncol_local=ncols_local, &
@@ -889,7 +914,8 @@ CONTAINS
                         spin_label2 = '(bet)'
                      END IF
                   END IF
-                  imo_occ = ind/nmo_virt8(state_spin2) + 1
+                  imo_act = ind/nmo_virt8(state_spin2) + 1
+                  imo_occ = gs_mos(state_spin)%index_active(imo_act)
                   imo_virt = MOD(ind, nmo_virt8(state_spin2)) + 1
 
                   WRITE (log_unit, '(T27,I8,1X,A5,T48,I8,1X,A5,T70,F9.6)') imo_occ, spin_label, &
@@ -1205,7 +1231,7 @@ CONTAINS
 
       CHARACTER(LEN=4)                                   :: prefix_output
       INTEGER                                            :: handle, ispin, istate, n_moments_quad, &
-                                                            nao, nspins, nstates
+                                                            nactive, nao, nspins, nstates
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
       LOGICAL                                            :: print_checkvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_point_multipole
@@ -1297,10 +1323,15 @@ CONTAINS
             CALL cp_fm_set_all(eigvec_X_ia_n(ispin), 0.0_dp)
             ! compute eigenvectors X of the TDA equation
             ! Reshuffle multiplication from
-            ! X_ai = S_µa ^T * C_µi
+            ! X_ai = S_ma ^T * C_mi
             ! to
-            ! X_ia = C_µi ^T * S_µa
+            ! X_ia = C_mi ^T * S_ma
             ! for compatibility with the structure needed for get_exciton_descriptors of bse_properties.F
+            CALL cp_fm_get_info(evects(ispin, istate), ncol_global=nactive)
+            IF (nactive /= nmo_occ(ispin)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Reduced active space excitations not implemented")
+            END IF
             CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_virt(ispin), nao, 1.0_dp, &
                                evects(ispin, istate), S_mos_virt(ispin), 0.0_dp, eigvec_X_ia_n(ispin))
 
@@ -1308,7 +1339,6 @@ CONTAINS
                                          fm_multipole_ij, fm_multipole_ab, &
                                          fm_multipole_ai, &
                                          istate, nmo_occ(ispin), nmo_virt(ispin))
-
          END DO
       END DO
       CALL cp_fm_release(eigvec_X_ia_n)
