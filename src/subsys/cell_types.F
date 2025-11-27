@@ -39,14 +39,19 @@ MODULE cell_types
                                                cell_sym_hexagonal_gamma_120 = 10, &
                                                cell_sym_cubic = 11
 
-   INTEGER, PARAMETER, PUBLIC               :: use_perd_x = 0, &
-                                               use_perd_y = 1, &
-                                               use_perd_z = 2, &
-                                               use_perd_xy = 3, &
-                                               use_perd_xz = 4, &
-                                               use_perd_yz = 5, &
-                                               use_perd_xyz = 6, &
-                                               use_perd_none = 7
+   INTEGER, PARAMETER, PUBLIC               :: use_perd_none = 0, &
+                                               use_perd_x = 1, &
+                                               use_perd_y = 2, &
+                                               use_perd_z = 3, &
+                                               use_perd_xy = 4, &
+                                               use_perd_xz = 5, &
+                                               use_perd_yz = 6, &
+                                               use_perd_xyz = 7
+
+   CHARACTER(LEN=3), DIMENSION(7), &
+      PARAMETER, PUBLIC                     :: periodicity_string = ["  X", "  Y", "  Z", &
+                                                                     " XY", " XZ", " YZ", &
+                                                                     "XYZ"]
 
 ! **************************************************************************************************
 !> \brief   Type defining parameters related to the simulation cell

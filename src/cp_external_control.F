@@ -216,10 +216,10 @@ CONTAINS
             time_check = m_walltime() - my_start_time
             IF (time_check > my_target_time) THEN
                should_stop = .TRUE.
-               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A,f12.3,A)") &
+               WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A,F12.3,A)") &
                   "*** "//TRIM(flag)//" run terminated - exceeded requested execution time:", &
-                  my_target_time, " seconds.", &
-                  "*** Execution time now: ", time_check, " seconds."
+                  my_target_time, " seconds", &
+                  "*** Execution time now: ", time_check, " seconds"
             END IF
          END IF
       END IF

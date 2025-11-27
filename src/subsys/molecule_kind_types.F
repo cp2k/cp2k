@@ -16,7 +16,8 @@
 MODULE molecule_kind_types
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE cell_types,                      ONLY: use_perd_x,&
+   USE cell_types,                      ONLY: periodicity_string,&
+                                              use_perd_x,&
                                               use_perd_xy,&
                                               use_perd_xyz,&
                                               use_perd_xz,&
@@ -207,6 +208,7 @@ MODULE molecule_kind_types
              write_molecule_kind_set, &
              setup_colvar_counters, &
              write_colvar_constraint, &
+             write_fixd_constraint, &
              write_g3x3_constraint, &
              write_g4x6_constraint
 
@@ -1128,6 +1130,49 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_colvar_constraint
+
+! **************************************************************************************************
+!> \brief Write fix atom constraint information to output unit
+!> \param fixd_constraint Data set of the fix atom constraint
+!> \param ifixd Fix atom constraint/restraint number (index)
+!> \param iw Logical unit number of the output unit
+!> \author Matthias Krack (26.11.2025)
+! **************************************************************************************************
+   SUBROUTINE write_fixd_constraint(fixd_constraint, ifixd, iw)
+
+      TYPE(fixd_constraint_type), INTENT(IN), POINTER    :: fixd_constraint
+      INTEGER, INTENT(IN)                                :: ifixd, iw
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(fixd_constraint))
+         IF (fixd_constraint%restraint%active) THEN
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "FIX_ATOM| Number (restraint)", ifixd
+            WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+               "FIX_ATOM| Restraint constant k [a.u.]", fixd_constraint%restraint%k0
+         ELSE
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "FIX_ATOM| Number (constraint)", ifixd
+         END IF
+         WRITE (UNIT=iw, FMT="(T2,A,T71,I10)") &
+            "FIX_ATOM| Atom index", fixd_constraint%fixd
+         WRITE (UNIT=iw, FMT="(T2,A,T78,A3)") &
+            "FIX_ATOM| Fixed Cartesian components", periodicity_string(fixd_constraint%itype)
+         IF (INDEX(periodicity_string(fixd_constraint%itype), "X") > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+               "FIX_ATOM| X coordinate [Angstrom]", cp_unit_from_cp2k(fixd_constraint%coord(1), "Angstrom")
+         END IF
+         IF (INDEX(periodicity_string(fixd_constraint%itype), "Y") > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+               "FIX_ATOM| Y coordinate [Angstrom]", cp_unit_from_cp2k(fixd_constraint%coord(2), "Angstrom")
+         END IF
+         IF (INDEX(periodicity_string(fixd_constraint%itype), "Z") > 0) THEN
+            WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+               "FIX_ATOM| Z coordinate [Angstrom]", cp_unit_from_cp2k(fixd_constraint%coord(3), "Angstrom")
+         END IF
+      END IF
+
+   END SUBROUTINE write_fixd_constraint
 
 ! **************************************************************************************************
 !> \brief Write G3x3 constraint information to output unit
