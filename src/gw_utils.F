@@ -860,13 +860,15 @@ CONTAINS
          CALL dbt_clear(t_3c_global_array(1, 1))
 
       END DO
+
+      
+      t2 = m_walltime()
       
       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
 
-      t2 = m_walltime()
 
       bs_env%occupation_3c_int = occupation_sum
       bs_env%max_dist_AO_atoms = max_dist_AO_atoms
