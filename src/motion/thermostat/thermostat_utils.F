@@ -46,6 +46,7 @@ MODULE thermostat_utils
                                               get_molecule_kind_set,&
                                               molecule_kind_type,&
                                               write_colvar_constraint,&
+                                              write_fixd_constraint,&
                                               write_g3x3_constraint,&
                                               write_g4x6_constraint
    USE molecule_list_types,             ONLY: molecule_list_type
@@ -215,6 +216,11 @@ CONTAINS
          IF (ASSOCIATED(gci%colv_list)) THEN
             DO ic = 1, SIZE(gci%colv_list)
                CALL write_colvar_constraint(gci%colv_list(ic), ic, iw)
+            END DO
+         END IF
+         IF (ASSOCIATED(gci%fixd_list)) THEN
+            DO ic = 1, SIZE(gci%fixd_list)
+               CALL write_fixd_constraint(gci%fixd_list(ic), ic, iw)
             END DO
          END IF
          IF (ASSOCIATED(gci%g3x3_list)) THEN
