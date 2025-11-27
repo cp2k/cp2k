@@ -36,6 +36,7 @@ MODULE negf_methods
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -158,11 +159,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_negf'
 
-      CHARACTER(len=100)                                 :: sfmt
       CHARACTER(len=default_string_length)               :: contact_id_str
-      INTEGER                                            :: handle, i, icontact, ispin, j, k, &
-                                                            log_unit, n, ncontacts, npoints, &
-                                                            nspins, print_level, print_unit
+      INTEGER                                            :: handle, icontact, ispin, log_unit, &
+                                                            ncontacts, npoints, nspins, &
+                                                            print_level, print_unit
       LOGICAL                                            :: debug_output, should_output, &
                                                             verbose_output
       REAL(kind=dp)                                      :: energy_max, energy_min
@@ -214,19 +214,18 @@ CONTAINS
       END IF
 
       ! print levels, are used if log_unit > 0
-      IF (log_unit > 0) THEN
-         CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
-         SELECT CASE (print_level)
-         CASE (high_print_level)
-            verbose_output = .TRUE.
-         CASE (debug_print_level)
-            verbose_output = .TRUE.
-            debug_output = .TRUE.
-         CASE DEFAULT
-            verbose_output = .FALSE.
-            debug_output = .FALSE.
-         END SELECT
-      END IF
+      ! defined for all parallel MPI processes
+      CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
+      SELECT CASE (print_level)
+      CASE (high_print_level)
+         verbose_output = .TRUE.
+      CASE (debug_print_level)
+         verbose_output = .TRUE.
+         debug_output = .TRUE.
+      CASE DEFAULT
+         verbose_output = .FALSE.
+         debug_output = .FALSE.
+      END SELECT
 
       IF (log_unit > 0) THEN
          WRITE (log_unit, "(/,' THE RELEVANT HAMILTONIAN AND OVERLAP MATRICES FROM DFT')")
@@ -240,93 +239,13 @@ CONTAINS
          WRITE (log_unit, "(/,' NEGF| The initial Hamiltonian and Overlap matrices are calculated.')")
       END IF
 
-      IF (log_unit > 0) THEN
-         DO icontact = 1, SIZE(negf_control%contacts)
-            WRITE (log_unit, "(/,' The electrode',I5)") icontact
-            WRITE (log_unit, "(  ' ------------------')")
-            WRITE (log_unit, "(' From the force environment:',I16)") negf_control%contacts(icontact)%force_env_index
-            WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%contacts(icontact)%atomlist_bulk)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact (from the entire system):')")
-            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
-            WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") SIZE(negf_env%contacts(icontact)%atomlist_cell0)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire system):')")
-            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
-            IF (verbose_output) WRITE (log_unit, "(' Direction of an electrode: ',I16)") negf_env%contacts(icontact)%direction_axis
-            ! print the electrode Hamiltonians for check and debuging
-            IF (debug_output .AND. (para_env_global%num_pe == 1 .OR. negf_control%nprocs == 1)) THEN
-               n = SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 2)
-               WRITE (sfmt, "('(',i0,'(E15.5))')") n
-               WRITE (log_unit, "(' The number of atomic orbitals:',I14)") n
-               DO k = 1, dft_control%nspins
-                  WRITE (log_unit, "(' The H_00 electrode Hamiltonian for spin',I2)") k
-                  DO i = 1, n
-                     WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%h_00(k)%local_data(i, j), j=1, n)
-                  END DO
-                  WRITE (log_unit, "(' The H_01 electrode Hamiltonian for spin',I2)") k
-                  DO i = 1, n
-                     WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%h_01(k)%local_data(i, j), j=1, n)
-                  END DO
-               END DO
-               WRITE (log_unit, "(' The S_00 overlap matrix')")
-               DO i = 1, n
-                  WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%s_00%local_data(i, j), j=1, n)
-               END DO
-               WRITE (log_unit, "(' The S_01 overlap matrix')")
-               DO i = 1, n
-                  WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%s_01%local_data(i, j), j=1, n)
-               END DO
-            END IF
-         END DO
-         WRITE (log_unit, "(/,' The full scattering region')")
-         WRITE (log_unit, "(  ' --------------------------')")
-         WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%atomlist_S_screening)
-         IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a full scattering region:')")
-         IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
-         ! print the full scattering region Hamiltonians for check and debuging
-         IF (debug_output .AND. (para_env_global%num_pe == 1 .OR. negf_control%nprocs == 1)) THEN
-            n = SIZE(negf_env%h_s(1)%local_data, 2)
-            WRITE (sfmt, "('(',i0,'(E15.5))')") n
-            WRITE (log_unit, "(' The number of atomic orbitals:',I14)") n
-            DO k = 1, dft_control%nspins
-               WRITE (log_unit, "(' The H_s Hamiltonian for spin',I2)") k
-               DO i = 1, n
-                  WRITE (log_unit, sfmt) (negf_env%h_s(k)%local_data(i, j), j=1, n)
-               END DO
-            END DO
-            WRITE (log_unit, "(' The S_s overlap matrix')")
-            DO i = 1, n
-               WRITE (log_unit, sfmt) (negf_env%s_s%local_data(i, j), j=1, n)
-            END DO
-         END IF
-         ! print the electrode Hamiltonians for check and debuging
-         IF (debug_output .AND. (para_env_global%num_pe == 1 .OR. negf_control%nprocs == 1)) THEN
-            WRITE (log_unit, "(/,' Scattering region - electrode contacts')")
-            WRITE (log_unit, "(  ' ---------------------------------------')")
-            DO icontact = 1, SIZE(negf_control%contacts)
-               WRITE (log_unit, "(/,' The contact',I5)") icontact
-               WRITE (log_unit, "(  ' ----------------')")
-               DO k = 1, dft_control%nspins
-                  WRITE (log_unit, "(' The H_sc Hamiltonian for spin',I2)") k
-                  DO i = 1, n
-                     WRITE (log_unit, sfmt) &
-                        (negf_env%h_sc(k, icontact)%local_data(i, j), j=1, SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1))
-                  END DO
-               END DO
-               WRITE (log_unit, "(' The S_sc overlap matrix')")
-               DO i = 1, n
-                  WRITE (log_unit, sfmt) &
-                     (negf_env%s_sc(icontact)%local_data(i, j), j=1, SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1))
-               END DO
-            END DO
-         END IF
-         WRITE (log_unit, *)
-      END IF
+      CALL negf_output_initial(log_unit, negf_env, sub_env, negf_control, dft_control, verbose_output, debug_output)
 
       ! NEGF procedure
       ! --------------
 
-      ! compute contact Fermi level as well as requested properties
-      ! -----------------------------------------------------------
+      ! Compute contact Fermi levels as well as requested properties
+      ! ------------------------------------------------------------
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
@@ -335,6 +254,7 @@ CONTAINS
          ELSE
             CALL force_env_get(force_env, qs_env=qs_env)
          END IF
+
          CALL guess_fermi_level(icontact, negf_env, negf_control, sub_env, qs_env, log_unit)
 
          print_section => section_vals_get_subs_vals(negf_contact_section, "PRINT", i_rep_section=icontact)
@@ -350,15 +270,16 @@ CONTAINS
                                               extension=".dos", &
                                               middle_name=TRIM(ADJUSTL(contact_id_str)), &
                                               file_status="REPLACE")
-
             CALL negf_print_dos(print_unit, energy_min, energy_max, npoints, &
                                 v_shift=0.0_dp, negf_env=negf_env, negf_control=negf_control, &
                                 sub_env=sub_env, base_contact=icontact, just_contact=icontact)
-
             CALL cp_print_key_finished_output(print_unit, logger, print_section, "DOS")
          END IF
+
       END DO
 
+      ! Compute multi-terminal systems
+      ! ------------------------------
       IF (ncontacts > 1) THEN
          CALL force_env_get(force_env, qs_env=qs_env)
 
@@ -455,7 +376,6 @@ CONTAINS
 
       CALL negf_env_release(negf_env)
       CALL negf_sub_env_release(sub_env)
-
       CALL negf_control_release(negf_control)
       CALL timestop(handle)
    END SUBROUTINE do_negf
@@ -469,7 +389,8 @@ CONTAINS
 !> \param qs_env        QuickStep environment
 !> \param log_unit      output unit
 !> \par History
-!>    * 10.2017 created [Sergey Chulkov]
+!>    * 10.2017 created  [Sergey Chulkov]
+!>    * 11.2025 modified [Dmitry Ryndyk]
 ! **************************************************************************************************
    SUBROUTINE guess_fermi_level(contact_id, negf_env, negf_control, sub_env, qs_env, log_unit)
       INTEGER, INTENT(in)                                :: contact_id
@@ -509,6 +430,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (negf_control%contacts(contact_id)%compute_fermi_level) THEN
+
          CALL get_qs_env(qs_env, &
                          blacs_env=blacs_env_global, &
                          dft_control=dft_control, &
@@ -568,19 +490,31 @@ CONTAINS
          ! compute the refence number of electrons using the electron density
          nelectrons_qs_cell0 = 0.0_dp
          nelectrons_qs_cell1 = 0.0_dp
-         DO image = 1, nimages
-            IF (index_to_cell(direction_axis_abs, image) == 0) THEN
-               DO ispin = 1, nspins
-                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
-                  nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
-               END DO
-            ELSE IF (ABS(index_to_cell(direction_axis_abs, image)) == 1) THEN
-               DO ispin = 1, nspins
-                  CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
-                  nelectrons_qs_cell1 = nelectrons_qs_cell1 + trace
-               END DO
-            END IF
-         END DO
+         IF (negf_control%contacts(contact_id)%force_env_index > 0) THEN
+            DO image = 1, nimages
+               IF (index_to_cell(direction_axis_abs, image) == 0) THEN
+                  DO ispin = 1, nspins
+                     CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                     nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
+                  END DO
+               ELSE IF (ABS(index_to_cell(direction_axis_abs, image)) == 1) THEN
+                  DO ispin = 1, nspins
+                     CALL dbcsr_dot(rho_ao_qs_kp(ispin, image)%matrix, matrix_s_kp(1, image)%matrix, trace)
+                     nelectrons_qs_cell1 = nelectrons_qs_cell1 + trace
+                  END DO
+               END IF
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_00(ispin), &
+                                negf_env%contacts(contact_id)%s_00, trace)
+               nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
+               CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_01(ispin), &
+                                negf_env%contacts(contact_id)%s_01, trace)
+               nelectrons_qs_cell1 = nelectrons_qs_cell1 + 2.0*trace
+            END DO
+         END IF
+
          DEALLOCATE (index_to_cell)
 
          IF (log_unit > 0) THEN
@@ -588,18 +522,11 @@ CONTAINS
             WRITE (log_unit, '(/,T2,A,I3)') "COMPUTE FERMI LEVEL OF CONTACT ", contact_id
             WRITE (log_unit, "(            ' ----------------------------------')")
             WRITE (log_unit, '(A)') " Temperature "//TRIM(ADJUSTL(temperature_str))//" Kelvin"
-            WRITE (log_unit, '(/,T2,A,T60,F20.10,/)') "Electronic density of the isolated contact unit cell:", &
+            WRITE (log_unit, '(/,T2,A,T60,F20.10,/)') "Electronic density of the electrode unit cell:", &
                -1.0_dp*(nelectrons_qs_cell0 + nelectrons_qs_cell1)
             WRITE (log_unit, '(T3,A)') "Step     Integration method      Time      Fermi level   Convergence (density)"
             WRITE (log_unit, '(T3,78("-"))')
          END IF
-
-         nelectrons_qs_cell0 = 0.0_dp
-         DO ispin = 1, nspins
-            CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_00(ispin), &
-                             negf_env%contacts(contact_id)%s_00, trace)
-            nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
-         END DO
 
          ! Use the Fermi level given in the input file or the Fermi level of bulk electrodes as a reference point
          ! and then refine the Fermi level by using a simple linear interpolation technique
@@ -765,6 +692,8 @@ CONTAINS
 !> \param qs_env        QuickStep environment
 !> \param base_contact  index of the reference contact
 !> \param log_unit      output unit
+!>    * 09.2017 created  [Sergey Chulkov]
+!>    * 11.2025 modified [Dmitry Ryndyk]
 ! **************************************************************************************************
    SUBROUTINE shift_potential(negf_env, negf_control, sub_env, qs_env, base_contact, log_unit)
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
@@ -3108,5 +3037,153 @@ CONTAINS
       DEALLOCATE (transm_coeff, xnodes)
       CALL timestop(handle)
    END SUBROUTINE negf_print_transmission
+
+! **************************************************************************************************
+!> \brief Print the initial info and Hamiltonian / overlap matrices.
+!> \param log_unit ...
+!> \param negf_env ...
+!> \param sub_env ...
+!> \param negf_control ...
+!> \param dft_control ...
+!> \param verbose_output ...
+!> \param debug_output ...
+!> \par History
+!>    * 11.2025 created [Dmitry Ryndyk]
+! **************************************************************************************************
+   SUBROUTINE negf_output_initial(log_unit, negf_env, sub_env, negf_control, dft_control, verbose_output, &
+                                  debug_output)
+      INTEGER, INTENT(in)                                :: log_unit
+      TYPE(negf_env_type), INTENT(in)                    :: negf_env
+      TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
+      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      LOGICAL, INTENT(in)                                :: verbose_output, debug_output
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_output_initial'
+
+      CHARACTER(len=100)                                 :: sfmt
+      INTEGER                                            :: handle, i, icontact, j, k, n, nrow
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: target_m
+
+      CALL timeset(routineN, handle)
+
+      ! Electrodes
+      DO icontact = 1, SIZE(negf_control%contacts)
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, "(/,' The electrode',I5)") icontact
+            WRITE (log_unit, "(  ' ------------------')")
+            WRITE (log_unit, "(' From the force environment:',I16)") negf_control%contacts(icontact)%force_env_index
+            WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%contacts(icontact)%atomlist_bulk)
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact (from the entire system):')")
+            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
+            WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") &
+               SIZE(negf_env%contacts(icontact)%atomlist_cell0)
+         END IF
+         IF (log_unit > 0 .AND. verbose_output) THEN
+            WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire system):')")
+            WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
+            WRITE (log_unit, "(' Direction of an electrode: ',I16)") negf_env%contacts(icontact)%direction_axis
+         END IF
+         ! print the electrode Hamiltonians for check and debuging
+         IF (debug_output) THEN
+            CALL cp_fm_get_info(negf_env%contacts(icontact)%s_00, nrow_global=nrow)
+            ALLOCATE (target_m(nrow, nrow))
+            IF (log_unit > 0) WRITE (log_unit, "(' The number of atomic orbitals:',I13)") nrow
+            DO k = 1, dft_control%nspins
+               CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_00(k), target_m)
+               IF (log_unit > 0) THEN
+                  WRITE (sfmt, "('(',i0,'(E15.5))')") nrow
+                  WRITE (log_unit, "(' The H_00 electrode Hamiltonian for spin',I2)") k
+                  DO i = 1, nrow
+                     WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+                  END DO
+               END IF
+               CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_01(k), target_m)
+               IF (log_unit > 0) THEN
+                  WRITE (log_unit, "(' The H_01 electrode Hamiltonian for spin',I2)") k
+                  DO i = 1, nrow
+                     WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+                  END DO
+               END IF
+            END DO
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%s_00, target_m)
+            IF (log_unit > 0) THEN
+               WRITE (log_unit, "(' The S_00 overlap matrix')")
+               DO i = 1, nrow
+                  WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+               END DO
+            END IF
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%s_01, target_m)
+            IF (log_unit > 0) THEN
+               WRITE (log_unit, "(' The S_01 overlap matrix')")
+               DO i = 1, nrow
+                  WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+               END DO
+            END IF
+            DEALLOCATE (target_m)
+         END IF
+      END DO
+
+      ! Scattering region and contacts
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, "(/,' The full scattering region')")
+         WRITE (log_unit, "(  ' --------------------------')")
+         WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%atomlist_S_screening)
+         IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a full scattering region:')")
+         IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
+      END IF
+      ! print the full scattering region Hamiltonians for check and debuging
+      IF (debug_output) THEN
+         CALL cp_fm_get_info(negf_env%s_s, nrow_global=n)
+         ALLOCATE (target_m(n, n))
+         WRITE (sfmt, "('(',i0,'(E15.5))')") n
+         IF (log_unit > 0) WRITE (log_unit, "(' The number of atomic orbitals:',I14)") n
+         DO k = 1, dft_control%nspins
+            IF (log_unit > 0) WRITE (log_unit, "(' The H_s Hamiltonian for spin',I2)") k
+            CALL cp_fm_get_submatrix(negf_env%h_s(k), target_m)
+            DO i = 1, n
+               IF (log_unit > 0) WRITE (log_unit, sfmt) (target_m(i, j), j=1, n)
+            END DO
+         END DO
+         IF (log_unit > 0) WRITE (log_unit, "(' The S_s overlap matrix')")
+         CALL cp_fm_get_submatrix(negf_env%s_s, target_m)
+         DO i = 1, n
+            IF (log_unit > 0) WRITE (log_unit, sfmt) (target_m(i, j), j=1, n)
+         END DO
+         DEALLOCATE (target_m)
+         IF (log_unit > 0) WRITE (log_unit, "(/,' Scattering region - electrode contacts')")
+         IF (log_unit > 0) WRITE (log_unit, "(  ' ---------------------------------------')")
+         ALLOCATE (target_m(n, nrow))
+         DO icontact = 1, SIZE(negf_control%contacts)
+            IF (log_unit > 0) WRITE (log_unit, "(/,' The contact',I5)") icontact
+            IF (log_unit > 0) WRITE (log_unit, "(  ' ----------------')")
+            DO k = 1, dft_control%nspins
+               CALL cp_fm_get_submatrix(negf_env%h_sc(k, icontact), target_m)
+               IF (log_unit > 0) THEN
+                  WRITE (log_unit, "(' The H_sc Hamiltonian for spin',I2)") k
+                  DO i = 1, n
+                     WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+                  END DO
+               END IF
+            END DO
+            CALL cp_fm_get_submatrix(negf_env%s_sc(icontact), target_m)
+            IF (log_unit > 0) THEN
+               WRITE (log_unit, "(' The S_sc overlap matrix')")
+               DO i = 1, n
+                  WRITE (log_unit, sfmt) (target_m(i, j), j=1, nrow)
+               END DO
+            END IF
+         END DO
+         DEALLOCATE (target_m)
+      END IF
+
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, "(/,' NEGF| Number of MPI processes:                     ',I5)") sub_env%mpi_comm_global%num_pe
+         WRITE (log_unit, "(' NEGF| Maximal number of processes per energy point:',I5)") negf_control%nprocs
+         WRITE (log_unit, "(' NEGF| Number of parallel MPI (energy) groups:      ',I5)") sub_env%ngroups
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE negf_output_initial
 
 END MODULE negf_methods
