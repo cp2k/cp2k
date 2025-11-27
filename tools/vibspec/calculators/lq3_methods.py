@@ -7,7 +7,7 @@ from .lq2_methods import _calculate_vibrational_relaxation
 
 
 def calculate_lq3_spectrum_point(energy, state_idx, spectrum_type, oscillator_strengths, displacements,
-                               frequencies, mode_count, alpha_list, gamma_list, vertical_energies,
+                               frequencies, mode_count, alphas, gammas, vertical_energies,
                                stokes_shift, adiabatic_energies, requested_states, integration_params):
     """
     Calculate LQ2 spectrum point for absorption or fluorescence.
@@ -20,8 +20,8 @@ def calculate_lq3_spectrum_point(energy, state_idx, spectrum_type, oscillator_st
     - displacements: Displacement vectors
     - frequencies: Vibrational frequencies
     - mode_count: Number of vibrational modes
-    - alpha_list: Alpha parameters for each state
-    - gamma_list: Gamma parameters for each state
+    - alphas: Alpha parameters for each state
+    - gammas: Gamma parameters for each state
     - vertical_energies: Vertical excitation energies
     - stokes_shift: Stokes shift
     - adiabatic_energies: Adiabatic energies (only needed for fluorescence)
@@ -37,7 +37,7 @@ def calculate_lq3_spectrum_point(energy, state_idx, spectrum_type, oscillator_st
     
     integral = _integrate_lq3_time_domain(
         energy, state_idx, spectrum_type, displacements, frequencies, mode_count, 
-        alpha_list, gamma_list, vertical_energies, stokes_shift, 
+        alphas, gammas, vertical_energies, stokes_shift, 
         adiabatic_energies, requested_states, integration_params
     )
     
@@ -45,7 +45,7 @@ def calculate_lq3_spectrum_point(energy, state_idx, spectrum_type, oscillator_st
 
 
 def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, frequencies,
-                             mode_count, alpha_list, gamma_list, vertical_energies,
+                             mode_count, alphas, gammas, vertical_energies,
                              stokes_shift, adiabatic_energies, requested_states, integration_params):
     """
     Unified time integration for LQ3 - handles both absorption and fluorescence.
@@ -73,7 +73,7 @@ def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, 
     
     # Determine optimal time step 
     time_scale_1 = abs(2 * np.pi / energy_difference) if energy_difference != 0 else float('inf')
-    time_scale_2 = (2 * np.pi / gamma_list[state_idx - 1]) ** (1 / 3)
+    time_scale_2 = (2 * np.pi / gammas[state_idx - 1]) ** (1 / 3)
     min_time_scale = min(time_scale_1, time_scale_2)
     delta_time = min_time_scale / time_step
     
@@ -89,8 +89,8 @@ def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, 
         )
         
         integrand = (
-            np.exp(-alpha_list[state_idx - 1] * time_array ** 2) *
-            np.cos(energy_difference * time_array + gamma_list[state_idx - 1] * time_array ** 3)
+            np.exp(-alphas[state_idx - 1] * time_array ** 2) *
+            np.cos(energy_difference * time_array + gammas[state_idx - 1] * time_array ** 3)
         )
         
         slice_integral = np.trapz(integrand, dx=delta_time)
@@ -108,21 +108,21 @@ def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, 
     return integral_value
 
 def calculate_lq3_absorption(energy, state_idx, oscillator_strengths, displacements, frequencies, mode_count,
-                           alpha_list, gamma_list, vertical_energies, stokes_shift,
+                           alphas, gammas, vertical_energies, stokes_shift,
                            requested_states, integration_params):
     """Wrapper for absorption"""
     return calculate_lq3_spectrum_point(
         energy, state_idx, 'absorption', oscillator_strengths, displacements, frequencies, mode_count,
-        alpha_list, gamma_list, vertical_energies, stokes_shift, None, requested_states, integration_params
+        alphas, gammas, vertical_energies, stokes_shift, None, requested_states, integration_params
     )
 
 
 def calculate_lq3_fluorescence(energy, state_idx, oscillator_strengths, displacements, frequencies, mode_count,
-                             alpha_list, gamma_list, vertical_energies, stokes_shift,
+                             alphas, gammas, vertical_energies, stokes_shift,
                              adiabatic_energies, requested_states, integration_params):
     """Wrapper for fluorescence"""
     return calculate_lq3_spectrum_point(
         energy, state_idx, 'fluorescence', oscillator_strengths, displacements, frequencies, mode_count,
-        alpha_list, gamma_list, vertical_energies, stokes_shift, adiabatic_energies, 
+        alphas, gammas, vertical_energies, stokes_shift, adiabatic_energies, 
         requested_states, integration_params
     )

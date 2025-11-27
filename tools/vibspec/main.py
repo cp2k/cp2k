@@ -11,9 +11,9 @@ import numpy as np
 import time
 
 from file_parsers import (
-    parse_oscillator_strengths, parse_vibrational_frequencies,
-    parse_normal_modes, parse_excited_state_forces,
-    parse_geometry_from_xyz, get_atom_count
+    parse_vibrational_frequencies, parse_normal_modes, 
+    parse_excited_state_forces, parse_geometry_from_xyz,
+    get_atom_count
 )
 
 from calculators.lq2_methods import calculate_lq2_spectrum_point
@@ -25,7 +25,7 @@ from calculators.physical_parameters import (
 )
 
 from output_formatters import write_spectrum_output
-from utils.constants import EV_TO_AU, AU_TO_EV, ATOMIC_MASSES, E_MASS
+from constants import EV_TO_AU, AU_TO_EV, ATOMIC_MASSES, E_MASS
 
 
 def run_spectrum_calculation(config):
@@ -49,8 +49,8 @@ def run_spectrum_calculation(config):
     time_end = time.time()
     
     print("Calculation completed successfully!")
-    print(f"Output written to: {config['output_file']}")
-    print(f"Spectrum calculation finished in {time_end - time_start:.2f} seconds")
+    print(f"INFO: Output written to: {config['output_file']}")
+    print(f"INFO: Spectrum calculation finished in {time_end - time_start:.2f} seconds")
 
 
 def load_calculation_data(config):
@@ -59,35 +59,87 @@ def load_calculation_data(config):
     
     data = {}
     
-    cp2k_output_file = config.get('cp2k_output_file')
-    if not cp2k_output_file:
-        raise ValueError("cp2k_output_file not specified in config")
+    tdforce_data = parse_excited_state_forces(config['force_file'])
+    data['oscillator_strengths'] = tdforce_data
+    forces = {state: tdforce_data[state]["force"] for state in tdforce_data if "force" in tdforce_data[state]}
     
-    print(f"Looking for oscillator strengths in: {cp2k_output_file}")
-    data['oscillator_strengths'] = parse_oscillator_strengths(cp2k_output_file)
-    data['state_count'] = len(data['oscillator_strengths'])
-    print(f"Found {data['state_count']} excited states")
+    if 'states' not in config:
+        raise ValueError("'states' configuration is required. Use 'all', [1,2,3], or 'threshold:0.01'")
     
-    data['frequencies'] = parse_vibrational_frequencies(config['vibrational_file'])
+    final_states = parse_states_specification(config['states'], tdforce_data, forces)
+    
+    data['forces'] = {state: forces[state] for state in final_states}
+    data['requested_states'] = final_states
+    data['state_count'] = len(final_states)
+        
+    data['frequencies'], negative_freq_warnings = parse_vibrational_frequencies(config['vibrational_file'])
     data['mode_count'] = len(data['frequencies'])
-    print(f"Found {data['mode_count']} vibrational modes")
+    print(f"INFO: Found {data['mode_count']} vibrational modes")
+    if negative_freq_warnings:
+        print(f"\tWARNING: Removed {len(negative_freq_warnings)} negative frequencies")
+        for freq in negative_freq_warnings:
+            print(f"\tWARNING: Negative frequency {freq:.1f} cm^-1")
+
     
     geometry_file = config.get('ground_geometry_file')
-    if not geometry_file:
-        raise ValueError("ground_geometry_file not specified in config")
-    else:
-        data['geometry'] = parse_geometry_from_xyz(geometry_file)
-        data['atom_count'] = get_atom_count(data['geometry'])
-        print(f"Found {data['atom_count']} atoms")
+    data['geometry'] = parse_geometry_from_xyz(geometry_file)
+    data['atom_count'] = get_atom_count(data['geometry'])
+    print(f"INFO: Found {data['atom_count']} atoms")
     
     data['normal_modes'] = parse_normal_modes(config['vibrational_file'], data['atom_count'])
     
-    data['forces'] = parse_excited_state_forces(
-        config['force_file'],
-        config['requested_states']
-    )
-
     return data
+
+
+def parse_states_specification(states_config, oscillator_strengths, available_forces):
+    """
+    Parse states specification
+    Returns list of state numbers to calculate spectrum
+    """
+    states_with_forces = list(available_forces.keys())
+    
+    if isinstance(states_config, list):
+        requested = states_config
+        missing_states = [state for state in requested if state not in states_with_forces]
+        if missing_states:
+            raise ValueError(
+                f"Requested states {missing_states} do not have force data available. "
+                f"Available states with forces: {states_with_forces}"
+            )
+        print(f"Using explicitly specified states: {requested}")
+        return requested
+        
+    elif isinstance(states_config, str):
+        if states_config.lower() == "all":
+            states_with_forces.sort()
+            print(f"Using all {len(states_with_forces)} states with available force data: {states_with_forces}")
+            return states_with_forces
+            
+        elif states_config.startswith("threshold:"):
+            try:
+                threshold = float(states_config.split(":")[1])
+            except (IndexError, ValueError):
+                raise ValueError(f"Invalid threshold format. Use 'threshold:0.01'")
+            
+            selected_states = []
+            for state_num, state_info in oscillator_strengths.items():
+                if (state_info['oscillator_strength'] >= threshold and 
+                    state_num in states_with_forces):
+                    selected_states.append(state_num)
+            
+            selected_states.sort()
+            if selected_states:
+                print(f"INFO: Selected {len(selected_states)} states with oscillator strength >= {threshold}")
+                print(f"INFO: Selected states: {selected_states}")
+                return selected_states
+            else:
+                raise ValueError(f"No states meet oscillator threshold {threshold} with available forces")
+                
+        else:
+            raise ValueError(f"Invalid states specification: {states_config}. Use 'all', [1,2,5], or 'threshold:0.01'")
+    
+    else:
+        raise ValueError("States configuration must be a list or string")
 
 
 def calculate_displacement_vectors(data, config):
@@ -102,7 +154,7 @@ def calculate_displacement_vectors(data, config):
     normal_modes = data['normal_modes']
     geometry = data['geometry']
     
-    for state in config['requested_states']:
+    for state in data['requested_states']:
         if state == 0:
             data['displacements'][state] = {mode: 0.0 for mode in range(1, mode_count + 1)}
             continue
@@ -215,22 +267,22 @@ def calculate_physical_parameters(data, config):
         vertical_energies.append(data['oscillator_strengths'][state]['excitation_energy'])
     data['vertical_energies'] = vertical_energies
     
-    data['alpha_list'] = calculate_alpha_parameter(
-        config['requested_states'],
+    data['alphas'] = calculate_alpha_parameter(
+        data['requested_states'],
         data['mode_count'],
         data['displacements'],
         data['frequencies']
     )
     
-    data['gamma_list'] = calculate_gamma_parameter(
-        config['requested_states'],
+    data['gammas'] = calculate_gamma_parameter(
+        data['requested_states'],
         data['mode_count'], 
         data['displacements'],
         data['frequencies']
     )
     
     data['adiabatic_energies'] = calculate_adiabatic_energies(
-        config['requested_states'],
+        data['requested_states'],
         data['displacements'],
         data['mode_count'],
         data['frequencies'],
@@ -257,8 +309,8 @@ def calculate_spectrum(data, config):
     combined_intensities = np.zeros(len(energies_au))
     individual_intensities = []
     
-    for state_idx, state_number in enumerate(config['requested_states'], 1):
-        print(f"  Processing state {state_number}...")
+    for state_idx, state_number in enumerate(data['requested_states'], 1):
+        print(f"  Processing state {state_number}/{len(data['requested_states'])}...")
         state_spectrum = np.zeros(len(energies_au))
         
         for energy_idx, energy_au in enumerate(energies_au):
@@ -269,9 +321,10 @@ def calculate_spectrum(data, config):
             state_spectrum[energy_idx] = intensity
             combined_intensities[energy_idx] += intensity
 
-            if energy_idx % 100 == 0:
-                print(f"    Energy point {energy_idx}/{len(energies_au)} "
-                      f"({energy_idx/len(energies_au)*100:.1f}%)")
+            if energy_idx % 500 == 0 or energy_idx == len(energies_au)-1:
+                percentage = (energy_idx + 1) / len(energies_au) * 100
+                print(f"    Energy point {energy_idx + 1}/{len(energies_au)} "
+                    f"({percentage:.1f}%)")
         
         individual_intensities.append(state_spectrum)
     
@@ -281,7 +334,7 @@ def calculate_spectrum(data, config):
         'individual_intensities': individual_intensities,
         'method': method,
         'spectrum_type': spectrum_type,
-        'requested_states': config['requested_states']
+        'requested_states': data['requested_states']
     }
 
 
@@ -293,9 +346,9 @@ def calculate_spectrum_point(energy_au, state_idx, spectrum_type, method, data, 
             energy_au, state_idx, spectrum_type,
             data['oscillator_strengths'], data['displacements'],
             data['frequencies'], data['mode_count'],
-            data['alpha_list'], data['vertical_energies'],
+            data['alphas'], data['vertical_energies'],
             config['stokes_shift'], data['adiabatic_energies'],
-            config['requested_states']
+            data['requested_states']
         )
     
     elif method == 'lq3':
@@ -303,9 +356,9 @@ def calculate_spectrum_point(energy_au, state_idx, spectrum_type, method, data, 
             energy_au, state_idx, spectrum_type,
             data['oscillator_strengths'], data['displacements'], 
             data['frequencies'], data['mode_count'],
-            data['alpha_list'], data['gamma_list'],
+            data['alphas'], data['gammas'],
             data['vertical_energies'], config['stokes_shift'],
-            data['adiabatic_energies'], config['requested_states'],
+            data['adiabatic_energies'], data['requested_states'],
             integration_params
         )
     
@@ -316,7 +369,7 @@ def calculate_spectrum_point(energy_au, state_idx, spectrum_type, method, data, 
             data['frequencies'], data['mode_count'],
             config['gamma_broadening'], config['theta_broadening'], config['temperature'],
             data['vertical_energies'], config['stokes_shift'],
-            data['adiabatic_energies'], config['requested_states'],
+            data['adiabatic_energies'], data['requested_states'],
             integration_params
         )
     
@@ -359,7 +412,7 @@ def load_configuration(config_file):
                 except ImportError:
                     import toml as tomllib
         
-        with open(config_file, 'rb') as f:
+        with open(config_file, 'r') as f:
             config = tomllib.load(f)
     else:
         raise ValueError("Only TOML configuration files are supported. Use .toml extension")
@@ -402,7 +455,7 @@ def main():
     
     config = load_configuration(sys.argv[1])
     
-    required_params = ['vibrational_file', 'output_file', 'requested_states', 
+    required_params = ['vibrational_file', 'output_file', 'states', 
                       'energy_min', 'energy_max', 'energy_points', 'method', 'spectrum_type']
     
     missing_params = [param for param in required_params if param not in config]

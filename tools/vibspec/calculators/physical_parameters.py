@@ -4,7 +4,7 @@ Physical parameter calculations for spectrum methods
 
 import numpy as np
 
-from utils.constants import kB
+from constants import kB
 
 
 def calculate_alpha_parameter(requested_states, mode_count, displacements, frequencies):
@@ -12,16 +12,16 @@ def calculate_alpha_parameter(requested_states, mode_count, displacements, frequ
     Calculate alpha parameter for LQ methods.
     alpha = sum (displacement_j^2 * frequency_j^2) / 4
     """
-    alpha_list = []
+    alphas = []
     
     for state in requested_states:
         alpha = sum(
             (displacements[state][j] ** 2) * (frequencies[j] ** 2)
             for j in range(1, mode_count + 1)
         ) / 4
-        alpha_list.append(alpha)
+        alphas.append(alpha)
     
-    return alpha_list
+    return alphas
 
 
 def calculate_gamma_parameter(requested_states, mode_count, displacements, frequencies):
@@ -29,16 +29,16 @@ def calculate_gamma_parameter(requested_states, mode_count, displacements, frequ
     Calculate gamma parameter for LQ3 method.
     gamma = (1/12) * sum (displacement_j^2 * frequency_j^3)
     """
-    gamma_list = []
+    gammas = []
     
     for state in requested_states:
         gamma = (1 / 12) * sum(
             (displacements[state][j] ** 2) * (frequencies[j] ** 3)
             for j in range(1, mode_count + 1)
         )
-        gamma_list.append(gamma)
+        gammas.append(gamma)
     
-    return gamma_list
+    return gammas
 
 
 def calculate_adiabatic_energies(requested_states, displacements, mode_count, frequencies, vertical_energies):

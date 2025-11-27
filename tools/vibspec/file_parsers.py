@@ -5,39 +5,16 @@ Parsers
 from typing import Dict, List, Any
 import numpy as np
 import re
-from utils.constants import EV_TO_AU, WAVENUMBER_TO_AU, ANGSTROM_TO_BOHR
-
-
-def parse_oscillator_strengths(file_path):
-    """Extract oscillator strengths from CP2K output"""
-    data = {}
-        
-    with open(file_path, "rt") as file:
-        content = file.read()
-        
-        pattern = r'TDDFPT\|\s+(\d+)\s+(\d+\.\d+)\s+[-\d\.E+]+\s+[-\d\.E+]+\s+[-\d\.E+]+\s+([\d\.E+-]+)'
-        
-        matches = re.findall(pattern, content)
-        
-        for match in matches:
-            state_number = int(match[0])
-            excitation_energy = float(match[1]) * EV_TO_AU
-            oscillator_strength = float(match[2])
-            
-            data[state_number] = {
-                "oscillator_strength": oscillator_strength,
-                "excitation_energy": excitation_energy
-            }
-    
-    return data
+from constants import EV_TO_AU, WAVENUMBER_TO_AU, ANGSTROM_TO_BOHR
 
 
 def parse_vibrational_frequencies(file_path: str) -> Dict[int, float]:
     """
-    Extract vibrational frequencies from Molden file.
+    Extract vibrational frequencies from Molden file
     """
     data = {}
     mode_count = 0
+    warnings = []
     
     with open(file_path, "rt") as file:
         content = file.read()
@@ -55,17 +32,17 @@ def parse_vibrational_frequencies(file_path: str) -> Dict[int, float]:
                             mode_count += 1
                             data[mode_count] = frequency * WAVENUMBER_TO_AU
                         else:
-                            print(f"WARNING: Negative frequency {frequency} cm^-1 will be removed")
+                            warnings.append(frequency)
                     except ValueError:
                         continue
     
-    return data
+    return data, warnings
 
 
 def parse_normal_modes(file_path: str, atom_count: int) -> Dict[int, Dict[str, List[float]]]:
     """
-    Extract normal mode vectors from Molden format file.
-    Format: [FR-NORM-COORD] section with vibration headers.
+    Extract normal mode vectors from Molden format file
+    Format: [FR-NORM-COORD] section with vibration headers
     """
     data = {}
     
@@ -117,11 +94,13 @@ def parse_normal_modes(file_path: str, atom_count: int) -> Dict[int, Dict[str, L
     return data
 
 
-def parse_excited_state_forces(file_path: str, requested_states: List[int]) -> Dict[int, np.ndarray]:
-    """
-    Parse excited state forces from CP2K TDFORCE file.
-    """
-    forces_data = {}
+def parse_excited_state_forces(file_path):
+    """Parse 
+    - excitation energies
+    - oscillator strengths
+    - excited state forces
+     from CP2K TDFORCE file"""
+    data = {}
     
     with open(file_path, "r") as f:
         content = f.read()
@@ -131,28 +110,60 @@ def parse_excited_state_forces(file_path: str, requested_states: List[int]) -> D
     for block in state_blocks:
         lines = block.strip().split('\n')
         
-        first_line = lines[0].strip()
-        state_number = int(first_line.split()[0])
-        
-        if state_number not in requested_states:
+        if not lines:
             continue
             
-        atom_count = int(lines[1].strip())
+        first_line = lines[0].strip()
+        parts = first_line.split()
         
-        force_array = np.zeros((atom_count, 3))
-        for i in range(atom_count):
-            force_line = lines[3 + i].strip()
-            fx, fy, fz = map(float, force_line.split())
-            force_array[i] = [fx, fy, fz]
+        if len(parts) < 6:
+            continue
+            
+        state_number = int(parts[0])
+        energy_ev = float(parts[1])
+        excitation_energy = energy_ev * EV_TO_AU
         
-        forces_data[state_number] = force_array
+        osc_str = None
+        for i, part in enumerate(parts):
+            if part == "strength:" and i+1 < len(parts):
+                osc_str = float(parts[i+1])
+                break
+        
+        if osc_str is None:
+            continue
+            
+        data[state_number] = {
+            "oscillator_strength": osc_str,
+            "excitation_energy": excitation_energy
+        }
+        
+        if len(lines) >= 3:
+            try:
+                atom_count = int(lines[1].strip())
+                if len(lines) >= 3 + atom_count:
+                    force_array = np.zeros((atom_count, 3))
+                    
+                    for i in range(atom_count):
+                        force_line = lines[3 + i].strip()
+                        fx, fy, fz = map(float, force_line.split())
+                        force_array[i] = [fx, fy, fz]
+                    
+                    data[state_number]["force"] = force_array
+                    
+            except (ValueError, IndexError):
+                # state doesn't have forces
+                continue
     
-    return forces_data
-
+    print(f"INFO: Parsed {len(data)} total states")
+    
+    states_with_forces = [s for s in data if "force" in data[s]]
+    print(f"INFO: Found {len(states_with_forces)} states with forces")
+    
+    return data
 
 def parse_geometry_from_xyz(file_path: str) -> Dict[int, Dict[str, Any]]:
     """
-    Extract molecular geometry from standard XYZ format file.
+    Extract molecular geometry from standard XYZ format file
     """
     data = {}
     
@@ -182,5 +193,5 @@ def parse_geometry_from_xyz(file_path: str) -> Dict[int, Dict[str, Any]]:
 
 
 def get_atom_count(geometry_data: Dict[int, Any]) -> int:
-    """Get number of atoms from geometry data."""
+    """Get number of atoms from geometry data"""
     return len(geometry_data)
