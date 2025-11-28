@@ -1100,17 +1100,19 @@ CONTAINS
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init @ mp_world_init")
 !$       ELSE
 !$OMP MASTER
-#if defined(__DLAF)
-            ! DLA-Future requires that the MPI library supports
-            ! THREAD_MULTIPLE mode
+#if defined(__DLAF) || defined(__OPENPMD)
+            ! Both DLA-Future and (some IO backends of) the openPMD-api require
+            ! that the MPI library supports THREAD_MULTIPLE mode
 !$          CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
 #else
 !$          CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
 #endif
 !$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
-#if defined(__DLAF)
+#if defined(__DLAF) || defined(__OPENPMD)
 !$          IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
-!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
+!$             CALL mp_stop(0, "MPI library does not support the requested level of threading "// &
+!$                          "(MPI_THREAD_MULTIPLE), required by DLA-Future/openPMD-api. "// &
+!$                          "Build CP2K without DLA-Future and openPMD-api.")
 !$          END IF
 #else
 !$          IF (provided_tsl < MPI_THREAD_SERIALIZED) THEN
