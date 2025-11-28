@@ -225,7 +225,6 @@ list(
   post_scf_bandstructure_utils.F
   gw_utils.F
   gw_integrals.F
-  gw_kp_to_real_space_and_back.F
   hairy_probes.F
   hartree_local_methods.F
   hartree_local_types.F
@@ -320,6 +319,7 @@ list(
   kg_vertex_coloring_methods.F
   kpoint_coulomb_2c.F
   kpoint_io.F
+  kpoint_k_r_trafo_simple.F
   kpoint_methods.F
   kpoint_transitional.F
   kpoint_types.F

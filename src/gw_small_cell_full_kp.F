@@ -32,10 +32,6 @@ MODULE gw_small_cell_full_kp
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
-   USE gw_kp_to_real_space_and_back,    ONLY: add_ikp_to_all_rs,&
-                                              fm_add_ikp_to_rs,&
-                                              fm_trafo_rs_to_ikp,&
-                                              trafo_rs_to_ikp
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -46,6 +42,10 @@ MODULE gw_small_cell_full_kp
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
+   USE kpoint_k_r_trafo_simple,         ONLY: add_kp_to_all_rs,&
+                                              fm_add_kp_to_all_rs,&
+                                              fm_rs_to_kp,&
+                                              rs_to_kp
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -164,8 +164,8 @@ CONTAINS
 
                DO i_cell_R2 = 1, bs_env%nimages_3c
 
-                  cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
-                  cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+                  cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
+                  cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
                   ! R_1 = R_2 + ΔR (from ΔR = R_2 - R_1)
                   CALL add_R(cell_R2, cell_DR, bs_env%index_to_cell_3c, cell_R1, &
@@ -301,14 +301,14 @@ CONTAINS
 
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_int)
 
-      cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-      cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
+      cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+      cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
 
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
 
          IF (skip_DR_R1_S_Gx3c(i_task_Delta_R_local, i_cell_R1, i_cell_S)) CYCLE
 
-         cell_S(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S, 1:3)
+         cell_S(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_S)
          cell_R1_plus_cell_S(1:3) = cell_R1(1:3) + cell_S(1:3)
 
          CALL is_cell_in_index_to_cell(cell_R1_plus_cell_S, bs_env%index_to_cell_3c, cell_found)
@@ -443,8 +443,8 @@ CONTAINS
                             beta=z_zero, matrix_c=bs_env%cfm_work_mo_2)
 
          ! trafo k-point k -> cell S:  G^occ/vir_µλ(i|τ|,k) -> G^occ/vir,S_µλ(i|τ|)
-         CALL fm_add_ikp_to_rs(bs_env%cfm_work_mo_2, bs_env%fm_G_S, &
-                               bs_env%kpoints_scf_desymm, ikp)
+         CALL fm_add_kp_to_all_rs(bs_env%cfm_work_mo_2, bs_env%fm_G_S, &
+                                  bs_env%kpoints_scf_desymm, ikp)
 
       END DO ! ikp
 
@@ -500,9 +500,9 @@ CONTAINS
 
             i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
 
-            cell_R(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
-            cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
-            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+            cell_R(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R)
+            cell_R2(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R2)
+            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
             ! R_1 = R_2 + ΔR (from ΔR = R_2 - R_1)
             CALL add_R(cell_R2, cell_DR, bs_env%index_to_cell_3c, cell_R1, &
@@ -618,8 +618,8 @@ CONTAINS
             ikp_local = ikp_local + 1
 
             ! 1. χ_PQ^R(iω_j) -> χ_PQ(iω_j,k)
-            CALL trafo_rs_to_ikp(chi_R, chi_k_w, bs_env%kpoints_scf_desymm%index_to_cell, &
-                                 bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+            CALL rs_to_kp(chi_R, chi_k_w, bs_env%kpoints_scf_desymm%index_to_cell, &
+                          bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
             CALL power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
@@ -644,8 +644,8 @@ CONTAINS
             CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', V_sqrt(:, :, ikp_local), 'C', W_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
-            CALL add_ikp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
-                                   index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
+            CALL add_kp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
+                                  index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
 
          END DO ! ikp
 
@@ -741,9 +741,9 @@ CONTAINS
          ikp_local = ikp_local + 1
 
          ! M(k) = sum_R e^ikR M^R
-         CALL trafo_rs_to_ikp(M_R, M_inv(:, :, ikp_local), &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+         CALL rs_to_kp(M_R, M_inv(:, :, ikp_local), &
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
          CALL power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
@@ -819,24 +819,24 @@ CONTAINS
          IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
          ! M(k) = sum_R e^ikR M^R
-         CALL trafo_rs_to_ikp(M_R, M_inv, &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+         CALL rs_to_kp(M_R, M_inv, &
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
          CALL power(M_inv, -1.0_dp, 0.0_dp)
 
          ! W(k) = sum_R e^ikR W^R [only R in the supercell that is determined by the SCF k-mesh]
-         CALL trafo_rs_to_ikp(W_R, W_k, &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+         CALL rs_to_kp(W_R, W_k, &
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! 2e-f. Ŵ(k) = M^-1(k) W^trunc(k) M^-1(k)
          CALL gemm_square(M_inv, 'N', W_k, 'N', M_inv, 'N', work)
          W_k(:, :) = work(:, :)
 
          ! 2g. Ŵ^R = sum_k w_k e^(-ikR) Ŵ^(k)
-         CALL add_ikp_to_all_rs(W_k, MWM_R, bs_env%kpoints_scf_desymm, ikp)
+         CALL add_kp_to_all_rs(W_k, MWM_R, bs_env%kpoints_scf_desymm, ikp)
 
       END DO ! ikp
 
@@ -1052,17 +1052,17 @@ CONTAINS
          ! trivial parallelization
          IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
          ! V_tr(k) = sum_R e^ikR V_tr^R
-         CALL trafo_rs_to_ikp(V_tr_R, V_tr_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+         CALL rs_to_kp(V_tr_R, V_tr_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k)    = sum_R e^ikR M^R
-         CALL trafo_rs_to_ikp(M_R, M_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
+         CALL rs_to_kp(M_R, M_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k) -> M^-1(k)
          CALL power(M_kp, -1.0_dp, 0.0_dp)
          ! Ṽ(k) = M^-1(k) * V_tr(k) * M^-1(k)
          CALL gemm_square(M_kp, 'N', V_tr_kp, 'N', M_kp, 'N', Mi_Vtr_Mi_kp)
          ! Ṽ^R = sum_k w_k e^-ikR Ṽ(k)
-         CALL add_ikp_to_all_rs(Mi_Vtr_Mi_kp, Mi_Vtr_Mi_R_arr, bs_env%kpoints_scf_desymm, ikp)
+         CALL add_kp_to_all_rs(Mi_Vtr_Mi_kp, Mi_Vtr_Mi_R_arr, bs_env%kpoints_scf_desymm, ikp)
       END DO
       CALL bs_env%para_env%sync()
       CALL bs_env%para_env%sum(Mi_Vtr_Mi_R_arr)
@@ -1158,8 +1158,8 @@ CONTAINS
 
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
-         cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+         cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
          ! S_1 = R_1 + ΔR (from ΔR = S_1 - R_1)
          CALL add_R(cell_R1, cell_DR, bs_env%index_to_cell_3c, cell_S1, &
@@ -1168,7 +1168,7 @@ CONTAINS
 
          DO i_cell_R2 = 1, bs_env%nimages_scf_desymm
 
-            cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R2, 1:3)
+            cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R2)
 
             ! R_2 - R_1
             CALL add_R(cell_R2, -cell_R1, bs_env%index_to_cell_3c, cell_R2_m_R1, &
@@ -1259,8 +1259,8 @@ CONTAINS
 
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
-         cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+         cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+         cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
          ! S_1 = R_1 + ΔR (from ΔR = S_1 - R_1)
          CALL add_R(cell_R1, cell_DR, bs_env%index_to_cell_3c, cell_S1, cell_found, &
@@ -1271,7 +1271,7 @@ CONTAINS
 
             IF (bs_env%skip_DR_R1_S2_Gx3c_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_S2)) CYCLE
 
-            cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S2, 1:3)
+            cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_S2)
             cell_m_R1(1:3) = -cell_R1(1:3)
             cell_S1_p_S2_m_R1(1:3) = cell_S1(1:3) + cell_S2(1:3) - cell_R1(1:3)
 
@@ -1318,7 +1318,7 @@ CONTAINS
 
             IF (bs_env%skip_DR_R1_R_MxM_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_R)) CYCLE
 
-            cell_R = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
+            cell_R = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R)
 
             ! R_1 - R
             CALL add_R(cell_R1, -cell_R, bs_env%index_to_cell_3c, cell_R1_minus_R, &
@@ -1492,7 +1492,7 @@ CONTAINS
       CALL cp_fm_create(fm_ikp_re, cfm_mo_coeff%matrix_struct)
 
       ! Σ_µν(k_i) = sum_R e^ik_iR Σ_µν^R
-      CALL fm_trafo_rs_to_ikp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
+      CALL fm_rs_to_kp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
 
       n_ao = bs_env%n_ao
 

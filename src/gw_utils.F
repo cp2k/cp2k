@@ -58,7 +58,6 @@ MODULE gw_utils
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gw_communication,                ONLY: fm_to_local_array
    USE gw_integrals,                    ONLY: build_3c_integral_block
-   USE gw_kp_to_real_space_and_back,    ONLY: trafo_rs_to_ikp
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
                                               ri_rpa_g0w0_crossing_newton,&
@@ -74,6 +73,7 @@ MODULE gw_utils
                                               default_string_length,&
                                               dp,&
                                               int_8
+   USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
@@ -2027,7 +2027,7 @@ CONTAINS
 
       ! get index_to_cell_3c_max for the maximum possible cell range;
       ! compute 3c integrals later in this routine and check really which cell is needed
-      ALLOCATE (index_to_cell_3c_max(nimages_3c_max, 3))
+      ALLOCATE (index_to_cell_3c_max(3, nimages_3c_max))
 
       img = 0
       DO i_cell_x = -n_max(1), n_max(1)
@@ -2040,7 +2040,7 @@ CONTAINS
 
                IF (cell_dist < cell_radius_3c) THEN
                   img = img + 1
-                  index_to_cell_3c_max(img, 1:3) = cell_index(1:3)
+                  index_to_cell_3c_max(1:3, img) = cell_index(1:3)
                END IF
 
             END DO
@@ -2062,8 +2062,8 @@ CONTAINS
                block_count = block_count + 1
                IF (MODULO(block_count, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
-               CALL scaled_to_real(vec_cell_j, REAL(index_to_cell_3c_max(j_cell, 1:3), kind=dp), cell)
-               CALL scaled_to_real(vec_cell_k, REAL(index_to_cell_3c_max(k_cell, 1:3), kind=dp), cell)
+               CALL scaled_to_real(vec_cell_j, REAL(index_to_cell_3c_max(1:3, j_cell), kind=dp), cell)
+               CALL scaled_to_real(vec_cell_k, REAL(index_to_cell_3c_max(1:3, k_cell), kind=dp), cell)
 
                rij = pbc(particle_set(atom_j)%r(:), cell) - pbc(particle_set(atom_i)%r(:), cell) + vec_cell_j(:)
                rjk = pbc(particle_set(atom_k)%r(:), cell) - pbc(particle_set(atom_j)%r(:), cell) &
@@ -2090,8 +2090,8 @@ CONTAINS
                                             basis_j=bs_env%basis_set_AO, &
                                             basis_k=bs_env%basis_set_AO, &
                                             basis_i=bs_env%basis_set_RI, &
-                                            cell_j=index_to_cell_3c_max(j_cell, 1:3), &
-                                            cell_k=index_to_cell_3c_max(k_cell, 1:3), &
+                                            cell_j=index_to_cell_3c_max(1:3, j_cell), &
+                                            cell_k=index_to_cell_3c_max(1:3, k_cell), &
                                             atom_k=atom_k, atom_j=atom_j, atom_i=atom_i)
 
                frobenius_norm = SQRT(SUM(int_3c(:, :, :)**2))
@@ -2132,7 +2132,7 @@ CONTAINS
       END DO
 
       bs_env%nimages_3c = nimages_3c
-      ALLOCATE (bs_env%index_to_cell_3c(nimages_3c, 3))
+      ALLOCATE (bs_env%index_to_cell_3c(3, nimages_3c))
       ALLOCATE (bs_env%cell_to_index_3c(i_cell_x_min:i_cell_x_max, &
                                         j_cell_y_min:j_cell_y_max, &
                                         k_cell_z_min:k_cell_z_max))
@@ -2145,8 +2145,8 @@ CONTAINS
       DO j_cell_max = 1, nimages_3c_max
          IF (n_other_3c_images_max(j_cell_max) == 0) CYCLE
          j_cell = j_cell + 1
-         cell_index(1:3) = index_to_cell_3c_max(j_cell_max, 1:3)
-         bs_env%index_to_cell_3c(j_cell, 1:3) = cell_index(1:3)
+         cell_index(1:3) = index_to_cell_3c_max(1:3, j_cell_max)
+         bs_env%index_to_cell_3c(1:3, j_cell) = cell_index(1:3)
          bs_env%cell_to_index_3c(cell_index(1), cell_index(2), cell_index(3)) = j_cell
 
          k_cell = 0
@@ -2221,13 +2221,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO i_dim = 1, 3
-         R_min(i_dim) = MINVAL(index_to_cell_1(:, i_dim)) + MINVAL(index_to_cell_2(:, i_dim))
-         R_max(i_dim) = MAXVAL(index_to_cell_1(:, i_dim)) + MAXVAL(index_to_cell_2(:, i_dim))
+         R_min(i_dim) = MINVAL(index_to_cell_1(i_dim, :)) + MINVAL(index_to_cell_2(i_dim, :))
+         R_max(i_dim) = MAXVAL(index_to_cell_1(i_dim, :)) + MAXVAL(index_to_cell_2(i_dim, :))
       END DO
 
       nimages_max = (R_max(1) - R_min(1) + 1)*(R_max(2) - R_min(2) + 1)*(R_max(3) - R_min(3) + 1)
 
-      ALLOCATE (index_to_cell_tmp(nimages_max, 3))
+      ALLOCATE (index_to_cell_tmp(3, nimages_max))
       index_to_cell_tmp(:, :) = -1
 
       ALLOCATE (cell_to_index(R_min(1):R_max(1), R_min(2):R_max(2), R_min(3):R_max(3)))
@@ -2239,8 +2239,8 @@ CONTAINS
 
          DO img_2 = 1, nimages_2
 
-            cell_1(1:3) = index_to_cell_1(img_1, 1:3)
-            cell_2(1:3) = index_to_cell_2(img_2, 1:3)
+            cell_1(1:3) = index_to_cell_1(1:3, img_1)
+            cell_2(1:3) = index_to_cell_2(1:3, img_2)
 
             R(1:3) = cell_1(1:3) + cell_2(1:3)
 
@@ -2249,7 +2249,7 @@ CONTAINS
 
                nimages = nimages + 1
                cell_to_index(R(1), R(2), R(3)) = nimages
-               index_to_cell_tmp(nimages, 1:3) = R(1:3)
+               index_to_cell_tmp(1:3, nimages) = R(1:3)
 
             END IF
 
@@ -2257,8 +2257,8 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (index_to_cell(nimages, 3))
-      index_to_cell(:, :) = index_to_cell_tmp(1:nimages, 1:3)
+      ALLOCATE (index_to_cell(3, nimages))
+      index_to_cell(:, :) = index_to_cell_tmp(1:3, 1:nimages)
 
       CALL timestop(handle)
 
@@ -2401,7 +2401,7 @@ CONTAINS
       bs_env%nimages_scf_desymm = nimages
 
       ALLOCATE (kpoints%cell_to_index(-cixd(1):cixd(1), -cixd(2):cixd(2), -cixd(3):cixd(3)))
-      ALLOCATE (kpoints%index_to_cell(nimages, 3))
+      ALLOCATE (kpoints%index_to_cell(3, nimages))
 
       img = 0
       DO i_cell_x = -cixd(1), cixd(1)
@@ -2409,7 +2409,7 @@ CONTAINS
             DO k_cell_z = -cixd(3), cixd(3)
                img = img + 1
                kpoints%cell_to_index(i_cell_x, j_cell_y, k_cell_z) = img
-               kpoints%index_to_cell(img, 1:3) = [i_cell_x, j_cell_y, k_cell_z]
+               kpoints%index_to_cell(1:3, img) = [i_cell_x, j_cell_y, k_cell_z]
             END DO
          END DO
       END DO
@@ -2624,8 +2624,8 @@ CONTAINS
 
          DO i_cell_R1 = 1, bs_env%nimages_3c
 
-            cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
-            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(i_cell_Delta_R, 1:3)
+            cell_R1(1:3) = bs_env%index_to_cell_3c(1:3, i_cell_R1)
+            cell_DR(1:3) = bs_env%index_to_cell_Delta_R(1:3, i_cell_Delta_R)
 
             ! S_1 = R_1 + ΔR (from ΔR = S_1 - R_1)
             CALL add_R(cell_R1, cell_DR, bs_env%index_to_cell_3c, cell_S1, &
@@ -2634,7 +2634,7 @@ CONTAINS
 
             DO i_cell_R2 = 1, bs_env%nimages_scf_desymm
 
-               cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R2, 1:3)
+               cell_R2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R2)
 
                ! R_2 - R_1
                CALL add_R(cell_R2, -cell_R1, bs_env%index_to_cell_3c, cell_R2_m_R1, &
@@ -2652,7 +2652,7 @@ CONTAINS
 
             DO i_cell_S2 = 1, bs_env%nimages_scf_desymm
 
-               cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S2, 1:3)
+               cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_S2)
                cell_m_R1(1:3) = -cell_R1(1:3)
                cell_S1_p_S2_m_R1(1:3) = cell_S1(1:3) + cell_S2(1:3) - cell_R1(1:3)
 
@@ -2666,7 +2666,7 @@ CONTAINS
 
             DO i_cell_R = 1, bs_env%nimages_scf_desymm
 
-               cell_R = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
+               cell_R = bs_env%kpoints_scf_desymm%index_to_cell(1:3, i_cell_R)
 
                ! R_1 - R
                CALL add_R(cell_R1, -cell_R, bs_env%index_to_cell_3c, cell_R1_minus_R, &
@@ -2752,13 +2752,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nimg = SIZE(index_to_cell, 1)
+      nimg = SIZE(index_to_cell, 2)
 
       cell_found = .FALSE.
 
       DO i_cell = 1, nimg
 
-         cell_i(1:3) = index_to_cell(i_cell, 1:3)
+         cell_i(1:3) = index_to_cell(1:3, i_cell)
 
          IF (cell_i(1) == cell(1) .AND. cell_i(2) == cell(2) .AND. cell_i(3) == cell(3)) THEN
             cell_found = .TRUE.
@@ -2950,9 +2950,9 @@ CONTAINS
          ikp_local = ikp_local + 1
 
          ! M(k) = sum_R e^ikR M^R
-         CALL trafo_rs_to_ikp(M_R, M(:, :, ikp_local), &
-                              bs_env%kpoints_scf_desymm%index_to_cell, &
-                              bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
+         CALL rs_to_kp(M_R, M(:, :, ikp_local), &
+                       bs_env%kpoints_scf_desymm%index_to_cell, &
+                       bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! compute condition number of M_PQ(k)
          CALL power(M(:, :, ikp_local), 1.0_dp, 0.0_dp, cond_nr, min_ev_ikp, max_ev_ikp)
