@@ -26,7 +26,6 @@ MODULE cp2k_runs
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_logger_would_log,&
                                               cp_note_level
@@ -206,19 +205,22 @@ CONTAINS
 
       CALL cite_reference(Hutter2014)
 
-      ! parse the input
-      input_file => read_input(input_declaration, input_file_name, initial_variables=initial_variables, &
+      ! Parse the input
+      input_file => read_input(input_declaration, input_file_name, &
+                               initial_variables=initial_variables, &
                                para_env=para_env)
 
       CALL para_env%sync()
 
+      logger => cp_get_default_logger()
+
       glob_section => section_vals_get_subs_vals(input_file, "GLOBAL")
       CALL section_vals_val_get(glob_section, "ECHO_INPUT", l_val=echo_input)
-      logger => cp_get_default_logger()
-      IF (echo_input) THEN
+      IF (echo_input .AND. (output_unit > 0)) THEN
          CALL section_vals_write(input_file, &
-                                 unit_nr=cp_logger_get_default_io_unit(logger), &
-                                 hide_root=.TRUE., hide_defaults=.FALSE.)
+                                 unit_nr=output_unit, &
+                                 hide_root=.TRUE., &
+                                 hide_defaults=.FALSE.)
       END IF
 
       CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=output_unit)
