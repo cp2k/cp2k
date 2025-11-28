@@ -2948,7 +2948,7 @@ CONTAINS
          CALL diamat_all(pmat, noon(:, ispin))
 
          IF (iw > 0) THEN
-            WRITE (iw, '(T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
+            WRITE (iw, '(/,T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
             DO i1 = 1, nmo_active, 8
                jm = MIN(7, nmo_active - i1)
                ! noons are stored in ascending order, so reverse-print them
@@ -3027,7 +3027,8 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
+         WRITE (UNIT=iw, FMT="(/,T2,A,/)") &
+         "RANGE-SEPARATED DFT EMBEDDING SELF-CONSISTENT OPTIMIZATION"
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
@@ -3122,6 +3123,20 @@ CONTAINS
 
       ! update qs total energy to the final rs-DFT energy
       energy%total = active_space_env%energy_total
+
+      ! print final energy contributions
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T3,A)") &
+            "Final energy contributions:"
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Inactive energy:", active_space_env%energy_inactive
+          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Active energy:", active_space_env%energy_active
+          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Correlation energy:", energy_corr
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Total rs-DFT energy:", active_space_env%energy_total
+      END IF
 
       ! print the AS rdm and the natural orbital occupation numbers
       CALL print_pmat_noon(active_space_env, iw)
