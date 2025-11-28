@@ -48,8 +48,7 @@ def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, 
                              mode_count, alphas, gammas, vertical_energies,
                              stokes_shift, adiabatic_energies, requested_states, integration_params):
     """
-    Unified time integration for LQ3 - handles both absorption and fluorescence.
-    The only difference is how we calculate the energy difference.
+    Time integration for LQ3
     """
 
     max_time_slices = integration_params.get('max_time_slices', 5000)
@@ -57,7 +56,6 @@ def _integrate_lq3_time_domain(energy, state_idx, spectrum_type, displacements, 
     time_step = integration_params.get('time_step', 30)
     convergence = integration_params.get('convergence', 0.0000001)
     
-    # Calculate energy difference
     if spectrum_type == 'absorption':
         # Absorption: E - E_vertical - Stokes/2
         energy_difference = energy - vertical_energies[state_idx - 1] - stokes_shift / 2

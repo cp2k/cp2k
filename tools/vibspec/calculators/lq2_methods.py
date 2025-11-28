@@ -42,7 +42,6 @@ def calculate_lq2_spectrum_point(energy, state_idx, spectrum_type, oscillator_st
     else:
         raise ValueError(f"Unknown spectrum_type: {spectrum_type}")
 
-    # Gaussian normalization for broadening
     if alpha > 0:
         prefactor = 1.0 / np.sqrt(4 * np.pi * alpha)
     else:

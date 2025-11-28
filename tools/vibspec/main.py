@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 """
-Main entry point for Vibronic Spectroscopy Tools (VibSpec)
+Main entry point for Vibronic Spectroscopy Tools (VibronicSpec)
 
 Author: Beliz Sertcan
 """
@@ -252,7 +252,7 @@ def calculate_displacement_vector(mode_count, atom_count, frequencies, normal_mo
     
     for mode_index in range(mode_count):
         frequency_squared = frequencies[mode_index + 1] ** 2
-        scaling_factor = (frequency_squared ** 0.25) if frequency_squared > 0 else 0.0
+        scaling_factor = (frequency_squared ** (1/4))
         displacements.append(scaling_factor * unscaled_displacements_list[mode_index])
     
     return np.array(displacements)
@@ -310,7 +310,7 @@ def calculate_spectrum(data, config):
     individual_intensities = []
     
     for state_idx, state_number in enumerate(data['requested_states'], 1):
-        print(f"  Processing state {state_number}/{len(data['requested_states'])}...")
+        print(f"  Processing state {state_number} ({state_idx}/{len(data['requested_states'])})...")
         state_spectrum = np.zeros(len(energies_au))
         
         for energy_idx, energy_au in enumerate(energies_au):
