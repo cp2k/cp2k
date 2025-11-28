@@ -104,7 +104,7 @@ MODULE input_section_types
       INTEGER :: ref_count = 0, n_keywords = 0, n_subsections = 0
       CHARACTER(len=default_string_length)        :: name = ""
       CHARACTER(len=default_string_length)        :: location = ""
-      CHARACTER, DIMENSION(:), POINTER              :: description => Null()
+      CHARACTER, DIMENSION(:), POINTER            :: description => Null()
       CHARACTER(LEN=:), ALLOCATABLE               :: deprecation_notice
       INTEGER, POINTER, DIMENSION(:)              :: citations => NULL()
       TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords => NULL()
@@ -126,7 +126,7 @@ MODULE input_section_types
 ! **************************************************************************************************
    TYPE section_vals_type
       INTEGER :: ref_count = 0
-      INTEGER, POINTER, DIMENSION(:)                     :: ibackup => NULL()
+      INTEGER, POINTER, DIMENSION(:)                      :: ibackup => NULL()
       TYPE(section_type), POINTER                         :: section => NULL()
       TYPE(cp_sll_val_p_type), DIMENSION(:, :), POINTER   :: values => NULL()
       TYPE(section_vals_p_type), DIMENSION(:, :), POINTER :: subs_vals => NULL()
@@ -1468,6 +1468,8 @@ CONTAINS
                   DO ik = -1, section%n_keywords
                      keyword => section%keywords(ik)%keyword
                      IF (ASSOCIATED(keyword)) THEN
+                        ! Skip deprecated keyword
+                        IF (ALLOCATED(keyword%deprecation_notice)) CYCLE
                         IF (keyword%type_of_var /= no_t .AND. keyword%names(1) (1:2) /= "__") THEN
                            CALL section_vals_val_get(section_vals, keyword%names(1), &
                                                      i_rep_s, n_rep_val=nval)
