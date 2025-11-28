@@ -272,8 +272,7 @@ CONTAINS
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') &
             '!-----------------------------------------------------------------------------!'
-         WRITE (iw, '(T26,A)') "Generate Active Space Hamiltonian"
-         WRITE (iw, '(T27,A)') "Interface to CAS-CI and DMRG-CI"
+         WRITE (iw, '(T26,A)') "Active Space Embedding Module"
          WRITE (iw, '(T2,A)') &
             '!-----------------------------------------------------------------------------!'
       END IF
@@ -1563,7 +1562,7 @@ CONTAINS
          END DO
          IF (print1 .AND. iw > 0) THEN
             rsize = rsize*8._dp/1000000._dp
-            WRITE (iw, "(T4,'ERI_GPW|',' Store active orbitals on real space grid ',T63,F12.3,' MB')") rsize
+            WRITE (iw, "(T2,'ERI_GPW|',' Store active orbitals on real space grid ',T66,F12.3,' MB')") rsize
          END IF
          ALLOCATE (wfn_a(nmo, nspins))
          DO ispin = 1, nspins
@@ -1574,7 +1573,7 @@ CONTAINS
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
-                  WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
+                  WRITE (iw, "(T2,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
                END IF
             END DO
          END DO
@@ -1772,7 +1771,7 @@ CONTAINS
       END DO
 
       IF (print1 .AND. iw > 0) THEN
-         WRITE (iw, "(T4,'ERI_GPW|',' Number of Integrals stored ',T68,I10)") stored_integrals
+         WRITE (iw, "(T2,'ERI_GPW|',' Number of Integrals stored ',T71,I10)") stored_integrals
       END IF
 
       IF (eri_env%eri_gpw%store_wfn) THEN

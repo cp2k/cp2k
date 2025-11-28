@@ -171,7 +171,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Fraction of new density to be mixed with previous one in SCF embedding.", &
                           usage="ALPHA 0.25", type_of_var=real_t, &
-                          default_r_val=0.4_dp)
+                          default_r_val=0.8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
