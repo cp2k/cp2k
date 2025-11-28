@@ -632,7 +632,6 @@ CONTAINS
             CALL hfx_ks_matrix(qs_env, ks_matrix, rho, energy, calculate_forces, &
                                just_energy, v_rspace_new, v_tau_rspace, ext_xc_section=xc_section)
          END IF
-!!    Adiabatic rescaling  only if do_hfx; right?????
       END IF !do_hfx
 
       IF (do_ppl .AND. calculate_forces) THEN
@@ -749,7 +748,7 @@ CONTAINS
       ELSE
          IF (do_hfx) THEN
             IF (.FALSE.) THEN
-               CPWARN("KS matrix not longer correct. Check possible problems with property calculations!")
+               CPWARN("KS matrix no longer correct. Check possible problems with property calculations!")
             END IF
          END IF
       END IF ! .NOT. just energy

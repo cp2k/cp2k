@@ -225,7 +225,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
                                                             ex_perd, ex_rcut, explicit, &
-                                                            stop_after_print, store_wfn
+                                                            stop_after_print, store_wfn, do_ddapc
       REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
          eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -279,7 +279,7 @@ CONTAINS
       END IF
 
       ! k-points?
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
       IF (do_kpoints) THEN
          CALL cp_abort(__LOCATION__, "k-points not supported in active space module")
       END IF
@@ -289,6 +289,29 @@ CONTAINS
       CALL section_vals_get(adiabatic_rescaling, explicit=explicit)
       IF (explicit) THEN
          CALL cp_abort(__LOCATION__, "Adiabatic rescaling not supported in active space module")
+      END IF
+
+      ! Setup the possible usage of DDAPC charges
+      do_ddapc = dft_control%qs_control%ddapc_restraint .OR. &
+                 qs_env%cp_ddapc_ewald%do_decoupling .OR. &
+                 qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
+                 qs_env%cp_ddapc_ewald%do_solvation
+      IF (do_ddapc) THEN
+         CALL cp_abort(__LOCATION__, "DDAPC charges are not supported in the active space module")
+      END IF
+      IF (dft_control%do_sccs) THEN
+         CALL cp_abort(__LOCATION__, "SCCS is not supported in the active space module")
+      END IF
+      IF (dft_control%correct_surf_dip) THEN
+         IF (dft_control%surf_dip_correct_switch) THEN
+            CALL cp_abort(__LOCATION__, "Surface dipole correction not supported in the AS module")
+         END IF
+      END IF
+      IF (dft_control%smeagol_control%smeagol_enabled) THEN
+         CALL cp_abort(__LOCATION__, "SMEAGOL is not supported in the active space module")
+      END IF
+      IF (dft_control%qs_control%do_kg) THEN
+         CALL cp_abort(__LOCATION__, "KG correction not supported in the active space module")
       END IF
 
       NULLIFY (active_space_env)
