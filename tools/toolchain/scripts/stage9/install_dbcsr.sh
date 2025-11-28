@@ -27,16 +27,19 @@ case "${with_dbcsr}" in
     if verify_checksums "${install_lock_file}"; then
       echo "dbcsr-${dbcsr_ver} is already installed, skipping it."
     else
-      if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
-        echo "dbcsr-${dbcsr_ver}.tar.gz is found"
-      else
-        download_pkg_from_urlpath "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" \
-          https://github.com/cp2k/dbcsr/releases/download/v${dbcsr_ver}
-      fi
-      echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
-      tar -xzf dbcsr-${dbcsr_ver}.tar.gz
-      cd dbcsr-${dbcsr_ver}
+      git clone --recursive https://github.com/cp2k/dbcsr.git
+      cd dbcsr
+
+      #if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
+      #  echo "dbcsr-${dbcsr_ver}.tar.gz is found"
+      #else
+      #  download_pkg_from_urlpath "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" \
+      #    https://github.com/cp2k/dbcsr/releases/download/v${dbcsr_ver}
+      #fi
+      #echo "Installing from scratch into ${pkg_install_dir}"
+      #[ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
+      #tar -xzf dbcsr-${dbcsr_ver}.tar.gz
+      #cd dbcsr-${dbcsr_ver}
       mkdir build-cpu
       cd build-cpu
       CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
