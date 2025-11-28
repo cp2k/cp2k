@@ -313,8 +313,11 @@ CONTAINS
 
       ! ++ allocate storage space for gs_mos
       NULLIFY (ao_mo_occ_fm_struct, ao_mo_virt_fm_struct)
-      CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
-      CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
+      ! Tiny fix (A.Sinyavskiy)
+      CALL cp_fm_struct_create(ao_mo_occ_fm_struct, template_fmstruct=mo_set%mo_coeff%matrix_struct, &
+                               ncol_global=nmo_occ, context=blacs_env)
+      CALL cp_fm_struct_create(ao_mo_virt_fm_struct, template_fmstruct=mo_set%mo_coeff%matrix_struct, &
+                               ncol_global=nmo_virt, context=blacs_env)
 
       NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt, gs_mos%evals_occ_matrix)
       ALLOCATE (gs_mos%mos_occ, gs_mos%mos_virt)

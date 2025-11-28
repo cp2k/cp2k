@@ -1621,7 +1621,8 @@ CONTAINS
          CALL get_qs_env(qs_env, blacs_env=blacs_env)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, nrow_global=nao)
          nmo = gs_mos(ispin)%nmo_active
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=gs_mos(ispin)%mos_occ%matrix_struct, &
+                                  ncol_global=nmo, context=blacs_env)
          NULLIFY (gs_mos(ispin)%mos_active)
          ALLOCATE (gs_mos(ispin)%mos_active)
          CALL cp_fm_create(gs_mos(ispin)%mos_active, fm_struct)

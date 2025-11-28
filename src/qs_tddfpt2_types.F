@@ -305,7 +305,7 @@ CONTAINS
       ALLOCATE (work_matrices%fm_pool_ao_mo_active(nspins))
       DO ispin = 1, nspins
          NULLIFY (work_matrices%fm_pool_ao_mo_active(ispin)%pool)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nactive(ispin), context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=gs_mos(ispin)%mos_active%matrix_struct, context=blacs_env)
          CALL fm_pool_create(work_matrices%fm_pool_ao_mo_active(ispin)%pool, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END DO
@@ -319,7 +319,7 @@ CONTAINS
 
       ALLOCATE (work_matrices%S_C0(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ(ispin), context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=gs_mos(ispin)%mos_occ%matrix_struct, context=blacs_env)
          CALL cp_fm_create(work_matrices%S_C0(ispin), fm_struct)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin), &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
@@ -330,8 +330,8 @@ CONTAINS
 
       IF (sub_env%is_split) THEN
          DO ispin = 1, evecs_dim
-            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
-                                     ncol_global=nactive(ispin), context=sub_env%blacs_env)
+            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, template_fmstruct=gs_mos(ispin)%mos_active%matrix_struct, &
+                                     context=sub_env%blacs_env)
          END DO
 
          ALLOCATE (work_matrices%evects_sub(evecs_dim, nstates), work_matrices%Aop_evects_sub(evecs_dim, nstates))
@@ -534,8 +534,8 @@ CONTAINS
       ! matrices needed to do HFX long range calllculations
       IF (do_hfxlr) THEN
          DO ispin = 1, nspins
-            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
-                                     ncol_global=nactive(ispin), context=sub_env%blacs_env)
+            CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, template_fmstruct=gs_mos(ispin)%mos_active%matrix_struct, &
+                                     context=sub_env%blacs_env)
          END DO
          CALL dbcsr_init_p(work_matrices%shalf)
          CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
