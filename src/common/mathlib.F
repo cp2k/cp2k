@@ -18,7 +18,9 @@ MODULE mathlib
                                               dp
    USE mathconstants,                   ONLY: euler,&
                                               fac,&
-                                              oorootpi
+                                              oorootpi,&
+                                              z_one,&
+                                              z_zero
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -42,7 +44,8 @@ MODULE mathlib
              unit_matrix, diag, &
              erfc_cutoff, &
              diag_antisym, &
-             diag_complex
+             diag_complex, &
+             gemm_square
 
    ! Public functions
 
@@ -81,6 +84,10 @@ MODULE mathlib
 
    INTERFACE unit_matrix
       MODULE PROCEDURE unit_matrix_d, unit_matrix_z
+   END INTERFACE
+
+   INTERFACE gemm_square
+      MODULE PROCEDURE zgemm_square_2, zgemm_square_3, dgemm_square_2, dgemm_square_3
    END INTERFACE
 
 CONTAINS
@@ -1812,5 +1819,209 @@ CONTAINS
 
       DEALLOCATE (matrix_c, eigenvalues)
    END SUBROUTINE diag_antisym
+! **************************************************************************************************
+!> \brief Square array multiplication via LAPACK routines, leaves inputs unchanged
+!> \param A_in Input matrix 1
+!> \param A_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 1
+!> \param B_in Input matrix 2
+!> \param B_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 2
+!> \param C_out Output matrix
+!> \par History
+!>    11.2025 created [Stepan Marek]
+! **************************************************************************************************
+   SUBROUTINE zgemm_square_2(A_in, A_trans, B_in, B_trans, C_out)
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: A_in
+      CHARACTER, INTENT(IN)                              :: A_trans
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: B_in
+      CHARACTER, INTENT(IN)                              :: B_trans
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(INOUT)   :: C_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'zgemm_square_2'
+
+      INTEGER                                            :: handle, n
+
+      n = SIZE(A_in, 1)
+      IF (n /= SIZE(A_in, 2)) CPABORT("Non-square array 1 (A).")
+      IF (n /= SIZE(B_in, 1)) CPABORT("Incompatible (rows) array 2 (B).")
+      IF (n /= SIZE(B_in, 2)) CPABORT("Non-square array 2 (B).")
+      IF (n /= SIZE(C_out, 1)) CPABORT("Incompatible (rows) result array 3 (C).")
+      IF (n /= SIZE(C_out, 2)) CPABORT("Incompatible (cols) result array 3 (C).")
+      IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
+                 A_trans == 'T' .OR. A_trans == 't' .OR. &
+                 A_trans == 'C' .OR. A_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 1 (A).")
+      IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
+                 B_trans == 'T' .OR. B_trans == 't' .OR. &
+                 B_trans == 'C' .OR. B_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 2 (B).")
+
+      CALL timeset(routineN, handle)
+
+      CALL ZGEMM(A_trans, B_trans, n, n, n, z_one, A_in, n, B_in, n, z_zero, C_out, n)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE zgemm_square_2
+! **************************************************************************************************
+!> \brief Square array multiplication via LAPACK routines, leaves inputs unchanged, real matrices
+!> \param A_in Input matrix 1
+!> \param A_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 1
+!> \param B_in Input matrix 2
+!> \param B_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 2
+!> \param C_out Output matrix
+!> \par History
+!>    11.2025 created [Stepan Marek]
+! **************************************************************************************************
+   SUBROUTINE dgemm_square_2(A_in, A_trans, B_in, B_trans, C_out)
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: A_in
+      CHARACTER, INTENT(IN)                              :: A_trans
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: B_in
+      CHARACTER, INTENT(IN)                              :: B_trans
+      REAL(kind=dp), DIMENSION(:, :), INTENT(INOUT)      :: C_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dgemm_square_2'
+
+      INTEGER                                            :: handle, n
+
+      n = SIZE(A_in, 1)
+      IF (n /= SIZE(A_in, 2)) CPABORT("Non-square array 1 (A).")
+      IF (n /= SIZE(B_in, 1)) CPABORT("Incompatible (rows) array 2 (B).")
+      IF (n /= SIZE(B_in, 2)) CPABORT("Non-square array 2 (B).")
+      IF (n /= SIZE(C_out, 1)) CPABORT("Incompatible (rows) result array 3 (C).")
+      IF (n /= SIZE(C_out, 2)) CPABORT("Incompatible (cols) result array 3 (C).")
+      IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
+                 A_trans == 'T' .OR. A_trans == 't' .OR. &
+                 A_trans == 'C' .OR. A_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 1 (A).")
+      IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
+                 B_trans == 'T' .OR. B_trans == 't' .OR. &
+                 B_trans == 'C' .OR. B_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 2 (B).")
+
+      CALL timeset(routineN, handle)
+
+      CALL DGEMM(A_trans, B_trans, n, n, n, 1.0_dp, A_in, n, B_in, n, 0.0_dp, C_out, n)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE dgemm_square_2
+! **************************************************************************************************
+!> \brief Square array multiplication via LAPACK routines, leaves inputs unchanged, for 3 matrices
+!> \param A_in Input matrix 1
+!> \param A_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 1
+!> \param B_in Input matrix 2
+!> \param B_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 2
+!> \param C_in Input matrix 3
+!> \param C_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 3
+!> \param D_out Output matrix
+!> \par History
+!>    11.2025 created [Stepan Marek]
+! **************************************************************************************************
+   SUBROUTINE zgemm_square_3(A_in, A_trans, B_in, B_trans, C_in, C_trans, D_out)
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: A_in
+      CHARACTER, INTENT(IN)                              :: A_trans
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: B_in
+      CHARACTER, INTENT(IN)                              :: B_trans
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: C_in
+      CHARACTER, INTENT(IN)                              :: C_trans
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(INOUT)   :: D_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'zgemm_square_3'
+
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: work
+      INTEGER                                            :: handle, n
+
+      n = SIZE(A_in, 1)
+      IF (n /= SIZE(A_in, 2)) CPABORT("Non-square array 1 (A).")
+      IF (n /= SIZE(B_in, 1)) CPABORT("Incompatible (rows) array 2 (B).")
+      IF (n /= SIZE(B_in, 2)) CPABORT("Non-square array 2 (B).")
+      IF (n /= SIZE(C_in, 1)) CPABORT("Incompatible (rows) array 3 (C).")
+      IF (n /= SIZE(C_in, 2)) CPABORT("Non-square array 3 (C).")
+      IF (n /= SIZE(D_out, 1)) CPABORT("Incompatible (rows) result array 4 (D).")
+      IF (n /= SIZE(D_out, 2)) CPABORT("Incompatible (cols) result array 4 (D).")
+      IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
+                 A_trans == 'T' .OR. A_trans == 't' .OR. &
+                 A_trans == 'C' .OR. A_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 1 (A).")
+      IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
+                 B_trans == 'T' .OR. B_trans == 't' .OR. &
+                 B_trans == 'C' .OR. B_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 2 (B).")
+      IF (.NOT. (C_trans == 'N' .OR. C_trans == 'n' .OR. &
+                 C_trans == 'T' .OR. C_trans == 't' .OR. &
+                 C_trans == 'C' .OR. C_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 3 (C).")
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (work(n, n), source=z_zero)
+
+      CALL ZGEMM(A_trans, B_trans, n, n, n, z_one, A_in, n, B_in, n, z_zero, work, n)
+      CALL ZGEMM('N', C_trans, n, n, n, z_one, work, n, C_in, n, z_zero, D_out, n)
+
+      DEALLOCATE (work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE zgemm_square_3
+! **************************************************************************************************
+!> \brief Square array multiplication via LAPACK routines, leaves inputs unchanged, for 3 matrices
+!> \param A_in Input matrix 1
+!> \param A_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 1
+!> \param B_in Input matrix 2
+!> \param B_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 2
+!> \param C_in Input matrix 3
+!> \param C_trans 'N' - no transpose, 'T' - transpose, 'C' - hermitian conj. of matrix 3
+!> \param D_out Output matrix
+!> \par History
+!>    11.2025 created [Stepan Marek]
+! **************************************************************************************************
+   SUBROUTINE dgemm_square_3(A_in, A_trans, B_in, B_trans, C_in, C_trans, D_out)
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: A_in
+      CHARACTER, INTENT(IN)                              :: A_trans
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: B_in
+      CHARACTER, INTENT(IN)                              :: B_trans
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: C_in
+      CHARACTER, INTENT(IN)                              :: C_trans
+      REAL(kind=dp), DIMENSION(:, :), INTENT(INOUT)      :: D_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dgemm_square_3'
+
+      INTEGER                                            :: handle, n
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
+
+      n = SIZE(A_in, 1)
+      IF (n /= SIZE(A_in, 2)) CPABORT("Non-square array 1 (A).")
+      IF (n /= SIZE(B_in, 1)) CPABORT("Incompatible (rows) array 2 (B).")
+      IF (n /= SIZE(B_in, 2)) CPABORT("Non-square array 2 (B).")
+      IF (n /= SIZE(C_in, 1)) CPABORT("Incompatible (rows) array 3 (C).")
+      IF (n /= SIZE(C_in, 2)) CPABORT("Non-square array 3 (C).")
+      IF (n /= SIZE(D_out, 1)) CPABORT("Incompatible (rows) result array 4 (D).")
+      IF (n /= SIZE(D_out, 2)) CPABORT("Incompatible (cols) result array 4 (D).")
+      IF (.NOT. (A_trans == 'N' .OR. A_trans == 'n' .OR. &
+                 A_trans == 'T' .OR. A_trans == 't' .OR. &
+                 A_trans == 'C' .OR. A_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 1 (A).")
+      IF (.NOT. (B_trans == 'N' .OR. B_trans == 'n' .OR. &
+                 B_trans == 'T' .OR. B_trans == 't' .OR. &
+                 B_trans == 'C' .OR. B_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 2 (B).")
+      IF (.NOT. (C_trans == 'N' .OR. C_trans == 'n' .OR. &
+                 C_trans == 'T' .OR. C_trans == 't' .OR. &
+                 C_trans == 'C' .OR. C_trans == 'c')) &
+         CPABORT("Unknown transpose character for array 3 (C).")
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (work(n, n), source=0.0_dp)
+
+      CALL DGEMM(A_trans, B_trans, n, n, n, 1.0_dp, A_in, n, B_in, n, 0.0_dp, work, n)
+      CALL DGEMM('N', C_trans, n, n, n, 1.0_dp, work, n, C_in, n, 0.0_dp, D_out, n)
+
+      DEALLOCATE (work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE dgemm_square_3
 
 END MODULE mathlib

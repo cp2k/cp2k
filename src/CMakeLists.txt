@@ -1505,6 +1505,7 @@ set(CP2K_PROGS_F
     dbt/dbt_unittest.F
     dbt/tas/dbt_tas_unittest.F
     start/cp2k.F
+    common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
     metadyn_tools/graph.F
@@ -1833,6 +1834,7 @@ add_library(cp2k::cp2k ALIAS cp2k)
 list(
   APPEND
   __CP2K_APPS
+  "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
   "graph"
@@ -1847,6 +1849,7 @@ list(
 add_executable(cp2k-bin start/cp2k.F)
 # for linking
 
+add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(graph metadyn_tools/graph.F)

@@ -49,6 +49,7 @@ MODULE gw_small_cell_full_kp
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
+   USE mathlib,                         ONLY: gemm_square
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
@@ -567,7 +568,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_real_space'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w, W_k_w, work
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w, W_k_w
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: M_inv, M_inv_V_sqrt, V_sqrt
       INTEGER                                            :: handle, i_t, ikp, ikp_local, j_w, n_RI, &
                                                             nimages_scf_desymm
@@ -579,7 +580,7 @@ CONTAINS
       n_RI = bs_env%n_RI
       nimages_scf_desymm = bs_env%nimages_scf_desymm
 
-      ALLOCATE (chi_k_w(n_RI, n_RI), work(n_RI, n_RI), eps_k_w(n_RI, n_RI), W_k_w(n_RI, n_RI))
+      ALLOCATE (chi_k_w(n_RI, n_RI), eps_k_w(n_RI, n_RI), W_k_w(n_RI, n_RI))
       ALLOCATE (chi_R(n_RI, n_RI, nimages_scf_desymm), W_R(n_RI, n_RI, nimages_scf_desymm), &
                 MWM_R(n_RI, n_RI, nimages_scf_desymm))
 
@@ -625,13 +626,8 @@ CONTAINS
 
             ! 3. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
 
-            ! 3. a) work = χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-            CALL ZGEMM('N', 'N', n_RI, n_RI, n_RI, z_one, chi_k_w, n_RI, &
-                       M_inv_V_sqrt(:, :, ikp_local), n_RI, z_zero, work, n_RI)
-
-            ! 3. b) eps_work = V^0.5(k_i)*M^-1(k_i)*work
-            CALL ZGEMM('C', 'N', n_RI, n_RI, n_RI, z_one, M_inv_V_sqrt(:, :, ikp_local), n_RI, &
-                       work, n_RI, z_zero, eps_k_w, n_RI)
+            ! 3. a-b) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
 
             ! 3. c) ε(iω_j,k_i) = eps_work - Id
             CALL add_on_diag(eps_k_w, z_one)
@@ -644,13 +640,8 @@ CONTAINS
             ! 4. b) ε^-1(iω_j,k_i)-Id
             CALL add_on_diag(eps_k_w, -z_one)
 
-            ! 4. c) work = (ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
-            CALL ZGEMM('N', 'C', n_RI, n_RI, n_RI, z_one, eps_k_w, n_RI, &
-                       V_sqrt(:, :, ikp_local), n_RI, z_zero, work, n_RI)
-
-            ! 4. d) W(iω,k_i) = V^0.5(k_i)*work
-            CALL ZGEMM('N', 'N', n_RI, n_RI, n_RI, z_one, V_sqrt(:, :, ikp_local), n_RI, &
-                       work, n_RI, z_zero, W_k_w, n_RI)
+            ! 4. c-d) W(iω,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
+            CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', V_sqrt(:, :, ikp_local), 'C', W_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
             CALL add_ikp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
@@ -761,8 +752,7 @@ CONTAINS
          CALL power(V_sqrt(:, :, ikp_local), 0.5_dp, 0.0_dp)
 
          ! M^-1(k)*V^0.5(k)
-         CALL ZGEMM("N", "C", n_RI, n_RI, n_RI, z_one, M_inv(:, :, ikp_local), n_RI, &
-                    V_sqrt(:, :, ikp_local), n_RI, z_zero, M_inv_V_sqrt(:, :, ikp_local), n_RI)
+         CALL gemm_square(M_inv(:, :, ikp_local), 'N', V_sqrt(:, :, ikp_local), 'C', M_inv_V_sqrt(:, :, ikp_local))
 
       END DO ! ikp
 
@@ -841,11 +831,9 @@ CONTAINS
                               bs_env%kpoints_scf_desymm%index_to_cell, &
                               bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
-         ! 2e. M^-1(k) W^trunc(k)
-         CALL ZGEMM("N", "N", n_RI, n_RI, n_RI, z_one, M_inv, n_RI, W_k, n_RI, z_zero, work, n_RI)
-
-         ! 2f. Ŵ(k) = M^-1(k) W^trunc(k) M^-1(k)
-         CALL ZGEMM("N", "N", n_RI, n_RI, n_RI, z_one, work, n_RI, M_inv, n_RI, z_zero, W_k, n_RI)
+         ! 2e-f. Ŵ(k) = M^-1(k) W^trunc(k) M^-1(k)
+         CALL gemm_square(M_inv, 'N', W_k, 'N', M_inv, 'N', work)
+         W_k(:, :) = work(:, :)
 
          ! 2g. Ŵ^R = sum_k w_k e^(-ikR) Ŵ^(k)
          CALL add_ikp_to_all_rs(W_k, MWM_R, bs_env%kpoints_scf_desymm, ikp)
@@ -1042,8 +1030,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_Minv_Vtr_Minv_R'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: M_inv_V_tr_kp, M_kp, Mi_Vtr_Mi_kp, &
-                                                            V_tr_kp
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: M_kp, Mi_Vtr_Mi_kp, V_tr_kp
       INTEGER                                            :: handle, i_cell_R, ikp, n_RI, &
                                                             nimages_scf, nkp_scf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: M_R, Mi_Vtr_Mi_R_arr, V_tr_R
@@ -1057,7 +1044,7 @@ CONTAINS
       CALL get_V_tr_R(V_tr_R, bs_env%trunc_coulomb, 0.0_dp, bs_env, qs_env)
       CALL get_V_tr_R(M_R, bs_env%ri_metric, bs_env%regularization_RI, bs_env, qs_env)
 
-      ALLOCATE (V_tr_kp(n_RI, n_RI), M_kp(n_RI, n_RI), M_inv_V_tr_kp(n_RI, n_RI), &
+      ALLOCATE (V_tr_kp(n_RI, n_RI), M_kp(n_RI, n_RI), &
                 Mi_Vtr_Mi_kp(n_RI, n_RI), Mi_Vtr_Mi_R_arr(n_RI, n_RI, nimages_scf))
       Mi_Vtr_Mi_R_arr(:, :, :) = 0.0_dp
 
@@ -1072,12 +1059,8 @@ CONTAINS
                               bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k) -> M^-1(k)
          CALL power(M_kp, -1.0_dp, 0.0_dp)
-         ! M^-1(k) * V_tr(k)
-         CALL ZGEMM('N', 'N', n_RI, n_RI, n_RI, z_one, M_kp, n_RI, &
-                    V_tr_kp, n_RI, z_zero, M_inv_V_tr_kp, n_RI)
          ! Ṽ(k) = M^-1(k) * V_tr(k) * M^-1(k)
-         CALL ZGEMM('N', 'N', n_RI, n_RI, n_RI, z_one, M_inv_V_tr_kp, n_RI, &
-                    M_kp, n_RI, z_zero, Mi_Vtr_Mi_kp, n_RI)
+         CALL gemm_square(M_kp, 'N', V_tr_kp, 'N', M_kp, 'N', Mi_Vtr_Mi_kp)
          ! Ṽ^R = sum_k w_k e^-ikR Ṽ(k)
          CALL add_ikp_to_all_rs(Mi_Vtr_Mi_kp, Mi_Vtr_Mi_R_arr, bs_env%kpoints_scf_desymm, ikp)
       END DO

@@ -5,6 +5,7 @@ dbt_tas_unittest
 dbt_unittest
 grid_unittest
 libcp2k_unittest
+gemm_square_unittest
 memory_utilities_unittest
 nequip_unittest                                          libtorch
 parallel_rng_types_unittest
