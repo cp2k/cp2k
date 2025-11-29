@@ -13,6 +13,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
+# Remove LTO from Ubuntu's MPICH
+RUN sed -i -e 's/-flto=auto//g' -e 's/-ffat-lto-objects//g' \
+    /usr/lib/x86_64-linux-gnu/pkgconfig/mpich.pc \
+    /usr/bin/*.mpich
+
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm
 ENV PATH ${PATH}:${ROCM_PATH}/bin
@@ -41,7 +46,7 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-hip=yes \
     --gpu-ver=Mi50 \
-    --with-dbcsr=no \
+    --with-dbcsr \
     --with-tblite=no \
     --dry-run
 
@@ -82,22 +87,22 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local_hip.psmp.
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_hip.psmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_hip_Mi50 psmp
 
 # Run build test.
 COPY ./tools/docker/scripts/test_build.sh .
-RUN ./test_build.sh "local_hip" "psmp" 2>&1 | tee report.log
+RUN ./test_build.sh "toolchain_hip_Mi50" "psmp" 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

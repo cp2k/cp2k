@@ -13,6 +13,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
+# Remove LTO from Ubuntu's MPICH
+RUN sed -i -e 's/-flto=auto//g' -e 's/-ffat-lto-objects//g' \
+    /usr/lib/x86_64-linux-gnu/pkgconfig/mpich.pc \
+    /usr/bin/*.mpich
+
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm
 ENV PATH ${PATH}:${ROCM_PATH}/bin
@@ -41,7 +46,7 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-hip=yes \
     --gpu-ver=Mi50 \
-    --with-dbcsr=no \
+    --with-dbcsr \
     --with-tblite=no \
     --dry-run
 

@@ -96,7 +96,7 @@ def main() -> None:
 
         with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
-            f.write(build("psmp", "local_hip"))
+            f.write(test_build(f"toolchain_hip_{gpu_ver}", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
         f.write(install_deps_toolchain(with_dbcsr="no"))
@@ -172,13 +172,13 @@ CMD ["./test_regtest.sh", "{arch}", "{version}"]
 
 
 # ======================================================================================
-def build(version: str, arch: str = "local") -> str:
+def test_build(profile: str, version: str) -> str:
     return (
-        install_cp2k(version=version, arch=arch)
+        install_cp2k_cmake(profile=profile, version=version)
         + rf"""
 # Run build test.
 COPY ./tools/docker/scripts/test_build.sh .
-RUN ./test_build.sh "{arch}" "{version}" 2>&1 | tee report.log
+RUN ./test_build.sh "{profile}" "{version}" 2>&1 | tee report.log
 """
         + print_cached_report()
     )
@@ -581,6 +581,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
+# Remove LTO from Ubuntu's MPICH
+RUN sed -i -e 's/-flto=auto//g' -e 's/-ffat-lto-objects//g' \
+    /usr/lib/x86_64-linux-gnu/pkgconfig/mpich.pc \
+    /usr/bin/*.mpich
+
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm
 ENV PATH ${{PATH}}:${{ROCM_PATH}}/bin
@@ -593,7 +598,7 @@ RUN hipconfig
         mpi_mode="mpich",
         enable_hip="yes",
         gpu_ver=gpu_ver,
-        with_dbcsr="no",
+        with_dbcsr="",
     )
 
 
