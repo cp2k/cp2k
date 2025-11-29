@@ -59,8 +59,7 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -146,7 +145,7 @@ MODULE qs_ks_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
-             qs_ks_allocate_basics, evaluate_core_matrix_p_mix_new
+             qs_ks_allocate_basics, evaluate_core_matrix_p_mix_new, evaluate_core_matrix_traces
 
 CONTAINS
 
@@ -160,6 +159,7 @@ CONTAINS
 !>        ks matrix. Defaults to false
 !> \param print_active ...
 !> \param ext_ks_matrix ...
+!> \param ext_xc_section ...
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -175,12 +175,13 @@ CONTAINS
 !>      to qs_env components?
 ! **************************************************************************************************
    SUBROUTINE qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces, just_energy, &
-                                           print_active, ext_ks_matrix)
+                                           print_active, ext_ks_matrix, ext_xc_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
@@ -188,7 +189,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, nimages, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
+         just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
@@ -272,12 +273,6 @@ CONTAINS
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      CALL section_vals_get(hfx_sections, explicit=do_hfx)
-      IF (do_hfx) THEN
-         CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
-                                   i_rep_section=1)
-      END IF
       adiabatic_rescaling_section => section_vals_get_subs_vals(input, "DFT%XC%ADIABATIC_RESCALING")
       CALL section_vals_get(adiabatic_rescaling_section, explicit=do_adiabatic_rescaling)
       just_energy_xc = just_energy
@@ -509,7 +504,11 @@ CONTAINS
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
-         CALL hfx_admm_init(qs_env, calculate_forces)
+         IF (PRESENT(ext_xc_section)) THEN
+            CALL hfx_admm_init(qs_env, calculate_forces, ext_xc_section)
+         ELSE
+            CALL hfx_admm_init(qs_env, calculate_forces)
+         END IF
 
          IF (dft_control%do_admm_mo) THEN
             IF (qs_env%run_rtp) THEN
@@ -565,6 +564,8 @@ CONTAINS
          xc_section => admm_env%xc_section_primary
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         ! build ks matrix with an xc section potentially different from the one defined in input
+         IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
       IF (gapw_xc) THEN
@@ -621,14 +622,16 @@ CONTAINS
       END IF
 
       ! *** Add Hartree-Fock contribution if required ***
+      hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
+      CALL section_vals_get(hfx_sections, explicit=do_hfx)
       IF (do_hfx) THEN
          IF (dokp) THEN
             CALL hfx_ks_matrix_kp(qs_env, ks_matrix, energy, calculate_forces)
          ELSE
+            ! ext_xc_section may contain a hfx section
             CALL hfx_ks_matrix(qs_env, ks_matrix, rho, energy, calculate_forces, &
-                               just_energy, v_rspace_new, v_tau_rspace)
+                               just_energy, v_rspace_new, v_tau_rspace, ext_xc_section=xc_section)
          END IF
-!!    Adiabatic rescaling  only if do_hfx; right?????
       END IF !do_hfx
 
       IF (do_ppl .AND. calculate_forces) THEN
@@ -745,7 +748,7 @@ CONTAINS
       ELSE
          IF (do_hfx) THEN
             IF (.FALSE.) THEN
-               CPWARN("KS matrix not longer correct. Check possible problems with property calculations!")
+               CPWARN("KS matrix no longer correct. Check possible problems with property calculations!")
             END IF
          END IF
       END IF ! .NOT. just energy

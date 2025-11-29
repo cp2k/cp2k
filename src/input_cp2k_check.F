@@ -122,9 +122,11 @@ CONTAINS
          section1 => section_vals_get_subs_vals(section, "XAS_TDP%KERNEL")
          section2 => section_vals_get_subs_vals(section, "XAS_TDP%KERNEL%XC_FUNCTIONAL")
          CALL xc_functionals_expand(section2, section1)
-         CALL xc_functionals_expand(section2, section1)
          section1 => section_vals_get_subs_vals(sections, "PROPERTIES%RIXS%XAS_TDP%KERNEL")
          section2 => section_vals_get_subs_vals(sections, "PROPERTIES%RIXS%XAS_TDP%KERNEL%XC_FUNCTIONAL")
+         CALL xc_functionals_expand(section2, section1)
+         section1 => section_vals_get_subs_vals(section, "ACTIVE_SPACE%XC")
+         section2 => section_vals_get_subs_vals(section, "ACTIVE_SPACE%XC%XC_FUNCTIONAL")
          CALL xc_functionals_expand(section2, section1)
       END DO
 
