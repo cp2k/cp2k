@@ -178,6 +178,7 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_TBLITE=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
