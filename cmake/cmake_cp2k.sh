@@ -136,7 +136,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DDBCSR_DIR="${DBCSR_CUDA_ROOT}/lib/cmake/dbcsr" \
     -DSPLA_ROOT="${SPLA_ROOT}-cuda" \
-    -DCP2K_WITH_GPU="${PROFILE:(-4)}" \
+    -DCP2K_WITH_GPU="${PROFILE:15}" \
     -DCP2K_USE_ACCEL=CUDA \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
@@ -154,6 +154,19 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_hip_"* ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DDBCSR_DIR="${DBCSR_HIP_ROOT}/lib/cmake/dbcsr" \
+    -DCP2K_WITH_GPU="${PROFILE:14}" \
+    -DCP2K_USE_ACCEL=HIP \
+    -DCP2K_USE_MPI=ON \
+    -DCP2K_USE_LIBXC=ON \
+    -DCP2K_USE_LIBINT2=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
