@@ -377,6 +377,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   backend_stop(ctx);
 
   if (NULL != matrix_d) {
+    ctx = backend_start(matrix_d);
     iter =
         dbm_comm_iterator_start(transa, transb, matrix_a, matrix_b, matrix_d);
     while (dbm_comm_iterator_next(iter, &pack_a, &pack_b)) {
@@ -384,6 +385,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
                      matrix_d, rows_max_eps, retain_sparsity, true, NULL, ctx);
     }
     dbm_comm_iterator_stop(iter);
+    backend_stop(ctx);
     const double epsilon = dbm_maxeps(matrix_d, matrix_c);
     if (maxeps < epsilon) {
       if (1 == verify) {
