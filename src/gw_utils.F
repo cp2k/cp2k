@@ -813,14 +813,14 @@ CONTAINS
 
       ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
       ! (Filled during loop)
-      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_ao,bs_env%n_ao))
-      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_ao,bs_env%n_ao))
-      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_RI,bs_env%n_ao))
-      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_RI,bs_env%n_ao))
-      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = 1
-      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI
-      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = 1
-      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO
+      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
+      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
+      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
+      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
+      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = 1
+      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = 1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -920,10 +920,10 @@ CONTAINS
 !$OMP my_min_RI_idx_from_AO_AO_atom, my_max_RI_idx_from_AO_AO_atom, &
 !$OMP atom_min_AO, atom_max_AO, &
 !$OMP my_min_AO_idx_from_RI_AO_atom, my_max_AO_idx_from_RI_AO_atom)
-      my_min_RI_idx_from_AO_AO_atom = 1
-      my_max_RI_idx_from_AO_AO_atom = bs_env%n_RI
-      my_min_AO_idx_from_RI_AO_atom = 1
-      my_max_AO_idx_from_RI_AO_atom = bs_env%n_AO
+      my_min_RI_idx_from_AO_AO_atom = bs_env%n_RI
+      my_max_RI_idx_from_AO_AO_atom = 1
+      my_min_AO_idx_from_RI_AO_atom = bs_env%n_AO
+      my_max_AO_idx_from_RI_AO_atom = 1
       CALL dbt_iterator_start(iter, t_3c)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)

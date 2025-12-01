@@ -278,6 +278,11 @@ CONTAINS
                   bounds_RI(1) = bs_env%min_RI_idx_from_AO_AO_atom(i_atoms(1), j_atoms(1))
                   bounds_RI(2) = bs_env%max_RI_idx_from_AO_AO_atom(i_atoms(2), j_atoms(2))
 
+                  IF (bounds_RI(1) > bounds_RI(2)) THEN
+                     print *,"MG: Skip in get_mat_chi_Gamma_tau due to bounds_RI"
+                     CYCLE
+                  END IF
+
                   CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
                                     tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
                                     beta=1.0_dp, tensor_3=bs_env%t_chi, &
@@ -687,34 +692,48 @@ CONTAINS
       ! "comb" (combined index)
       !   ->  P   sparse in ν and µ
       !   ->  λ   bounds from j_atoms (via atoms_AO_1)
-      ! µ   bounds from inner loop "IL" indices
-      ! ν   bounds from i_atoms (via atoms_AO_2)
+      ! µ   bounds from inner loop "IL" indices and sparse in P and ν
+      ! ν   bounds from i_atoms (via atoms_AO_2) and sparse in P and µ
 
-      bounds_IL(1:2) = [bs_env%i_ao_start_from_atom(atoms_IL(1)), &
-                        bs_env%i_ao_end_from_atom(atoms_IL(2))]
+      ! µ index
+      bounds_IL(1) = MAX(bs_env%i_ao_start_from_atom(atoms_IL(1)), &
+                           bs_env%min_AO_idx_from_RI_AO_atom(1, atoms_AO_2(1)))
+      bounds_IL(2) = MIN(bs_env%i_ao_end_from_atom(atoms_IL(2)), &
+                           bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom, atoms_AO_2(2)))
 
       ! P index
-      bounds_comb(1:2, 1) = [bs_env%min_RI_idx_from_AO_AO_atom(atoms_IL(1), atoms_AO_2(1)), &
-                           bs_env%max_RI_idx_from_AO_AO_atom(atoms_IL(2), atoms_AO_2(2))]
+      bounds_comb(1, 1) = bs_env%min_RI_idx_from_AO_AO_atom(atoms_IL(1), atoms_AO_2(1))
+      bounds_comb(2, 1) = bs_env%max_RI_idx_from_AO_AO_atom(atoms_IL(2), atoms_AO_2(2))
 
-      bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(atoms_AO_2(1)), &
-                             bs_env%i_ao_end_from_atom(atoms_AO_2(2))]
+      ! ν index
+      bounds_comb(1, 2) = MAX(bs_env%i_ao_start_from_atom(atoms_AO_2(1)), &
+                           bs_env%min_AO_idx_from_RI_AO_atom(1, atoms_IL(1)))
+      bounds_comb(2, 2) = MIN(bs_env%i_ao_end_from_atom(atoms_AO_2(2)), &
+                           bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom, atoms_IL(2)))
+
+      ! λ index
       bounds_ao_1(1:2) = [bs_env%i_ao_start_from_atom(atoms_AO_1(1)), &
                           bs_env%i_ao_end_from_atom(atoms_AO_1(2))]
 
-      CALL dbt_contract(alpha=1.0_dp, &
-                        tensor_1=t_3c_for_G, &
-                        tensor_2=t_G, &
-                        beta=1.0_dp, &
-                        tensor_3=t_M, &
-                        contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
-                        contract_2=[2], notcontract_2=[1], map_2=[3], &
-                        bounds_1=bounds_IL, &
-                        bounds_2=bounds_comb, &
-                        bounds_3=bounds_ao_1, &
-                        filter_eps=bs_env%eps_filter, &
-                        unit_nr=bs_env%unit_nr_contract, &
-                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="G3c")
+      IF (bounds_IL(1) > bounds_IL(2) .OR. bounds_comb(1, 2) > bounds_comb(2, 2)) THEN
+         print *, "MG: Skip in G_times_3c due to bounds_IL or bounds_comb"
+      ELSE
+
+         CALL dbt_contract(alpha=1.0_dp, &
+                           tensor_1=t_3c_for_G, &
+                           tensor_2=t_G, &
+                           beta=1.0_dp, &
+                           tensor_3=t_M, &
+                           contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
+                           contract_2=[2], notcontract_2=[1], map_2=[3], &
+                           bounds_1=bounds_IL, &
+                           bounds_2=bounds_comb, &
+                           bounds_3=bounds_ao_1, &
+                           filter_eps=bs_env%eps_filter, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)!, char_id_gw="G3c")
+
+      END IF
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -2007,25 +2026,40 @@ CONTAINS
       ! final layout will be: M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
       ! Bounds:
       ! "AO"
-      !  ->  ν (AO_1 in compute_3c_integrals)  bounds from i_atoms
+      !  ->  ν (AO_1 in compute_3c_integrals)  bounds from i_atoms and sparse in σ and P
       !  ->  σ (AO_2 in compute_3c_integrals)  sparse in ν and P
       ! Q   bounds from j_atoms
-      ! P   bounds from inner loop indices
+      ! P   bounds from inner loop indices and sparse in ν and σ
 
-      bounds_ao(1:2, 1) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
-                           bs_env%i_ao_end_from_atom(i_atoms(2))]
 
 
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
-
+                       
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
-         bounds_P(1:2) = [bs_env%i_RI_start_from_atom(RI_atoms(1)), &
-                          bs_env%i_RI_end_from_atom(RI_atoms(2))]
+         bounds_P(1) = MAX(bs_env%i_RI_start_from_atom(RI_atoms(1)), &
+                              bs_env%min_RI_idx_from_AO_AO_atom(i_atoms(1),1))
+         bounds_P(2) = MIN(bs_env%i_RI_end_from_atom(RI_atoms(2)), &
+                              bs_env%max_RI_idx_from_AO_AO_atom(i_atoms(2),bs_env%n_atom))
+
+         ! σ
          bounds_ao(1:2, 2) = [bs_env%min_AO_idx_from_RI_AO_atom(RI_atoms(1), i_atoms(1)), &
                               bs_env%max_AO_idx_from_RI_AO_atom(RI_atoms(2), i_atoms(2))]
+
+         ! ν
+         bounds_ao(1, 1) = MAX(bs_env%i_ao_start_from_atom(i_atoms(1)), &
+                                 bs_env%min_AO_idx_from_RI_AO_atom(RI_atoms(1),1))
+         bounds_ao(2, 1) = MIN(bs_env%i_ao_end_from_atom(i_atoms(2)), &
+                                 bs_env%max_AO_idx_from_RI_AO_atom(RI_atoms(2),bs_env%n_atom))
+
+         IF (bounds_P(1) > bounds_P(2) .OR. bounds_ao(1,2) > bounds_ao(2,2)) THEN
+            print *, "MG: skipping step in compute_3c_and_contract_W"
+            CYCLE
+         END IF
+
+
 
          ! 1. compute 3-center integrals (P|µν) ("|": truncated Coulomb operator)
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
@@ -2084,7 +2118,7 @@ CONTAINS
       INTEGER :: handle, inner_loop_atoms_interval_index
       INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_mu, bounds_nu, &
-                                                            bounds_Q, IL_atoms, bounds_ao
+                                                            IL_atoms, bounds_ao
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
       TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
@@ -2103,26 +2137,40 @@ CONTAINS
       ! Afterwards e.g., is computed: Σ_λσ = sum_νQ M_Qνσ N_Qνλ (after reordering)
       ! Bounds:
       ! "comb" (combined index)
-      !   ->  Q   bounds from j_atoms
+      !   ->  Q   bounds from j_atoms and sparse in λ and µ
       !   ->  λ (AO_1 in compute_3c_integrals)  sparse in Q and µ
-      ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices
+      ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices and sparse in Q and λ
       ! ν   bounds from i_atoms
       
-      bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
-                       bs_env%i_RI_end_from_atom(j_atoms(2))]
 
-      bounds_comb(1:2, 1) = bounds_Q(1:2)
-
+      ! ν
       bounds_nu(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                         bs_env%i_ao_end_from_atom(i_atoms(2))]
 
       DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
          IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
 
-         bounds_mu(1:2) = [bs_env%i_ao_start_from_atom(IL_atoms(1)), &
-                           bs_env%i_ao_end_from_atom(IL_atoms(2))]
-         bounds_comb(1:2, 2) = [bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1), IL_atoms(1)), &
-                              bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), IL_atoms(2))]
+         ! µ
+         bounds_mu(1) = MAX(bs_env%i_ao_start_from_atom(IL_atoms(1)), &
+                                 bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1),1))
+         bounds_mu(2) = MIN(bs_env%i_ao_end_from_atom(IL_atoms(2)), &
+                                 bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2),bs_env%n_atom))
+
+         ! Q
+         bounds_comb(1, 1) = MAX(bs_env%i_RI_start_from_atom(j_atoms(1)), &
+                                 bs_env%min_RI_idx_from_AO_AO_atom(IL_atoms(1),1))
+         bounds_comb(2, 1) = MIN(bs_env%i_RI_end_from_atom(j_atoms(2)), &
+                                 bs_env%max_RI_idx_from_AO_AO_atom(IL_atoms(2),bs_env%n_atom))
+
+         ! λ
+         bounds_comb(1, 2) = bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1), IL_atoms(1))
+         bounds_comb(2, 2) = bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), IL_atoms(2))
+
+         IF (bounds_mu(1) > bounds_mu(2) .OR. bounds_comb(1,1) > bounds_comb(2,1) .OR. &
+               bounds_comb(1,2) > bounds_comb(2,2)) THEN
+            print *, "MG: skipping step in contract_to_Sigma part 1"
+            CYCLE
+         END IF
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
                                    atoms_RI=j_atoms, atoms_AO_2=IL_atoms)
@@ -2147,24 +2195,30 @@ CONTAINS
 
       ! Here, the last contraction is done, e.g., Σ_λσ = sum_νQ M_Qνσ N_Qνλ
       ! Bounds as above, new "comb" with upper ingredients
-      bounds_comb(1:2, 1) = bounds_Q(1:2)
+      bounds_comb(1:2, 1) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
+                       bs_env%i_RI_end_from_atom(j_atoms(2))]
       bounds_comb(1:2, 2) = bounds_nu(1:2)
 
       bounds_ao(1:2) = [bs_env%min_AO_idx_from_RI_AO_atom(j_atoms(1), i_atoms(1)), &
                            bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), i_atoms(2))]
 
-      CALL dbt_contract(alpha=sign_Sigma, &
-                        tensor_1=t_3c_x_W, &
-                        tensor_2=t_3c_x_G_2, &
-                        beta=1.0_dp, &
-                        tensor_3=t_2c_Sigma, &
-                        contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
-                        contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
-                        bounds_1=bounds_comb, bounds_2=bounds_ao, &
-                        bounds_3=bounds_ao, &
-                        filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
-                        unit_nr=bs_env%unit_nr_contract, &
-                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
+      IF (bounds_ao(1) > bounds_ao(2)) THEN
+         print *, "MG: skipping step in contract_to_Sigma part 2"
+         flop = 0_int_8
+      ELSE
+         CALL dbt_contract(alpha=sign_Sigma, &
+                           tensor_1=t_3c_x_W, &
+                           tensor_2=t_3c_x_G_2, &
+                           beta=1.0_dp, &
+                           tensor_3=t_2c_Sigma, &
+                           contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
+                           contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
+                           bounds_1=bounds_comb, bounds_2=bounds_ao, &
+                           bounds_3=bounds_ao, &
+                           filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
+      END IF
 
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
