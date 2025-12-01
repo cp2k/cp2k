@@ -79,6 +79,9 @@ spack:
       require:
         - +kxc
         - build_system=cmake
+    openpmd:
+      require:
+        - adios2
     pexsi:
       require:
         - +fortran
