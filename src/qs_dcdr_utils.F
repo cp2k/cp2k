@@ -228,6 +228,7 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_block=max_block)
 
          ALLOCATE (vecbuffer(nao, max_block))
+         vecbuffer = 0.0_dp
          !
          ! read headers
          IF (rst_unit > 0) READ (rst_unit, IOSTAT=iostat) lambda_tmp, beta_tmp, nspins_tmp, nao_tmp
@@ -847,11 +848,11 @@ CONTAINS
       ALLOCATE (dcdr_env%op_dR(nspins))
 
       DO ispin = 1, nspins
-         CALL cp_fm_create(dcdr_env%dCR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
-         CALL cp_fm_create(dcdr_env%dCR_prime(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
-         CALL cp_fm_create(dcdr_env%mo_coeff(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
-         CALL cp_fm_create(dcdr_env%chc(ispin), dcdr_env%momo_fm_struct(ispin)%struct)
-         CALL cp_fm_create(dcdr_env%op_dR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(dcdr_env%dCR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
+         CALL cp_fm_create(dcdr_env%dCR_prime(ispin), dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
+         CALL cp_fm_create(dcdr_env%mo_coeff(ispin), dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
+         CALL cp_fm_create(dcdr_env%chc(ispin), dcdr_env%momo_fm_struct(ispin)%struct, set_zero=.TRUE.)
+         CALL cp_fm_create(dcdr_env%op_dR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
 
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
          CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(ispin))

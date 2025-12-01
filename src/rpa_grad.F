@@ -187,7 +187,7 @@ CONTAINS
 
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix_struct)
+         CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix_struct, set_zero=.TRUE.)
       END DO
 
       IF (do_ri_sos_laplace_mp2) THEN

@@ -969,7 +969,7 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA)
          DO ispin = 1, SIZE(fm_mat_Q)
-            CALL cp_fm_create(fm_mat_Q(ispin), fm_struct, name="fm_mat_Q")
+            CALL cp_fm_create(fm_mat_Q(ispin), fm_struct, name="fm_mat_Q", set_zero=.TRUE.)
          END DO
 
          CALL cp_fm_struct_release(fm_struct)

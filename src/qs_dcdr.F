@@ -311,13 +311,13 @@ CONTAINS
          psi0_order(ispin) = mo_coeff
       END DO
 
+      DO ispin = 1, dcdr_env%nspins
+         CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+         CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
+      END DO
       ! Restart
       IF (linres_control%linres_restart) THEN
          CALL dcdr_read_restart(qs_env, lr_section, psi1, dcdr_env%lambda, dcdr_env%beta, "dCdR")
-      ELSE
-         DO ispin = 1, dcdr_env%nspins
-            CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
-         END DO
       END IF
 
       IF (output_unit > 0) THEN

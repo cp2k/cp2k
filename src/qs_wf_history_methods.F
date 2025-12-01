@@ -866,12 +866,12 @@ CONTAINS
                                 nrow_global=n, &
                                 ncol_global=k, &
                                 matrix_struct=matrix_struct)
-            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct, set_zero=.TRUE.)
             CALL cp_fm_struct_create(matrix_struct_new, &
                                      template_fmstruct=matrix_struct, &
                                      nrow_global=k, &
                                      ncol_global=k)
-            CALL cp_fm_create(csc, matrix_struct_new)
+            CALL cp_fm_create(csc, matrix_struct_new, set_zero=.TRUE.)
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, &

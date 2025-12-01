@@ -197,7 +197,7 @@ CONTAINS
          element = el
          DEALLOCATE (el)
       ELSE
-         CALL cp_fm_create(element, matrix_struct=pool%el_struct)
+         CALL cp_fm_create(element, matrix_struct=pool%el_struct, set_zero=.TRUE.)
       END IF
 
       IF (PRESENT(name)) THEN

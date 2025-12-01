@@ -1188,7 +1188,7 @@ CONTAINS
 
       ! allocate the vectors
       ASSOCIATE (psi0_order => vcd_env%dcdr_env%mo_coeff)
-         CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
+         CALL cp_fm_create(psi1(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct, set_zero=.TRUE.)
          CALL cp_fm_create(h1_psi0(1), vcd_env%dcdr_env%likemos_fm_struct(1)%struct)
 
          ! Restart

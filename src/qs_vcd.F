@@ -625,7 +625,7 @@ CONTAINS
                  deltaR => vcd_env%dcdr_env%deltaR)
 
          ! build the full matrices
-         CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(buf, vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
          CALL cp_fm_create(matrix_dSdV_mo, vcd_env%dcdr_env%momo_fm_struct(ispin)%struct)
 
          ! STEP 1: dCV contribution (dipvel + commutator)
@@ -1073,7 +1073,7 @@ CONTAINS
       END IF
 
       ASSOCIATE (psi0_order => vcd_env%dcdr_env%mo_coeff)
-         CALL cp_fm_create(psi1(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(psi1(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct, set_zero=.TRUE.)
          CALL cp_fm_create(h1_psi0(ispin), vcd_env%dcdr_env%likemos_fm_struct(ispin)%struct)
 
          ! Restart

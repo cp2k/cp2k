@@ -1721,7 +1721,8 @@ CONTAINS
             DO img = 1, dft_control%nimages
                ! safe fm_V_xc_R in fm_matrix because saving in dbcsr matrix caused trouble...
                CALL copy_dbcsr_to_fm(matrix_ks_kp(ispin, img)%matrix, bs_env%fm_work_mo(1))
-               CALL cp_fm_create(bs_env%fm_V_xc_R(img, ispin), bs_env%fm_work_mo(1)%matrix_struct)
+               CALL cp_fm_create(bs_env%fm_V_xc_R(img, ispin), bs_env%fm_work_mo(1)%matrix_struct, &
+                                 set_zero=.TRUE.)
                ! store h_ks(v_xc = 0) in fm_V_xc_R
                CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=bs_env%fm_V_xc_R(img, ispin), &
                                         beta=1.0_dp, matrix_b=bs_env%fm_work_mo(1))

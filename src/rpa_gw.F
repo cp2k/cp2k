@@ -279,7 +279,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL cp_fm_create(fm_mat_W(jquad), fm_mat_Q%matrix_struct)
+         CALL cp_fm_create(fm_mat_W(jquad), fm_mat_Q%matrix_struct, set_zero=.TRUE.)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_W(jquad))
          CALL cp_fm_set_all(fm_mat_W(jquad), 0.0_dp)
 

@@ -297,7 +297,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         CALL cp_fm_create(chc(ispin), tmp_fm_struct)
+         CALL cp_fm_create(chc(ispin), tmp_fm_struct, set_zero=.TRUE.)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       !

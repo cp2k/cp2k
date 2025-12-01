@@ -2418,13 +2418,13 @@ CONTAINS
                                ncol_global=max_states, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
       DO idir = 1, 3
-         CALL cp_fm_create(p_rxp(idir), tmp_fm_struct)
-         CALL cp_fm_create(r_p1(idir), tmp_fm_struct)
-         CALL cp_fm_create(r_p2(idir), tmp_fm_struct)
+         CALL cp_fm_create(p_rxp(idir), tmp_fm_struct, set_zero=.TRUE.)
+         CALL cp_fm_create(r_p1(idir), tmp_fm_struct, set_zero=.TRUE.)
+         CALL cp_fm_create(r_p2(idir), tmp_fm_struct, set_zero=.TRUE.)
          DO idir2 = 1, 9
-            CALL cp_fm_create(rr_rxp(idir2, idir), tmp_fm_struct)
-            CALL cp_fm_create(rr_p1(idir2, idir), tmp_fm_struct)
-            CALL cp_fm_create(rr_p2(idir2, idir), tmp_fm_struct)
+            CALL cp_fm_create(rr_rxp(idir2, idir), tmp_fm_struct, set_zero=.TRUE.)
+            CALL cp_fm_create(rr_p1(idir2, idir), tmp_fm_struct, set_zero=.TRUE.)
+            CALL cp_fm_create(rr_p2(idir2, idir), tmp_fm_struct, set_zero=.TRUE.)
          END DO
       END DO
       CALL cp_fm_struct_release(tmp_fm_struct)
