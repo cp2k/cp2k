@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE qs_active_space_methods
    USE admm_types, ONLY: admm_type, &
-                         get_admm_env
+                         get_admm_env, &
+                         admm_env_release
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE basis_set_types, ONLY: allocate_sto_basis_set, &
                               create_gto_from_sto_basis, &
@@ -72,6 +73,7 @@ MODULE qs_active_space_methods
                     default_string_length, &
                     dp, &
                     int_8
+   USE hfx_types, ONLY: hfx_create, hfx_release
    USE machine, ONLY: m_walltime, m_flush
    USE mathlib, ONLY: diamat_all
    USE mathconstants, ONLY: fourpi, twopi, pi, rootpi
@@ -132,9 +134,10 @@ MODULE qs_active_space_methods
                                    set_qs_env
    USE qs_integrate_potential, ONLY: integrate_v_rspace
    USE qs_kind_types, ONLY: qs_kind_type
-   USE qs_ks_methods, ONLY: qs_ks_update_qs_env
+   USE qs_ks_methods, ONLY: qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
+                            evaluate_core_matrix_traces
    USE qs_ks_types, ONLY: qs_ks_did_change, &
-                          qs_ks_env_type
+                          qs_ks_env_type, set_ks_env
    USE qs_mo_io, ONLY: write_mo_set_to_output_unit
    USE qs_mo_methods, ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types, ONLY: allocate_mo_set, &
@@ -148,6 +151,7 @@ MODULE qs_active_space_methods
                            qs_rho_type
    USE qs_subsys_types, ONLY: qs_subsys_get, &
                               qs_subsys_type
+   USE qs_scf_post_scf, ONLY: qs_scf_compute_properties
    USE scf_control_types, ONLY: scf_control_type
 #ifndef __NO_SOCKETS
    USE sockets_interface, ONLY: accept_socket, &
@@ -212,20 +216,22 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       CHARACTER(len=default_path_length)                 :: qcschema_filename
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: as_solver, eri_method, eri_operator, eri_print, group_size, handle, i, iatom, &
          ishell, isp, ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, &
          nelec_active, nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
-                                                            ex_perd, ex_rcut, explicit, &
-                                                            stop_after_print, store_wfn
-      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_omega, &
-         eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
+      LOGICAL                                            :: do_ddapc, do_kpoints, ex_omega, &
+                                                            ex_operator, ex_perd, ex_rcut, &
+                                                            explicit, stop_after_print, store_wfn
+      REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
+         eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
       TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -240,13 +246,17 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qcschema_type)                                :: qcschema_env
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: as_input, input, loc_print, loc_section, &
-                                                            print_orb
+      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling, as_input, &
+                                                            hfx_section, input, loc_print, &
+                                                            loc_section, print_orb, xc_section
 
       !--------------------------------------------------------------------------------------------!
 
@@ -262,16 +272,45 @@ CONTAINS
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') &
             '!-----------------------------------------------------------------------------!'
-         WRITE (iw, '(T26,A)') "Generate Active Space Hamiltonian"
-         WRITE (iw, '(T27,A)') "Interface to CAS-CI and DMRG-CI"
+         WRITE (iw, '(T26,A)') "Active Space Embedding Module"
          WRITE (iw, '(T2,A)') &
             '!-----------------------------------------------------------------------------!'
       END IF
 
       ! k-points?
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
       IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "k-points not supported in active space interface")
+         CALL cp_abort(__LOCATION__, "k-points not supported in active space module")
+      END IF
+
+      ! adiabatic rescaling?
+      adiabatic_rescaling => section_vals_get_subs_vals(input, "DFT%XC%ADIABATIC_RESCALING")
+      CALL section_vals_get(adiabatic_rescaling, explicit=explicit)
+      IF (explicit) THEN
+         CALL cp_abort(__LOCATION__, "Adiabatic rescaling not supported in active space module")
+      END IF
+
+      ! Setup the possible usage of DDAPC charges
+      do_ddapc = dft_control%qs_control%ddapc_restraint .OR. &
+                 qs_env%cp_ddapc_ewald%do_decoupling .OR. &
+                 qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
+                 qs_env%cp_ddapc_ewald%do_solvation
+      IF (do_ddapc) THEN
+         CALL cp_abort(__LOCATION__, "DDAPC charges are not supported in the active space module")
+      END IF
+      IF (dft_control%do_sccs) THEN
+         CALL cp_abort(__LOCATION__, "SCCS is not supported in the active space module")
+      END IF
+      IF (dft_control%correct_surf_dip) THEN
+         IF (dft_control%surf_dip_correct_switch) THEN
+            CALL cp_abort(__LOCATION__, "Surface dipole correction not supported in the AS module")
+         END IF
+      END IF
+      IF (dft_control%smeagol_control%smeagol_enabled) THEN
+         CALL cp_abort(__LOCATION__, "SMEAGOL is not supported in the active space module")
+      END IF
+      IF (dft_control%qs_control%do_kg) THEN
+         CALL cp_abort(__LOCATION__, "KG correction not supported in the active space module")
       END IF
 
       NULLIFY (active_space_env)
@@ -304,6 +343,10 @@ CONTAINS
       IF (MOD(nelec_inactive, 2) /= 0) THEN
          CPABORT("The remaining number of inactive electrons has to be even.")
       END IF
+
+      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
+      active_space_env%alpha = alpha
 
       IF (iw > 0) THEN
          WRITE (iw, '(T3,A,T70,I10)') "Total number of electrons", nelec_total
@@ -572,9 +615,9 @@ CONTAINS
          ELSE
             IF (dft_control%do_admm) THEN
                ! For admm_mo, the auxiliary density is computed from the MOs, which never change
-               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes
+               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes.
                ! For admm_dm, the auxiliary density is computed from the density matrix, which is
-               ! updated at each iteration and therefore works!
+               ! updated at each iteration and therefore works.
                IF (dft_control%do_admm_mo) THEN
                   CPABORT("ADMM currently possible only with purification none_dm")
                END IF
@@ -1002,10 +1045,50 @@ CONTAINS
 
       ! compute alpha-beta overlap matrix in case of spin-polarized calculation
       CALL calculate_spin_pol_overlap(active_space_env%mos_active, qs_env, active_space_env)
+
+      ! figure out if we have a new xc section for the AS
+      xc_section => section_vals_get_subs_vals(input, "DFT%ACTIVE_SPACE%XC")
+      explicit = .FALSE.
+      IF (ASSOCIATED(xc_section)) CALL section_vals_get(xc_section, explicit=explicit)
+
+      ! rebuild KS matrix if needed
+      IF (explicit) THEN
+         ! release the hfx data if it was part of the SCF functional
+         IF (ASSOCIATED(qs_env%x_data)) CALL hfx_release(qs_env%x_data)
+         ! also release the admm environment in case we are using admm
+         IF (ASSOCIATED(qs_env%admm_env)) CALL admm_env_release(qs_env%admm_env)
+
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                         particle_set=particle_set, cell=cell, ks_env=ks_env)
+         IF (dft_control%do_admm) THEN
+            basis_type = 'AUX_FIT'
+         ELSE
+            basis_type = 'ORB'
+         END IF
+         hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+         CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
+                         qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
+                         nelectron_total=nelec_total)
+
+         qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
+
+         ! a bit of a hack: this forces a new re-init of HFX
+         CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=xc_section)
+         ! we need to reset it to false
+         CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
+      ELSE
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      END IF
+      ! set the xc_section
+      active_space_env%xc_section => xc_section
+
+      CALL get_qs_env(qs_env, energy=energy)
       ! transform KS/Fock, Vxc and Hcore to AS MO basis
       CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
       ! set the reference energy in the active space
-      CALL get_qs_env(qs_env, energy=energy)
       active_space_env%energy_ref = energy%total
       ! calculate inactive energy and embedding potential
       CALL subspace_fock_matrix(active_space_env)
@@ -1022,6 +1105,7 @@ CONTAINS
          END IF
       CASE (qiskit_solver)
          CALL rsdft_embedding(qs_env, active_space_env, as_input)
+         CALL qs_scf_compute_properties(qs_env, wf_type="MC-DFT", do_mp2=.FALSE.)
       CASE DEFAULT
          CPABORT("Unknown active space solver")
       END SELECT
@@ -1046,7 +1130,7 @@ CONTAINS
    END SUBROUTINE active_space_main
 
 ! **************************************************************************************************
-!> \brief computes the one-electron operators in the subspace of the provided orbital set
+!> \brief computes the alpha-beta overlap within the active subspace
 !> \param mos the molecular orbital set within the active subspace
 !> \param qs_env ...
 !> \param active_space_env ...
@@ -1099,7 +1183,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_operators'
 
-      INTEGER                                            :: handle, is, nmo, nspins
+      INTEGER                                            :: handle, ispin, nmo, nspins
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: h_matrix, ks_matrix
 
@@ -1110,13 +1194,10 @@ CONTAINS
       ! Kohn-Sham / Fock operator
       CALL cp_fm_release(active_space_env%ks_sub)
       CALL get_qs_env(qs_env, matrix_ks_kp=ks_matrix)
-      IF (SIZE(ks_matrix, 2) > 1) THEN
-         CPABORT("No k-points allowed at this point")
-      END IF
       ALLOCATE (active_space_env%ks_sub(nspins))
-      DO is = 1, nspins
-         CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-         CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+         CALL subspace_operator(mo_coeff, nmo, ks_matrix(ispin, 1)%matrix, active_space_env%ks_sub(ispin))
       END DO
 
       ! Core Hamiltonian
@@ -1124,13 +1205,10 @@ CONTAINS
 
       NULLIFY (h_matrix)
       CALL get_qs_env(qs_env=qs_env, matrix_h_kp=h_matrix)
-      IF (SIZE(h_matrix, 2) > 1) THEN
-         CPABORT("No k-points allowed at this point")
-      END IF
       ALLOCATE (active_space_env%h_sub(nspins))
-      DO is = 1, nspins
-         CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-         CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, active_space_env%h_sub(is))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+         CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, active_space_env%h_sub(ispin))
       END DO
 
       CALL timestop(handle)
@@ -1139,21 +1217,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes a one-electron operator in the subspace of the provided orbital set
-!> \param orbitals the orbital coefficient matrix
-!> \param nmo the number of orbitals
+!> \param mo_coeff the orbital coefficient matrix
+!> \param nmo the number of subspace orbitals
 !> \param op_matrix operator matrix in AO basis
 !> \param op_sub operator in orbital basis
-!> \param orbitals_b ...
+!> \param mo_coeff_b the beta orbital coefficients
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub, orbitals_b)
+   SUBROUTINE subspace_operator(mo_coeff, nmo, op_matrix, op_sub, mo_coeff_b)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(dbcsr_type), POINTER                          :: op_matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: op_sub
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: orbitals_b
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: mo_coeff_b
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'subspace_operator'
 
@@ -1162,22 +1240,22 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=orbitals, ncol_global=ncol, nrow_global=nrow)
+      CALL cp_fm_get_info(matrix=mo_coeff, ncol_global=ncol, nrow_global=nrow)
       CPASSERT(nmo <= ncol)
 
       IF (nmo > 0) THEN
-         CALL cp_fm_create(vectors, orbitals%matrix_struct, "vectors")
-         CALL create_subspace_matrix(orbitals, op_sub, nmo)
+         CALL cp_fm_create(vectors, mo_coeff%matrix_struct, "vectors")
+         CALL create_subspace_matrix(mo_coeff, op_sub, nmo)
 
-         IF (PRESENT(orbitals_b)) THEN
+         IF (PRESENT(mo_coeff_b)) THEN
             ! if beta orbitals are present, compute the cross alpha_beta term
-            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals_b, vectors, nmo)
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, mo_coeff_b, vectors, nmo)
          ELSE
             ! otherwise the same spin, whatever that is
-            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, mo_coeff, vectors, nmo)
          END IF
 
-         CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, mo_coeff, vectors, 0.0_dp, op_sub)
          CALL cp_fm_release(vectors)
       END IF
 
@@ -1484,7 +1562,7 @@ CONTAINS
          END DO
          IF (print1 .AND. iw > 0) THEN
             rsize = rsize*8._dp/1000000._dp
-            WRITE (iw, "(T4,'ERI_GPW|',' Store active orbitals on real space grid ',T63,F12.3,' MB')") rsize
+            WRITE (iw, "(T2,'ERI_GPW|',' Store active orbitals on real space grid ',T66,F12.3,' MB')") rsize
          END IF
          ALLOCATE (wfn_a(nmo, nspins))
          DO ispin = 1, nspins
@@ -1495,7 +1573,7 @@ CONTAINS
                CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
-                  WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
+                  WRITE (iw, "(T2,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
                END IF
             END DO
          END DO
@@ -1693,7 +1771,7 @@ CONTAINS
       END DO
 
       IF (print1 .AND. iw > 0) THEN
-         WRITE (iw, "(T4,'ERI_GPW|',' Number of Integrals stored ',T68,I10)") stored_integrals
+         WRITE (iw, "(T2,'ERI_GPW|',' Number of Integrals stored ',T71,I10)") stored_integrals
       END IF
 
       IF (eri_env%eri_gpw%store_wfn) THEN
@@ -2870,7 +2948,7 @@ CONTAINS
          CALL diamat_all(pmat, noon(:, ispin))
 
          IF (iw > 0) THEN
-            WRITE (iw, '(T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
+            WRITE (iw, '(/,T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
             DO i1 = 1, nmo_active, 8
                jm = MIN(7, nmo_active - i1)
                ! noons are stored in ascending order, so reverse-print them
@@ -2909,15 +2987,15 @@ CONTAINS
 
       INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter
       LOGICAL                                            :: converged, do_scf_embedding, ionode
-      REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
+      REAL(KIND=dp)                                      :: delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -2936,10 +3014,6 @@ CONTAINS
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
       IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
-      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
-      ! alpha = 0.0
-      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
-      active_space_env%alpha = alpha
 
       ! create the socket and wait for the client to connect
       CALL initialize_socket(socket_fd, client_fd, as_input, ionode)
@@ -2949,15 +3023,16 @@ CONTAINS
       CALL send_eri_to_client(client_fd, active_space_env, para_env)
 
       ! get pointer to density in ao basis
-      CALL get_qs_env(qs_env, rho=rho, energy=energy, dft_control=dft_control)
+      CALL get_qs_env(qs_env, rho=rho, energy=energy, ks_env=ks_env)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
+         WRITE (UNIT=iw, FMT="(/,T2,A,/)") &
+            "RANGE-SEPARATED DFT EMBEDDING SELF-CONSISTENT OPTIMIZATION"
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
-         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", alpha
+         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", active_space_env%alpha
 
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
@@ -3001,10 +3076,15 @@ CONTAINS
          CALL update_density_ao(active_space_env, rho_ao) ! rho_ao is updated
 
          ! calculate F_ks in AO basis (which contains Vxc) with the new density
-         qs_env%requires_matrix_vxc = .TRUE.
          CALL qs_rho_update_rho(rho, qs_env=qs_env) ! updates rho_r and rho_g using rho_ao
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.) ! set flags about the change
-         CALL qs_ks_update_qs_env(qs_env) ! this call actually calculates F_ks
+         ! Re-evaluate the traces between the density matrix and the core Hamiltonians
+         CALL evaluate_core_matrix_traces(qs_env)
+         ! the ks matrix will be rebuilt so this is fine now
+         ! CALL set_ks_env(qs_env%ks_env, potential_changed=.FALSE.)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=active_space_env%xc_section)
 
          ! update the reference energy
          active_space_env%energy_ref = energy%total
@@ -3043,6 +3123,20 @@ CONTAINS
 
       ! update qs total energy to the final rs-DFT energy
       energy%total = active_space_env%energy_total
+
+      ! print final energy contributions
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T3,A)") &
+            "Final energy contributions:"
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Inactive energy:", active_space_env%energy_inactive
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Active energy:", active_space_env%energy_active
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Correlation energy:", energy_corr
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Total rs-DFT energy:", active_space_env%energy_total
+      END IF
 
       ! print the AS rdm and the natural orbital occupation numbers
       CALL print_pmat_noon(active_space_env, iw)

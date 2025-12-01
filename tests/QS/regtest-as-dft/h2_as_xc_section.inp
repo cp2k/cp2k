@@ -1,0 +1,109 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT h2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    &ACTIVE_SPACE
+      ACTIVE_ELECTRONS 2
+      ACTIVE_ORBITALS 4
+      &ERI
+        CUTOFF_RADIUS 4.5
+        EPS_INTEGRAL 1E-10
+        METHOD FULL_GPW
+        OMEGA 0.5
+        OPERATOR LR_TRUNC
+        PERIODICITY 1 1 1
+      &END ERI
+      &ERI_GPW
+        CUTOFF 250
+      &END ERI_GPW
+      &FCIDUMP
+        FILENAME __STD_OUT__
+      &END FCIDUMP
+      &XC
+        DENSITY_CUTOFF 1E-008
+        GRADIENT_CUTOFF 1E-008
+        &HF
+          FRACTION 1.0
+          &INTERACTION_POTENTIAL
+            CUTOFF_RADIUS 4.5
+            OMEGA 0.5
+            POTENTIAL_TYPE MIX_CL_TRUNC
+            SCALE_COULOMB 0.25
+            SCALE_LONGRANGE 0.75
+          &END INTERACTION_POTENTIAL
+        &END HF
+        &XC_FUNCTIONAL
+          &GGA_C_PBE_ERF_GWS
+            _OMEGA 0.5
+          &END GGA_C_PBE_ERF_GWS
+          &GGA_X_PBE_ERF_GWS
+            _OMEGA 0.5
+            SCALE 0.75
+          &END GGA_X_PBE_ERF_GWS
+        &END XC_FUNCTIONAL
+      &END XC
+    &END ACTIVE_SPACE
+    &MGRID
+      CUTOFF 300
+    &END MGRID
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      ADDED_MOS 3
+      EPS_DIIS 1E-003
+      EPS_EIGVAL 1E-009
+      EPS_SCF 1E-009
+      MAX_SCF 20
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      DENSITY_CUTOFF 1E-008
+      GRADIENT_CUTOFF 1E-008
+      &HF
+        FRACTION 0.25
+        &INTERACTION_POTENTIAL
+          OMEGA 0.5
+          POTENTIAL_TYPE SHORTRANGE
+        &END INTERACTION_POTENTIAL
+      &END HF
+      &XC_FUNCTIONAL
+        &GGA_C_PBE_ERF_GWS
+          _OMEGA 0.5
+        &END GGA_C_PBE_ERF_GWS
+        &GGA_X_PBE
+        &END GGA_X_PBE
+        &GGA_X_PBE_ERF_GWS
+          _OMEGA 0.5
+          SCALE -0.25
+        &END GGA_X_PBE_ERF_GWS
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      H 0.0 0.0 5.356
+      H 0.0 0.0 4.644
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

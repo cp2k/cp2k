@@ -20,6 +20,7 @@ MODULE qs_active_space_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE input_constants,                 ONLY: eri_method_gpw_ht
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -109,6 +110,7 @@ MODULE qs_active_space_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: fock_sub => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: sab_sub => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: pmat_inactive => NULL()
+      TYPE(section_vals_type), POINTER             :: xc_section => NULL()
    END TYPE active_space_type
 
    ABSTRACT INTERFACE

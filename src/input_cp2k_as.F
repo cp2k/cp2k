@@ -25,6 +25,7 @@ MODULE input_cp2k_as
         eri_operator_trunc, eri_operator_yukawa, gaussian, manual_selection, mao_projection, &
         no_solver, qiskit_solver, wannier_projection
    USE input_cp2k_loc,                  ONLY: create_localize_section
+   USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -170,7 +171,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
                           description="Fraction of new density to be mixed with previous one in SCF embedding.", &
                           usage="ALPHA 0.25", type_of_var=real_t, &
-                          default_r_val=0.4_dp)
+                          default_r_val=0.8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -198,6 +199,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_socket_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_xc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
