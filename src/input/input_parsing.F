@@ -273,7 +273,7 @@ CONTAINS
                      CALL cp_warn(__LOCATION__, &
                                   "The specified keyword '"//TRIM(token)// &
                                   "' is deprecated and may be removed in a future version: "// &
-                                  keyword%deprecation_notice//".")
+                                  keyword%deprecation_notice)
 
                   NULLIFY (el)
                   IF (ik /= 0 .AND. keyword%type_of_var == lchar_t) &
