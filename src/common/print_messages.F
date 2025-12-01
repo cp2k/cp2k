@@ -58,6 +58,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       INTEGER, INTENT(IN), OPTIONAL                      :: declev, before, after
 
+      CHARACTER(LEN=1), PARAMETER                        :: decoration_char = "*"
+
       INTEGER                                            :: blank_lines_after, blank_lines_before, &
                                                             decoration_level, i, ibreak, ipos1, &
                                                             ipos2, maxrowlen, msglen, nrow, rowlen
@@ -135,7 +137,8 @@ CONTAINS
 
       IF (decoration_level > 1) THEN
          DO i = 1, decoration_level - 1
-            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen + 8)
+            WRITE (UNIT=output_unit, FMT="(T2,A)") &
+               REPEAT(decoration_char, maxrowlen + 8)
          END DO
       END IF
 
@@ -160,7 +163,9 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A)") message(ipos1:ibreak)
          ELSE IF (decoration_level > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "*** "//message(ipos1:ibreak)//REPEAT(" ", ipos1 + maxrowlen - ibreak)//"***"
+               REPEAT(decoration_char, 3)//" "//message(ipos1:ibreak)// &
+               REPEAT(" ", ipos1 + maxrowlen - ibreak)// &
+               REPEAT(decoration_char, 3)
          END IF
 
          ipos1 = ibreak + 2
@@ -175,7 +180,8 @@ CONTAINS
 
       IF (decoration_level > 1) THEN
          DO i = 1, decoration_level - 1
-            WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", maxrowlen + 8)
+            WRITE (UNIT=output_unit, FMT="(T2,A)") &
+               REPEAT(decoration_char, maxrowlen + 8)
          END DO
       END IF
 
