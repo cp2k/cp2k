@@ -615,9 +615,9 @@ CONTAINS
          ELSE
             IF (dft_control%do_admm) THEN
                ! For admm_mo, the auxiliary density is computed from the MOs, which never change
-               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes
+               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes.
                ! For admm_dm, the auxiliary density is computed from the density matrix, which is
-               ! updated at each iteration and therefore works!
+               ! updated at each iteration and therefore works.
                IF (dft_control%do_admm_mo) THEN
                   CPABORT("ADMM currently possible only with purification none_dm")
                END IF
