@@ -713,7 +713,7 @@ CONTAINS
       TYPE(openpmd_iteration_type)             :: iteration
       INTEGER                                  :: i
 
-      CALL timeset('cp_openpmd_close_iterations', handle)
+      CALL timeset('openpmd_close_iterations', handle)
       DO i = 1, cp_num_openpmd_per_callsite
          series_data = cp_openpmd_per_callsite(i)%value
          iteration = series_data%output_series%get_iteration( &

@@ -25,9 +25,9 @@
         STRIDE 2 2 2
       &END ELF_OPENPMD
       &E_DENSITY_OPENPMD
-        STRIDE 1 1 1
         OPENPMD_CFG "backend = 'adios2'"
         OPENPMD_EXTENSION _%06T.%E
+        STRIDE 1 1 1
       &END E_DENSITY_OPENPMD
       &MO_OPENPMD
         NLUMO -1
