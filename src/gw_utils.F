@@ -920,10 +920,10 @@ CONTAINS
 !$OMP my_min_RI_idx_from_AO_AO_atom, my_max_RI_idx_from_AO_AO_atom, &
 !$OMP atom_min_AO, atom_max_AO, &
 !$OMP my_min_AO_idx_from_RI_AO_atom, my_max_AO_idx_from_RI_AO_atom)
-      my_min_RI_idx_from_AO_AO_atom = bs_env%n_RI
-      my_max_RI_idx_from_AO_AO_atom = 1
-      my_min_AO_idx_from_RI_AO_atom = bs_env%n_AO
-      my_max_AO_idx_from_RI_AO_atom = 1
+      my_min_RI_idx_from_AO_AO_atom = 1!bs_env%n_RI
+      my_max_RI_idx_from_AO_AO_atom = bs_env%n_RI!1
+      my_min_AO_idx_from_RI_AO_atom = 1!bs_env%n_AO
+      my_max_AO_idx_from_RI_AO_atom = bs_env%n_AO!1
       CALL dbt_iterator_start(iter, t_3c)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)
