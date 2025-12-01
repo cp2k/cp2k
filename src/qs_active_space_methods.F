@@ -223,9 +223,9 @@ CONTAINS
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
-                                                            ex_perd, ex_rcut, explicit, &
-                                                            stop_after_print, store_wfn, do_ddapc
+      LOGICAL                                            :: do_ddapc, do_kpoints, ex_omega, &
+                                                            ex_operator, ex_perd, ex_rcut, &
+                                                            explicit, stop_after_print, store_wfn
       REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
          eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -239,24 +239,24 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_target_active, fm_target_inactive, &
                                                             fmat, mo_coeff, mo_ref, mo_target
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qcschema_type)                                :: qcschema_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling, as_input, input, &
-                                                            loc_print, loc_section, print_orb, &
-                                                            xc_section, hfx_section
+      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling, as_input, &
+                                                            hfx_section, input, loc_print, &
+                                                            loc_section, print_orb, xc_section
 
       !--------------------------------------------------------------------------------------------!
 
@@ -1067,16 +1067,16 @@ CONTAINS
          END IF
          hfx_section => section_vals_get_subs_vals(xc_section, "HF")
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                        qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
-                        nelectron_total=nelec_total)
+                         qs_kind_set, particle_set, dft_control, cell, orb_basis=basis_type, &
+                         nelectron_total=nelec_total)
 
          qs_env%requires_matrix_vxc = .TRUE.  ! needs to be set only once
 
          ! a bit of a hack: this forces a new re-init of HFX
          CALL set_ks_env(ks_env, s_mstruct_changed=.TRUE.)
          CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
-                                          just_energy=.FALSE., &
-                                          ext_xc_section=xc_section)
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=xc_section)
          ! we need to reset it to false
          CALL set_ks_env(ks_env, s_mstruct_changed=.FALSE.)
       ELSE
@@ -3028,7 +3028,7 @@ CONTAINS
 
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,T2,A,/)") &
-         "RANGE-SEPARATED DFT EMBEDDING SELF-CONSISTENT OPTIMIZATION"
+            "RANGE-SEPARATED DFT EMBEDDING SELF-CONSISTENT OPTIMIZATION"
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
@@ -3130,9 +3130,9 @@ CONTAINS
             "Final energy contributions:"
          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
             "Inactive energy:", active_space_env%energy_inactive
-          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
             "Active energy:", active_space_env%energy_active
-          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
             "Correlation energy:", energy_corr
          WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
             "Total rs-DFT energy:", active_space_env%energy_total
