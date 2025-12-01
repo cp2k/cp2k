@@ -677,8 +677,16 @@ CONTAINS
          WRITE (log_unit, '(/,T2,A,I0)') "NEGF| Contact No. ", contact_id
          WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Fermi level at "//TRIM(ADJUSTL(temperature_str))// &
             " Kelvin (a.u.):", negf_control%contacts(contact_id)%fermi_level
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electric potential (V):", &
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Fermi level at "//TRIM(ADJUSTL(temperature_str))// &
+            " Kelvin (eV):", negf_control%contacts(contact_id)%fermi_level*evolt
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electric potential (a.u.):", &
+            negf_control%contacts(contact_id)%v_external
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electric potential (Volt):", &
             negf_control%contacts(contact_id)%v_external*evolt
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electro-chemical potential Ef-|e|V (a.u.):", &
+            (negf_control%contacts(contact_id)%fermi_level - negf_control%contacts(contact_id)%v_external)
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electro-chemical potential Ef-|e|V (eV):", &
+            (negf_control%contacts(contact_id)%fermi_level - negf_control%contacts(contact_id)%v_external)*evolt
       END IF
 
       CALL timestop(handle)
@@ -923,7 +931,8 @@ CONTAINS
       negf_control%v_shift = v_shift_guess
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Shift in Hartree potential", negf_control%v_shift
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Shift in Hartree potential (a.u.):", negf_control%v_shift
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Shift in Hartree potential (eV):", negf_control%v_shift*evolt
       END IF
 
       DO ispin = nspins, 1, -1
@@ -1032,7 +1041,7 @@ CONTAINS
       nimages = dft_control%nimages
 
       v_base = negf_control%contacts(base_contact)%v_external
-      mu_base = negf_control%contacts(base_contact)%fermi_level + v_base
+      mu_base = negf_control%contacts(base_contact)%fermi_level - v_base
 
       ! the current subroutine works for the general case as well, but the Poisson solver does not
       IF (ncontacts > 2) THEN
@@ -1371,7 +1380,7 @@ CONTAINS
          END IF
          CALL cp_cfm_create(g_surf(ipoint), fm_struct)
 
-         CALL do_sancho(g_surf(ipoint), omega(ipoint) - v_external, &
+         CALL do_sancho(g_surf(ipoint), omega(ipoint) + v_external, &
                         h0, s0, h1, s1, conv, transp, work)
       END DO
 
@@ -1578,7 +1587,7 @@ CONTAINS
                   IF (.NOT. ignore_bias) v_external = negf_control%contacts(icontact)%v_external
 
                   CALL negf_contact_self_energy(self_energy_c=self_energy_contacts(icontact), &
-                                                omega=omega(ipoint) - v_external, &
+                                                omega=omega(ipoint) + v_external, &
                                                 g_surf_c=g_surf_contacts(icontact, ipoint), &
                                                 h_sc0=negf_env%h_sc(ispin, icontact), &
                                                 s_sc0=negf_env%s_sc(icontact), &
@@ -1935,7 +1944,7 @@ CONTAINS
          mu_base = negf_control%contacts(base_contact)%fermi_level
          v_external = 0.0_dp
       ELSE
-         mu_base = negf_control%contacts(base_contact)%fermi_level + negf_control%contacts(base_contact)%v_external
+         mu_base = negf_control%contacts(base_contact)%fermi_level - negf_control%contacts(base_contact)%v_external
       END IF
 
       pi_temperature = pi*temperature
@@ -2083,7 +2092,7 @@ CONTAINS
          mu_base = negf_control%contacts(base_contact)%fermi_level
          v_external = 0.0_dp
       ELSE
-         mu_base = negf_control%contacts(base_contact)%fermi_level + negf_control%contacts(base_contact)%v_external
+         mu_base = negf_control%contacts(base_contact)%fermi_level - negf_control%contacts(base_contact)%v_external
       END IF
 
       min_points = negf_control%integr_min_points
@@ -2413,7 +2422,7 @@ CONTAINS
          CPABORT("Poisson solver does not support the general NEGF setup (>2 contacts).")
       END IF
 
-      mu_base = negf_control%contacts(base_contact)%fermi_level + negf_control%contacts(base_contact)%v_external
+      mu_base = negf_control%contacts(base_contact)%fermi_level - negf_control%contacts(base_contact)%v_external
       min_points = negf_control%integr_min_points
       max_points = negf_control%integr_max_points
       temperature_base = negf_control%contacts(base_contact)%temperature
@@ -2427,7 +2436,7 @@ CONTAINS
 
       DO icontact = 1, ncontacts
          IF (icontact /= base_contact) THEN
-            mu_contact = negf_control%contacts(icontact)%fermi_level + negf_control%contacts(icontact)%v_external
+            mu_contact = negf_control%contacts(icontact)%fermi_level - negf_control%contacts(icontact)%v_external
             temperature_contact = negf_control%contacts(icontact)%temperature
 
             integr_lbound = CMPLX(MIN(mu_base + ln_conv_density*temperature_base, &
@@ -2639,9 +2648,9 @@ CONTAINS
       CPASSERT(contact_id1 /= contact_id2)
 
       v_contact1 = negf_control%contacts(contact_id1)%v_external
-      mu_contact1 = negf_control%contacts(contact_id1)%fermi_level + v_contact1
+      mu_contact1 = negf_control%contacts(contact_id1)%fermi_level - v_contact1
       v_contact2 = negf_control%contacts(contact_id2)%v_external
-      mu_contact2 = negf_control%contacts(contact_id2)%fermi_level + v_contact2
+      mu_contact2 = negf_control%contacts(contact_id2)%fermi_level - v_contact2
 
       IF (ABS(mu_contact1 - mu_contact2) < threshold) THEN
          CALL timestop(handle)
@@ -2729,7 +2738,7 @@ CONTAINS
 
       CALL cp_cfm_get_submatrix(sr_env%integral, transmission)
 
-      current = 0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
+      current = -0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
 
       CALL cp_fm_release(weights)
       CALL cp_fm_struct_release(fm_struct_single)
