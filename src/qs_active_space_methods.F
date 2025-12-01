@@ -1313,9 +1313,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
       INTEGER :: col_local, color, handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, &
-         irange(2), irange_sub(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, &
-         iwbs, iwbt, iwfn, n_multigrid, ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, &
-         nrow_global, nrow_local, nspins, number_of_subgroups, nx, row_local, stored_integrals
+         irange(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, iwbs, iwbt, &
+         iwfn, n_multigrid, ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, nrow_global, &
+         nrow_local, nspins, number_of_subgroups, nx, row_local, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: print1, print2, &
@@ -1333,8 +1333,7 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, mo_coeff_as
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_comm_type)                                 :: mp_group
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1383,8 +1382,8 @@ CONTAINS
          CPABORT("Group size must be a divisor of the total number of processes!")
       ! Create a new para_env or reuse the old one
       IF (eri_env%eri_gpw%group_size == para_env%num_pe) THEN
-         para_env_sub => para_env
-         CALL para_env_sub%retain()
+         eri_env%para_env_sub => para_env
+         CALL eri_env%para_env_sub%retain()
          IF (eri_env%method == eri_method_gpw_ht) THEN
             blacs_env_sub => blacs_env
             CALL blacs_env_sub%retain()
@@ -1394,13 +1393,14 @@ CONTAINS
       ELSE
          number_of_subgroups = para_env%num_pe/eri_env%eri_gpw%group_size
          color = para_env%mepos/eri_env%eri_gpw%group_size
-         ALLOCATE (para_env_sub)
-         CALL para_env_sub%from_split(para_env, color)
+         ALLOCATE (eri_env%para_env_sub)
+         CALL eri_env%para_env_sub%from_split(para_env, color)
          IF (eri_env%method == eri_method_gpw_ht) THEN
             NULLIFY (blacs_env_sub)
-            CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, BLACS_GRID_SQUARE, .TRUE.)
+            CALL cp_blacs_env_create(blacs_env_sub, eri_env%para_env_sub, BLACS_GRID_SQUARE, .TRUE.)
          END IF
       END IF
+      CALL eri_env%comm_exchange%from_split(para_env, eri_env%para_env_sub%mepos)
 
       ! This should be done differently! Copied from MP2 code
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -1433,7 +1433,7 @@ CONTAINS
       ! Generate the appropriate pw_env
       NULLIFY (pw_env_sub)
       CALL pw_env_create(pw_env_sub)
-      CALL pw_env_rebuild(pw_env_sub, qs_env, external_para_env=para_env_sub)
+      CALL pw_env_rebuild(pw_env_sub, qs_env, external_para_env=eri_env%para_env_sub)
       CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
 
       ! TODO: maybe we can let `pw_env_rebuild` do what we manually overwrite here?
@@ -1511,9 +1511,9 @@ CONTAINS
                TYPE(group_dist_d1_type) :: gd_array
                TYPE(cp_fm_type), POINTER :: mo_coeff
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
+               CALL grep_rows_in_subgroups(para_env, eri_env%para_env_sub, mo_coeff, gd_array, C)
 
-               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin), &
+               CALL build_dbcsr_from_rows(eri_env%para_env_sub, mo_coeff_as(ispin), &
                                           C(:, MINVAL(orbitals(:, ispin)):MAXVAL(orbitals(:, ispin))), &
                                           mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
                CALL release_group_dist(gd_array)
@@ -1526,7 +1526,7 @@ CONTAINS
             CALL dbcsr_get_info(matrix_pq_rnu(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=eri_env%para_env_sub, &
                                      nrow_global=nrow_global, ncol_global=ncol_global)
             CALL cp_fm_create(fm_matrix_pq_rnu(ispin), fm_struct)
             CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
@@ -1535,7 +1535,7 @@ CONTAINS
             CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=eri_env%para_env_sub, &
                                      nrow_global=ncol_global, ncol_global=ncol_global)
             CALL cp_fm_create(fm_matrix_pq_rs(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
@@ -1597,7 +1597,6 @@ CONTAINS
       CALL pw_zero(rho_r)
       CALL pw_transfer(rho_r, rho_g)
       dvol = rho_r%pw_grid%dvol
-      CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
 
       IF (iw > 0) THEN
          CALL m_flush(iw)
@@ -1607,12 +1606,7 @@ CONTAINS
       DO isp1 = 1, nspins
          CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1, mo_coeff=mo_coeff1)
          nmm = (nmo1*(nmo1 + 1))/2
-         IF (eri_env%method == eri_method_gpw_ht) THEN
-            irange = [1, nmm]
-         ELSE
-            irange = get_irange_csr(nmm, para_env)
-         END IF
-         irange_sub = get_limit(nmm, number_of_subgroups, color)
+         irange = get_irange_csr(nmm, eri_env%comm_exchange)
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)
             IF (eri_env%eri_gpw%store_wfn) THEN
@@ -1625,12 +1619,8 @@ CONTAINS
                iwa2 = orbitals(i2, isp1)
                iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
                ! Skip calculation directly if the pair is not part of our subgroup
-               IF (iwa12 < irange_sub(1) .OR. iwa12 > irange_sub(2)) CYCLE
-               IF (iwa12 >= irange(1) .AND. iwa12 <= irange(2)) THEN
-                  iwa12 = iwa12 - irange(1) + 1
-               ELSE
-                  iwa12 = 0
-               END IF
+               IF (iwa12 < irange(1) .OR. iwa12 > irange(2)) CYCLE
+               iwa12 = iwa12 - irange(1) + 1
                IF (eri_env%eri_gpw%store_wfn) THEN
                   wfn2 => wfn_a(iwa2, isp1)
                ELSE
@@ -1735,7 +1725,7 @@ CONTAINS
                         END DO
                      END DO
                      ! Now, we sum the integrals globally
-                     CALL wfn_r%pw_grid%para%group%sum(eri)
+                     CALL eri_env%para_env_sub%sum(eri)
                      ! and we reorder the integrals to prevent storing too small integrals
                      intcount = 0
                      icount2 = 0
@@ -1751,9 +1741,11 @@ CONTAINS
                            intcount = intcount + 1
                            erint = eri(intcount)
                            IF (ABS(erint) > eri_env%eps_integral) THEN
-                              icount2 = icount2 + 1
-                              eri(icount2) = erint
-                              eri_index(icount2) = eri_index(intcount)
+                              IF (MOD(intcount, eri_env%para_env_sub%num_pe) == eri_env%para_env_sub%mepos) THEN
+                                 icount2 = icount2 + 1
+                                 eri(icount2) = erint
+                                 eri_index(icount2) = eri_index(intcount)
+                              END IF
                            END IF
                         END DO
                      END DO
@@ -1796,7 +1788,6 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(rho_g)
       CALL auxbas_pw_pool%give_back_pw(rho_r)
       CALL auxbas_pw_pool%give_back_pw(pot_g)
-      CALL mp_para_env_release(para_env_sub)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          DO ispin = 1, nspins
@@ -2407,7 +2398,8 @@ CONTAINS
 
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
          eri => active_space_env%eri%eri(1)%csr_mat
-         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method)
+         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, &
+                                         active_space_env%eri%method, active_space_env%eri%comm_exchange)
 
          ! compute eeri = E_H[rho^A] + E_HFX[rho^A] as
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2461,9 +2453,9 @@ CONTAINS
          eri_ab => active_space_env%eri%eri(2)%csr_mat
          eri_bb => active_space_env%eri%eri(3)%csr_mat
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method)
+                     tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method, comm_exchange=active_space_env%eri%comm_exchange)
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method)
+                      tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method, comm_exchange=active_space_env%eri%comm_exchange)
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -2508,19 +2500,26 @@ CONTAINS
 !> \param p_mat density matrix
 !> \param ks_ref fockian matrix
 !> \param eri_method ...
+!> \param comm_exchange ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method)
+   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method, comm_exchange)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_ref
       INTEGER, INTENT(IN)                                :: eri_method
+      TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
 
-      INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
-                                                            irptr, m1, m2, nindex, nmo_total, norb
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_fock_matrix'
+
+      INTEGER                                            :: handle, i1, i12, i12l, i2, i3, i34, &
+                                                            i34l, i4, irptr, m1, m2, nindex, &
+                                                            nmo_total, norb
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
+
+      CALL timeset(routineN, handle)
 
       ! Nothing to do
       norb = SIZE(active_orbitals, 1)
@@ -2530,7 +2529,7 @@ CONTAINS
       IF (eri_method == eri_method_gpw_ht) THEN
          irange = [1, nindex]
       ELSE
-         irange = get_irange_csr(nindex, mp_group)
+         irange = get_irange_csr(nindex, comm_exchange)
       END IF
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
@@ -2581,6 +2580,8 @@ CONTAINS
       END DO
       CALL mp_group%sum(ks_ref)
 
+      CALL timestop(handle)
+
    END SUBROUTINE build_subspace_fock_matrix
 
 ! **************************************************************************************************
@@ -2593,30 +2594,36 @@ CONTAINS
 !> \param ks_a_ref fockian matrix for up-spin
 !> \param tr_mixed_eri boolean to indicate Coulomb interaction alignment
 !> \param eri_method ...
+!> \param comm_exchange ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_spin_fock_matrix(active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri, eri_method)
+   SUBROUTINE build_subspace_spin_fock_matrix(active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri, &
+                                              eri_method, comm_exchange)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri_aa, eri_ab
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_a_mat, p_b_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_a_ref
       LOGICAL, INTENT(IN)                                :: tr_mixed_eri
       INTEGER, INTENT(IN)                                :: eri_method
+      TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
 
-      INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
-                                                            irptr, m1, m2, nindex, nmo_total, &
-                                                            norb, spin1, spin2
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_spin_fock_matrix'
+
+      INTEGER                                            :: handle, i1, i12, i12l, i2, i3, i34, &
+                                                            i34l, i4, irptr, m1, m2, nindex, &
+                                                            nmo_total, norb, spin1, spin2
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
 
+      CALL timeset(routineN, handle)
+
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      CALL mp_group%set_handle(eri_aa%mp_group%get_handle())
       IF (eri_method == eri_method_gpw_ht) THEN
          irange = [1, nindex]
       ELSE
-         irange = get_irange_csr(nindex, mp_group)
+         irange = get_irange_csr(nindex, comm_exchange)
       END IF
       IF (tr_mixed_eri) THEN
          spin1 = 2
@@ -2666,11 +2673,10 @@ CONTAINS
       END DO
       !
 
-      CALL mp_group%set_handle(eri_ab%mp_group%get_handle())
       IF (eri_method == eri_method_gpw_ht) THEN
          irange = [1, nindex]
       ELSE
-         irange = get_irange_csr(nindex, mp_group)
+         irange = get_irange_csr(nindex, comm_exchange)
       END IF
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
@@ -2706,6 +2712,8 @@ CONTAINS
       END DO
       CALL mp_group%set_handle(eri_aa%mp_group%get_handle())
       CALL mp_group%sum(ks_a_ref)
+
+      CALL timestop(handle)
 
    END SUBROUTINE build_subspace_spin_fock_matrix
 
