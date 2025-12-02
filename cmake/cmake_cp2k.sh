@@ -27,6 +27,10 @@ if [[ "${PROFILE}" =~ ^spack ]]; then
 elif [[ "${PROFILE}" =~ ^toolchain ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
+elif [[ "${PROFILE}" =~ ^ubuntu ]] || [[ "${PROFILE}" =~ ^minimal ]]; then
+  # Toolchain is only used to install DBCSR (and sometimes CMake).
+  # shellcheck disable=SC1091
+  source "${TOOLCHAIN_DIR}/install/setup"
 fi
 
 # Run CMake
@@ -214,6 +218,7 @@ elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; the
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  # TODO Enable libxsmm and libspglib once we dropped GCC 8.
   # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
   # NOTE: libxc 5.2.3 is provided, CP2K requires libxc 7
   cmake \
@@ -233,6 +238,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_TREXIO=OFF \
+    -DCP2K_USE_LIBXSMM=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?

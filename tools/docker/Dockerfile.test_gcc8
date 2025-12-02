@@ -9,13 +9,23 @@ FROM ubuntu:20.04
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
+    less \
+    nano \
+    make \
+    ninja-build \
+    wget \
+    python3 \
+    ca-certificates \
     gcc-8 \
     g++-8 \
     gfortran-8 \
     libfftw3-dev \
     libopenblas-dev \
-    libgsl-dev \
+    libint2-dev \
+    libxc-dev \
     libhdf5-dev \
+     \
+     \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
@@ -23,10 +33,11 @@ RUN ln -sf /usr/bin/gcc-8      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-8      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-8 /usr/local/bin/gfortran
 
+# Use toolchain to install DBCSR and CMake.
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu
+RUN ./install_requirements.sh ubuntu:20.04
 
 # Install the toolchain.
 RUN mkdir scripts
@@ -42,19 +53,18 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 # https://github.com/cp2k/cp2k/issues/4362
 RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=no \
+    --with-dbcsr \
     --with-gcc=system \
-    --with-cmake=system \
-    --with-dbcsr=no \
-    --with-fftw=system \
+    --with-cmake \
+    --with-ninja=system \
     --with-openblas=system \
-    --with-gsl=system \
-    --with-hdf5=system \
+    --with-libxc=no \
+    --with-libint=no \
     --with-libgrpp=no \
-    --with-libint=install \
-    --with-libxc=install \
-    --with-libxsmm=install \
-    --with-libvori=install \
+    --with-fftw=no \
+    --with-libxsmm=no \
     --with-spglib=no \
+    --with-libvori=no \
     --with-tblite=no \
     --dry-run
 
@@ -95,25 +105,25 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local.ssmp.
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local.ssmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh ubuntu ssmp
 
 # Run regression tests.
 ARG TESTOPTS="--skipdir=QS/regtest-rs-dhft"
-COPY ./tools/docker/scripts/test_regtest.sh ./
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest.sh 'local' 'ssmp' |& tee report.log && \
+    ./test_regtest_cmake.sh ubuntu ssmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
