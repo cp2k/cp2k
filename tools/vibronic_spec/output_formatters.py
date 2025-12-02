@@ -16,7 +16,7 @@ def write_spectrum_output(results, config):
     write_combined_spectrum(results, output_file)
 
     if config.get("print_individual_states", False):
-        write_individual_states_file(results, config)  # TODO: check functionality
+        write_individual_states_file(results, config)
 
 
 def write_combined_spectrum(results, output_file):
