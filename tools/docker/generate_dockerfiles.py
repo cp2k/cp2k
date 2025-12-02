@@ -60,14 +60,10 @@ def main() -> None:
 
     for gcc_version in 8, 9, 10, 11, 12, 13, 14:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
-            if gcc_version > 8:
-                f.write(install_deps_ubuntu(gcc_version=gcc_version))
-                f.write(regtest_cmake("ubuntu", "ssmp"))
-            else:
-                f.write(install_deps_ubuntu2004(gcc_version=gcc_version))
-                # Have to use Makefile because Ubuntu:20.04 ships with CMake 3.16.3.
-                # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
-                f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
+            # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
+            testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
+            f.write(install_deps_ubuntu(gcc_version=gcc_version))
+            f.write(regtest_cmake("ubuntu", "ssmp", testopts=testopts))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
@@ -423,13 +419,9 @@ def install_deps_toolchain(
 
 
 # ======================================================================================
-def install_deps_ubuntu(
-    base_image: str = "ubuntu:24.04", gcc_version: int = 13, with_libxsmm: bool = True
-) -> str:
-    assert gcc_version > 8
-    output = rf"""
-FROM {base_image}
-"""
+def install_deps_ubuntu(gcc_version: int = 13) -> str:
+    base_image = "ubuntu:24.04" if gcc_version > 8 else "ubuntu:20.04"
+    output = f"\nFROM {base_image}\n"
 
     if gcc_version > 13:
         output += rf"""
@@ -458,8 +450,8 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libint2-dev \
     libxc-dev \
     libhdf5-dev \
-    {"libxsmm-dev" if with_libxsmm else ""} \
-    libspglib-f08-dev \
+    {"libxsmm-dev" if gcc_version > 8 else ""} \
+    {"libspglib-f08-dev" if gcc_version > 8 else ""} \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
@@ -467,54 +459,24 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
-# Install DBCSR
-COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN ./install_dbcsr.sh ssmp
-"""
-    return output
-
-
-# ======================================================================================
-def install_deps_ubuntu2004(gcc_version: int = 8) -> str:
-    output = rf"""
-FROM ubuntu:20.04
-
-# Install Ubuntu packages.
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
-    apt-get update -qq && apt-get install -qq --no-install-recommends \
-    cmake \
-    gcc-{gcc_version} \
-    g++-{gcc_version} \
-    gfortran-{gcc_version} \
-    libfftw3-dev \
-    libopenblas-dev \
-    libgsl-dev \
-    libhdf5-dev \
-   && rm -rf /var/lib/apt/lists/*
-
-# Create links in /usr/local/bin to overrule links in /usr/bin.
-RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
-    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
-    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
-
-"""
-    output += install_toolchain(
-        base_image="ubuntu",
+# Use toolchain to install DBCSR{"" if gcc_version > 8 else " and CMake"}.
+""" + install_toolchain(
+        base_image=base_image,
         mpi_mode="no",
+        with_dbcsr="",
         with_gcc="system",
-        with_cmake="system",
-        with_dbcsr="no",
-        with_fftw="system",
+        with_cmake="system" if gcc_version > 8 else "",
+        with_ninja="system",
         with_openblas="system",
-        with_gsl="system",
-        with_hdf5="system",
+        with_libxc="no",
+        with_libint="no",
         with_libgrpp="no",
-        with_libint="install",
-        with_libxc="install",
-        with_libxsmm="install",
-        with_libvori="install",
+        with_fftw="no",
+        with_libxsmm="no",
         with_spglib="no",
+        with_libvori="no",
     )
+
     return output
 
 
