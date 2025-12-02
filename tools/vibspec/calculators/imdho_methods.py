@@ -6,13 +6,25 @@ import numpy as np
 from .physical_parameters import calculate_huang_rhys_factors, calculate_thermal_factors
 
 
-def calculate_imdho_spectrum_point(energy, state_idx, spectrum_type, oscillator_strengths, displacements,
-                                 frequencies, mode_count, gamma, theta, temperature,
-                                 vertical_energies, stokes_shift, adiabatic_energies,
-                                 requested_states, integration_params):
+def calculate_imdho_spectrum_point(
+    energy,
+    state_idx,
+    spectrum_type,
+    oscillator_strengths,
+    displacements,
+    frequencies,
+    mode_count,
+    gamma,
+    theta,
+    temperature,
+    vertical_energies,
+    stokes_shift,
+    adiabatic_energies,
+    requested_states,
+    integration_params,
+):
     """
-    Single unified IMDHO calculation for both absorption and fluorescence.
-    Use temperature=0 for zero-temperature calculations.
+    Calculate IMDHO spectrum point for absorption or fluorescence
 
     Parameters:
     - energy: Energy point (atomic units)
@@ -36,130 +48,230 @@ def calculate_imdho_spectrum_point(energy, state_idx, spectrum_type, oscillator_
     """
     actual_state = requested_states[state_idx - 1]
     oscillator_strength = oscillator_strengths[actual_state]["oscillator_strength"]
-    
-    if spectrum_type == 'absorption':
-        prefactor = (4 * energy * np.pi**2 / (3 * 137)) * (oscillator_strength / vertical_energies[state_idx - 1])
+
+    if spectrum_type == "absorption":
+        prefactor = (4 * energy * np.pi**2 / (3 * 137)) * (
+            oscillator_strength / vertical_energies[state_idx - 1]
+        )
         integral = _integrate_imdho_time_domain(
-            energy, state_idx, spectrum_type, displacements, frequencies, mode_count,
-            gamma, theta, temperature, stokes_shift, adiabatic_energies, requested_states, integration_params
+            energy,
+            state_idx,
+            spectrum_type,
+            displacements,
+            frequencies,
+            mode_count,
+            gamma,
+            theta,
+            temperature,
+            stokes_shift,
+            adiabatic_energies,
+            requested_states,
+            integration_params,
         )
         return prefactor * integral
-        
-    if spectrum_type == 'fluorescence':
-        prefactor = (4 * energy**3 / (3 * np.pi * 137**3)) * (oscillator_strength / vertical_energies[state_idx - 1])
+
+    if spectrum_type == "fluorescence":
+        prefactor = (4 * energy**3 / (3 * np.pi * 137**3)) * (
+            oscillator_strength / vertical_energies[state_idx - 1]
+        )
         integral = _integrate_imdho_time_domain(
-            energy, state_idx, spectrum_type, displacements, frequencies, mode_count,
-            gamma, theta, temperature, stokes_shift, adiabatic_energies, requested_states, integration_params
+            energy,
+            state_idx,
+            spectrum_type,
+            displacements,
+            frequencies,
+            mode_count,
+            gamma,
+            theta,
+            temperature,
+            stokes_shift,
+            adiabatic_energies,
+            requested_states,
+            integration_params,
         )
         return prefactor * integral
 
 
-def _integrate_imdho_time_domain(energy, state_idx, spectrum_type, displacements, frequencies,
-                               mode_count, gamma, theta, temperature, stokes_shift, 
-                               adiabatic_energies, requested_states, integration_params):
+def _integrate_imdho_time_domain(
+    energy,
+    state_idx,
+    spectrum_type,
+    displacements,
+    frequencies,
+    mode_count,
+    gamma,
+    theta,
+    temperature,
+    stokes_shift,
+    adiabatic_energies,
+    requested_states,
+    integration_params,
+):
     """
-    Unified time integration for IMDHO - handles both absorption and fluorescence.
+    Time integration for IMDHO
     """
-    max_time_slices = integration_params.get('max_time_slices', 5000)
-    slice_size = integration_params.get('slice_size', 10000)
-    time_step = integration_params.get('time_step', 30)
-    convergence = integration_params.get('convergence', 0.000000001)
-    
-    if spectrum_type == 'absorption':
-        energy_difference = energy - adiabatic_energies[state_idx - 1] - stokes_shift / 2
-    if spectrum_type == 'fluorescence':
-        energy_difference = adiabatic_energies[state_idx - 1] - stokes_shift / 2 - energy
-    
+    max_time_slices = integration_params.get("max_time_slices", 5000)
+    slice_size = integration_params.get("slice_size", 10000)
+    time_step = integration_params.get("time_step", 30)
+    convergence = integration_params.get("convergence", 0.000000001)
+
+    if spectrum_type == "absorption":
+        energy_difference = (
+            energy - adiabatic_energies[state_idx - 1] - stokes_shift / 2
+        )
+    if spectrum_type == "fluorescence":
+        energy_difference = (
+            adiabatic_energies[state_idx - 1] - stokes_shift / 2 - energy
+        )
+
     actual_state = requested_states[state_idx - 1]
-    huang_rhys_factors = calculate_huang_rhys_factors(actual_state, displacements, mode_count)
+    huang_rhys_factors = calculate_huang_rhys_factors(
+        actual_state, displacements, mode_count
+    )
     frequencies = [frequencies[j] for j in range(1, mode_count + 1)]
-    
+
     if temperature > 0:
-        thermal_factors = calculate_thermal_factors(frequencies, mode_count, temperature)
+        thermal_factors = calculate_thermal_factors(
+            frequencies, mode_count, temperature
+        )
     else:
         thermal_factors = [1.0] * mode_count
-    
+
     if energy_difference == 0:
         delta_time = 2 * np.pi / time_step
     else:
         time_scale_1 = abs(2 * np.pi / energy_difference)
         time_scale_2 = 2 * np.pi / max(frequencies)
         delta_time = min(time_scale_1, time_scale_2) / time_step
-    
+
     slice_index = 0
     integral_value = 0
     convergence_reached = False
-    
+
     while slice_index < max_time_slices and not convergence_reached:
         time_array = np.arange(
             slice_index * slice_size * delta_time,
             (slice_index + 1) * slice_size * delta_time,
-            delta_time
+            delta_time,
         )
-        
+
         # Complex sum over vibrational modes
         cosine_sum = np.zeros(time_array.size)
         sine_sum = np.zeros(time_array.size)
-        
+
         for mode_idx in range(mode_count):
             frequency = frequencies[mode_idx]
             huang_rhys = huang_rhys_factors[mode_idx]
             thermal_factor = thermal_factors[mode_idx]
-            
+
             # Common cosine term for both
             if temperature > 0:
-                cosine_sum += huang_rhys * thermal_factor * (1 - np.cos(frequency * time_array))
+                cosine_sum += (
+                    huang_rhys * thermal_factor * (1 - np.cos(frequency * time_array))
+                )
             else:
                 cosine_sum += huang_rhys * (1 - np.cos(frequency * time_array))
-            
+
             # Different sign for sine term
-            if spectrum_type == 'absorption':
+            if spectrum_type == "absorption":
                 sine_sum += -huang_rhys * np.sin(frequency * time_array)
-            elif spectrum_type == 'fluorescence':
+            elif spectrum_type == "fluorescence":
                 sine_sum += huang_rhys * np.sin(frequency * time_array)
 
         cosine_term = np.cos(energy_difference * time_array)
-        exponential_term = np.exp(-gamma * time_array - 0.5 * theta**2 * time_array**2 - cosine_sum)
+        exponential_term = np.exp(
+            -gamma * time_array - 0.5 * theta**2 * time_array**2 - cosine_sum
+        )
         # real part of exp(1j * sine_sum)
-        phase_term = np.cos(sine_sum)  
-        
+        phase_term = np.cos(sine_sum)
+
         integrand = cosine_term * exponential_term * phase_term
-        
-        if spectrum_type == 'absorption':
+
+        if spectrum_type == "absorption":
             integrand *= 1 / np.pi
-        
+
         slice_integral = np.trapz(integrand, dx=delta_time)
-        
+
         if abs(slice_integral) < convergence:
             convergence_reached = True
             integral_value += slice_integral
         else:
             integral_value += slice_integral
             slice_index += 1
-    
+
     if not convergence_reached:
         print(f"WARNING: IMDHO time integral for {spectrum_type} did not converge.")
-    
+
     return integral_value
 
 
-def calculate_imdho_absorption(energy, state_idx, oscillator_strengths, displacements, frequencies, mode_count,
-                             gamma, theta, temperature, vertical_energies, stokes_shift,
-                             adiabatic_energies, requested_states, integration_params):
+def calculate_imdho_absorption(
+    energy,
+    state_idx,
+    oscillator_strengths,
+    displacements,
+    frequencies,
+    mode_count,
+    gamma,
+    theta,
+    temperature,
+    vertical_energies,
+    stokes_shift,
+    adiabatic_energies,
+    requested_states,
+    integration_params,
+):
     """Wrapper for IMDHO absorption"""
     return calculate_imdho_spectrum_point(
-        energy, state_idx, 'absorption', oscillator_strengths, displacements, frequencies, mode_count,
-        gamma, theta, temperature, vertical_energies, stokes_shift,
-        adiabatic_energies, requested_states, integration_params
+        energy,
+        state_idx,
+        "absorption",
+        oscillator_strengths,
+        displacements,
+        frequencies,
+        mode_count,
+        gamma,
+        theta,
+        temperature,
+        vertical_energies,
+        stokes_shift,
+        adiabatic_energies,
+        requested_states,
+        integration_params,
     )
 
 
-def calculate_imdho_fluorescence(energy, state_idx, oscillator_strengths, displacements, frequencies, mode_count,
-                               gamma, theta, temperature, vertical_energies, stokes_shift,
-                               adiabatic_energies, requested_states, integration_params):
+def calculate_imdho_fluorescence(
+    energy,
+    state_idx,
+    oscillator_strengths,
+    displacements,
+    frequencies,
+    mode_count,
+    gamma,
+    theta,
+    temperature,
+    vertical_energies,
+    stokes_shift,
+    adiabatic_energies,
+    requested_states,
+    integration_params,
+):
     """Wrapper for IMDHO fluorescence"""
     return calculate_imdho_spectrum_point(
-        energy, state_idx, 'fluorescence', oscillator_strengths, displacements, frequencies, mode_count,
-        gamma, theta, temperature, vertical_energies, stokes_shift,
-        adiabatic_energies, requested_states, integration_params
+        energy,
+        state_idx,
+        "fluorescence",
+        oscillator_strengths,
+        displacements,
+        frequencies,
+        mode_count,
+        gamma,
+        theta,
+        temperature,
+        vertical_energies,
+        stokes_shift,
+        adiabatic_energies,
+        requested_states,
+        integration_params,
     )
