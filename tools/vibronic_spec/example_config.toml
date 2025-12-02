@@ -28,7 +28,6 @@ print_individual_states = false
 temperature = 298.15                # in K
 gamma_broadening = 0.001            # in eV
 theta_broadening = 0.0
-subtract_voigt = true
 
 [integration]
 max_time_slices = 5000

@@ -497,7 +497,6 @@ def flatten_config(config):
     flattened["gamma_broadening"] *= EV_TO_AU
     flattened.setdefault("theta_broadening", 0.0)
     flattened["theta_broadening"] *= EV_TO_AU
-    flattened.setdefault("subtract_voigt", False)
 
     return flattened
 
