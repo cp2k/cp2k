@@ -10,11 +10,7 @@ import sys
 import numpy as np
 import time
 
-from file_parsers import (
-    parse_vibrational_frequencies, parse_normal_modes, 
-    parse_excited_state_forces, parse_geometry_from_xyz,
-    get_atom_count
-)
+from file_parsers import parse_excited_state_forces, parse_molden_file
 
 from calculators.lq2_methods import calculate_lq2_spectrum_point
 from calculators.lq3_methods import calculate_lq3_spectrum_point  
@@ -30,14 +26,14 @@ from constants import EV_TO_AU, AU_TO_EV, ATOMIC_MASSES, E_MASS
 
 def run_spectrum_calculation(config):
     """
-    Main function that runs the complete spectrum calculation.
+    Main function that runs the complete spectrum calculation
     """
     time_start = time.time()
 
     print("Starting spectrum calculation...")
     
     data = load_calculation_data(config)
-    
+
     data = calculate_displacement_vectors(data, config)
     
     data = calculate_physical_parameters(data, config)
@@ -49,7 +45,7 @@ def run_spectrum_calculation(config):
     time_end = time.time()
     
     print("Calculation completed successfully!")
-    print(f"INFO: Output written to: {config['output_file']}")
+    print(f"INFO: Output written to: {config['output_filename']}")
     print(f"INFO: Spectrum calculation finished in {time_end - time_start:.2f} seconds")
 
 
@@ -59,35 +55,29 @@ def load_calculation_data(config):
     
     data = {}
     
-    tdforce_data = parse_excited_state_forces(config['force_file'])
+    tdforce_data = parse_excited_state_forces(config['force_filename'])
     data['oscillator_strengths'] = tdforce_data
     forces = {state: tdforce_data[state]["force"] for state in tdforce_data if "force" in tdforce_data[state]}
     
     if 'states' not in config:
-        raise ValueError("'states' configuration is required. Use 'all', [1,2,3], or 'threshold:0.01'")
+        raise ValueError("'states' configuration is required. Accepted formats are 'all', [1,2,3], and 'threshold:0.01'.")
     
     final_states = parse_states_specification(config['states'], tdforce_data, forces)
     
     data['forces'] = {state: forces[state] for state in final_states}
     data['requested_states'] = final_states
     data['state_count'] = len(final_states)
-        
-    data['frequencies'], negative_freq_warnings = parse_vibrational_frequencies(config['vibrational_file'])
-    data['mode_count'] = len(data['frequencies'])
+
+    molden_data = parse_molden_file(config['vibrations_filename'])
+    data.update(molden_data)
+
+    print(f"INFO: Found {data['atom_count']} atoms")
     print(f"INFO: Found {data['mode_count']} vibrational modes")
-    if negative_freq_warnings:
-        print(f"\tWARNING: Removed {len(negative_freq_warnings)} negative frequencies")
-        for freq in negative_freq_warnings:
+    if data['negative_freq_warnings']:
+        print(f"\tWARNING: Removed {len(data['negative_freq_warnings'])} negative frequencies")
+        for freq in data['negative_freq_warnings']:
             print(f"\tWARNING: Negative frequency {freq:.1f} cm^-1")
 
-    
-    geometry_file = config.get('ground_geometry_file')
-    data['geometry'] = parse_geometry_from_xyz(geometry_file)
-    data['atom_count'] = get_atom_count(data['geometry'])
-    print(f"INFO: Found {data['atom_count']} atoms")
-    
-    data['normal_modes'] = parse_normal_modes(config['vibrational_file'], data['atom_count'])
-    
     return data
 
 
@@ -429,10 +419,6 @@ def flatten_config(config):
         if section in config:
             flattened.update(config[section])
     
-    flattened['ground_geometry_provided'] = (
-        flattened.get('ground_geometry_file') not in [None, 'none', 'n', 'no']
-    )
-    
     flattened.setdefault('print_individual_states', False)
     flattened.setdefault('gradient_files', [])
     flattened.setdefault('stokes_shift', 0.0)
@@ -455,7 +441,7 @@ def main():
     
     config = load_configuration(sys.argv[1])
     
-    required_params = ['vibrational_file', 'output_file', 'states', 
+    required_params = ['vibrations_filename', 'output_filename', 'states', 
                       'energy_min', 'energy_max', 'energy_points', 'method', 'spectrum_type']
     
     missing_params = [param for param in required_params if param not in config]

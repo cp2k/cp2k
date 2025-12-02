@@ -5,91 +5,129 @@ Parsers
 from typing import Dict, List, Any
 import numpy as np
 import re
-from constants import EV_TO_AU, WAVENUMBER_TO_AU, ANGSTROM_TO_BOHR
+from constants import EV_TO_AU, WAVENUMBER_TO_AU
 
 
-def parse_vibrational_frequencies(file_path: str) -> Dict[int, float]:
+def parse_molden_file(file_path: str) -> Dict[str, Any]:
     """
-    Extract vibrational frequencies from Molden file
+    Parse
+    - geometry from [Atoms] section
+    - normal modes from [FR-NORM-COORD] section  
+    - frequencies from [FREQ] section
+    of VIBRATIONS Molden file
+    
+    Returns dict with 'geometry', 'normal_modes', 'mode_count', 'frequencies',
+    'atom_count' and 'negative_freq_warnings'
     """
     data = {}
-    mode_count = 0
-    warnings = []
+    geometry = {}
+    normal_modes = {}
+    frequencies = {}
+    negative_freq_warnings = []
     
     with open(file_path, "rt") as file:
         content = file.read()
-        
-        if "[FREQ]" in content:
-            freq_section = content.split("[FREQ]")[1].split("[FR-COORD]")[0]
-            
-            for line in freq_section.strip().split('\n'):
-                line = line.strip()
-                if line:
-                    try:
-                        frequency = float(line)
-                        # Only keep positive frequencies
-                        if frequency > 0:
-                            mode_count += 1
-                            data[mode_count] = frequency * WAVENUMBER_TO_AU
-                        else:
-                            warnings.append(frequency)
-                    except ValueError:
-                        continue
     
-    return data, warnings
-
-
-def parse_normal_modes(file_path: str, atom_count: int) -> Dict[int, Dict[str, List[float]]]:
-    """
-    Extract normal mode vectors from Molden format file
-    Format: [FR-NORM-COORD] section with vibration headers
-    """
-    data = {}
-    
-    with open(file_path, "rt") as file:
-        content = file.read()
+    # Parse geometry from [Atoms] section
+    if "[Atoms]" in content:
+        atoms_section = content.split("[Atoms]")[1]
+        if "[" in atoms_section:
+            atoms_section = atoms_section.split("[")[0]
         
-        if "[FR-NORM-COORD]" in content:
-            norm_section = content.split("[FR-NORM-COORD]")[1].split("[INT]")[0]
-            lines = norm_section.strip().split('\n')
-            
-            current_mode = None
-            collected_coords = []
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
+        lines = atoms_section.strip().split('\n')
+        print(lines)
+        
+        atom_idx = 1
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            parts = line.split()
+            if len(parts) >= 5:
+                try:
+                    element = parts[0]
+                    x, y, z = map(float, parts[3:6])
+                    
+                    geometry[atom_idx] = {
+                        "element": element,
+                        "coordinates": [x, y, z]
+                    }
+                    atom_idx += 1
+                    
+                except (ValueError, IndexError):
                     continue
+    
+    # Parse frequencies from [FREQ] section
+    if "[FREQ]" in content:
+        freq_section = content.split("[FREQ]")[1].split("[FR-COORD]")[0]
+        mode_count = 0
+        
+        for line in freq_section.strip().split('\n'):
+            line = line.strip()
+            if line:
+                try:
+                    frequency = float(line)
+                    # Only keep positive frequencies
+                    if frequency > 0:
+                        mode_count += 1
+                        frequencies[mode_count] = frequency * WAVENUMBER_TO_AU
+                    else:
+                        negative_freq_warnings.append(frequency)
+                except ValueError:
+                    continue
+    
+    # Parse normal modes from [FR-NORM-COORD] section
+    if "[FR-NORM-COORD]" in content:
+        norm_section = content.split("[FR-NORM-COORD]")[1].split("[INT]")[0]
+        lines = norm_section.strip().split('\n')
+        
+        current_mode = None
+        collected_coords = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            if "vibration" in line.lower():
+                # Save previous mode
+                if current_mode is not None and collected_coords:
+                    atom_count = len(geometry)
+                    x_coords = collected_coords[0::3][:atom_count]
+                    y_coords = collected_coords[1::3][:atom_count]
+                    z_coords = collected_coords[2::3][:atom_count]
                     
-                if "vibration" in line.lower():
-                    # Save previous mode
-                    if current_mode is not None and collected_coords:
-                        x_coords = collected_coords[0::3][:atom_count]
-                        y_coords = collected_coords[1::3][:atom_count]
-                        z_coords = collected_coords[2::3][:atom_count]
-                        
-                        data[current_mode] = {"x": x_coords, "y": y_coords, "z": z_coords}
+                    normal_modes[current_mode] = {"x": x_coords, "y": y_coords, "z": z_coords}
+                
+                # New mode
+                try:
+                    current_mode = int(line.split()[1])
+                    collected_coords = []
+                except (ValueError, IndexError):
+                    current_mode = None
                     
-                    # New mode
-                    try:
-                        current_mode = int(line.split()[1])
-                        collected_coords = []
-                    except (ValueError, IndexError):
-                        current_mode = None
-                        
-                elif current_mode is not None:
-                    try:
-                        coords = list(map(float, line.split()[:3]))
-                        collected_coords.extend(coords)
-                    except ValueError:
-                        continue
-            
-            # Save last mode
-            if current_mode is not None and collected_coords:
-                x_coords = collected_coords[0::3][:atom_count]
-                y_coords = collected_coords[1::3][:atom_count]
-                z_coords = collected_coords[2::3][:atom_count]
-                data[current_mode] = {"x": x_coords, "y": y_coords, "z": z_coords}
+            elif current_mode is not None:
+                try:
+                    coords = list(map(float, line.split()[:3]))
+                    collected_coords.extend(coords)
+                except ValueError:
+                    continue
+        
+        # Save last mode
+        if current_mode is not None and collected_coords:
+            atom_count = len(geometry)
+            x_coords = collected_coords[0::3][:atom_count]
+            y_coords = collected_coords[1::3][:atom_count]
+            z_coords = collected_coords[2::3][:atom_count]
+            normal_modes[current_mode] = {"x": x_coords, "y": y_coords, "z": z_coords}
+    
+    data['geometry'] = geometry
+    data['normal_modes'] = normal_modes
+    data['mode_count'] = len(frequencies)
+    data['frequencies'] = frequencies
+    data['atom_count'] = len(geometry)
+    data['negative_freq_warnings'] = negative_freq_warnings
     
     return data
 
@@ -160,38 +198,3 @@ def parse_excited_state_forces(file_path):
     print(f"INFO: Found {len(states_with_forces)} states with forces")
     
     return data
-
-def parse_geometry_from_xyz(file_path: str) -> Dict[int, Dict[str, Any]]:
-    """
-    Extract molecular geometry from standard XYZ format file
-    """
-    data = {}
-    
-    with open(file_path, "rt") as file:
-        lines = file.readlines()
-        
-        if len(lines) >= 2:
-            try:
-                atom_count = int(lines[0].strip())
-                
-                for i in range(2, 2 + atom_count):
-                    if i < len(lines):
-                        parts = lines[i].split()
-                        if len(parts) >= 4:
-                            element = parts[0]
-                            x, y, z = map(float, parts[1:4])
-                            
-                            atom_number = i - 1
-                            data[atom_number] = {
-                                "element": element,
-                                "coordinates": [x * ANGSTROM_TO_BOHR, y * ANGSTROM_TO_BOHR, z * ANGSTROM_TO_BOHR]
-                            }
-            except ValueError:
-                print(f"Invalid XYZ format in {file_path}")
-    
-    return data
-
-
-def get_atom_count(geometry_data: Dict[int, Any]) -> int:
-    """Get number of atoms from geometry data"""
-    return len(geometry_data)

@@ -9,7 +9,7 @@ def write_spectrum_output(results, config):
     Writes combined spectrum to main file and individual states
     to separate file if requested
     """
-    output_file = config['output_file']
+    output_file = config['output_filename']
     
     write_combined_spectrum(results, output_file)
     
@@ -44,7 +44,7 @@ def write_individual_states_file(results, config):
         ...
     """
     method = results['method'].lower()
-    output_dir = os.path.dirname(config['output_file']) or '.'
+    output_dir = os.path.dirname(config['output_filename']) or '.'
     states_file = f"{output_dir}/states_{method}.txt"
     
     with open(states_file, 'w') as f:

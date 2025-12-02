@@ -9,7 +9,6 @@ WAVENUMBER_TO_AU = 1 / 219474.631370540
 AU_TO_JOULES = 4.35974393937059e-18
 kB = 1.3806504e-23 / AU_TO_JOULES
 BOHR_TO_ANGSTROM = 0.52917720859
-ANGSTROM_TO_BOHR = 1 / BOHR_TO_ANGSTROM
 
 # Atomic masses in amu (Dalton)
 # Source: www.angelo.edu/faculty/kboudrea/periodic/structure_mass.htm
