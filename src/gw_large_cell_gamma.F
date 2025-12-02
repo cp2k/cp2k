@@ -279,20 +279,22 @@ CONTAINS
                   bounds_RI(2) = bs_env%max_RI_idx_from_AO_AO_atom(i_atoms(2), j_atoms(2))
 
                   IF (bounds_RI(1) > bounds_RI(2)) THEN
-                     print *,"MG: Could skip in get_mat_chi_Gamma_tau due to bounds_RI"
-                     !CYCLE
-                  END IF
+                     print *,"MG: Skipping in get_mat_chi_Gamma_tau due to bounds_RI"
+                     flop = 0_int_8
+                  ELSE
 
-                  CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
-                                    tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
-                                    beta=1.0_dp, tensor_3=bs_env%t_chi, &
-                                    contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
-                                    contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
-                                    bounds_1=bounds_comb, &! bounds_2=bounds_RI, bounds_3=bounds_RI, &
-                                    filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop, &
-                        unit_nr=bs_env%unit_nr_contract, &
-                        log_verbose=bs_env%print_contract_verbose)!char_id_gw="cGT")
-                  
+                     CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
+                                       tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
+                                       beta=1.0_dp, tensor_3=bs_env%t_chi, &
+                                       contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
+                                       contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
+                                       bounds_1=bounds_comb, &
+                                       bounds_2=bounds_RI, &
+                                       bounds_3=bounds_RI, &
+                                       filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)!char_id_gw="cGT")
+                  END IF
                   
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
@@ -716,9 +718,8 @@ CONTAINS
                           bs_env%i_ao_end_from_atom(atoms_AO_1(2))]
 
       IF (bounds_IL(1) > bounds_IL(2) .OR. bounds_comb(1, 2) > bounds_comb(2, 2)) THEN
-         print *, "MG: Could skip in G_times_3c due to bounds_IL or bounds_comb"
-         !CYCLE
-      END IF
+         print *, "MG: Skipping in G_times_3c due to bounds_IL or bounds_comb"
+      ELSE
 
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=t_3c_for_G, &
@@ -727,13 +728,13 @@ CONTAINS
                            tensor_3=t_M, &
                            contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                            contract_2=[2], notcontract_2=[1], map_2=[3], &
-                           !bounds_1=bounds_IL, &
-                           !bounds_2=bounds_comb, &
+                           bounds_1=bounds_IL, &
+                           bounds_2=bounds_comb, &
                            bounds_3=bounds_ao_1, &
                            filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)!, char_id_gw="G3c")
-
+      END IF
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -2055,8 +2056,8 @@ CONTAINS
                                  bs_env%max_AO_idx_from_RI_AO_atom(RI_atoms(2),bs_env%n_atom))
 
          IF (bounds_P(1) > bounds_P(2) .OR. bounds_ao(1,2) > bounds_ao(2,2)) THEN
-            print *, "MG: Could skip step in compute_3c_and_contract_W"
-           ! CYCLE
+            print *, "MG: Skipping step in compute_3c_and_contract_W"
+            CYCLE
          END IF
 
 
@@ -2073,9 +2074,9 @@ CONTAINS
                            tensor_3=t_3c_x_W_tmp, &
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
-                           !bounds_1=bounds_P, &
+                           bounds_1=bounds_P, &
                            bounds_2=bounds_Q, &
-                           !bounds_3=bounds_ao, &
+                           bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter, &
                         unit_nr=bs_env%unit_nr_contract, &
                         log_verbose=bs_env%print_contract_verbose)!, char_id_gw="3cW")
@@ -2170,8 +2171,8 @@ CONTAINS
 
          IF (bounds_mu(1) > bounds_mu(2) .OR. bounds_comb(1,1) > bounds_comb(2,1) .OR. &
                bounds_comb(1,2) > bounds_comb(2,2)) THEN
-            print *, "MG: Could skip step in contract_to_Sigma part 1"
-            !CYCLE
+            print *, "MG: Skipping step in contract_to_Sigma part 1"
+            CYCLE
          END IF
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
@@ -2184,9 +2185,9 @@ CONTAINS
                            tensor_3=t_3c_x_G, &
                            contract_1=[2], notcontract_1=[1], map_1=[3], &
                            contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                           !bounds_1=bounds_mu, &
+                           bounds_1=bounds_mu, &
                            bounds_2=bounds_nu, &
-                           !bounds_3=bounds_comb, &
+                           bounds_3=bounds_comb, &
                            filter_eps=bs_env%eps_filter, &
                         unit_nr=bs_env%unit_nr_contract, &
                         log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS1")
@@ -2206,9 +2207,9 @@ CONTAINS
                            bs_env%max_AO_idx_from_RI_AO_atom(j_atoms(2), i_atoms(2))]
 
       IF (bounds_ao(1) > bounds_ao(2)) THEN
-         print *, "MG: Could skip step in contract_to_Sigma part 2"
-         !flop = 0_int_8
-      END IF
+         print *, "MG: Skipping step in contract_to_Sigma part 2"
+         flop = 0_int_8
+      ELSE
          CALL dbt_contract(alpha=sign_Sigma, &
                            tensor_1=t_3c_x_W, &
                            tensor_2=t_3c_x_G_2, &
@@ -2217,12 +2218,12 @@ CONTAINS
                            contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                            contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
                            bounds_1=bounds_comb, & 
-                           !bounds_2=bounds_ao, &
-                           !bounds_3=bounds_ao, &
+                           bounds_2=bounds_ao, &
+                           bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
-
+      END IF
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
       END IF

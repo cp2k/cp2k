@@ -817,10 +817,10 @@ CONTAINS
       ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
       ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
       ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI
-      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = 1
-      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO
-      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = 1
+      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = 1!bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI!1
+      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = 1!bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO!1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -861,7 +861,7 @@ CONTAINS
 
       END DO
 
-      
+
       t2 = m_walltime()
       
       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
@@ -869,6 +869,17 @@ CONTAINS
       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
 
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A)') ''
+         WRITE (bs_env%unit_nr, '(T2,A)') 'min_RI_idx_from_AO_AO_atom'
+         print *, bs_env%min_RI_idx_from_AO_AO_atom
+         WRITE (bs_env%unit_nr, '(T2,A)') 'max_RI_idx_from_AO_AO_atom'
+         print *, bs_env%max_RI_idx_from_AO_AO_atom
+         WRITE (bs_env%unit_nr, '(T2,A)') 'min_AO_idx_from_RI_AO_atom'
+         print *, bs_env%min_AO_idx_from_RI_AO_atom
+         WRITE (bs_env%unit_nr, '(T2,A)') 'max_AO_idx_from_RI_AO_atom'
+         print *, bs_env%max_AO_idx_from_RI_AO_atom
+      END IF
 
       bs_env%occupation_3c_int = occupation_sum
       bs_env%max_dist_AO_atoms = max_dist_AO_atoms
