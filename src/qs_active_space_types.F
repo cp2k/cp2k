@@ -342,10 +342,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = "eri_type_eri_foreach"
 
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, m1, m2, m3, m4, &
-                                                  irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local, handle
+                                            irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local, handle, dummy_int(1)
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind, offsets, nonzero_elements_global
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
-      REAL(KIND=dp)                            :: erint
+      REAL(KIND=dp)                            :: erint, dummy_real(1)
       TYPE(mp_comm_type) :: mp_group
 
       CALL timeset(routineN, handle)
@@ -356,6 +356,9 @@ CONTAINS
       IF (.NOT. PRESENT(spin2)) THEN
          spin2 = nspin
       END IF
+
+      dummy_int = 0
+      dummy_real = 0.0_dp
 
       ASSOCIATE (eri => this%eri(nspin)%csr_mat, norb => this%norb)
          nindex = (norb*(norb + 1))/2
@@ -389,13 +392,19 @@ CONTAINS
                   offsets(proc) = offsets(proc - 1) + nonzero_elements_global(proc - 1)
                END DO
                nindex = offsets(mp_group%num_pe - 1) + nonzero_elements_global(mp_group%num_pe - 1)
-               irptr = eri%rowptr_local(i12l)
+               irptr = 1
+               IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
+                  irptr = eri%rowptr_local(i12l)
 
-               ! Exchange actual data
-               CALL mp_group%allgatherv(eri%colind_local(irptr:irptr + nonzero_elements_local - 1), &
-                                        colind(1:nindex), nonzero_elements_global, offsets)
-               CALL mp_group%allgatherv(eri%nzval_local%r_dp(irptr:irptr + nonzero_elements_local - 1), &
-                                        erival(1:nindex), nonzero_elements_global, offsets)
+                  ! Exchange actual data
+                  CALL mp_group%allgatherv(eri%colind_local(irptr:irptr + nonzero_elements_local - 1), &
+                                           colind(1:nindex), nonzero_elements_global, offsets)
+                  CALL mp_group%allgatherv(eri%nzval_local%r_dp(irptr:irptr + nonzero_elements_local - 1), &
+                                           erival(1:nindex), nonzero_elements_global, offsets)
+               ELSE
+                  CALL mp_group%allgatherv(dummy_int(1:1), colind(1:nindex), nonzero_elements_global, offsets)
+                  CALL mp_group%allgatherv(dummy_real(1:1), erival(1:nindex), nonzero_elements_global, offsets)
+               END IF
 
                DO i34l = 1, nindex
                   i34 = colind(i34l)

@@ -1329,7 +1329,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_matrix_pq_rnu, fm_matrix_pq_rs, &
                                                             fm_mo_coeff_as
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff1, mo_coeff2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_pq_rnu, mo_coeff_as
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1607,7 +1607,7 @@ CONTAINS
       ! calculate the integrals
       stored_integrals = 0
       DO isp1 = 1, nspins
-         CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1, mo_coeff=mo_coeff1)
+         CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
          irange = get_irange_csr(nmm, eri_env%comm_exchange)
          DO i1 = 1, SIZE(orbitals, 1)
@@ -1615,7 +1615,7 @@ CONTAINS
             IF (eri_env%eri_gpw%store_wfn) THEN
                wfn1 => wfn_a(iwa1, isp1)
             ELSE
-               CALL calculate_wavefunction(mo_coeff1, iwa1, wfn1, rho_g, atomic_kind_set, &
+               CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwa1, wfn1, rho_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
             END IF
             DO i2 = i1, SIZE(orbitals, 1)
@@ -1627,7 +1627,7 @@ CONTAINS
                IF (eri_env%eri_gpw%store_wfn) THEN
                   wfn2 => wfn_a(iwa2, isp1)
                ELSE
-                  CALL calculate_wavefunction(mo_coeff1, iwa2, wfn2, rho_g, atomic_kind_set, &
+                  CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwa2, wfn2, rho_g, atomic_kind_set, &
                                               qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                END IF
                ! calculate charge distribution and potential
@@ -1676,7 +1676,7 @@ CONTAINS
                            IF (iwb1 <= iwb2) THEN
                               iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
                               erint = fm_matrix_pq_rs(isp2)%local_data(row_local, col_local)
-                              IF (ABS(erint) > eri_env%eps_integral .AND. (iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
+                              IF (ABS(erint) > eri_env%eps_integral .AND. (irange(1) - 1 + iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
                                  icount2 = icount2 + 1
                                  eri(icount2) = erint
                                  eri_index(icount2) = iwb12
@@ -1693,7 +1693,7 @@ CONTAINS
                   END DO
                ELSEIF (eri_env%method == eri_method_full_gpw) THEN
                   DO isp2 = isp1, nspins
-                     CALL get_mo_set(mo_set=mos(isp2), nmo=nmo2, mo_coeff=mo_coeff2)
+                     CALL get_mo_set(mo_set=mos(isp2), nmo=nmo2)
                      nx = (nmo2*(nmo2 + 1))/2
                      ALLOCATE (eri(nx), eri_index(nx))
                      icount2 = 0
@@ -1705,7 +1705,7 @@ CONTAINS
                         IF (eri_env%eri_gpw%store_wfn) THEN
                            wfn3 => wfn_a(iwb1, isp2)
                         ELSE
-                           CALL calculate_wavefunction(mo_coeff2, iwb1, wfn3, rho_g, atomic_kind_set, &
+                           CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwb1, wfn3, rho_g, atomic_kind_set, &
                                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                         END IF
                         CALL pw_zero(wfn_r)
@@ -1717,7 +1717,7 @@ CONTAINS
                            IF (eri_env%eri_gpw%store_wfn) THEN
                               wfn4 => wfn_a(iwb2, isp2)
                            ELSE
-                              CALL calculate_wavefunction(mo_coeff2, iwb2, wfn4, rho_g, atomic_kind_set, &
+                              CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwb2, wfn4, rho_g, atomic_kind_set, &
                                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                            END IF
                            ! We reduce the amount of communication by collecting the local sums first and sum globally later
@@ -2405,7 +2405,7 @@ CONTAINS
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
          eri => active_space_env%eri%eri(1)%csr_mat
          CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, &
-                                         active_space_env%eri%method, active_space_env%eri%comm_exchange)
+                                         active_space_env%eri%comm_exchange)
 
          ! compute eeri = E_H[rho^A] + E_HFX[rho^A] as
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2459,9 +2459,9 @@ CONTAINS
          eri_ab => active_space_env%eri%eri(2)%csr_mat
          eri_bb => active_space_env%eri%eri(3)%csr_mat
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                     tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method, comm_exchange=active_space_env%eri%comm_exchange)
+                                              tr_mixed_eri=.FALSE., comm_exchange=active_space_env%eri%comm_exchange)
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                      tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method, comm_exchange=active_space_env%eri%comm_exchange)
+                                              tr_mixed_eri=.TRUE., comm_exchange=active_space_env%eri%comm_exchange)
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -2505,15 +2505,13 @@ CONTAINS
 !> \param eri two electon integrals in MO
 !> \param p_mat density matrix
 !> \param ks_ref fockian matrix
-!> \param eri_method ...
 !> \param comm_exchange ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method, comm_exchange)
+   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, comm_exchange)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_ref
-      INTEGER, INTENT(IN)                                :: eri_method
       TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_fock_matrix'
@@ -2532,11 +2530,7 @@ CONTAINS
       nmo_total = SIZE(p_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
       CALL mp_group%set_handle(eri%mp_group%get_handle())
-      IF (eri_method == eri_method_gpw_ht) THEN
-         irange = [1, nindex]
-      ELSE
-         irange = get_irange_csr(nindex, comm_exchange)
-      END IF
+      irange = get_irange_csr(nindex, comm_exchange)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
@@ -2599,17 +2593,15 @@ CONTAINS
 !> \param p_b_mat density matrix for down-spin
 !> \param ks_a_ref fockian matrix for up-spin
 !> \param tr_mixed_eri boolean to indicate Coulomb interaction alignment
-!> \param eri_method ...
 !> \param comm_exchange ...
 ! **************************************************************************************************
    SUBROUTINE build_subspace_spin_fock_matrix(active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri, &
-                                              eri_method, comm_exchange)
+                                              comm_exchange)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri_aa, eri_ab
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_a_mat, p_b_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_a_ref
       LOGICAL, INTENT(IN)                                :: tr_mixed_eri
-      INTEGER, INTENT(IN)                                :: eri_method
       TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_spin_fock_matrix'
@@ -2626,11 +2618,7 @@ CONTAINS
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      IF (eri_method == eri_method_gpw_ht) THEN
-         irange = [1, nindex]
-      ELSE
-         irange = get_irange_csr(nindex, comm_exchange)
-      END IF
+      irange = get_irange_csr(nindex, comm_exchange)
       IF (tr_mixed_eri) THEN
          spin1 = 2
          spin2 = 1
@@ -2679,11 +2667,7 @@ CONTAINS
       END DO
       !
 
-      IF (eri_method == eri_method_gpw_ht) THEN
-         irange = [1, nindex]
-      ELSE
-         irange = get_irange_csr(nindex, comm_exchange)
-      END IF
+      irange = get_irange_csr(nindex, comm_exchange)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
