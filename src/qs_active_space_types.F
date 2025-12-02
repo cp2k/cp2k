@@ -382,7 +382,6 @@ CONTAINS
                nonzero_elements_local = 0
                IF (i12 >= irange(1) .AND. i12 <= irange(2)) nonzero_elements_local = eri%nzerow_local(i12l)
                CALL mp_group%allgather(nonzero_elements_local, nonzero_elements_global)
-               WRITE (*, *) "nonzero_elements_global (", i12, ")", nonzero_elements_global
 
                ! 2) Prepare arrays for communication (calculate the offsets and the total number of elements)
                offsets(0) = 0
