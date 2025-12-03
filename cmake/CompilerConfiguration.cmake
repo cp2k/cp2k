@@ -89,6 +89,18 @@ add_link_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-fsanitize=leak>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-fsanitize=leak>")
 
+# Conventions
+add_compile_options(
+  "$<$<CONFIG:CONVENTIONS>:-O1;-march=native;-mtune=native>"
+  "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Wno-pedantic;-Wall;-Wextra;-Wsurprising>"
+  "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Warray-temporaries;-Wconversion-extra;-Wimplicit-interface>"
+  "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Wimplicit-procedure;-Wreal-q-constant;-Walign-commons>"
+  "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Wfunction-elimination;-Wrealloc-lhs;-Wcompare-reals;-Wzerotrip>"
+  # Writes a lot of output. Make sure to use:
+  # -DCMAKE_Fortran_COMPILER_LAUNCHER="redirect_gfortran_output.py"
+  "$<$<AND:$<CONFIG:CONVENTIONS>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fdump-fortran-original>"
+)
+
 # Coverage
 add_compile_options(
   "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-O1;-march=native;-mtune=native>"

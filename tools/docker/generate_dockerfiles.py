@@ -95,7 +95,7 @@ def main() -> None:
             f.write(test_build(f"toolchain_hip_{gpu_ver}", "psmp"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(install_deps_toolchain(with_dbcsr="no"))
+        f.write(install_deps_toolchain())
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
@@ -212,21 +212,16 @@ RUN ./test_coverage.sh 2>&1 | tee report.log
 
 # ======================================================================================
 def conventions() -> str:
+
     return (
-        rf"""
+        f"""
+COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
+"""
+        + install_cp2k_cmake(profile="toolchain_conventions", version="psmp")
+        + f"""
 # Run test for conventions.
-WORKDIR /opt/cp2k
-COPY ./Makefile .
-COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
-COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
-RUN /bin/bash -ec " \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_warn.psmp ./arch/ && \
-    source /opt/cp2k-toolchain/install/setup && \
-    ./tools/conventions/test_conventions.sh |& tee report.log && \
-    rm -rf lib obj exe"
+RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
 """
         + print_cached_report()
     )

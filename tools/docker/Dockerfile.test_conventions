@@ -25,7 +25,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=mpich \
-    --with-dbcsr=no \
+    --with-dbcsr \
     --with-gcc=system \
     --with-tblite=no \
     --dry-run
@@ -67,19 +67,24 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Run test for conventions.
+COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
+
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
+COPY ./data ./data
+COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_conventions psmp
+
+# Run test for conventions.
 COPY ./tools/conventions ./tools/conventions
-COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
-RUN /bin/bash -ec " \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_warn.psmp ./arch/ && \
-    source /opt/cp2k-toolchain/install/setup && \
-    ./tools/conventions/test_conventions.sh |& tee report.log && \
-    rm -rf lib obj exe"
+RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

@@ -25,7 +25,7 @@ if ninja --verbose &> ninja.log; then
   echo "done"
 else
   echo -e "failed.\n\n"
-  tail -n 100 ninja.log
+  tail -n 1000 ninja.log
   mkdir -p /workspace/artifacts/
   cp ninja.log /workspace/artifacts/
   echo -e "\nSummary: Compilation failed"

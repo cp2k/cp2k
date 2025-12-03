@@ -188,6 +188,20 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Conventions" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_Fortran_COMPILER_LAUNCHER="redirect_gfortran_output.py" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_TBLITE=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \

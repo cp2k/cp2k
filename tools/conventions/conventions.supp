@@ -1,3 +1,4 @@
+ai_contraction_sphi.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init" https://cp2k.org/conv#c012
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel" https://cp2k.org/conv#c012
 base_hooks.F: Found CALL m_abort in procedure "cp_abort" https://cp2k.org/conv#c102
@@ -21,7 +22,10 @@ cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler" https:/
 cp_files.F: Found CLOSE statement in procedure "close_file" https://cp2k.org/conv#c204
 cp_files.F: Found OPEN statement in procedure "open_file" https://cp2k.org/conv#c203
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm" https://cp2k.org/conv#c101
+cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "check_diag" https://cp2k.org/conv#c101
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon" https://cp2k.org/conv#c101
+cp_fm_elpa.F: Module "elpa_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+cp_fm_elpa.F: Module "elpa" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active" https://cp2k.org/conv#c012
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy" https://cp2k.org/conv#c012
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "freev" https://cp2k.org/conv#c012
@@ -37,6 +41,8 @@ cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_s
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
+dbt_array_list_methods.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+dbt_tas_util.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
@@ -55,6 +61,14 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https:
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables" https://cp2k.org/conv#c012
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
+fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c204
+fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_init" https://cp2k.org/conv#c204
+fftw3_lib.F: Found OPEN statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c203
+fftw3_lib.F: Found OPEN statement in procedure "fftw3_do_init" https://cp2k.org/conv#c203
+fftw3_lib.F: Found type fftwf_iodim64 without initializer https://cp2k.org/conv#c016
+fftw3_lib.F: Found type fftwf_iodim without initializer https://cp2k.org/conv#c016
+fftw3_lib.F: Found type fftw_iodim64 without initializer https://cp2k.org/conv#c016
+fftw3_lib.F: Found type fftw_iodim without initializer https://cp2k.org/conv#c016
 fftw3_lib.F: Same actual argument associated with INTENT(OUT) argument 'in' and INTENT(OUT) argument 'out' at (1)
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg" https://cp2k.org/conv#c012
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc" https://cp2k.org/conv#c012
@@ -71,8 +85,13 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write" h
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min" https://cp2k.org/conv#c012
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path" https://cp2k.org/conv#c012
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res" https://cp2k.org/conv#c012
+greenx_interface.F: Module "gx_minimax" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+gx_ac_unittest.F: Found WRITE statement with hardcoded unit in "gx_ac_unittest" https://cp2k.org/conv#c012
+hdf5_wrapper.F: Module "hdf5" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache" https://cp2k.org/conv#c001
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals" https://cp2k.org/conv#c012
+hfx_types.F: Found type hfx_type without initializer https://cp2k.org/conv#c016
+input_cp2k_pwdft.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c" https://cp2k.org/conv#c012
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse" https://cp2k.org/conv#c012
 kpsym.F: Found GOTO statement in procedure "atftm1" https://cp2k.org/conv#c201
@@ -86,6 +105,9 @@ kpsym.F: Found GOTO statement in procedure "primlatt" https://cp2k.org/conv#c201
 kpsym.F: Found GOTO statement in procedure "remove" https://cp2k.org/conv#c201
 kpsym.F: Found GOTO statement in procedure "sppt2" https://cp2k.org/conv#c201
 libcp2k.F: Found type eri2array without initializer https://cp2k.org/conv#c016
+libgrpp_integrals.F: Module "libgrpp" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+libint_wrapper.F: Found type cp_libint_t without initializer https://cp2k.org/conv#c016
+libint_wrapper.F: Module "libint_f" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test" https://cp2k.org/conv#c104
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test" https://cp2k.org/conv#c104
@@ -100,6 +122,7 @@ machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c2
 machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
+machine.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
@@ -109,13 +132,32 @@ memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated" https://cp2k.org/conv#c012
-message_passing.F: Found CALL m_abort in procedure "mp_abort" https://cp2k.org/conv#c102
-message_passing.F: Found CLOSE statement in procedure "mp_file_close" https://cp2k.org/conv#c204
-message_passing.F: Found OPEN statement in procedure "mp_file_open" https://cp2k.org/conv#c203
 message_passing.F: Found STOP statement in procedure "mp_abort" https://cp2k.org/conv#c205
+message_passing.F: Found type mpi_comm without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_datatype without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_errhandler without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_file without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_group without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_info without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_message without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_op without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_request without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_session without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_status without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpi_win without initializer https://cp2k.org/conv#c016
+message_passing.F: Found type mpix_stream without initializer https://cp2k.org/conv#c016
+message_passing.F: Module "mpi_c_interface_types" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "mpi_f08_callbacks" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "mpi_f08_compile_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "mpi_f08_link_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "mpi_f08_types" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+message_passing.F: Module "pmpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess" https://cp2k.org/conv#c001
+mp_perf_test.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "shift_potential" https://cp2k.org/conv#c007
@@ -139,9 +181,12 @@ ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "sca
 ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "wavelet_function" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimensions" https://cp2k.org/conv#c012
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions" https://cp2k.org/conv#c012
+pwdft_environment_types.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
+qcschema.F: Module "hdf5_wrapper" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
 qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
+qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
@@ -168,6 +213,13 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value" https://cp2k.org/conv#c012
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug" https://cp2k.org/conv#c012
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup" https://cp2k.org/conv#c012
+sirius_interface.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_emtoptions.F: Module "global_meshvar" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_emtoptions.F: Module "negfcoop" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_emtoptions.F: Module "negfmod" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_emtoptions.F: Module "sigma" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_interface.F: Module "mnegf_interface" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+smeagol_interface.F: Module "negfmod" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc" https://cp2k.org/conv#c012
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor" https://cp2k.org/conv#c012
 statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" https://cp2k.org/conv#c012
@@ -191,6 +243,9 @@ topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
 topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://cp2k.org/conv#c001
+trexio.F: Found STOP statement in procedure "trexio_assert" https://cp2k.org/conv#c205
+trexio.F: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
+trexio_utils.F: Module "trexio" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c204
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c204
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c203
