@@ -986,6 +986,14 @@ CONTAINS
    END SUBROUTINE cp_sirius_init
 
 ! **************************************************************************************************
+!> \brief Return always .FALSE. because the Sirius library is not compiled in.
+!> \return Return the initialisation status of the Sirius library as boolean
+! **************************************************************************************************
+   LOGICAL FUNCTION cp_sirius_is_initialized()
+      cp_sirius_is_initialized = .FALSE.
+   END FUNCTION cp_sirius_is_initialized
+
+! **************************************************************************************************
 !> \brief Empty implementation in case SIRIUS is not compiled in.
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
