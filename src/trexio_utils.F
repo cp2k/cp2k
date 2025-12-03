@@ -124,12 +124,10 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: trexio_section
       TYPE(dbcsr_p_type), INTENT(IN), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
 
+#ifdef __TREXIO
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trexio'
 
-      INTEGER                                            :: handle
-
-#ifdef __TREXIO
-      INTEGER                                            :: output_unit, unit_trexio
+      INTEGER                                            :: handle, output_unit, unit_trexio
       CHARACTER(len=default_path_length)                 :: filename, filename_dE
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
@@ -137,21 +135,21 @@ CONTAINS
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
       REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca
-      TYPE(cell_type), POINTER                           :: cell => Null()
-      TYPE(cp_logger_type), POINTER                      :: logger => Null()
-      TYPE(dft_control_type), POINTER                    :: dft_control => Null()
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(kpoint_type), POINTER                         :: kpoints => Null()
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
-      TYPE(qs_energy_type), POINTER                      :: energy => Null()
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
-      TYPE(sgp_potential_type), POINTER                  :: sgp_potential => Null()
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp => Null()
-      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env => Null()
-      TYPE(mp_para_env_type), POINTER                    :: para_env => Null(), para_env_inter_kp => Null()
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => Null()
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct => Null()
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -173,21 +171,23 @@ CONTAINS
                                                             shell_index, z_core, max_ang_mom_plus_1, &
                                                             ang_mom, powers, ao_shell, mo_spin, mo_kpoint, &
                                                             cp2k_to_trexio_ang_mom
-      INTEGER, DIMENSION(:), POINTER                     :: nshell => Null(), npgf => Null()
-      INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set => Null()
+      INTEGER, DIMENSION(:), POINTER                     :: nshell, npgf
+      INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
                                                             prim_factor, ao_normalization, mo_energy, &
                                                             mo_occupation
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null(), norm_cgf => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
                                                             mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null(), data_block => Null()
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc => Null()
-#endif
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
       CALL timeset(routineN, handle)
 
-#ifdef __TREXIO
+      NULLIFY (cell, logger, dft_control, basis_set, kpoints, particle_set, energy, kind_set)
+      NULLIFY (sgp_potential, mos, mos_kp, kp_env, para_env, para_env_inter_kp, blacs_env)
+      NULLIFY (fm_struct, nshell, npgf, l_shell_set, wkp, norm_cgf, zetas, data_block, gcc)
+
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -1036,13 +1036,14 @@ CONTAINS
          rc = trexio_close(f)
          CALL trexio_error(rc)
       END IF
+
+      CALL timestop(handle)
 #else
       MARK_USED(qs_env)
       MARK_USED(trexio_section)
       MARK_USED(energy_derivative)
       CPWARN('TREXIO support has not been enabled in this build.')
 #endif
-      CALL timestop(handle)
 
    END SUBROUTINE write_trexio
 
@@ -1059,12 +1060,11 @@ CONTAINS
       TYPE(mo_set_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL   :: mo_set_trexio
       TYPE(dbcsr_p_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
 
+#ifdef __TREXIO
+
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_trexio'
 
-      INTEGER                                            :: handle
-
-#ifdef __TREXIO
-      INTEGER                                            :: output_unit, unit_dE
+      INTEGER                                            :: handle, output_unit, unit_dE
       CHARACTER(len=default_path_length)                 :: filename, filename_dE
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
@@ -1088,20 +1088,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: mo_coefficient, mos_sgf, coord, dEdP, temp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
 
-      TYPE(cp_logger_type), POINTER                      :: logger => Null()
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
-      TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
-      TYPE(dft_control_type), POINTER                    :: dft_control => Null()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s => Null()
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(dbcsr_iterator_type)                          :: iter
-#endif
 
       CALL timeset(routineN, handle)
 
-#ifdef __TREXIO
+      NULLIFY (logger, mo_coeff_ref, mo_coeff_target, para_env, dft_control, matrix_s, kind_set, mos, particle_set)
+
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
       myprint = logger%iter_info%print_level
@@ -1463,6 +1463,8 @@ CONTAINS
          CALL trexio_error(rc)
       END IF
 
+      CALL timestop(handle)
+
 #else
       MARK_USED(qs_env)
       MARK_USED(trexio_filename)
@@ -1471,7 +1473,6 @@ CONTAINS
       CPWARN('TREXIO support has not been enabled in this build.')
       CPABORT('TREXIO Not Available')
 #endif
-      CALL timestop(handle)
 
    END SUBROUTINE read_trexio
 
