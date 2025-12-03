@@ -447,16 +447,15 @@ CONTAINS
          CALL get_polar_env(polar_env=polar_env, &
                             psi1_dBerry=psi1_dBerry, &
                             dBerry_psi0=dBerry_psi0)
+         DO idir = 1, 3
+            DO ispin = 1, nspins
+               CALL cp_fm_set_all(psi1_dBerry(idir, ispin), 0.0_dp)
+            END DO
+         END DO
          ! Restart
          IF (linres_control%linres_restart) THEN
             DO idir = 1, 3
                CALL linres_read_restart(qs_env, lr_section, psi1_dBerry(idir, :), idir, "psi1_dBerry")
-            END DO
-         ELSE
-            DO idir = 1, 3
-               DO ispin = 1, nspins
-                  CALL cp_fm_set_all(psi1_dBerry(idir, ispin), 0.0_dp)
-               END DO
             END DO
          END IF
          loop_idir: DO idir = 1, 3

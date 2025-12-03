@@ -1336,7 +1336,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=virtual)
-      CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin), fm_struct_tmp, name="fm_L_jb")
+      CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin), fm_struct_tmp, name="fm_L_jb", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! first Virtual

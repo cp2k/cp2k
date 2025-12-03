@@ -114,13 +114,15 @@ CONTAINS
 !> \param matrix        matrix to be created
 !> \param matrix_struct structure of the matrix
 !> \param name          name of the matrix
+!> \param set_zero ...
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
+   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name, set_zero)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
       TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
+      LOGICAL, INTENT(in), OPTIONAL                      :: set_zero
 
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -137,8 +139,11 @@ CONTAINS
       ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
       ALLOCATE (matrix%local_data(nrow_local, ncol_local))
 
-      ! do not initialise created matrix as it is up to the user to do so
-      !CALL zcopy(nrow_local*ncol_local, z_zero, 0, matrix%local_data, 1)
+      IF (PRESENT(set_zero)) THEN
+         IF (set_zero) THEN
+            matrix%local_data(1:nrow_local, 1:ncol_local) = z_zero
+         END IF
+      END IF
 
       IF (PRESENT(name)) THEN
          matrix%name = name

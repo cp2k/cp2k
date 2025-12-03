@@ -1459,9 +1459,9 @@ CONTAINS
                                nrow_global=ntot, ncol_global=1)
 
       CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
-      CALL cp_cfm_create(dip_cfm, dip_struct)
-      CALL cp_cfm_create(work1_cfm, full_struct)
-      CALL cp_cfm_create(work2_cfm, full_struct)
+      CALL cp_cfm_create(dip_cfm, dip_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(work1_cfm, full_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(work2_cfm, full_struct, set_zero=.TRUE.)
 
       ALLOCATE (transdip(ntot, 1))
 
@@ -1601,7 +1601,7 @@ CONTAINS
                                nrow_global=ntot, ncol_global=ntot)
       ALLOCATE (amew_op(dim_op))
       DO i = 1, dim_op
-         CALL cp_fm_create(amew_op(i), full_struct)
+         CALL cp_fm_create(amew_op(i), full_struct, set_zero=.TRUE.)
       END DO !i
 
       !  Deal with the GS-GS contribution <0|0> = 2*sum_j <phi_j|op|phi_j>

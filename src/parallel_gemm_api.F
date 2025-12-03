@@ -21,6 +21,7 @@ MODULE parallel_gemm_api
    USE cp_cfm_types,                    ONLY: cp_cfm_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
+                                              cp_fm_set_all_submatrix,&
                                               cp_fm_type
    USE input_constants,                 ONLY: do_cosma,&
                                               do_scalapack
@@ -75,7 +76,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'parallel_gemm_fm'
 
-      INTEGER                                            :: handle, my_multi
+      INTEGER                                            :: cfc, cfr, handle, my_multi
+
+      MARK_USED(cfc)
+      MARK_USED(cfr)
 
       my_multi = cp_fm_get_mm_type()
 
@@ -92,6 +96,16 @@ CONTAINS
       CASE (do_cosma)
 #if defined(__COSMA)
          CALL timeset(routineN//"_cosma", handle)
+         !> This seems not to be correct in COSMA! See BLAS definition:
+         !>           On entry,  BETA  specifies the scalar  beta.  When  BETA  is
+         !>           supplied as zero then C need not be set on input.
+         IF (beta == 0.0_dp) THEN
+            cfr = 1
+            cfc = 1
+            IF (PRESENT(c_first_row)) cfr = c_first_row
+            IF (PRESENT(c_first_col)) cfc = c_first_col
+            CALL cp_fm_set_all_submatrix(matrix_c, 0.0_dp, cfr, cfc, m, n)
+         END IF
          CALL offload_activate_chosen_device()
          CALL cosma_pdgemm(transa=transa, transb=transb, m=m, n=n, k=k, alpha=alpha, &
                            matrix_a=matrix_a, matrix_b=matrix_b, beta=beta, matrix_c=matrix_c, &

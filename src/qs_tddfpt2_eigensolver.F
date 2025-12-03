@@ -611,8 +611,8 @@ CONTAINS
       CALL cp_fm_get_info(krylov_vects(1, 1), context=blacs_env_global)
 
       CALL cp_fm_struct_create(fm_struct, nrow_global=nkvs, ncol_global=nkvs, context=blacs_env_global)
-      CALL cp_fm_create(Atilde_fm, fm_struct)
-      CALL cp_fm_create(evects_Atilde_fm, fm_struct)
+      CALL cp_fm_create(Atilde_fm, fm_struct, set_zero=.TRUE.)
+      CALL cp_fm_create(evects_Atilde_fm, fm_struct, set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
 
       ! *** compute upper-diagonal reduced action matrix ***

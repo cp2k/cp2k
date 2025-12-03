@@ -1514,7 +1514,7 @@ CONTAINS
 
       ALLOCATE (fm_W_MIC_time(bs_env%num_time_freq_points))
       DO i_t = 1, bs_env%num_time_freq_points
-         CALL cp_fm_create(fm_W_MIC_time(i_t), bs_env%fm_RI_RI%matrix_struct)
+         CALL cp_fm_create(fm_W_MIC_time(i_t), bs_env%fm_RI_RI%matrix_struct, set_zero=.TRUE.)
       END DO
 
       CALL timestop(handle)

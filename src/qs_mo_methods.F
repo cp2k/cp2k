@@ -103,7 +103,7 @@ CONTAINS
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
       IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
-      CALL cp_fm_create(svmatrix, vmatrix%matrix_struct, "SV")
+      CALL cp_fm_create(svmatrix, vmatrix%matrix_struct, "SV", set_zero=.TRUE.)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, svmatrix, ncol)
 
       NULLIFY (fm_struct_tmp)

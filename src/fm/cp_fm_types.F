@@ -55,6 +55,7 @@ MODULE cp_fm_types
              cp_fm_get_element, &
              cp_fm_get_diag, & ! get diagonal
              cp_fm_set_all, & ! set all elements and diagonal
+             cp_fm_set_all_submatrix, & ! set a submatrix to a given value
              cp_fm_set_submatrix, & ! set a submatrix to given values
              cp_fm_get_submatrix, & ! get a submatrix of given values
              cp_fm_init_random, &
@@ -154,17 +155,18 @@ CONTAINS
 !> \param matrix_struct the structure of matrix
 !> \param name ...
 !> \param use_sp ...
+!> \param set_zero ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp)
+   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp, set_zero)
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
       TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: name
-      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
+      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp, set_zero
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_create'
 
@@ -197,11 +199,14 @@ CONTAINS
          ALLOCATE (matrix%local_data(nrow_local, ncol_local))
       END IF
 
-      ! JVDV we should remove this, as it is up to the user to zero afterwards
-      IF (matrix%use_sp) THEN
-         matrix%local_data_sp(1:nrow_local, 1:ncol_local) = 0.0_sp
-      ELSE
-         matrix%local_data(1:nrow_local, 1:ncol_local) = 0.0_dp
+      IF (PRESENT(set_zero)) THEN
+         IF (set_zero) THEN
+            IF (matrix%use_sp) THEN
+               matrix%local_data_sp(1:nrow_local, 1:ncol_local) = 0.0_sp
+            ELSE
+               matrix%local_data(1:nrow_local, 1:ncol_local) = 0.0_dp
+            END IF
+         END IF
       END IF
 
       IF (PRESENT(name)) THEN
@@ -863,6 +868,56 @@ CONTAINS
       ! CALL timestop(handle)
 
    END SUBROUTINE cp_fm_set_submatrix
+
+! **************************************************************************************************
+!> \brief sets a submatrix of a full matrix to a given value
+!>       fm(start_row:start_row+n_rows,start_col:start_col+n_cols) = value
+!> \param fm the full to change
+!> \param new_value  ...
+!> \param start_row the starting row of matrix
+!> \param start_col the starting col of matrix
+!> \param n_rows the number of rows to change
+!> \param n_cols the number of columns to change
+!> \par History
+!>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+!>      12.2025 created from cp_fm_set_submatrix
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE cp_fm_set_all_submatrix(fm, new_value, start_row, start_col, n_rows, n_cols)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      REAL(KIND=dp), INTENT(in)                          :: new_value
+      INTEGER, INTENT(in)                                :: start_row, start_col, n_rows, n_cols
+
+      INTEGER                                            :: i, i0, j, j0, ncol_global, ncol_local, &
+                                                            nrow_global, nrow_local, this_col, &
+                                                            this_row
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: full_block
+
+      CPASSERT(.NOT. fm%use_sp)
+
+      full_block => fm%local_data
+
+      CALL cp_fm_get_info(matrix=fm, &
+                          nrow_global=nrow_global, ncol_global=ncol_global, &
+                          nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+
+      i0 = start_row
+      j0 = start_col
+      DO j = 1, ncol_local
+         this_col = col_indices(j) - j0 + 1
+         IF (this_col >= 1 .AND. this_col <= n_cols) THEN
+            DO i = 1, nrow_local
+               this_row = row_indices(i) - i0 + 1
+               IF (this_row >= 1 .AND. this_row <= n_rows) THEN
+                  full_block(i, j) = new_value
+               END IF
+            END DO
+         END IF
+      END DO
+
+   END SUBROUTINE cp_fm_set_all_submatrix
 
 ! **************************************************************************************************
 !> \brief gets a submatrix of a full matrix

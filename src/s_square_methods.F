@@ -121,7 +121,7 @@ CONTAINS
             CALL cp_fm_struct_release(fm_struct_tmp)
             ! Create S*C(beta)
             CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp)
-            CALL cp_fm_create(scb, fm_struct_tmp, name="S*C(beta)")
+            CALL cp_fm_create(scb, fm_struct_tmp, name="S*C(beta)", set_zero=.TRUE.)
             ! Compute S*C(beta)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_beta, scb, nbeta)
             ! Compute C(alpha)^T*S*C(beta)
@@ -148,7 +148,7 @@ CONTAINS
                CALL parallel_gemm('N', 'T', nao, nalpha, nbeta, -strength, scb, catscb, 1.0_dp, mo_derivs(1))
                ! Create S*C(alpha)
                CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
-               CALL cp_fm_create(sca, fm_struct_tmp, name="S*C(alpha)")
+               CALL cp_fm_create(sca, fm_struct_tmp, name="S*C(alpha)", set_zero=.TRUE.)
                ! Compute S*C(alpha)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_alpha, sca, nalpha)
                ! Add -strength*S*C(alpha)*C(alpha)^T*S*C(beta) to the beta MO derivatives
