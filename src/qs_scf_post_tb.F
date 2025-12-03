@@ -179,7 +179,7 @@ CONTAINS
                                                             has_homo, omit_headers, print_it, &
                                                             rebuild, vdip
       REAL(KIND=dp)                                      :: zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge, zcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: echarge, mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
@@ -236,6 +236,7 @@ CONTAINS
       !
       CALL mulliken_charges(matrix_p, matrix_s, para_env, charges)
       !
+      ALLOCATE (zcharge(natom))
       nkind = SIZE(atomic_kind_set)
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
@@ -252,6 +253,7 @@ CONTAINS
          DO iatom = 1, nat
             iat = atomic_kind_set(ikind)%atom_list(iatom)
             mcharge(iat) = zeff - SUM(charges(iat, 1:nspins))
+            zcharge(iat) = zeff
          END DO
       END DO
 
@@ -520,7 +522,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_e_density(qs_env, print_key)
+            CALL print_e_density(qs_env, zcharge, print_key)
          ELSE
             CPWARN("Electronic density cube file not implemented for TB methods.")
          END IF
@@ -534,7 +536,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_density_cubes(qs_env, print_key, total_density=.TRUE.)
+            CALL print_density_cubes(qs_env, zcharge, print_key, total_density=.TRUE.)
          ELSE
             CPWARN("Total density cube file not implemented for TB methods.")
          END IF
@@ -548,7 +550,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_density_cubes(qs_env, print_key, v_hartree=.TRUE.)
+            CALL print_density_cubes(qs_env, zcharge, print_key, v_hartree=.TRUE.)
          ELSE
             CPWARN("Hartree potential cube file not implemented for TB methods.")
          END IF
@@ -562,7 +564,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_density_cubes(qs_env, print_key, efield=.TRUE.)
+            CALL print_density_cubes(qs_env, zcharge, print_key, efield=.TRUE.)
          ELSE
             CPWARN("Efield cube file not implemented for TB methods.")
          END IF
@@ -576,7 +578,7 @@ CONTAINS
                CALL rebuild_pw_env(qs_env)
                rebuild = .FALSE.
             END IF
-            CALL print_elf(qs_env, print_key)
+            CALL print_elf(qs_env, zcharge, print_key)
          ELSE
             CPWARN("ELF not implemented for TB methods.")
          END IF
@@ -591,7 +593,7 @@ CONTAINS
                   CALL rebuild_pw_env(qs_env)
                   rebuild = .FALSE.
                END IF
-               CALL print_mo_cubes(qs_env, print_key)
+               CALL print_mo_cubes(qs_env, zcharge, print_key)
             ELSE
                CPWARN("Printing of MO cube files not implemented for TB methods.")
             END IF
@@ -737,6 +739,8 @@ CONTAINS
 
       CALL write_ks_matrix_csr(qs_env, qs_env%input)
       CALL write_s_matrix_csr(qs_env, qs_env%input)
+
+      DEALLOCATE (zcharge)
 
       CALL timestop(handle)
 
@@ -1064,11 +1068,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param zcharge ...
 !> \param cube_section ...
 ! **************************************************************************************************
-   SUBROUTINE print_e_density(qs_env, cube_section)
+   SUBROUTINE print_e_density(qs_env, zcharge, cube_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zcharge
       TYPE(section_vals_type), POINTER                   :: cube_section
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
@@ -1144,7 +1150,7 @@ CONTAINS
                   "The sum of alpha and beta density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                               particles=particles, stride=section_get_ivals(cube_section, "STRIDE"), &
+                               particles=particles, zeff=zcharge, stride=section_get_ivals(cube_section, "STRIDE"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             CALL pw_copy(rho_r(1), rho_elec_rspace)
@@ -1165,7 +1171,7 @@ CONTAINS
                   "The spin density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                               particles=particles, &
+                               particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -1191,7 +1197,7 @@ CONTAINS
                "The electron density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
          CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
-                            particles=particles, &
+                            particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
       END IF ! nspins
@@ -1200,14 +1206,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param zcharge ...
 !> \param cube_section ...
 !> \param total_density ...
 !> \param v_hartree ...
 !> \param efield ...
 ! **************************************************************************************************
-   SUBROUTINE print_density_cubes(qs_env, cube_section, total_density, v_hartree, efield)
+   SUBROUTINE print_density_cubes(qs_env, zcharge, cube_section, total_density, v_hartree, efield)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zcharge
       TYPE(section_vals_type), POINTER                   :: cube_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: total_density, v_hartree, efield
 
@@ -1314,7 +1322,7 @@ CONTAINS
                "The total density is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
          CALL cp_pw_to_cube(rho_tot_rspace, unit_nr, "TOTAL DENSITY", &
-                            particles=particles, &
+                            particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
       END IF
@@ -1354,7 +1362,7 @@ CONTAINS
                         "The Hartree potential is written in cube file format to the file:", ADJUSTR(TRIM(filename))
                   END IF
                   CALL cp_pw_to_cube(vhartree, unit_nr, "Hartree Potential", &
-                                     particles=particles, &
+                                     particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                   CALL auxbas_pw_pool%give_back_pw(vhartree)
@@ -1388,7 +1396,7 @@ CONTAINS
                            "The Efield is written in cube file format to the file:", ADJUSTR(TRIM(filename))
                      END IF
                      CALL cp_pw_to_cube(rho_tot_rspace, unit_nr, "EFIELD "//cdir(id), &
-                                        particles=particles, &
+                                        particles=particles, zeff=zcharge, &
                                         stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                      CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                   END DO
@@ -1407,11 +1415,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param zcharge ...
 !> \param elf_section ...
 ! **************************************************************************************************
-   SUBROUTINE print_elf(qs_env, elf_section)
+   SUBROUTINE print_elf(qs_env, zcharge, elf_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zcharge
       TYPE(section_vals_type), POINTER                   :: elf_section
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
@@ -1492,7 +1502,7 @@ CONTAINS
                "ELF is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
 
-         CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, &
+         CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, elf_section, '', mpi_io=mpi_io)
 
@@ -1505,11 +1515,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param zcharge ...
 !> \param cube_section ...
 ! **************************************************************************************************
-   SUBROUTINE print_mo_cubes(qs_env, cube_section)
+   SUBROUTINE print_mo_cubes(qs_env, zcharge, cube_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zcharge
       TYPE(section_vals_type), POINTER                   :: cube_section
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
@@ -1616,7 +1628,7 @@ CONTAINS
                                                  middle_name=TRIM(filename), file_position=my_pos_cube, &
                                                  log_filename=.FALSE., mpi_io=mpi_io)
                   WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-                  CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
+                  CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                END DO
@@ -1646,7 +1658,7 @@ CONTAINS
                                                  middle_name=TRIM(filename), file_position=my_pos_cube, &
                                                  log_filename=.FALSE., mpi_io=mpi_io)
                   WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. LUMO + ", ivector - ifirst
-                  CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
+                  CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
                END DO

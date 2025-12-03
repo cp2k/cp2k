@@ -41,19 +41,21 @@ CONTAINS
 !> \param title ...
 !> \param particles_r ...
 !> \param particles_z ...
+!> \param particles_zeff ...
 !> \param stride ...
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
-   SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
-                         silent, mpi_io)
+   SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, particles_zeff, &
+                         stride, zero_tails, silent, mpi_io)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
@@ -125,9 +127,15 @@ CONTAINS
                pw%pw_grid%dh(3, 3)*REAL(my_stride(3), dp)
 
             IF (PRESENT(particles_z)) THEN
-               DO iat = 1, np
-                  WRITE (unit_nr, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
-               END DO
+               IF (PRESENT(particles_zeff)) THEN
+                  DO iat = 1, np
+                     WRITE (unit_nr, '(I5,4f12.6)') particles_z(iat), particles_zeff(iat), particles_r(:, iat)
+                  END DO
+               ELSE
+                  DO iat = 1, np
+                     WRITE (unit_nr, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
+                  END DO
+               END IF
             END IF
          END IF
 
@@ -215,7 +223,8 @@ CONTAINS
             num_linebreak = num_linebreak + 1
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
          CALL mp_unit%set_handle(unit_nr)
-         CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
+         CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, particles_zeff, &
+                                  my_stride, my_zero_tails, msglen)
       END IF
 
       CALL timestop(handle)
@@ -614,14 +623,15 @@ CONTAINS
 !> \param title       title of the cube file
 !> \param particles_r Cartersian coordinates of the system
 !> \param particles_z atomic masses of atoms in the system
+!> \param particles_zeff effective atomic charges of atoms in the system
 !> \param stride      every stride(i)th value of the potential is outputted (i=x,y,z)
 !> \param zero_tails  flag that determines if small values of the potential should be zeroed
 !> \param msglen      the size of each grid slice along z-axis in bytes
 !> \par History
 !>      Created [Nico Holmberg] (11.2017)
 ! **************************************************************************************************
-   SUBROUTINE pw_to_cube_parallel(grid, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
-                                  msglen)
+   SUBROUTINE pw_to_cube_parallel(grid, unit_nr, title, particles_r, particles_z, particles_zeff, &
+                                  stride, zero_tails, msglen)
 
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
       TYPE(mp_file_type), INTENT(IN)                     :: unit_nr
@@ -629,6 +639,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, INTENT(IN)                                :: stride(3)
       LOGICAL, INTENT(IN)                                :: zero_tails
       INTEGER, INTENT(IN)                                :: msglen
@@ -735,11 +746,19 @@ CONTAINS
          BOF = BOF + LEN(header//NEW_LINE("C"))*mpi_character_size
 
          IF (PRESENT(particles_z)) THEN
-            DO i = 1, np
-               WRITE (header_z, '(I5,4f12.6)') particles_z(i), 0._dp, particles_r(:, i)
-               CALL unit_nr%write_at(BOF, header_z//NEW_LINE("C"))
-               BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
-            END DO
+            IF (PRESENT(particles_zeff)) THEN
+               DO i = 1, np
+                  WRITE (header_z, '(I5,4f12.6)') particles_z(i), particles_zeff(i), particles_r(:, i)
+                  CALL unit_nr%write_at(BOF, header_z//NEW_LINE("C"))
+                  BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
+               END DO
+            ELSE
+               DO i = 1, np
+                  WRITE (header_z, '(I5,4f12.6)') particles_z(i), 0._dp, particles_r(:, i)
+                  CALL unit_nr%write_at(BOF, header_z//NEW_LINE("C"))
+                  BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
+               END DO
+            END IF
          END IF
       END IF
       ! Sync offset
