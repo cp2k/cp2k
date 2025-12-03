@@ -1883,14 +1883,15 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
-         ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
-         unit_nr, unit_nr_voro
+      INTEGER :: after, handle, i, iat, iatom, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, &
+         natom, nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
+         should_print_voro, unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
                                                             rho_total, rho_total_rspace, udvol, &
-                                                            volume
+                                                            volume, zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
       REAL(KIND=dp), DIMENSION(3)                        :: dr
@@ -1952,6 +1953,17 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+      ALLOCATE (zcharge(natom))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+         DO iatom = 1, nat
+            iat = atomic_kind_set(ikind)%atom_list(iatom)
+            zcharge(iat) = zeff
+         END DO
+      END DO
+
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE"), cp_p_file)) THEN
@@ -1999,7 +2011,7 @@ CONTAINS
                                         extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
                                         log_filename=.FALSE., mpi_io=mpi_io)
          CALL cp_pw_to_cube(wf_r, unit_nr, "TOTAL DENSITY", &
-                            particles=particles, &
+                            particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%TOT_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2190,7 +2202,7 @@ CONTAINS
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
-                               particles=particles, &
+                               particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2236,7 +2248,7 @@ CONTAINS
                      "Total spin density (R-space)           :", rho_total_rspace
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
-                                  particles=particles, &
+                                  particles=particles, zeff=zcharge, &
                                   stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2271,7 +2283,8 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                                  particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                                  particles=particles, zeff=zcharge, &
+                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
                                   mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2294,7 +2307,7 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                                  particles=particles, &
+                                  particles=particles, zeff=zcharge, &
                                   stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2317,7 +2330,7 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
-                                  particles=particles, &
+                                  particles=particles, zeff=zcharge, &
                                   stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2373,7 +2386,8 @@ CONTAINS
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
-                               particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                               particles=particles, zeff=zcharge, &
+                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2415,7 +2429,7 @@ CONTAINS
                   "Total spin density (R-space)           :", rho_total_rspace
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                               particles=particles, &
+                               particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
@@ -2455,7 +2469,7 @@ CONTAINS
          CALL pw_copy(v_hartree_rspace, aux_r)
          CALL pw_scale(aux_r, udvol)
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "HARTREE POTENTIAL", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "HARTREE POTENTIAL", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, &
                                                      "PRINT%V_HARTREE_CUBE%STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
@@ -2484,7 +2498,7 @@ CONTAINS
 
             CALL pw_copy(vee, aux_r)
 
-            CALL cp_pw_to_cube(aux_r, unit_nr, "EXTERNAL POTENTIAL", particles=particles, &
+            CALL cp_pw_to_cube(aux_r, unit_nr, "EXTERNAL POTENTIAL", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, &
                                                         "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
@@ -2526,7 +2540,7 @@ CONTAINS
             CALL pw_scale(aux_r, udvol)
 
             CALL cp_pw_to_cube(aux_r, &
-                               unit_nr, "ELECTRIC FIELD", particles=particles, &
+                               unit_nr, "ELECTRIC FIELD", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, &
                                                         "PRINT%EFIELD_CUBE%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
@@ -2796,6 +2810,8 @@ CONTAINS
             IF (qs_env%x_data(i, 1)%do_hfx_ri) CALL print_ri_hfx(qs_env%x_data(i, 1)%ri_data, qs_env)
          END DO
       END IF
+
+      DEALLOCATE (zcharge)
 
       CALL timestop(handle)
 
