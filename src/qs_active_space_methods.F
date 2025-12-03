@@ -1954,8 +1954,12 @@ CONTAINS
                ! This is identical to the truncated Coulomb operator integrated
                ! over all space, when the truncation radius is equal to the radius of
                ! the Poisson solver
-            CASE (eri_operator_coulomb)
-               Rc = green%radius
+            CASE (eri_operator_coulomb, eri_operator_trunc)
+               IF (eri_env%operator == eri_operator_coulomb) THEN
+                  Rc = green%radius
+               ELSE
+                  Rc = eri_env%cutoff_radius
+               END IF
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   g = SQRT(g2)
@@ -1984,8 +1988,12 @@ CONTAINS
 
                ! Long-range Coulomb
                ! TODO: this should be equivalent to LR truncated Coulomb from above!
-            CASE (eri_operator_erf)
-               Rc = green%radius
+            CASE (eri_operator_erf, eri_operator_lr_trunc)
+               IF (eri_env%operator == eri_operator_erf) THEN
+                  Rc = green%radius
+               ELSE
+                  Rc = eri_env%cutoff_radius
+               END IF
                omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
@@ -2010,10 +2018,6 @@ CONTAINS
                END DO
                IF (grid%have_g0) gf%array(1) = pi/omega2
 
-            CASE (eri_operator_trunc)
-               CPABORT("Truncated Coulomb with ANALYTIC0D is equivalent to normal Coulomb")
-            CASE (eri_operator_lr_trunc)
-               CPABORT("LR truncated Coulomb with ANALYTIC0D is equivalent to normal longrange")
             CASE DEFAULT
                CPABORT("Unsupported operator")
             END SELECT
