@@ -72,33 +72,35 @@ MODULE sirius_interface
         sirius_get_band_occupancies, sirius_get_energy, sirius_get_forces, &
         sirius_get_kpoint_properties, sirius_get_num_kpoints, sirius_get_parameters, &
         sirius_get_stress_tensor, sirius_ground_state_handler, sirius_import_parameters, &
-        sirius_initialize, sirius_initialize_context, sirius_kpoint_set_handler, &
-        sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
-        sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_hubbard, &
-        sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, &
-        sirius_update_ground_state
+        sirius_initialize, sirius_initialize_context, sirius_is_initialized, &
+        sirius_kpoint_set_handler, sirius_option_get_info, sirius_option_get_section_length, &
+        sirius_option_set, sirius_set_atom_position, sirius_set_atom_type_dion, &
+        sirius_set_atom_type_hubbard, sirius_set_atom_type_radial_grid, &
+        sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, sirius_update_ground_state
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-!     *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sirius_interface'
 
-!     *** Public subroutines ***
+   ! Public subroutines
 
-   PUBLIC :: cp_sirius_init, cp_sirius_finalize
-   PUBLIC :: cp_sirius_create_env, cp_sirius_energy_force, cp_sirius_update_context
+   PUBLIC :: cp_sirius_create_env, &
+             cp_sirius_energy_force, &
+             cp_sirius_finalize, &
+             cp_sirius_init, &
+             cp_sirius_is_initialized, &
+             cp_sirius_update_context
 
 CONTAINS
 
 !***************************************************************************************************
-!> \brief ...
-!> \param
-!> \par History
-!>      07.2018 start the Sirius library
+!> \brief Initialize the Sirius library
+!> \par Creation (07.2018, JHU)
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_init()
@@ -106,10 +108,18 @@ CONTAINS
    END SUBROUTINE cp_sirius_init
 
 !***************************************************************************************************
-!> \brief ...
-!> \param
-!> \par History
-!>      07.2018 stop the Sirius library
+!> \brief Check the initialisation status of the Sirius library
+!> \return Return the initialisation status of the Sirius library as boolean
+!> \par Creation (03.12.2025, MK)
+!> \author Matthias Krack
+! **************************************************************************************************
+   LOGICAL FUNCTION cp_sirius_is_initialized()
+      CALL sirius_is_initialized(cp_sirius_is_initialized)
+   END FUNCTION cp_sirius_is_initialized
+
+!***************************************************************************************************
+!> \brief Finalize the Sirius library
+!> \par Creation (07.2018, JHU)
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
