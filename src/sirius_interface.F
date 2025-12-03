@@ -972,10 +972,17 @@ MODULE sirius_interface
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
+
    PRIVATE
 
-   PUBLIC :: cp_sirius_init, cp_sirius_finalize
-   PUBLIC :: cp_sirius_create_env, cp_sirius_energy_force, cp_sirius_update_context
+   ! Public subroutines
+
+   PUBLIC :: cp_sirius_create_env, &
+             cp_sirius_energy_force, &
+             cp_sirius_finalize, &
+             cp_sirius_init, &
+             cp_sirius_is_initialized, &
+             cp_sirius_update_context
 
 CONTAINS
 
