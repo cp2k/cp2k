@@ -397,6 +397,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matkp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -473,28 +474,31 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       ! extract matrices: s_00, s_01
+      matkp => matrix_s_kp(1, :)
       CALL negf_copy_contact_matrix(fm_cell0=contact_env%s_00, &
                                     fm_cell1=contact_env%s_01, &
                                     direction_axis=contact_env%direction_axis, &
-                                    matrix_kp=matrix_s_kp(1, :), &
+                                    matrix_kp=matkp, &
                                     atom_list0=atom_list0, atom_list1=atom_list1, &
                                     subsys=subsys, mpi_comm_global=para_env, &
                                     kpoints=kpoints)
 
       ! extract matrices: h_00, h_01, rho_00, rho_01
       DO ispin = 1, nspins
+         matkp => matrix_ks_kp(ispin, :)
          CALL negf_copy_contact_matrix(fm_cell0=contact_env%h_00(ispin), &
                                        fm_cell1=contact_env%h_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
-                                       matrix_kp=matrix_ks_kp(ispin, :), &
+                                       matrix_kp=matkp, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
                                        kpoints=kpoints)
 
+         matkp => rho_ao_kp(ispin, :)
          CALL negf_copy_contact_matrix(fm_cell0=contact_env%rho_00(ispin), &
                                        fm_cell1=contact_env%rho_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
-                                       matrix_kp=rho_ao_kp(ispin, :), &
+                                       matrix_kp=matkp, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
                                        kpoints=kpoints)
