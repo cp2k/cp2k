@@ -135,7 +135,8 @@ MODULE f77_interface
                                               qs_environment_type
    USE reference_manager,               ONLY: remove_all_references
    USE sirius_interface,                ONLY: cp_sirius_finalize,&
-                                              cp_sirius_init
+                                              cp_sirius_init,&
+                                              cp_sirius_is_initialized
    USE string_table,                    ONLY: string_table_allocate,&
                                               string_table_deallocate
    USE timings,                         ONLY: add_timer_env,&
@@ -277,10 +278,10 @@ CONTAINS
          module_initialized = .TRUE.
          ierr = 0
 
-         !   *** Initialize mathematical constants ***
+         ! Initialize mathematical constants
          CALL init_periodic_table()
 
-         !   *** init the bibliography ***
+         ! Init the bibliography
          CALL add_all_references()
 
          NULLIFY (active_device_id)
@@ -298,7 +299,6 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
-         CALL cp_sirius_init() ! independent of method_name_id == do_sirius
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -342,7 +342,7 @@ CONTAINS
          CALL grid_library_finalize()
          CALL pw_gpu_finalize()
          CALL pw_fpga_finalize()
-         CALL cp_sirius_finalize()
+         IF (cp_sirius_is_initialized()) CALL cp_sirius_finalize()
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
 
@@ -833,6 +833,8 @@ CONTAINS
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_sirius)
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A)", ADVANCE="NO") "SIRIUS| "
+            CALL cp_sirius_init()
             ALLOCATE (pwdft_env)
             CALL pwdft_env_create(pwdft_env)
             CALL pwdft_init(pwdft_env, root_section, my_para_env, force_env_section=force_env_section, &
@@ -878,7 +880,7 @@ CONTAINS
             CALL force_env_create(my_force_env, root_section, ipi_env=ipi_env, para_env=my_para_env, &
                                   globenv=globenv, force_env_section=force_env_section)
 
-         CASE default
+         CASE DEFAULT
             CALL create_force_eval_section(section)
             keyword => section_get_keyword(section, "METHOD")
             CALL keyword_get(keyword, enum=enum)
