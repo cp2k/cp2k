@@ -246,7 +246,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER                                            :: count1, count2, count3, handle, i, I1, &
-                                                            I2, I3, iat, j, L1, L2, L3, my_rank, &
+                                                            I2, I3, iat, L1, L2, L3, my_rank, &
                                                             my_stride(3), np, num_atom_types, &
                                                             num_pe, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
@@ -298,13 +298,11 @@ CONTAINS
       END IF
 
       DO i = 1, 3
-         DO j = 1, 3
-            IF (i == j) THEN
-               grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
-            ELSE
-               CPASSERT(pw%pw_grid%dh(i, j) == 0)
-            END IF
-         END DO
+         ! Notes:
+         ! 1. This loses information on the rotation of the mesh, the mesh is stored
+         !    without reference to a global coordinate system
+         ! 2. This assumes that the coordinate system is not sheared
+         grid_spacing(i) = SQRT(SUM(pw%pw_grid%dh(:, i)**2))*REAL(my_stride(i), dp)
       END DO
 
       IF (PRESENT(particles_z)) THEN
