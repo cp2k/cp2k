@@ -383,13 +383,13 @@ CONTAINS
 !> \param unit_nr ...
 !> \param title ...
 !> \param particles ...
-!> \param zcharge ...
+!> \param zeff ...
 !> \param stride ...
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
-   SUBROUTINE cp_forward_write_pw(self, pw, unit_nr, title, particles, zcharge, stride, zero_tails, silent, mpi_io)
+   SUBROUTINE cp_forward_write_pw(self, pw, unit_nr, title, particles, zeff, stride, zero_tails, silent, mpi_io)
       CLASS(cp_section_key), INTENT(IN)                  :: self
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -397,10 +397,10 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
-      REAL(KIND=dp), DIMENSION(:)                        :: zcharge
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: zeff
 
       IF (self%grid_output == grid_output_cubes) THEN
-         CALL cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
+         CALL cp_pw_to_cube(pw, unit_nr, title, particles, zeff, stride, zero_tails, silent, mpi_io)
       ELSE
          CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       END IF
@@ -2213,8 +2213,8 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, natom, &
-         nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
+      INTEGER :: after, handle, i, iat, iatom, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, &
+         natom, nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
          should_print_voro, unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
