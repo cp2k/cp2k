@@ -38,7 +38,7 @@ MODULE f77_interface
         cp_get_default_logger, cp_logger_create, cp_logger_release, cp_logger_retain, &
         cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
-   USE cp_output_handling_openpmd, ONLY: cp_openpmd_output_finalize
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_output_finalize
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type

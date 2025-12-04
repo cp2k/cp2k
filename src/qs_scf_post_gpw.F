@@ -383,6 +383,7 @@ CONTAINS
 !> \param unit_nr ...
 !> \param title ...
 !> \param particles ...
+!> \param zcharge ...
 !> \param stride ...
 !> \param zero_tails ...
 !> \param silent ...
@@ -2212,9 +2213,9 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, natom, nd(3), &
-                 ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
-                 unit_nr, unit_nr_voro
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, natom, &
+         nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
+         should_print_voro, unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
@@ -2543,7 +2544,7 @@ CONTAINS
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
                                             particles=particles, zeff=zcharge, &
-                                            stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
@@ -2588,8 +2589,8 @@ CONTAINS
                      "Total spin density (R-space)           :", rho_total_rspace
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF
@@ -2623,8 +2624,8 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                                  particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
-                                  mpi_io=mpi_io)
+        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                               mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
                CALL pw_copy(rho_r(1), rho_elec_rspace)
@@ -2646,8 +2647,8 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -2669,8 +2670,8 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL e_density_section%write_pw(rho_r(1), unit_nr, "ELECTRON DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
                CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                                 e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
@@ -2725,8 +2726,8 @@ CONTAINS
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
-                               particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
-                               mpi_io=mpi_io)
+        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                            mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
 
@@ -2767,8 +2768,8 @@ CONTAINS
                   "Total spin density (R-space)           :", rho_total_rspace
             END IF
             CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                               particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+                                            particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
             CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
                                                              e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
