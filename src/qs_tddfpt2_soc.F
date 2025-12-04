@@ -71,8 +71,7 @@ MODULE qs_tddfpt2_soc
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_tddfpt2_soc_types,            ONLY: soc_atom_create,&
                                               soc_atom_env_type,&
                                               soc_atom_release,&
@@ -174,14 +173,14 @@ CONTAINS
       IF (do_os) CPABORT("SOC only implemented for closed shell.")
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(A)') "Starting from TDDFPT Excited States:"
+         WRITE (log_unit, '(A)') " Starting from TDDFPT Excited States:"
          WRITE (log_unit, '(A)') "      STATE          SINGLET/eV         TRIPLET/eV"
          DO istate = 1, SIZE(evals_a)
             WRITE (log_unit, '(6X,I3,11X,F10.5,6X,F10.5)') istate, evals_a(istate)*evolt, evals_b(istate)*evolt
          END DO
       END IF
 
-      IF (log_unit > 0) WRITE (log_unit, '(A)') "Starting restricted closed shell:"
+      IF (log_unit > 0) WRITE (log_unit, '(A)') " Starting restricted closed shell:"
       CALL tddfpt_soc_rcs(qs_env, evals_a, evals_b, evects_a, evects_b, log_unit, gs_mos)
 
       IF (log_unit > 0) THEN
@@ -247,7 +246,6 @@ CONTAINS
                                                             dbcsr_sg, dbcsr_tmp, dbcsr_tp, &
                                                             dbcsr_work, orb_soc_x, orb_soc_y, &
                                                             orb_soc_z
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: soc_print_section, soc_section, &
                                                             tddfpt_print_section
@@ -276,9 +274,9 @@ CONTAINS
       CALL inititialize_soc(qs_env, soc_atom_env, soc_env, &
                             evects_sing, evects_trip, dipole_form, gs_mos)
 
-      NULLIFY (mos)
-      CALL get_qs_env(qs_env, mos=mos, para_env=para_env, blacs_env=blacs_env)
-      CALL get_mo_set(mos(1), nao=nao, homo=nactive)
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      nactive = gs_mos(1)%nmo_active
+      CALL cp_fm_get_info(gs_mos(1)%mos_active, nrow_global=nao)
 
       ! this will create the H^SOC in an atomic basis
       CALL integrate_soc_atoms(soc_env%orb_soc, qs_env=qs_env, soc_atom_env=soc_atom_env)
@@ -372,8 +370,7 @@ CONTAINS
       CALL copy_fm_to_dbcsr(soc_env%b_coeff, dbcsr_tp)
 
       !Create the work and helper fms
-      !CALL get_mo_set(mos(1),mo_coeff=gs_coeffs)
-      gs_coeffs => gs_mos(1)%mos_occ
+      gs_coeffs => gs_mos(1)%mos_active
       CALL cp_fm_get_info(gs_coeffs, matrix_struct=vec_struct)
       CALL cp_fm_create(vec_soc_x, vec_struct)
       CALL cp_fm_create(vec_soc_y, vec_struct)
@@ -1559,12 +1556,11 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: ao_op_i, dbcsr_ovlp, dbcsr_prod, &
                                                             dbcsr_sg, dbcsr_tmp, dbcsr_tp, &
                                                             dbcsr_work
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mos, gs_coeffs)
+      NULLIFY (gs_coeffs)
       NULLIFY (matrix_s)
       NULLIFY (para_env, blacs_env)
       NULLIFY (full_struct, gsgs_struct, std_struct, tmp_struct, sggs_struct)
@@ -1584,7 +1580,7 @@ CONTAINS
       ntp = nsg; nex = nsg !all the same by construction, keep them separate for clarity
       ntot = 1 + nsg + 3*ntp
 
-      CALL get_qs_env(qs_env, matrix_s=matrix_s, mos=mos, para_env=para_env, blacs_env=blacs_env)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, para_env=para_env, blacs_env=blacs_env)
       sqrt2 = SQRT(2.0_dp)
       dim_op = SIZE(ao_op)
 
@@ -1605,9 +1601,9 @@ CONTAINS
       END DO !i
 
       !  Deal with the GS-GS contribution <0|0> = 2*sum_j <phi_j|op|phi_j>
-      CALL get_mo_set(mos(1), nao=nao, homo=nactive)
-      gs_coeffs => gs_mos(1)%mos_occ
-      CALL cp_fm_get_info(gs_coeffs, matrix_struct=std_struct)
+      nactive = gs_mos(1)%nmo_active
+      gs_coeffs => gs_mos(1)%mos_active
+      CALL cp_fm_get_info(gs_coeffs, matrix_struct=std_struct, nrow_global=nao)
 
       CALL cp_fm_struct_create(gsgs_struct, &
                                context=blacs_env, para_env=para_env, &
