@@ -836,8 +836,9 @@ if(CP2K_USE_GREENX)
   set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
                                 "-L${GMP_LIBRARY_PATH}")
 
-  add_library(cp2k::greenx INTERFACE greenX::GXCommon greenX::LibGXAC
-              greenX::LibGXMiniMax cp2k::trexio::trexio)
+  add_library(cp2k::greenx INTERFACE)
+  target_link_libraries(cp2k:greenx INTERFACE greenX::GXCommon greenX::LibGXAC
+                                              greenX::LibGXMiniMax)
 endif()
 
 # OPTION HANDLING
