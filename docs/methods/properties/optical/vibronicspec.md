@@ -132,25 +132,26 @@ This tutorial will not provide detailed information regarding these mentioned ca
 
 Since vibronic spectroscopy methods are highly sensitive to molecular geometry, you must start from
 a well-converged global minimum. The geometry file provided in this tutorial has been converged with
-the `MAX_FORCE 1.0E-5` keyword to ensure it meets this requirement. You can check the geometry by
-looking at the vibrational analysis. If there are negative frequencies, the geometry might not be
-converged properly. However, in solid-state systems and liquids, it is normal to observe negative
-frequencies, as periodic systems have acoustic modes that should be zero and liquid configurations
-are not true minima, so both naturally produce imaginary modes in a harmonic analysis.
+setting the [MAX_FORCE](#CP2K_INPUT.MOTION.GEO_OPT.MAX_FORCE) keyword to `1.0E-5` ensure it meets
+this requirement. You can check the geometry by looking at the vibrational analysis. If there are
+negative frequencies, the geometry might not be converged properly. However, in solid-state systems
+and liquids, it is normal to observe negative frequencies, as periodic systems have acoustic modes
+that should be zero and liquid configurations are not true minima, so both naturally produce
+imaginary modes in a harmonic analysis.
 
 Additionally, the electronic structure calculations must use the same parameters, i.e., functional,
 basis set, and convergence settings, across all calculations. The optimized geometry is specific to
 the chosen computational setup, so using different parameters in vibrational analysis and spectrum
 calculation could mean the geometry is no longer at the true minimum for those new settings. The
 geometry in this tutorial is optimized using `PBE0` functional and `TZVP-MOLOPT-PBE0-GTH` basis
-sets. ADMM approximation is also used with `admm-dzp` basis to reduce the cost of exchange
-integrals.
+sets. [ADMM](#CP2K_INPUT.FORCE_EVAL.DFT.AUXILIARY_DENSITY_MATRIX_METHOD)[](#Guidon2010)
+approximation is also used with `admm-dzp` basis to reduce the cost of exchange integrals.
 
 #### 1. Vibrational modes and frequencies
 
 First, we calculate the vibrational spectrum using the following input. SO$_2$ molecule has 3 modes,
-($3*N_\textrm{atom}-6$), therefore the `NPROC_REP` value should be adjusted to the requested
-processors. Intensities are not required.
+($3*N_\textrm{atom}-6$), therefore the [NPROC_REP](#CP2K_INPUT.VIBRATIONAL_ANALYSIS.NPROC_REP) value
+should be adjusted to the requested processors. Intensities are not required.
 
 ```none
 &GLOBAL
@@ -288,8 +289,9 @@ a.u., frequencies (`[FREQ]`) in $\textrm{cm}^{-1}$ and normal modes (`[FR-NORM-C
 #### 2. Absorption spectrum and excited-state forces
 
 The absorption spectrum and excited‑state forces can be calculated in a single run. For this, we
-will change the `RUN_TYPE` to `ENERGY_FORCE`, remove the `VIBRATIONAL_ANALYSIS` section from the
-input above, and add the `PROPERTIES` section below to `FORCE_EVAL`.
+will change the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY_FORCE`, remove the
+`VIBRATIONAL_ANALYSIS` section from the input above, and add the
+[PROPERTIES](#CP2K_INPUT.FORCE_EVAL.PROPERTIES) section below to `FORCE_EVAL`.
 
 ```none
 &PROPERTIES
@@ -307,9 +309,12 @@ input above, and add the `PROPERTIES` section below to `FORCE_EVAL`.
 ```
 
 We’ll request 10 excited states with an excitation convergence of $10^{-5}$ eV. We also ask to print
-the forces, and we set a `THRESHOLD` of 0.001. This means forces are only calculated for states
-whose oscillator strength is above that value. Filtering out weak states helps keep the calculation
-efficient. You can also list specific states explicitly with the `LIST` keyword.
+the forces, and we set a
+[THRESHOLD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.THRESHOLD) of 0.001. This means
+forces are only calculated for states whose oscillator strength is above that value. Filtering out
+weak states helps keep the calculation efficient. You can also list specific states explicitly with
+the [LIST](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.LIST) keyword (\[Strand2019\],
+[](#Iannuzzi2005), \[Hehn2022\]).
 
 The output file we need is `so2-TDFORCE-1_0.tdfrc` file, which contains the spectrum data and the
 forces in this format:
