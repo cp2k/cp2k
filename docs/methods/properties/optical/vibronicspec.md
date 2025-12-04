@@ -128,8 +128,7 @@ To compute the vibronic spectra, we need 2 separate CP2K calculations:
 - Vibrational analysis of the ground-state
 - TDDFT absorption spectrum with excited-state forces
 
-!! Here, these calculations will be mentioned briefly. More details can be found in other docs
-(TODO).
+This tutorial will not provide detailed information regarding these mentioned calculations.
 
 Since vibronic spectroscopy methods are highly sensitive to molecular geometry, you must start from
 a well-converged global minimum. The geometry file provided in this tutorial has been converged with
@@ -228,7 +227,7 @@ processors. Intensities are not required.
   S         4.9999986448        4.9666767697        5.2571227806
   O         4.9999999980        6.2087412933        4.5332461336
   O         4.9999999958        3.7245960698        4.5332576512
-	&END COORD
+    &END COORD
     &TOPOLOGY
       &CENTER_COORDINATES
       &END
@@ -288,22 +287,22 @@ a.u., frequencies (`[FREQ]`) in $\textrm{cm}^{-1}$ and normal modes (`[FR-NORM-C
 
 #### 2. Absorption spectrum and excited-state forces
 
-The absorption spectrum and excited‑state forces can be calculated in a single run. Change the
+The absorption spectrum and excited‑state forces can be calculated in a single run. For this, we will change the
 `RUN_TYPE` to `ENERGY_FORCE`, remove the `VIBRATIONAL_ANALYSIS` section from the input above, and
-add a `PROPERTIES` section below to `FORCE_EVAL`.
+add the `PROPERTIES` section below to `FORCE_EVAL`.
 
 ```none
 &PROPERTIES
-	&TDDFPT
-       	NSTATES 10
-       	CONVERGENCE [eV] 1.0e-5
-       	ADMM_KERNEL_CORRECTION_SYMMETRIC
-       	&PRINT
-        	&FORCES
-           		THRESHOLD 0.01
-        	&END
-       	&END PRINT
-    &END TDDFPT
+  &TDDFPT
+    NSTATES 10
+    CONVERGENCE [eV] 1.0e-5
+    ADMM_KERNEL_CORRECTION_SYMMETRIC
+    &PRINT
+      &FORCES
+        THRESHOLD 0.01
+      &END
+    &END PRINT
+  &END TDDFPT
 &END PROPERTIES
 ```
 
@@ -363,9 +362,9 @@ config.toml file is provided. We will modify it for the SO$_2$ molecule.
 
 ```none
 [files]
-vibrations_filename = "vib-VIBRATIONS-1.mol"
+vibrations_filename = "so2-VIBRATIONS-1.mol"
 output_filename = "so2_spectrum.txt"
-force_filename = "spec-TDFORCE-1_0.tdfrc"
+force_filename = "so2-TDFORCE-1_0.tdfrc"
 
 [calculation]
 # Single key. Choose one format:
