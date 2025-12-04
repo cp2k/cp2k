@@ -180,7 +180,9 @@ MODULE qs_scf_post_gpw
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_csr_write,                ONLY: write_ks_matrix_csr,&
+   USE qs_scf_csr_write,                ONLY: write_hcore_matrix_csr,&
+                                              write_ks_matrix_csr,&
+                                              write_p_matrix_csr,&
                                               write_s_matrix_csr
    USE qs_scf_output,                   ONLY: qs_scf_write_mos
    USE qs_scf_types,                    ONLY: ot_method_nr,&
@@ -2618,6 +2620,8 @@ CONTAINS
       IF (.NOT. dft_control%qs_control%pao) THEN
          CALL write_ks_matrix_csr(qs_env, input)
          CALL write_s_matrix_csr(qs_env, input)
+         CALL write_hcore_matrix_csr(qs_env, input)
+         CALL write_p_matrix_csr(qs_env, input)
       END IF
 
       ! write adjacency matrix
