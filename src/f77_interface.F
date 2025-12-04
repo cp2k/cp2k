@@ -833,8 +833,10 @@ CONTAINS
                                   globenv=globenv, force_env_section=force_env_section)
 
          CASE (do_sirius)
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A)", ADVANCE="NO") "SIRIUS| "
-            CALL cp_sirius_init()
+            IF (.NOT. cp_sirius_is_initialized()) THEN
+               IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A)", ADVANCE="NO") "SIRIUS| "
+               CALL cp_sirius_init()
+            END IF
             ALLOCATE (pwdft_env)
             CALL pwdft_env_create(pwdft_env)
             CALL pwdft_init(pwdft_env, root_section, my_para_env, force_env_section=force_env_section, &
