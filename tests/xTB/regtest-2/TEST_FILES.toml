@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-"H2O-field-gopt.inp"                    = [{matcher="E_total", tol=3e-11, ref=-5.76970818700878}]
+"H2O-field-gopt.inp"                    = [{matcher="E_total", tol=4e-10, ref=-5.76970818700878}]
 "H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797174834}]
 "H2O-field.inp"                         = []
 "H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-5.76959233315201}]

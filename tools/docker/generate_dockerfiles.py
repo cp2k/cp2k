@@ -20,6 +20,11 @@ def main() -> None:
             f.write(install_deps_toolchain(mpi_mode=mpi_mode))
             f.write(regtest_cmake("toolchain", version))
 
+    with OutputFile(f"Dockerfile.test_psmp_4ranks", args.check) as f:
+        testopts = f"--ompthreads=1 --mpiranks=4"
+        f.write(install_deps_toolchain())
+        f.write(regtest_cmake("toolchain", "psmp", testopts=testopts))
+
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
         f.write(install_deps_toolchain(target_cpu="generic"))
         f.write(regtest_cmake("toolchain_generic", "psmp"))

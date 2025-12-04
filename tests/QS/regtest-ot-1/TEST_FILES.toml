@@ -38,8 +38,8 @@
 "H2O-OT-ASPC-2.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.13994191008365}]
 "H2O-OT-ASPC-3.inp"                     = [{matcher="E_total", tol=2e-14, ref=-17.13994199189048}]
 "H2O-OT-ASPC-4.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.13994198373829}]
-"H2O-OT-ASPC-5.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.13993068768056}]
-"H2O-OT-ASPC-6.inp"                     = [{matcher="E_total", tol=5e-14, ref=-17.13941008477894}]
+"H2O-OT-ASPC-5.inp"                     = [{matcher="E_total", tol=9e-14, ref=-17.13993068768056}]
+"H2O-OT-ASPC-6.inp"                     = [{matcher="E_total", tol=7e-14, ref=-17.13941008477894}]
 # Input driven basis set and potential
 "H2O-bs_input.inp"                      = [{matcher="E_total", tol=4e-14, ref=-17.13993294347306}]
 #broyden

@@ -20,8 +20,8 @@
 "H2O-debug-2.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-16.00183627257292}]
 "H2O-debug-3.inp"                       = [{matcher="E_total", tol=4e-14, ref=-15.74262975093193}]
 "H2O-debug-4.inp"                       = [{matcher="E_total", tol=4e-14, ref=-15.74262975093193}]
-"H2O-debug-5.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.535129866059}]
-"H2O-debug-6.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.535125994114}]
+"H2O-debug-5.inp"                       = [{matcher="M086", tol=2e-7, ref=-0.535129866059}]
+"H2O-debug-6.inp"                       = [{matcher="M086", tol=2e-7, ref=-0.535125994114}]
 "H2O-debug-7.inp"                       = [{matcher="E_total", tol=4e-12, ref=-34.01122049558151}]
 "H2O-debug-8.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.482971230807}]
 # new colvar
