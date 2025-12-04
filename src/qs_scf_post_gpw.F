@@ -402,7 +402,7 @@ CONTAINS
       IF (self%grid_output == grid_output_cubes) THEN
          CALL cp_pw_to_cube(pw, unit_nr, title, particles, zeff, stride, zero_tails, silent, mpi_io)
       ELSE
-         CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
+         CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, zeff, stride, zero_tails, silent, mpi_io)
       END IF
    END SUBROUTINE cp_forward_write_pw
 

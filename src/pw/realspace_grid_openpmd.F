@@ -112,14 +112,24 @@ CONTAINS
 !> \brief ...
 !> \param particles_z ...
 !> \param particles_r ...
+!> \param particles_zeff ...
 !> \param atom_type ...
 !> \param atom_count ...
 !> \param openpmd_data ...
 !> \param do_write_data ...
 ! **************************************************************************************************
-   SUBROUTINE pw_write_particle_species(particles_z, particles_r, atom_type, atom_count, openpmd_data, do_write_data)
+   SUBROUTINE pw_write_particle_species( &
+      particles_z, &
+      particles_r, &
+      particles_zeff, &
+      atom_type, &
+      atom_count, &
+      openpmd_data, &
+      do_write_data &
+      )
       INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, INTENT(IN)                                :: atom_type, atom_count
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       LOGICAL                                            :: do_write_data
@@ -131,14 +141,16 @@ CONTAINS
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(1)                              :: global_extent, global_offset, &
                                                             local_extent
+      TYPE(cp_openpmd_write_buffer_1d)                   :: charge_write_buffer
       TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
       TYPE(openpmd_attributable_type)                    :: attr
+      TYPE(openpmd_dynamic_memory_view_type_1d)          :: unresolved_charge_write_buffer
       TYPE(openpmd_dynamic_memory_view_type_1d), &
          DIMENSION(3)                                    :: unresolved_write_buffers
       TYPE(openpmd_particle_species_type)                :: species
-      TYPE(openpmd_record_component_type)                :: position_component, &
+      TYPE(openpmd_record_component_type)                :: charge_component, position_component, &
                                                             position_offset_component
-      TYPE(openpmd_record_type)                          :: position, position_offset
+      TYPE(openpmd_record_type)                          :: charge, position, position_offset
 
       global_extent(1) = atom_count
       IF (do_write_data) THEN
@@ -168,17 +180,33 @@ CONTAINS
          END IF
       END DO
 
+      IF (PRESENT(particles_zeff)) THEN
+         charge = species%get_record("charge")
+         charge_component = charge%as_record_component()
+         CALL charge_component%reset_dataset(openpmd_type_double, global_extent)
+         unresolved_charge_write_buffer = charge_component%store_chunk_span_1d_double(global_offset, local_extent)
+         IF (do_write_data) THEN
+            charge_write_buffer%buffer => unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.FALSE.)
+         END IF
+      END IF
+
       IF (do_write_data) THEN
          ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
          DO k = 1, SIZE(dims)
             write_buffers(k)%buffer = unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.TRUE.)
          END DO
+         IF (PRESENT(particles_zeff)) THEN
+            charge_write_buffer%buffer = unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.TRUE.)
+         END IF
          j = 1
          DO i = 1, SIZE(particles_z)
             IF (particles_z(i) == atom_type) THEN
                DO k = 1, 3
                   write_buffers(k)%buffer(j) = particles_r(k, i)
                END DO
+               IF (PRESENT(particles_zeff)) THEN
+                  charge_write_buffer%buffer(j) = particles_zeff(i)
+               END IF
                j = j + 1
             END IF
          END DO
@@ -191,15 +219,26 @@ CONTAINS
 !> \brief ...
 !> \param particles_z ...
 !> \param particles_r ...
+!> \param particles_zeff ...
 !> \param atom_types ...
 !> \param atom_counts ...
 !> \param num_atom_types ...
 !> \param openpmd_data ...
 !> \param gid ...
 ! **************************************************************************************************
-   SUBROUTINE pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data, gid)
+   SUBROUTINE pw_write_particles( &
+      particles_z, &
+      particles_r, &
+      particles_zeff, &
+      atom_types, &
+      atom_counts, &
+      num_atom_types, &
+      openpmd_data, &
+      gid &
+      )
       INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_types, atom_counts
       INTEGER, INTENT(IN), TARGET                        :: num_atom_types
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
@@ -215,7 +254,15 @@ CONTAINS
          do_write_data = .TRUE.
       END IF
       DO i = 1, num_atom_types
-         CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data, do_write_data)
+         CALL pw_write_particle_species( &
+            particles_z, &
+            particles_r, &
+            particles_zeff, &
+            atom_types(i), &
+            atom_counts(i), &
+            openpmd_data, &
+            do_write_data &
+            )
       END DO
    END SUBROUTINE pw_write_particles
 
@@ -226,19 +273,31 @@ CONTAINS
 !> \param title ...
 !> \param particles_r ...
 !> \param particles_z ...
+!> \param particles_zeff ...
 !> \param stride ...
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
-   SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
-                            silent, mpi_io)
+   SUBROUTINE pw_to_openpmd( &
+      pw, &
+      unit_nr, &
+      title, &
+      particles_r, &
+      particles_z, &
+      particles_zeff, &
+      stride, &
+      zero_tails, &
+      silent, &
+      mpi_io &
+      )
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER                                            :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
@@ -307,9 +366,26 @@ CONTAINS
 
       IF (PRESENT(particles_z)) THEN
          IF (parallel_write) THEN
-            CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data, gid)
+            CALL pw_write_particles( &
+               particles_z, &
+               particles_r, &
+               particles_zeff, &
+               atom_types, &
+               atom_counts, &
+               num_atom_types, &
+               openpmd_data, &
+               gid &
+               )
          ELSE
-            CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
+            CALL pw_write_particles( &
+               particles_z, &
+               particles_r, &
+               particles_zeff, &
+               atom_types, &
+               atom_counts, &
+               num_atom_types, &
+               openpmd_data &
+               )
          END IF
       END IF
 

@@ -170,7 +170,7 @@ MODULE openPMD_api
          PRIVATE
          TYPE(C_PTR) :: c_ptr = C_NULL_PTR
       CONTAINS
-         PROCEDURE, PUBLIC :: openpmd_record_as_record_component
+         PROCEDURE, PUBLIC :: as_record_component => openpmd_record_as_record_component
          PROCEDURE, PUBLIC :: get_component => openpmd_record_get_component
       END TYPE openpmd_record_type
 
