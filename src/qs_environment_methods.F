@@ -321,7 +321,7 @@ CONTAINS
          END IF
 
          ! reallocate vee: external electrostatic potential
-         IF (dft_control%apply_external_potential) THEN
+         IF (dft_control%apply_external_potential .AND. .NOT. qs_env%mimic) THEN
             NULLIFY (vee)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vee=vee)
             IF (ASSOCIATED(vee)) THEN

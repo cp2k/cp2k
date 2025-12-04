@@ -1084,6 +1084,14 @@ list(
 list(
   APPEND
   CP2K_SRCS_F
+  mimic/mimic_communicator.F
+  mimic/mimic_loop.F
+  mimic/mcl_wrapper/mcl_api.F
+  mimic/mcl_wrapper/mcl_requests.F)
+
+list(
+  APPEND
+  CP2K_SRCS_F
   minimax/minimax_exp.F
   minimax/minimax_exp_gw.F
   minimax/minimax_exp_k15.F
@@ -1733,6 +1741,8 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
+    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
+    $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
     $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
@@ -1794,6 +1804,7 @@ target_compile_definitions(
     $<$<BOOL:${CCP2K_USE_SIRIUS_DFTD4}>:__SIRIUS_DFTD4>
     $<$<BOOL:${CCP2K_USE_SIRIUS_NLCG}>:__SIRIUS_NLCG>
     $<$<BOOL:${CP2K_USE_SIRIUS_VCSQNM}>:__SIRIUS_VCSQNM>
+    $<$<BOOL:${CP2K_USE_MIMIC}>:__MIMIC>
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
