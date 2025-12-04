@@ -26,13 +26,13 @@ python3 -m venv /opt/venv
 export PATH="/opt/venv/bin:$PATH"
 
 # install python packages
-pip3 install --quiet \
+pip3 install \
   -r pao-ml-requirements.txt \
-  numpy==2.2.4 \
-  matplotlib==3.10.1 \
-  requests==2.32.3 \
-  types-requests==2.32.0.20250328 \
-  mypy==1.5.1
+  numpy==2.3.5 \
+  matplotlib==3.10.7 \
+  requests==2.32.4 \
+  types-requests==2.32.4.20250913 \
+  mypy==1.19.0
 
 # download inputs for minimax_to_fortran_source.py
 wget -q https://www.cp2k.org/static/downloads/1_xData.zip
