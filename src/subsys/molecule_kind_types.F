@@ -210,7 +210,8 @@ MODULE molecule_kind_types
              write_colvar_constraint, &
              write_fixd_constraint, &
              write_g3x3_constraint, &
-             write_g4x6_constraint
+             write_g4x6_constraint, &
+             write_vsite_constraint
 
    ! Public data types
    PUBLIC :: atom_type, &
@@ -1236,7 +1237,7 @@ CONTAINS
             "G4X6| Atom index a", g4x6_constraint%a, &
             "G4X6| Atom index b", g4x6_constraint%b, &
             "G4X6| Atom index c", g4x6_constraint%c, &
-            "G4X6| Atom index c", g4x6_constraint%d
+            "G4X6| Atom index d", g4x6_constraint%d
          WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
             "G4X6| Distance (a,b) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dab, "Angstrom"), &
             "G4X6| Distance (a,c) [Angstrom]", cp_unit_from_cp2k(g4x6_constraint%dac, "Angstrom"), &
@@ -1247,5 +1248,40 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_g4x6_constraint
+
+! **************************************************************************************************
+!> \brief Write virtual site constraint information to output unit
+!> \param vsite_constraint Data set of the vsite constraint
+!> \param ivsite Virtual site constraint/restraint number (index)
+!> \param iw Logical unit number of the output unit
+!> \author Matthias Krack (01.12.2025)
+! **************************************************************************************************
+   SUBROUTINE write_vsite_constraint(vsite_constraint, ivsite, iw)
+
+      TYPE(vsite_constraint_type), INTENT(IN), POINTER   :: vsite_constraint
+      INTEGER, INTENT(IN)                                :: ivsite, iw
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(vsite_constraint))
+         IF (vsite_constraint%restraint%active) THEN
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "VSITE| Number (restraint)", ivsite
+            WRITE (UNIT=iw, FMT="(T2,A,T66,ES15.6)") &
+               "VSITE| Restraint constant k [a.u.]", vsite_constraint%restraint%k0
+         ELSE
+            WRITE (UNIT=iw, FMT="(/,T2,A,T71,I10)") &
+               "VSITE| Number (constraint)", ivsite
+         END IF
+         WRITE (UNIT=iw, FMT="(T2,A,T71,I10)") &
+            "VSITE| Atom index of virtual site", vsite_constraint%a, &
+            "VSITE| Atom index b", vsite_constraint%b, &
+            "VSITE| Atom index c", vsite_constraint%c, &
+            "VSITE| Atom index d", vsite_constraint%d
+         WRITE (UNIT=iw, FMT="(T2,A,T66,F15.8)") &
+            "VSITE| Distance (b,c) [Angstrom]", cp_unit_from_cp2k(vsite_constraint%wbc, "Angstrom"), &
+            "VSITE| Distance (d,c) [Angstrom]", cp_unit_from_cp2k(vsite_constraint%wdc, "Angstrom")
+      END IF
+
+   END SUBROUTINE write_vsite_constraint
 
 END MODULE molecule_kind_types
