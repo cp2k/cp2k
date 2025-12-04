@@ -219,6 +219,7 @@ MODULE qs_environment_types
 
    TYPE qs_environment_type
       LOGICAL :: qmmm = .FALSE., qmmm_periodic = .FALSE.
+      LOGICAL :: mimic = .FALSE.
       LOGICAL :: requires_mo_derivs = .FALSE.
       LOGICAL :: requires_matrix_vxc = .FALSE.
       LOGICAL :: has_unit_metric = .FALSE.
@@ -341,6 +342,7 @@ CONTAINS
 !> \param sab_all ...
 !> \param qmmm ...
 !> \param qmmm_periodic ...
+!> \param mimic ...
 !> \param sac_ae ...
 !> \param sac_ppl ...
 !> \param sac_lri ...
@@ -496,7 +498,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_qs_env(qs_env, atomic_kind_set, qs_kind_set, cell, super_cell, cell_ref, use_ref_cell, kpoints, &
-                         dft_control, mos, sab_orb, sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, &
+                         dft_control, mos, sab_orb, sab_all, qmmm, qmmm_periodic, mimic, sac_ae, sac_ppl, sac_lri, &
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
                          sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, &
                          sab_kp, sab_kp_nosym, sab_cneo, particle_set, energy, force, &
@@ -536,7 +538,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb, sab_all
-      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
+      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic, mimic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
          sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym, sab_cneo
@@ -679,6 +681,7 @@ CONTAINS
       IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
       IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
       IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
+      IF (PRESENT(mimic)) mimic = qs_env%mimic
       IF (PRESENT(mos)) mos => qs_env%mos
       IF (PRESENT(mos_last_converged)) mos_last_converged => qs_env%mos_last_converged
       IF (PRESENT(ewald_env)) ewald_env => qs_env%ewald_env
@@ -963,6 +966,7 @@ CONTAINS
       qs_env%single_point_run = .FALSE.
       qs_env%qmmm = .FALSE.
       qs_env%qmmm_periodic = .FALSE.
+      qs_env%mimic = .FALSE.
       qs_env%requires_mo_derivs = .FALSE.
       qs_env%requires_matrix_vxc = .FALSE.
       qs_env%has_unit_metric = .FALSE.
@@ -1004,6 +1008,7 @@ CONTAINS
 !> \param mos ...
 !> \param qmmm ...
 !> \param qmmm_periodic ...
+!> \param mimic ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
 !> \param mpools ...
@@ -1080,7 +1085,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_qs_env(qs_env, super_cell, &
-                         mos, qmmm, qmmm_periodic, &
+                         mos, qmmm, qmmm_periodic, mimic, &
                          ewald_env, ewald_pw, mpools, &
                          rho_external, external_vxc, mask, &
                          scf_control, rel_control, qs_charges, ks_env, &
@@ -1099,7 +1104,7 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
-      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
+      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic, mimic
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
@@ -1189,6 +1194,7 @@ CONTAINS
       !
       IF (PRESENT(qmmm)) qs_env%qmmm = qmmm
       IF (PRESENT(qmmm_periodic)) qs_env%qmmm_periodic = qmmm_periodic
+      IF (PRESENT(mimic)) qs_env%mimic = mimic
       IF (PRESENT(mos)) qs_env%mos => mos
       IF (PRESENT(mos_last_converged)) qs_env%mos_last_converged => mos_last_converged
       IF (PRESENT(ls_scf_env)) qs_env%ls_scf_env => ls_scf_env
