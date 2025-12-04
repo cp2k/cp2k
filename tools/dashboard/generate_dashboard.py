@@ -196,7 +196,7 @@ def gen_frontpage(
         if report.status == "OK":
             status[s].last_ok = report.sha
             status[s].notified = False
-        elif do_notify and not status[s].notified:
+        elif report.status == "FAILED" and do_notify and not status[s].notified:
             send_notification(report, status[s].last_ok, log, name, s, send_emails)
             status[s].notified = True
 
