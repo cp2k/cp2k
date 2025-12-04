@@ -668,6 +668,9 @@ if(CP2K_USE_COSMA)
         " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly"
     )
   endif()
+  add_library(cp2k::cosma INTERFACE)
+  target_link_libraries(cp2k::cosma INTERFACE cosma::cosma_prefixed_pxgemm
+                                              cosma::cosma)
 endif()
 
 if(CP2K_USE_VORI)
@@ -836,9 +839,9 @@ if(CP2K_USE_GREENX)
   set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
                                 "-L${GMP_LIBRARY_PATH}")
 
-  add_library(cp2k::greenx INTERFACE)
-  target_link_libraries(cp2k:greenx INTERFACE greenX::GXCommon greenX::LibGXAC
-                                              greenX::LibGXMiniMax)
+  add_library(cp2k::greenx INTERFACE IMPORTED)
+  target_link_libraries(cp2k::greenx INTERFACE greenX::GXCommon greenX::LibGXAC
+                                               greenX::LibGXMiniMax)
 endif()
 
 # OPTION HANDLING
