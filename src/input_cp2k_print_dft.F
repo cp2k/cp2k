@@ -451,7 +451,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="KOHN_SHAM_MATRIX", &
-                          description="If the printkey is activated controls the printing of the kohn-sham matrix", &
+                          description="If the printkey is activated controls the printing of the Kohn-Sham matrix", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1749,6 +1749,86 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="Real_space", &
                           description="Print the overlap matrix in real-space instead of k-space.. ", &
+                          usage="REAL_SPACE {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Core Hamiltonian in CSR format
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "HCORE_CSR_WRITE", &
+                                       description="Write the core Hamiltonian matrix in CSR format into a file.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="Threshold", &
+                          description="Threshold on the absolute value of the elements to be printed out. "// &
+                          "In CP2K all the elements in a (atomic) matrix block are considered non-zero, "// &
+                          "if the block contains at least one non-zero element.", &
+                          usage="THRESHOLD {real}", &
+                          repeats=.FALSE., &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Upper_triangular", &
+                          description="Print only the upper triangular part of the matrix. ", &
+                          usage="UPPER_TRIANGULAR {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Binary", &
+                          description="Whether or not to generate the file in a binary format. ", &
+                          usage="BINARY {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Real_space", &
+                          description="Print the core Hamiltonian matrix in real-space instead of k-space.. ", &
+                          usage="REAL_SPACE {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Density Matrix in CSR format
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "P_CSR_WRITE", &
+                                       description="Write the density matrix in CSR format into a file.", &
+                                       print_level=debug_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="Threshold", &
+                          description="Threshold on the absolute value of the elements to be printed out. "// &
+                          "In CP2K all the elements in a (atomic) matrix block are considered non-zero, "// &
+                          "if the block contains at least one non-zero element.", &
+                          usage="THRESHOLD {real}", &
+                          repeats=.FALSE., &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Upper_triangular", &
+                          description="Print only the upper triangular part of the matrix. ", &
+                          usage="UPPER_TRIANGULAR {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Binary", &
+                          description="Whether or not to generate the file in a binary format. ", &
+                          usage="BINARY {logical}", &
+                          repeats=.FALSE., &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Real_space", &
+                          description="Print the density matrix in real-space instead of k-space.. ", &
                           usage="REAL_SPACE {logical}", &
                           repeats=.FALSE., &
                           default_l_val=.FALSE., &

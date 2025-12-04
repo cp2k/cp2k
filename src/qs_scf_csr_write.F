@@ -46,6 +46,8 @@ MODULE qs_scf_csr_write
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -54,7 +56,9 @@ MODULE qs_scf_csr_write
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_csr_write'
    PUBLIC :: write_ks_matrix_csr, &
-             write_s_matrix_csr
+             write_s_matrix_csr, &
+             write_p_matrix_csr, &
+             write_hcore_matrix_csr
 
 ! **************************************************************************************************
 
@@ -159,6 +163,106 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_s_matrix_csr
+
+!**************************************************************************************************
+!> \brief writing the density matrix in csr format into a file
+!> \param qs_env qs environment
+!> \param input the input
+!> \par History
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE write_p_matrix_csr(qs_env, input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_p_matrix_csr'
+
+      INTEGER                                            :: handle, output_unit
+      LOGICAL                                            :: do_kpoints, do_p_csr_write, real_space
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_section)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      do_p_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                        "PRINT%P_CSR_WRITE"), cp_p_file)
+
+      IF (do_p_csr_write) THEN
+         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, rho=rho, do_kpoints=do_kpoints)
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+         CALL section_vals_val_get(dft_section, "PRINT%P_CSR_WRITE%REAL_SPACE", &
+                                   l_val=real_space)
+
+         IF (do_kpoints .AND. .NOT. real_space) THEN
+            CALL write_matrix_kp_csr(mat=rho_ao_kp, dft_section=dft_section, &
+                                     kpoints=kpoints, prefix="P")
+         ELSE
+            CALL write_matrix_csr(dft_section, mat=rho_ao_kp, kpoints=kpoints, do_kpoints=do_kpoints, &
+                                  prefix="P")
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_p_matrix_csr
+
+!**************************************************************************************************
+!> \brief writing the core Hamiltonian matrix in csr format into a file
+!> \param qs_env qs environment
+!> \param input the input
+!> \par History
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE write_hcore_matrix_csr(qs_env, input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_hcore_matrix_csr'
+
+      INTEGER                                            :: handle, output_unit
+      LOGICAL                                            :: do_h_csr_write, do_kpoints, real_space
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_section)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      do_h_csr_write = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                        "PRINT%HCORE_CSR_WRITE"), cp_p_file)
+
+      IF (do_h_csr_write) THEN
+         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, matrix_h_kp=matrix_h, do_kpoints=do_kpoints)
+         CALL section_vals_val_get(dft_section, "PRINT%HCORE_CSR_WRITE%REAL_SPACE", &
+                                   l_val=real_space)
+
+         IF (do_kpoints .AND. .NOT. real_space) THEN
+            CALL write_matrix_kp_csr(mat=matrix_h, dft_section=dft_section, &
+                                     kpoints=kpoints, prefix="HCORE")
+         ELSE
+            CALL write_matrix_csr(dft_section, mat=matrix_h, kpoints=kpoints, do_kpoints=do_kpoints, &
+                                  prefix="HCORE")
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE write_hcore_matrix_csr
 
 ! **************************************************************************************************
 !> \brief helper function to print the real space representation of KS or S matrix to file
