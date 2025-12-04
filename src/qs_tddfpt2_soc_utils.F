@@ -248,23 +248,23 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       TYPE(soc_env_type), TARGET                         :: soc_env
 
-      INTEGER                                            :: icol, ideriv, irow, ispin, n_occ, &
+      INTEGER                                            :: ici, icol, ideriv, irow, ispin, n_act, &
                                                             n_virt, nao, ncols_local, nderivs, &
                                                             nrows_local, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(kind=dp)                                      :: eval_occ
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_data_ediff, local_data_wfm
+         POINTER                                         :: local_data_ediff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: ao_cvirt_struct, ao_nocc_struct, &
-                                                            cvirt_ao_struct, fm_struct, scrm_struct
-      TYPE(cp_fm_type)                                   :: scrm_fm, wfm_mo_virt_mo_occ
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_cvirt_struct, cvirt_ao_struct, &
+                                                            fm_struct, scrm_struct
+      TYPE(cp_fm_type)                                   :: scrm_fm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, scrm
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (scrm, scrm_struct, blacs_env, matrix_s, ao_cvirt_struct, ao_nocc_struct, cvirt_ao_struct)
+      NULLIFY (scrm, scrm_struct, blacs_env, matrix_s, ao_cvirt_struct, cvirt_ao_struct)
       nspins = 1
       nderivs = 3
       ALLOCATE (soc_env%SC(nspins), soc_env%CdS(nspins, nderivs), soc_env%ediff(nspins))
@@ -274,7 +274,6 @@ CONTAINS
       CALL cp_fm_struct_create(scrm_struct, nrow_global=nao, ncol_global=nao, &
                                context=blacs_env)
       CALL cp_fm_get_info(gs_mos(1)%mos_virt, matrix_struct=ao_cvirt_struct)
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=ao_nocc_struct)
 
       CALL build_overlap_matrix(ks_env, matrix_s=scrm, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", &
@@ -282,14 +281,14 @@ CONTAINS
 
       DO ispin = 1, nspins
          NULLIFY (fm_struct)
-         n_occ = SIZE(gs_mos(ispin)%evals_occ)
+!deb     n_occ = SIZE(gs_mos(ispin)%evals_occ)
+         n_act = gs_mos(ispin)%nmo_active
          n_virt = SIZE(gs_mos(ispin)%evals_virt)
          CALL cp_fm_struct_create(fm_struct, nrow_global=n_virt, &
-                                  ncol_global=n_occ, context=blacs_env)
+                                  ncol_global=n_act, context=blacs_env)
          CALL cp_fm_struct_create(cvirt_ao_struct, nrow_global=n_virt, &
                                   ncol_global=nao, context=blacs_env)
          CALL cp_fm_create(soc_env%ediff(ispin), fm_struct)
-         CALL cp_fm_create(wfm_mo_virt_mo_occ, fm_struct)
          CALL cp_fm_create(soc_env%SC(ispin), ao_cvirt_struct)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
@@ -299,14 +298,14 @@ CONTAINS
 
          CALL cp_fm_get_info(soc_env%ediff(ispin), nrow_local=nrows_local, ncol_local=ncols_local, &
                              row_indices=row_indices, col_indices=col_indices, local_data=local_data_ediff)
-         CALL cp_fm_get_info(wfm_mo_virt_mo_occ, local_data=local_data_wfm)
 
 !$OMP       PARALLEL DO DEFAULT(NONE), &
-!$OMP                PRIVATE(eval_occ, icol, irow), &
+!$OMP                PRIVATE(eval_occ, ici, icol, irow), &
 !$OMP                SHARED(col_indices, gs_mos, ispin, local_data_ediff, ncols_local, nrows_local, row_indices)
          DO icol = 1, ncols_local
             ! E_occ_i ; imo_occ = col_indices(icol)
-            eval_occ = gs_mos(ispin)%evals_occ(col_indices(icol))
+            ici = gs_mos(ispin)%index_active(col_indices(icol))
+            eval_occ = gs_mos(ispin)%evals_occ(ici)
 
             DO irow = 1, nrows_local
                ! ediff_inv_weights(a, i) = 1.0 / (E_virt_a - E_occ_i)
@@ -326,7 +325,6 @@ CONTAINS
 
          END DO
 
-         CALL cp_fm_release(wfm_mo_virt_mo_occ)
          CALL cp_fm_struct_release(fm_struct)
       END DO
       CALL dbcsr_deallocate_matrix_set(scrm)
@@ -356,7 +354,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: gs_coeffs
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: sggs_fm
 
-      INTEGER                                            :: iex, ispin, n_occ, n_virt, nao, nex
+      INTEGER                                            :: iex, ispin, n_act, n_virt, nao, nex
       LOGICAL                                            :: sggs
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: op_struct, virt_occ_struct
@@ -381,18 +379,18 @@ CONTAINS
       IF (.NOT. sggs) ALLOCATE (WCdSC_tmp(ispin, nex))
       CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env)
       CALL cp_fm_get_info(soc_env%CdS(ispin, ideriv), ncol_global=nao, nrow_global=n_virt)
-      CALL cp_fm_get_info(evec_fm(1, 1), ncol_global=n_occ)
+      CALL cp_fm_get_info(evec_fm(1, 1), ncol_global=n_act)
 
       IF (sggs) THEN
          CALL cp_fm_struct_create(virt_occ_struct, context=blacs_env, para_env=para_env, nrow_global=n_virt, &
-                                  ncol_global=n_occ)
-         CALL cp_fm_struct_create(op_struct, context=blacs_env, para_env=para_env, nrow_global=n_occ*nex, &
-                                  ncol_global=n_occ)
+                                  ncol_global=n_act)
+         CALL cp_fm_struct_create(op_struct, context=blacs_env, para_env=para_env, nrow_global=n_act*nex, &
+                                  ncol_global=n_act)
       ELSE
          CALL cp_fm_struct_create(virt_occ_struct, context=blacs_env, para_env=para_env, nrow_global=n_virt, &
-                                  ncol_global=n_occ*nex)
-         CALL cp_fm_struct_create(op_struct, context=blacs_env, para_env=para_env, nrow_global=n_occ*nex, &
-                                  ncol_global=n_occ*nex)
+                                  ncol_global=n_act*nex)
+         CALL cp_fm_struct_create(op_struct, context=blacs_env, para_env=para_env, nrow_global=n_act*nex, &
+                                  ncol_global=n_act*nex)
       END IF
 
       CALL cp_fm_create(CdSC, soc_env%ediff(ispin)%matrix_struct)
@@ -401,14 +399,14 @@ CONTAINS
       IF (sggs) THEN
          CALL cp_fm_create(SCWCdSC, gs_coeffs%matrix_struct)
          CALL cp_fm_create(WCdSC, soc_env%ediff(ispin)%matrix_struct)
-         CALL parallel_gemm('N', 'N', n_virt, n_occ, nao, 1.0_dp, soc_env%CdS(ispin, ideriv), &
+         CALL parallel_gemm('N', 'N', n_virt, n_act, nao, 1.0_dp, soc_env%CdS(ispin, ideriv), &
                             gs_coeffs, 0.0_dp, CdSC)
          CALL cp_fm_schur_product(CdSC, soc_env%ediff(ispin), WCdSC)
       ELSE
          CALL cp_fm_create(SCWCdSC, coeff%matrix_struct)
          DO iex = 1, nex
             CALL cp_fm_create(WCdSC_tmp(ispin, iex), soc_env%ediff(ispin)%matrix_struct)
-            CALL parallel_gemm('N', 'N', n_virt, n_occ, nao, 1.0_dp, soc_env%CdS(ispin, ideriv), &
+            CALL parallel_gemm('N', 'N', n_virt, n_act, nao, 1.0_dp, soc_env%CdS(ispin, ideriv), &
                                evec_fm(ispin, iex), 0.0_dp, CdSC)
             CALL cp_fm_schur_product(CdSC, soc_env%ediff(ispin), WCdSC_tmp(ispin, iex))
          END DO
@@ -421,11 +419,11 @@ CONTAINS
       END IF
 
       IF (sggs) THEN
-         CALL parallel_gemm('N', 'N', nao, n_occ, n_virt, 1.0_dp, soc_env%SC(ispin), WCdSC, 0.0_dp, SCWCdSC)
-         CALL parallel_gemm('T', 'N', n_occ*nex, n_occ, nao, 1.0_dp, soc_env%a_coeff, SCWCdSC, 0.0_dp, op_fm)
+         CALL parallel_gemm('N', 'N', nao, n_act, n_virt, 1.0_dp, soc_env%SC(ispin), WCdSC, 0.0_dp, SCWCdSC)
+         CALL parallel_gemm('T', 'N', n_act*nex, n_act, nao, 1.0_dp, soc_env%a_coeff, SCWCdSC, 0.0_dp, op_fm)
       ELSE
-         CALL parallel_gemm('N', 'N', nao, n_occ*nex, n_virt, 1.0_dp, soc_env%SC(ispin), WCdSC, 0.0_dp, SCWCdSC)
-         CALL parallel_gemm('T', 'N', n_occ*nex, n_occ*nex, nao, 1.0_dp, coeff, SCWCdSC, 0.0_dp, op_fm)
+         CALL parallel_gemm('N', 'N', nao, n_act*nex, n_virt, 1.0_dp, soc_env%SC(ispin), WCdSC, 0.0_dp, SCWCdSC)
+         CALL parallel_gemm('T', 'N', n_act*nex, n_act*nex, nao, 1.0_dp, coeff, SCWCdSC, 0.0_dp, op_fm)
       END IF
 
       IF (sggs) THEN
@@ -570,4 +568,5 @@ CONTAINS
       DEALLOCATE (cpl_tmp, rep_int)
 
    END SUBROUTINE resort_evects
+
 END MODULE qs_tddfpt2_soc_utils

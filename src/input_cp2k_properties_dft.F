@@ -2122,14 +2122,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="UPPER_ENERGY_CUTOFF", &
-                          description="Upper energy cutoff for orbitals to be included in excitations.", &
+                          description="Upper energy cutoff [eV] for orbitals to be included in excitations.", &
                           usage="UPPER_ENERGY_CUTOFF -5.0", default_r_val=1.0E10_dp, &
                           type_of_var=real_t, unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LOWER_ENERGY_CUTOFF", &
-                          description="Lower energy cutoff for orbitals to be included in excitations.", &
+                          description="Lower energy cutoff [eV] for orbitals to be included in excitations.", &
                           usage="LOWER_ENERGY_CUTOFF -5.0", default_r_val=-1.0E10_dp, &
                           type_of_var=real_t, unit_str="eV")
       CALL section_add_keyword(section, keyword)
