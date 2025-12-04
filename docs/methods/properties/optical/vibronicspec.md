@@ -287,9 +287,9 @@ a.u., frequencies (`[FREQ]`) in $\textrm{cm}^{-1}$ and normal modes (`[FR-NORM-C
 
 #### 2. Absorption spectrum and excited-state forces
 
-The absorption spectrum and excited‑state forces can be calculated in a single run. For this, we will change the
-`RUN_TYPE` to `ENERGY_FORCE`, remove the `VIBRATIONAL_ANALYSIS` section from the input above, and
-add the `PROPERTIES` section below to `FORCE_EVAL`.
+The absorption spectrum and excited‑state forces can be calculated in a single run. For this, we
+will change the `RUN_TYPE` to `ENERGY_FORCE`, remove the `VIBRATIONAL_ANALYSIS` section from the
+input above, and add the `PROPERTIES` section below to `FORCE_EVAL`.
 
 ```none
 &PROPERTIES
