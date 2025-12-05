@@ -79,7 +79,7 @@ spack:
       require:
         - +kxc
         - build_system=cmake
-    openpmd:
+    openpmd-api:
       require:
         - adios2
     pexsi:
