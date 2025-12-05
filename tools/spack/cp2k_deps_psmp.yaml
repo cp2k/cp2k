@@ -79,6 +79,9 @@ spack:
       require:
         - +kxc
         - build_system=cmake
+    openpmd-api:
+      require:
+        - adios2
     pexsi:
       require:
         - +fortran
@@ -127,6 +130,7 @@ spack:
     - "libvori@220621"
     - "libxc@7.0.0"
 #   - "libxsmm@1.17"
+    - "openpmd-api@0.16.1"
     - "pexsi@2.0.0"
     - "plumed@2.9.2"
     - "py-torch@2.7"
