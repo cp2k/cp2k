@@ -129,8 +129,6 @@ CONTAINS
       )
       INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
-      ! TODO: The charge is probably constant per species?
-      ! If yes, we could use a constant component and save storage space
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, INTENT(IN)                                :: atom_type, atom_count
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
@@ -153,6 +151,9 @@ CONTAINS
       TYPE(openpmd_record_component_type)                :: charge_component, position_component, &
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: charge, position, position_offset
+
+! TODO: The charge is probably constant per species?
+! If yes, we could use a constant component and save storage space
 
       global_extent(1) = atom_count
       IF (do_write_data) THEN
