@@ -497,6 +497,7 @@ CONTAINS
       MARK_USED(title)
       MARK_USED(particles_r)
       MARK_USED(particles_z)
+      MARK_USED(particles_zeff)
       MARK_USED(stride)
       MARK_USED(zero_tails)
       MARK_USED(silent)
