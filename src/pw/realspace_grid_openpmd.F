@@ -464,19 +464,31 @@ CONTAINS
 !> \param title ...
 !> \param particles_r ...
 !> \param particles_z ...
+!> \param particles_zeff ...
 !> \param stride ...
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
-   SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
-                            silent, mpi_io)
+   SUBROUTINE pw_to_openpmd( &
+      pw, &
+      unit_nr, &
+      title, &
+      particles_r, &
+      particles_z, &
+      particles_zeff, &
+      stride, &
+      zero_tails, &
+      silent, &
+      mpi_io &
+      )
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER                                            :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
