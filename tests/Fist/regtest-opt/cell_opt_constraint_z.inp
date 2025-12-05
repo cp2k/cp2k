@@ -27,6 +27,9 @@
     RMS_DR 0.0003
     RMS_FORCE 0.00003
     TYPE direct_cell_opt
+    &LBFGS
+      TRUST_RADIUS [Angstrom] 0.1
+    &END LBFGS
   &END CELL_OPT
   &PRINT
     &CELL on
