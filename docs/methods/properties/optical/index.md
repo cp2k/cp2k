@@ -8,6 +8,7 @@ maxdepth: 1
 tddft
 bethe-salpeter
 rtbse
+vibronicspec
 ```
 
 Optical spectroscopy is a technique used to study the interaction between light and matter. It
