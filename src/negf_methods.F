@@ -511,7 +511,7 @@ CONTAINS
                nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
                CALL cp_fm_trace(negf_env%contacts(contact_id)%rho_01(ispin), &
                                 negf_env%contacts(contact_id)%s_01, trace)
-               nelectrons_qs_cell1 = nelectrons_qs_cell1 + 2.0*trace
+               nelectrons_qs_cell1 = nelectrons_qs_cell1 + 2.0_dp*trace
             END DO
          END IF
 
@@ -2453,13 +2453,8 @@ CONTAINS
             END IF
             npoints_total = 0
 
-            CALL cp_fm_get_info(rho_ao_fm, para_env=para_env, matrix_struct=fm_struct)
-
             ALLOCATE (xnodes(npoints))
-            ALLOCATE (zdata(ncontacts, npoints))
-            DO ipoint = 1, npoints
-               CALL cp_cfm_create(zdata(base_contact, ipoint), fm_struct)
-            END DO
+            CALL cp_fm_get_info(rho_ao_fm, para_env=para_env, matrix_struct=fm_struct)
 
             IF (do_surface_green) THEN
                CALL simpsonrule_init(sr_env, xnodes, npoints, integr_lbound, integr_ubound, &
@@ -2470,6 +2465,7 @@ CONTAINS
             END IF
 
             DO WHILE (npoints > 0 .AND. npoints_total < max_points)
+
                IF (do_surface_green) THEN
                   CALL green_functions_cache_expand(g_surf_cache, ncontacts, npoints)
 
@@ -2485,7 +2481,11 @@ CONTAINS
                                                             conv=negf_control%conv_green, transp=.FALSE.)
                   END DO
                END IF
+
+               ALLOCATE (zdata(ncontacts, npoints))
+
                DO ipoint = 1, npoints
+                  CALL cp_cfm_create(zdata(base_contact, ipoint), fm_struct)
                   CALL cp_cfm_create(zdata(icontact, ipoint), fm_struct)
                END DO
 
@@ -2511,6 +2511,12 @@ CONTAINS
 
                CALL simpsonrule_refine_integral(sr_env, zdata(icontact, 1:npoints))
 
+               DO ipoint = 1, npoints
+                  CALL cp_cfm_release(zdata(base_contact, ipoint))
+                  CALL cp_cfm_release(zdata(icontact, ipoint))
+               END DO
+               DEALLOCATE (zdata)
+
                IF (sr_env%error <= conv_integr) EXIT
 
                ! not enought cached points to achieve target accuracy
@@ -2531,11 +2537,7 @@ CONTAINS
 
             CALL cp_fm_release(integral_real)
 
-            DO ipoint = 1, npoints
-               CALL cp_cfm_release(zdata(base_contact, ipoint))
-            END DO
             DEALLOCATE (xnodes)
-            DEALLOCATE (zdata)
 
             stats%error = stats%error + sr_env%error*0.5_dp/pi
             stats%npoints = stats%npoints + npoints_total
