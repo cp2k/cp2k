@@ -626,10 +626,10 @@ CONTAINS
 
             ! 3. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
 
-            ! 3. a-b) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            ! 3. a) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
             CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
 
-            ! 3. c) ε(iω_j,k_i) = eps_work - Id
+            ! 3. b) ε(iω_j,k_i) = eps_work - Id
             CALL add_on_diag(eps_k_w, z_one)
 
             ! 4. W(iω_j,k_i) = M^-1(k_i)*V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)*M^-1(k_i)
@@ -640,7 +640,7 @@ CONTAINS
             ! 4. b) ε^-1(iω_j,k_i)-Id
             CALL add_on_diag(eps_k_w, -z_one)
 
-            ! 4. c-d) W(iω,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
+            ! 4. c) W(iω,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
             CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', V_sqrt(:, :, ikp_local), 'C', W_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
@@ -831,11 +831,11 @@ CONTAINS
                        bs_env%kpoints_scf_desymm%index_to_cell, &
                        bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
-         ! 2e-f. Ŵ(k) = M^-1(k) W^trunc(k) M^-1(k)
+         ! Ŵ(k) = M^-1(k)*W^trunc(k)*M^-1(k)
          CALL gemm_square(M_inv, 'N', W_k, 'N', M_inv, 'N', work)
          W_k(:, :) = work(:, :)
 
-         ! 2g. Ŵ^R = sum_k w_k e^(-ikR) Ŵ^(k)
+         ! Ŵ^R = sum_k w_k e^(-ikR) Ŵ^(k)
          CALL add_kp_to_all_rs(W_k, MWM_R, bs_env%kpoints_scf_desymm, ikp)
 
       END DO ! ikp
