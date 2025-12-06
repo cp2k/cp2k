@@ -12,6 +12,8 @@
 ! **************************************************************************************************
 MODULE gw_large_cell_gamma
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bibliography,                    ONLY: Graml2024,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
@@ -114,6 +116,8 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: fm_Sigma_c_Gamma_time
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Graml2024)
 
       ! G^occ_µλ(i|τ|,k=0) = sum_n^occ C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)
       ! G^vir_µλ(i|τ|,k=0) = sum_n^vir C_µn(k=0) e^(-|(ϵ_nk=0-ϵ_F)τ|) C_λn(k=0)

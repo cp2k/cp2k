@@ -90,7 +90,7 @@ MODULE bibliography
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
-                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024
+                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025
 
 CONTAINS
 
@@ -1993,6 +1993,14 @@ CONTAINS
                          "Real-Time Propagation Based on the Bethe–Salpeter Equation", &
                          source="J. Chem. Theory Comput.", volume="21", pages="9814-9822", &
                          year=2025, doi="10.1021/acs.jctc.5c01246")
+
+      CALL add_reference(key=Pasquier2025, &
+                         authors=s2a("R. Pasquier", "M. Camarasa-Gómez", &
+                                     "A. Hehn", "D. Hernangómez-Pérez", "J. Wilhelm"), &
+                         title="Efficient GW band structure calculations using Gaussian basis functions and application "// &
+                         "to atomically thin transition-metal dichalcogenides", &
+                         source="Phys. Rev. B", volume="112", pages="205130", &
+                         year=2025, doi="10.1103/v4zv-1pf9")
 
    END SUBROUTINE add_all_references
 
