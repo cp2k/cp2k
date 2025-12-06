@@ -11,6 +11,8 @@
 !> \date 05.2024
 ! **************************************************************************************************
 MODULE gw_small_cell_full_kp
+   USE bibliography,                    ONLY: Pasquier2025,&
+                                              cite_reference
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -82,6 +84,8 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Pasquier2025)
 
       ! G^occ_µλ(i|τ|,k) = sum_n^occ C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
       ! G^vir_µλ(i|τ|,k) = sum_n^vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k)
