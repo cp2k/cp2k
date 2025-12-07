@@ -33,14 +33,9 @@ MODULE negf_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_add_to_element, cp_fm_copy_general, cp_fm_create, cp_fm_get_info, &
+        cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -394,7 +389,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE guess_fermi_level(contact_id, negf_env, negf_control, sub_env, qs_env, log_unit)
       INTEGER, INTENT(in)                                :: contact_id
-      TYPE(negf_env_type), INTENT(in)                    :: negf_env
+      TYPE(negf_env_type), INTENT(inout)                 :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -410,9 +405,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints
-      REAL(kind=dp) :: delta_au, energy_ubound_minus_fermi, fermi_level_guess, fermi_level_max, &
-         fermi_level_min, nelectrons_guess, nelectrons_max, nelectrons_min, nelectrons_qs_cell0, &
-         nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
+      REAL(kind=dp) :: delta_au, delta_Ef, energy_ubound_minus_fermi, fermi_level_guess, &
+         fermi_level_max, fermi_level_min, nelectrons_guess, nelectrons_max, nelectrons_min, &
+         nelectrons_qs_cell0, nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: rho_ao_fm
@@ -428,6 +423,13 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
+
+      IF (log_unit > 0) THEN
+         WRITE (temperature_str, '(F11.3)') negf_control%contacts(contact_id)%temperature*kelvin
+         WRITE (log_unit, '(/,T2,A,I3)') "FERMI LEVEL OF CONTACT ", contact_id
+         WRITE (log_unit, "(            ' --------------------------')")
+         WRITE (log_unit, '(A)') " Temperature "//TRIM(ADJUSTL(temperature_str))//" Kelvin"
+      END IF
 
       IF (negf_control%contacts(contact_id)%compute_fermi_level) THEN
 
@@ -518,11 +520,8 @@ CONTAINS
          DEALLOCATE (index_to_cell)
 
          IF (log_unit > 0) THEN
-            WRITE (temperature_str, '(F11.3)') negf_control%contacts(contact_id)%temperature*kelvin
-            WRITE (log_unit, '(/,T2,A,I3)') "COMPUTE FERMI LEVEL OF CONTACT ", contact_id
-            WRITE (log_unit, "(            ' ----------------------------------')")
-            WRITE (log_unit, '(A)') " Temperature "//TRIM(ADJUSTL(temperature_str))//" Kelvin"
-            WRITE (log_unit, '(/,T2,A,T60,F20.10,/)') "Electronic density of the electrode unit cell:", &
+            WRITE (log_unit, '(A)') " Computing the Fermi level of bulk electrode"
+            WRITE (log_unit, '(T2,A,T60,F20.10,/)') "Electronic density of the electrode unit cell:", &
                -1.0_dp*(nelectrons_qs_cell0 + nelectrons_qs_cell1)
             WRITE (log_unit, '(T3,A)') "Step     Integration method      Time      Fermi level   Convergence (density)"
             WRITE (log_unit, '(T3,78("-"))')
@@ -672,20 +671,35 @@ CONTAINS
          CALL cp_fm_release(rho_ao_fm)
       END IF
 
+      IF (negf_control%contacts(contact_id)%shift_fermi_level) THEN
+         delta_Ef = negf_control%contacts(contact_id)%fermi_level_shifted - negf_control%contacts(contact_id)%fermi_level
+         IF (log_unit > 0) WRITE (log_unit, "(/,' The energies are shifted by (a.u.):',F18.8)") delta_Ef
+         IF (log_unit > 0) WRITE (log_unit, "('                               (eV):',F18.8)") delta_Ef*evolt
+         negf_control%contacts(contact_id)%fermi_level = negf_control%contacts(contact_id)%fermi_level_shifted
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         nspins = dft_control%nspins
+         CALL cp_fm_get_info(negf_env%contacts(contact_id)%s_00, nrow_global=nao)
+         DO ispin = 1, nspins
+            DO step = 1, nao
+               CALL cp_fm_add_to_element(negf_env%contacts(contact_id)%h_00(ispin), step, step, delta_Ef)
+            END DO
+         END DO
+      END IF
+
       IF (log_unit > 0) THEN
          WRITE (temperature_str, '(F11.3)') negf_control%contacts(contact_id)%temperature*kelvin
          WRITE (log_unit, '(/,T2,A,I0)') "NEGF| Contact No. ", contact_id
          WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Fermi level at "//TRIM(ADJUSTL(temperature_str))// &
             " Kelvin (a.u.):", negf_control%contacts(contact_id)%fermi_level
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Fermi level at "//TRIM(ADJUSTL(temperature_str))// &
-            " Kelvin (eV):", negf_control%contacts(contact_id)%fermi_level*evolt
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|                                   (eV):", &
+            negf_control%contacts(contact_id)%fermi_level*evolt
          WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electric potential (a.u.):", &
             negf_control%contacts(contact_id)%v_external
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electric potential (Volt):", &
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|                       (Volt):", &
             negf_control%contacts(contact_id)%v_external*evolt
          WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electro-chemical potential Ef-|e|V (a.u.):", &
             (negf_control%contacts(contact_id)%fermi_level - negf_control%contacts(contact_id)%v_external)
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Electro-chemical potential Ef-|e|V (eV):", &
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|                                         (eV):", &
             (negf_control%contacts(contact_id)%fermi_level - negf_control%contacts(contact_id)%v_external)*evolt
       END IF
 
@@ -737,6 +751,7 @@ CONTAINS
       IF (.NOT. (ALLOCATED(negf_env%h_s) .AND. ALLOCATED(negf_env%h_sc) .AND. &
                  ASSOCIATED(negf_env%s_s) .AND. ALLOCATED(negf_env%s_sc))) RETURN
       IF (ncontacts < 2) RETURN
+      IF (negf_control%v_shift_maxiters == 0) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -932,7 +947,7 @@ CONTAINS
 
       IF (log_unit > 0) THEN
          WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Shift in Hartree potential (a.u.):", negf_control%v_shift
-         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|    Shift in Hartree potential (eV):", negf_control%v_shift*evolt
+         WRITE (log_unit, '(T2,A,T62,F18.8)') "NEGF|                                 (eV):", negf_control%v_shift*evolt
       END IF
 
       DO ispin = nspins, 1, -1
@@ -1001,10 +1016,15 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       ncontacts = SIZE(negf_control%contacts)
+      ! the current subroutine works for the general case as well, but the Poisson solver does not
+      IF (ncontacts > 2) THEN
+         CPABORT("Poisson solver does not support the general NEGF setup (>2 contacts).")
+      END IF
       ! nothing to do
       IF (.NOT. (ALLOCATED(negf_env%h_s) .AND. ALLOCATED(negf_env%h_sc) .AND. &
                  ASSOCIATED(negf_env%s_s) .AND. ALLOCATED(negf_env%s_sc))) RETURN
       IF (ncontacts < 2) RETURN
+      IF (negf_control%max_scf == 0) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -1042,11 +1062,6 @@ CONTAINS
 
       v_base = negf_control%contacts(base_contact)%v_external
       mu_base = negf_control%contacts(base_contact)%fermi_level - v_base
-
-      ! the current subroutine works for the general case as well, but the Poisson solver does not
-      IF (ncontacts > 2) THEN
-         CPABORT("Poisson solver does not support the general NEGF setup (>2 contacts).")
-      END IF
 
       ! keep the initial charge density matrix and Kohn-Sham matrix
       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_qs_kp)
@@ -1178,12 +1193,13 @@ CONTAINS
                IF (icontact /= base_contact) THEN
                   delta = delta + ABS(negf_control%contacts(icontact)%v_external - &
                                       negf_control%contacts(base_contact)%v_external) + &
+                          ABS(negf_control%contacts(icontact)%fermi_level - &
+                              negf_control%contacts(base_contact)%fermi_level) + &
                           ABS(negf_control%contacts(icontact)%temperature - &
                               negf_control%contacts(base_contact)%temperature)
                END IF
             END DO
             IF (delta >= threshold) THEN
-
                CALL negf_add_rho_nonequiv(rho_ao_fm=rho_ao_new_fm(ispin), &
                                           stats=stats, &
                                           v_shift=v_shift, &

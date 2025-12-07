@@ -52,13 +52,16 @@ MODULE negf_control_types
          DIMENSION(:)                                    :: atomlist_cell
       !> index of the sub_force_env which should be used for bulk calculation
       INTEGER                                            :: force_env_index = -1
-      !> contact Fermi level needs to be computed prior NEGF run
+      !> contact Fermi level needs to be computed
       LOGICAL                                            :: compute_fermi_level = .FALSE.
-      !> to compute contact Fermi level starting from 'fermi_level'
-      !> (instead of the HOMO energy)
+      !> to refine contact Fermi level using NEGF
       LOGICAL                                            :: refine_fermi_level = .FALSE.
+      !> to shift energies to common zero level
+      LOGICAL                                            :: shift_fermi_level = .FALSE.
       !> Fermi level or starting Fermi level
       REAL(kind=dp)                                      :: fermi_level = -1.0_dp
+      !> Fermi level shifted to the common zero-energy level
+      REAL(kind=dp)                                      :: fermi_level_shifted = -1.0_dp
       !> temperature [in a.u.]
       REAL(kind=dp)                                      :: temperature = -1.0_dp
       !> applied electric potential
@@ -289,6 +292,11 @@ CONTAINS
          IF (.NOT. is_explicit) negf_control%contacts(i_rep)%refine_fermi_level = .FALSE.
          negf_control%contacts(i_rep)%compute_fermi_level = (.NOT. is_explicit) .OR. &
                                                             negf_control%contacts(i_rep)%refine_fermi_level
+
+         CALL section_vals_val_get(contact_section, "FERMI_LEVEL_SHIFTED", &
+                                   r_val=negf_control%contacts(i_rep)%fermi_level_shifted, &
+                                   i_rep_section=i_rep, explicit=is_explicit)
+         IF (is_explicit) negf_control%contacts(i_rep)%shift_fermi_level = .TRUE.
 
          CALL section_vals_val_get(contact_section, "TEMPERATURE", &
                                    r_val=negf_control%contacts(i_rep)%temperature, &
