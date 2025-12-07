@@ -296,6 +296,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="FERMI_LEVEL_SHIFTED", &
+                          description="Used to shift the zero-energy level of an electrode to the common zero-energy level."// &
+                          " If this keyword is specified, the Fermi level,"// &
+                          " calculated by standard DFT or NEGF (using the REFINE_FERMI_LEVEL keyword),"// &
+                          " or previously specified using the FERMI_LEVEL keyword,"// &
+                          " is changed to this value. All diagonal elements of the Hamiltonian are shifted accordingly.", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="Electronic temperature.", &
                           n_var=1, type_of_var=real_t, unit_str="K", &
