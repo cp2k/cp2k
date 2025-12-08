@@ -16,7 +16,8 @@ Monte Carlo, Ehrenfest dynamics, vibrational analysis, core level spectroscopy, 
 and transition state optimization using NEB or dimer method.
 
 CP2K is written in Fortran 2008 and can be run efficiently in parallel using a combination of
-multi-threading, MPI, and CUDA.
+multi-threading, MPI, and GPU acceleration (CUDA for NVIDIA GPUs, HIP/ROCm for AMD GPUs, and
+OpenCL).
 
 ## Downloading CP2K source code
 
@@ -42,7 +43,11 @@ help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-
 The easiest way to build CP2K with all of its dependencies is as a
 [Docker container](./tools/docker/README.md).
 
-For building CP2K from scratch see the [installation instructions](./INSTALL.md).
+For building CP2K from scratch, including GPU acceleration for NVIDIA (CUDA), AMD (HIP/ROCm), or
+OpenCL devices, see the [installation instructions](./INSTALL.md).
+
+See INSTALL.md, [section 2i](./INSTALL.md#2i-cuda-optional-improved-performance-on-gpu-systems) for
+CUDA builds, and [section 2w](./INSTALL.md#2w-rocmhip-support-for-amd-gpu) for HIP/ROCm builds.
 
 ## Links
 

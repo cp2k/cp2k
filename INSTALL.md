@@ -13,6 +13,10 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 The easiest way to build CP2K with all its dependencies is as a
 [Docker container](./tools/docker/README.md).
 
+CP2K supports GPU acceleration via CUDA (for NVIDIA GPUs), HIP/ROCm (for AMD GPUs), and OpenCL (for
+a range of devices). If you wish to build with GPU support, please ensure to review sections 2i
+(CUDA), 2w (ROCm/HIP), and 2x (OpenCL) in this document for detailed instructions.
+
 Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh) can also be run
 directly.
 
@@ -27,12 +31,21 @@ cd tools/toolchain/
 ./install_cp2k_toolchain.sh --help
 ```
 
-- Launch toolchain script (example option choice)
+- Launch toolchain script (example option choice for NVIDIA/CUDA):
 
 ```shell
 ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
      --with-fftw=system --with-reflapack=no  --enable-cuda
 ```
+
+- For AMD/ROCm/HIP support, use:
+
+```shell
+./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
+     --with-fftw=system --with-reflapack=no  --enable-hip
+```
+
+See section 2w for relevant variables and further information on HIP offloading.
 
 - Once the script has completed successfully, follow the instructions given at the end of its
   output. Note that the pre-built arch files provided by the toolchain are for the GNU compiler,
@@ -181,13 +194,15 @@ required.
   `FCFLAGS += -I${LIBXSMM_DIR}/include -D__LIBXSMM` and
   `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmmext -lxsmm -ldl`
 - LIBSMM is not used if LIBXSMM is enabled.
+- LIBXSMM can be used with both CUDA and HIP backends (see 2i and 2w for details regarding GPU
+  offloading)
 
 ### 2i. CUDA (optional, improved performance on GPU systems)
 
 - Specify OFFLOAD_CC (e.g., `OFFLOAD_CC = nvcc`) and OFFLOAD_FLAGS (e.g.,
   `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables. Remember to include the support for the C++11
   standard.
-- Use `-D__OFFLOAD_CUDA` to generally enable support for Nvidia GPUs
+- Use `-D__OFFLOAD_CUDA` to generally enable support for NVIDIA GPUs
 - Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET = cuda` to enable accelerator support for matrix
   multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
@@ -196,7 +211,7 @@ required.
 - Specify the C++ compiler (e.g., `CXX = g++`) and the CXXFLAGS to support the C++11 standard.
 - CUFFT 7.0 has a known bug and is therefore disabled by default. NVIDIA's webpage list a patch (an
   upgraded version cufft i.e. >= 7.0.35) - use this together with `-D__HAS_PATCHED_CUFFT_70`.
-- Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions. It requires to link
+- Use `-D__OFFLOAD_PROFILING` to turn on NVIDIA Tools Extensions. It requires to link
   `-lnvToolsExt`.
 - Link to a BLAS/ScaLAPACK library that accelerates large DGEMMs (e.g., libsci_acc)
 - Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
@@ -234,7 +249,7 @@ Library ELPA for the solution of the eigenvalue problem
 - For specific architectures it can be better to install specifically optimized kernels (see BG)
   and/or employ a higher optimization level to compile it.
 
-### 2l. cuSOLVERMp (experimental, improved performance for diagonalization on Nvidia GPUs)
+### 2l. cuSOLVERMp (experimental, improved performance for diagonalization on NVIDIA GPUs)
 
 NVIDIA cuSOLVERMp is a high-performance, distributed-memory, GPU-accelerated library that provides
 tools for the solution of dense linear systems and eigenvalue problems.
@@ -244,7 +259,7 @@ tools for the solution of dense linear systems and eigenvalue problems.
 - Add `-D__CUSOLVERMP` to `DFLAGS`
 - Add `-lcusolverMp -lcusolver -lcal -lnvidia-ml` to `LIBS`
 
-### 2m. DLA-Future (optional, improved performance for diagonalization on Nvidia and AMD GPUs)
+### 2m. DLA-Future (optional, improved performance for diagonalization on NVIDIA and AMD GPUs)
 
 [DLA-Future](https://github.com/eth-cscs/DLA-Future) is a high-performance, distributed-memory,
 GPU-accelerated library that provides tools for the solution of eigenvalue problems, based on the
@@ -352,10 +367,10 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
 - Add `-D__LIBTORCH` to the DFLAGS to enable support for libtorch.
 
-### 2w. ROCM/HIP (Support for AMD GPU)
+### 2w. ROCm/HIP (Support for AMD GPU)
 
 The code for the HIP based grid backend was developed and tested on Mi100 but should work out of the
-box on Nvidia hardware as well.
+box on NVIDIA hardware as well.
 
 - Use `-D__OFFLOAD_HIP` to generally enable support for AMD GPUs
 - Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
@@ -364,24 +379,26 @@ box on Nvidia hardware as well.
   operations.
 - Add `-D__OFFLOAD_UNIFIED_MEMORY` to enable unified memory support (experimental and only supports
   Mi250X and above)
-- Add `GPUVER=Mi50, Mi60, Mi100, Mi250`
+- Add `GPUVER=Mi50, Mi60, Mi100, Mi250, Mi300`
 - Add `OFFLOAD_CC = hipcc`
 - Add `-lamdhip64` to the `LIBS` variable
 - Add
   `OFFLOAD_FLAGS = '-munsafe-fp-atomics -fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2 --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'`
-  where `ROCM_PATH` is the path where the rocm sdk resides. Architectures Mi300(A,X) (gfx1103),
-  Mi250 (gfx90a), Mi100 (gfx908), Mi50 (gfx906) the hip backend for the grid library supports nvidia
-  hardware as well. It uses the same code and can be used to validate the backend in case of access
-  to Nvidia hardware only. To get the compilation working, follow the steps above and set the
-  `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section of this document). The
-  environment variable `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to indicate to hipcc to
-  use the nvcc compiler instead.
+  where `ROCM_PATH` is the path where the ROCm SDK resides. Architectures supported include
+  Mi300(A,X) (gfx1103), Mi250 (gfx90a), Mi100 (gfx908), and Mi50 (gfx906). The HIP backend for the
+  grid library supports NVIDIA hardware as well. It uses the same code and can be used to validate
+  the backend in case only NVIDIA hardware is available. To get the compilation working, follow the
+  steps above and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the CUDA section 2i of
+  this document). The environment variable `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to
+  indicate to hipcc to use the nvcc compiler instead.
 - Specify the C++ compiler (e.g., `CXX = g++`). Remember to set the CXXFLAGS flags to support C++11
   standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add `-D__HIP_PLATFORM_AMD__`
   to `CXXFLAGS` and set `OFFLOAD_TARGET = hip`.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray. It requires to link
   `-lroctx64 -lroctracer64`.
+
+For comprehensive ROCm documentation, see: <https://rocm.docs.amd.com/en/latest/>.
 
 ### 2x. OpenCL Devices
 
@@ -400,7 +417,7 @@ serving DBM/DBT and other libraries depends on DBCSR's OpenCL backend.
     such features only at compile-time). When building from source, for instance `libOpenCL.so` is
     sufficient at link-time (ICD loader). However, an Installable Client Driver (ICD) is finally
     necessary at runtime.
-  - Nvidia CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime (if
+  - NVIDIA CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime (if
     `opencl-headers` package is not installed, CPATH can be needed to point into the former
     installation, similarly `LIBRARY_PATH` for finding `libOpenCL.so` at link-time). Installing a
     minimal or stand-alone OpenCL is also possible, e.g., following the instructions for Debian (or
@@ -435,7 +452,7 @@ serving DBM/DBT and other libraries depends on DBCSR's OpenCL backend.
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a standalone library. It
 provides a generic interface to the blas gemm family with offloading on GPU. Offloading supports
-both CUDA and ROCM.
+both CUDA and ROCm (HIP), making the functionality available on both NVIDIA and AMD GPUs.
 
 To make the functionality available, add the flag `-D__SPLA -D__OFFLOAD_GEMM` to the `DFLAGS`
 variable and compile SPLA with Fortran interface and GPU support. Please note that only the
@@ -591,7 +608,7 @@ make ARCH=Linux-gnu-x86_64 VERSION=psmp realclean
 The following flags should be present (or not) in the arch file, partially depending on installed
 libraries (see 2.)
 
-- `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availabiltity of
+- `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availability of
   the ScaLAPACK/BLACS libraries)
 - `-D__SCALAPACK_NO_WA` disables code working around issues in ScaLAPACK/BLACS.
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
@@ -600,6 +617,20 @@ libraries (see 2.)
 - `-D__ELPA` use ELPA in place of SYEVD to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
 - `-D__MKL` link the MKL library for linear algebra and/or FFT
+- `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS and TREXIO, but can also be
+  used by itself to allow read/write functionalities of QCSchema files in the active space module
+- `-D__TREXIO` enables TREXIO I/O support
+- `-D__GREENX` enables GREENX support (minimax grids and analytic continuation component)
+- `-D__OFFLOAD_CUDA` enables CUDA/NVIDIA GPU offloading support
+- `-D__OFFLOAD_HIP` enables HIP/ROCm (AMD GPU) offloading support
+- `-D__DBCSR_ACC` builds DBCSR (sparse matrix library) with accelerator support (CUDA or HIP)
+- `-D__HIP_PLATFORM_AMD__` to CXXFLAGS enables the HIP backend for DBCSR/DBCSR_ACC
+- `-D__OFFLOAD_UNIFIED_MEMORY` enables unified memory support for HIP (Mi250X and above,
+  experimental)
+- `-D__OFFLOAD_PROFILING` enables GPU offload profiling (requires linking with corresponding
+  profiling library for CUDA or ROCm)
+- `-D__OPENCL` enables OpenCL support for DBCSR/DBM/DBT
+- `-D__OFFLOAD_OPENCL` enables OpenCL offloading in DBM library
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be selected. Reasonable
   defaults are [provided](./src/grid/collocate_fast.f90) but trial-and-error might yield (a small
   ~10%) speedup.
@@ -613,10 +644,6 @@ libraries (see 2.)
 - `-D__CRAY_PM_ACCEL_ENERGY` or `-D__CRAY_PM_ENERGY` switch on energy profiling on Cray systems
 - `-D__NO_ABORT` to avoid calling abort, but STOP instead (useful for coverage testing, and to avoid
   core dumps on some systems)
-- `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS and TREXIO, but can also be
-  used by itself to allow read/write functionalities of QCSchema files in the active space module
-- `-D__TREXIO` enables TREXIO I/O support
-- `-D__GREENX` enables GREENX support (minimax grids and analytic continuation component)
 
 Features useful to deal with legacy systems
 
