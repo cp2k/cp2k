@@ -14,8 +14,8 @@ The easiest way to build CP2K with all its dependencies is as a
 [Docker container](./tools/docker/README.md).
 
 CP2K supports GPU acceleration via CUDA (for NVIDIA GPUs), HIP/ROCm (for AMD GPUs), and OpenCL (for
-a range of devices). If you wish to build with GPU support, please ensure to review sections 2i (CUDA),
-2w (ROCm/HIP), and 2x (OpenCL) in this document for detailed instructions.
+a range of devices). If you wish to build with GPU support, please ensure to review sections 2i
+(CUDA), 2w (ROCm/HIP), and 2x (OpenCL) in this document for detailed instructions.
 
 Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh) can also be run
 directly.
@@ -39,11 +39,13 @@ cd tools/toolchain/
 ```
 
 - For AMD/ROCm/HIP support, use:
+
 ```shell
 ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
      --with-fftw=system --with-reflapack=no  --enable-hip
 ```
-  See section 2w for relevant variables and further information on HIP offloading.
+
+See section 2w for relevant variables and further information on HIP offloading.
 
 - Once the script has completed successfully, follow the instructions given at the end of its
   output. Note that the pre-built arch files provided by the toolchain are for the GNU compiler,
@@ -192,7 +194,8 @@ required.
   `FCFLAGS += -I${LIBXSMM_DIR}/include -D__LIBXSMM` and
   `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmmext -lxsmm -ldl`
 - LIBSMM is not used if LIBXSMM is enabled.
-- LIBXSMM can be used with both CUDA and HIP backends (see 2i and 2w for details regarding GPU offloading)
+- LIBXSMM can be used with both CUDA and HIP backends (see 2i and 2w for details regarding GPU
+  offloading)
 
 ### 2i. CUDA (optional, improved performance on GPU systems)
 
@@ -381,13 +384,13 @@ box on NVIDIA hardware as well.
 - Add `-lamdhip64` to the `LIBS` variable
 - Add
   `OFFLOAD_FLAGS = '-munsafe-fp-atomics -fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2 --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'`
-  where `ROCM_PATH` is the path where the ROCm SDK resides. Architectures supported include Mi300(A,X) (gfx1103),
-  Mi250 (gfx90a), Mi100 (gfx908), and Mi50 (gfx906). The HIP backend for the grid library supports NVIDIA
-  hardware as well. It uses the same code and can be used to validate the backend in case
-  only NVIDIA hardware is available. To get the compilation working, follow the steps above and set the
-  `OFFLOAD_FLAGS` with right `nvcc` parameters (see the CUDA section 2i of this document). The
-  environment variable `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to indicate to hipcc to
-  use the nvcc compiler instead.
+  where `ROCM_PATH` is the path where the ROCm SDK resides. Architectures supported include
+  Mi300(A,X) (gfx1103), Mi250 (gfx90a), Mi100 (gfx908), and Mi50 (gfx906). The HIP backend for the
+  grid library supports NVIDIA hardware as well. It uses the same code and can be used to validate
+  the backend in case only NVIDIA hardware is available. To get the compilation working, follow the
+  steps above and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the CUDA section 2i of
+  this document). The environment variable `HIP_PLATFORM` should be set to `HIP_PLATFORM=nvidia` to
+  indicate to hipcc to use the nvcc compiler instead.
 - Specify the C++ compiler (e.g., `CXX = g++`). Remember to set the CXXFLAGS flags to support C++11
   standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add `-D__HIP_PLATFORM_AMD__`
@@ -622,8 +625,10 @@ libraries (see 2.)
 - `-D__OFFLOAD_HIP` enables HIP/ROCm (AMD GPU) offloading support
 - `-D__DBCSR_ACC` builds DBCSR (sparse matrix library) with accelerator support (CUDA or HIP)
 - `-D__HIP_PLATFORM_AMD__` to CXXFLAGS enables the HIP backend for DBCSR/DBCSR_ACC
-- `-D__OFFLOAD_UNIFIED_MEMORY` enables unified memory support for HIP (Mi250X and above, experimental)
-- `-D__OFFLOAD_PROFILING` enables GPU offload profiling (requires linking with corresponding profiling library for CUDA or ROCm)
+- `-D__OFFLOAD_UNIFIED_MEMORY` enables unified memory support for HIP (Mi250X and above,
+  experimental)
+- `-D__OFFLOAD_PROFILING` enables GPU offload profiling (requires linking with corresponding
+  profiling library for CUDA or ROCm)
 - `-D__OPENCL` enables OpenCL support for DBCSR/DBM/DBT
 - `-D__OFFLOAD_OPENCL` enables OpenCL offloading in DBM library
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be selected. Reasonable
