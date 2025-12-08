@@ -117,7 +117,7 @@ add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
 
 # Baseline
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand f18;-fpp;-qopenmp;-heap-arrays;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand f18;-fpp;-qopenmp;-heap-arrays;-D__MAX_CONTR=4;-nofor-main>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-qopenmp;-D__MAX_CONTR=4>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform;-Mextend;-Mallocatable=03>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,NAG>:-f2008;-free;-Warn=reallocation;-Warn=subnormal>"
