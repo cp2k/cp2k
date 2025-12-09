@@ -14,7 +14,6 @@ MODULE cp_cfm_types
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
-                                              cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type
