@@ -318,19 +318,19 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3, 3), INTENT(IN), &
          OPTIONAL                                        :: hmat
 
-      COMPLEX(kind=dp)                                   :: phase_factor
+      COMPLEX(kind=dp)                                   :: deriv_factor, phase_factor
       INTEGER                                            :: i, j
-      REAL(kind=dp)                                      :: deriv_factor
       REAL(kind=dp), DIMENSION(3)                        :: cell_vector
 
       IF (PRESENT(deriv_direction) .AND. (.NOT. PRESENT(hmat))) THEN
          CALL cp_abort(__LOCATION__, "Deriv. direction given but no hmat provided")
       END IF
 
-      deriv_factor = 1.0_dp
+      deriv_factor = CMPLX(1.0, 0.0, kind=dp)
       IF (PRESENT(deriv_direction)) THEN
          cell_vector = MATMUL(hmat, index_to_cell(1:3, imindex))
-         deriv_factor = cell_vector(deriv_direction)
+         ! Multiply by i R(direction)
+         deriv_factor = CMPLX(0.0, cell_vector(deriv_direction), kind=dp)
       END IF
 
       phase_factor = CMPLX(COS(twopi*SUM(xkp(:)*index_to_cell(:, imindex))), &
