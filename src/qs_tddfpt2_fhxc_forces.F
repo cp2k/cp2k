@@ -41,7 +41,6 @@ MODULE qs_tddfpt2_fhxc_forces
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
@@ -189,7 +188,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: avamat, avcmat, cpscr, cvcmat, vavec, &
                                                             vcvec
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, evect
@@ -1255,23 +1254,13 @@ CONTAINS
          END IF
 
          ! Create working fields for the response vector
-         CALL cp_fm_create(cpscr, gs_mos(ispin)%mos_active%matrix_struct, "cpscr")
-         CALL cp_fm_set_all(cpscr, 0.0_dp)
+         CALL cp_fm_create(cpscr, gs_mos(ispin)%mos_active%matrix_struct, "cpscr", set_zero=.TRUE.)
          !
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct, nrow_global=nao)
          !
-         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=nactive(spin), &
-                                  ncol_global=nactive(ispin), para_env=fm_struct%para_env)
-         CALL cp_fm_create(avamat, fm_struct_mat)
-         CALL cp_fm_struct_release(fm_struct_mat)
-         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=nactive(spin), &
-                                  ncol_global=norb(ispin), para_env=fm_struct%para_env)
-         CALL cp_fm_create(avcmat, fm_struct_mat)
-         CALL cp_fm_struct_release(fm_struct_mat)
-         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb(spin), &
-                                  ncol_global=norb(ispin), para_env=fm_struct%para_env)
-         CALL cp_fm_create(cvcmat, fm_struct_mat)
-         CALL cp_fm_struct_release(fm_struct_mat)
+         CALL cp_fm_create(avamat, fm_struct, nrow=nactive(spin), ncol=nactive(spin))
+         CALL cp_fm_create(avcmat, fm_struct, nrow=nactive(spin), ncol=norb(spin))
+         CALL cp_fm_create(cvcmat, fm_struct, nrow=norb(spin), ncol=norb(spin))
          !
          CALL cp_fm_create(vcvec, gs_mos(ispin)%mos_occ%matrix_struct, "vcvec")
          CALL cp_fm_create(vavec, gs_mos(ispin)%mos_active%matrix_struct, "vavec")
