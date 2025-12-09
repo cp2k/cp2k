@@ -138,7 +138,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), TARGET, OPTIONAL    :: context
       INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
       INTEGER, OPTIONAL, DIMENSION(2)              :: first_p_pos
-      TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
+      TYPE(cp_fm_struct_type), TARGET, OPTIONAL    :: template_fmstruct
       LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
       LOGICAL, OPTIONAL, INTENT(in)                :: force_block
 

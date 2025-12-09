@@ -15,7 +15,8 @@
 MODULE cp_fm_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_blacs_types,                  ONLY: cp_blacs_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
@@ -155,6 +156,8 @@ CONTAINS
 !> \param matrix_struct the structure of matrix
 !> \param name ...
 !> \param use_sp ...
+!> \param nrow ...
+!> \param ncol ...
 !> \param set_zero ...
 !> \par History
 !>      08.2002 created [fawzi]
@@ -162,37 +165,57 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp, set_zero)
+   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp, nrow, ncol, set_zero)
       TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
       TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: name
-      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp, set_zero
+      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
+      INTEGER, INTENT(IN), OPTIONAL                      :: nrow, ncol
+      LOGICAL, INTENT(in), OPTIONAL                      :: set_zero
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_create'
 
-      INTEGER                                            :: handle, ncol_local, npcol, nprow, &
-                                                            nrow_local
+      INTEGER                                            :: handle, ncol_global, ncol_local, &
+                                                            nrow_global, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CALL timeset(routineN, handle)
 
-      context => matrix_struct%context
-      matrix%matrix_struct => matrix_struct
-      CALL cp_fm_struct_retain(matrix%matrix_struct)
+      IF (PRESENT(nrow) .OR. PRESENT(ncol)) THEN
+         CALL cp_fm_struct_get(matrix_struct, nrow_global=nrow_global, ncol_global=ncol_global)
+         IF (PRESENT(nrow)) nrow_global = nrow
+         IF (PRESENT(ncol)) ncol_global = ncol
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=matrix_struct, &
+                                  nrow_global=nrow_global, ncol_global=ncol_global)
+
+         context => fm_struct%context
+         matrix%matrix_struct => fm_struct
+         CALL cp_fm_struct_retain(matrix%matrix_struct)
+
+         nrow_local = fm_struct%local_leading_dimension
+         ncol_local = MAX(1, fm_struct%ncol_locals(context%mepos(2)))
+
+         CALL cp_fm_struct_release(fm_struct)
+      ELSE
+
+         context => matrix_struct%context
+         matrix%matrix_struct => matrix_struct
+         CALL cp_fm_struct_retain(matrix%matrix_struct)
+
+         ! OK, we allocate here at least a 1 x 1 matrix
+         ! this must (and is) compatible with the descinit call
+         ! in cp_fm_struct
+         nrow_local = matrix_struct%local_leading_dimension
+         ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
+      END IF
 
       matrix%use_sp = .FALSE.
       IF (PRESENT(use_sp)) matrix%use_sp = use_sp
 
-      nprow = context%num_pe(1)
-      npcol = context%num_pe(2)
       NULLIFY (matrix%local_data)
       NULLIFY (matrix%local_data_sp)
 
-      ! OK, we allocate here at least a 1 x 1 matrix
-      ! this must (and is) compatible with the descinit call
-      ! in cp_fm_struct
-      nrow_local = matrix_struct%local_leading_dimension
-      ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
       IF (matrix%use_sp) THEN
          ALLOCATE (matrix%local_data_sp(nrow_local, ncol_local))
       ELSE

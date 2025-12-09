@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 MODULE cp_cfm_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_equivalent,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
@@ -114,29 +115,49 @@ CONTAINS
 !> \param matrix        matrix to be created
 !> \param matrix_struct structure of the matrix
 !> \param name          name of the matrix
+!> \param nrow ...
+!> \param ncol ...
 !> \param set_zero ...
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name, set_zero)
+   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name, nrow, ncol, set_zero)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
       TYPE(cp_fm_struct_type), INTENT(IN), TARGET        :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
-      LOGICAL, INTENT(in), OPTIONAL                      :: set_zero
+      INTEGER, INTENT(IN), OPTIONAL                      :: nrow, ncol
+      LOGICAL, INTENT(IN), OPTIONAL                      :: set_zero
 
-      INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
+      INTEGER                                            :: ncol_global, ncol_local, nrow_global, &
+                                                            nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(cp_fm_struct_type), POINTER                   :: cfm_struct
 
-      context => matrix_struct%context
-      matrix%matrix_struct => matrix_struct
-      CALL cp_fm_struct_retain(matrix%matrix_struct)
+      IF (PRESENT(nrow) .OR. PRESENT(ncol)) THEN
+         CALL cp_fm_struct_get(matrix_struct, nrow_global=nrow_global, ncol_global=ncol_global)
+         IF (PRESENT(nrow)) nrow_global = nrow
+         IF (PRESENT(ncol)) ncol_global = ncol
+         CALL cp_fm_struct_create(cfm_struct, template_fmstruct=matrix_struct, &
+                                  nrow_global=nrow_global, ncol_global=ncol_global)
 
-      nprow = context%num_pe(1)
-      npcol = context%num_pe(2)
+         context => cfm_struct%context
+         matrix%matrix_struct => cfm_struct
+         CALL cp_fm_struct_retain(matrix%matrix_struct)
+
+         nrow_local = cfm_struct%local_leading_dimension
+         ncol_local = MAX(1, cfm_struct%ncol_locals(context%mepos(2)))
+
+         CALL cp_fm_struct_release(cfm_struct)
+      ELSE
+         context => matrix_struct%context
+         matrix%matrix_struct => matrix_struct
+         CALL cp_fm_struct_retain(matrix%matrix_struct)
+
+         nrow_local = matrix_struct%local_leading_dimension
+         ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
+      END IF
+
       NULLIFY (matrix%local_data)
-
-      nrow_local = matrix_struct%local_leading_dimension
-      ncol_local = MAX(1, matrix_struct%ncol_locals(context%mepos(2)))
       ALLOCATE (matrix%local_data(nrow_local, ncol_local))
 
       IF (PRESENT(set_zero)) THEN
@@ -150,6 +171,7 @@ CONTAINS
       ELSE
          matrix%name = 'full complex matrix'
       END IF
+
    END SUBROUTINE cp_cfm_create
 
 ! **************************************************************************************************
