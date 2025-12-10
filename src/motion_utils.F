@@ -29,6 +29,7 @@ MODULE motion_utils
    USE input_constants,                 ONLY: dump_atomic,&
                                               dump_dcd,&
                                               dump_dcd_aligned_cell,&
+                                              dump_extxyz,&
                                               dump_pdb,&
                                               dump_xmol
    USE input_section_types,             ONLY: section_get_ival,&
@@ -290,11 +291,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_trajectory'
 
+      CHARACTER(LEN=1024)                                :: cell_str, title
       CHARACTER(LEN=4)                                   :: id_dcd
       CHARACTER(LEN=80), DIMENSION(2)                    :: remark
-      CHARACTER(LEN=default_string_length)               :: id_label, id_wpc, my_act, my_ext, &
-                                                            my_form, my_middle, my_pk_name, &
-                                                            my_pos, section_ref, title, unit_str
+      CHARACTER(LEN=default_string_length) :: etot_str, id_extxyz, id_label, id_wpc, my_act, &
+         my_ext, my_form, my_middle, my_pk_name, my_pos, section_ref, step_str, time_str, unit_str
       CHARACTER(LEN=timestamp_length)                    :: timestamp
       INTEGER                                            :: handle, i, ii, iskip, nat, outformat, &
                                                             traj_unit
@@ -332,15 +333,19 @@ CONTAINS
       CASE ("TRAJECTORY", "SHELL_TRAJECTORY", "CORE_TRAJECTORY")
          id_dcd = "CORD"
          id_wpc = "POS"
+         id_extxyz = "pos"
       CASE ("VELOCITIES", "SHELL_VELOCITIES", "CORE_VELOCITIES")
          id_dcd = "VEL "
          id_wpc = "VEL"
+         id_extxyz = "velo"
       CASE ("FORCES", "SHELL_FORCES", "CORE_FORCES")
          id_dcd = "FRC "
          id_wpc = "FORCE"
+         id_extxyz = "force"
       CASE ("FORCE_MIXING_LABELS")
          id_dcd = "FML "
          id_wpc = "FORCE_MIXING_LABELS"
+         id_extxyz = "force_mixing_label" ! non-standard
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -406,6 +411,18 @@ CONTAINS
             ELSE
                WRITE (UNIT=title, FMT="(A,I8,A,F20.10)") " i = ", it, ", E = ", etot
             END IF
+         CASE (dump_extxyz)
+            CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_KIND", l_val=print_kind)
+            WRITE (UNIT=cell_str, FMT="(9(1X,F10.3))") cell%hmat(:, 1)*angstrom, cell%hmat(:, 2)*angstrom, cell%hmat(:, 3)*angstrom
+            WRITE (UNIT=step_str, FMT="(I8)") it
+            WRITE (UNIT=time_str, FMT="(F12.3)") time
+            WRITE (UNIT=etot_str, FMT="(F20.10)") etot
+            WRITE (UNIT=title, FMT="(A)") &
+               'Lattice="'//TRIM(ADJUSTL(cell_str))//'"'// &
+               ' Properties="species:S:1:'//TRIM(id_extxyz)//':R:3"'// &
+               ' Step='//TRIM(ADJUSTL(step_str))// &
+               ' Time='//TRIM(ADJUSTL(time_str))// &
+               ' Energy='//TRIM(ADJUSTL(etot_str))
          CASE (dump_atomic)
             ! Do nothing
          CASE (dump_pdb)
