@@ -40,7 +40,7 @@ run_test ./tools/pao-ml/pao-validate.py --threshold=1e-6 --model="tests/QS/regte
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-5 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-O.pt" ./tools/pao-ml/example.pao
 
 # Test vibronic_spec
-run_test ./tools/vibronic_spec/main.py ./tools/vibronic_spec/example_config.toml ./tools/vibronic_spec/example.out
+run_test ./tools/vibronic_spec/main.py ./tools/vibronic_spec/example_config.toml
 
 run_test mypy --strict ./tools/pao-ml/
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
