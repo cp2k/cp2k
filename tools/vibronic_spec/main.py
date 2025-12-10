@@ -7,7 +7,7 @@ Author: Beliz Sertcan
 """
 
 import sys
-import numpy as np  # type: ignore
+import numpy as np
 import time
 import os
 from typing import Dict, Any, List, Union, Optional
@@ -205,10 +205,10 @@ def calculate_frequency_matrix(
     mode_count: int, frequencies: Dict[int, float]
 ) -> np.ndarray:
     """Calculate diagonal matrix containing squares of vibrational frequencies"""
-    frequency_squares = []
+    frequency_squares_list: List[float] = []
     for mode in range(1, mode_count + 1):
-        frequency_squares.append((frequencies[mode] ** 2))
-    frequency_squares = np.array(frequency_squares)
+        frequency_squares_list.append((frequencies[mode] ** 2))
+    frequency_squares = np.array(frequency_squares_list)
     frequency_matrix = np.diag(frequency_squares)
     return frequency_matrix
 
@@ -243,16 +243,15 @@ def calculate_normal_mode_matrix(
             y_coords = mode_data.get("y", [0.0] * atom_count)
             z_coords = mode_data.get("z", [0.0] * atom_count)
 
-            flattened_vector = []
+            flattened = np.zeros(3 * atom_count)
             for atom_idx in range(atom_count):
-                flattened_vector.extend(
-                    [x_coords[atom_idx], y_coords[atom_idx], z_coords[atom_idx]]
-                )
+                flattened[3 * atom_idx] = x_coords[atom_idx]
+                flattened[3 * atom_idx + 1] = y_coords[atom_idx]
+                flattened[3 * atom_idx + 2] = z_coords[atom_idx]
 
-            flattened_vector = np.array(flattened_vector)
-            flattened_vector = flattened_vector / np.linalg.norm(flattened_vector)
+            flattened = flattened / np.linalg.norm(flattened)
 
-            normal_mode_matrix[mode - 1, :] = flattened_vector
+            normal_mode_matrix[mode - 1, :] = flattened
         else:
             raise ValueError(f"Normal mode {mode} not found in normal_modes")
 
@@ -385,7 +384,11 @@ def calculate_spectrum(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str
             state_spectrum[energy_idx] = intensity
             combined_intensities[energy_idx] += intensity
 
-            if energy_idx % 500 == 0 or energy_idx == len(energies_au) - 1:
+            if (
+                energy_idx == 0
+                or energy_idx == len(energies_au) - 1
+                or (len(energies_au) > 1 and energy_idx == len(energies_au) // 2)
+            ):
                 percentage = (energy_idx + 1) / len(energies_au) * 100
                 print(
                     f"    Energy point {energy_idx + 1}/{len(energies_au)} "

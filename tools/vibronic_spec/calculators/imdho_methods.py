@@ -2,7 +2,7 @@
 Independent Mode Displaced Harmonic Oscillator (IMDHO) Method
 """
 
-import numpy as np  # type: ignore
+import numpy as np
 from typing import Any, Dict, List, Optional
 
 from .physical_parameters import calculate_huang_rhys_factors, calculate_thermal_factors
@@ -151,7 +151,7 @@ def _integrate_imdho_time_domain(
         delta_time = min(time_scale_1, time_scale_2) / time_step
 
     slice_index = 0
-    integral_value = 0
+    integral_value = 0.0
     convergence_reached = False
 
     while slice_index < max_time_slices and not convergence_reached:
@@ -196,7 +196,7 @@ def _integrate_imdho_time_domain(
         if spectrum_type == "absorption":
             integrand *= 1 / np.pi
 
-        slice_integral = np.trapz(integrand, dx=delta_time)
+        slice_integral = float(np.trapz(integrand, dx=delta_time))
 
         if abs(slice_integral) < convergence:
             convergence_reached = True

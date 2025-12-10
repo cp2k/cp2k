@@ -3,7 +3,7 @@ Parsers
 """
 
 from typing import Dict, List, Any, Optional
-import numpy as np  # type: ignore
+import numpy as np
 import re
 from constants import EV_TO_AU, WAVENUMBER_TO_AU
 

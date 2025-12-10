@@ -2,7 +2,7 @@
 LQ3 approximation methods
 """
 
-import numpy as np  # type: ignore
+import numpy as np
 from typing import Any, Dict, List, Optional
 
 from .lq2_methods import _calculate_vibrational_relaxation
@@ -119,7 +119,7 @@ def _integrate_lq3_time_domain(
     delta_time = min_time_scale / time_step
 
     slice_index = 0
-    integral_value = 0
+    integral_value = 0.0
     convergence_reached = False
 
     while slice_index < max_time_slices and not convergence_reached:
@@ -133,7 +133,7 @@ def _integrate_lq3_time_domain(
             energy_difference * time_array + gammas[state_idx - 1] * time_array**3
         )
 
-        slice_integral = np.trapz(integrand, dx=delta_time)
+        slice_integral = float(np.trapz(integrand, dx=delta_time))
 
         if abs(slice_integral) < convergence:
             convergence_reached = True

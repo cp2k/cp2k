@@ -409,10 +409,8 @@ theta_broadening = 0.0
 
 [integration]
 max_time_slices = 5000
-lq3_slice_size = 30000
 lq3_time_step = 30
 lq3_convergence = 0.0000001
-imdho_slice_size = 10000
 imdho_time_step = 30
 imdho_convergence = 0.000000001
 cutoff_energy = 0.0816
