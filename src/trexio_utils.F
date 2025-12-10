@@ -163,7 +163,7 @@ CONTAINS
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
                                                             i, j, k, l, m, unit_dE, &
                                                             row, col, row_size, col_size, &
-                                                            row_offset, col_offset
+                                                            row_offset, col_offset, i_trex
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
@@ -179,7 +179,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
                                                             mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
       CALL timeset(routineN, handle)
@@ -304,12 +304,12 @@ CONTAINS
          CALL trexio_error(rc)
 
          IF (do_kpoints) THEN
-            CALL get_kpoint_info(kpoints, nkp=nkp, nkp_grid=nkp_grid, wkp=wkp)
+            CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, wkp=wkp)
 
             rc = trexio_write_pbc_k_point_num(f, nkp)
             CALL trexio_error(rc)
 
-            rc = trexio_write_pbc_k_point(f, REAL(nkp_grid, KIND=dp))
+            rc = trexio_write_pbc_k_point(f, xkp)
             CALL trexio_error(rc)
 
             rc = trexio_write_pbc_k_point_weight(f, wkp)
@@ -637,6 +637,23 @@ CONTAINS
       ALLOCATE (ao_shell(ao_num))         ! ..shells
       ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
 
+      IF (.NOT. save_cartesian) THEN
+         ! AO order map from CP2K to TREXIO convention
+         ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+         ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+         ALLOCATE (cp2k_to_trexio_ang_mom(nsgf))
+         i = 0
+         DO ishell = 1, shell_num
+            l = shell_ang_mom(ishell)
+            DO k = 1, 2*l + 1
+               m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+               cp2k_to_trexio_ang_mom(i + k) = i + l + 1 + m
+            END DO
+            i = i + 2*l + 1
+         END DO
+         CPASSERT(i == nsgf)
+      END IF
+
       ! we need to be consistent with the basis group on the shell indices
       ishell = 0  ! global shell index
       igf = 0     ! global AO index
@@ -692,7 +709,8 @@ CONTAINS
                   temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
                   diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
                   DO i = 1, nso(lshell)
-                     ao_normalization(igf + i) = diag_nsgf(i, i)
+                     i_trex = cp2k_to_trexio_ang_mom(i)
+                     ao_normalization(igf + i) = diag_nsgf(i_trex, i_trex)
                   END DO
 
                   DEALLOCATE (diag_ncgf)
@@ -834,21 +852,6 @@ CONTAINS
          CALL para_env_inter_kp%sum(mo_energy)
          CALL para_env_inter_kp%sum(mo_occupation)
       END IF
-
-      ! AO order map from CP2K to TREXIO convention
-      ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
-      ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
-      ALLOCATE (cp2k_to_trexio_ang_mom(nsgf))
-      i = 0
-      DO ishell = 1, shell_num
-         l = shell_ang_mom(ishell)
-         DO k = 1, 2*l + 1
-            m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
-            cp2k_to_trexio_ang_mom(i + k) = i + l + 1 + m
-         END DO
-         i = i + 2*l + 1
-      END DO
-      CPASSERT(i == nsgf)
 
       ! second step: here we actually put everything in the local arrays for writing to trexio
       DO ispin = 1, nspins
@@ -1025,9 +1028,9 @@ CONTAINS
          DEALLOCATE (dEdP)
       END IF
 
-      ! Ddeallocate arrays used throughout the subroutine
+      ! Deallocate arrays used throughout the subroutine
       DEALLOCATE (shell_ang_mom)
-      DEALLOCATE (cp2k_to_trexio_ang_mom)
+      IF (ALLOCATED(cp2k_to_trexio_ang_mom)) DEALLOCATE (cp2k_to_trexio_ang_mom)
 
       !========================================================================================!
       ! Close the TREXIO file
