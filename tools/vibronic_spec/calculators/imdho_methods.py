@@ -3,26 +3,28 @@ Independent Mode Displaced Harmonic Oscillator (IMDHO) Method
 """
 
 import numpy as np
+from typing import Any, Dict, List, Optional
+
 from .physical_parameters import calculate_huang_rhys_factors, calculate_thermal_factors
 
 
 def calculate_imdho_spectrum_point(
-    energy,
-    state_idx,
-    spectrum_type,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    gamma,
-    theta,
-    temperature,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    spectrum_type: str,
+    oscillator_strengths: Dict[int, Dict[str, float]],
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    gamma: float,
+    theta: float,
+    temperature: float,
+    vertical_energies: List[float],
+    stokes_shift: float,
+    adiabatic_energies: List[float],
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """
     Calculate IMDHO spectrum point for absorption or fluorescence
 
@@ -68,9 +70,8 @@ def calculate_imdho_spectrum_point(
             requested_states,
             integration_params,
         )
-        return prefactor * integral
 
-    if spectrum_type == "fluorescence":
+    elif spectrum_type == "fluorescence":
         prefactor = (4 * energy**3 / (3 * np.pi * 137**3)) * (
             oscillator_strength / vertical_energies[state_idx - 1]
         )
@@ -89,24 +90,27 @@ def calculate_imdho_spectrum_point(
             requested_states,
             integration_params,
         )
-        return prefactor * integral
+    else:
+        raise ValueError(f"Unknown spectrum_type: {spectrum_type}")
+        
+    return float(prefactor * integral)
 
 
 def _integrate_imdho_time_domain(
-    energy,
-    state_idx,
-    spectrum_type,
-    displacements,
-    frequencies,
-    mode_count,
-    gamma,
-    theta,
-    temperature,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    spectrum_type: str,
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    gamma: float,
+    theta: float,
+    temperature: float,
+    stokes_shift: float,
+    adiabatic_energies: List[float],
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """
     Time integration for IMDHO
     """
@@ -119,20 +123,23 @@ def _integrate_imdho_time_domain(
         energy_difference = (
             energy - adiabatic_energies[state_idx - 1] - stokes_shift / 2
         )
-    if spectrum_type == "fluorescence":
+    elif spectrum_type == "fluorescence":
+        # if adiabatic_energies is None:
+        #     raise ValueError("Adiabatic energies must be provided for fluorescence.")
         energy_difference = (
             adiabatic_energies[state_idx - 1] - stokes_shift / 2 - energy
         )
+
 
     actual_state = requested_states[state_idx - 1]
     huang_rhys_factors = calculate_huang_rhys_factors(
         actual_state, displacements, mode_count
     )
-    frequencies = [frequencies[j] for j in range(1, mode_count + 1)]
+    frequencies_list = [frequencies[j] for j in range(1, mode_count + 1)]
 
     if temperature > 0:
         thermal_factors = calculate_thermal_factors(
-            frequencies, mode_count, temperature
+            frequencies_list, mode_count, temperature
         )
     else:
         thermal_factors = [1.0] * mode_count
@@ -160,7 +167,7 @@ def _integrate_imdho_time_domain(
         sine_sum = np.zeros(time_array.size)
 
         for mode_idx in range(mode_count):
-            frequency = frequencies[mode_idx]
+            frequency = frequencies_list[mode_idx]
             huang_rhys = huang_rhys_factors[mode_idx]
             thermal_factor = thermal_factors[mode_idx]
 
@@ -202,76 +209,76 @@ def _integrate_imdho_time_domain(
     if not convergence_reached:
         print(f"WARNING: IMDHO time integral for {spectrum_type} did not converge.")
 
-    return integral_value
+    return float(integral_value)
 
 
-def calculate_imdho_absorption(
-    energy,
-    state_idx,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    gamma,
-    theta,
-    temperature,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
-    """Wrapper for IMDHO absorption"""
-    return calculate_imdho_spectrum_point(
-        energy,
-        state_idx,
-        "absorption",
-        oscillator_strengths,
-        displacements,
-        frequencies,
-        mode_count,
-        gamma,
-        theta,
-        temperature,
-        vertical_energies,
-        stokes_shift,
-        adiabatic_energies,
-        requested_states,
-        integration_params,
-    )
+# def calculate_imdho_absorption(
+#     energy: float,
+#     state_idx: int,
+#     oscillator_strengths: Dict[int, Dict[str, float]],
+#     displacements: Dict[int, Dict[int, float]],
+#     frequencies: Dict[int, float],
+#     mode_count: int,
+#     gamma: float,
+#     theta: float,
+#     temperature: float,
+#     vertical_energies: List[float],
+#     stokes_shift: float,
+#     adiabatic_energies: List[float],
+#     requested_states: List[int],
+#     integration_params: Dict[str, Any],
+# ) -> float:
+#     """Wrapper for IMDHO absorption"""
+#     return calculate_imdho_spectrum_point(
+#         energy,
+#         state_idx,
+#         "absorption",
+#         oscillator_strengths,
+#         displacements,
+#         frequencies,
+#         mode_count,
+#         gamma,
+#         theta,
+#         temperature,
+#         vertical_energies,
+#         stokes_shift,
+#         adiabatic_energies,
+#         requested_states,
+#         integration_params,
+#     )
 
 
-def calculate_imdho_fluorescence(
-    energy,
-    state_idx,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    gamma,
-    theta,
-    temperature,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
-    """Wrapper for IMDHO fluorescence"""
-    return calculate_imdho_spectrum_point(
-        energy,
-        state_idx,
-        "fluorescence",
-        oscillator_strengths,
-        displacements,
-        frequencies,
-        mode_count,
-        gamma,
-        theta,
-        temperature,
-        vertical_energies,
-        stokes_shift,
-        adiabatic_energies,
-        requested_states,
-        integration_params,
-    )
+# def calculate_imdho_fluorescence(
+#     energy: float,
+#     state_idx: int,
+#     oscillator_strengths: Dict[int, Dict[str, float]],
+#     displacements: Dict[int, Dict[int, float]],
+#     frequencies: Dict[int, float],
+#     mode_count: int,
+#     gamma: float,
+#     theta: float,
+#     temperature: float,
+#     vertical_energies: List[float],
+#     stokes_shift: float,
+#     adiabatic_energies: List[float],
+#     requested_states: List[int],
+#     integration_params: Dict[str, Any],
+# ) -> float:
+#     """Wrapper for IMDHO fluorescence"""
+#     return calculate_imdho_spectrum_point(
+#         energy,
+#         state_idx,
+#         "fluorescence",
+#         oscillator_strengths,
+#         displacements,
+#         frequencies,
+#         mode_count,
+#         gamma,
+#         theta,
+#         temperature,
+#         vertical_energies,
+#         stokes_shift,
+#         adiabatic_energies,
+#         requested_states,
+#         integration_params,
+#     )

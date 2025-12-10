@@ -9,6 +9,7 @@ Author: Beliz Sertcan
 import sys
 import numpy as np
 import time
+from typing import Dict, Any, List, Union, Optional
 
 from file_parsers import parse_excited_state_forces, parse_molden_file
 
@@ -25,7 +26,7 @@ from output_formatters import write_spectrum_output
 from constants import EV_TO_AU, AU_TO_EV, ATOMIC_MASSES, E_MASS
 
 
-def run_spectrum_calculation(config):
+def run_spectrum_calculation(config: Dict[str, Any]) -> None:
     """
     Main function that runs the complete spectrum calculation
     """
@@ -50,11 +51,11 @@ def run_spectrum_calculation(config):
     print(f"INFO: Spectrum calculation finished in {time_end - time_start:.2f} seconds")
 
 
-def load_calculation_data(config):
+def load_calculation_data(config: Dict[str, Any]) -> Dict[str, Any]:
     """Load all required data from input files"""
     print("Loading input data...")
 
-    data = {}
+    data: Dict[str, Any] = {}
 
     tdforce_data = parse_excited_state_forces(config["force_filename"])
     data["oscillator_strengths"] = tdforce_data
@@ -90,7 +91,11 @@ def load_calculation_data(config):
     return data
 
 
-def parse_states_specification(states_config, oscillator_strengths, available_forces):
+def parse_states_specification(
+    states_config: Union[str, List[int]],
+    oscillator_strengths: Dict[int, Dict[str, Any]],
+    available_forces: Dict[int, Any],
+) -> List[int]:
     """
     Parse states specification
     Returns list of state numbers to calculate spectrum
@@ -153,7 +158,7 @@ def parse_states_specification(states_config, oscillator_strengths, available_fo
         raise ValueError("States configuration must be a list or string")
 
 
-def calculate_displacement_vectors(data, config):
+def calculate_displacement_vectors(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate displacement vectors between ground and excited states"""
     print("Calculating displacement vectors...")
 
@@ -189,7 +194,7 @@ def calculate_displacement_vectors(data, config):
     return data
 
 
-def calculate_frequency_matrix(mode_count, frequencies):
+def calculate_frequency_matrix(mode_count: int, frequencies: Dict[int, float]) -> np.ndarray:
     """Calculate diagonal matrix containing squares of vibrational frequencies"""
     frequency_squares = []
     for mode in range(1, mode_count + 1):
@@ -199,7 +204,7 @@ def calculate_frequency_matrix(mode_count, frequencies):
     return frequency_matrix
 
 
-def calculate_inverse_frequency_matrix(mode_count, frequencies):
+def calculate_inverse_frequency_matrix(mode_count: int, frequencies: Dict[int, float]) -> np.ndarray:
     """Calculate inverse of the frequency eigenvalue matrix"""
     inverse_frequency_list = []
     frequency_matrix = calculate_frequency_matrix(mode_count, frequencies)
@@ -212,7 +217,11 @@ def calculate_inverse_frequency_matrix(mode_count, frequencies):
     return inverse_frequency_matrix
 
 
-def calculate_normal_mode_matrix(normal_modes, mode_count, atom_count):
+def calculate_normal_mode_matrix(
+    normal_modes: Dict[int, Dict[str, List[float]]],
+    mode_count: int,
+    atom_count: int,
+) -> np.ndarray:
     """Calculate the normalized mode matrix"""
     normal_mode_matrix = np.zeros((mode_count, 3 * atom_count))
 
@@ -239,7 +248,11 @@ def calculate_normal_mode_matrix(normal_modes, mode_count, atom_count):
     return normal_mode_matrix
 
 
-def calculate_gradient_vector(forces, atom_count, geometry):
+def calculate_gradient_vector(
+    forces: np.ndarray,
+    atom_count: int,
+    geometry: Dict[int, Dict[str, Any]],
+) -> np.ndarray:
     """Calculate the mass-weighed gradient vector from forces"""
     gradient_vector = []
 
@@ -257,8 +270,13 @@ def calculate_gradient_vector(forces, atom_count, geometry):
 
 
 def calculate_displacement_vector(
-    mode_count, atom_count, frequencies, normal_modes, forces, geometry
-):
+    mode_count: int,
+    atom_count: int,
+    frequencies: Dict[int, float],
+    normal_modes: Dict[int, Dict[str, List[float]]],
+    forces: np.ndarray,
+    geometry: Dict[int, Dict[str, Any]],
+) -> np.ndarray:
     """Calculate displacement vector for excited state"""
     displacements = []
 
@@ -282,7 +300,7 @@ def calculate_displacement_vector(
     return np.array(displacements)
 
 
-def calculate_physical_parameters(data, config):
+def calculate_physical_parameters(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate alpha, gamma, adiabatic energies, etc."""
     print("Calculating physical parameters...")
 
@@ -307,6 +325,7 @@ def calculate_physical_parameters(data, config):
         data["frequencies"],
     )
 
+
     data["adiabatic_energies"] = calculate_adiabatic_energies(
         data["requested_states"],
         data["displacements"],
@@ -318,7 +337,7 @@ def calculate_physical_parameters(data, config):
     return data
 
 
-def calculate_spectrum(data, config):
+def calculate_spectrum(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate spectrum using the chosen method"""
     method = config["method"].lower()
     spectrum_type = config["spectrum_type"].lower()
@@ -374,8 +393,14 @@ def calculate_spectrum(data, config):
 
 
 def calculate_spectrum_point(
-    energy_au, state_idx, spectrum_type, method, data, config, integration_params
-):
+    energy_au: float,
+    state_idx: int,
+    spectrum_type: str,
+    method: str,
+    data: Dict[str, Any],
+    config: Dict[str, Any],
+    integration_params: Dict[str, Any],
+) -> float:
     """Calculate spectrum intensity at a single energy point"""
 
     if method == "lq2":
@@ -435,19 +460,19 @@ def calculate_spectrum_point(
         raise ValueError(f"Unknown calculation method: {method}")
 
 
-def get_integration_parameters(config, method):
+def get_integration_parameters(config: Dict[str, Any], method: str) -> Dict[str, Any]:
     """Get integration parameters for the chosen method"""
     if method == "lq3":
         return {
             "max_time_slices": config.get("max_time_slices", 5000),
-            "slice_size": config.get("lq3_slice_size", 30000),
+            # "slice_size": config.get("lq3_slice_size", 30000),
             "time_step": config.get("lq3_time_step", 30),
             "convergence": config.get("lq3_convergence", 0.0000001),
         }
     elif method == "imdho":
         return {
             "max_time_slices": config.get("max_time_slices", 5000),
-            "slice_size": config.get("imdho_slice_size", 10000),
+            # "slice_size": config.get("imdho_slice_size", 10000),
             "time_step": config.get("imdho_time_step", 30),
             "convergence": config.get("imdho_convergence", 0.000000001),
         }
@@ -455,7 +480,7 @@ def get_integration_parameters(config, method):
         return {}
 
 
-def load_configuration(config_file):
+def load_configuration(config_file: str) -> Dict[str, Any]:
     """Load configuration from TOML file"""
     if config_file.endswith(".toml"):
         # Try importing toml from various places.
@@ -480,7 +505,7 @@ def load_configuration(config_file):
     return flatten_config(config)
 
 
-def flatten_config(config):
+def flatten_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Flatten the configuration file into a simple dictionary"""
     flattened = {}
 
@@ -501,7 +526,7 @@ def flatten_config(config):
     return flattened
 
 
-def main():
+def main() -> None:
     """Main entry point"""
     if len(sys.argv) != 2:
         print("Usage: python main.py <config_file.toml>")

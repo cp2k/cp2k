@@ -2,7 +2,7 @@
 Parsers
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import numpy as np
 import re
 from constants import EV_TO_AU, WAVENUMBER_TO_AU
@@ -19,11 +19,11 @@ def parse_molden_file(file_path: str) -> Dict[str, Any]:
     Returns dict with 'geometry', 'normal_modes', 'mode_count', 'frequencies',
     'atom_count' and 'negative_freq_warnings'
     """
-    data = {}
-    geometry = {}
-    normal_modes = {}
-    frequencies = {}
-    negative_freq_warnings = []
+    data: Dict[str, Any] = {}
+    geometry: Dict[int, Dict[str, Any]] = {}
+    normal_modes: Dict[int, Dict[str, List[float]]] = {}
+    frequencies: Dict[int, float] = {}
+    negative_freq_warnings: List[float] = []
 
     with open(file_path, "rt") as file:
         content = file.read()
@@ -35,7 +35,6 @@ def parse_molden_file(file_path: str) -> Dict[str, Any]:
             atoms_section = atoms_section.split("[")[0]
 
         lines = atoms_section.strip().split("\n")
-        print(lines)
 
         atom_idx = 1
         for line in lines:
@@ -79,8 +78,8 @@ def parse_molden_file(file_path: str) -> Dict[str, Any]:
         norm_section = content.split("[FR-NORM-COORD]")[1].split("[INT]")[0]
         lines = norm_section.strip().split("\n")
 
-        current_mode = None
-        collected_coords = []
+        current_mode: Optional[int] = None
+        collected_coords: List[float] = []
 
         for line in lines:
             line = line.strip()
@@ -133,13 +132,13 @@ def parse_molden_file(file_path: str) -> Dict[str, Any]:
     return data
 
 
-def parse_excited_state_forces(file_path):
+def parse_excited_state_forces(file_path: str) -> Dict[int, Dict[str, Any]]:
     """Parse
     - excitation energies
     - oscillator strengths
     - excited state forces
      from CP2K TDFORCE file"""
-    data = {}
+    data: Dict[int, Dict[str, Any]] = {}
 
     with open(file_path, "r") as f:
         content = f.read()

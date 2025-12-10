@@ -3,25 +3,27 @@ LQ3 approximation methods
 """
 
 import numpy as np
+from typing import Any, Dict, List, Optional
+
 from .lq2_methods import _calculate_vibrational_relaxation
 
 
 def calculate_lq3_spectrum_point(
-    energy,
-    state_idx,
-    spectrum_type,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    alphas,
-    gammas,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    spectrum_type: str,
+    oscillator_strengths: Dict[int, Dict[str, float]],
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    alphas: List[float],
+    gammas: List[float],
+    vertical_energies: List[float],
+    stokes_shift: float,
+    adiabatic_energies: Optional[List[float]],
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """
     Calculate LQ3 spectrum point for absorption or fluorescence
 
@@ -68,20 +70,20 @@ def calculate_lq3_spectrum_point(
 
 
 def _integrate_lq3_time_domain(
-    energy,
-    state_idx,
-    spectrum_type,
-    displacements,
-    frequencies,
-    mode_count,
-    alphas,
-    gammas,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    spectrum_type: str,
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    alphas: List[float],
+    gammas: List[float],
+    vertical_energies: List[float],
+    stokes_shift: float,
+    adiabatic_energies: Optional[List[float]],
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """
     Time integration for LQ3
     """
@@ -95,6 +97,8 @@ def _integrate_lq3_time_domain(
         # Absorption: E - E_vertical - Stokes/2
         energy_difference = energy - vertical_energies[state_idx - 1] - stokes_shift / 2
     elif spectrum_type == "fluorescence":
+        if adiabatic_energies is None:
+            raise ValueError("Adiabatic energies must be provided for fluorescence.")
         # Fluorescence: E_adiabatic - Stokes/2 - E - relaxation_energy
         adiabatic_energy = adiabatic_energies[state_idx - 1]
         relaxation_energy = _calculate_vibrational_relaxation(
@@ -145,19 +149,19 @@ def _integrate_lq3_time_domain(
 
 
 def calculate_lq3_absorption(
-    energy,
-    state_idx,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    alphas,
-    gammas,
-    vertical_energies,
-    stokes_shift,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    oscillator_strengths: Dict[int, Dict[str, float]],
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    alphas: List[float],
+    gammas: List[float],
+    vertical_energies: List[float],
+    stokes_shift: float,
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """Wrapper for absorption"""
     return calculate_lq3_spectrum_point(
         energy,
@@ -178,20 +182,20 @@ def calculate_lq3_absorption(
 
 
 def calculate_lq3_fluorescence(
-    energy,
-    state_idx,
-    oscillator_strengths,
-    displacements,
-    frequencies,
-    mode_count,
-    alphas,
-    gammas,
-    vertical_energies,
-    stokes_shift,
-    adiabatic_energies,
-    requested_states,
-    integration_params,
-):
+    energy: float,
+    state_idx: int,
+    oscillator_strengths: Dict[int, Dict[str, float]],
+    displacements: Dict[int, Dict[int, float]],
+    frequencies: Dict[int, float],
+    mode_count: int,
+    alphas: List[float],
+    gammas: List[float],
+    vertical_energies: List[float],
+    stokes_shift: float,
+    adiabatic_energies: List[float],
+    requested_states: List[int],
+    integration_params: Dict[str, Any],
+) -> float:
     """Wrapper for fluorescence"""
     return calculate_lq3_spectrum_point(
         energy,
