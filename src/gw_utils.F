@@ -796,20 +796,17 @@ CONTAINS
       INTEGER(int_8)                                     :: non_zero_elements_sum, nze
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
-      TYPE(dbt_type)                                     :: t_3c_global
+      !TYPE(dbt_type)                                     :: t_3c_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_global_array
-      TYPE(neighbor_list_3c_type)                        :: nl_3c_global
+      !TYPE(neighbor_list_3c_type)                        :: nl_3c_global
 
       CALL timeset(routineN, handle)
 
       ! check the sparsity of 3c integral tensor (µν|P); calculate maximum distance between
       ! AO atoms µ, ν where at least a single integral (µν|P) is larger than the filter threshold
-      CALL create_3c_t(t_3c_global, bs_env%para_env, "(RI AO | AO)", [1, 2], [3], &
-                       bs_env%sizes_RI, bs_env%sizes_AO, &
-                       create_nl_3c=.TRUE., nl_3c=nl_3c_global, qs_env=qs_env)
-
+      
       ALLOCATE (t_3c_global_array(1, 1))
-      CALL dbt_create(t_3c_global, t_3c_global_array(1, 1))
+      CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_global_array(1, 1))
 
       ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
       ! (Filled during loop)
@@ -817,10 +814,10 @@ CONTAINS
       ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
       ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
       ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = 1!bs_env%n_RI
-      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI!1
-      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = 1!bs_env%n_AO
-      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO!1
+      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI !bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = 1!1
+      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO!bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = 1 !1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -835,7 +832,8 @@ CONTAINS
          CALL build_3c_integrals(t_3c_global_array, &
                                  bs_env%eps_filter, &
                                  qs_env, &
-                                 nl_3c_global, &
+                                 !nl_3c_global, &
+                                 bs_env%nl_3c, &
                                  int_eps=bs_env%eps_filter, &
                                  basis_i=bs_env%basis_set_RI, &
                                  basis_j=bs_env%basis_set_AO, &
@@ -884,11 +882,11 @@ CONTAINS
       bs_env%occupation_3c_int = occupation_sum
       bs_env%max_dist_AO_atoms = max_dist_AO_atoms
 
-      CALL dbt_destroy(t_3c_global)
+      !CALL dbt_destroy(t_3c_global)
       CALL dbt_destroy(t_3c_global_array(1, 1))
       DEALLOCATE (t_3c_global_array)
 
-      CALL neighbor_list_3c_destroy(nl_3c_global)
+      !CALL neighbor_list_3c_destroy(nl_3c_global)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A)') ''
@@ -931,25 +929,25 @@ CONTAINS
 !$OMP my_min_RI_idx_from_AO_AO_atom, my_max_RI_idx_from_AO_AO_atom, &
 !$OMP atom_min_AO, atom_max_AO, &
 !$OMP my_min_AO_idx_from_RI_AO_atom, my_max_AO_idx_from_RI_AO_atom)
-      my_min_RI_idx_from_AO_AO_atom = 1!bs_env%n_RI
-      my_max_RI_idx_from_AO_AO_atom = bs_env%n_RI!1
-      my_min_AO_idx_from_RI_AO_atom = 1!bs_env%n_AO
-      my_max_AO_idx_from_RI_AO_atom = bs_env%n_AO!1
       CALL dbt_iterator_start(iter, t_3c)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)
+         my_min_RI_idx_from_AO_AO_atom = bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3))
+         my_max_RI_idx_from_AO_AO_atom = bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3))
+         my_min_AO_idx_from_RI_AO_atom = bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3))
+         my_max_AO_idx_from_RI_AO_atom = bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3))
 
          ! First for RI indices (on atom 1)
-         atom_min_RI = MIN(atom_ind(2), atom_ind(3))
-         atom_max_RI = MAX(atom_ind(2), atom_ind(3))
+         atom_min_RI = atom_ind(1)
+         atom_max_RI = atom_ind(1)
          my_min_RI_idx_from_AO_AO_atom = MIN(bs_env%i_RI_start_from_atom(atom_min_RI), &
                                              my_min_RI_idx_from_AO_AO_atom)
          my_max_RI_idx_from_AO_AO_atom = MAX(bs_env%i_RI_end_from_atom(atom_max_RI), &
                                              my_max_RI_idx_from_AO_AO_atom)
 
          ! Now for AO indices (take atom 2)
-         atom_min_AO = MIN(atom_ind(1), atom_ind(3))
-         atom_max_AO = MAX(atom_ind(1), atom_ind(3))
+         atom_min_AO = atom_ind(2)
+         atom_max_AO = atom_ind(2)
          my_min_AO_idx_from_RI_AO_atom = MIN(bs_env%i_ao_start_from_atom(atom_min_AO), &
                                              my_min_AO_idx_from_RI_AO_atom)
          my_max_AO_idx_from_RI_AO_atom = MAX(bs_env%i_ao_end_from_atom(atom_max_AO), &
@@ -1697,6 +1695,8 @@ CONTAINS
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
+         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+            bs_env%input_memory_per_proc_GB, ' GB'
       END IF
 
       CALL timestop(handle)
