@@ -9,6 +9,7 @@ Author: Beliz Sertcan
 import sys
 import numpy as np  # type: ignore
 import time
+import os
 from typing import Dict, Any, List, Union, Optional
 
 from file_parsers import parse_excited_state_forces, parse_molden_file
@@ -489,7 +490,8 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
     """Load configuration from TOML file"""
     if config_file.endswith(".toml"):
 
-        with open(config_file, 'r', encoding='utf-8') as f:
+        config_dir = os.path.dirname(os.path.abspath(config_file))
+        with open(config_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Try importing toml from various places.
@@ -511,7 +513,10 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
             "Only TOML configuration files are supported. Use .toml extension"
         )
 
-    return flatten_config(config)
+    flattened = flatten_config(config)
+    flattened["config_dir"] = config_dir
+
+    return flattened
 
 
 def flatten_config(config: Dict[str, Any]) -> Dict[str, Any]:
