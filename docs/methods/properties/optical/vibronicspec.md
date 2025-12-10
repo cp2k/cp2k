@@ -8,6 +8,7 @@ methods, as shown in the figure.
 ![](so2_spectrum.png){align=center}
 
 The methods developed are based on these publications:
+
 - [J. Chem. Phys. 127, 164319 (2007)](https://pubs.aip.org/aip/jcp/article/127/16/164319/937415/Analysis-and-prediction-of-absorption-band-shapes)
 - [J. Chem. Phys. 137, 234107 (2012)](https://pubs.aip.org/aip/jcp/article/137/23/234107/191739/Efficient-and-automatic-calculation-of-optical)
 - [J. Chem. Theory Comput. 13, 2823 (2017)](https://pubs.acs.org/doi/10.1021/acs.jctc.7b00325)
