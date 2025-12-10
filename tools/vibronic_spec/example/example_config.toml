@@ -1,0 +1,37 @@
+# VibronicSpec configuration file
+
+[files]
+vibrations_filename = "so2-VIBRATIONS-1.mol"
+output_filename = "so2_spectrum.txt"
+force_filename = "so2-TDFORCE-1_0.tdfrc"
+
+[calculation]
+# Single key. Choose one format:
+# states = "all"                   # Use all available states with forces
+# states = [1, 2, 6]               # Explicit state list  
+states = "threshold:0.01"        # Filter oscillator strength by threshold
+
+energy_min = 3
+energy_max = 8
+energy_points = 1000
+method = "lq2"
+spectrum_type = "absorption"
+stokes_shift = 0.0
+
+[output]
+print_individual_states = false
+
+###################################
+# Optional sections with defaults #
+###################################
+[imdho]
+temperature = 298.15                # in K
+gamma_broadening = 0.001            # in eV
+theta_broadening = 0.0
+
+[integration]
+max_time_slices = 5000
+lq3_time_step = 30
+lq3_convergence = 0.0000001
+imdho_time_step = 30
+imdho_convergence = 0.000000001

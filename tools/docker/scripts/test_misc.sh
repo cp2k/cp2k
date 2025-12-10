@@ -39,6 +39,9 @@ run_test ./tools/pao-ml/pao-validate.py --threshold=1e-1 --model="DZVP-MOLOPT-GT
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-6 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-5 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-O.pt" ./tools/pao-ml/example.pao
 
+# Test vibronic_spec
+run_test ./tools/vibronic_spec/main.py ./tools/vibronic_spec/example/example_config.toml
+
 run_test mypy --strict ./tools/pao-ml/
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
@@ -54,6 +57,7 @@ run_test mypy --strict ./tools/conventions/analyze_gfortran_ast.py
 run_test mypy --strict ./tests/do_regtest.py
 run_test mypy --strict ./docs/generate_input_reference.py
 run_test mypy --strict ./docs/fix_github_links.py
+run_test mypy --strict ./tools/vibronic_spec/
 
 # TODO: Find a way to test generate_dashboard.py without git repository.
 #
