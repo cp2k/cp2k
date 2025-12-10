@@ -502,7 +502,7 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
                 except ImportError:
                     import toml as tomllib  # type: ignore
 
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = tomllib.load(f)
     else:
         raise ValueError(
