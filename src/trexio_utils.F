@@ -165,7 +165,6 @@ CONTAINS
                                                             row, col, row_size, col_size, &
                                                             row_offset, col_offset, i_trex
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
-      INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
                                                             shell_index, z_core, max_ang_mom_plus_1, &
@@ -709,7 +708,10 @@ CONTAINS
                   temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
                   diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
                   DO i = 1, nso(lshell)
-                     i_trex = cp2k_to_trexio_ang_mom(i)
+                     ! cp2k_to_trexio contains the mapped global indices, but diag_nsgf
+                     ! is a small local matrix of dimension 2l+1, so I need to shift back
+                     ! the index by igf
+                     i_trex = cp2k_to_trexio_ang_mom(igf+i) - igf
                      ao_normalization(igf + i) = diag_nsgf(i_trex, i_trex)
                   END DO
 
