@@ -472,14 +472,12 @@ def get_integration_parameters(config: Dict[str, Any], method: str) -> Dict[str,
     if method == "lq3":
         return {
             "max_time_slices": config.get("max_time_slices", 5000),
-            # "slice_size": config.get("lq3_slice_size", 30000),
             "time_step": config.get("lq3_time_step", 30),
             "convergence": config.get("lq3_convergence", 0.0000001),
         }
     elif method == "imdho":
         return {
             "max_time_slices": config.get("max_time_slices", 5000),
-            # "slice_size": config.get("imdho_slice_size", 10000),
             "time_step": config.get("imdho_time_step", 30),
             "convergence": config.get("imdho_convergence", 0.000000001),
         }
@@ -490,6 +488,10 @@ def get_integration_parameters(config: Dict[str, Any], method: str) -> Dict[str,
 def load_configuration(config_file: str) -> Dict[str, Any]:
     """Load configuration from TOML file"""
     if config_file.endswith(".toml"):
+
+        with open(config_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
         # Try importing toml from various places.
         try:
             import tomllib  # not available before Python 3.11
@@ -502,8 +504,8 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
                 except ImportError:
                     import toml as tomllib  # type: ignore
 
-        with open(config_file) as f:
-            config = tomllib.load(f)
+        config = tomllib.loads(content)
+
     else:
         raise ValueError(
             "Only TOML configuration files are supported. Use .toml extension"
