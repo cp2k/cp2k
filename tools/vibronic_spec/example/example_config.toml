@@ -14,7 +14,7 @@ states = "threshold:0.01"        # Filter oscillator strength by threshold
 energy_min = 3
 energy_max = 8
 energy_points = 1000
-method = "imdho"
+method = "lq2"
 spectrum_type = "absorption"
 stokes_shift = 0.0
 
