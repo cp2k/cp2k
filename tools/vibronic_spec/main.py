@@ -58,7 +58,11 @@ def load_calculation_data(config: Dict[str, Any]) -> Dict[str, Any]:
 
     data: Dict[str, Any] = {}
 
-    tdforce_data = parse_excited_state_forces(config["force_filename"])
+    config_dir = config.get("config_dir", ".")
+    force_file = os.path.join(config_dir, config["force_filename"])
+    vibrations_file = os.path.join(config_dir, config["vibrations_filename"])
+
+    tdforce_data = parse_excited_state_forces(force_file)
     data["oscillator_strengths"] = tdforce_data
     forces = {
         state: tdforce_data[state]["force"]
@@ -77,7 +81,7 @@ def load_calculation_data(config: Dict[str, Any]) -> Dict[str, Any]:
     data["requested_states"] = final_states
     data["state_count"] = len(final_states)
 
-    molden_data = parse_molden_file(config["vibrations_filename"])
+    molden_data = parse_molden_file(vibrations_file)
     data.update(molden_data)
 
     print(f"INFO: Found {data['atom_count']} atoms")
