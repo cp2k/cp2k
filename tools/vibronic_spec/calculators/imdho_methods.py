@@ -2,7 +2,7 @@
 Independent Mode Displaced Harmonic Oscillator (IMDHO) Method
 """
 
-import numpy as np
+import numpy as np # type: ignore
 from typing import Any, Dict, List, Optional
 
 from .physical_parameters import calculate_huang_rhys_factors, calculate_thermal_factors

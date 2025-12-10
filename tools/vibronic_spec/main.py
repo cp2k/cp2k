@@ -7,7 +7,7 @@ Author: Beliz Sertcan
 """
 
 import sys
-import numpy as np
+import numpy as np # type: ignore
 import time
 from typing import Dict, Any, List, Union, Optional
 
@@ -488,12 +488,12 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
             import tomllib  # not available before Python 3.11
         except ImportError:
             try:
-                import pip._vendor.tomli as tomllib
+                import pip._vendor.tomli as tomllib # type: ignore
             except ImportError:
                 try:
-                    import pip._vendor.toml as tomllib
+                    import pip._vendor.toml as tomllib # type: ignore
                 except ImportError:
-                    import toml as tomllib
+                    import toml as tomllib # type: ignore
 
         with open(config_file, "r") as f:
             config = tomllib.load(f)
