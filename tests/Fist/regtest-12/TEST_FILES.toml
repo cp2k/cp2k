@@ -51,6 +51,7 @@
 # geo_opt with save_mem.. bug fix
 "mfi_geo.inp"                           = [{matcher="M007", tol=1.0E-14, ref=0.1229559807}]
 "mfi_geo2.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.0119785072}]
+"mfi_geo2_extxyz.inp"                   = [{matcher="M007", tol=1.0E-14, ref=0.0119785072}]
 "mfi_geo3.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.0000039863}]
 # fixed atoms with only partial components
 "nh3_fixd_x.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.551955955308E+00}]

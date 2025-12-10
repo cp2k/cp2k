@@ -19,6 +19,7 @@ MODULE input_cp2k_motion_print
    USE input_constants,                 ONLY: dump_atomic,&
                                               dump_dcd,&
                                               dump_dcd_aligned_cell,&
+                                              dump_extxyz,&
                                               dump_pdb,&
                                               dump_xmol
    USE input_cp2k_subsys,               ONLY: create_structure_data_section
@@ -274,10 +275,10 @@ CONTAINS
 
          CALL keyword_create( &
             keyword, __LOCATION__, name="FORMAT", &
-            description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
+            description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ|EXTXYZ)", &
             default_i_val=dump_xmol, &
-            enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
-            enum_i_vals=[dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol], &
+            enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ", "EXTXYZ"), &
+            enum_i_vals=[dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol, dump_extxyz], &
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                           "Write the coordinates (no element labels) and the cell information to a binary file", &
                           "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
@@ -285,7 +286,10 @@ CONTAINS
                           "the *xy* plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
                           "Write the atomic information in PDB format to a formatted file", &
                           "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
-                          "Alias name for XMOL"))
+                          "Alias name for XMOL", &
+                          "Extended XYZ format including cell information. "// &
+                          "For details see [ASE](https://ase-lib.org/ase/io/formatoptions.html#extxyz) "// &
+                          "and [OVITO](https://www.ovito.org/manual/reference/file_formats/input/xyz.html)."))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -315,14 +319,17 @@ CONTAINS
       ELSE
 
          CALL keyword_create(keyword, __LOCATION__, name="FORMAT", &
-                             description=description, usage="FORMAT (ATOMIC|DCD|XMOL|XYZ)", &
+                             description=description, usage="FORMAT (ATOMIC|DCD|XMOL|XYZ|EXTXYZ)", &
                              default_i_val=dump_xmol, &
-                             enum_c_vals=s2a("ATOMIC", "DCD", "XMOL", "XYZ"), &
-                             enum_i_vals=[dump_atomic, dump_dcd, dump_xmol, dump_xmol], &
+                             enum_c_vals=s2a("ATOMIC", "DCD", "XMOL", "XYZ", "EXTXYZ"), &
+                             enum_i_vals=[dump_atomic, dump_dcd, dump_xmol, dump_xmol, dump_extxyz], &
                              enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                                            "Write the coordinates (no element labels) and the cell information to a binary file", &
                                            "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
-                                           "Alias name for XMOL"))
+                                           "Alias name for XMOL", &
+                                           "Extended XYZ format including cell information. "// &
+                                           "For details see [ASE](https://ase-lib.org/ase/io/formatoptions.html#extxyz) "// &
+                                           "and [OVITO](https://www.ovito.org/manual/reference/file_formats/input/xyz.html)."))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -330,7 +337,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_ATOM_KIND", &
                           description="Write the atom kind given in the subsys section instead of the element symbol. "// &
-                          "Only valid for the XMOL format.", &
+                          "Only valid for the XMOL and EXTXYZ format.", &
                           usage="PRINT_ATOM_KIND logical", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
