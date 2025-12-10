@@ -2,7 +2,7 @@
 LQ2 approximation methods
 """
 
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 from typing import Dict, List, Optional
 
 

@@ -2,7 +2,7 @@
 Physical parameter calculations for spectrum methods
 """
 
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 from typing import Dict, List
 
 from constants import kB

@@ -2,7 +2,7 @@
 LQ3 approximation methods
 """
 
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 from typing import Any, Dict, List, Optional
 
 from .lq2_methods import _calculate_vibrational_relaxation

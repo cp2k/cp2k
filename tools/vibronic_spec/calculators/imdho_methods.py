@@ -2,7 +2,7 @@
 Independent Mode Displaced Harmonic Oscillator (IMDHO) Method
 """
 
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 from typing import Any, Dict, List, Optional
 
 from .physical_parameters import calculate_huang_rhys_factors, calculate_thermal_factors
@@ -92,7 +92,7 @@ def calculate_imdho_spectrum_point(
         )
     else:
         raise ValueError(f"Unknown spectrum_type: {spectrum_type}")
-        
+
     return float(prefactor * integral)
 
 
@@ -129,7 +129,6 @@ def _integrate_imdho_time_domain(
         energy_difference = (
             adiabatic_energies[state_idx - 1] - stokes_shift / 2 - energy
         )
-
 
     actual_state = requested_states[state_idx - 1]
     huang_rhys_factors = calculate_huang_rhys_factors(

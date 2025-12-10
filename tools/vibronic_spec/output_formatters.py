@@ -32,7 +32,9 @@ def write_combined_spectrum(results: Dict[str, Any], output_file: str) -> None:
             f.write(f"{energy:.6f} {intensity:.6e}\n")
 
 
-def write_individual_states_file(results: Dict[str, Any], config: Dict[str, Any]) -> None:
+def write_individual_states_file(
+    results: Dict[str, Any], config: Dict[str, Any]
+) -> None:
     """
     Write individual state spectra to separate file in CP2K-like format
     File: states_{method}.txt

@@ -1,15 +1,22 @@
 # Simulating Vibronic Effects in Optical Spectra
 
+This tutorial demonstrates how to compute the vibronic spectra of SO$_2$ using CP2K and the
+VibronicSpec post-processing tool. We'll calculate vibrational modes and excited state forces with
+CP2K, then combine these results to obtain the vibronic spectrum using different theoretical
+methods, as shown in the figure.
+
+![](so2_spectrum.png){align=center}
+
 ## Theoretical Background
 
-##### Vibronic Transitions and the Franck-Condon Principle
+*Vibronic Transitions and the Franck-Condon Principle*
 
 Vibronic spectra arise from transitions between electronic states that involve simultaneous changes
 in both electronic and vibrational states. The intensity distribution follows the Franck-Condon
 principle, which states that electronic transitions occur much faster than nuclear motions, leading
 to vertical transitions where nuclei maintain their initial positions and momenta.
 
-##### Displaced Harmonic Oscillator Model
+*Displaced Harmonic Oscillator Model*
 
 Within the harmonic approximation, the potential energy surfaces of ground and excited states are
 described as parabolas with identical curvatures (same frequencies and normal modes) but displaced
@@ -23,10 +30,9 @@ $$
 where $\omega_k$ is the vibrational frequency of mode $k$ and $\partial E/\partial Q_k$ is the
 energy gradient along the normal mode coordinate.
 
-##### Huang-Rhys Factors and Relaxation Energy
+*Huang-Rhys Factors and Relaxation Energy*
 
-The Huang-Rhys factor $S_k$ quantifies the electron-phonon coupling strength for each vibrational
-mode $k$:
+The Huang-Rhys factor $S_k$ quantifies the vibronic coupling strength for each vibrational mode $k$:
 
 $$
 S_k = \frac{1}{2}\omega_k\Delta Q_k^2
@@ -36,7 +42,7 @@ Large $S_k$ values indicate strong coupling, leading to pronounced vibrational p
 spectrum. The total relaxation energy $\lambda = \sum_k S_k\omega_k$ represents the energy
 stabilization due to geometry relaxation after electronic excitation.
 
-##### Thermal Occupation Factors
+*Thermal Occupation Factors*
 
 The thermal occupation number $\bar{n}_k$ represents the average number of vibrational quanta
 excited at temperature T:
@@ -54,7 +60,7 @@ The simplest method is to calculate the vertical excitations and convolute each 
 empirical broadening function. This approach, however, apart from the ambiguity in the choice of the
 width parameter, does not recognize the asymmetry of the vibronic band.
 
-#### IMDHO Method (Independent Mode Displaced Harmonic Oscillator)
+### IMDHO Method (Independent Mode Displaced Harmonic Oscillator)
 
 The IMDHO method uses the time-domain correlation function formalism:
 
@@ -70,7 +76,10 @@ where:
 - The exponential terms represent creation and annihilation of vibrational quanta,
 - Temperature effects are included through the $\bar{n}_k$ factors.
 
-#### LQ2 Method - Symmetric Gaussian Model (Second-Order Cumulant Expansion)
+This method provides the highest accuracy by treating each vibrational mode independently, allowing
+it to capture full vibronic progression, mode-specific displacements, and temperature effects.
+
+### LQ2 Method - Symmetric Gaussian Model (Second-Order Cumulant Expansion)
 
 The LQ2 method is a Gaussian approximation that considers only the second spectral moment:
 
@@ -87,7 +96,7 @@ $$
 This method provides a symmetric lineshape and is computationally efficient but neglects spectral
 asymmetry and detailed vibronic structure.
 
-#### LQ3 Method - Asymmetric Gaussian Model (Third-Order Cumulant Expansion)
+### LQ3 Method - Asymmetric Gaussian Model (Third-Order Cumulant Expansion)
 
 The LQ3 method includes anharmonic corrections through a cubic time term:
 
@@ -120,8 +129,7 @@ factors) but employ different levels of approximation in constructing the final 
 
 ## Example: SO$_2$ molecule
 
-This tutorial demonstrates how to compute vibronic spectra using CP2K and the VibronicSpec
-post-processing tool. We'll use SO$_2$ as our example molecule.
+In this example, we'll use SO$_2$ and calculate the vibronic spectra.
 
 To compute the vibronic spectra, we need 2 separate CP2K calculations:
 
@@ -132,12 +140,10 @@ This tutorial will not provide detailed information regarding these mentioned ca
 
 Since vibronic spectroscopy methods are highly sensitive to molecular geometry, you must start from
 a well-converged global minimum. The geometry file provided in this tutorial has been converged with
-setting the [MAX_FORCE](#CP2K_INPUT.MOTION.GEO_OPT.MAX_FORCE) keyword to `1.0E-5` ensure it meets
+the [MAX_FORCE](#CP2K_INPUT.MOTION.GEO_OPT.MAX_FORCE) keyword set to `1.0E-5` to ensure it meets
 this requirement. You can check the geometry by looking at the vibrational analysis. If there are
-negative frequencies, the geometry might not be converged properly. However, in solid-state systems
-and liquids, it is normal to observe negative frequencies, as periodic systems have acoustic modes
-that should be zero and liquid configurations are not true minima, so both naturally produce
-imaginary modes in a harmonic analysis.
+negative frequencies, the geometry might not be converged properly. For solids and liquids, however,
+vibrational analysis may produce negative frequencies that require careful interpretation.
 
 Additionally, the electronic structure calculations must use the same parameters, i.e., functional,
 basis set, and convergence settings, across all calculations. The optimized geometry is specific to
@@ -147,7 +153,7 @@ geometry in this tutorial is optimized using `PBE0` functional and `TZVP-MOLOPT-
 sets. [ADMM](#CP2K_INPUT.FORCE_EVAL.DFT.AUXILIARY_DENSITY_MATRIX_METHOD)[](#Guidon2010)
 approximation is also used with `admm-dzp` basis to reduce the cost of exchange integrals.
 
-#### 1. Vibrational modes and frequencies
+### 1. Vibrational modes and frequencies
 
 First, we calculate the vibrational spectrum using the following input. SO$_2$ molecule has 3 modes,
 ($3*N_\textrm{atom}-6$), therefore the [NPROC_REP](#CP2K_INPUT.VIBRATIONAL_ANALYSIS.NPROC_REP) value
@@ -286,7 +292,7 @@ a.u., frequencies (`[FREQ]`) in $\textrm{cm}^{-1}$ and normal modes (`[FR-NORM-C
     -0.000001       0.521585       0.303974
 ```
 
-#### 2. Absorption spectrum and excited-state forces
+### 2. Absorption spectrum and excited-state forces
 
 The absorption spectrum and excited‑state forces can be calculated in a single run. For this, we
 will change the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY_FORCE`, remove the
@@ -308,12 +314,14 @@ will change the [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) to `ENERGY_FORCE`, remov
 &END PROPERTIES
 ```
 
-We’ll request 10 excited states with an excitation convergence of $10^{-5}$ eV. We also ask to print
-the forces, and we set a
-[THRESHOLD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.THRESHOLD) of 0.001. This means
-forces are only calculated for states whose oscillator strength is above that value. Filtering out
-weak states helps keep the calculation efficient. You can also list specific states explicitly with
-the [LIST](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.LIST) keyword (\[Strand2019\],
+For this example, we’ll request 10 excited states, which captures the energy range relevant to our
+spectrum. For other molecules, this number should be adjusted based on the system size and the
+energy range of interest. We also set the excitation convergence to $10^{-5}$ eV, making it tighter
+than the default, to ensure more accurate excitation energies. We also ask to print the forces, and
+we set a [THRESHOLD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.THRESHOLD) of 0.001. This
+means forces are only calculated for states whose oscillator strength is above that value. Filtering
+out weak states helps keep the calculation efficient. You can also list specific states explicitly
+with the [LIST](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.LIST) keyword (\[Strand2019\],
 [](#Iannuzzi2005), \[Hehn2022\]).
 
 The output file we need is `so2-TDFORCE-1_0.tdfrc` file, which contains the spectrum data and the
@@ -360,10 +368,11 @@ forces in this format:
 The forces for the states with an intensity higher than the cutoff are calculated and printed,
 whereas less intense states are skipped.
 
-#### 3. Calculating vibronic spectrum
+### 3. Calculating vibronic spectrum
 
-We will use the python package `VibronicSpec` that can be found in CP2K tools. An example
-config.toml file is provided. We will modify it for the SO$_2$ molecule.
+We will use the python package [VibronicSpec](https://github.com/cp2k/cp2k/tree/master/tools) that
+can be found in CP2K tools. An example config.toml file is provided. We will modify it for the
+SO$_2$ molecule.
 
 ```none
 [files]
@@ -426,12 +435,12 @@ spectrum summed over all included states. If you want to see each state separate
 VibronicSpec will print information regarding the calculation, such as the states filtered, which
 should be checked. It will also print the progression, and total runtime.
 
-This figure shows the calculated absorption spectrum of SO$_2$ using all three methods using the
-provided input, only changing the method. The LQ2 methods gives a simple Gaussian profile without
-the vibronic structure. The LQ3 methods adds a cubic coupling through time integration, revealing
-some shoulder features. The IMDHO method (calculated at 298 K) includes full mode-by-mode
-displacement and temperature effects, producing the most detailed spectrum. The LQ2 and LQ3 curves
-are scaled. For reference, if LQ2 takes one unit of time, then LQ3 and IMDHO will take about 800×
-longer for this molecule with the given setup.
-
-![](so2_spectrum.png){align=center}
+The figure above shows the calculated absorption spectrum of SO$_2$ using all three methods using
+the provided input, only changing the method. The LQ2 methods gives a simple Gaussian profile
+without the vibronic structure. The LQ3 methods adds a cubic coupling through time integration,
+revealing some shoulder features. The IMDHO method (calculated at 298 K) includes full mode-by-mode
+displacement and temperature effects, producing the most detailed spectrum. The LQ2 and LQ3
+intensities are scaled to align with the IMDHO peak for visual comparison. For reference, for this
+particular example, if LQ2 takes one unit of time, then LQ3 and IMDHO will take about 800× longer
+for this molecule with the given setup. In practice, timings scale with the number of excited
+states, vibrational modes, and spectral resolution.

@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
 """
 Main entry point for Vibronic Spectroscopy Tools (VibronicSpec)
@@ -7,7 +7,7 @@ Author: Beliz Sertcan
 """
 
 import sys
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 import time
 from typing import Dict, Any, List, Union, Optional
 
@@ -158,7 +158,9 @@ def parse_states_specification(
         raise ValueError("States configuration must be a list or string")
 
 
-def calculate_displacement_vectors(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+def calculate_displacement_vectors(
+    data: Dict[str, Any], config: Dict[str, Any]
+) -> Dict[str, Any]:
     """Calculate displacement vectors between ground and excited states"""
     print("Calculating displacement vectors...")
 
@@ -194,7 +196,9 @@ def calculate_displacement_vectors(data: Dict[str, Any], config: Dict[str, Any])
     return data
 
 
-def calculate_frequency_matrix(mode_count: int, frequencies: Dict[int, float]) -> np.ndarray:
+def calculate_frequency_matrix(
+    mode_count: int, frequencies: Dict[int, float]
+) -> np.ndarray:
     """Calculate diagonal matrix containing squares of vibrational frequencies"""
     frequency_squares = []
     for mode in range(1, mode_count + 1):
@@ -204,7 +208,9 @@ def calculate_frequency_matrix(mode_count: int, frequencies: Dict[int, float]) -
     return frequency_matrix
 
 
-def calculate_inverse_frequency_matrix(mode_count: int, frequencies: Dict[int, float]) -> np.ndarray:
+def calculate_inverse_frequency_matrix(
+    mode_count: int, frequencies: Dict[int, float]
+) -> np.ndarray:
     """Calculate inverse of the frequency eigenvalue matrix"""
     inverse_frequency_list = []
     frequency_matrix = calculate_frequency_matrix(mode_count, frequencies)
@@ -300,7 +306,9 @@ def calculate_displacement_vector(
     return np.array(displacements)
 
 
-def calculate_physical_parameters(data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+def calculate_physical_parameters(
+    data: Dict[str, Any], config: Dict[str, Any]
+) -> Dict[str, Any]:
     """Calculate alpha, gamma, adiabatic energies, etc."""
     print("Calculating physical parameters...")
 
@@ -324,7 +332,6 @@ def calculate_physical_parameters(data: Dict[str, Any], config: Dict[str, Any]) 
         data["displacements"],
         data["frequencies"],
     )
-
 
     data["adiabatic_energies"] = calculate_adiabatic_energies(
         data["requested_states"],
@@ -488,12 +495,12 @@ def load_configuration(config_file: str) -> Dict[str, Any]:
             import tomllib  # not available before Python 3.11
         except ImportError:
             try:
-                import pip._vendor.tomli as tomllib # type: ignore
+                import pip._vendor.tomli as tomllib  # type: ignore
             except ImportError:
                 try:
-                    import pip._vendor.toml as tomllib # type: ignore
+                    import pip._vendor.toml as tomllib  # type: ignore
                 except ImportError:
-                    import toml as tomllib # type: ignore
+                    import toml as tomllib  # type: ignore
 
         with open(config_file, "r") as f:
             config = tomllib.load(f)
