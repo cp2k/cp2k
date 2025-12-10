@@ -796,28 +796,30 @@ CONTAINS
       INTEGER(int_8)                                     :: non_zero_elements_sum, nze
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
-      !TYPE(dbt_type)                                     :: t_3c_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_global_array
+
+!TYPE(dbt_type)                                     :: t_3c_global
+
       !TYPE(neighbor_list_3c_type)                        :: nl_3c_global
 
       CALL timeset(routineN, handle)
 
       ! check the sparsity of 3c integral tensor (µν|P); calculate maximum distance between
       ! AO atoms µ, ν where at least a single integral (µν|P) is larger than the filter threshold
-      
+
       ALLOCATE (t_3c_global_array(1, 1))
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_global_array(1, 1))
 
       ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
       ! (Filled during loop)
-      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom,bs_env%n_atom))
-      bs_env%min_RI_idx_from_AO_AO_atom(:,:) = bs_env%n_RI !bs_env%n_RI
-      bs_env%max_RI_idx_from_AO_AO_atom(:,:) = 1!1
-      bs_env%min_AO_idx_from_RI_AO_atom(:,:) = bs_env%n_AO!bs_env%n_AO
-      bs_env%max_AO_idx_from_RI_AO_atom(:,:) = 1 !1
+      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      bs_env%min_RI_idx_from_AO_AO_atom(:, :) = bs_env%n_RI !bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:, :) = 1!1
+      bs_env%min_AO_idx_from_RI_AO_atom(:, :) = bs_env%n_AO!bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:, :) = 1 !1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -851,7 +853,7 @@ CONTAINS
          occupation_sum = occupation_sum + occ
 
          CALL get_max_dist_AO_atoms(t_3c_global_array(1, 1), max_dist_AO_atoms, qs_env)
-         
+
          ! Extract indices per block
          CALL get_i_j_atom_ranges(t_3c_global_array(1, 1), bs_env)
 
@@ -859,9 +861,8 @@ CONTAINS
 
       END DO
 
-
       t2 = m_walltime()
-      
+
       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
@@ -870,13 +871,13 @@ CONTAINS
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A)') ''
          WRITE (bs_env%unit_nr, '(T2,A)') 'min_RI_idx_from_AO_AO_atom'
-         print *, bs_env%min_RI_idx_from_AO_AO_atom
+         PRINT *, bs_env%min_RI_idx_from_AO_AO_atom
          WRITE (bs_env%unit_nr, '(T2,A)') 'max_RI_idx_from_AO_AO_atom'
-         print *, bs_env%max_RI_idx_from_AO_AO_atom
+         PRINT *, bs_env%max_RI_idx_from_AO_AO_atom
          WRITE (bs_env%unit_nr, '(T2,A)') 'min_AO_idx_from_RI_AO_atom'
-         print *, bs_env%min_AO_idx_from_RI_AO_atom
+         PRINT *, bs_env%min_AO_idx_from_RI_AO_atom
          WRITE (bs_env%unit_nr, '(T2,A)') 'max_AO_idx_from_RI_AO_atom'
-         print *, bs_env%max_AO_idx_from_RI_AO_atom
+         PRINT *, bs_env%max_AO_idx_from_RI_AO_atom
       END IF
 
       bs_env%occupation_3c_int = occupation_sum
@@ -904,24 +905,25 @@ CONTAINS
 
    END SUBROUTINE check_sparsity_3c
 
+! **************************************************************************************************
+!> \brief ...
+!> \param t_3c ...
+!> \param bs_env ...
+! **************************************************************************************************
    SUBROUTINE get_i_j_atom_ranges(t_3c, bs_env)
-      TYPE(dbt_type)      :: t_3c
+      TYPE(dbt_type)                                     :: t_3c
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_i_j_atom_ranges'
 
-      INTEGER                                            :: handle, atom_min_RI, atom_max_RI, &
-                                                            my_min_RI_idx_from_AO_AO_atom, &
-                                                            my_max_RI_idx_from_AO_AO_atom, &
-                                                            atom_min_AO, atom_max_AO, &
-                                                            my_min_AO_idx_from_RI_AO_atom, &
-                                                            my_max_AO_idx_from_RI_AO_atom
-      TYPE(dbt_iterator_type)                            :: iter
+      INTEGER :: atom_max_AO, atom_max_RI, atom_min_AO, atom_min_RI, handle, &
+         my_max_AO_idx_from_RI_AO_atom, my_max_RI_idx_from_AO_AO_atom, &
+         my_min_AO_idx_from_RI_AO_atom, my_min_RI_idx_from_AO_AO_atom
       INTEGER, DIMENSION(3)                              :: atom_ind
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
-      
-      
+
       ! Loop over blocks in 3c, for given min_atom: RI_min/max index from min_atom
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(t_3c, bs_env) &
@@ -932,10 +934,10 @@ CONTAINS
       CALL dbt_iterator_start(iter, t_3c)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)
-         my_min_RI_idx_from_AO_AO_atom = bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3))
-         my_max_RI_idx_from_AO_AO_atom = bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3))
-         my_min_AO_idx_from_RI_AO_atom = bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3))
-         my_max_AO_idx_from_RI_AO_atom = bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3))
+         my_min_RI_idx_from_AO_AO_atom = bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3))
+         my_max_RI_idx_from_AO_AO_atom = bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3))
+         my_min_AO_idx_from_RI_AO_atom = bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3))
+         my_max_AO_idx_from_RI_AO_atom = bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3))
 
          ! First for RI indices (on atom 1)
          atom_min_RI = atom_ind(1)
@@ -953,21 +955,19 @@ CONTAINS
          my_max_AO_idx_from_RI_AO_atom = MAX(bs_env%i_ao_end_from_atom(atom_max_AO), &
                                              my_max_AO_idx_from_RI_AO_atom)
 
-
          !Write to environment
-         bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3)) = &
+         bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)) = &
             my_min_RI_idx_from_AO_AO_atom
-         bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2),atom_ind(3)) = &
+         bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)) = &
             my_max_RI_idx_from_AO_AO_atom
 
-         bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3)) = &
+         bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)) = &
             my_min_AO_idx_from_RI_AO_atom
-         bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1),atom_ind(3)) = &
+         bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)) = &
             my_max_AO_idx_from_RI_AO_atom
       END DO
       CALL dbt_iterator_stop(iter)
 !$OMP END PARALLEL
-
 
       CALL timestop(handle)
 
@@ -3426,5 +3426,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE correct_obvious_fitting_fails
-   
+
 END MODULE gw_utils

@@ -496,7 +496,7 @@ CONTAINS
                            map_1, map_2, &
                            bounds_1, bounds_2, bounds_3, &
                            optimize_dist, pgrid_opt_1, pgrid_opt_2, pgrid_opt_3, &
-                           filter_eps, flop, move_data, retain_sparsity, unit_nr, log_verbose,&
+                           filter_eps, flop, move_data, retain_sparsity, unit_nr, log_verbose, &
                            char_id_gw)
       REAL(dp), INTENT(IN)            :: alpha
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_1
@@ -530,7 +530,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                  :: log_verbose
       CHARACTER(LEN=3), INTENT(IN), OPTIONAL         :: char_id_gw
 
-      INTEGER                     :: handle,handle_MG
+      INTEGER                     :: handle, handle_MG
 
       CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
@@ -556,7 +556,7 @@ CONTAINS
                                log_verbose=log_verbose, char_id_gw=char_id_gw)
       CALL tensor_1%pgrid%mp_comm_2d%sync()
       IF (PRESENT(char_id_gw)) THEN
-         CALL timestop(handle_MG) 
+         CALL timestop(handle_MG)
       END IF
       CALL timestop(handle)
 

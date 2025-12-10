@@ -89,10 +89,10 @@ MODULE post_scf_bandstructure_types
                                                       i_ao_end_from_atom, &
                                                       i_RI_start_from_atom, &
                                                       i_RI_end_from_atom
-      INTEGER, DIMENSION(:,:), ALLOCATABLE         :: min_RI_idx_from_AO_AO_atom, &
-                                                      max_RI_idx_from_AO_AO_atom, &
-                                                      min_AO_idx_from_RI_AO_atom, &
-                                                      max_AO_idx_from_RI_AO_atom
+      INTEGER, DIMENSION(:, :), ALLOCATABLE         :: min_RI_idx_from_AO_AO_atom, &
+                                                       max_RI_idx_from_AO_AO_atom, &
+                                                       min_AO_idx_from_RI_AO_atom, &
+                                                       max_AO_idx_from_RI_AO_atom
       INTEGER, DIMENSION(2)                        :: n_occ = -1, &
                                                       n_vir = -1
       REAL(KIND=dp)                                :: spin_degeneracy = -1.0_dp
@@ -318,8 +318,8 @@ MODULE post_scf_bandstructure_types
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)      :: t_3c_int
 
       !MG: Print options
-      LOGICAL                                           :: print_contract = .FALSE.,&
-                                                         print_contract_verbose = .FALSE.
+      LOGICAL                                           :: print_contract = .FALSE., &
+                                                           print_contract_verbose = .FALSE.
 
    END TYPE post_scf_bandstructure_type
 

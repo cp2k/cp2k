@@ -97,6 +97,7 @@ CONTAINS
 !> \param simple_split ...
 !> \param unit_nr unit number for logging output
 !> \param log_verbose only for testing: verbose output
+!> \param char_id_gw ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbt_tas_multiply(transa, transb, transc, alpha, matrix_a, matrix_b, beta, matrix_c, &
@@ -117,7 +118,7 @@ CONTAINS
                                                             retain_sparsity, simple_split
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: log_verbose
-      CHARACTER(LEN=3), INTENT(IN), OPTIONAL         :: char_id_gw
+      CHARACTER(LEN=3), INTENT(IN), OPTIONAL             :: char_id_gw
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_multiply'
 
@@ -462,7 +463,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
@@ -474,7 +475,7 @@ CONTAINS
          END IF
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rep%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
                                    move_data=matrix_b%do_batched == 0, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_b = dbt_tas_info(matrix_b_rep)
          CALL dbt_tas_info_hold(info_b)
@@ -485,7 +486,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
@@ -554,7 +555,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
@@ -566,7 +567,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
@@ -577,7 +578,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rep%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_c = dbt_tas_info(matrix_c_rep)
          CALL dbt_tas_info_hold(info_c)
@@ -648,7 +649,7 @@ CONTAINS
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rep%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
                                    move_data=matrix_a%do_batched == 0, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rep)
@@ -660,7 +661,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
@@ -670,7 +671,7 @@ CONTAINS
             DEALLOCATE (matrix_b_rs)
          END IF
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-         char_id_gw=char_id_gw)
+                                   char_id_gw=char_id_gw)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
@@ -1583,6 +1584,7 @@ CONTAINS
 !> \param move_data memory optimization: move data such that matrix_in is empty on return.
 !> \param nodata Data of matrix_in should not be copied to matrix_out
 !> \param optimize_pgrid Whether to change process grid
+!> \param char_id_gw ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid, char_id_gw)
@@ -1590,12 +1592,12 @@ CONTAINS
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_in
       TYPE(dbm_type), INTENT(OUT)                        :: matrix_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid
-      CHARACTER(len=3), INTENT(IN), OPTIONAL            :: char_id_gw
+      CHARACTER(len=3), INTENT(IN), OPTIONAL             :: char_id_gw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_to_new_pgrid'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, nbcols, nbrows, handle_MG
+      INTEGER                                            :: handle, handle_MG, nbcols, nbrows
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, rbsize, rcsize, row_dist
       INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: nodata_prv, optimize_pgrid_prv
@@ -1604,7 +1606,7 @@ CONTAINS
       NULLIFY (row_dist, col_dist, rbsize, rcsize)
 
       CALL timeset(routineN, handle)
-      IF(PRESENT(char_id_gw)) THEN
+      IF (PRESENT(char_id_gw)) THEN
          CALL timeset(routineN//char_id_gw, handle_MG)
       END IF
 

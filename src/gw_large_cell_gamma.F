@@ -11,7 +11,6 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE gw_large_cell_gamma
-   USE dbt_api, ONLY: dbt_get_info
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
@@ -56,6 +55,7 @@ MODULE gw_large_cell_gamma
                                               dbt_copy,&
                                               dbt_create,&
                                               dbt_destroy,&
+                                              dbt_get_info,&
                                               dbt_type
    USE gw_communication,                ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
@@ -86,13 +86,6 @@ MODULE gw_large_cell_gamma
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
    USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
-   USE dbt_api,                         ONLY: &
-        dbt_clear, dbt_create, dbt_destroy, dbt_filter, dbt_iterator_blocks_left, &
-        dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
-        dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
-   USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -167,7 +160,8 @@ CONTAINS
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
       INTEGER(KIND=int_8)                                :: flop
-      INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, i_atoms, IL_atoms, j_atoms
+      INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, i_atoms, IL_atoms, &
+                                                            j_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       LOGICAL                                            :: dist_too_long_i, dist_too_long_j
       REAL(KIND=dp)                                      :: t1, tau
@@ -177,7 +171,7 @@ CONTAINS
                                                             t_3c_x_Gvir_2
 
       CALL timeset(routineN, handle)
-      
+
       DO i_t = 1, bs_env%num_time_freq_points
 
          t1 = m_walltime()
@@ -280,42 +274,22 @@ CONTAINS
                                              bs_env%min_RI_idx_from_AO_AO_atom, &
                                              bs_env%max_RI_idx_from_AO_AO_atom)
 
-                  IF (bounds_Q(1) > bounds_Q(2)) THEN
-                     print *,"Potential skip in get_mat_chi_Gamma_tau due to bounds_Q"
-                     !flop = 0_int_8
-                  END IF
-                  IF (bounds_P(1) > bounds_P(2)) THEN
-                     print *,"Potential skip in get_mat_chi_Gamma_tau due to bounds_P"
-                  END IF
-
+                  IF (bounds_Q(1) > bounds_Q(2) .OR. bounds_P(1) > bounds_P(2)) THEN
+                     flop = 0_int_8
+                  ELSE
                      CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
                                        tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
                                        beta=1.0_dp, tensor_3=bs_env%t_chi, &
                                        contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
                                        contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
                                        bounds_1=bounds_comb, &
-                                       !bounds_2=bounds_P, &
-                                       !bounds_3=bounds_Q, &
+                                       bounds_2=bounds_P, &
+                                       bounds_3=bounds_Q, &
                                        filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)!char_id_gw="cGT")
-                  !END IF
-                           
-                  IF (bounds_Q(1) > bounds_Q(2) .AND. flop/=0_int_8) THEN
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_Q ", bounds_Q(1), bounds_Q(2)
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with flops", flop
-                     !flop = 0_int_8
+                                       unit_nr=bs_env%unit_nr_contract, &
+                                       log_verbose=bs_env%print_contract_verbose)
                   END IF
 
-                  IF (bounds_P(1) > bounds_P(2) .AND. flop/=0_int_8) THEN
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_P ", bounds_P(1), bounds_P(2)
-                     print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with flops", flop
-                  END IF
-                  
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
                END DO ! j_atoms
@@ -648,17 +622,17 @@ CONTAINS
       CALL dbt_create(t_3c, t_3c_array(1, 1))
 
       IF (PRESENT(atoms_AO_1)) THEN
-            my_atoms_AO_1 = atoms_AO_1
+         my_atoms_AO_1 = atoms_AO_1
       ELSE
          my_atoms_AO_1 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_AO_2)) THEN
-            my_atoms_AO_2 = atoms_AO_2
+         my_atoms_AO_2 = atoms_AO_2
       ELSE
          my_atoms_AO_2 = [1, bs_env%n_atom]
       END IF
       IF (PRESENT(atoms_RI)) THEN
-            my_atoms_RI = atoms_RI
+         my_atoms_RI = atoms_RI
       ELSE
          my_atoms_RI = [1, bs_env%n_atom]
       END IF
@@ -703,11 +677,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
+      CHARACTER(len=default_string_length)               :: name_in
       INTEGER                                            :: handle
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
-      INTEGER(KIND=int_8)                                :: flop
-            CHARACTER(len=default_string_length)        :: name_in
 
       CALL timeset(routineN, handle)
       CALL dbt_get_info(t_3c_for_G, name=name_in)
@@ -721,10 +695,10 @@ CONTAINS
       ! ν   bounds from i_atoms (via atoms_AO_2) and sparse in P and µ
 
       ! µ index
-      CALL get_bounds_from_atoms(bounds_IL, (/ 1, bs_env%n_atom /), atoms_AO_2, &
+      CALL get_bounds_from_atoms(bounds_IL, (/1, bs_env%n_atom/), atoms_AO_2, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom, &
-                                 atoms_3 = atoms_IL, &
+                                 atoms_3=atoms_IL, &
                                  indices_3_start=bs_env%i_ao_start_from_atom, &
                                  indices_3_end=bs_env%i_ao_end_from_atom)
 
@@ -734,10 +708,10 @@ CONTAINS
                                  bs_env%max_RI_idx_from_AO_AO_atom)
 
       ! ν index
-      CALL get_bounds_from_atoms(bounds_comb(:, 2), (/ 1, bs_env%n_atom /), atoms_IL, &
+      CALL get_bounds_from_atoms(bounds_comb(:, 2), (/1, bs_env%n_atom/), atoms_IL, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom, &
-                                 atoms_3 = atoms_AO_2, &
+                                 atoms_3=atoms_AO_2, &
                                  indices_3_start=bs_env%i_ao_start_from_atom, &
                                  indices_3_end=bs_env%i_ao_end_from_atom)
 
@@ -746,9 +720,8 @@ CONTAINS
                           bs_env%i_ao_end_from_atom(atoms_AO_1(2))]
 
       IF (bounds_IL(1) > bounds_IL(2) .OR. bounds_comb(1, 2) > bounds_comb(2, 2)) THEN
-         print *, "Potential skip in G_times_3c",name_in, " due to bounds_IL or bounds_comb"
-      END IF
-
+         flop = 0_int_8
+      ELSE
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=t_3c_for_G, &
                            tensor_2=t_G, &
@@ -756,23 +729,13 @@ CONTAINS
                            tensor_3=t_M, &
                            contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                            contract_2=[2], notcontract_2=[1], map_2=[3], &
-                           !bounds_1=bounds_IL, &
-                           !bounds_2=bounds_comb, &
+                           bounds_1=bounds_IL, &
+                           bounds_2=bounds_comb, &
                            bounds_3=bounds_ao_1, &
                            flop=flop, &
-                           filter_eps=bs_env%eps_filter,&
+                           filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)!, char_id_gw="G3c")
-      !END IF
-      IF ( (bounds_IL(1) > bounds_IL(2) .OR. bounds_comb(1, 2) > bounds_comb(2, 2)) .AND. &
-            flop /= 0_int_8) THEN
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with atoms_AO_1 ", atoms_AO_1
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with atoms_AO_2 ", atoms_AO_2
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with atoms_IL ", atoms_IL
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with bounds_IL ", bounds_IL(1), bounds_IL(2)
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb(1,2), bounds_comb(2,2)
-         print *,"MG: G_times_3c (",name_in, ") on ",bs_env%para_env%mepos," with flops", flop
-         !flop = 0_int_8
+                           log_verbose=bs_env%print_contract_verbose)
       END IF
 
       CALL dbt_clear(t_3c_for_G)
@@ -798,8 +761,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_dist'
 
       INTEGER                                            :: atom_1, atom_2, handle
-      REAL(dp)                                           :: abs_rab, min_dist_AO_atoms
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      REAL(dp)                                           :: min_dist_AO_atoms
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -820,6 +782,14 @@ CONTAINS
 
    END SUBROUTINE check_dist
 
+! **************************************************************************************************
+!> \brief ...
+!> \param min_dist_AO_atoms ...
+!> \param atom_1 ...
+!> \param atom_2 ...
+!> \param cell ...
+!> \param particle_set ...
+! **************************************************************************************************
    SUBROUTINE check_dist_core(min_dist_AO_atoms, atom_1, atom_2, cell, particle_set)
       REAL(dp), INTENT(INOUT)                            :: min_dist_AO_atoms
       INTEGER                                            :: atom_1, atom_2
@@ -843,7 +813,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_dist_core
-
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2076,7 +2045,6 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, RI_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao
       TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
-      INTEGER(KIND=int_8)                                :: flop
 
       CALL timeset(routineN, handle)
 
@@ -2091,40 +2059,34 @@ CONTAINS
       ! Q   bounds from j_atoms
       ! P   bounds from inner loop indices and sparse in ν and σ
 
-
-
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
-                       
+
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
-         CALL get_bounds_from_atoms(bounds_P, i_atoms, (/ 1, bs_env%n_atom /), &
-                                 bs_env%min_RI_idx_from_AO_AO_atom, &
-                                 bs_env%max_RI_idx_from_AO_AO_atom, &
-                                 atoms_3 = RI_atoms, &
-                                 indices_3_start = bs_env%i_RI_start_from_atom, &
-                                 indices_3_end = bs_env%i_RI_end_from_atom)
+         CALL get_bounds_from_atoms(bounds_P, i_atoms, (/1, bs_env%n_atom/), &
+                                    bs_env%min_RI_idx_from_AO_AO_atom, &
+                                    bs_env%max_RI_idx_from_AO_AO_atom, &
+                                    atoms_3=RI_atoms, &
+                                    indices_3_start=bs_env%i_RI_start_from_atom, &
+                                    indices_3_end=bs_env%i_RI_end_from_atom)
 
          ! σ
          CALL get_bounds_from_atoms(bounds_ao(:, 2), RI_atoms, i_atoms, &
-                                 bs_env%min_AO_idx_from_RI_AO_atom, &
-                                 bs_env%max_AO_idx_from_RI_AO_atom)
+                                    bs_env%min_AO_idx_from_RI_AO_atom, &
+                                    bs_env%max_AO_idx_from_RI_AO_atom)
          ! ν
-         CALL get_bounds_from_atoms(bounds_ao(:, 1), RI_atoms, (/ 1, bs_env%n_atom /), &
-                                 bs_env%min_AO_idx_from_RI_AO_atom, &
-                                 bs_env%max_AO_idx_from_RI_AO_atom, &
-                                 atoms_3 = i_atoms, &
-                                 indices_3_start = bs_env%i_ao_start_from_atom, &
-                                 indices_3_end = bs_env%i_ao_end_from_atom)
+         CALL get_bounds_from_atoms(bounds_ao(:, 1), RI_atoms, (/1, bs_env%n_atom/), &
+                                    bs_env%min_AO_idx_from_RI_AO_atom, &
+                                    bs_env%max_AO_idx_from_RI_AO_atom, &
+                                    atoms_3=i_atoms, &
+                                    indices_3_start=bs_env%i_ao_start_from_atom, &
+                                    indices_3_end=bs_env%i_ao_end_from_atom)
 
-
-         IF (bounds_P(1) > bounds_P(2) .OR. bounds_ao(1,2) > bounds_ao(2,2)) THEN
-            print *, "Potential skip in compute_3c_and_contract_W"
-            !CYCLE
+         IF (bounds_P(1) > bounds_P(2) .OR. bounds_ao(1, 2) > bounds_ao(2, 2)) THEN
+            CYCLE
          END IF
-
-
 
          ! 1. compute 3-center integrals (P|µν) ("|": truncated Coulomb operator)
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
@@ -2138,22 +2100,12 @@ CONTAINS
                            tensor_3=t_3c_x_W_tmp, &
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
-                           !bounds_1=bounds_P, &
+                           bounds_1=bounds_P, &
                            bounds_2=bounds_Q, &
-                           !bounds_3=bounds_ao, &
-                           flop=flop, &
+                           bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter, &
-                        unit_nr=bs_env%unit_nr_contract, &
-                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="3cW")
-
-         IF ((bounds_P(1) > bounds_P(2) .OR. bounds_ao(1,2) > bounds_ao(2,2)) .AND. flop /= 0_int_8) THEN
-            print *,"MG: W on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-            print *, "MG: W on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-            print *, "MG: W on ",bs_env%para_env%mepos," with RI_atoms ", RI_atoms
-            print *, "MG: W on ",bs_env%para_env%mepos," with bounds_P ", bounds_P
-            print *, "MG: W on ",bs_env%para_env%mepos," with bounds_ao ", bounds_ao(:,2)
-            print *, "MG: W on ",bs_env%para_env%mepos," has flop ", flop
-         END IF
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
 
       END DO ! RI_atoms
 
@@ -2193,9 +2145,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_to_Sigma'
 
       INTEGER :: handle, inner_loop_atoms_interval_index
-      INTEGER(KIND=int_8)                                :: flop, flop2
-      INTEGER, DIMENSION(2)                              :: bounds_mu, bounds_nu, &
-                                                            IL_atoms, bounds_lambda, bounds_sigma
+      INTEGER(KIND=int_8)                                :: flop
+      INTEGER, DIMENSION(2)                              :: bounds_lambda, bounds_mu, bounds_nu, &
+                                                            bounds_sigma, IL_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
       TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
@@ -2219,7 +2171,6 @@ CONTAINS
       ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices and sparse in Q and λ
       ! ν bounds from i_atoms
       ! σ sparse in ν and Q
-      
 
       ! ν
       bounds_nu(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
@@ -2229,30 +2180,29 @@ CONTAINS
          IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
 
          ! µ
-         CALL get_bounds_from_atoms(bounds_mu, j_atoms, (/ 1, bs_env%n_atom /), &
-                                 bs_env%min_AO_idx_from_RI_AO_atom, &
-                                 bs_env%max_AO_idx_from_RI_AO_atom, &
-                                 atoms_3 = IL_atoms, &
-                                 indices_3_start = bs_env%i_ao_start_from_atom, &
-                                 indices_3_end = bs_env%i_ao_end_from_atom)
+         CALL get_bounds_from_atoms(bounds_mu, j_atoms, (/1, bs_env%n_atom/), &
+                                    bs_env%min_AO_idx_from_RI_AO_atom, &
+                                    bs_env%max_AO_idx_from_RI_AO_atom, &
+                                    atoms_3=IL_atoms, &
+                                    indices_3_start=bs_env%i_ao_start_from_atom, &
+                                    indices_3_end=bs_env%i_ao_end_from_atom)
 
          ! Q
-         CALL get_bounds_from_atoms(bounds_comb(:, 1), IL_atoms, (/ 1, bs_env%n_atom /), &
-                                 bs_env%min_RI_idx_from_AO_AO_atom, &
-                                 bs_env%max_RI_idx_from_AO_AO_atom, &
-                                 atoms_3 = j_atoms, &
-                                 indices_3_start = bs_env%i_RI_start_from_atom, &
-                                 indices_3_end = bs_env%i_RI_end_from_atom)
+         CALL get_bounds_from_atoms(bounds_comb(:, 1), IL_atoms, (/1, bs_env%n_atom/), &
+                                    bs_env%min_RI_idx_from_AO_AO_atom, &
+                                    bs_env%max_RI_idx_from_AO_AO_atom, &
+                                    atoms_3=j_atoms, &
+                                    indices_3_start=bs_env%i_RI_start_from_atom, &
+                                    indices_3_end=bs_env%i_RI_end_from_atom)
 
          ! λ
          CALL get_bounds_from_atoms(bounds_comb(:, 2), j_atoms, IL_atoms, &
-                                 bs_env%min_AO_idx_from_RI_AO_atom, &
-                                 bs_env%max_AO_idx_from_RI_AO_atom)
+                                    bs_env%min_AO_idx_from_RI_AO_atom, &
+                                    bs_env%max_AO_idx_from_RI_AO_atom)
 
-         IF (bounds_mu(1) > bounds_mu(2) .OR. bounds_comb(1,1) > bounds_comb(2,1) .OR. &
-               bounds_comb(1,2) > bounds_comb(2,2)) THEN
-            print *, "Potential skip Sigma 1"
-            !CYCLE
+         IF (bounds_mu(1) > bounds_mu(2) .OR. bounds_comb(1, 1) > bounds_comb(2, 1) .OR. &
+             bounds_comb(1, 2) > bounds_comb(2, 2)) THEN
+            CYCLE
          END IF
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
@@ -2265,23 +2215,13 @@ CONTAINS
                            tensor_3=t_3c_x_G, &
                            contract_1=[2], notcontract_1=[1], map_1=[3], &
                            contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                           !bounds_1=bounds_mu, &
+                           bounds_1=bounds_mu, &
                            bounds_2=bounds_nu, &
-                           !bounds_3=bounds_comb, &
-                           flop=flop2, &
+                           bounds_3=bounds_comb, &
                            filter_eps=bs_env%eps_filter, &
-                        unit_nr=bs_env%unit_nr_contract, &
-                        log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS1")
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
 
-            IF ((bounds_mu(1) > bounds_mu(2) .OR. bounds_comb(1,1) > bounds_comb(2,1) .OR. &
-               bounds_comb(1,2) > bounds_comb(2,2)) .AND. flop2 /= 0_int_8) THEN
-               print *,"MG: Sigma 1 on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-               print *, "MG: Sigma 1 on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-               print *, "MG: Sigma 1 on ",bs_env%para_env%mepos," with IL_atoms ", IL_atoms
-               print *, "MG: Sigma 1 on ",bs_env%para_env%mepos," with bounds_mu ", bounds_mu
-               print *, "MG: Sigma 1 on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb
-               print *, "MG: Sigma 1 on ",bs_env%para_env%mepos," has flop2 ", flop2
-            END IF
       END DO ! IL_atoms
 
       ! Reordering: N_Qλν -> N_Qνλ
@@ -2290,26 +2230,19 @@ CONTAINS
       ! Here, the last contraction is done, e.g., Σ_λσ = sum_νQ M_Qνσ N_Qνλ
       ! Bounds as above, new "comb" with upper ingredients
       bounds_comb(1:2, 1) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
-                       bs_env%i_RI_end_from_atom(j_atoms(2))]
+                             bs_env%i_RI_end_from_atom(j_atoms(2))]
       bounds_comb(1:2, 2) = bounds_nu(1:2)
 
-      CALL get_bounds_from_atoms(bounds_lambda, j_atoms, (/1, bs_env%n_atom /), &
+      CALL get_bounds_from_atoms(bounds_lambda, j_atoms, (/1, bs_env%n_atom/), &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
-      CALL get_bounds_from_atoms(bounds_sigma, i_atoms, (/1, bs_env%n_atom /), &
+      CALL get_bounds_from_atoms(bounds_sigma, i_atoms, (/1, bs_env%n_atom/), &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
 
-      IF (bounds_lambda(1) > bounds_lambda(2)) THEN
-         print *, "Potential skip in contract_to_Sigma part 2 due to bounds_lambda"
-         !flop = 0_int_8
-      !ELSE
-      END IF
-      IF (bounds_sigma(1) > bounds_sigma(2)) THEN
-         print *, "Potential skip in contract_to_Sigma part 2 due to bounds_sigma"
-         !flop = 0_int_8
-      !ELSE
-      END IF
+      IF (bounds_sigma(1) > bounds_sigma(2) .OR. bounds_lambda(1) > bounds_lambda(2)) THEN
+         flop = 0_int_8
+      ELSE
          CALL dbt_contract(alpha=sign_Sigma, &
                            tensor_1=t_3c_x_W, &
                            tensor_2=t_3c_x_G_2, &
@@ -2317,25 +2250,12 @@ CONTAINS
                            tensor_3=t_2c_Sigma, &
                            contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                            contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
-                           bounds_1=bounds_comb, & 
-                           !bounds_2=bounds_lambda, &
-                           !bounds_3=bounds_sigma, &
+                           bounds_1=bounds_comb, &
+                           bounds_2=bounds_lambda, &
+                           bounds_3=bounds_sigma, &
                            filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
                            unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)!, char_id_gw="cS2")
-      !END IF
-      IF ((bounds_lambda(1) > bounds_lambda(2)) .AND. flop /= 0_int_8) THEN
-         print *,"MG: Sigma 2 on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," with bounds_lambda ", bounds_lambda
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," has flop ", flop
-      END IF
-
-      IF ((bounds_sigma(1) > bounds_sigma(2)) .AND. flop /= 0_int_8) THEN
-         print *,"MG: Sigma 2 on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," with bounds_sigma ", bounds_sigma
-         print *, "MG: Sigma 2 on ",bs_env%para_env%mepos," has flop ", flop
+                           log_verbose=bs_env%print_contract_verbose)
       END IF
 
       IF (PRESENT(can_skip)) THEN
@@ -2399,7 +2319,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_skipping'
 
       INTEGER                                            :: handle, i_intval_idx, j_intval_idx, &
-                                                            n_skip_sigma, n_skip_chi, n_pairs
+                                                            n_pairs, n_skip_chi, n_skip_sigma
 
       CALL timeset(routineN, handle)
 
@@ -2423,8 +2343,6 @@ CONTAINS
       CALL bs_env%para_env_tensor%sum(n_skip_sigma)
       CALL bs_env%para_env_tensor%sum(n_skip_chi)
       CALL bs_env%para_env_tensor%sum(n_pairs)
-
-
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
@@ -2718,27 +2636,28 @@ CONTAINS
    END SUBROUTINE fm_Gamma_ao_to_cfm_ikp_mo
 
 ! **************************************************************************************************
-!> \brief Computes bounds (AO or RI) for given atom intervals atoms_1 and atoms_2 from indices_min 
-!>        and indices_max and returns them in bounds_out. 
+!> \brief Computes bounds (AO or RI) for given atom intervals atoms_1 and atoms_2 from indices_min
+!>        and indices_max and returns them in bounds_out.
 !>        In case, atoms_3 and indices_3 are given, the bounds are computed as the intersection
 !> \param bounds_out Bounds to be computed
 !> \param atoms_1 First atom interval
 !> \param atoms_2 Second atom interval
-!> \param indices_min Minimum indices for each atom pair (typically from bs_env, 
+!> \param indices_min Minimum indices for each atom pair (typically from bs_env,
 !>        computed in get_i_j_atom_ranges in gw_utils.F, e.g. bs_env%min_RI_idx_from_AO_AO_atom)
-!> \param indices_max Maximum indices for each atom pair (typically from bs_env, 
+!> \param indices_max Maximum indices for each atom pair (typically from bs_env,
 !>        computed in get_i_j_atom_ranges in gw_utils.F)
 !> \param atoms_3 (Optional) Third atom interval for intersection
-!> \param indices_3 (Optional) Indices for third atom interval for intersection (e.g. bs_env%i_RI_start_from_atom)
+!> \param indices_3_start (Optional) Indices for third atom interval for intersection
+!> \param indices_3_end (Optional) Indices for third atom interval for intersection
 ! **************************************************************************************************
    SUBROUTINE get_bounds_from_atoms(bounds_out, atoms_1, atoms_2, indices_min, indices_max, &
                                     atoms_3, indices_3_start, indices_3_end)
 
-      INTEGER, DIMENSION(2), INTENT(OUT)                  :: bounds_out
-      INTEGER, DIMENSION(2), INTENT(IN)                   :: atoms_1, atoms_2
-      INTEGER, DIMENSION(:,:)       :: indices_min, indices_max
-      INTEGER, DIMENSION(2), OPTIONAL, INTENT(IN)         :: atoms_3
-      INTEGER, DIMENSION(:), OPTIONAL            :: indices_3_start, indices_3_end
+      INTEGER, DIMENSION(2), INTENT(OUT)                 :: bounds_out
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: atoms_1, atoms_2
+      INTEGER, DIMENSION(:, :)                           :: indices_min, indices_max
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: atoms_3
+      INTEGER, DIMENSION(:), OPTIONAL                    :: indices_3_start, indices_3_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bounds_from_atoms'
 
@@ -2750,12 +2669,10 @@ CONTAINS
       !Loop over all atoms in the two intervals and find min/max indices
       DO i_at = atoms_1(1), atoms_1(2)
          DO j_at = atoms_2(1), atoms_2(2)
-               bounds_out(1) = MIN(bounds_out(1), indices_min(i_at, j_at))
-               bounds_out(2) = MAX(bounds_out(2), indices_max(i_at, j_at))
+            bounds_out(1) = MIN(bounds_out(1), indices_min(i_at, j_at))
+            bounds_out(2) = MAX(bounds_out(2), indices_max(i_at, j_at))
          END DO
       END DO
-      ! bounds_out(1) = indices_min(atoms_1(1), atoms_2(1))
-      ! bounds_out(2) = indices_max(atoms_1(2), atoms_2(2))
 
       IF (PRESENT(atoms_3) .AND. PRESENT(indices_3_start) .AND. PRESENT(indices_3_end)) THEN
          bounds_out(1) = MAX(bounds_out(1), indices_3_start(atoms_3(1)))
@@ -2765,6 +2682,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_bounds_from_atoms
-
 
 END MODULE gw_large_cell_gamma

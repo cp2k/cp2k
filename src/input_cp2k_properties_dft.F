@@ -2420,7 +2420,7 @@ CONTAINS
                                        common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
-      
+
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT", &
                           description="Prints information of contraction routines.", &
                           usage="PRINT_DBT_CONTRACT", &
@@ -2428,7 +2428,7 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      
+
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT_VERBOSE", &
                           description="Prints verbose information of contraction routines.", &
                           usage="PRINT_DBT_CONTRACT_VERBOSE", &
@@ -2436,7 +2436,6 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

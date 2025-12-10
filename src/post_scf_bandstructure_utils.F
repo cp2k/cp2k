@@ -250,7 +250,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       bs_env%unit_nr = cp_logger_get_default_io_unit()
-      
+
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
