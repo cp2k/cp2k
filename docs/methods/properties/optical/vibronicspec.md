@@ -15,14 +15,14 @@ The methods developed are based on these publications:
 
 ## Theoretical Background
 
-*Vibronic Transitions and the Franck-Condon Principle*
+**Vibronic Transitions and the Franck-Condon Principle**
 
 Vibronic spectra arise from transitions between electronic states that involve simultaneous changes
 in both electronic and vibrational states. The intensity distribution follows the Franck-Condon
 principle, which states that electronic transitions occur much faster than nuclear motions, leading
 to vertical transitions where nuclei maintain their initial positions and momenta.
 
-*Displaced Harmonic Oscillator Model*
+**Displaced Harmonic Oscillator Model**
 
 Within the harmonic approximation, the potential energy surfaces of ground and excited states are
 described as parabolas with identical curvatures (same frequencies and normal modes) but displaced
@@ -36,7 +36,7 @@ $$
 where $\omega_k$ is the vibrational frequency of mode $k$ and $\partial E/\partial Q_k$ is the
 energy gradient along the normal mode coordinate.
 
-*Huang-Rhys Factors and Relaxation Energy*
+**Huang-Rhys Factors and Relaxation Energy**
 
 The Huang-Rhys factor $S_k$ quantifies the vibronic coupling strength for each vibrational mode $k$:
 
@@ -48,7 +48,7 @@ Large $S_k$ values indicate strong coupling, leading to pronounced vibrational p
 spectrum. The total relaxation energy $\lambda = \sum_k S_k\omega_k$ represents the energy
 stabilization due to geometry relaxation after electronic excitation.
 
-*Thermal Occupation Factors*
+**Thermal Occupation Factors**
 
 The thermal occupation number $\bar{n}_k$ represents the average number of vibrational quanta
 excited at temperature T:
