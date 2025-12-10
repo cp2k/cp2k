@@ -99,7 +99,7 @@ MODULE trexio_utils
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
                      trexio_read_mo_class, trexio_read_mo_coefficient, &
                      trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
-                     trexio_write_mo_type
+                     trexio_write_mo_type, trexio_write_ao_1e_int_overlap
 #endif
 #include "./base/base_uses.f90"
 
@@ -151,7 +151,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
+      TYPE(cp_fm_type), POINTER                          :: fm_overlap
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -177,7 +179,7 @@ CONTAINS
                                                             mo_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP
+                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP, ao_overlap
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
@@ -727,6 +729,30 @@ CONTAINS
          ! just a failsafe check
          CPASSERT(icgf == ncgf)
       END DO
+
+      ! write overlap
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
+      nspins = dft_control%nspins
+      IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
+         CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                    nrow_global=ao_num, ncol_global=ao_num)
+         ALLOCATE(fm_overlap)
+         CALL cp_fm_create(fm_overlap, fm_struct)
+         CALL cp_fm_set_all(fm_overlap, 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_overlap)
+         ALLOCATE (ao_overlap(ao_num, ao_num))
+         ao_overlap(:,:) = 0.0_dp
+         CALL cp_fm_get_submatrix(fm_overlap, ao_overlap)
+
+         IF (ionode) THEN
+            rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
+            CALL trexio_error(rc)
+         END IF
+
+         DEALLOCATE(ao_overlap)
+         DEALLOCATE(fm_overlap)
+      END IF
 
       IF (ionode) THEN
          rc = trexio_write_ao_shell(f, ao_shell)
