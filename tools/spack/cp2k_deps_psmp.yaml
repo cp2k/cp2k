@@ -81,7 +81,10 @@ spack:
         - build_system=cmake
     openpmd-api:
       require:
-        - adios2
+        - +adios2
+    adios2:
+      require:
+        - ~bzip2
     pexsi:
       require:
         - +fortran
