@@ -151,9 +151,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
-      TYPE(cp_fm_type), POINTER                          :: fm_overlap
+      ! TYPE(cp_fm_type), POINTER                          :: fm_overlap
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      ! TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -165,7 +165,8 @@ CONTAINS
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
                                                             i, j, k, l, m, unit_dE, &
                                                             row, col, row_size, col_size, &
-                                                            row_offset, col_offset, i_trex
+                                                            row_offset, col_offset, i_trex, nsgf_tot, ncgf_tot, &
+                                                            igf_c_tot
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
@@ -176,10 +177,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
                                                             prim_factor, ao_normalization, mo_energy, &
-                                                            mo_occupation
+                                                            mo_occupation, norm_cgf_tot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP, ao_overlap
+                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP, mos_cgf
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
@@ -614,7 +615,10 @@ CONTAINS
       !========================================================================================!
       CALL get_qs_env(qs_env, qs_kind_set=kind_set)
       CALL get_qs_kind_set(kind_set, ncgf=ncgf, nsgf=nsgf)
+      ! WRITE (output_unit, "((T2,A,I0,A,I0))") 'TREXIO| nsgf = ', nsgf, ', ncgf = ', ncgf
 
+      nsgf_tot = nsgf
+      ncgf_tot = ncgf
       CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
       IF (save_cartesian) THEN
          ao_num = ncgf
@@ -658,6 +662,8 @@ CONTAINS
       ! we need to be consistent with the basis group on the shell indices
       ishell = 0  ! global shell index
       igf = 0     ! global AO index
+      igf_c_tot = 0
+      ALLOCATE (norm_cgf_tot(ncgf_tot))
       DO iatom = 1, natoms
          ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -671,6 +677,11 @@ CONTAINS
                                 ncgf=ncgf, &
                                 nsgf=nsgf, &
                                 l=l_shell_set)
+         
+         ! WRITE (output_unit, "((T2,A, I0, A,I0,A,I0))") 'TREXIO| iatom = ', iatom, ', nsgf = ', nsgf, ', ncgf = ', ncgf
+         ! DO i = 1, SIZE(norm_cgf)
+         !   WRITE (output_unit, '(I5, 1X, *(F12.6, 1X))') i, norm_cgf(i)
+         ! END DO
 
          icgf = 0
          DO iset = 1, nset
@@ -698,23 +709,25 @@ CONTAINS
                   ALLOCATE (diag_ncgf(nco(lshell), nco(lshell)))
                   ALLOCATE (diag_nsgf(nso(lshell), nso(lshell)))
                   ALLOCATE (temp(nso(lshell), nco(lshell)))
-                  diag_ncgf = 0.0_dp
-                  diag_nsgf = 0.0_dp
-                  temp = 0.0_dp
+                  diag_ncgf(:,:) = 0.0_dp
+                  diag_nsgf(:,:) = 0.0_dp
+                  temp(:,:) = 0.0_dp
 
                   DO i = 1, nco(lshell)
-                     diag_ncgf(i, i) = norm_cgf(icgf + i)
+                     norm_cgf_tot(igf_c_tot + i) = norm_cgf(icgf + i)
                   END DO
 
                   ! transform the normalization factors from Cartesian to solid harmonics
-                  temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
-                  diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
+                  ! temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
+                  ! diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
+                  ! norm_sgf(:) = MATMUL(diag_nsgf, ones)
                   DO i = 1, nso(lshell)
                      ! cp2k_to_trexio contains the mapped global indices, but diag_nsgf
                      ! is a small local matrix of dimension 2l+1, so I need to shift back
                      ! the index by igf
                      i_trex = cp2k_to_trexio_ang_mom(igf+i) - igf
-                     ao_normalization(igf + i) = diag_nsgf(i_trex, i_trex)
+                     ! ao_normalization(igf + i) = norm_sgf(i_trex)
+                     ao_normalization(igf + i) = 1.0_dp
                   END DO
 
                   DEALLOCATE (diag_ncgf)
@@ -724,6 +737,7 @@ CONTAINS
 
                igf = igf + ngf_shell
                icgf = icgf + nco(lshell)
+               igf_c_tot = igf_c_tot + nco(lshell)
             END DO
          END DO
          ! just a failsafe check
@@ -731,28 +745,29 @@ CONTAINS
       END DO
 
       ! write overlap
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
-      nspins = dft_control%nspins
-      IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
-         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                                    nrow_global=ao_num, ncol_global=ao_num)
-         ALLOCATE(fm_overlap)
-         CALL cp_fm_create(fm_overlap, fm_struct)
-         CALL cp_fm_set_all(fm_overlap, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_overlap)
-         ALLOCATE (ao_overlap(ao_num, ao_num))
-         ao_overlap(:,:) = 0.0_dp
-         CALL cp_fm_get_submatrix(fm_overlap, ao_overlap)
+      ! CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
+      ! nspins = dft_control%nspins
+      ! IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
+      !    CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
+      !    CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+      !                               nrow_global=ao_num, ncol_global=ao_num)
+      !    ALLOCATE(fm_overlap)
+      !    CALL cp_fm_create(fm_overlap, fm_struct)
+      !    CALL cp_fm_struct_release(fm_struct)
+      !    CALL cp_fm_set_all(fm_overlap, 0.0_dp)
+      !    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_overlap)
+      !    ALLOCATE (ao_overlap(ao_num, ao_num))
+      !    ao_overlap(:,:) = 0.0_dp
+      !    CALL cp_fm_get_submatrix(fm_overlap, ao_overlap)
 
-         IF (ionode) THEN
-            rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
-            CALL trexio_error(rc)
-         END IF
+      !    IF (ionode) THEN
+      !       rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
+      !       CALL trexio_error(rc)
+      !    END IF
 
-         DEALLOCATE(ao_overlap)
-         DEALLOCATE(fm_overlap)
-      END IF
+      !    DEALLOCATE(ao_overlap)
+      !    DEALLOCATE(fm_overlap)
+      ! END IF
 
       IF (ionode) THEN
          rc = trexio_write_ao_shell(f, ao_shell)
@@ -771,8 +786,9 @@ CONTAINS
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints, dft_control=dft_control, &
                       particle_set=particle_set, qs_kind_set=kind_set, blacs_env=blacs_env)
       nspins = dft_control%nspins
-      CALL get_qs_kind_set(kind_set, nsgf=nsgf)
+      CALL get_qs_kind_set(kind_set, nsgf=nsgf, ncgf=ncgf)
       nmo_spin = 0
+      WRITE (output_unit, "((T2,A,I0,A,I0))") 'TREXIO| nsgf = ', nsgf, ', ncgf = ', ncgf
 
       ! figure out that total number of MOs
       mo_num = 0
@@ -887,6 +903,9 @@ CONTAINS
          nmo = nmo_spin(ispin)
          ! allocate local temp array to transform the MOs of each kpoint/spin
          ALLOCATE (mos_sgf(nsgf, nmo))
+         ALLOCATE (mos_cgf(ncgf, nmo))
+         mos_sgf(:,:) = 0.0_dp
+         mos_cgf(:,:) = 0.0_dp
 
          IF (do_kpoints) THEN
             DO ikp = 1, nkp
@@ -941,9 +960,23 @@ CONTAINS
             IF (save_cartesian) THEN
                CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
             ELSE
+
+               ! transform MOs to cartesian to squash in the normalization factor
+               CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mos_cgf)
+               mos_sgf(:,:) = 0.0_dp
+
+               DO i = 1, SIZE(norm_cgf_tot)
+                  mos_cgf(i, :) = mos_cgf(i, :) * norm_cgf_tot(i)
+                  ! WRITE (output_unit, '(I5, 1X, *(F12.6, 1X))') i, norm_cgf_tot(i)
+               END DO
+
+               ! transform back
+               CALL cartesian_to_spherical_mo(mos_cgf, particle_set, kind_set, mos_sgf)
+               
                ! we have to reorder the MOs since CP2K and TREXIO have different conventions
                DO i = 1, nsgf
                   mo_coefficient(i, imo + 1:imo + nmo) = mos_sgf(cp2k_to_trexio_ang_mom(i), :)
+                  ! mo_coefficient(i, imo + 1:imo + nmo) = mos_sgf(i, :)
                END DO
             END IF
          END IF
@@ -1057,6 +1090,7 @@ CONTAINS
       END IF
 
       ! Deallocate arrays used throughout the subroutine
+      DEALLOCATE (norm_cgf_tot)
       DEALLOCATE (shell_ang_mom)
       IF (ALLOCATED(cp2k_to_trexio_ang_mom)) DEALLOCATE (cp2k_to_trexio_ang_mom)
 
@@ -1580,7 +1614,7 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
-      mos_cgf = 0.0_dp
+      mos_cgf(:,:) = 0.0_dp
       nmo = SIZE(mos_sgf, 2)
 
       ! Transform spherical MOs to Cartesian MOs
@@ -1614,6 +1648,65 @@ CONTAINS
       END DO ! iatom
 
    END SUBROUTINE spherical_to_cartesian_mo
+
+
+! **************************************************************************************************
+!> \brief Computes a cartesian to spherical MO transformation
+!> \param mos_cgf the transformed MO coefficients in Cartesian AO basis
+!> \param particle_set the set of particles in the system
+!> \param qs_kind_set the set of qs_kinds in the system
+!> \param mos_sgf the MO coefficients in spherical AO basis
+! **************************************************************************************************
+   SUBROUTINE cartesian_to_spherical_mo(mos_cgf, particle_set, qs_kind_set, mos_sgf)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mos_cgf
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: mos_sgf
+
+      INTEGER                                            :: iatom, icgf, ikind, iset, isgf, ishell, &
+                                                            lshell, ncgf, nmo, nset, nsgf
+      INTEGER, DIMENSION(:), POINTER                     :: nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: l
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+
+      CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+
+      mos_sgf(:,:) = 0.0_dp
+      nmo = SIZE(mos_cgf, 2)
+
+      ! Transform Cartesian MOs to spherical MOs
+      icgf = 1
+      isgf = 1
+      DO iatom = 1, SIZE(particle_set)
+         NULLIFY (orb_basis_set)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                   nset=nset, &
+                                   nshell=nshell, &
+                                   l=l)
+            DO iset = 1, nset
+               DO ishell = 1, nshell(iset)
+                  lshell = l(ishell, iset)
+                  CALL dgemm("N", "N", nso(lshell), nmo, nco(lshell), 1.0_dp, &
+                             orbtramat(lshell)%s2c, nso(lshell), &
+                             mos_cgf(icgf, 1), ncgf, 0.0_dp, &
+                             mos_sgf(isgf, 1), nsgf)
+                  icgf = icgf + nco(lshell)
+                  isgf = isgf + nso(lshell)
+               END DO
+            END DO
+         ELSE
+            ! assume atom without basis set
+            CPABORT("Unknown basis set type")
+         END IF
+      END DO ! iatom
+
+   END SUBROUTINE cartesian_to_spherical_mo
 #endif
 
 END MODULE trexio_utils
