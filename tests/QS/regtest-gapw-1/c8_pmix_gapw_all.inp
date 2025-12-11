@@ -23,11 +23,11 @@
           QS_SCF 100
         &END EACH
       &END MO
-      ##      &MO_CUBES
-      ##        NHOMO  64
-      ##        NLUMO 20
-      ##        WRITE_CUBE F
-      ##      &END
+      &MO_CUBES
+        MAX_FILE_SIZE_MB 0.01
+        NHOMO 1
+        NLUMO 1
+      &END MO_CUBES
     &END PRINT
     &QS
       EXTRAPOLATION PS

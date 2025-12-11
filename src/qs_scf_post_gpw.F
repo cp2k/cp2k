@@ -214,8 +214,6 @@ MODULE qs_scf_post_gpw
 
    PUBLIC :: make_lumo_gpw
 
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -1081,7 +1079,9 @@ CONTAINS
                                            mpi_io=mpi_io)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
+                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), &
+                               max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
@@ -1168,7 +1168,9 @@ CONTAINS
                                            mpi_io=mpi_io)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
+                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), &
+                               max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          END DO
       END IF
