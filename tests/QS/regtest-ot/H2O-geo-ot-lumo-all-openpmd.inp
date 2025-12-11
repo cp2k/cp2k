@@ -22,13 +22,17 @@
     &PRINT
       &ELF_OPENPMD
         ADD_LAST NUMERIC
-        OPENPMD_CFG "iteration_encoding = 'variable_based'"
+        ! Use this to not actually produce output
+        ! CI will otherwise complain about huge output
+        OPENPMD_CFG "adios2.engine.type = 'nullcore'"
         OPENPMD_EXTENSION .bp5
         STRIDE 2 2 2
       &END ELF_OPENPMD
       &E_DENSITY_OPENPMD
-        OPENPMD_CFG "backend = 'adios2'"
-        OPENPMD_EXTENSION _%06T.%E
+        ! Use this to not actually produce output
+        ! CI will otherwise complain about huge output
+        OPENPMD_CFG "adios2.engine.type = 'nullcore'"
+        OPENPMD_EXTENSION _%06T.bp5
         STRIDE 1 1 1
       &END E_DENSITY_OPENPMD
       &MO_OPENPMD
