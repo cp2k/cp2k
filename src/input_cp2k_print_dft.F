@@ -2203,11 +2203,18 @@ CONTAINS
                                        " In this case, the density corresponding to the time dependent MO is printed"// &
                                        " instead of the wave-function.", &
                                        print_level=high_print_level, filename="")
+
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="max_file_size_mb", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2224,6 +2231,7 @@ CONTAINS
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create( &
          keyword, __LOCATION__, name="nhomo", &
          description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &

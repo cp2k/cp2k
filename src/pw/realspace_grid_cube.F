@@ -43,12 +43,13 @@ CONTAINS
 !> \param particles_z ...
 !> \param particles_zeff ...
 !> \param stride ...
+!> \param max_file_size_mb ...
 !> \param zero_tails ...
 !> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
    SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, particles_zeff, &
-                         stride, zero_tails, silent, mpi_io)
+                         stride, max_file_size_mb, zero_tails, silent, mpi_io)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
@@ -57,6 +58,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: particles_zeff
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: max_file_size_mb
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_cube'
@@ -65,6 +67,7 @@ CONTAINS
       INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
          my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
+      REAL(KIND=dp)                                      :: compression_factor, my_max_file_size_mb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
@@ -74,9 +77,13 @@ CONTAINS
       my_zero_tails = .FALSE.
       be_silent = .FALSE.
       parallel_write = .FALSE.
+      my_max_file_size_mb = 0.0_dp
       IF (PRESENT(zero_tails)) my_zero_tails = zero_tails
       IF (PRESENT(silent)) be_silent = silent
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
+      IF (PRESENT(max_file_size_mb)) my_max_file_size_mb = max_file_size_mb
+      CPASSERT(my_max_file_size_mb >= 0)
+
       my_stride = 1
       IF (PRESENT(stride)) THEN
          IF (SIZE(stride) /= 1 .AND. SIZE(stride) /= 3) &
@@ -89,10 +96,17 @@ CONTAINS
          ELSE
             my_stride = stride(1:3)
          END IF
-         CPASSERT(my_stride(1) > 0)
-         CPASSERT(my_stride(2) > 0)
-         CPASSERT(my_stride(3) > 0)
       END IF
+
+      IF (my_max_file_size_mb > 0) THEN
+         ! A single grid point takes up 13 bytes, which is 1.3e-05 MB.
+         compression_factor = 1.3e-05_dp*PRODUCT(REAL(pw%pw_grid%npts, dp))/max_file_size_mb
+         my_stride(:) = INT(compression_factor**(1.0/3.0)) + 1
+      END IF
+
+      CPASSERT(my_stride(1) > 0)
+      CPASSERT(my_stride(2) > 0)
+      CPASSERT(my_stride(3) > 0)
 
       IF (.NOT. parallel_write) THEN
          IF (unit_nr > 0) THEN
