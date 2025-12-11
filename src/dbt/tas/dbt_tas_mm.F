@@ -102,8 +102,7 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbt_tas_multiply(transa, transb, transc, alpha, matrix_a, matrix_b, beta, matrix_c, &
                                          optimize_dist, split_opt, filter_eps, flop, move_data_a, &
-                                         move_data_b, retain_sparsity, simple_split, unit_nr, log_verbose, &
-                                         char_id_gw)
+                                         move_data_b, retain_sparsity, simple_split, unit_nr, log_verbose)
 
       LOGICAL, INTENT(IN)                                :: transa, transb, transc
       REAL(dp), INTENT(IN)                               :: alpha
@@ -118,7 +117,6 @@ CONTAINS
                                                             retain_sparsity, simple_split
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: log_verbose
-      CHARACTER(LEN=3), INTENT(IN), OPTIONAL             :: char_id_gw
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_multiply'
 
@@ -462,8 +460,7 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rep, unit_nr_prv, full_info=log_verbose)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
@@ -474,8 +471,7 @@ CONTAINS
             DEALLOCATE (matrix_a_rs)
          END IF
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rep%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_b%do_batched == 0, &
-                                   char_id_gw=char_id_gw)
+                                   move_data=matrix_b%do_batched == 0)
 
          info_b = dbt_tas_info(matrix_b_rep)
          CALL dbt_tas_info_hold(info_b)
@@ -485,8 +481,7 @@ CONTAINS
             DEALLOCATE (matrix_b_rep)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
@@ -554,8 +549,7 @@ CONTAINS
             CALL dbt_tas_write_dist(matrix_b_rs, unit_nr_prv)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rs%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, move_data=move_a)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rs)
@@ -566,8 +560,7 @@ CONTAINS
             DEALLOCATE (matrix_a_rs)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
@@ -577,8 +570,7 @@ CONTAINS
             DEALLOCATE (matrix_b_rs)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rep%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rep%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rep)
          CALL dbt_tas_info_hold(info_c)
@@ -648,8 +640,7 @@ CONTAINS
          END IF
 
          CALL convert_to_new_pgrid(mp_comm_mm, matrix_a_rep%matrix, matrix_a_mm, optimize_pgrid=opt_pgrid, &
-                                   move_data=matrix_a%do_batched == 0, &
-                                   char_id_gw=char_id_gw)
+                                   move_data=matrix_a%do_batched == 0)
 
          ! keep communicators alive even after releasing TAS matrices (communicator management does not work between DBM and TAS)
          info_a = dbt_tas_info(matrix_a_rep)
@@ -660,8 +651,7 @@ CONTAINS
             DEALLOCATE (matrix_a_rep)
          END IF
 
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_b_rs%matrix, matrix_b_mm, optimize_pgrid=opt_pgrid, move_data=move_b)
 
          info_b = dbt_tas_info(matrix_b_rs)
          CALL dbt_tas_info_hold(info_b)
@@ -670,8 +660,7 @@ CONTAINS
             CALL dbt_tas_destroy(matrix_b_rs)
             DEALLOCATE (matrix_b_rs)
          END IF
-         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid, &
-                                   char_id_gw=char_id_gw)
+         CALL convert_to_new_pgrid(mp_comm_mm, matrix_c_rs%matrix, matrix_c_mm, nodata=nodata_3, optimize_pgrid=opt_pgrid)
 
          info_c = dbt_tas_info(matrix_c_rs)
          CALL dbt_tas_info_hold(info_c)
@@ -1587,17 +1576,16 @@ CONTAINS
 !> \param char_id_gw ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid, char_id_gw)
+   SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid)
       TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm_cart
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_in
       TYPE(dbm_type), INTENT(OUT)                        :: matrix_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: move_data, nodata, optimize_pgrid
-      CHARACTER(len=3), INTENT(IN), OPTIONAL             :: char_id_gw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_to_new_pgrid'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, handle_MG, nbcols, nbrows
+      INTEGER                                            :: handle, nbcols, nbrows
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, rbsize, rcsize, row_dist
       INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: nodata_prv, optimize_pgrid_prv
@@ -1606,9 +1594,6 @@ CONTAINS
       NULLIFY (row_dist, col_dist, rbsize, rcsize)
 
       CALL timeset(routineN, handle)
-      IF (PRESENT(char_id_gw)) THEN
-         CALL timeset(routineN//char_id_gw, handle_MG)
-      END IF
 
       IF (PRESENT(optimize_pgrid)) THEN
          optimize_pgrid_prv = optimize_pgrid
@@ -1653,9 +1638,6 @@ CONTAINS
          IF (PRESENT(move_data)) THEN
             IF (move_data) CALL dbm_clear(matrix_in)
          END IF
-      END IF
-      IF (PRESENT(char_id_gw)) THEN
-         CALL timestop(handle_MG)
       END IF
       CALL timestop(handle)
    END SUBROUTINE convert_to_new_pgrid

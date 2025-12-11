@@ -250,7 +250,7 @@ CONTAINS
                                      i_atoms, j_atoms, IL_atoms)
 
                   END DO ! IL_atoms
-
+                  
                   ! 6. reorder tensors: M_Pνλ -> M_Pλν
                   CALL dbt_copy(t_3c_x_Gocc, t_3c_x_Gocc_2, move_data=.TRUE., order=[1, 3, 2])
                   CALL dbt_copy(t_3c_x_Gvir, t_3c_x_Gvir_2, move_data=.TRUE.)
@@ -677,14 +677,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
-      CHARACTER(len=default_string_length)               :: name_in
       INTEGER                                            :: handle
       INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
 
       CALL timeset(routineN, handle)
-      CALL dbt_get_info(t_3c_for_G, name=name_in)
 
       ! Bounds reduce needed memory and therefore scaling behavior
       ! Operations are of the form, e.g, M_Pνλ = sum_µ (Pν|µ) G_λµ
@@ -761,7 +759,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_dist'
 
       INTEGER                                            :: atom_1, atom_2, handle
-      REAL(dp)                                           :: min_dist_AO_atoms
+      REAL(dp)                                           :: min_dist_AO_atoms, abs_rab
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -772,7 +771,11 @@ CONTAINS
       min_dist_AO_atoms = 1.0E5_dp
       DO atom_1 = atoms_1(1), atoms_1(2)
          DO atom_2 = atoms_2(1), atoms_2(2)
-            CALL check_dist_core(min_dist_AO_atoms, atom_1, atom_2, cell, particle_set)
+            rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
+
+            abs_rab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
+
+            min_dist_AO_atoms = MIN(min_dist_AO_atoms, abs_rab)
          END DO
       END DO
 
@@ -781,38 +784,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_dist
-
-! **************************************************************************************************
-!> \brief ...
-!> \param min_dist_AO_atoms ...
-!> \param atom_1 ...
-!> \param atom_2 ...
-!> \param cell ...
-!> \param particle_set ...
-! **************************************************************************************************
-   SUBROUTINE check_dist_core(min_dist_AO_atoms, atom_1, atom_2, cell, particle_set)
-      REAL(dp), INTENT(INOUT)                            :: min_dist_AO_atoms
-      INTEGER                                            :: atom_1, atom_2
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_dist_core'
-
-      INTEGER                                            :: handle
-      REAL(dp)                                           :: abs_rab
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-
-      CALL timeset(routineN, handle)
-
-      rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
-
-      abs_rab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
-
-      min_dist_AO_atoms = MIN(min_dist_AO_atoms, abs_rab)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE check_dist_core
 
 ! **************************************************************************************************
 !> \brief ...
