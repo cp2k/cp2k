@@ -30,7 +30,7 @@
         STRIDE 1 1 1
       &END E_DENSITY_OPENPMD
       &MO_OPENPMD
-        NLUMO -1
+        NLUMO 2
         OPENPMD_CFG "iteration_encoding = 'variable_based'"
         OPENPMD_EXTENSION .bp5
       &END MO_OPENPMD
