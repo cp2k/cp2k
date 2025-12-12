@@ -20,11 +20,11 @@ MODULE input_cp2k_check
                                               cp_unit_set_release,&
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
-        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, negf_run, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, &
-        vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
-        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
-        xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
+        do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
+        do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, &
+        npt_ia_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -69,9 +69,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_cp2k_input'
 
-      INTEGER                                            :: handle, iforce_eval, nforce_eval, &
-                                                            run_type
-      LOGICAL                                            :: explicit, explicit_embed, explicit_mix
+      INTEGER                                            :: force_eval_method, handle, iforce_eval, &
+                                                            nforce_eval, run_type
+      LOGICAL                                            :: apply_ext_potential, do_center, &
+                                                            explicit, explicit_embed, explicit_mix
       TYPE(section_vals_type), POINTER                   :: section, section1, section2, section3, &
                                                             section4, sections
 
@@ -129,6 +130,30 @@ CONTAINS
          section2 => section_vals_get_subs_vals(section, "ACTIVE_SPACE%XC%XC_FUNCTIONAL")
          CALL xc_functionals_expand(section2, section1)
       END DO
+
+      ! additional checks for a MiMiC run
+      IF (run_type == mimic_run) THEN
+         ! disable CENTER_COORDINATES
+         CALL section_vals_val_get(sections, "SUBSYS%TOPOLOGY%CENTER_COORDINATES%_SECTION_PARAMETERS_", &
+                                   l_val=do_center)
+         IF (do_center) THEN
+            CALL section_vals_val_set(sections, &
+                                      "SUBSYS%TOPOLOGY%CENTER_COORDINATES%_SECTION_PARAMETERS_", &
+                                      l_val=.FALSE.)
+            CPWARN("Turning off CENTER_COORDINATES for a MiMiC run.")
+         END IF
+
+         ! do not allow the use of external potential
+         section => section_vals_get_subs_vals(sections, "DFT%EXTERNAL_POTENTIAL")
+         CALL section_vals_get(section, explicit=apply_ext_potential)
+         IF (apply_ext_potential) &
+            CPABORT("The EXTERNAL_POTENTIAL section is not allowed for the MiMiC runtype.")
+
+         ! force eval methods supported with MiMiC
+         CALL section_vals_val_get(sections, "METHOD", i_val=force_eval_method)
+         IF (force_eval_method /= do_qs) &
+            CPABORT("At the moment, only Quickstep method is supported with MiMiC.")
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE check_cp2k_input

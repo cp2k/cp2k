@@ -536,6 +536,14 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - For more information see <https://github.com/tblite/tblite>
 - Add `-D__TBLITE` to DFLAGS
 
+### 2z-c. MIMIC (optional, multiscale simulations)
+
+- MiMiC - Multiscale simulation framework
+- Interface realized through MCL library, which can be downloaded from
+  <https://https://mimic-project.org>
+- For more information about the framework and supported programs see <https://mimic-project.org>
+- Add `-D__MIMIC` to DFLAGS
+
 ## 3. Compile
 
 ### 3a. ARCH files

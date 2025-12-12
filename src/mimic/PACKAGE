@@ -1,0 +1,14 @@
+{
+    "description": "Wrapper for the MiMiC routines",
+    "requires": [
+        "mcl_wrapper",
+        "../",
+        "../base",
+        "../common",
+        "../input",
+        "../mpiwrap",
+        "../subsys",
+        "../pw",
+        "../pw_env",
+    ],
+}
