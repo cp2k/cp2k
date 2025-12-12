@@ -496,8 +496,8 @@ CONTAINS
             DO i = lb(1), ub(1)
                offset = offset + 1
                coords(:, offset) = origin + box_vectors(:, 1)*REAL(i - lb_glob(1), dp) &
-                                          + box_vectors(:, 2)*REAL(j - lb_glob(2), dp) &
-                                          + box_vectors(:, 3)*REAL(k - lb_glob(3), dp)
+                                   + box_vectors(:, 2)*REAL(j - lb_glob(2), dp) &
+                                   + box_vectors(:, 3)*REAL(k - lb_glob(3), dp)
             END DO
          END DO
       END DO

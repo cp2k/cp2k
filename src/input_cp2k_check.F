@@ -21,10 +21,10 @@ MODULE input_cp2k_check
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
         do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, &
-        vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
-        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
-        xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
+        do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, &
+        npt_ia_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, &
+        xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+        xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
@@ -69,12 +69,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_cp2k_input'
 
-      INTEGER                                            :: handle, iforce_eval, nforce_eval, &
-                                                            run_type, force_eval_method
-      LOGICAL                                            :: explicit, explicit_embed, explicit_mix
+      INTEGER                                            :: force_eval_method, handle, iforce_eval, &
+                                                            nforce_eval, run_type
+      LOGICAL                                            :: apply_ext_potential, do_center, &
+                                                            explicit, explicit_embed, explicit_mix
       TYPE(section_vals_type), POINTER                   :: section, section1, section2, section3, &
                                                             section4, sections
-      LOGICAL                                            :: do_center, apply_ext_potential
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(input_file))
