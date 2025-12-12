@@ -521,7 +521,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: npts, lb, ub
       REAL(dp), DIMENSION(:), POINTER                    :: buffer
       INTEGER                                            :: i, j, k, i_proc, offset
-      INTEGER                                            :: handle, length, tag = 1
+      INTEGER                                            :: handle, length, tag
 
       CALL timeset(routineN, handle)
 
@@ -529,6 +529,8 @@ CONTAINS
       npts = this%pw_info%pw_grid%npts_local
       lb = this%pw_info%pw_grid%bounds_local(1, :)
       ub = this%pw_info%pw_grid%bounds_local(2, :)
+
+      tag = 1
 
       IF (this%is_ionode) THEN
          ! receive potential at the IO process
@@ -577,7 +579,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho
       REAL(dp), DIMENSION(:), POINTER                    :: buffer
       INTEGER                                            :: i_spin, i_proc, i, j, k, offset
-      INTEGER                                            :: handle, length, tag = 1
+      INTEGER                                            :: handle, length, tag
 
       CALL timeset(routineN, handle)
 
@@ -600,6 +602,8 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      tag = 1
 
       IF (.NOT. this%is_ionode) THEN
          CALL this%para_env%send(grid_buffer_loc, this%para_env%source, tag)
