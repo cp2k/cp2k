@@ -1081,13 +1081,8 @@ list(
   input/input_section_types.F
   input/input_val_types.F)
 
-list(
-  APPEND
-  CP2K_SRCS_F
-  mimic/mimic_communicator.F
-  mimic/mimic_loop.F
-  mimic/mcl_wrapper/mcl_api.F
-  mimic/mcl_wrapper/mcl_requests.F)
+list(APPEND CP2K_SRCS_F mimic/mimic_communicator.F mimic/mimic_loop.F
+     mimic/mcl_wrapper/mcl_api.F mimic/mcl_wrapper/mcl_requests.F)
 
 list(
   APPEND
