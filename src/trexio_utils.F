@@ -44,7 +44,7 @@ MODULE trexio_utils
    USE kinds, ONLY: default_path_length, dp
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
-   USE mathconstants, ONLY: fourpi, pi
+   USE mathconstants, ONLY: fourpi, pi, fac
    USE mathlib, ONLY: symmetrize_matrix
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
@@ -99,7 +99,8 @@ MODULE trexio_utils
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
                      trexio_read_mo_class, trexio_read_mo_coefficient, &
                      trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
-                     trexio_write_mo_type, trexio_write_ao_1e_int_overlap
+                     trexio_write_mo_type, trexio_write_ao_1e_int_overlap, &
+                     trexio_write_ao_1e_int_core_hamiltonian
 #endif
 #include "./base/base_uses.f90"
 
@@ -151,9 +152,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
-      ! TYPE(cp_fm_type), POINTER                          :: fm_overlap
       TYPE(dbcsr_iterator_type)                          :: iter
-      ! TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -162,11 +162,10 @@ CONTAINS
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             igf, icgf, ncgf, ngf_shell, lshell, ao_num, nmo, &
-                                                            mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
+                                                            mo_num, ispin, ikp, imo, ikp_loc, nsgf, ncgf_atom, &
                                                             i, j, k, l, m, unit_dE, &
                                                             row, col, row_size, col_size, &
-                                                            row_offset, col_offset, i_trex, nsgf_tot, ncgf_tot, &
-                                                            igf_c_tot
+                                                            row_offset, col_offset
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
@@ -177,10 +176,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
                                                             prim_factor, ao_normalization, mo_energy, &
-                                                            mo_occupation, norm_cgf_tot
+                                                            mo_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP, mos_cgf
+                                                            mos_sgf, temp, dEdP, ao_overlap, ao_ks_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
@@ -363,6 +362,8 @@ CONTAINS
       !========================================================================================!
       CALL get_qs_env(qs_env, qs_kind_set=kind_set, natom=natoms, particle_set=particle_set)
       CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
+      
+      CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
 
       IF (ionode) THEN
          rc = trexio_write_basis_type(f, 'Gaussian', LEN_TRIM('Gaussian') + 1)
@@ -424,8 +425,13 @@ CONTAINS
                   gcca = gcc(i, ishell_loc, iset)
                   zeta = zetas(i, iset)
 
-                  ! primitives normalization factors array
-                  prim_factor(i + ipgf) = prefac*zeta**expzet
+                  IF (save_cartesian) THEN
+                     ! primitives normalization factors array
+                     prim_factor(i + ipgf) = prefac*zeta**expzet
+                  ELSE
+                     ! for spherical harmonics we have a different factor
+                     prim_factor(i + ipgf) = sgf_norm(l, exponents(i + ipgf))
+                  END IF
 
                   ! contractio coefficients array
                   coefficients(i + ipgf) = gcca/prim_factor(i + ipgf)
@@ -615,11 +621,7 @@ CONTAINS
       !========================================================================================!
       CALL get_qs_env(qs_env, qs_kind_set=kind_set)
       CALL get_qs_kind_set(kind_set, ncgf=ncgf, nsgf=nsgf)
-      ! WRITE (output_unit, "((T2,A,I0,A,I0))") 'TREXIO| nsgf = ', nsgf, ', ncgf = ', ncgf
 
-      nsgf_tot = nsgf
-      ncgf_tot = ncgf
-      CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
       IF (save_cartesian) THEN
          ao_num = ncgf
       ELSE
@@ -646,7 +648,7 @@ CONTAINS
          ! AO order map from CP2K to TREXIO convention
          ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
          ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
-         ALLOCATE (cp2k_to_trexio_ang_mom(nsgf))
+         ALLOCATE (cp2k_to_trexio_ang_mom(ao_num))
          i = 0
          DO ishell = 1, shell_num
             l = shell_ang_mom(ishell)
@@ -656,14 +658,12 @@ CONTAINS
             END DO
             i = i + 2*l + 1
          END DO
-         CPASSERT(i == nsgf)
+         CPASSERT(i == ao_num)
       END IF
 
       ! we need to be consistent with the basis group on the shell indices
       ishell = 0  ! global shell index
       igf = 0     ! global AO index
-      igf_c_tot = 0
-      ALLOCATE (norm_cgf_tot(ncgf_tot))
       DO iatom = 1, natoms
          ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -674,15 +674,9 @@ CONTAINS
                                 nset=nset, &
                                 nshell=nshell, &
                                 norm_cgf=norm_cgf, &
-                                ncgf=ncgf, &
-                                nsgf=nsgf, &
+                                ncgf=ncgf_atom, &
                                 l=l_shell_set)
          
-         ! WRITE (output_unit, "((T2,A, I0, A,I0,A,I0))") 'TREXIO| iatom = ', iatom, ', nsgf = ', nsgf, ', ncgf = ', ncgf
-         ! DO i = 1, SIZE(norm_cgf)
-         !   WRITE (output_unit, '(I5, 1X, *(F12.6, 1X))') i, norm_cgf(i)
-         ! END DO
-
          icgf = 0
          DO iset = 1, nset
             DO ishell_loc = 1, nshell(iset)
@@ -705,69 +699,73 @@ CONTAINS
                IF (save_cartesian) THEN
                   ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(icgf + 1:icgf + ngf_shell)
                ELSE
-                  ! allocate some temporary arrays
-                  ALLOCATE (diag_ncgf(nco(lshell), nco(lshell)))
-                  ALLOCATE (diag_nsgf(nso(lshell), nso(lshell)))
-                  ALLOCATE (temp(nso(lshell), nco(lshell)))
-                  diag_ncgf(:,:) = 0.0_dp
-                  diag_nsgf(:,:) = 0.0_dp
-                  temp(:,:) = 0.0_dp
-
-                  DO i = 1, nco(lshell)
-                     norm_cgf_tot(igf_c_tot + i) = norm_cgf(icgf + i)
+                  ! TREXIO employs solid harmonics and not spherical harmonics like cp2k
+                  ! so we need an extra factor (which is nowhere to be found internally)
+                  DO i = 1, ngf_shell
+                     ao_normalization(igf + i) = SQRT((2*lshell+1)/(4*pi))
                   END DO
-
-                  ! transform the normalization factors from Cartesian to solid harmonics
-                  ! temp(:, :) = MATMUL(orbtramat(lshell)%c2s, diag_ncgf)
-                  ! diag_nsgf(:, :) = MATMUL(temp, TRANSPOSE(orbtramat(lshell)%s2c))
-                  ! norm_sgf(:) = MATMUL(diag_nsgf, ones)
-                  DO i = 1, nso(lshell)
-                     ! cp2k_to_trexio contains the mapped global indices, but diag_nsgf
-                     ! is a small local matrix of dimension 2l+1, so I need to shift back
-                     ! the index by igf
-                     i_trex = cp2k_to_trexio_ang_mom(igf+i) - igf
-                     ! ao_normalization(igf + i) = norm_sgf(i_trex)
-                     ao_normalization(igf + i) = 1.0_dp
-                  END DO
-
-                  DEALLOCATE (diag_ncgf)
-                  DEALLOCATE (diag_nsgf)
-                  DEALLOCATE (temp)
                END IF
 
                igf = igf + ngf_shell
                icgf = icgf + nco(lshell)
-               igf_c_tot = igf_c_tot + nco(lshell)
             END DO
          END DO
          ! just a failsafe check
-         CPASSERT(icgf == ncgf)
+         CPASSERT(icgf == ncgf_atom)
       END DO
 
-      ! write overlap
-      ! CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
-      ! nspins = dft_control%nspins
-      ! IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
-      !    CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
-      !    CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-      !                               nrow_global=ao_num, ncol_global=ao_num)
-      !    ALLOCATE(fm_overlap)
-      !    CALL cp_fm_create(fm_overlap, fm_struct)
-      !    CALL cp_fm_struct_release(fm_struct)
-      !    CALL cp_fm_set_all(fm_overlap, 0.0_dp)
-      !    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_overlap)
-      !    ALLOCATE (ao_overlap(ao_num, ao_num))
-      !    ao_overlap(:,:) = 0.0_dp
-      !    CALL cp_fm_get_submatrix(fm_overlap, ao_overlap)
+      ! write overlap and kohn_sham matrix
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
+      nspins = dft_control%nspins
+      IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
+         CALL get_qs_env(qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks, blacs_env=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                    nrow_global=ao_num, ncol_global=ao_num)
+         CALL cp_fm_create(fm_dummy, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+         
+         ALLOCATE (temp(ao_num, ao_num))
+         ALLOCATE (ao_overlap(ao_num, ao_num))
+         ALLOCATE (ao_ks_matrix(ao_num, ao_num))
+         temp(:,:) = 0.0_dp
+         ao_overlap(:,:) = 0.0_dp
+         ao_ks_matrix(:,:) = 0.0_dp
+         
+         ! store the overlap
+         CALL cp_fm_set_all(fm_dummy, 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_dummy)
+         CALL cp_fm_get_submatrix(fm_dummy, temp)
+         DO i = 1, ao_num
+            DO j = 1, ao_num
+               ao_overlap(i, j) = temp(cp2k_to_trexio_ang_mom(i), cp2k_to_trexio_ang_mom(j))
+            END DO
+         END DO
+         
+         ! store the KS matrix abusing the core hamiltonian container
+         temp(:,:) = 0.0_dp
+         CALL cp_fm_set_all(fm_dummy, 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix, fm_dummy)
+         CALL cp_fm_get_submatrix(fm_dummy, temp)
+         DO i = 1, ao_num
+            DO j = 1, ao_num
+               ao_ks_matrix(i, j) = temp(cp2k_to_trexio_ang_mom(i), cp2k_to_trexio_ang_mom(j))
+            END DO
+         END DO
 
-      !    IF (ionode) THEN
-      !       rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
-      !       CALL trexio_error(rc)
-      !    END IF
+         IF (ionode) THEN
+            rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
+            CALL trexio_error(rc)
 
-      !    DEALLOCATE(ao_overlap)
-      !    DEALLOCATE(fm_overlap)
-      ! END IF
+            rc = trexio_write_ao_1e_int_core_hamiltonian(f, ao_ks_matrix)
+            CALL trexio_error(rc)
+         END IF
+
+         CALL cp_fm_release(fm_dummy)
+         NULLIFY(fm_struct)
+         DEALLOCATE(ao_overlap)
+         DEALLOCATE(ao_ks_matrix)
+         DEALLOCATE(temp)
+      END IF
 
       IF (ionode) THEN
          rc = trexio_write_ao_shell(f, ao_shell)
@@ -788,7 +786,6 @@ CONTAINS
       nspins = dft_control%nspins
       CALL get_qs_kind_set(kind_set, nsgf=nsgf, ncgf=ncgf)
       nmo_spin = 0
-      WRITE (output_unit, "((T2,A,I0,A,I0))") 'TREXIO| nsgf = ', nsgf, ', ncgf = ', ncgf
 
       ! figure out that total number of MOs
       mo_num = 0
@@ -903,9 +900,7 @@ CONTAINS
          nmo = nmo_spin(ispin)
          ! allocate local temp array to transform the MOs of each kpoint/spin
          ALLOCATE (mos_sgf(nsgf, nmo))
-         ALLOCATE (mos_cgf(ncgf, nmo))
          mos_sgf(:,:) = 0.0_dp
-         mos_cgf(:,:) = 0.0_dp
 
          IF (do_kpoints) THEN
             DO ikp = 1, nkp
@@ -959,24 +954,10 @@ CONTAINS
 
             IF (save_cartesian) THEN
                CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
-            ELSE
-
-               ! transform MOs to cartesian to squash in the normalization factor
-               CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mos_cgf)
-               mos_sgf(:,:) = 0.0_dp
-
-               DO i = 1, SIZE(norm_cgf_tot)
-                  mos_cgf(i, :) = mos_cgf(i, :) * norm_cgf_tot(i)
-                  ! WRITE (output_unit, '(I5, 1X, *(F12.6, 1X))') i, norm_cgf_tot(i)
-               END DO
-
-               ! transform back
-               CALL cartesian_to_spherical_mo(mos_cgf, particle_set, kind_set, mos_sgf)
-               
+            ELSE      
                ! we have to reorder the MOs since CP2K and TREXIO have different conventions
                DO i = 1, nsgf
                   mo_coefficient(i, imo + 1:imo + nmo) = mos_sgf(cp2k_to_trexio_ang_mom(i), :)
-                  ! mo_coefficient(i, imo + 1:imo + nmo) = mos_sgf(i, :)
                END DO
             END IF
          END IF
@@ -1090,8 +1071,7 @@ CONTAINS
       END IF
 
       ! Deallocate arrays used throughout the subroutine
-      DEALLOCATE (norm_cgf_tot)
-      DEALLOCATE (shell_ang_mom)
+      IF (ALLOCATED(shell_ang_mom)) DEALLOCATE (shell_ang_mom)
       IF (ALLOCATED(cp2k_to_trexio_ang_mom)) DEALLOCATE (cp2k_to_trexio_ang_mom)
 
       !========================================================================================!
@@ -1590,6 +1570,26 @@ CONTAINS
       END DO
 
    END SUBROUTINE nuclear_repulsion_energy
+
+
+! **************************************************************************************************
+!> \brief Returns the normalization coefficient for a spherical GTO
+!> \param l the angular momentum quantum number
+!> \param expnt the exponent of the Gaussian function
+! **************************************************************************************************
+   FUNCTION sgf_norm(l, expnt) RESULT(norm)
+      INTEGER, INTENT(IN)                                :: l
+      REAL(KIND=dp), INTENT(IN)                          :: expnt
+      REAL(KIND=dp)                                      :: norm
+
+      IF (l >= 0) THEN
+         norm = SQRT(2**(2*l+3)*fac(l+1)*(2*expnt)**(l+1.5) / (fac(2*l+2)*SQRT(pi)))
+      ELSE
+         CPABORT("The angular momentum should be >= 0!")
+      END IF
+
+   END FUNCTION sgf_norm
+
 
 ! **************************************************************************************************
 !> \brief Computes a spherical to cartesian MO transformation (solid harmonics in reality)
