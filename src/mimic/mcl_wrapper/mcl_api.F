@@ -32,7 +32,7 @@ MODULE mcl_api
 #if !defined(__MIMIC)
 
    #:for direction in mcl_direction
-      INTERFACE mimic_${direction}$
+      INTERFACE mcl_${direction}$
          #:for kind_l in mcl_kind_labels
             #:for dim_l in mcl_dimension_labels
                MODULE PROCEDURE mcl_${direction}$_${kind_l}$_${dim_l}$
