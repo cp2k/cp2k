@@ -56,7 +56,7 @@ CONTAINS
       #:for kind_v, kind_l in zip(mcl_kinds, mcl_kind_labels)
          #:for dim_v, dim_l in zip(mcl_dimensions, mcl_dimension_labels)
             SUBROUTINE mcl_${direction}$_${kind_l}$_${dim_l}$ (buffer, length, tag, remote_id, err)
-               ${kind_v}$${dim_v}, TARGET :: buffer
+               ${kind_v}$${dim_v}$, TARGET :: buffer
                INTEGER :: length
                INTEGER :: tag
                INTEGER :: remote_id

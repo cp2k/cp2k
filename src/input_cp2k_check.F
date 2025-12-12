@@ -20,7 +20,7 @@ MODULE input_cp2k_check
                                               cp_unit_set_release,&
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
-        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
+        do_qs, do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
         do_thermo_same_as_part, mimic_run, negf_run, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, &
         vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
         xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
@@ -70,10 +70,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_cp2k_input'
 
       INTEGER                                            :: handle, iforce_eval, nforce_eval, &
-                                                            run_type
+                                                            run_type, force_eval_method
       LOGICAL                                            :: explicit, explicit_embed, explicit_mix
       TYPE(section_vals_type), POINTER                   :: section, section1, section2, section3, &
                                                             section4, sections
+      LOGICAL                                            :: do_center, apply_ext_potential
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(input_file))
@@ -145,11 +146,13 @@ CONTAINS
          ! do not allow the use of external potential
          section => section_vals_get_subs_vals(sections, "DFT%EXTERNAL_POTENTIAL")
          CALL section_vals_get(section, explicit=apply_ext_potential)
-         IF (apply_ext_potential) CPABORT("The EXTERNAL_POTENTIAL section is not allowed for the MiMiC runtype.")
+         IF (apply_ext_potential) &
+            CPABORT("The EXTERNAL_POTENTIAL section is not allowed for the MiMiC runtype.")
 
          ! force eval methods supported with MiMiC
          CALL section_vals_val_get(sections, "METHOD", i_val=force_eval_method)
-         IF (force_eval_method /= do_qs) CPABORT("At the moment, only Quickstep method is supported with MiMiC.")
+         IF (force_eval_method /= do_qs) &
+            CPABORT("At the moment, only Quickstep method is supported with MiMiC.")
       END IF
 
       CALL timestop(handle)

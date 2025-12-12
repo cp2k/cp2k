@@ -236,3 +236,12 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - Pass `-DCP2K_USE_HDF5=ON` to CMake to enable HDF5 support.
 - HDF5 is a hard dependency for SIRIUS and TREXIO, but can also be used by itself to allow
   read/write functionalities of QCSchema files in the active space module.
+
+## MIMIC (multiscale simulations)
+
+MiMiC - Multiscale simulation framework
+
+- Interface realized through MCL library, which can be downloaded from
+  <https://https://mimic-project.org>
+- For more information about the framework and supported programs see <https://mimic-project.org>
+- Pass `-DCP2K_USE_MIMIC=ON` to CMake
