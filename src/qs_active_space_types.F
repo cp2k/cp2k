@@ -22,7 +22,8 @@ MODULE qs_active_space_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type,&
+   USE message_passing,                 ONLY: mp_comm_null,&
+                                              mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -68,7 +69,7 @@ MODULE qs_active_space_types
          DIMENSION(:), POINTER      :: eri => NULL()
       INTEGER                       :: norb = 0
       TYPE(mp_para_env_type), POINTER :: para_env_sub => NULL()
-      TYPE(mp_comm_type) :: comm_exchange
+      TYPE(mp_comm_type) :: comm_exchange = mp_comm_null
    CONTAINS
       PROCEDURE :: eri_foreach => eri_type_eri_foreach
    END TYPE eri_type
