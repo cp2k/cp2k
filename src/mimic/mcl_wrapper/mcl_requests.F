@@ -31,11 +31,11 @@ MODULE mcl_requests
    #:endfor
 
 #if !defined(__MIMIC)
-
+   #:set req_value = -1
    #:for label in mcl_implemented_labels
-      INTEGER, PARAMETER :: ${label}$ = -1
+      #:set req_value = req_value - 1
+      INTEGER, PARAMETER :: ${label}$ = ${req_value}$
    #:endfor
-
 #endif
 
 END MODULE mcl_requests

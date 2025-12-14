@@ -317,9 +317,13 @@ CONTAINS
       ALLOCATE (buffer(this%n_atoms))
       SELECT CASE (option)
       CASE ("kinds")
-         buffer = [(this%atoms%els(i)%atomic_kind%kind_number, i=1, this%n_atoms)]
+         DO i = 1, this%n_atoms
+            buffer(i) = this%atoms%els(i)%atomic_kind%kind_number
+         END DO
       CASE ("ids")
-         buffer = [(this%atoms%els(i)%atom_index, i=1, this%n_atoms)]
+         DO i = 1, this%n_atoms
+            buffer(i) = this%atoms%els(i)%atom_index
+         END DO
       CASE DEFAULT
          CPABORT("The value chosen in "//routineN//" is not implemented.")
       END SELECT
@@ -369,7 +373,9 @@ CONTAINS
          CALL mcl_send(buffer_i, SIZE(buffer_i), MCL_DATA, this%mcl_server)
       CASE ("masses")
          ALLOCATE (buffer_dp(this%n_kinds))
-         buffer_dp = [(cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU"), i=1, this%n_kinds)]
+         DO i = 1, this%n_kinds
+            buffer_dp = cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU")
+         END DO
          CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
       CASE ("nuclear_charges")
          NULLIFY (qs_env, qs_kinds)
