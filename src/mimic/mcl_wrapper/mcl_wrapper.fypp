@@ -41,8 +41,8 @@
       "MCL_COMPUTE_FORCES"]
 
    #:set mcl_direction = ["send", "receive"]
-   #:set mcl_kinds = ["CHARACTER(LEN=*)", "INTEGER(KIND=int_4)", "INTEGER(KIND=int_8)", "REAL(KIND=sp)", "REAL(KIND=dp)"]
-   #:set mcl_kind_labels = ["char", "i4", "i8", "sp", "dp"]
+   #:set mcl_kinds = ["INTEGER(KIND=int_4)", "INTEGER(KIND=int_8)", "REAL(KIND=sp)", "REAL(KIND=dp)"]
+   #:set mcl_kind_labels = ["i4", "i8", "sp", "dp"]
    #:set mcl_dimensions = ["", ", DIMENSION(:)", ", DIMENSION(:,:)", ", DIMENSION(:,:,:)"]
    #:set mcl_dimension_labels = ["0d", "1d", "2d", "3d"]
 #:endmute
