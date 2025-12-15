@@ -28,7 +28,7 @@ MODULE message_passing
    USE machine, ONLY: m_abort
    USE mp_perf_env, ONLY: add_perf, add_mp_perf_env, rm_mp_perf_env
 #if defined(__MIMIC)
-   USE mcl, ONLY: mcl_initialize
+   USE mcl, ONLY: mcl_initialize, mcl_is_initialized, mcl_abort
 #endif
 
 #include "../base/base_uses.f90"
@@ -1219,11 +1219,18 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE mp_abort()
          INTEGER                                            :: ierr
+#if defined(__MIMIC)
+         LOGICAL                                            :: mcl_initialized
+#endif
 
          ierr = 0
 
 #if !defined(__NO_ABORT)
 #if defined(__parallel)
+#if defined(__MIMIC)
+         CALL mcl_is_initialized(mcl_initialized)
+         IF (mcl_initialized) CALL mcl_abort(1, ierr)
+#endif
          CALL mpi_abort(MPI_COMM_WORLD, 1, ierr)
 #else
          CALL m_abort()

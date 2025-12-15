@@ -20,8 +20,8 @@ MODULE mimic_loop
         MCL_COMPUTE_FORCES, MCL_EXIT, MCL_RECV_PARTICLE_POSITIONS, &
         MCL_RECV_POTENTIAL_ON_GRIDPOINTS, MCL_SEND_BOX_GRIDPOINT_COORDS, &
         MCL_SEND_BOX_NUM_GRIDPOINTS, MCL_SEND_BOX_ORIGIN, MCL_SEND_BOX_VECTORS, &
-        MCL_SEND_CLIENT_ID, MCL_SEND_CLIENT_NAME, MCL_SEND_CLIENT_RUNTYPE, MCL_SEND_DENSITY, &
-        MCL_SEND_ENERGY, MCL_SEND_NUCLEAR_CHARGES, MCL_SEND_NUM_CONSTR_ANGLES, &
+        MCL_SEND_CLIENT_APIVER, MCL_SEND_CLIENT_ID, MCL_SEND_CLIENT_NAME, MCL_SEND_CLIENT_RUNTYPE, &
+        MCL_SEND_DENSITY, MCL_SEND_ENERGY, MCL_SEND_NUCLEAR_CHARGES, MCL_SEND_NUM_CONSTR_ANGLES, &
         MCL_SEND_NUM_CONSTR_BONDS, MCL_SEND_NUM_FRAGMENTS, MCL_SEND_NUM_PARTICLES, &
         MCL_SEND_NUM_PARTICLES_IN_FRAGMENTS, MCL_SEND_NUM_PARTICLE_SPECIES, &
         MCL_SEND_PARTICLE_FORCES, MCL_SEND_PARTICLE_IDS_IN_FRAGMENTS, MCL_SEND_PARTICLE_POSITIONS, &
@@ -49,6 +49,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_mimic_loop'
 
+      CHARACTER(LEN=32)                                  :: request_str
       INTEGER                                            :: handle, request
       LOGICAL                                            :: is_last_step
       TYPE(mimic_communicator_type)                      :: mimic_comm
@@ -70,6 +71,8 @@ CONTAINS
             CALL mimic_comm%send_client_info("name")
          CASE (MCL_SEND_CLIENT_RUNTYPE)
             CALL mimic_comm%send_client_info("run_type")
+         CASE (MCL_SEND_CLIENT_APIVER)
+            CALL mimic_comm%send_client_info("api_version")
          CASE (MCL_SEND_NUM_PARTICLES)
             CALL mimic_comm%send_value("num_atoms")
          CASE (MCL_SEND_NUM_PARTICLE_SPECIES)
@@ -121,7 +124,8 @@ CONTAINS
          CASE (MCL_EXIT)
             is_last_step = .TRUE.
          CASE DEFAULT
-            CPABORT("Unrecognized MiMiC request!")
+            WRITE (request_str, "(I0)") request
+            CPABORT("Unrecognized MiMiC request: "//TRIM(request_str))
          END SELECT
       END DO
 

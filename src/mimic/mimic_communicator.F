@@ -27,6 +27,7 @@ MODULE mimic_communicator
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mcl_api,                         ONLY: mcl_finalize,&
+                                              mcl_get_api_version,&
                                               mcl_get_program_id,&
                                               mcl_receive,&
                                               mcl_send
@@ -277,6 +278,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_client_info'
 
       CHARACTER(LEN=*), PARAMETER                        :: client_name = "CP2K"
+      INTEGER, DIMENSION(3)                              :: api_version
       INTEGER                                            :: handle, length
 
       CALL timeset(routineN, handle)
@@ -290,6 +292,9 @@ CONTAINS
          CALL mcl_send(client_name, length, MCL_DATA, this%mcl_server)
       CASE ("run_type")
          CALL mcl_send(MCL_RUNTYPE_QM_RS_GRID, 1, MCL_DATA, this%mcl_server)
+      CASE ("api_version")
+         CALL mcl_get_api_version(api_version)
+         CALL mcl_send(api_version, 3, MCL_DATA, this%mcl_server)
       CASE DEFAULT
          CPABORT("The value chosen in "//routineN//" is not implemented.")
       END SELECT
@@ -374,7 +379,7 @@ CONTAINS
       CASE ("masses")
          ALLOCATE (buffer_dp(this%n_kinds))
          DO i = 1, this%n_kinds
-            buffer_dp = cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU")
+            buffer_dp(i) = cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU")
          END DO
          CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
       CASE ("nuclear_charges")
