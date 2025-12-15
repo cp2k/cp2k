@@ -135,7 +135,8 @@ CONTAINS
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
-      REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca
+      REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca, &
+                                                            prim_cart_fac
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -424,17 +425,19 @@ CONTAINS
                DO i = 1, npgf(iset)
                   gcca = gcc(i, ishell_loc, iset)
                   zeta = zetas(i, iset)
+                  prim_cart_fac = prefac*zeta**expzet
+
+                  ! contraction coefficients array
+                  coefficients(i + ipgf) = gcca/prim_cart_fac
 
                   IF (save_cartesian) THEN
                      ! primitives normalization factors array
-                     prim_factor(i + ipgf) = prefac*zeta**expzet
+                     prim_factor(i + ipgf) = prim_cart_fac
                   ELSE
                      ! for spherical harmonics we have a different factor
                      prim_factor(i + ipgf) = sgf_norm(l, exponents(i + ipgf))
                   END IF
 
-                  ! contractio coefficients array
-                  coefficients(i + ipgf) = gcca/prim_factor(i + ipgf)
                END DO
 
                ipgf = ipgf + npgf(iset)
