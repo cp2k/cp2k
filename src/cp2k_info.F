@@ -274,6 +274,10 @@ CONTAINS
       flags = TRIM(flags)//" greenx"
 #endif
 
+#if defined(__OPENPMD) && defined(OPENPMDAPI_VERSION_GE) && openPMD_HAVE_MPI
+      flags = TRIM(flags)//" openpmd"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
