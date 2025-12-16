@@ -316,7 +316,7 @@ class Config:
         exe_stem: str,
         *args: str,
         cwd: Optional[Path] = None,
-        custom_env: Optional[os.environ] = {},
+        custom_env: Optional[Dict[str, str]] = {},
     ) -> Coroutine[Any, Any, Process]:
         env = os.environ.copy()
         if self.num_gpus > self.mpiranks:
@@ -330,7 +330,8 @@ class Config:
         env["PIKA_COMMANDLINE_OPTIONS"] = (
             f"--pika:bind=none --pika:threads={self.ompthreads}"
         )
-        env |= custom_env
+        if custom_env:
+            env |= custom_env
         exe_name = f"{exe_stem}.{self.version}"
         cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:
@@ -375,12 +376,12 @@ class Batch:
         self.requirements = parts[1:]
         self.unittests: List[Unittest] = []
         self.regtests: List[Regtest] = []
+        self.env: Dict[str, str] = {}
         self.src_dir = cfg.cp2k_root / "tests" / self.name
         self.workdir = cfg.work_base_dir / self.name
         self.huge_suppressions = cfg.huge_suppressions
-        self.env = {}
 
-    def set_custom_env(self, env: os.environ):
+    def set_custom_env(self, env: Dict[str, str]) -> None:
         self.env = env
 
     def requirements_satisfied(self, flags: List[str], mpiranks: int) -> bool:
