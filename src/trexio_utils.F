@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE trexio_utils
 
+   USE ai_onecenter, ONLY: sg_overlap
    USE atomic_kind_types, ONLY: get_atomic_kind
    USE basis_set_types, ONLY: gto_basis_set_type, get_gto_basis_set
    USE cell_types, ONLY: cell_type
@@ -136,7 +137,7 @@ CONTAINS
                                                             ecp_local, sgp_potential_present, ionode, &
                                                             use_real_wfn, save_cartesian
       REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca, &
-                                                            prim_cart_fac
+                                                            prim_cart_fac, Nsgto
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -162,7 +163,7 @@ CONTAINS
                                                             nspins, ikind, ishell_loc, ishell, &
                                                             shell_num, prim_num, nset, iset, ipgf, z, &
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
-                                                            igf, icgf, ncgf, ngf_shell, lshell, ao_num, nmo, &
+                                                            iao, icgf_atom, ncgf, nao_shell, ao_num, nmo, &
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, ncgf_atom, &
                                                             i, j, k, l, m, unit_dE, &
                                                             row, col, row_size, col_size, &
@@ -177,10 +178,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
                                                             prim_factor, ao_normalization, mo_energy, &
-                                                            mo_occupation
+                                                            mo_occupation, Sgcc, ecp_coefficients, &
+                                                            sgf_coefficients
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, temp, dEdP, ao_overlap, ao_ks_matrix
+                                                            mos_sgf, temp, dEdP, ao_overlap, ao_ks_matrix, &
+                                                            Sloc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
@@ -384,9 +387,14 @@ CONTAINS
       ALLOCATE (exponents(prim_num))      ! ...primitive exponents
       ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
       ALLOCATE (prim_factor(prim_num))    ! ...primitive normalization factors
+      
+      ! needed in AO group
+      IF (.NOT. save_cartesian) THEN
+         ALLOCATE (sgf_coefficients(prim_num))   ! ...contraction coefficients
+      END IF
 
-      ishell = 0
-      ipgf = 0
+      ishell = 0  ! global shell index
+      ipgf = 0    ! global primitives index
       DO iatom = 1, natoms
          ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -428,14 +436,16 @@ CONTAINS
                   prim_cart_fac = prefac*zeta**expzet
 
                   ! contraction coefficients array
-                  coefficients(i + ipgf) = gcca/prim_cart_fac
+                  coefficients(ipgf + i) = gcca/prim_cart_fac
 
                   IF (save_cartesian) THEN
                      ! primitives normalization factors array
-                     prim_factor(i + ipgf) = prim_cart_fac
+                     prim_factor(ipgf + i) = prim_cart_fac
                   ELSE
                      ! for spherical harmonics we have a different factor
-                     prim_factor(i + ipgf) = sgf_norm(l, exponents(i + ipgf))
+                     prim_factor(ipgf + i) = sgf_norm(l, exponents(ipgf + i))
+                     ! we need these later in the AO group
+                     sgf_coefficients(ipgf + i) = coefficients(ipgf + i) * prim_factor(ipgf + i)
                   END IF
 
                END DO
@@ -531,7 +541,7 @@ CONTAINS
             ALLOCATE (ang_mom(ecp_num))
             ALLOCATE (nucleus_index(ecp_num))
             ALLOCATE (exponents(ecp_num))
-            ALLOCATE (coefficients(ecp_num))
+            ALLOCATE (ecp_coefficients(ecp_num))
             ALLOCATE (powers(ecp_num))
 
             iecp = 0
@@ -554,7 +564,7 @@ CONTAINS
                      ang_mom(iecp + 1:iecp + nloc) = sl_lmax + 1
                      nucleus_index(iecp + 1:iecp + nloc) = iatom
                      exponents(iecp + 1:iecp + nloc) = sgp_potential%bloc(1:nloc)
-                     coefficients(iecp + 1:iecp + nloc) = sgp_potential%aloc(1:nloc)
+                     ecp_coefficients(iecp + 1:iecp + nloc) = sgp_potential%aloc(1:nloc)
                      powers(iecp + 1:iecp + nloc) = sgp_potential%nrloc(1:nloc) - 2
                      iecp = iecp + nloc
                   END IF
@@ -569,7 +579,7 @@ CONTAINS
                         ang_mom(iecp + 1:iecp + nsemiloc) = sl_l
                         nucleus_index(iecp + 1:iecp + nsemiloc) = iatom
                         exponents(iecp + 1:iecp + nsemiloc) = sgp_potential%bpot(1:nsemiloc, sl_l)
-                        coefficients(iecp + 1:iecp + nsemiloc) = sgp_potential%apot(1:nsemiloc, sl_l)
+                        ecp_coefficients(iecp + 1:iecp + nsemiloc) = sgp_potential%apot(1:nsemiloc, sl_l)
                         powers(iecp + 1:iecp + nsemiloc) = sgp_potential%nrpot(1:nsemiloc, sl_l) - 2
                         iecp = iecp + nsemiloc
                      END DO
@@ -603,9 +613,9 @@ CONTAINS
             CALL trexio_error(rc)
             DEALLOCATE (exponents)
 
-            rc = trexio_write_ecp_coefficient(f, coefficients)
+            rc = trexio_write_ecp_coefficient(f, ecp_coefficients)
             CALL trexio_error(rc)
-            DEALLOCATE (coefficients)
+            DEALLOCATE (ecp_coefficients)
 
             rc = trexio_write_ecp_power(f, powers)
             CALL trexio_error(rc)
@@ -666,7 +676,8 @@ CONTAINS
 
       ! we need to be consistent with the basis group on the shell indices
       ishell = 0  ! global shell index
-      igf = 0     ! global AO index
+      iao = 0     ! global AO index
+      ipgf = 0    ! global primitives index
       DO iatom = 1, natoms
          ! get the qs_kind (index position in kind_set) for this atom (atomic_kind)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -678,43 +689,57 @@ CONTAINS
                                 nshell=nshell, &
                                 norm_cgf=norm_cgf, &
                                 ncgf=ncgf_atom, &
+                                npgf=npgf, &
+                                zet=zetas, &
                                 l=l_shell_set)
          
-         icgf = 0
+         icgf_atom = 0
          DO iset = 1, nset
             DO ishell_loc = 1, nshell(iset)
                ! global shell index
                ishell = ishell + 1
                ! angular momentum l of this shell
-               lshell = l_shell_set(ishell_loc, iset)
+               l = l_shell_set(ishell_loc, iset)
 
                ! number of AOs in this shell
                IF (save_cartesian) THEN
-                  ngf_shell = nco(lshell)
+                  nao_shell = nco(l)
                ELSE
-                  ngf_shell = nso(lshell)
+                  nao_shell = nso(l)
                END IF
 
                ! one-to-one mapping between AOs and shells
-               ao_shell(igf + 1:igf + ngf_shell) = ishell
+               ao_shell(iao + 1:iao + nao_shell) = ishell
 
                ! one-to-one mapping between AOs and normalization factors
                IF (save_cartesian) THEN
-                  ao_normalization(igf + 1:igf + ngf_shell) = norm_cgf(icgf + 1:icgf + ngf_shell)
+                  ao_normalization(iao + 1:iao + nao_shell) = norm_cgf(icgf_atom + 1:icgf_atom + nao_shell)
                ELSE
+                  ! for each shell, compute the overlap between spherical primitives
+                  ALLOCATE (Sloc(npgf(iset), npgf(iset)))
+                  ALLOCATE (Sgcc(npgf(iset)))
+                  CALL sg_overlap(Sloc, l, zetas(1:npgf(iset), iset), zetas(1:npgf(iset), iset))
+
+                  ! and compute the normalizaztion factor for contracted spherical GTOs
+                  Sgcc(:) = MATMUL(Sloc, sgf_coefficients(ipgf + 1:ipgf + npgf(iset))) 
+                  Nsgto = 1.0_dp/SQRT(DOT_PRODUCT(sgf_coefficients(ipgf + 1:ipgf + npgf(iset)), Sgcc))
+
+                  DEALLOCATE (Sloc)
+                  DEALLOCATE (Sgcc)
+
                   ! TREXIO employs solid harmonics and not spherical harmonics like cp2k
-                  ! so we need an extra factor (which is nowhere to be found internally)
-                  DO i = 1, ngf_shell
-                     ao_normalization(igf + i) = SQRT((2*lshell+1)/(4*pi))
-                  END DO
+                  ! so we need the opposite of Racah normalization, multiplied by the Nsgto
+                  ! just computed above
+                  ao_normalization(iao + 1:iao + nao_shell) = Nsgto * SQRT((2*l+1)/(4*pi))
                END IF
 
-               igf = igf + ngf_shell
-               icgf = icgf + nco(lshell)
+               ipgf = ipgf + npgf(iset)
+               iao = iao + nao_shell
+               icgf_atom = icgf_atom + nco(l)
             END DO
          END DO
          ! just a failsafe check
-         CPASSERT(icgf == ncgf_atom)
+         CPASSERT(icgf_atom == ncgf_atom)
       END DO
 
       ! write overlap and kohn_sham matrix
@@ -780,6 +805,7 @@ CONTAINS
 
       DEALLOCATE (ao_shell)
       DEALLOCATE (ao_normalization)
+      IF (ALLOCATED(sgf_coefficients)) DEALLOCATE (sgf_coefficients)
 
       !========================================================================================!
       ! MO group
