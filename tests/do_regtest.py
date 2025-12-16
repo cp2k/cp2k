@@ -142,6 +142,15 @@ async def main() -> None:
             continue
         batch = Batch(line, cfg)
 
+        # Read ENV.toml
+        env_file_fn = Path(batch.src_dir / "ENV.toml")
+        if env_file_fn.is_file():
+            env_file_content = env_file_fn.read_text(encoding="utf8")
+            batch_env = {}
+            for env_name, env_value in tomllib.loads(env_file_content).items():
+                batch_env[env_name] = env_value
+            batch.set_custom_env(batch_env)
+
         # Read TEST_FILES.toml
         test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
         test_files_content = test_files_fn.read_text(encoding="utf8")
@@ -303,7 +312,11 @@ class Config:
         self.next_gpu = 0  # Used to assign devices round robin to processes.
 
     def launch_exe(
-        self, exe_stem: str, *args: str, cwd: Optional[Path] = None
+        self,
+        exe_stem: str,
+        *args: str,
+        cwd: Optional[Path] = None,
+        custom_env: Optional[os.environ] = {},
     ) -> Coroutine[Any, Any, Process]:
         env = os.environ.copy()
         if self.num_gpus > self.mpiranks:
@@ -317,6 +330,7 @@ class Config:
         env["PIKA_COMMANDLINE_OPTIONS"] = (
             f"--pika:bind=none --pika:threads={self.ompthreads}"
         )
+        env |= custom_env
         exe_name = f"{exe_stem}.{self.version}"
         cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:
@@ -364,6 +378,10 @@ class Batch:
         self.src_dir = cfg.cp2k_root / "tests" / self.name
         self.workdir = cfg.work_base_dir / self.name
         self.huge_suppressions = cfg.huge_suppressions
+        self.env = {}
+
+    def set_custom_env(self, env: os.environ):
+        self.env = env
 
     def requirements_satisfied(self, flags: List[str], mpiranks: int) -> bool:
         result = True
@@ -576,7 +594,9 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.regtests:
         start_time = time.perf_counter()
         start_dirsize = dirsize(batch.workdir)
-        child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
+        child = await cfg.launch_exe(
+            "cp2k", test.inp_fn, cwd=batch.workdir, custom_env=batch.env
+        )
         output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         test.out_path.write_bytes(output)
         duration = time.perf_counter() - start_time

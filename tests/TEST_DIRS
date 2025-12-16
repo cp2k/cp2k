@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-moments-kpoints
+MIMIC/regtest-qmmm                                          mimic mpiranks==4
 QS/regtest-monovalent
 QS/regtest-tddfpt-sf-force                                  libint !ifx
 QS/regtest-tddfpt-sf                                        libint !ifx
