@@ -246,7 +246,7 @@ QS/regtest-ps-implicit-2-3
 QS/regtest-nmr-5
 QS/regtest-ecp                                              libgrpp
 QS/regtest-as-3                                             libint mpiranks%2==0 !ifx
-QS/regtest-gpw-7
+QS/regtest-gpw-7                                            mpiranks<4
 QS/regtest-bse                                              libint !ifx
 QS/regtest-rtbse                                            libint !ifx
 QS/regtest-smeagol-1
