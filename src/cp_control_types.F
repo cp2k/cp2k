@@ -611,6 +611,10 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE rixs_control_type
 
+      LOGICAL                              :: enabled = .FALSE.
+      INTEGER                              :: core_states = 0
+      INTEGER                              :: valence_states = 0
+
       TYPE(tddfpt2_control_type), POINTER     :: tddfpt2_control => NULL()
       TYPE(xas_tdp_control_type), POINTER     :: xas_tdp_control => NULL()
 

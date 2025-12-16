@@ -1,9 +1,16 @@
 #Testing the RIXS method and the keyword combinations it involves
-"CO-PBE0.inp"                                  = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017}]
-"CH3-PBE-roks.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.068580}]
-"CH3-PBE-uks.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.242788}]
-"H2O-PBE0.inp"                                 = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.371583}]
-"He-LDA_RIbas.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=25.875010}]
-"Ne-LDA-e_range.inp"                           = [{matcher="XAS_excit_ener", tol=1e-08, ref=829.640319}]
-"SiH4-PBE0-admm-pseudo.inp"                    = [{matcher="XAS_excit_ener", tol=1e-08, ref=1802.938610}]
+"CO-PBE0.inp"                                  = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.59403}]
+"CH3-PBE-roks.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.068580},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=3.09421}]
+"CH3-PBE-uks.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.242788},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=4.48588}]
+"H2O-PBE0.inp"                                 = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.371583},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.46209}]
+"He-LDA_RIbas.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=25.875010},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=25.89828}]
+"Ne-LDA-e_range.inp"                           = [{matcher="XAS_excit_ener", tol=1e-08, ref=829.640319},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=17.53698}]
+"SiH4-PBE0-admm-pseudo.inp"                    = [{matcher="XAS_excit_ener", tol=1e-08, ref=1802.938610},
+                                                        {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=9.71826}]
 #EOF

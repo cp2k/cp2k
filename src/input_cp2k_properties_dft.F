@@ -165,6 +165,31 @@ CONTAINS
                           n_keywords=1, n_subsections=3, repeats=.FALSE., &
                           citations=[VazdaCruz2021])
 
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the RIXS procedure", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CORE_STATES", &
+                          description="Number of core excited states to be used in the RIXS "// &
+                          "calculation. Restricting this number reduces computational cost. "// &
+                          "-1 means all available core states will be used.", &
+                          n_var=1, type_of_var=integer_t, default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VALENCE_STATES", &
+                          description="Number of valence excited states to be used in the RIXS "// &
+                          "calculation. Restricting this number reduces computational cost, but "// &
+                          "removes spectral features corresponding to higher excitations. Should be "// &
+                          "used with care. -1 means all available valence states will be used.", &
+                          n_var=1, type_of_var=integer_t, default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_tddfpt2_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

@@ -125,7 +125,6 @@ CONTAINS
          nocc_max, nspins, nstates, nvirt, output_unit, td_state
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       LOGICAL                                            :: do_sc, do_sg, roks, uks
-      REAL(dp)                                           :: mu_xyz
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
@@ -234,10 +233,30 @@ CONTAINS
 
          nex_atoms = core_state%nex_atoms
          nstates = valence_state%nstates
+         nvirt = core_state%nvirt
+
+         IF (rixs_control%core_states > 0) THEN
+            rixs_control%core_states = MIN(rixs_control%core_states, nvirt)
+         ELSE
+            rixs_control%core_states = nvirt
+         END IF
+
+         IF (rixs_control%valence_states > 0) THEN
+            rixs_control%valence_states = MIN(rixs_control%valence_states, nstates)
+         ELSE
+            rixs_control%valence_states = nstates
+         END IF
+
+         IF (output_unit > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,I5,A,I5)") &
+               "RIXS| Using ", rixs_control%core_states, " core states out of ", core_state%nvirt
+            WRITE (UNIT=output_unit, FMT="(T2,A,I5,A,I5,/)") &
+               "RIXS| Using ", rixs_control%valence_states, " valence states out of ", valence_state%nstates
+         END IF
+
          dipmat => core_state%dipmat
 
          ALLOCATE (core_evects(nspins), state_gs_coeffs(nspins))
-         nvirt = core_state%nvirt
          ALLOCATE (dip_block(1, nspins), mu_i0(4, nvirt), mu_if(4, nvirt, nstates), w_i0(nvirt), w_if(nstates))
          mu_i0 = 0.0_dp
          mu_if = 0.0_dp
@@ -255,10 +274,10 @@ CONTAINS
          DO iatom = 1, nex_atoms
             current_state => core_state%donor_states(current_state_index)
             IF (output_unit > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,A,A,A,A,A,I5)") &
+               WRITE (UNIT=output_unit, FMT="(T2,A,A,A,I3,A,A)") &
                   "RIXS| Calculating dipole moment from core-excited state ", &
-                  core_state%state_type_char(current_state%state_type), " of ", TRIM(current_state%at_symbol), &
-                  " with index ", current_state%kind_index
+                  core_state%state_type_char(current_state%state_type), " for atom ", &
+                  current_state%at_index, " of kind ", TRIM(current_state%at_symbol)
             END IF
 
             IF (do_sg) THEN ! singlet
@@ -318,21 +337,20 @@ CONTAINS
                   CALL parallel_gemm('T', 'N', nvirt, 1, nao, 1.0_dp, core_evects(ispin), dip_0, 0.0_dp, i_dip_0(ispin))
                END DO
 
-               DO istate = 1, nvirt
+               DO istate = 1, rixs_control%core_states
                   dip_block = 0.0_dp
                   DO ispin = 1, nspins
                      CALL cp_fm_get_submatrix(fm=i_dip_0(ispin), target_m=dip_block, start_row=istate, &
                                               start_col=1, n_rows=1, n_cols=1)
-                     mu_i0(ax, istate) = dip_block(1, 1)
+                     mu_i0(ax, istate) = mu_i0(ax, istate) + dip_block(1, 1)
                   END DO ! ispin
-                  mu_xyz = mu_i0(ax, istate)
-                  mu_i0(4, istate) = mu_i0(4, istate) + mu_xyz
+                  mu_i0(4, istate) = mu_i0(4, istate) + mu_i0(ax, istate)**2
                END DO ! istate
 
             END DO ! ax
 
             ! i -> f
-            DO td_state = 1, nstates
+            DO td_state = 1, rixs_control%valence_states
 
                IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(T9,A,I3,A,F10.4)") &
@@ -349,7 +367,7 @@ CONTAINS
                                         dip_f(ispin), 0.0_dp, i_dip_f(ispin))
                   END DO
 
-                  DO istate = 1, nvirt
+                  DO istate = 1, rixs_control%core_states
                      DO fstate = 1, nocc_max
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
@@ -360,8 +378,7 @@ CONTAINS
                            END IF
                         END DO ! ispin
                      END DO ! fstate (tddft)
-                     mu_xyz = mu_if(ax, istate, td_state)
-                     mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_xyz
+                     mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_if(ax, istate, td_state)**2
                   END DO ! istate (core)
 
                END DO ! ax
@@ -371,7 +388,7 @@ CONTAINS
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") "RIXS| Printing spectrum to file"
             END IF
-            CALL print_rixs_to_file(current_state, mu_i0, mu_if, w_i0, w_if, rixs_env, rixs_section)
+            CALL print_rixs_to_file(current_state, mu_i0, mu_if, w_i0, w_if, rixs_env, rixs_section, rixs_control)
 
             current_state_index = current_state_index + 1
 
@@ -491,9 +508,10 @@ CONTAINS
 !> \param w_if ...
 !> \param rixs_env ...
 !> \param rixs_section ...
+!> \param rixs_control ...
 ! **************************************************************************************************
    SUBROUTINE print_rixs_to_file(donor_state, mu_i0, mu_if, w_i0, w_if, &
-                                 rixs_env, rixs_section)
+                                 rixs_env, rixs_section, rixs_control)
 
       TYPE(donor_state_type), POINTER                    :: donor_state
       REAL(dp), DIMENSION(:, :)                          :: mu_i0
@@ -501,6 +519,7 @@ CONTAINS
       REAL(dp), DIMENSION(:)                             :: w_i0, w_if
       TYPE(rixs_env_type), POINTER                       :: rixs_env
       TYPE(section_vals_type), POINTER                   :: rixs_section
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
 
       INTEGER                                            :: f, i, output_unit, rixs_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -516,31 +535,31 @@ CONTAINS
 
       IF (rixs_unit > 0) THEN
 
-         WRITE (rixs_unit, FMT="(A,/,T2,A,A,A,A,A,I5,A/,A)") &
-            "====================================================================================", &
+         WRITE (rixs_unit, FMT="(A,/,T2,A,A,A,I3,A,A,A/,A)") &
+            "=====================================================================================", &
             "Excitation from ground-state (", &
-            rixs_env%core_state%state_type_char(donor_state%state_type), " of kind ", &
-            TRIM(donor_state%at_symbol), " with index ", donor_state%kind_index, &
+            rixs_env%core_state%state_type_char(donor_state%state_type), " for atom ", &
+            donor_state%at_index, " of kind ", TRIM(donor_state%at_symbol), &
             ") to core-excited state i ", &
-            "===================================================================================="
+            "====================================================================================="
 
          WRITE (rixs_unit, FMT="(T3,A)") &
             "w_0i (eV)            mu^x_0i (a.u.)  mu^y_0i (a.u.)  mu^z_0i (a.u.)  mu^2_0i (a.u.)"
-         DO i = 1, SIZE(mu_i0, DIM=2)
+         DO i = 1, rixs_control%core_states
             WRITE (rixs_unit, FMT="(T2,F10.4,T26,E12.5,T42,E12.5,T58,E12.5,T74,E12.5)") &
                w_i0(i), mu_i0(1, i), mu_i0(2, i), mu_i0(3, i), mu_i0(4, i)
          END DO
 
          WRITE (rixs_unit, FMT="(A,/,T2,A,/,A)") &
-            "====================================================================================", &
+            "=====================================================================================", &
             "Emission from core-excited state i to valence-excited state f ", &
-            "===================================================================================="
+            "====================================================================================="
 
          WRITE (rixs_unit, FMT="(T3,A)") &
             "w_0i (eV) w_if (eV)  mu^x_if (a.u.)  mu^y_if (a.u.)  mu^z_if (a.u.)  mu^2_if (a.u.)"
 
-         DO i = 1, SIZE(mu_if, DIM=2)
-            DO f = 1, SIZE(mu_if, DIM=3)
+         DO i = 1, rixs_control%core_states
+            DO f = 1, rixs_control%valence_states
                WRITE (rixs_unit, FMT="(T2,F10.4,T14,F8.4,T26,E12.5,T42,E12.5,T58,E12.5,T74,E12.5)") &
                   w_i0(i), w_if(f), mu_if(1, i, f), mu_if(2, i, f), mu_if(3, i, f), mu_if(4, i, f)
             END DO

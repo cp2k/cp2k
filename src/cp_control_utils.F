@@ -732,6 +732,11 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: td_section, xas_section
 
+      ! CALL section_vals_val_get(rixs_section, "_SECTION_PARAMETERS_", l_val=rixs_control%enabled)
+
+      CALL section_vals_val_get(rixs_section, "CORE_STATES", i_val=rixs_control%core_states)
+      CALL section_vals_val_get(rixs_section, "VALENCE_STATES", i_val=rixs_control%valence_states)
+
       td_section => section_vals_get_subs_vals(rixs_section, "TDDFPT")
       CALL read_tddfpt2_control(rixs_control%tddfpt2_control, td_section, qs_control)
 
