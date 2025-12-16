@@ -1561,6 +1561,7 @@ endif()
 
 list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
+list(APPEND CP2K_SRCS_F openPMD.F)
 list(APPEND CP2K_SRCS_CPP openPMD.cpp)
 
 # ##############################################################################
