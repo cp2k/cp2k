@@ -1560,7 +1560,8 @@ if(CP2K_USE_GRPP)
   list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
 endif()
 
-list(APPEND CP2K_SRCS_F openPMD.F)
+list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
+     cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
 list(APPEND CP2K_SRCS_CPP openPMD.cpp)
 
 # ##############################################################################
