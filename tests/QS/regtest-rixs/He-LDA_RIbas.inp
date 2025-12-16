@@ -23,6 +23,8 @@
   &END DFT
   &PROPERTIES
     &RIXS
+      CORE_STATES 14
+      VALENCE_STATES -1
       &TDDFPT
         KERNEL FULL
         MAX_ITER 5
