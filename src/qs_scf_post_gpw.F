@@ -51,7 +51,11 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_close_iterations,&
+                                              cp_openpmd_print_key_finished_output,&
+                                              cp_openpmd_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print
@@ -215,7 +219,305 @@ MODULE qs_scf_post_gpw
 
    PUBLIC :: make_lumo_gpw
 
+   CHARACTER(len=*), PARAMETER :: &
+      str_mo_cubes = "PRINT%MO_CUBES", &
+      str_mo_openpmd = "PRINT%MO_OPENPMD", &
+      str_elf_cubes = "PRINT%ELF_CUBE", &
+      str_elf_openpmd = "PRINT%ELF_OPENPMD", &
+      str_e_density_cubes = "PRINT%E_DENSITY_CUBE", &
+      str_e_density_openpmd = "PRINT%E_DENSITY_OPENPMD"
+
+   INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
+
+   ! Generic information on whether a certain output section has been activated
+   ! or not, and on whether it has been activated in the Cube or openPMD variant.
+   ! Create with function cube_or_openpmd(), see there for further details.
+   TYPE cp_section_key
+      CHARACTER(len=default_string_length) :: relative_section_key ! e.g. PRINT%MO_CUBES
+      CHARACTER(len=default_string_length) :: absolute_section_key ! e.g. DFT%PRINT%MO_CUBES
+      CHARACTER(len=7) :: format_name ! 'openPMD' or 'Cube', for logging
+      INTEGER :: grid_output ! either 1 for grid_output_cubes or 2 for grid_output_openpmd
+      LOGICAL :: do_output
+   CONTAINS
+      ! Open a file as either Cube or openPMD
+      PROCEDURE, PUBLIC :: print_key_unit_nr => cp_forward_print_key_unit_nr
+      ! Write either to the Cube or openPMD file
+      PROCEDURE, PUBLIC :: write_pw => cp_forward_write_pw
+      ! Close either the Cube or openPMD file
+      PROCEDURE, PUBLIC :: print_key_finished_output => cp_forward_print_key_finished_output
+      ! Helpers
+      PROCEDURE, PUBLIC :: do_openpmd => cp_section_key_do_openpmd
+      PROCEDURE, PUBLIC :: do_cubes => cp_section_key_do_cubes
+      PROCEDURE, PUBLIC :: concat_to_relative => cp_section_key_concat_to_relative
+      PROCEDURE, PUBLIC :: concat_to_absolute => cp_section_key_concat_to_absolute
+   END TYPE cp_section_key
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Append `extend_by` to the absolute path of the base section.
+!> \param self ...
+!> \param extend_by ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_section_key_concat_to_absolute(self, extend_by) RESULT(res)
+      CLASS(cp_section_key), INTENT(IN) :: self
+      CHARACTER(*), INTENT(IN) :: extend_by
+      CHARACTER(len=default_string_length) :: res
+
+      IF (LEN(TRIM(extend_by)) > 0 .AND. extend_by(1:1) == "%") THEN
+         res = TRIM(self%absolute_section_key)//TRIM(extend_by)
+      ELSE
+         res = TRIM(self%absolute_section_key)//"%"//TRIM(extend_by)
+      END IF
+   END FUNCTION cp_section_key_concat_to_absolute
+
+! **************************************************************************************************
+!> \brief Append `extend_by` to the relative path (e.g. without DFT%) of the base section.
+!> \param self ...
+!> \param extend_by ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_section_key_concat_to_relative(self, extend_by) RESULT(res)
+      CLASS(cp_section_key), INTENT(IN) :: self
+      CHARACTER(*), INTENT(IN) :: extend_by
+      CHARACTER(len=default_string_length) :: res
+
+      IF (LEN(TRIM(extend_by)) > 0 .AND. extend_by(1:1) == "%") THEN
+         res = TRIM(self%relative_section_key)//TRIM(extend_by)
+      ELSE
+         res = TRIM(self%relative_section_key)//"%"//TRIM(extend_by)
+      END IF
+   END FUNCTION cp_section_key_concat_to_relative
+
+! **************************************************************************************************
+!> \brief Is Cube output active for the current base section?
+!> \param self ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_section_key_do_cubes(self) RESULT(res)
+      CLASS(cp_section_key) :: self
+      LOGICAL :: res
+
+      res = self%do_output .AND. self%grid_output == grid_output_cubes
+   END FUNCTION cp_section_key_do_cubes
+
+! **************************************************************************************************
+!> \brief Is openPMD output active for the current base section?
+!> \param self ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_section_key_do_openpmd(self) RESULT(res)
+      CLASS(cp_section_key) :: self
+      LOGICAL :: res
+
+      res = self%do_output .AND. self%grid_output == grid_output_openpmd
+   END FUNCTION cp_section_key_do_openpmd
+
+! **************************************************************************************************
+!> \brief Forwards to either `cp_print_key_unit_nr` or `cp_openpmd_print_key_unit_nr`,
+!>        depending on the configuration of the current base section.
+!>        Opens either a Cube or openPMD output file
+!> \param self ...
+!> \param logger ...
+!> \param basis_section ...
+!> \param print_key_path ...
+!> \param extension ...
+!> \param middle_name ...
+!> \param local ...
+!> \param log_filename ...
+!> \param ignore_should_output ...
+!> \param file_form ...
+!> \param file_position ...
+!> \param file_action ...
+!> \param file_status ...
+!> \param do_backup ...
+!> \param on_file ...
+!> \param is_new_file ...
+!> \param mpi_io ...
+!> \param fout ...
+!> \param openpmd_basename ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_forward_print_key_unit_nr(self, logger, basis_section, print_key_path, extension, &
+                                         middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
+                                         file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
+                                         fout, openpmd_basename) RESULT(res)
+      CLASS(cp_section_key), INTENT(IN)                  :: self
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), INTENT(IN)                :: basis_section
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
+      CHARACTER(len=*), INTENT(IN)                       :: extension
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
+      LOGICAL, INTENT(IN), OPTIONAL                      :: local, log_filename, ignore_should_output
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
+                                                            file_status
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_backup, on_file
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: is_new_file
+      LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
+      CHARACTER(len=default_path_length), INTENT(OUT), &
+         OPTIONAL                                        :: fout
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      INTEGER                                            :: res
+
+      IF (self%grid_output == grid_output_cubes) THEN
+         res = cp_print_key_unit_nr( &
+               logger, basis_section, print_key_path, extension=extension, &
+               middle_name=middle_name, local=local, log_filename=log_filename, &
+               ignore_should_output=ignore_should_output, file_form=file_form, &
+               file_position=file_position, file_action=file_action, &
+               file_status=file_status, do_backup=do_backup, on_file=on_file, &
+               is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
+      ELSE
+         res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
+                                            middle_name=middle_name, ignore_should_output=ignore_should_output, &
+                                            mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
+      END IF
+   END FUNCTION cp_forward_print_key_unit_nr
+
+! **************************************************************************************************
+!> \brief Forwards to either `cp_pw_to_cube` or `cp_pw_to_openpmd`,
+!>        depending on the configuration of the current base section.
+!>        Writes data to either a Cube or an openPMD file.
+!> \param self ...
+!> \param pw ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param particles ...
+!> \param zeff ...
+!> \param stride ...
+!> \param max_file_size_mb ...
+!> \param zero_tails ...
+!> \param silent ...
+!> \param mpi_io ...
+! **************************************************************************************************
+   SUBROUTINE cp_forward_write_pw( &
+      self, &
+      pw, &
+      unit_nr, &
+      title, &
+      particles, &
+      zeff, &
+      stride, &
+      max_file_size_mb, &
+      zero_tails, &
+      silent, &
+      mpi_io &
+      )
+      CLASS(cp_section_key), INTENT(IN)                  :: self
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
+      INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
+      TYPE(particle_list_type), POINTER                  :: particles
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: max_file_size_mb
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: zeff
+
+      IF (self%grid_output == grid_output_cubes) THEN
+         CALL cp_pw_to_cube(pw, unit_nr, title, particles, zeff, stride, max_file_size_mb, zero_tails, silent, mpi_io)
+      ELSE
+         CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, zeff, stride, zero_tails, silent, mpi_io)
+      END IF
+   END SUBROUTINE cp_forward_write_pw
+
+! **************************************************************************************************
+!> \brief Forwards to either `cp_print_key_finished_output` or `cp_openpmd_print_key_finished_output`,
+!>        depending on the configuration of the current base section.
+!>        Closes either a Cube file or a reference to a section within an openPMD file.
+!> \param self ...
+!> \param unit_nr ...
+!> \param logger ...
+!> \param basis_section ...
+!> \param print_key_path ...
+!> \param local ...
+!> \param ignore_should_output ...
+!> \param on_file ...
+!> \param mpi_io ...
+! **************************************************************************************************
+   SUBROUTINE cp_forward_print_key_finished_output(self, unit_nr, logger, basis_section, &
+                                                   print_key_path, local, ignore_should_output, on_file, &
+                                                   mpi_io)
+      CLASS(cp_section_key), INTENT(IN)                  :: self
+      INTEGER, INTENT(INOUT)                             :: unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), INTENT(IN)                :: basis_section
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
+      LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
+                                                            mpi_io
+
+      IF (self%grid_output == grid_output_cubes) THEN
+     CALL cp_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, on_file, mpi_io)
+      ELSE
+      CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
+      END IF
+   END SUBROUTINE cp_forward_print_key_finished_output
+
+   !
+! **************************************************************************************************
+!> \brief Decides if a particular output routine will write to openPMD, to Cube or to none.
+!>        Writing to both is not supported.
+!>        The distinction between Cube and openPMD output works such that the output configuration
+!>        sections exist as duplicates: E.g. for DFT%PRINT%MO_CUBES,
+!>        there additionally exists DFT%PRINT%MO_OPENPMD.
+!>        The internal base configuration for such sections is identical; additionally there
+!>        exist format-specific options such as APPEND for Cube or OPENPMD_CFG_FILE for openPMD.
+!>        The routines in this file alternate between using relative section paths without the
+!>        %DFT prefix (e.g. PRINT%MO_CUBES) or absolute section paths with the %DF% prefix
+!>        (e.g. DFT%PRINT%MO_CUBES). Call this routine with the relative paths.
+!> \param input ...
+!> \param str_cubes ...
+!> \param str_openpmd ...
+!> \param logger ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cube_or_openpmd(input, str_cubes, str_openpmd, logger) RESULT(res)
+      TYPE(section_vals_type), POINTER                   :: input
+      CHARACTER(len=*), INTENT(IN)                       :: str_cubes, str_openpmd
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_section_key)                               :: res
+
+      LOGICAL                                            :: do_cubes, do_openpmd
+
+      do_cubes = BTEST(cp_print_key_should_output( &
+                       logger%iter_info, input, &
+                       "DFT%"//TRIM(ADJUSTL(str_cubes))), cp_p_file)
+      do_openpmd = BTEST(cp_print_key_should_output( &
+                         logger%iter_info, input, &
+                         "DFT%"//TRIM(ADJUSTL(str_openpmd))), cp_p_file)
+      ! Having Cube and openPMD output both active should be theoretically possible.
+      ! It would require some extra handling for the unit_nr return values.
+      ! (e.g. returning the Cube unit_nr and internally storing the associated openPMD unit_nr).
+      CPASSERT(.NOT. (do_cubes .AND. do_openpmd))
+      res%do_output = do_cubes .OR. do_openpmd
+      IF (do_openpmd) THEN
+         res%grid_output = grid_output_openpmd
+         res%relative_section_key = TRIM(ADJUSTL(str_openpmd))
+         res%format_name = "openPMD"
+      ELSE
+         res%grid_output = grid_output_cubes
+         res%relative_section_key = TRIM(ADJUSTL(str_cubes))
+         res%format_name = "Cube"
+      END IF
+      res%absolute_section_key = "DFT%"//TRIM(ADJUSTL(res%relative_section_key))
+   END FUNCTION cube_or_openpmd
+
+! **************************************************************************************************
+!> \brief This section key is named WRITE_CUBE for Cube which does not make much sense
+!>        for openPMD, so this key name has to be distinguished.
+!> \param grid_output ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION section_key_do_write(grid_output) RESULT(res)
+      INTEGER, INTENT(IN)                                :: grid_output
+      CHARACTER(len=32)                                  :: res
+
+      IF (grid_output == grid_output_cubes) THEN
+         res = "%WRITE_CUBE"
+      ELSE IF (grid_output == grid_output_openpmd) THEN
+         res = "%WRITE_OPENPMD"
+      END IF
+   END FUNCTION section_key_do_write
 
 ! **************************************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
@@ -241,14 +543,16 @@ CONTAINS
       CHARACTER(6), OPTIONAL                             :: wf_type
       LOGICAL, OPTIONAL                                  :: do_mp2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
+         warning_cube_kpoint = "Print MO cubes not implemented for k-point calculations", &
+         warning_openpmd_kpoint = "Writing to openPMD not implemented for k-point calculations"
 
       INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
                                                             nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
                                                             nlumos, nmo, nspins, output_unit, &
                                                             unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_mo_cubes, do_stm, &
+      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
          my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo, p_loc_mixed
       REAL(dp)                                           :: e_kin
@@ -266,6 +570,7 @@ CONTAINS
                                                             unoccupied_orbs, unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_section_key)                               :: mo_section
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_p_mp2, matrix_s, &
                                                             mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: kinetic_m, rho_ao
@@ -435,20 +740,20 @@ CONTAINS
       nlumo_stm = 0
       IF (do_stm) nlumo_stm = section_get_ival(stm_section, "NLUMO")
 
-      ! check for CUBES (MOs and WANNIERS)
-      do_mo_cubes = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
-                          , cp_p_file)
+      ! check for CUBES or openPMD (MOs and WANNIERS)
+      mo_section = cube_or_openpmd(input, str_mo_cubes, str_mo_openpmd, logger)
+
       IF (loc_print_explicit) THEN
          do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                              "WANNIER_CUBES"), cp_p_file)
       ELSE
          do_wannier_cubes = .FALSE.
       END IF
-      nlumo = section_get_ival(dft_section, "PRINT%MO_CUBES%NLUMO")
-      nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
+      nlumo = section_get_ival(dft_section, mo_section%concat_to_relative("%NLUMO"))
+      nhomo = section_get_ival(dft_section, mo_section%concat_to_relative("%NHOMO"))
 
       ! Setup the grids needed to compute a wavefunction given a vector..
-      IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
+      IF (((mo_section%do_output .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
          CALL auxbas_pw_pool%create_pw(wf_r)
@@ -462,18 +767,19 @@ CONTAINS
          nspins = dft_control%nspins
       END IF
       !Some info about ROKS
-      IF (dft_control%restricted .AND. (do_mo_cubes .OR. p_loc_homo)) THEN
+      IF (dft_control%restricted .AND. (mo_section%do_output .OR. p_loc_homo)) THEN
          CALL cp_abort(__LOCATION__, "Unclear how we define MOs / localization in the restricted case ... ")
          ! It is possible to obtain Wannier centers for ROKS without rotations for SINGLE OCCUPIED ORBITALS
       END IF
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
-         CPWARN_IF(do_mo_cubes, "Print MO cubes not implemented for k-point calculations")
+         CPWARN_IF(mo_section%do_cubes(), warning_cube_kpoint)
+         CPWARN_IF(mo_section%do_openpmd(), warning_openpmd_kpoint)
       ELSE
          CALL get_qs_env(qs_env, &
                          mos=mos, &
                          matrix_ks=ks_rmpv)
-         IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm) THEN
+         IF ((mo_section%do_output .AND. nhomo /= 0) .OR. do_stm) THEN
             CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
             IF (dft_control%do_admm) THEN
                CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -494,13 +800,13 @@ CONTAINS
             END DO
             has_homo = .TRUE.
          END IF
-         IF (do_mo_cubes .AND. nhomo /= 0) THEN
+         IF (mo_section%do_output .AND. nhomo /= 0) THEN
             DO ispin = 1, nspins
                ! Prints the cube files of OCCUPIED ORBITALS
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
                CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                          mo_coeff, wf_g, wf_r, particles, homo, ispin)
+                                          mo_coeff, wf_g, wf_r, particles, homo, ispin, mo_section)
             END DO
          END IF
       END IF
@@ -536,7 +842,7 @@ CONTAINS
             CALL qs_loc_env_create(qs_loc_env_homo)
             CALL qs_loc_control_init(qs_loc_env_homo, localize_section, do_homo=do_homo)
             CALL qs_loc_init(qs_env, qs_loc_env_homo, localize_section, homo_localized, do_homo, &
-                             do_mo_cubes, mo_loc_history=mo_loc_history)
+                             mo_section%do_output, mo_loc_history=mo_loc_history)
             CALL get_localization_info(qs_env, qs_loc_env_homo, localize_section, homo_localized, &
                                        wf_r, wf_g, particles, occupied_orbs, occupied_evals, marked_states)
 
@@ -561,12 +867,12 @@ CONTAINS
 
       ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
       IF (do_kpoints) THEN
-         IF (do_mo_cubes .OR. p_loc_lumo) THEN
+         IF (mo_section%do_output .OR. p_loc_lumo) THEN
             ! nothing at the moment, not implemented
             CPWARN("Localization and MO related output not implemented for k-point calculations!")
          END IF
       ELSE
-         compute_lumos = do_mo_cubes .AND. nlumo /= 0
+         compute_lumos = mo_section%do_output .AND. nlumo /= 0
          compute_lumos = compute_lumos .OR. p_loc_lumo
 
          DO ispin = 1, dft_control%nspins
@@ -574,9 +880,9 @@ CONTAINS
             compute_lumos = compute_lumos .AND. homo == nmo
          END DO
 
-         IF (do_mo_cubes .AND. .NOT. compute_lumos) THEN
+         IF (mo_section%do_output .AND. .NOT. compute_lumos) THEN
 
-            nlumo = section_get_ival(dft_section, "PRINT%MO_CUBES%NLUMO")
+            nlumo = section_get_ival(dft_section, mo_section%concat_to_relative("%NLUMO"))
             DO ispin = 1, dft_control%nspins
 
                CALL get_mo_set(mo_set=mos(ispin), homo=homo, nmo=nmo, eigenvalues=mo_eigenvalues)
@@ -594,7 +900,7 @@ CONTAINS
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                               mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1)
+                                          mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1, mo_section=mo_section)
                END IF
             END DO
 
@@ -624,7 +930,7 @@ CONTAINS
                   IF (p_loc_lumo .AND. nlumo /= -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                               unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin)
+                                          unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin, mo_section=mo_section)
                END IF
             END DO
 
@@ -634,7 +940,7 @@ CONTAINS
                   CALL cp_fm_create(lumo_localized(ispin), unoccupied_orbs(ispin)%matrix_struct)
                   CALL cp_fm_to_fm(unoccupied_orbs(ispin), lumo_localized(ispin))
                END DO
-               CALL qs_loc_init(qs_env, qs_loc_env_lumo, localize_section, lumo_localized, do_homo, do_mo_cubes, &
+               CALL qs_loc_init(qs_env, qs_loc_env_lumo, localize_section, lumo_localized, do_homo, mo_section%do_output, &
                                 evals=unoccupied_evals)
                CALL qs_loc_env_init(qs_loc_env_lumo, qs_loc_env_lumo%localized_wfn_control, qs_env, &
                                     loc_coeff=unoccupied_orbs)
@@ -687,7 +993,7 @@ CONTAINS
             CALL qs_loc_env_create(qs_loc_env_mixed)
             CALL qs_loc_control_init(qs_loc_env_mixed, localize_section, do_homo=do_homo, do_mixed=do_mixed)
             CALL qs_loc_init(qs_env, qs_loc_env_mixed, localize_section, mixed_localized, do_homo, &
-                             do_mo_cubes, mo_loc_history=mo_loc_history, tot_zeff_corr=total_zeff_corr, &
+                             mo_section%do_output, mo_loc_history=mo_loc_history, tot_zeff_corr=total_zeff_corr, &
                              do_mixed=do_mixed)
 
             DO ispin = 1, dft_control%nspins
@@ -718,7 +1024,7 @@ CONTAINS
       END IF
 
       ! Deallocate grids needed to compute wavefunctions
-      IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
+      IF (((mo_section%do_output .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
          CALL auxbas_pw_pool%give_back_pw(wf_r)
          CALL auxbas_pw_pool%give_back_pw(wf_g)
       END IF
@@ -821,6 +1127,8 @@ CONTAINS
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       END IF
+
+      CALL cp_openpmd_close_iterations()
 
       CALL timestop(handle)
 
@@ -1001,9 +1309,10 @@ CONTAINS
 !> \param particles ...
 !> \param homo ...
 !> \param ispin ...
+!> \param mo_section ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                    mo_coeff, wf_g, wf_r, particles, homo, ispin)
+                                    mo_coeff, wf_g, wf_r, particles, homo, ispin, mo_section)
       TYPE(section_vals_type), POINTER                   :: input, dft_section
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1013,6 +1322,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
+      TYPE(cp_section_key)                               :: mo_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes'
 
@@ -1029,22 +1339,31 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+#ifndef __OPENPMD
+      ! Error should usually be caught earlier as PRINT%MO_OPENPMD is not added to the input section
+      ! if openPMD is not activated
+      CPASSERT(mo_section%grid_output /= grid_output_openpmd)
+#endif
+
       NULLIFY (list_index)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
-                , cp_p_file) .AND. section_get_lval(dft_section, "PRINT%MO_CUBES%WRITE_CUBE")) THEN
-         nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
-         append_cube = section_get_lval(dft_section, "PRINT%MO_CUBES%APPEND")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key) &
+ , cp_p_file) .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+         nhomo = section_get_ival(dft_section, mo_section%concat_to_relative("%NHOMO"))
+         ! For openPMD, refer to access modes instead of APPEND key
+         IF (mo_section%grid_output == grid_output_cubes) THEN
+            append_cube = section_get_lval(dft_section, mo_section%concat_to_relative("%APPEND"))
+         END IF
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
-         CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", n_rep_val=n_rep)
+         CALL section_vals_val_get(dft_section, mo_section%concat_to_relative("%HOMO_LIST"), n_rep_val=n_rep)
          IF (n_rep > 0) THEN ! write the cubes of the list
             nlist = 0
             DO ir = 1, n_rep
                NULLIFY (list)
-               CALL section_vals_val_get(dft_section, "PRINT%MO_CUBES%HOMO_LIST", i_rep_val=ir, &
+               CALL section_vals_val_get(dft_section, mo_section%concat_to_relative("%HOMO_LIST"), i_rep_val=ir, &
                                          i_vals=list)
                IF (ASSOCIATED(list)) THEN
                   CALL reallocate(list_index, 1, nlist + SIZE(list))
@@ -1075,15 +1394,16 @@ CONTAINS
                                         cell, dft_control, particle_set, pw_env)
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
+
+            unit_nr = mo_section%print_key_unit_nr(logger, input, mo_section%absolute_section_key, extension=".cube", &
+                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                   mpi_io=mpi_io, openpmd_basename="dft-mo")
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), &
-                               max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
-                               mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
+                                     max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
+                                     mpi_io=mpi_io)
+            CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
@@ -1107,9 +1427,10 @@ CONTAINS
 !> \param homo ...
 !> \param ispin ...
 !> \param lumo ...
+!> \param mo_section ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                      unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, lumo)
+                                      unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, lumo, mo_section)
 
       TYPE(section_vals_type), POINTER                   :: input, dft_section
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1121,6 +1442,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
       INTEGER, INTENT(IN), OPTIONAL                      :: lumo
+      TYPE(cp_section_key)                               :: mo_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes'
 
@@ -1136,10 +1458,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES"), cp_p_file) &
-          .AND. section_get_lval(dft_section, "PRINT%MO_CUBES%WRITE_CUBE")) THEN
+#ifndef __OPENPMD
+      ! Error should usually be caught earlier as PRINT%MO_OPENPMD is not added to the input section
+      ! if openPMD is not activated
+      CPASSERT(mo_section%grid_output /= grid_output_openpmd)
+#endif
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key), cp_p_file) &
+          .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
          NULLIFY (qs_kind_set, particle_set, pw_env, cell)
-         append_cube = section_get_lval(dft_section, "PRINT%MO_CUBES%APPEND")
+         ! For openPMD, refer to access modes instead of APPEND key
+         IF (mo_section%grid_output == grid_output_cubes) THEN
+            append_cube = section_get_lval(dft_section, mo_section%concat_to_relative("%APPEND"))
+         END IF
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
@@ -1164,15 +1495,16 @@ CONTAINS
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", index_mo, "_", ispin
             mpi_io = .TRUE.
 
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
+            unit_nr = mo_section%print_key_unit_nr(logger, input, mo_section%absolute_section_key, extension=".cube", &
+                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                   mpi_io=mpi_io, openpmd_basename="dft-mo")
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), &
-                               max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
-                               mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
+                                     max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
+                                     mpi_io=mpi_io)
+            CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
+
          END DO
       END IF
 
@@ -1448,6 +1780,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
       LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
+      TYPE(cp_section_key)                               :: elf_section_key
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1460,9 +1793,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      elf_section => section_vals_get_subs_vals(input, "DFT%PRINT%ELF_CUBE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%PRINT%ELF_CUBE"), cp_p_file)) THEN
+      elf_section_key = cube_or_openpmd(input, str_elf_cubes, str_elf_openpmd, logger)
+
+      elf_section => section_vals_get_subs_vals(input, elf_section_key%absolute_section_key)
+      IF (elf_section_key%do_output) THEN
 
          NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys)
          CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env, subsys=subsys)
@@ -1487,7 +1821,11 @@ CONTAINS
             CALL qs_elf_calc(qs_env, elf_r, rho_cutoff)
 
             ! write ELF into cube file
-            append_cube = section_get_lval(elf_section, "APPEND")
+
+            ! For openPMD, refer to access modes instead of APPEND key
+            IF (elf_section_key%grid_output == grid_output_cubes) THEN
+               append_cube = section_get_lval(elf_section, "APPEND")
+            END IF
             my_pos_cube = "REWIND"
             IF (append_cube) THEN
                my_pos_cube = "APPEND"
@@ -1497,9 +1835,10 @@ CONTAINS
                WRITE (filename, '(a5,I1.1)') "ELF_S", ispin
                WRITE (title, *) "ELF spin ", ispin
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%ELF_CUBE", extension=".cube", &
-                                              middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                              mpi_io=mpi_io, fout=mpi_filename)
+               unit_nr = elf_section_key%print_key_unit_nr( &
+                         logger, input, elf_section_key%absolute_section_key, extension=".cube", &
+                         middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                         mpi_io=mpi_io, fout=mpi_filename, openpmd_basename="dft-elf")
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -1507,13 +1846,18 @@ CONTAINS
                      filename = mpi_filename
                   END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "ELF is written in cube file format to the file:", &
+                     "ELF is written in "//elf_section_key%format_name//" file format to the file:", &
                      TRIM(filename)
                END IF
 
-               CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, &
-                                  stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ELF_CUBE", mpi_io=mpi_io)
+               CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
+                                             stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
+               CALL elf_section_key%print_key_finished_output( &
+                  unit_nr, &
+                  logger, &
+                  input, &
+                  elf_section_key%absolute_section_key, &
+                  mpi_io=mpi_io)
 
                CALL auxbas_pw_pool%give_back_pw(elf_r(ispin))
             END DO
@@ -1905,6 +2249,7 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_section_key)                               :: e_density_section
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hr
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_rmpv, matrix_vxc, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -2023,30 +2368,40 @@ CONTAINS
          CALL auxbas_pw_pool%give_back_pw(wf_r)
       END IF
 
+      e_density_section = cube_or_openpmd(input, str_e_density_cubes, str_e_density_openpmd, logger)
+
       ! Write cube file with electron density
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
+      IF (e_density_section%do_output) THEN
          CALL section_vals_val_get(dft_section, &
-                                   keyword_name="PRINT%E_DENSITY_CUBE%DENSITY_INCLUDE", &
+                                   keyword_name=e_density_section%concat_to_relative("%DENSITY_INCLUDE"), &
                                    c_val=print_density)
          print_density = TRIM(print_density)
-         append_cube = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%APPEND")
+         ! For openPMD, refer to access modes instead of APPEND key
+         IF (e_density_section%grid_output == grid_output_cubes) THEN
+            append_cube = section_get_lval(input, e_density_section%concat_to_absolute("%APPEND"))
+         END IF
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
          ! Write the info on core densities for the interface between cp2k and the XRD code
          ! together with the valence density they are used to compute the form factor (Fourier transform)
-         xrd_interface = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE")
+         IF (e_density_section%grid_output == grid_output_cubes) THEN
+            xrd_interface = section_get_lval(input, e_density_section%concat_to_absolute("%XRD_INTERFACE"))
+         ELSE
+            ! Unimplemented for openPMD, since this does not use the regular routines
+            xrd_interface = .FALSE.
+         END IF
+
          IF (xrd_interface) THEN
             !cube file only contains soft density (GAPW)
             IF (dft_control%qs_control%gapw) print_density = "SOFT_DENSITY"
 
             filename = "ELECTRON_DENSITY"
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+            unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
                                            extension=".xrd", middle_name=TRIM(filename), &
                                            file_position=my_pos_cube, log_filename=.FALSE.)
-            ngto = section_get_ival(input, "DFT%PRINT%E_DENSITY_CUBE%NGAUSS")
+            ngto = section_get_ival(input, e_density_section%concat_to_absolute("%NGAUSS"))
             IF (output_unit > 0) THEN
                INQUIRE (UNIT=unit_nr, NAME=filename)
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
@@ -2149,7 +2504,7 @@ CONTAINS
             DEALLOCATE (ppdens, aedens, ccdens)
 
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE")
+                                              e_density_section%absolute_section_key)
 
          END IF
          IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_DENSITY") THEN
@@ -2186,10 +2541,10 @@ CONTAINS
             rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                           extension=".cube", middle_name=TRIM(filename), &
-                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                           fout=mpi_filename)
+            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                          extension=".cube", middle_name=TRIM(filename), &
+                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                          fout=mpi_filename, openpmd_basename="dft-total-electron-density")
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2197,7 +2552,7 @@ CONTAINS
                   filename = mpi_filename
                END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The total electron density is written in cube file format to the file:", &
+                  "The total electron density is written in "//e_density_section%format_name//" file format to the file:", &
                   TRIM(filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "q(max) [1/Angstrom]              :", q_max/angstrom, &
@@ -2206,11 +2561,11 @@ CONTAINS
                   "Total electronic charge (G-space):", rho_total, &
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
-            CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
-                               particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+            CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
+                                            particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+            CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                             e_density_section%absolute_section_key, mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
                CALL pw_zero(rho_elec_gspace)
@@ -2232,18 +2587,18 @@ CONTAINS
                rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                              extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                              fout=mpi_filename)
+               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                             extension=".cube", middle_name=TRIM(filename), &
+                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                             fout=mpi_filename, openpmd_basename="dft-total-spin-density")
                IF (output_unit > 0) THEN
-                  IF (.NOT. mpi_io) THEN
+                  IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
                   ELSE
                      filename = mpi_filename
                   END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The total spin density is written in cube file format to the file:", &
+                     "The total spin density is written in "//e_density_section%format_name//" file format to the file:", &
                      TRIM(filename)
                   WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                      "q(max) [1/Angstrom]                    :", q_max/angstrom, &
@@ -2252,11 +2607,11 @@ CONTAINS
                      "Total spin density (G-space)           :", rho_total, &
                      "Total spin density (R-space)           :", rho_total_rspace
                END IF
-               CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+               CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+               CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                                e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -2273,72 +2628,71 @@ CONTAINS
                CALL pw_axpy(rho_r(2), rho_elec_rspace)
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                              extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                              fout=mpi_filename)
+               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                             extension=".cube", middle_name=TRIM(filename), &
+                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                             fout=mpi_filename, openpmd_basename="dft-electron-density")
                IF (output_unit > 0) THEN
-                  IF (.NOT. mpi_io) THEN
+                  IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
                   ELSE
                      filename = mpi_filename
                   END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The sum of alpha and beta density is written in cube file format to the file:", &
+                   "The sum of alpha and beta density is written in "//e_density_section%format_name//" file format to the file:", &
                      TRIM(filename)
                END IF
-               CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
-                                  mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+               CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
+        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                               mpi_io=mpi_io)
+               CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                                e_density_section%absolute_section_key, mpi_io=mpi_io)
                CALL pw_copy(rho_r(1), rho_elec_rspace)
                CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
                filename = "SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                              extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                              fout=mpi_filename)
+               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                             extension=".cube", middle_name=TRIM(filename), &
+                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                             fout=mpi_filename, openpmd_basename="dft-spin-density")
                IF (output_unit > 0) THEN
-                  IF (.NOT. mpi_io) THEN
+                  IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
                   ELSE
                      filename = mpi_filename
                   END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The spin density is written in cube file format to the file:", &
+                     "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
                      TRIM(filename)
                END IF
-               CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+               CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+               CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                                e_density_section%absolute_section_key, mpi_io=mpi_io)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             ELSE
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                              extension=".cube", middle_name=TRIM(filename), &
-                                              file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                              fout=mpi_filename)
+               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                             extension=".cube", middle_name=TRIM(filename), &
+                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                             fout=mpi_filename, openpmd_basename="dft-electron-density")
                IF (output_unit > 0) THEN
-                  IF (.NOT. mpi_io) THEN
+                  IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
                   ELSE
                      filename = mpi_filename
                   END IF
                   WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The electron density is written in cube file format to the file:", &
+                     "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
                      TRIM(filename)
                END IF
-               CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
-                                  particles=particles, zeff=zcharge, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
-               CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+               CALL e_density_section%write_pw(rho_r(1), unit_nr, "ELECTRON DENSITY", &
+                                               particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+               CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                                e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
 
          ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
@@ -2372,30 +2726,29 @@ CONTAINS
 
             filename = "ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                           extension=".cube", middle_name=TRIM(filename), &
-                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                           fout=mpi_filename)
+            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                          extension=".cube", middle_name=TRIM(filename), &
+                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                          fout=mpi_filename, openpmd_basename="dft-electron-density")
             IF (output_unit > 0) THEN
-               IF (.NOT. mpi_io) THEN
+               IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
                ELSE
                   filename = mpi_filename
                END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The electron density is written in cube file format to the file:", &
+                  "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
                   TRIM(filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft electronic charge (R-space) :", rho_soft, &
                   "Hard electronic charge (R-space) :", rho_hard, &
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
-            CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
-                               particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
-                               mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+            CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
+        particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
+                                            mpi_io=mpi_io)
+            CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                             e_density_section%absolute_section_key, mpi_io=mpi_io)
 
             !------------
             IF (dft_control%nspins > 1) THEN
@@ -2415,29 +2768,29 @@ CONTAINS
 
             filename = "SPIN_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
-                                           extension=".cube", middle_name=TRIM(filename), &
-                                           file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                           fout=mpi_filename)
+            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
+                                                          extension=".cube", middle_name=TRIM(filename), &
+                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
+                                                          fout=mpi_filename, openpmd_basename="dft-spin-density")
             IF (output_unit > 0) THEN
-               IF (.NOT. mpi_io) THEN
+               IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
                ELSE
                   filename = mpi_filename
                END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The spin density is written in cube file format to the file:", &
+                  "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
                   TRIM(filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft part of the spin density          :", rho_soft, &
                   "Hard part of the spin density          :", rho_hard, &
                   "Total spin density (R-space)           :", rho_total_rspace
             END IF
-            CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
-                               particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+            CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
+                                            particles=particles, zeff=zcharge, &
+                              stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), mpi_io=mpi_io)
+            CALL e_density_section%print_key_finished_output(unit_nr, logger, input, &
+                                                             e_density_section%absolute_section_key, mpi_io=mpi_io)
             END IF ! nspins
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             DEALLOCATE (my_Q0)
