@@ -109,6 +109,7 @@ NUM_RE = re.compile(r"[0-9]+[ulUL]*")
 CP2K_FLAGS_RE = re.compile(
     r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", re.DOTALL
 )
+CMAKE_OPTION_RE = re.compile(r"option\(\s*(\w+)", re.DOTALL)
 STR_END_NOSPACE_RE = re.compile(r'[^ ]"\s*//\s*&')
 STR_BEGIN_NOSPACE_RE = re.compile(r'^\s*"[^ ]')
 STR_END_SPACE_RE = re.compile(r' "\s*//\s*&')
@@ -156,17 +157,26 @@ BSD_PATHS = (
 MIT_PATHS = ("src/grpp/",)
 
 
+def read_text(filename: str) -> str:
+    return CP2K_DIR.joinpath(filename).read_text(encoding="utf8")
+
+
 @lru_cache(maxsize=None)
 def get_src_cmakelists_txt() -> str:
-    return sum(
-        CP2K_DIR.joinpath(fn).read_text(encoding="utf8")
+    return "\n".join(
+        read_text(fn)
         for fn in ["src/CMakeLists.txt", "cmake/CompilerConfiguration.cmake"]
     )
 
 
 @lru_cache(maxsize=None)
+def get_build_from_source_md() -> str:
+    return read_text("docs/getting-started/build-from-source.md")
+
+
+@lru_cache(maxsize=None)
 def get_flags_src() -> str:
-    cp2k_info = CP2K_DIR.joinpath("src/cp2k_info.F").read_text(encoding="utf8")
+    cp2k_info = read_text("src/cp2k_info.F")
     match = CP2K_FLAGS_RE.search(cp2k_info)
     assert match
     return match.group(1)
@@ -174,7 +184,7 @@ def get_flags_src() -> str:
 
 @lru_cache(maxsize=None)
 def get_bibliography_dois() -> List[str]:
-    bib = CP2K_DIR.joinpath("src/common/bibliography.F").read_text(encoding="utf8")
+    bib = read_text("src/common/bibliography.F")
     matches = re.findall(r'doi="([^"]+)"', bib, flags=re.IGNORECASE)
     assert len(matches) > 260 and "10.1016/j.cpc.2004.12.014" in matches
     return matches
@@ -258,6 +268,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     PY_SHEBANG = "#!/usr/bin/env python3"
     if fn_ext == ".py" and is_executable and not content.startswith(f"{PY_SHEBANG}\n"):
         warnings += [f"{path}: Wrong shebang, please use '{PY_SHEBANG}'"]
+
     # find all flags
     flags = set()
     line_continuation = False
@@ -297,6 +308,14 @@ def check_file(path: pathlib.Path) -> List[str]:
             ]
         if flag not in get_flags_src():
             warnings += [f"{path}: Flag '{flag}' not mentioned in cp2k_flags()"]
+
+    if "cmake" in str(path).lower():
+        options = CMAKE_OPTION_RE.findall(content)
+        for opt in options:
+            if opt not in get_build_from_source_md():
+                warnings += [
+                    f"{path}: CMake option {opt} not mentioned in docs/getting-started/build-from-source.md"
+                ]
 
     # Check for DOIs that could be a bibliography reference.
     if re.match(r"docs/[^/]+/.*\.md", str(path)) and "docs/CP2K_INPUT" not in str(path):
