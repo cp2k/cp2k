@@ -37,15 +37,17 @@ def main() -> None:
         f.write(install_deps_toolchain(base_image="fedora:41"))
         f.write(regtest_cmake("toolchain", "psmp"))
 
-    for ver in "ssmp", "psmp":
-        with OutputFile(f"Dockerfile.test_intel-ifort-{ver}", args.check) as f:
+    for version in "ssmp", "psmp":
+        mpi_mode = "intelmpi" if version.startswith("p") else "no"
+        f.write(install_deps_toolchain(mpi_mode=mpi_mode))
+        with OutputFile(f"Dockerfile.test_intel-ifort-{version}", args.check) as f:
             base_image = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04"
-            f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="no"))
-            f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
-        with OutputFile(f"Dockerfile.test_intel-ifx-{ver}", args.check) as f:
+            f.write(install_deps_toolchain_intel(base_image, mpi_mode, with_ifx="no"))
+            f.write(regtest_cmake("toolchain_intel", version))
+        with OutputFile(f"Dockerfile.test_intel-ifx-{version}", args.check) as f:
             base_image = "intel/oneapi-hpckit:2025.2.2-0-devel-ubuntu24.04"
-            f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="yes"))
-            f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
+            f.write(install_deps_toolchain_intel(base_image, mpi_mode, with_ifx="yes"))
+            f.write(regtest_cmake("toolchain_intel", version))
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(install_deps_ubuntu())
@@ -481,19 +483,15 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 
 # ======================================================================================
-def install_deps_toolchain_intel(
-    base_image: str = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
-    with_ifx: str = "no",
-) -> str:
+def install_deps_toolchain_intel(base_image: str, mpi_mode: str, with_ifx: str) -> str:
     return rf"""
 FROM {base_image}
 
 """ + install_toolchain(
         base_image="ubuntu",
         install_all="",
-        with_dbcsr="no",
+        mpi_mode=mpi_mode,
         with_ifx=with_ifx,
-        with_intelmpi="",
         with_mkl="",
         with_libsmeagol="",
         with_libtorch="no",

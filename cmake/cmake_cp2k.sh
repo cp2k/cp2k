@@ -118,6 +118,26 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=OFF \
+    -DCP2K_USE_MPI=ON \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_intel" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=OFF \
+    -DCP2K_USE_MPI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
