@@ -77,6 +77,29 @@ FLAG_EXCEPTIONS = (
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
+    # TODO: Add CMake support for the following flags or remove the corresponding code.
+    # See also https://github.com/cp2k/cp2k/issues/4611
+    r"__PW_FPGA",
+    r"__PW_FPGA_SP",
+    r"__NO_MPI_THREAD_SUPPORT_CHECK",
+    r"__NO_SOCKETS",
+    r"__SCALAPACK_NO_WA",
+    r"__CRAY_PM_ACCEL_ENERGY",
+    r"__CRAY_PM_ENERGY",
+    r"__MINGW",
+    r"__NO_STATM_ACCESS",
+    r"__STATM_RESIDENT",
+    r"__STATM_TOTAL",
+    r"__ELPA_AMD_GPU",
+    r"__ELPA_INTEL_GPU",
+    r"__ELPA_NVIDIA_GPU",
+    r"__CRAY_PM_ACCEL_ENERGY",
+    r"__CRAY_PM_ENERGY",
+    r"__HAS_PATCHED_CUFFT_70",
+    r"__OFFLOAD_PROFILING",
+    r"__QUIP",
+    r"__STATM_RESIDENT",
+    r"__STATM_TOTAL",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
@@ -134,8 +157,11 @@ MIT_PATHS = ("src/grpp/",)
 
 
 @lru_cache(maxsize=None)
-def get_install_txt() -> str:
-    return CP2K_DIR.joinpath("INSTALL.md").read_text(encoding="utf8")
+def get_src_cmakelists_txt() -> str:
+    return sum(
+        CP2K_DIR.joinpath(fn).read_text(encoding="utf8")
+        for fn in ["src/CMakeLists.txt", "cmake/CompilerConfiguration.cmake"]
+    )
 
 
 @lru_cache(maxsize=None)
@@ -265,8 +291,10 @@ def check_file(path: pathlib.Path) -> List[str]:
             continue
         if flag == "_OMP_H" and fn_ext == ".cu":
             continue
-        if flag not in get_install_txt():
-            warnings += [f"{path}: Flag '{flag}' not mentioned in INSTALL.md"]
+        if flag not in get_src_cmakelists_txt():
+            warnings += [
+                f"{path}: Flag '{flag}' not mentioned in src/CMakeLists.txt nor cmake/CompilerConfiguration.cmake"
+            ]
         if flag not in get_flags_src():
             warnings += [f"{path}: Flag '{flag}' not mentioned in cp2k_flags()"]
 
