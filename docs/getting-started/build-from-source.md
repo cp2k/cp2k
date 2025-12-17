@@ -28,7 +28,7 @@ By default, [CMake] generates GNU Makefiles (on Linux). With [CMake], it is poss
 files for other build systems such as Ninja:
 
 ```bash
-cmake -S . -B build -GNinja 
+cmake -S . -B build -GNinja
 ```
 
 ### Release and Debug Builds
@@ -36,7 +36,7 @@ cmake -S . -B build -GNinja
 [CMake] allows to specify a build type. `-DCMAKE_BUILD_TYPE=Release` turns on optimizations, while
 `-DCMAKE_BUILD_TYPE=Debug` turns on debug options.
 
-## Requirements
+## Dependencies
 
 The minimum requirements to use the [CMake] build system are the following:
 
@@ -77,29 +77,50 @@ cmake -S . -B build -DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI
 cmake --build build
 ```
 
-## Build Customization
+### Others Build Options
 
-### Default Dependencies
+- `BUILD_SHARED_LIBS`
+- `CMAKE_POSITION_INDEPENDENT_CODE`
+- `CP2K_DBCSR_USE_CPU_ONLY`
+- `CP2K_ENABLE_CONSISTENCY_CHECKS`
+- `CP2K_ENABLE_DBM_GPU`
+- `CP2K_ENABLE_ELPA_OPENMP_SUPPORT`
+- `CP2K_ENABLE_FFTW3_OPENMP_SUPPORT`
+- `CP2K_ENABLE_FFTW3_THREADS_SUPPORT`
+- `CP2K_ENABLE_GRID_GPU`
+- `CP2K_ENABLE_PW_GPU`
+- `CP2K_USE_ACE`
+- `CP2K_USE_CUSOLVER_MP`
+- `CP2K_USE_DEEPMD`
+- `CP2K_USE_DFTD4`
+- `CP2K_USE_DLAF`
+- `CP2K_USE_EVERYTHING`
+- `CP2K_USE_FFTW3`
+- `CP2K_USE_FFTW3_WITH_MKL`
+- `CP2K_USE_GREENX`
+- `CP2K_USE_GRPP`
+- `CP2K_USE_HDF5`
+- `CP2K_USE_LIBSMEAGOL`
+- `CP2K_USE_LIBTORCH`
+- `CP2K_USE_LIBVDWXC`
+- `CP2K_USE_LIBVDWXC`
+- `CP2K_USE_LIBXSMM`
+- `CP2K_USE_MPI_F08`
+- `CP2K_USE_PEXSI`
+- `CP2K_USE_PEXSI`
+- `CP2K_USE_PLUMED`
+- `CP2K_USE_SIRIUS_DFTD4`
+- `CP2K_USE_SIRIUS_NLCG`
+- `CP2K_USE_SIRIUS_VCSQNM`
+- `CP2K_USE_SPLA_GEMM_OFFLOADING`
+- `CP2K_USE_STATIC_BLAS`
+- `CP2K_USE_TBLITE`
+- `CP2K_USE_TREXIO`
+- `CP2K_USE_UNIFIED_MEMORY`
+- `CP2K_USE_VORI`
+- `CP2K_WITH_CUDA_PROFILING`
 
-All optional dependencies are turned off by default, with the exception of MPI.
-
-For simplicity, `-DCP2K_BUILD_OPTIONS` is provided to turn on some of the optional dependencies.
-`-DCP2K_BUILD_OPTIONS` can take the following values:
-
-- `CUSTOM` (default)
-- `DEFAULT`
-- `MINIMAL`
-- `FULL`
-- `SERIAL`
-
-By default, `-DCP2K_BUILD_OPTIONS=CUSTOM`, meaning that each dependency must be turned on explicitly
-with `-DCP2K_USE_<LIBRARY>=ON`. `<LIBRARY>` is the name of the optional dependency (for example:
-`-DCP2K_USE_COSMA=ON`, `-DCP2K_USE_LIBXC=ON`, ...).
-
-Please refer to the `CMakeLists.txt` file for an up-to-date list of the dependencies enabled by each
-option.
-
-### GPUs
+## GPUs
 
 CP2K is GPU-accelerated. In order to enable GPU acceleration with [CUDA] or [HIP],
 `-DCP2K_USE_ACCEL` can be used:
