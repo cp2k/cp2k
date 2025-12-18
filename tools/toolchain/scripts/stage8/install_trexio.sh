@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-trexio_ver="2.5.0"
-trexio_sha256="7bf7e0021467530b4946fb3f6ee39f393e2f4bd65a6f4debaec774120c29e4ee"
+trexio_ver="2.6.0"
+trexio_sha256="02b692c7792b4c8d041b1eeacdf144dca333a6ea699f66e911489768586de335"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
