@@ -1095,7 +1095,8 @@ CONTAINS
          CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
          IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
-            CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future/openPMD-api. Build CP2K without DLA-Future and openPMD-api.")
+            CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE),"// &
+                         " required by DLA-Future/openPMD-api. Build CP2K without DLA-Future and openPMD-api.")
          END IF
 #else
          CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
