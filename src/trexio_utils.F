@@ -356,7 +356,7 @@ CONTAINS
          rc = trexio_write_state_id(f, 1)
          CALL trexio_error(rc)
 
-         rc = trexio_write_state_energy(f, energy%total)
+         ! rc = trexio_write_state_energy(f, energy%total)
          CALL trexio_error(rc)
 
       END IF ! ionode
@@ -366,7 +366,7 @@ CONTAINS
       !========================================================================================!
       CALL get_qs_env(qs_env, qs_kind_set=kind_set, natom=natoms, particle_set=particle_set)
       CALL get_qs_kind_set(kind_set, nshell=shell_num, npgf_seg=prim_num)
-      
+
       CALL section_vals_val_get(trexio_section, "CARTESIAN", l_val=save_cartesian)
 
       IF (ionode) THEN
@@ -387,7 +387,7 @@ CONTAINS
       ALLOCATE (exponents(prim_num))      ! ...primitive exponents
       ALLOCATE (coefficients(prim_num))   ! ...contraction coefficients
       ALLOCATE (prim_factor(prim_num))    ! ...primitive normalization factors
-      
+
       ! needed in AO group
       IF (.NOT. save_cartesian) THEN
          ALLOCATE (sgf_coefficients(prim_num))   ! ...contraction coefficients
@@ -445,7 +445,7 @@ CONTAINS
                      ! for spherical harmonics we have a different factor
                      prim_factor(ipgf + i) = sgf_norm(l, exponents(ipgf + i))
                      ! we need these later in the AO group
-                     sgf_coefficients(ipgf + i) = coefficients(ipgf + i) * prim_factor(ipgf + i)
+                     sgf_coefficients(ipgf + i) = coefficients(ipgf + i)*prim_factor(ipgf + i)
                   END IF
 
                END DO
@@ -692,7 +692,7 @@ CONTAINS
                                 npgf=npgf, &
                                 zet=zetas, &
                                 l=l_shell_set)
-         
+
          icgf_atom = 0
          DO iset = 1, nset
             DO ishell_loc = 1, nshell(iset)
@@ -721,7 +721,7 @@ CONTAINS
                   CALL sg_overlap(Sloc, l, zetas(1:npgf(iset), iset), zetas(1:npgf(iset), iset))
 
                   ! and compute the normalizaztion factor for contracted spherical GTOs
-                  Sgcc(:) = MATMUL(Sloc, sgf_coefficients(ipgf + 1:ipgf + npgf(iset))) 
+                  Sgcc(:) = MATMUL(Sloc, sgf_coefficients(ipgf + 1:ipgf + npgf(iset)))
                   Nsgto = 1.0_dp/SQRT(DOT_PRODUCT(sgf_coefficients(ipgf + 1:ipgf + npgf(iset)), Sgcc))
 
                   DEALLOCATE (Sloc)
@@ -730,7 +730,7 @@ CONTAINS
                   ! TREXIO employs solid harmonics and not spherical harmonics like cp2k
                   ! so we need the opposite of Racah normalization, multiplied by the Nsgto
                   ! just computed above
-                  ao_normalization(iao + 1:iao + nao_shell) = Nsgto * SQRT((2*l+1)/(4*pi))
+                  ao_normalization(iao + 1:iao + nao_shell) = Nsgto*SQRT((2*l + 1)/(4*pi))
                END IF
 
                ipgf = ipgf + npgf(iset)
@@ -745,20 +745,20 @@ CONTAINS
       ! write overlap and kohn_sham matrix
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
       nspins = dft_control%nspins
-      IF ( (nspins == 1) .AND. (.NOT. do_kpoints) ) THEN
+      IF ((nspins == 1) .AND. (.NOT. do_kpoints)) THEN
          CALL get_qs_env(qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks, blacs_env=blacs_env)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                                    nrow_global=ao_num, ncol_global=ao_num)
+                                  nrow_global=ao_num, ncol_global=ao_num)
          CALL cp_fm_create(fm_dummy, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
-         
+
          ALLOCATE (temp(ao_num, ao_num))
          ALLOCATE (ao_overlap(ao_num, ao_num))
          ALLOCATE (ao_ks_matrix(ao_num, ao_num))
-         temp(:,:) = 0.0_dp
-         ao_overlap(:,:) = 0.0_dp
-         ao_ks_matrix(:,:) = 0.0_dp
-         
+         temp(:, :) = 0.0_dp
+         ao_overlap(:, :) = 0.0_dp
+         ao_ks_matrix(:, :) = 0.0_dp
+
          ! store the overlap
          CALL cp_fm_set_all(fm_dummy, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_dummy)
@@ -768,9 +768,9 @@ CONTAINS
                ao_overlap(i, j) = temp(cp2k_to_trexio_ang_mom(i), cp2k_to_trexio_ang_mom(j))
             END DO
          END DO
-         
+
          ! store the KS matrix abusing the core hamiltonian container
-         temp(:,:) = 0.0_dp
+         temp(:, :) = 0.0_dp
          CALL cp_fm_set_all(fm_dummy, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix, fm_dummy)
          CALL cp_fm_get_submatrix(fm_dummy, temp)
@@ -789,10 +789,10 @@ CONTAINS
          END IF
 
          CALL cp_fm_release(fm_dummy)
-         NULLIFY(fm_struct)
-         DEALLOCATE(ao_overlap)
-         DEALLOCATE(ao_ks_matrix)
-         DEALLOCATE(temp)
+         NULLIFY (fm_struct)
+         DEALLOCATE (ao_overlap)
+         DEALLOCATE (ao_ks_matrix)
+         DEALLOCATE (temp)
       END IF
 
       IF (ionode) THEN
@@ -929,7 +929,7 @@ CONTAINS
          nmo = nmo_spin(ispin)
          ! allocate local temp array to transform the MOs of each kpoint/spin
          ALLOCATE (mos_sgf(nsgf, nmo))
-         mos_sgf(:,:) = 0.0_dp
+         mos_sgf(:, :) = 0.0_dp
 
          IF (do_kpoints) THEN
             DO ikp = 1, nkp
@@ -983,7 +983,7 @@ CONTAINS
 
             IF (save_cartesian) THEN
                CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
-            ELSE      
+            ELSE
                ! we have to reorder the MOs since CP2K and TREXIO have different conventions
                DO i = 1, nsgf
                   mo_coefficient(i, imo + 1:imo + nmo) = mos_sgf(cp2k_to_trexio_ang_mom(i), :)
@@ -1600,11 +1600,11 @@ CONTAINS
 
    END SUBROUTINE nuclear_repulsion_energy
 
-
 ! **************************************************************************************************
 !> \brief Returns the normalization coefficient for a spherical GTO
 !> \param l the angular momentum quantum number
 !> \param expnt the exponent of the Gaussian function
+!> \return ...
 ! **************************************************************************************************
    FUNCTION sgf_norm(l, expnt) RESULT(norm)
       INTEGER, INTENT(IN)                                :: l
@@ -1612,13 +1612,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: norm
 
       IF (l >= 0) THEN
-         norm = SQRT(2**(2*l+3)*fac(l+1)*(2*expnt)**(l+1.5) / (fac(2*l+2)*SQRT(pi)))
+         norm = SQRT(2**(2*l + 3)*fac(l + 1)*(2*expnt)**(l + 1.5)/(fac(2*l + 2)*SQRT(pi)))
       ELSE
          CPABORT("The angular momentum should be >= 0!")
       END IF
 
    END FUNCTION sgf_norm
-
 
 ! **************************************************************************************************
 !> \brief Computes a spherical to cartesian MO transformation (solid harmonics in reality)
@@ -1643,7 +1642,7 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
-      mos_cgf(:,:) = 0.0_dp
+      mos_cgf(:, :) = 0.0_dp
       nmo = SIZE(mos_sgf, 2)
 
       ! Transform spherical MOs to Cartesian MOs
@@ -1678,7 +1677,6 @@ CONTAINS
 
    END SUBROUTINE spherical_to_cartesian_mo
 
-
 ! **************************************************************************************************
 !> \brief Computes a cartesian to spherical MO transformation
 !> \param mos_cgf the transformed MO coefficients in Cartesian AO basis
@@ -1702,7 +1700,7 @@ CONTAINS
 
       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
-      mos_sgf(:,:) = 0.0_dp
+      mos_sgf(:, :) = 0.0_dp
       nmo = SIZE(mos_cgf, 2)
 
       ! Transform Cartesian MOs to spherical MOs
