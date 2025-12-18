@@ -1075,50 +1075,24 @@ CONTAINS
       SUBROUTINE mp_world_init(mp_comm)
          CLASS(mp_comm_type), INTENT(OUT)                     :: mp_comm
 #if defined(__parallel)
-         INTEGER                                  :: ierr
-!$       INTEGER                                  :: provided_tsl
-!$       LOGICAL                                  :: no_threading_support
+         INTEGER                                  :: ierr, provided_tsl
 
-#if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
-         ! Hack that does not request or check MPI thread support level.
-         ! User asserts that the MPI library will work correctly with
-         ! threads.
-!
-!$       no_threading_support = .TRUE.
-#else
-         ! Does the right thing when using OpenMP: requests that the MPI
-         ! library supports serialized mode and verifies that the MPI library
-         ! provides that support.
-         !
-         ! Developers: Only the master thread will ever make calls to the
-         ! MPI library.
-!
-!$       no_threading_support = .FALSE.
-#endif
-!$       IF (no_threading_support) THEN
-            CALL mpi_init(ierr)
-            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init @ mp_world_init")
-!$       ELSE
 !$OMP MASTER
 #if defined(__DLAF)
-            ! DLA-Future requires that the MPI library supports
-            ! THREAD_MULTIPLE mode
-!$          CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+         ! DLA-Future requires that the MPI library supports THREAD_MULTIPLE mode
+         CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
+         IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
+             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
+         END IF
 #else
-!$          CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
-#endif
-!$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
-#if defined(__DLAF)
-!$          IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
-!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
-!$          END IF
-#else
-!$          IF (provided_tsl < MPI_THREAD_SERIALIZED) THEN
-!$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
-!$          END IF
+         CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
+         IF (provided_tsl < MPI_THREAD_SERIALIZED) THEN
+            CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
+         END IF
 #endif
 !$OMP END MASTER
-!$       END IF
          CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
 #endif
