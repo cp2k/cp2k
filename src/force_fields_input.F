@@ -71,8 +71,8 @@ MODULE force_fields_input
         do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, &
         gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
         nequip_pot_type, nequip_type, no_potential_single_allocation, pair_potential_p_type, &
-        pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
-        tab_pot_type, tab_type, tersoff_type, wl_type
+        pair_potential_reallocate, potential_single_allocation, siepmann_type, tab_pot_type, &
+        tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -110,8 +110,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER :: nace, nallegro, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, &
-         ngal, ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nquip, nshell, nsiepmann, &
-         ntab, ntersoff, ntors, ntot, nubs, nwl
+         ngal, ngal21, ngd, ngp, nimpr, nipbv, nlj, nnequip, nopbend, nshell, nsiepmann, ntab, &
+         ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -281,18 +281,10 @@ CONTAINS
             CALL read_siepmann_section(inp_info%nonbonded, tmp_section2, ntot, tmp_section2)
          END IF
 
-         tmp_section2 => section_vals_get_subs_vals(tmp_section, "quip")
-         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nquip)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann
-         IF (explicit) THEN
-            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nquip, quip=.TRUE.)
-            CALL read_quip_section(inp_info%nonbonded, tmp_section2, ntot)
-         END IF
-
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "nequip")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nnequip)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann
          IF (explicit) THEN
             ! avoid repeating the nequip section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
@@ -303,8 +295,8 @@ CONTAINS
 
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "allegro")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nallegro)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip + nnequip
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann + nnequip
          IF (explicit) THEN
             ! avoid repeating the allegro section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
@@ -315,8 +307,8 @@ CONTAINS
 
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "TABPOT")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ntab)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip + nnequip + nallegro
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann + nnequip + nallegro
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
             CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
@@ -324,8 +316,8 @@ CONTAINS
 
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "DEEPMD")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ndeepmd)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip + nnequip + nallegro + ntab
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann + nnequip + nallegro + ntab
          IF (explicit) THEN
             ! avoid repeating the deepmd section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
@@ -336,8 +328,8 @@ CONTAINS
 
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "ACE")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nace)
-         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + &
-                nquip + nnequip + nallegro + ntab + ndeepmd
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
+                ngal + ngal21 + nsiepmann + nnequip + nallegro + ntab + ndeepmd
          IF (explicit) THEN
             ! avoid repeating the ace section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
@@ -784,56 +776,6 @@ CONTAINS
          END DO
       END DO
    END SUBROUTINE read_deepmd_section
-
-! **************************************************************************************************
-!> \brief Reads the QUIP section
-!> \param nonbonded ...
-!> \param section ...
-!> \param start ...
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE read_quip_section(nonbonded, section, start)
-      TYPE(pair_potential_p_type), POINTER               :: nonbonded
-      TYPE(section_vals_type), POINTER                   :: section
-      INTEGER, INTENT(IN)                                :: start
-
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: args_str, atm_names
-      INTEGER                                            :: is, isec, n_calc_args, n_items
-
-      CALL section_vals_get(section, n_repetition=n_items)
-      DO isec = 1, n_items
-         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
-
-         nonbonded%pot(start + isec)%pot%type = quip_type
-         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
-         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
-         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
-         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
-                                   c_val=nonbonded%pot(start + isec)%pot%set(1)%quip%quip_file_name)
-         CALL section_vals_val_get(section, "INIT_ARGS", i_rep_section=isec, &
-                                   c_vals=args_str)
-         nonbonded%pot(start + isec)%pot%set(1)%quip%init_args = ""
-         DO is = 1, SIZE(args_str)
-            nonbonded%pot(start + isec)%pot%set(1)%quip%init_args = &
-               TRIM(nonbonded%pot(start + isec)%pot%set(1)%quip%init_args)// &
-               " "//TRIM(args_str(is))
-         END DO ! is
-         CALL section_vals_val_get(section, "CALC_ARGS", i_rep_section=isec, &
-                                   n_rep_val=n_calc_args)
-         IF (n_calc_args > 0) THEN
-            CALL section_vals_val_get(section, "CALC_ARGS", i_rep_section=isec, &
-                                      c_vals=args_str)
-            DO is = 1, SIZE(args_str)
-               nonbonded%pot(start + isec)%pot%set(1)%quip%calc_args = &
-                  TRIM(nonbonded%pot(start + isec)%pot%set(1)%quip%calc_args)// &
-                  " "//TRIM(args_str(is))
-            END DO ! is
-         END IF
-         nonbonded%pot(start + isec)%pot%rcutsq = 0.0_dp
-      END DO
-   END SUBROUTINE read_quip_section
 
 ! **************************************************************************************************
 !> \brief Reads the NEQUIP section

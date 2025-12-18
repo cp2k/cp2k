@@ -41,7 +41,7 @@ MODULE fist_nonbond_env_types
    PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
              fist_nonbond_env_get, fist_nonbond_env_create, &
              fist_nonbond_env_release, pos_type, eam_type, &
-             quip_data_type, nequip_data_type, allegro_data_type, &
+             nequip_data_type, allegro_data_type, &
              deepmd_data_type, ace_data_type
 
 ! **************************************************************************************************
@@ -53,12 +53,6 @@ MODULE fist_nonbond_env_types
       REAL(KIND=dp) :: f_embed = 0.0_dp
       REAL(KIND=dp) :: rho = 0.0_dp
    END TYPE eam_type
-
-   TYPE quip_data_type
-      INTEGER, POINTER        :: use_indices(:) => NULL()
-      REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
-      REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
-   END TYPE quip_data_type
 
    TYPE nequip_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
@@ -128,7 +122,6 @@ MODULE fist_nonbond_env_types
       TYPE(pos_type), DIMENSION(:), POINTER      :: rshell_last_update_pbc => NULL()
       TYPE(pos_type), DIMENSION(:), POINTER      :: rcore_last_update_pbc => NULL()
       TYPE(eam_type), DIMENSION(:), POINTER      :: eam_data => NULL()
-      TYPE(quip_data_type), POINTER              :: quip_data => NULL()
       TYPE(deepmd_data_type), POINTER            :: deepmd_data => NULL()
       TYPE(ace_data_type), POINTER               :: ace_data => NULL()
       TYPE(nequip_data_type), POINTER            :: nequip_data => NULL()
@@ -163,7 +156,6 @@ CONTAINS
 !> \param long_range_correction ...
 !> \param ij_kind_full_fac ...
 !> \param eam_data ...
-!> \param quip_data ...
 !> \param nequip_data ...
 !> \param allegro_data ...
 !> \param deepmd_data ...
@@ -178,7 +170,7 @@ CONTAINS
                                    shift_cutoff, do_electrostatics, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
                                    counter, natom_types, long_range_correction, ij_kind_full_fac, eam_data, &
-                                   quip_data, nequip_data, allegro_data, deepmd_data, ace_data, charges)
+                                   nequip_data, allegro_data, deepmd_data, ace_data, charges)
 
       TYPE(fist_nonbond_env_type), INTENT(IN)            :: fist_nonbond_env
       TYPE(pair_potential_pp_type), OPTIONAL, POINTER    :: potparm14, potparm
@@ -195,7 +187,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: long_range_correction
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: ij_kind_full_fac
       TYPE(eam_type), DIMENSION(:), OPTIONAL, POINTER    :: eam_data
-      TYPE(quip_data_type), OPTIONAL, POINTER            :: quip_data
       TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data
       TYPE(allegro_data_type), OPTIONAL, POINTER         :: allegro_data
       TYPE(deepmd_data_type), OPTIONAL, POINTER          :: deepmd_data
@@ -205,7 +196,6 @@ CONTAINS
       IF (PRESENT(charges)) charges => fist_nonbond_env%charges
       IF (PRESENT(potparm14)) potparm14 => fist_nonbond_env%potparm14
       IF (PRESENT(eam_data)) eam_data => fist_nonbond_env%eam_data
-      IF (PRESENT(quip_data)) quip_data => fist_nonbond_env%quip_data
       IF (PRESENT(nequip_data)) nequip_data => fist_nonbond_env%nequip_data
       IF (PRESENT(allegro_data)) allegro_data => fist_nonbond_env%allegro_data
       IF (PRESENT(deepmd_data)) deepmd_data => fist_nonbond_env%deepmd_data
@@ -265,7 +255,6 @@ CONTAINS
 !> \param natom_types ...
 !> \param long_range_correction ...
 !> \param eam_data ...
-!> \param quip_data ...
 !> \param nequip_data ...
 !> \param allegro_data ...
 !> \param deepmd_data ...
@@ -279,7 +268,7 @@ CONTAINS
                                    rlist_cut, rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
                                    shift_cutoff, do_electrostatics, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
                                    rcore_last_update_pbc, cell_last_update, num_update, last_update, &
-                                   counter, natom_types, long_range_correction, eam_data, quip_data, &
+                                   counter, natom_types, long_range_correction, eam_data, &
                                    nequip_data, allegro_data, deepmd_data, ace_data, charges)
 
       TYPE(fist_nonbond_env_type), INTENT(INOUT)         :: fist_nonbond_env
@@ -296,7 +285,6 @@ CONTAINS
                                                             natom_types
       REAL(KIND=dp), OPTIONAL                            :: long_range_correction
       TYPE(eam_type), DIMENSION(:), OPTIONAL, POINTER    :: eam_data
-      TYPE(quip_data_type), OPTIONAL, POINTER            :: quip_data
       TYPE(nequip_data_type), OPTIONAL, POINTER          :: nequip_data
       TYPE(allegro_data_type), OPTIONAL, POINTER         :: allegro_data
       TYPE(deepmd_data_type), OPTIONAL, POINTER          :: deepmd_data
@@ -305,7 +293,6 @@ CONTAINS
 
       IF (PRESENT(potparm14)) fist_nonbond_env%potparm14 => potparm14
       IF (PRESENT(eam_data)) fist_nonbond_env%eam_data => eam_data
-      IF (PRESENT(quip_data)) fist_nonbond_env%quip_data => quip_data
       IF (PRESENT(nequip_data)) fist_nonbond_env%nequip_data => nequip_data
       IF (PRESENT(allegro_data)) fist_nonbond_env%allegro_data => allegro_data
       IF (PRESENT(deepmd_data)) fist_nonbond_env%deepmd_data => deepmd_data
@@ -380,7 +367,6 @@ CONTAINS
       NULLIFY (fist_nonbond_env%rshell_last_update_pbc)
       NULLIFY (fist_nonbond_env%rcore_last_update_pbc)
       NULLIFY (fist_nonbond_env%eam_data)
-      NULLIFY (fist_nonbond_env%quip_data)
       NULLIFY (fist_nonbond_env%nequip_data)
       NULLIFY (fist_nonbond_env%allegro_data)
       NULLIFY (fist_nonbond_env%deepmd_data)
@@ -564,15 +550,6 @@ CONTAINS
       END IF
       IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
          DEALLOCATE (fist_nonbond_env%eam_data)
-      END IF
-      IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
-         IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
-            DEALLOCATE (fist_nonbond_env%quip_data%force)
-         END IF
-         IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
-            DEALLOCATE (fist_nonbond_env%quip_data%use_indices)
-         END IF
-         DEALLOCATE (fist_nonbond_env%quip_data)
       END IF
       IF (ASSOCIATED(fist_nonbond_env%nequip_data)) THEN
          IF (ASSOCIATED(fist_nonbond_env%nequip_data%force)) THEN

@@ -347,7 +347,6 @@ list(
   manybody_allegro.F
   manybody_nequip.F
   manybody_potential.F
-  manybody_quip.F
   manybody_siepmann.F
   manybody_tersoff.F
   manybody_ace.F

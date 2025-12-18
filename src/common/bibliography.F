@@ -65,7 +65,7 @@ MODULE bibliography
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
                             Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, &
-                            QUIP_ref, Batzner2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
+                            Batzner2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
@@ -149,13 +149,6 @@ CONTAINS
                          title="Embedded-atom-method functions for the fcc metals Cu, Ag, Au, Ni, Pd, Pt, and their alloys", &
                          source="Phys. Rev. B", volume="33", pages="7983-7991", &
                          year=1986, doi="10.1103/PhysRevB.33.7983")
-
-      CALL add_reference(key=QUIP_ref, &
-                         authors=s2a("QUIP"), &
-                         title="libAtoms/QUIP libraries from http://www.libatoms.org, "// &
-                         "please cite web site and references for appropriate potential invoked", &
-                         source="web site", &
-                         year=2014)
 
       CALL add_reference(key=Batzner2022, &
                          authors=s2a("S. Batzner", "A. Musaelian", "L. Sun", "M. Geiger", "J. P. Mailoa", &
