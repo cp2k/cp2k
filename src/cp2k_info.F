@@ -274,6 +274,11 @@ CONTAINS
       flags = TRIM(flags)//" greenx"
 #endif
 
+! Preprocessor macros used in openPMD.cpp:
+! - OPENPMDAPI_VERSION_GE: Needed to work around a missing API call in 0.16.1
+! - openPMD_HAVE_MPI: Used to keep the C bindings independent of MPI availability
+! Need to mention these two macros in here because the CI wants every macro used
+! anywhere to be mentioned in this file.
 #if defined(__OPENPMD)
       flags = TRIM(flags)//" openpmd"
 #endif
