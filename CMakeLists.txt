@@ -502,7 +502,7 @@ set(CP2K_USE_CUDA OFF)
 set(CP2K_USE_OPENCL OFF)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
-  option(CP2K_WITH_CUDA_PROFILING "Enable CUDA profiling" OFF)
+  option(CP2K_WITH_GPU_PROFILING "Enable GPU profiling" OFF)
   # P100 is the default target.
 
   # allow for unsupported compilers (gcc/cuda version mismatch)
@@ -520,7 +520,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   message("-----------------------------------------------------------\n")
 
   message(STATUS "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}")
-  message(STATUS "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}")
+  message(STATUS "GPU profiling enabled: ${CP2K_WITH_GPU_PROFILING}")
 
   if(WITH_CUDA_PROFILING)
     find_library(
