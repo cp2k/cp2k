@@ -829,7 +829,7 @@ int openPMD_RecordComponent_makeConstant(
                                        NULL);
   auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
 
-  openPMD::switchNonVectorType<implementation::RecordComponent_makeConstant>(
+  openPMD::switchDatasetType<implementation::RecordComponent_makeConstant>(
       implementation::datatype_c_to_cxx(dt), *rc, value);
 
   return 0;
