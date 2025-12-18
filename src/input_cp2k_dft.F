@@ -60,7 +60,8 @@ MODULE input_cp2k_dft
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_harris,               ONLY: create_harris_section
-   USE input_cp2k_kpoints,              ONLY: create_kpoints_section
+   USE input_cp2k_kpoints,              ONLY: create_kpoints_section,&
+                                              create_kpoint_set_section
    USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_cp2k_ls,                   ONLY: create_ls_scf_section
    USE input_cp2k_poisson,              ONLY: create_poisson_section
@@ -414,6 +415,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_kpoints_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_kpoint_set_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
