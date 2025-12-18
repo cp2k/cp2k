@@ -90,7 +90,6 @@ FLAG_EXCEPTIONS = (
     r"__STATM_TOTAL",
     r"__CRAY_PM_ACCEL_ENERGY",
     r"__CRAY_PM_ENERGY",
-    r"__OFFLOAD_PROFILING",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
 )
