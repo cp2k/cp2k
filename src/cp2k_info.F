@@ -274,6 +274,10 @@ CONTAINS
       flags = TRIM(flags)//" greenx"
 #endif
 
+#if defined(__OPENPMD)
+      flags = TRIM(flags)//" openpmd"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
