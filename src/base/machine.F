@@ -420,15 +420,12 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION m_procrun(pid) RESULT(run_on)
-      INTEGER, INTENT(IN)       ::   pid
-      INTEGER                   ::   run_on
-#if defined(__MINGW)
-      run_on = 0
-#else
-      INTEGER                   ::   istat
+      INTEGER, INTENT(IN)                                :: pid
+      INTEGER                                            :: run_on
 
+      INTEGER                                            :: istat
       INTERFACE
-         FUNCTION kill(pid, sig) BIND(C, name="kill") RESULT(errno)
+         FUNCTION kill(pid, sig) RESULT(errno) BIND(C, name="kill")
             IMPORT
             INTEGER(KIND=C_INT), VALUE                :: pid, sig
             INTEGER(KIND=C_INT)                      :: errno
@@ -445,7 +442,6 @@ CONTAINS
       ELSE
          run_on = 0 ! error, process probably does not exist
       END IF
-#endif
    END FUNCTION m_procrun
 
 ! **************************************************************************************************
@@ -594,11 +590,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE m_hostnm(hname)
       CHARACTER(len=*), INTENT(OUT)            :: hname
-#if defined(__MINGW)
-      ! While there is a gethostname in the Windows (POSIX) API, it requires that winsocks is
-      ! initialised prior to using it via WSAStartup(..), respectively cleaned up at the end via WSACleanup().
-      hname = "<unknown>"
-#else
       INTEGER                                  :: istat, i
       CHARACTER(len=default_path_length)       :: buf
 
@@ -618,7 +609,6 @@ CONTAINS
       END IF
       i = INDEX(buf, c_null_char) - 1
       hname = buf(1:i)
-#endif
    END SUBROUTINE m_hostnm
 
 ! **************************************************************************************************
@@ -732,7 +722,7 @@ CONTAINS
          RETURN
       END IF
 
-      ! first remove target (needed on windows / mingw)
+      ! first remove target (needed on windows)
       istat = m_unlink(TARGET)
       ! ignore istat of unlink
 
