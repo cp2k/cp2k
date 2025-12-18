@@ -138,9 +138,6 @@ CONTAINS
 #if defined(__COSMA)
       flags = TRIM(flags)//" cosma"
 #endif
-#if defined(__QUIP)
-      flags = TRIM(flags)//" quip"
-#endif
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
 #endif

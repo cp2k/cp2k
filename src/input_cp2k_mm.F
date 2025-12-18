@@ -16,8 +16,8 @@
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
         Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Drautz2019, &
-        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, QUIP_ref, Siepmann1995, &
-        Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
+        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, Tersoff1988, &
+        Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1176,10 +1176,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_QUIP_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_NEQUIP_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1421,61 +1417,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_EAM_section
-
-! **************************************************************************************************
-!> \brief This section specifies the input parameters for QUIP  potential type
-!> \param section the section to create
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_QUIP_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="QUIP", &
-                          description="This section specifies the input parameters for QUIP potential type. "// &
-                          "Mainly intended for things like GAP corrections to DFT "// &
-                          "to achieve correlated-wavefunction-like accuracy. "// &
-                          "Requires linking with quip library from <http://www.libatoms.org>.", &
-                          citations=[QUIP_ref], n_keywords=1, n_subsections=0, repeats=.TRUE., &
-                          deprecation_notice="Support for the QUIP library is slated for removal.")
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          description="Defines the atomic kinds involved in the QUIP potential. "// &
-                          "For more than 2 elements, &QUIP section must be repeated until each element "// &
-                          "has been mentioned at least once. Set IGNORE_MISSING_CRITICAL_PARAMS to T "// &
-                          "in enclosing &FORCEFIELD section to avoid having to list every pair of elements separately.", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
-                          n_var=2)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=["PARMFILE"], &
-                          description="Specifies the filename that contains the QUIP potential.", &
-                          usage="PARM_FILE_NAME {FILENAME}", default_lc_val="quip_params.xml")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="INIT_ARGS", &
-                          description="Specifies the potential initialization arguments for the QUIP potential. "// &
-                          "If blank (default) first potential defined in QUIP parameter file will be used.", &
-                          usage="INIT_ARGS", default_c_vals=[""], &
-                          n_var=-1, type_of_var=char_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CALC_ARGS", &
-                          description="Specifies the potential calculation arguments for the QUIP potential.", &
-                          usage="CALC_ARGS", default_c_vals=[""], &
-                          n_var=-1, type_of_var=char_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_QUIP_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for NEQUIP  potential type
