@@ -222,13 +222,13 @@ CONTAINS
          END IF
 
          ! Prefer GPU kernel if available.
-#if defined (__ELPA_NVIDIA_GPU)
+#if defined (__OFFLOAD_CUDA)
          elpa_kernel = ELPA_2STAGE_REAL_NVIDIA_GPU
 #endif
-#if defined (__ELPA_AMD_GPU)
+#if defined (__OFFLOAD_HIP)
          elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
 #endif
-#if defined (__ELPA_INTEL_GPU)
+#if defined (__OFFLOAD_OPENCL)
          elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 #endif
 

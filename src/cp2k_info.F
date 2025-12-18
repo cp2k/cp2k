@@ -116,15 +116,6 @@ CONTAINS
 #if defined(__ELPA)
       flags = TRIM(flags)//" elpa"
 #endif
-#if defined(__ELPA_NVIDIA_GPU)
-      flags = TRIM(flags)//" elpa_nvidia_gpu"
-#endif
-#if defined(__ELPA_AMD_GPU)
-      flags = TRIM(flags)//" elpa_amd_gpu"
-#endif
-#if defined(__ELPA_INTEL_GPU)
-      flags = TRIM(flags)//" elpa_intel_gpu"
-#endif
 #if defined(__parallel)
 #if defined(__SCALAPACK_NO_WA)
       flags = TRIM(flags)//" parallel scalapack"
