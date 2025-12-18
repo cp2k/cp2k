@@ -100,8 +100,7 @@ MODULE trexio_utils
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
                      trexio_read_mo_class, trexio_read_mo_coefficient, &
                      trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
-                     trexio_write_mo_type, trexio_write_ao_1e_int_overlap, &
-                     trexio_write_ao_1e_int_core_hamiltonian
+                     trexio_write_mo_type
 #endif
 #include "./base/base_uses.f90"
 
@@ -155,7 +154,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_ks
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -182,8 +180,7 @@ CONTAINS
                                                             sgf_coefficients
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp, norm_cgf
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, temp, dEdP, ao_overlap, ao_ks_matrix, &
-                                                            Sloc
+                                                            mos_sgf, dEdP, Sloc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas, data_block, xkp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
@@ -741,59 +738,6 @@ CONTAINS
          ! just a failsafe check
          CPASSERT(icgf_atom == ncgf_atom)
       END DO
-
-      ! write overlap and kohn_sham matrix
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
-      nspins = dft_control%nspins
-      IF ((nspins == 1) .AND. (.NOT. do_kpoints)) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks, blacs_env=blacs_env)
-         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=ao_num, ncol_global=ao_num)
-         CALL cp_fm_create(fm_dummy, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-
-         ALLOCATE (temp(ao_num, ao_num))
-         ALLOCATE (ao_overlap(ao_num, ao_num))
-         ALLOCATE (ao_ks_matrix(ao_num, ao_num))
-         temp(:, :) = 0.0_dp
-         ao_overlap(:, :) = 0.0_dp
-         ao_ks_matrix(:, :) = 0.0_dp
-
-         ! store the overlap
-         CALL cp_fm_set_all(fm_dummy, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_dummy)
-         CALL cp_fm_get_submatrix(fm_dummy, temp)
-         DO i = 1, ao_num
-            DO j = 1, ao_num
-               ao_overlap(i, j) = temp(cp2k_to_trexio_ang_mom(i), cp2k_to_trexio_ang_mom(j))
-            END DO
-         END DO
-
-         ! store the KS matrix abusing the core hamiltonian container
-         temp(:, :) = 0.0_dp
-         CALL cp_fm_set_all(fm_dummy, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix, fm_dummy)
-         CALL cp_fm_get_submatrix(fm_dummy, temp)
-         DO i = 1, ao_num
-            DO j = 1, ao_num
-               ao_ks_matrix(i, j) = temp(cp2k_to_trexio_ang_mom(i), cp2k_to_trexio_ang_mom(j))
-            END DO
-         END DO
-
-         IF (ionode) THEN
-            rc = trexio_write_ao_1e_int_overlap(f, ao_overlap)
-            CALL trexio_error(rc)
-
-            rc = trexio_write_ao_1e_int_core_hamiltonian(f, ao_ks_matrix)
-            CALL trexio_error(rc)
-         END IF
-
-         CALL cp_fm_release(fm_dummy)
-         NULLIFY (fm_struct)
-         DEALLOCATE (ao_overlap)
-         DEALLOCATE (ao_ks_matrix)
-         DEALLOCATE (temp)
-      END IF
 
       IF (ionode) THEN
          rc = trexio_write_ao_shell(f, ao_shell)
