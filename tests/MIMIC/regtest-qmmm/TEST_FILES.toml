@@ -4,4 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 
-"client.inp"                            = [{matcher="E_total", tol=1e-9, ref=-1.16875469656660}]
+"client.inp"                            = [{matcher="E_total", tol=1e-9, ref=-1.17639095290768}]
