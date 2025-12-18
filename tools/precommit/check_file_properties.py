@@ -76,6 +76,8 @@ FLAG_EXCEPTIONS = (
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
+    r"OPENPMDAPI_VERSION_GE",
+    r"openPMD_HAVE_MPI",
     # TODO: Add CMake support for the following flags or remove the corresponding code.
     # See also https://github.com/cp2k/cp2k/issues/4611
     r"__PW_FPGA",
