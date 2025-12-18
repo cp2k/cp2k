@@ -48,7 +48,6 @@ FLAG_EXCEPTIONS = (
     r"__COMPILE_REVISION",
     r"__CRAY_PM_FAKE_ENERGY",
     r"__DATA_DIR",
-    r"__FFTW3_UNALIGNED",
     r"__FORCE_USE_FAST_MATH",
     r"__INTEL_LLVM_COMPILER",
     r"__INTEL_COMPILER",
@@ -92,6 +91,7 @@ FLAG_EXCEPTIONS = (
     r"__CRAY_PM_ENERGY",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
+    r"__FFTW3_UNALIGNED",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
@@ -149,26 +149,24 @@ BSD_PATHS = (
 MIT_PATHS = ("src/grpp/",)
 
 
-def read_text(filename: str) -> str:
-    return CP2K_DIR.joinpath(filename).read_text(encoding="utf8")
-
-
 @lru_cache(maxsize=None)
 def get_src_cmakelists_txt() -> str:
     return "\n".join(
-        read_text(fn)
+        (CP2K_DIR / fn).read_text(encoding="utf8")
         for fn in ["src/CMakeLists.txt", "cmake/CompilerConfiguration.cmake"]
     )
 
 
 @lru_cache(maxsize=None)
-def get_build_from_source_md() -> str:
-    return read_text("docs/getting-started/build-from-source.md")
+def get_build_docs() -> str:
+    files = list((CP2K_DIR / "docs/technologies").glob("**/*.md"))
+    files.append(CP2K_DIR / "docs/getting-started/build-from-source.md")
+    return "\n".join(fn.read_text(encoding="utf8") for fn in files)
 
 
 @lru_cache(maxsize=None)
 def get_flags_src() -> str:
-    cp2k_info = read_text("src/cp2k_info.F")
+    cp2k_info = (CP2K_DIR / "src/cp2k_info.F").read_text(encoding="utf8")
     match = CP2K_FLAGS_RE.search(cp2k_info)
     assert match
     return match.group(1)
@@ -176,7 +174,7 @@ def get_flags_src() -> str:
 
 @lru_cache(maxsize=None)
 def get_bibliography_dois() -> List[str]:
-    bib = read_text("src/common/bibliography.F")
+    bib = (CP2K_DIR / "src/common/bibliography.F").read_text(encoding="utf8")
     matches = re.findall(r'doi="([^"]+)"', bib, flags=re.IGNORECASE)
     assert len(matches) > 260 and "10.1016/j.cpc.2004.12.014" in matches
     return matches
@@ -304,9 +302,9 @@ def check_file(path: pathlib.Path) -> List[str]:
     if "cmake" in str(path).lower():
         options = CMAKE_OPTION_RE.findall(content)
         for opt in options:
-            if opt not in get_build_from_source_md():
+            if opt not in get_build_docs():
                 warnings += [
-                    f"{path}: CMake option {opt} not mentioned in docs/getting-started/build-from-source.md"
+                    f"{path}: CMake option {opt} not mentioned in docs/technologies section nor build-from-source.md"
                 ]
 
     # Check for DOIs that could be a bibliography reference.

@@ -1,144 +1,25 @@
 # Build from Source
 
-CP2K can be compiled with the [CMake] build system. [CMake] is used to detect CP2K dependencies and
-configure the compilation process.
+CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
+compilation process. The dependencies have to be installed in advance, either manually or through a
+package manager like [Spack](https://spack.readthedocs.io).
 
-CP2K dependencies should be installed independently, either manually or using a package manager. See
-[CP2K's Spack Documentation] for documentation on how to use the [Spack] package manager to build
-CP2K's dependencies.
+## Dependencies
 
-## Using CMake
+At a minimum CP2K requirements a modern C and Fortran compiler,
+[DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK. For parallel builds it also needs at
+least MPI and ScaLAPACK. Descriptions of all available build options can be found in the sections on
+[](../technologies/eigensolvers/index), [](../technologies/accelerators/index), and
+[](../technologies/libraries).
 
-The most common [CMake] workflow is to create a `build/` directory in the root directory of the
-source tree, and run [CMake] as follows:
+## Example
+
+CMake is typically run *out-of-tree* in a seperate `build/` directory. The following example builds
+CP2K with CUDA acceleration for Nvidia A100 GPUs and a few optional dependencies:
 
 ```bash
 cd <CP2K_REPOSITORY>
 mkdir build/
-cmake -S . -B build             # -S <SOURCE_DIR> -B <BUILD_DIR>
-cmake --build build -- -j 32    # -build <BUILD_DIR> -- <BUILD_TOOL_OPTIONS>
-```
-
-`<CP2K_REPOSITORY>` is a placeholder for the path to the CP2K repository, containing the source code
-to be compiled.
-
-### Generators
-
-By default, [CMake] generates GNU Makefiles (on Linux). With [CMake], it is possible to generate
-files for other build systems such as Ninja:
-
-```bash
-cmake -S . -B build -GNinja
-```
-
-### Release and Debug Builds
-
-[CMake] allows to specify a build type. `-DCMAKE_BUILD_TYPE=Release` turns on optimizations, while
-`-DCMAKE_BUILD_TYPE=Debug` turns on debug options.
-
-## Dependencies
-
-The minimum requirements to use the [CMake] build system are the following:
-
-- [CMake]
-- C, C++, and Fortran compilers
-- [DBCSR]
-- OpenMP
-- BLAS and LAPACK
-
-For an MPI build, the following dependencies are also required:
-
-- MPI
-- ScaLAPACK
-
-### DBCSR
-
-[DBCSR] is a required dependency of CP2K, and [CMake] expects [DBCSR] as an external dependency.
-
-### BLAS, LAPACK, and ScaLAPACK
-
-The major vendors' implementations of BLAS and LAPACK are supported. If CP2K is compiled with MPI
-support (`-DCP2K_USE_MPI=ON`), ScaLAPACK is also required.
-
-`-DCP2K_BLAS_VENDOR` and `-DCP2K_SCALAPACK_VENDOR` can be used to control which vendor library to
-use.
-
-To build with Intel OneAPI MKL:
-
-```bash
-cmake -S . -B build -DCP2K_BLAS_VENDOR=MKL -DCP2K_SCALAPACK_VENDOR=MKL
-cmake --build build
-```
-
-To build with Cray LibSci:
-
-```bash
-cmake -S . -B build -DCP2K_BLAS_VENDOR=SCI -DCP2K_SCALAPACK_VENDOR=SCI
-cmake --build build
-```
-
-### Others Build Options
-
-- `BUILD_SHARED_LIBS`
-- `CMAKE_POSITION_INDEPENDENT_CODE`
-- `CP2K_DBCSR_USE_CPU_ONLY`
-- `CP2K_ENABLE_CONSISTENCY_CHECKS`
-- `CP2K_ENABLE_DBM_GPU`
-- `CP2K_ENABLE_ELPA_OPENMP_SUPPORT`
-- `CP2K_ENABLE_FFTW3_OPENMP_SUPPORT`
-- `CP2K_ENABLE_FFTW3_THREADS_SUPPORT`
-- `CP2K_ENABLE_GRID_GPU`
-- `CP2K_ENABLE_PW_GPU`
-- `CP2K_USE_ACE`
-- `CP2K_USE_CUSOLVER_MP`
-- `CP2K_USE_DEEPMD`
-- `CP2K_USE_DFTD4`
-- `CP2K_USE_DLAF`
-- `CP2K_USE_EVERYTHING`
-- `CP2K_USE_FFTW3`
-- `CP2K_USE_FFTW3_WITH_MKL`
-- `CP2K_USE_GREENX`
-- `CP2K_USE_GRPP`
-- `CP2K_USE_HDF5`
-- `CP2K_USE_LIBSMEAGOL`
-- `CP2K_USE_LIBTORCH`
-- `CP2K_USE_LIBVDWXC`
-- `CP2K_USE_LIBVDWXC`
-- `CP2K_USE_LIBXSMM`
-- `CP2K_USE_MPI_F08`
-- `CP2K_USE_PEXSI`
-- `CP2K_USE_PEXSI`
-- `CP2K_USE_PLUMED`
-- `CP2K_USE_SIRIUS_DFTD4`
-- `CP2K_USE_SIRIUS_NLCG`
-- `CP2K_USE_SIRIUS_VCSQNM`
-- `CP2K_USE_SPLA_GEMM_OFFLOADING`
-- `CP2K_USE_STATIC_BLAS`
-- `CP2K_USE_TBLITE`
-- `CP2K_USE_TREXIO`
-- `CP2K_USE_UNIFIED_MEMORY`
-- `CP2K_USE_VORI`
-- `CP2K_WITH_GPU_PROFILING`
-
-## GPUs
-
-CP2K is GPU-accelerated. In order to enable GPU acceleration with [CUDA] or [HIP],
-`-DCP2K_USE_ACCEL` can be used:
-
-- `-DCP2K_USE_ACCEL=CUDA`: enables [CUDA]
-- `-DCP2K_USE_ACCEL=HIP`: enables [HIP]
-
-The target architecture can be selected with `-DCP2K_WITH_GPU`.
-
-CUDA can either be build using the NVIDIA HPC package (`-DCP2K_USE_NVHPC=ON`) or the CUDA toolkit
-package(`-DCP2K_USE_NVHPC=OFF`).
-
-## Example
-
-Build CP2K with CUDA acceleration for Nvidia A100 GPUs, with multiple optional dependencies:
-
-```bash
-cd <CP2K_REPOSITORY> && make build/
 cmake -S . -B build \
     -GNinja \
     -DCP2K_USE_LIBXC=ON \
@@ -153,9 +34,13 @@ cmake -S . -B build \
 cmake --build build -j 32
 ```
 
-[cmake]: https://cmake.org
-[cp2k's spack documentation]: https://packages.spack.io/package.html?name=cp2k
-[cuda]: https://developer.nvidia.com/cuda-toolkit
-[dbcsr]: https://cp2k.github.io/dbcsr/develop/
-[hip]: https://rocm.docs.amd.com/projects/HIP/en/latest/
-[spack]: https://spack.readthedocs.io/en/latest/
+## Others Build Options
+
+- `-GNinja` Generates [Ninja](https://ninja-build.org/) build files instead of GNU Makefiles.
+- `-DCMAKE_BUILD_TYPE=Debug` Enables debug settings, recommended for development.
+- `-DBUILD_SHARED_LIBS=OFF` Disables shared libraries.
+- `-DCMAKE_POSITION_INDEPENDENT_CODE=OFF` Disables position-independent code.
+- `-DCP2K_USE_EVERYTHING=ON` Enables all dependencies.
+- `-DCP2K_ENABLE_CONSISTENCY_CHECKS=ON` Only used for
+  [testing](https://dashboard.cp2k.org/archive/misc/index.html).
+- `-DCP2K_USE_GRPP=ON` No used anymore.
