@@ -1020,9 +1020,11 @@ if(CP2K_USE_PEXSI)
 endif()
 
 if(CP2K_USE_ACE)
-  message(" - ACE\n" # keep line break
-          "   - include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
-          "   - libraries: ${CP2K_ACE_LINK_LIBRARIES}\n\n")
+  message(
+    " - ACE\n" # keep line break
+    "   - include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
+    "   - libraries: ${CP2K_ACE_LINK_LIBRARIES};${CP2K_ACE_YAML_LINK_LIBRARIES};${CP2K_ACE_CNPY_LINK_LIBRARIES}\n\n"
+  )
 endif()
 
 if(CP2K_USE_LIBSMEAGOL)
