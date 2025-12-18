@@ -51,6 +51,7 @@ QS/regtest-gpw-1                                            libint libvori !ifx
 QS/regtest-tddfpt-force-2                                   libint !ifx
 Fist/regtest-12
 QS/regtest-ot
+QS/regtest-openpmd                                          openpmd
 QS/regtest-ec-force                                         libint !ifx
 QS/regtest-embed                                            libint !ifx
 xTB/regtest-5

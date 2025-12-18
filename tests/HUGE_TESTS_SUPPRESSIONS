@@ -182,4 +182,7 @@ QS/regtest-fftw-wisdom/test_wisdom_import.inp
 QS/regtest-smeagol-2/au-1x1x4-bulk.inp
 QS/regtest-smeagol-2/au-h2-au-1x1x1-1V-forces.inp
 
+# Tests produced 11.69 MiB of output.
+QS/regtest-openpmd/H2O-geo-ot-lumo-all-openpmd.inp
+
 #EOF
