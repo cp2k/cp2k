@@ -91,7 +91,6 @@ FLAG_EXCEPTIONS = (
     r"__CRAY_PM_ENERGY",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
-    r"__FFTW3_UNALIGNED",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))

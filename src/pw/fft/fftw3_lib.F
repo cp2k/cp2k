@@ -686,10 +686,6 @@ CONTAINS
          CPABORT("fftw3_create_plan_3d")
       END SELECT
 
-#if defined(__FFTW3_UNALIGNED)
-      fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-#endif
-
       IF (plan%fsign == +1) THEN
          fft_direction = FFTW_FORWARD
       ELSE
@@ -1020,9 +1016,6 @@ CONTAINS
          CPABORT("fftw3_create_plan_1dm")
       END SELECT
 
-#if defined(__FFTW3_UNALIGNED)
-      fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
-#endif
       num_threads = 1
       plan%separated_plans = .FALSE.
 !$OMP PARALLEL DEFAULT(NONE), &
