@@ -43,3 +43,6 @@ cmake --build build -j 32
 - `-DCP2K_USE_EVERYTHING=ON` Enables all dependencies.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS=ON` Only used for
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
+- `-DCP2K_USE_CRAY_PW_ENERGY` Used to monitor pwoer consumption on Cray systems. =
+  `-DCP2K_USE_CRAY_PW_ACCEL_ENERGY` Use to monitor power comsumption of accelerators on Cray
+  systems.

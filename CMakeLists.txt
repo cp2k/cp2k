@@ -137,7 +137,7 @@ option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
-
+option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -220,6 +220,11 @@ cmake_dependent_option(
   CP2K_USE_SPLA_GEMM_OFFLOADING ON
   "Enable SpLA dgemm offloading (only valid with GPU support on)"
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_SPLA)" OFF)
+
+cmake_dependent_option(
+  CP2K_USE_CRAY_PM_ACCEL_ENERGY ON
+  "Enable CRAY power management framework with gpu support"
+  "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_CRAY_PM_ENERGY)" OFF)
 
 cmake_dependent_option(
   CP2K_USE_LIBVDWXC OFF
