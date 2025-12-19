@@ -43,4 +43,3 @@ cmake --build build -j 32
 - `-DCP2K_USE_EVERYTHING=ON` Enables all dependencies.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS=ON` Only used for
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
-- `-DCP2K_USE_GRPP=ON` No used anymore.

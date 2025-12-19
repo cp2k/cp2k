@@ -10,15 +10,17 @@
 ! **************************************************************************************************
 
 MODULE libgrpp_integrals
-   USE kinds, ONLY: dp
-   USE mathconstants, ONLY: pi
-   USE ai_derivatives, ONLY: dabdr_noscreen, adbdr, dabdr
-   USE orbital_pointers, ONLY: nco, &
-                               ncoset
-#if defined(__LIBGRPP)
-   USE libgrpp, ONLY: libgrpp_init, libgrpp_type1_integrals, libgrpp_type2_integrals, &
-                      libgrpp_type1_integrals_gradient, libgrpp_type2_integrals_gradient
-#endif
+   USE ai_derivatives,                  ONLY: adbdr,&
+                                              dabdr
+   USE kinds,                           ONLY: dp
+   USE libgrpp,                         ONLY: libgrpp_init,&
+                                              libgrpp_type1_integrals,&
+                                              libgrpp_type1_integrals_gradient,&
+                                              libgrpp_type2_integrals,&
+                                              libgrpp_type2_integrals_gradient
+   USE mathconstants,                   ONLY: pi
+   USE orbital_pointers,                ONLY: nco,&
+                                              ncoset
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,20 +76,18 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
-      REAL(KIND=dp), INTENT(IN)                          :: dac
-      REAL(KIND=dp), INTENT(IN)                          :: dbc
+      REAL(KIND=dp), INTENT(IN)                          :: dac, dbc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: force_a, force_b
 
-#if defined(__LIBGRPP)
       INTEGER                                            :: a_offset, a_start, b_offset, b_start, i, &
                                                             ipgf, j, jpgf, li, lj, ncoa, ncob
       LOGICAL                                            :: calc_forces
-      REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
-                                                            zeti, zetj, mindist, fac_a, fac_b
+      REAL(dp)                                           :: expi, expj, fac_a, fac_b, mindist, &
+                                                            normi, normj, prefi, prefj, zeti, zetj
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp, tmpx, tmpy, tmpz
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
@@ -238,36 +238,6 @@ CONTAINS
 
          END DO !jpgf
       END DO !ipgf
-#else
-
-      MARK_USED(la_max_set)
-      MARK_USED(la_min_set)
-      MARK_USED(npgfa)
-      MARK_USED(rpgfa)
-      MARK_USED(zeta)
-      MARK_USED(lb_max_set)
-      MARK_USED(lb_min_set)
-      MARK_USED(npgfb)
-      MARK_USED(rpgfb)
-      MARK_USED(zetb)
-      MARK_USED(npot_ecp)
-      MARK_USED(alpha_ecp)
-      MARK_USED(coeffs_ecp)
-      MARK_USED(nrpot_ecp)
-      MARK_USED(rpgfc)
-      MARK_USED(rab)
-      MARK_USED(dab)
-      MARK_USED(rac)
-      MARK_USED(dac)
-      MARK_USED(dbc)
-      MARK_USED(vab)
-      MARK_USED(pab)
-      MARK_USED(force_a)
-      MARK_USED(force_b)
-
-      CPABORT("Please compile CP2K with libgrpp support for calculations with ECPs")
-#endif
-
    END SUBROUTINE libgrpp_local_integrals
 
 ! **************************************************************************************************
@@ -315,21 +285,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
-      REAL(KIND=dp), INTENT(IN)                          :: dac
-      REAL(KIND=dp), INTENT(IN)                          :: dbc
+      REAL(KIND=dp), INTENT(IN)                          :: dac, dbc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: force_a, force_b
 
-#if defined(__LIBGRPP)
       INTEGER                                            :: a_offset, a_start, b_offset, b_start, i, &
                                                             ipgf, j, jpgf, li, lj, lk, ncoa, ncob
       LOGICAL                                            :: calc_forces
-      REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
-                                                            zeti, zetj, mindist, fac_a, fac_b
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp, tmpx, tmpz, tmpy
+      REAL(dp)                                           :: expi, expj, fac_a, fac_b, mindist, &
+                                                            normi, normj, prefi, prefj, zeti, zetj
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp, tmpx, tmpy, tmpz
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
       CALL libgrpp_init()
@@ -484,38 +452,6 @@ CONTAINS
 
          END DO !jpgf
       END DO !ipgf
-
-#else
-
-      MARK_USED(la_max_set)
-      MARK_USED(la_min_set)
-      MARK_USED(npgfa)
-      MARK_USED(rpgfa)
-      MARK_USED(zeta)
-      MARK_USED(lb_max_set)
-      MARK_USED(lb_min_set)
-      MARK_USED(npgfb)
-      MARK_USED(rpgfb)
-      MARK_USED(zetb)
-      MARK_USED(lmax_ecp)
-      MARK_USED(npot_ecp)
-      MARK_USED(alpha_ecp)
-      MARK_USED(coeffs_ecp)
-      MARK_USED(nrpot_ecp)
-      MARK_USED(rpgfc)
-      MARK_USED(rab)
-      MARK_USED(dab)
-      MARK_USED(rac)
-      MARK_USED(dac)
-      MARK_USED(dbc)
-      MARK_USED(vab)
-      MARK_USED(pab)
-      MARK_USED(force_a)
-      MARK_USED(force_b)
-
-      CPABORT("Please compile CP2K with libgrpp support for calculations with ECPs")
-#endif
-
    END SUBROUTINE libgrpp_semilocal_integrals
 
 ! **************************************************************************************************
@@ -564,20 +500,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
-      REAL(KIND=dp), INTENT(IN)                          :: dac
-      REAL(KIND=dp), INTENT(IN)                          :: dbc
+      REAL(KIND=dp), INTENT(IN)                          :: dac, dbc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force_a, force_b
 
-#if defined(__LIBGRPP)
-      INTEGER                                            :: a_offset, a_start, b_offset, b_start, i, &
-                                                            ipgf, j, jpgf, li, lj, ncoa, ncob, a_offset_f, &
-                                                            b_offset_f, a_start_f, b_start_f
+      INTEGER                                            :: a_offset, a_offset_f, a_start, &
+                                                            a_start_f, b_offset, b_offset_f, &
+                                                            b_start, b_start_f, i, ipgf, j, jpgf, &
+                                                            li, lj, ncoa, ncob
       REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
                                                             zeti, zetj
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vab_f, tmpx, tmpy, tmpz
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmpx, tmpy, tmpz, vab_f
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
       CALL libgrpp_init()
@@ -685,37 +620,6 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (tmpx, tmpy, tmpz)
-
-#else
-
-      MARK_USED(la_max_set)
-      MARK_USED(la_min_set)
-      MARK_USED(npgfa)
-      MARK_USED(rpgfa)
-      MARK_USED(zeta)
-      MARK_USED(lb_max_set)
-      MARK_USED(lb_min_set)
-      MARK_USED(npgfb)
-      MARK_USED(rpgfb)
-      MARK_USED(zetb)
-      MARK_USED(npot_ecp)
-      MARK_USED(alpha_ecp)
-      MARK_USED(coeffs_ecp)
-      MARK_USED(nrpot_ecp)
-      MARK_USED(rpgfc)
-      MARK_USED(rab)
-      MARK_USED(dab)
-      MARK_USED(rac)
-      MARK_USED(dac)
-      MARK_USED(dbc)
-      MARK_USED(pab)
-      MARK_USED(vab)
-      MARK_USED(force_a)
-      MARK_USED(force_b)
-
-      CPABORT("Please compile CP2K with libgrpp support for calculations with ECPs")
-#endif
-
    END SUBROUTINE libgrpp_local_forces_ref
 
 ! **************************************************************************************************
@@ -766,20 +670,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), INTENT(IN)                          :: dab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
-      REAL(KIND=dp), INTENT(IN)                          :: dac
-      REAL(KIND=dp), INTENT(IN)                          :: dbc
+      REAL(KIND=dp), INTENT(IN)                          :: dac, dbc
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force_a, force_b
 
-#if defined(__LIBGRPP)
-      INTEGER                                            :: a_offset, a_start, b_offset, b_start, i, &
-                                                            ipgf, j, jpgf, li, lj, lk, ncoa, ncob, &
-                                                            a_start_f, b_start_f, a_offset_f, b_offset_f
+      INTEGER                                            :: a_offset, a_offset_f, a_start, &
+                                                            a_start_f, b_offset, b_offset_f, &
+                                                            b_start, b_start_f, i, ipgf, j, jpgf, &
+                                                            li, lj, lk, ncoa, ncob
       REAL(dp)                                           :: expi, expj, normi, normj, prefi, prefj, &
                                                             zeti, zetj
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: vab_f, tmpx, tmpy, tmpz
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmpx, tmpy, tmpz, vab_f
       REAL(dp), DIMENSION(3)                             :: ra, rb, rc
 
       CALL libgrpp_init()
@@ -891,38 +794,6 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (tmpx, tmpy, tmpz)
-
-#else
-
-      MARK_USED(la_max_set)
-      MARK_USED(la_min_set)
-      MARK_USED(npgfa)
-      MARK_USED(rpgfa)
-      MARK_USED(zeta)
-      MARK_USED(lb_max_set)
-      MARK_USED(lb_min_set)
-      MARK_USED(npgfb)
-      MARK_USED(rpgfb)
-      MARK_USED(zetb)
-      MARK_USED(lmax_ecp)
-      MARK_USED(npot_ecp)
-      MARK_USED(alpha_ecp)
-      MARK_USED(coeffs_ecp)
-      MARK_USED(nrpot_ecp)
-      MARK_USED(rpgfc)
-      MARK_USED(rab)
-      MARK_USED(dab)
-      MARK_USED(rac)
-      MARK_USED(dac)
-      MARK_USED(dbc)
-      MARK_USED(pab)
-      MARK_USED(vab)
-      MARK_USED(force_a)
-      MARK_USED(force_b)
-
-      CPABORT("Please compile CP2K with libgrpp support for calculations with ECPs")
-#endif
-
    END SUBROUTINE libgrpp_semilocal_forces_ref
 
 END MODULE libgrpp_integrals
