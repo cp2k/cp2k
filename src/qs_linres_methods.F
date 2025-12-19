@@ -208,22 +208,25 @@ CONTAINS
 !> \param psi0_order ...
 !> \param iounit ...
 !> \param should_stop ...
+!> \param silent ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
+   SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, &
+                            should_stop, silent)
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi1, h1_psi0, psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'linres_solver'
 
       INTEGER                                            :: handle, ispin, iter, maxnmo, nao, ncol, &
                                                             nmo, nocc, nspins
-      LOGICAL                                            :: restart
+      LOGICAL                                            :: my_silent, restart
       REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
@@ -239,6 +242,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent = silent
 
       NULLIFY (dft_control, linres_control, matrix_s, matrix_t, matrix_ks, para_env)
       NULLIFY (mos, tmp_fm_struct, mo_coeff)
@@ -318,7 +324,7 @@ CONTAINS
       END DO
       !
       ! header
-      IF (iounit > 0) THEN
+      IF (iounit > 0 .AND. .NOT. my_silent) THEN
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
             "Iteration", "Method", "Restart", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 78)
@@ -407,7 +413,7 @@ CONTAINS
          t2 = m_walltime()
          IF (iter == 1 .OR. MOD(iter, 1) == 0 .OR. linres_control%converged &
              .OR. restart .OR. should_stop) THEN
-            IF (iounit > 0) THEN
+            IF (iounit > 0 .AND. .NOT. my_silent) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
                   iter, linres_control%flag, restart, alpha, norm_res, t2 - t1
                CALL m_flush(iounit)
@@ -416,7 +422,8 @@ CONTAINS
          !
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(T3,A,I4,A)") "The linear solver converged in ", iter, " iterations."
+               WRITE (iounit, "(T3,A,I4,A,T73,F8.2)") "The linear solver converged in ", &
+                  iter, " iterations.", t2 - t1
                CALL m_flush(iounit)
             END IF
             EXIT iteration

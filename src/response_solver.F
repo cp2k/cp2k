@@ -171,13 +171,14 @@ CONTAINS
 !>
 !> \param qs_env The quickstep environment
 !> \param ec_env The energy correction environment
-!>
+!> \param silent ...
 !> \date    01.2020
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE response_calculation(qs_env, ec_env)
+   SUBROUTINE response_calculation(qs_env, ec_env, silent)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_calculation'
 
@@ -245,7 +246,7 @@ CONTAINS
       CALL set_qs_env(qs_env, linres_control=linres_control)
 
       ! Write input section of response solver
-      CALL response_solver_write_input(solver_section, linres_control, unit_nr)
+      CALL response_solver_write_input(solver_section, linres_control, unit_nr, silent=silent)
 
       ! Allocate and initialize response density matrix Z,
       ! and the energy weighted response density matrix
@@ -351,7 +352,7 @@ CONTAINS
          ! Projector Q applied in linres_solver!
          IF (ASSOCIATED(ec_env%cpmos)) THEN
 
-            CALL response_equation_new(qs_env, p_env, ec_env%cpmos, unit_nr)
+            CALL response_equation_new(qs_env, p_env, ec_env%cpmos, unit_nr, silent=silent)
 
          ELSE
             CALL get_qs_env(qs_env, mos=mos)
@@ -378,7 +379,7 @@ CONTAINS
             END DO
             CALL cp_fm_release(mo_occ)
 
-            CALL response_equation_new(qs_env, p_env, cpmos, unit_nr)
+            CALL response_equation_new(qs_env, p_env, cpmos, unit_nr, silent=silent)
 
             CALL cp_fm_release(cpmos)
          END IF
@@ -403,7 +404,8 @@ CONTAINS
                              matrix_pz=ec_env%matrix_z, &
                              matrix_wz=ec_env%matrix_wz, &
                              iounit=unit_nr, &
-                             should_stop=should_stop)
+                             should_stop=should_stop, &
+                             silent=silent)
 
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -461,22 +463,28 @@ CONTAINS
 !> \param input Input section which controls response solver parameters
 !> \param linres_control Environment for general setting of linear response calculation
 !> \param unit_nr ...
+!> \param silent ...
 !> \par History
 !>       2020.05 created [Fabian Belleflamme]
 !> \author Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE response_solver_write_input(input, linres_control, unit_nr)
+   SUBROUTINE response_solver_write_input(input, linres_control, unit_nr, silent)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(linres_control_type), POINTER                 :: linres_control
       INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER :: routineN = 'response_solver_write_input'
 
       INTEGER                                            :: handle, max_iter_lanczos, s_sqrt_method, &
                                                             s_sqrt_order, solver_method
+      LOGICAL                                            :: my_silent
       REAL(KIND=dp)                                      :: eps_lanczos
 
       CALL timeset(routineN, handle)
+
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent = silent
 
       IF (unit_nr > 0) THEN
 
@@ -484,61 +492,64 @@ CONTAINS
          WRITE (unit_nr, '(/,T2,A)') &
             REPEAT("-", 30)//" Linear Response Solver "//REPEAT("-", 25)
 
-         ! Which type of solver is used
-         CALL section_vals_val_get(input, "METHOD", i_val=solver_method)
+         IF (.NOT. my_silent) THEN
+            ! Which type of solver is used
+            CALL section_vals_val_get(input, "METHOD", i_val=solver_method)
 
-         SELECT CASE (solver_method)
-         CASE (ec_ls_solver)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Solver: ", "AO-based CG-solver"
-         CASE (ec_mo_solver)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Solver: ", "MO-based CG-solver"
-         END SELECT
-
-         WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps:", linres_control%eps
-         WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_filter:", linres_control%eps_filter
-         WRITE (unit_nr, '(T2,A,T61,I20)') "Max iter:", linres_control%max_iter
-
-         SELECT CASE (linres_control%preconditioner_type)
-         CASE (ot_precond_full_all)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_ALL"
-         CASE (ot_precond_full_single_inverse)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_SINGLE_INVERSE"
-         CASE (ot_precond_full_single)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_SINGLE"
-         CASE (ot_precond_full_kinetic)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_KINETIC"
-         CASE (ot_precond_s_inverse)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_S_INVERSE"
-         CASE (precond_mlp)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "MULTI_LEVEL"
-         CASE (ot_precond_none)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "NONE"
-         END SELECT
-
-         SELECT CASE (solver_method)
-         CASE (ec_ls_solver)
-
-            CALL section_vals_val_get(input, "S_SQRT_METHOD", i_val=s_sqrt_method)
-            CALL section_vals_val_get(input, "S_SQRT_ORDER", i_val=s_sqrt_order)
-            CALL section_vals_val_get(input, "EPS_LANCZOS", r_val=eps_lanczos)
-            CALL section_vals_val_get(input, "MAX_ITER_LANCZOS", i_val=max_iter_lanczos)
-
-            ! Response solver transforms P and KS into orthonormal basis,
-            ! reuires matrx S sqrt and its inverse
-            SELECT CASE (s_sqrt_method)
-            CASE (ls_s_sqrt_ns)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
-            CASE (ls_s_sqrt_proot)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
-            CASE DEFAULT
-               CPABORT("Unknown sqrt method.")
+            SELECT CASE (solver_method)
+            CASE (ec_ls_solver)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Solver: ", "AO-based CG-solver"
+            CASE (ec_mo_solver)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Solver: ", "MO-based CG-solver"
             END SELECT
-            WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", s_sqrt_order
 
-         CASE (ec_mo_solver)
-         END SELECT
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps:", linres_control%eps
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_filter:", linres_control%eps_filter
+            WRITE (unit_nr, '(T2,A,T61,I20)') "Max iter:", linres_control%max_iter
 
-         WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
+            SELECT CASE (linres_control%preconditioner_type)
+            CASE (ot_precond_full_all)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_ALL"
+            CASE (ot_precond_full_single_inverse)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_SINGLE_INVERSE"
+            CASE (ot_precond_full_single)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_SINGLE"
+            CASE (ot_precond_full_kinetic)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_KINETIC"
+            CASE (ot_precond_s_inverse)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "FULL_S_INVERSE"
+            CASE (precond_mlp)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "MULTI_LEVEL"
+            CASE (ot_precond_none)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Preconditioner: ", "NONE"
+            END SELECT
+
+            SELECT CASE (solver_method)
+            CASE (ec_ls_solver)
+
+               CALL section_vals_val_get(input, "S_SQRT_METHOD", i_val=s_sqrt_method)
+               CALL section_vals_val_get(input, "S_SQRT_ORDER", i_val=s_sqrt_order)
+               CALL section_vals_val_get(input, "EPS_LANCZOS", r_val=eps_lanczos)
+               CALL section_vals_val_get(input, "MAX_ITER_LANCZOS", i_val=max_iter_lanczos)
+
+               ! Response solver transforms P and KS into orthonormal basis,
+               ! reuires matrx S sqrt and its inverse
+               SELECT CASE (s_sqrt_method)
+               CASE (ls_s_sqrt_ns)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
+               CASE (ls_s_sqrt_proot)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
+               CASE DEFAULT
+                  CPABORT("Unknown sqrt method.")
+               END SELECT
+               WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", s_sqrt_order
+
+            CASE (ec_mo_solver)
+            END SELECT
+
+            WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
+
+         END IF
 
          CALL m_flush(unit_nr)
       END IF
@@ -555,12 +566,14 @@ CONTAINS
 !> \param p_env ...
 !> \param cpmos ...
 !> \param iounit ...
+!> \param silent ...
 ! **************************************************************************************************
-   SUBROUTINE response_equation_new(qs_env, p_env, cpmos, iounit)
+   SUBROUTINE response_equation_new(qs_env, p_env, cpmos, iounit, silent)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new'
 
@@ -600,7 +613,8 @@ CONTAINS
 
       should_stop = .FALSE.
       ! The response solver
-      CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, should_stop)
+      CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, &
+                         should_stop, silent=silent)
 
       ! Building the response density matrix
       DO ispin = 1, nspins
@@ -657,13 +671,15 @@ CONTAINS
 !> \param cpmos RHS of equation as Ax + b = 0 (sign of b)
 !> \param iounit ...
 !> \param lr_section ...
+!> \param silent ...
 ! **************************************************************************************************
-   SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, lr_section)
+   SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, lr_section, silent)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
       TYPE(section_vals_type), OPTIONAL, POINTER         :: lr_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_equation'
 
@@ -756,7 +772,8 @@ CONTAINS
          END DO
       END IF
 
-      CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, should_stop)
+      CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, &
+                         should_stop, silent=silent)
 
       ! Building the response density matrix
       DO ispin = 1, nspins

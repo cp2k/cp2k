@@ -4260,7 +4260,7 @@ CONTAINS
                                     ec_env%matrix_w(1, 1)%matrix, unit_nr, &
                                     ec_env%debug_forces, ec_env%debug_stress)
 
-               CALL response_calculation(qs_env, ec_env)
+               CALL response_calculation(qs_env, ec_env, silent=.TRUE.)
 
                CALL response_force(qs_env, &
                                    vh_rspace=ec_env%vh_rspace, &
@@ -4281,7 +4281,7 @@ CONTAINS
                CALL para_env%sum(eforce)
             ELSE
                IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, '(T5,A)') " Response Force Calculation is skipped. "
+                  WRITE (unit_nr, '(T2,A)') " Response Force Calculation is skipped. "
                END IF
                eforce = 0.0_dp
             END IF
@@ -4306,7 +4306,7 @@ CONTAINS
             END IF
 
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) "FORCES"
+               WRITE (unit_nr, *) " FORCES"
                DO ia = 1, natom
                   WRITE (unit_nr, "(i7,3F11.6,6X,3F11.6)") ia, eforce(1:3, ia), &
                      (eforce(1:3, ia) - ec_env%rf(1:3, ia))

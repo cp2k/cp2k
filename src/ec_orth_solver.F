@@ -103,11 +103,12 @@ CONTAINS
 !> \param eps_filter ...
 !> \param iounit ...
 !>
+!> \param silent ...
 !> \date    01.2020
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
    SUBROUTINE ec_preconditioner(qs_env, matrix_ks, matrix_p, matrix_rhs, &
-                                matrix_cg_z, eps_filter, iounit)
+                                matrix_cg_z, eps_filter, iounit, silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
@@ -116,11 +117,12 @@ CONTAINS
          POINTER                                         :: matrix_cg_z
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: iounit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_preconditioner'
 
       INTEGER                                            :: handle, i, ispin, max_iter, nao, nspins
-      LOGICAL                                            :: converged
+      LOGICAL                                            :: converged, my_silent
       REAL(KIND=dp)                                      :: norm_res, t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha, beta, new_norm, norm_cA, norm_rr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_Ax, matrix_b, matrix_cg, &
@@ -129,6 +131,9 @@ CONTAINS
       TYPE(linres_control_type), POINTER                 :: linres_control
 
       CALL timeset(routineN, handle)
+
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent = silent
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(matrix_ks))
@@ -211,7 +216,7 @@ CONTAINS
       END DO
 
       ! header
-      IF (iounit > 0) THEN
+      IF (iounit > 0 .AND. .NOT. my_silent) THEN
          WRITE (iounit, "(/,T10,A)") "Preconditioning of search direction"
          WRITE (iounit, "(/,T10,A,T25,A,T42,A,T62,A,/,T10,A)") &
             "Iteration", "Stepsize", "Convergence", "Time", &
@@ -294,7 +299,7 @@ CONTAINS
 
          t2 = m_walltime()
          IF (i == 1 .OR. MOD(i, 1) == 0 .OR. converged) THEN
-            IF (iounit > 0) THEN
+            IF (iounit > 0 .AND. .NOT. my_silent) THEN
                WRITE (iounit, "(T10,I5,T25,1E8.2,T33,F25.14,T58,F8.2)") &
                   i, MAXVAL(alpha), norm_res, t2 - t1
                ! Convergence in scientific notation
@@ -304,7 +309,7 @@ CONTAINS
             END IF
          END IF
          IF (converged) THEN
-            IF (iounit > 0) THEN
+            IF (iounit > 0 .AND. .NOT. my_silent) THEN
                WRITE (iounit, "(/,T10,A,I4,A,/)") "The precon solver converged in ", i, " iterations."
                CALL m_flush(iounit)
             END IF
@@ -352,10 +357,12 @@ CONTAINS
 !> \param iounit ...
 !> \param should_stop ...
 !>
+!> \param silent ...
 !> \date    01.2020
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE ec_response_ao(qs_env, p_env, matrix_hz, matrix_pz, matrix_wz, iounit, should_stop)
+   SUBROUTINE ec_response_ao(qs_env, p_env, matrix_hz, matrix_pz, matrix_wz, iounit, &
+                             should_stop, silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
@@ -365,12 +372,13 @@ CONTAINS
          POINTER                                         :: matrix_pz, matrix_wz
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_response_ao'
 
       INTEGER                                            :: handle, i, ispin, max_iter_lanczos, nao, &
                                                             nspins, s_sqrt_method, s_sqrt_order
-      LOGICAL                                            :: restart
+      LOGICAL                                            :: my_silent, restart
       REAL(KIND=dp)                                      :: eps_filter, eps_lanczos, focc, &
                                                             min_shift, norm_res, old_conv, shift, &
                                                             t1, t2
@@ -386,6 +394,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: solver_section
 
       CALL timeset(routineN, handle)
+
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent = silent
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(matrix_hz))
@@ -564,7 +575,7 @@ CONTAINS
                                 matrix_rhs=matrix_res, &
                                 matrix_cg_z=matrix_z0, &
                                 eps_filter=eps_filter, &
-                                iounit=iounit)
+                                iounit=iounit, silent=silent)
          linres_control%flag = "PCG-AO"
       ELSE
          ! z_0 = r_0
@@ -594,7 +605,7 @@ CONTAINS
       old_conv = 100.0_dp
 
       ! header
-      IF (iounit > 0) THEN
+      IF (iounit > 0 .AND. .NOT. my_silent) THEN
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,/,T3,A)") &
             "Iteration", "Method", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 80)
@@ -617,7 +628,7 @@ CONTAINS
          t2 = m_walltime()
          IF (i == 1 .OR. MOD(i, 1) == 0 .OR. linres_control%converged &
              .OR. restart .OR. should_stop) THEN
-            IF (iounit > 0) THEN
+            IF (iounit > 0 .AND. .NOT. my_silent) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
                   i, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
                CALL m_flush(iounit)
@@ -625,7 +636,8 @@ CONTAINS
          END IF
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", i, " iterations."
+               WRITE (iounit, "(/,T2,A,I4,A,T73,F8.2,/)") "The linear solver converged in ", &
+                  i, " iterations.", t2 - t1
                CALL m_flush(iounit)
             END IF
             EXIT iteration
@@ -763,7 +775,7 @@ CONTAINS
                                    matrix_rhs=matrix_res, &
                                    matrix_cg_z=matrix_z0, &
                                    eps_filter=eps_filter, &
-                                   iounit=iounit)
+                                   iounit=iounit, silent=silent)
             linres_control%flag = "PCG-AO"
          ELSE
             DO ispin = 1, nspins
