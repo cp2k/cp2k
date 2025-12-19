@@ -3827,8 +3827,8 @@ CONTAINS
             END DO
          END IF
       END DO
-      DEALLOCATE (dipole_to_print, bc_to_printeigenvals, bc, dS_dk_i, dH_dk_i, D_k)
-      DEALLOCATE (C_dS_C, C_dH_C, CDC, dip, S_k, H_k, C_kS_rs, H_rs, D_rs, xkp, special_pnts)
+      DEALLOCATE (dipole_to_print, bc_to_print, eigenvals, bc, dS_dk_i, dH_dk_i, D_k)
+      DEALLOCATE (C_dS_C, C_dH_C, CDC, dip, S_k, H_k, C_k, S_rs, H_rs, D_rs, xkp, special_pnts)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
 
