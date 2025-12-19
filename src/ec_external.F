@@ -14,29 +14,26 @@
 MODULE ec_external
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type,&
                                               dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_get_info,&
-                                              cp_fm_maxabsval,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
+        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -74,7 +71,7 @@ MODULE ec_external
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ec_external'
 
-   PUBLIC :: ec_ext_energy
+   PUBLIC :: ec_ext_energy, matrix_r_forces
 
 CONTAINS
 
@@ -94,9 +91,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_ext_energy'
 
-      INTEGER                                            :: handle, ispin, nocc, nspins, unit_nr
+      INTEGER                                            :: funit, handle, ia, ispin, iter, nao, &
+                                                            nocc, ns, nsample, nspins, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: state
       REAL(KIND=dp)                                      :: focc
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hmat, hnum, rnum
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, h_struct
+      TYPE(cp_fm_type)                                   :: h_fm
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, mo_occ, mo_ref
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -145,6 +146,51 @@ CONTAINS
          ec_env%mo_occ => mo_ref
          CALL ec_ext_debug(qs_env, ec_env, calculate_forces, unit_nr)
          !
+         IF (ec_env%do_error) THEN
+            CALL cp_fm_get_info(cpmos(1), nrow_global=nao)
+            CALL cp_fm_struct_create(h_struct, nrow_global=nao, ncol_global=nao, &
+                                     template_fmstruct=cpmos(1)%matrix_struct)
+            CALL cp_fm_create(h_fm, h_struct)
+            CALL copy_dbcsr_to_fm(ec_env%matrix_h(1, 1)%matrix, h_fm)
+            CALL cp_fm_struct_release(h_struct)
+            ALLOCATE (hmat(nao, nao))
+            CALL cp_fm_get_submatrix(h_fm, hmat, 1, 1, nao, nao)
+            CALL cp_fm_release(h_fm)
+            IF (unit_nr > 1) THEN
+               nsample = 5
+               WRITE (unit_nr, '(/,T2,A)') &
+                  " Write EXTERNAL Response Error file: "//TRIM(ec_env%exresperr_fn)
+               WRITE (unit_nr, '(T2,A,I6)') " Number of Error samples is: ", nsample
+               CALL open_file(ec_env%exresperr_fn, file_status="REPLACE", file_action="WRITE", &
+                              file_form="FORMATTED", unit_number=funit)
+               ALLOCATE (rnum(nao, nao), hnum(nao, nao))
+               WRITE (funit, '(A)') " CP2K "
+               WRITE (funit, *) nsample
+               CALL RANDOM_SEED(size=ns)
+               ALLOCATE (state(ns))
+               DO ia = 1, ns
+                  state(ia) = NINT(271808156._dp*SIN(5.357_dp*ia))
+               END DO
+               CALL RANDOM_SEED(put=state)
+               CALL RANDOM_NUMBER(rnum)
+               DO iter = 1, nsample
+                  DO ispin = 1, nspins
+                     WRITE (funit, *) nao, nao
+                     CALL RANDOM_NUMBER(rnum)
+                     hnum(1:nao, 1:nao) = rnum(1:nao, 1:nao) + TRANSPOSE(rnum(1:nao, 1:nao))
+                     hnum(1:nao, 1:nao) = (hnum(1:nao, 1:nao) - 1.0_dp)*1.0E-3_dp
+                     rnum(1:nao, 1:nao) = hnum(1:nao, 1:nao) + hmat(1:nao, 1:nao)
+                     DO ia = 1, nao
+                        WRITE (funit, *) rnum(ia, 1:nao)
+                     END DO
+                  END DO
+               END DO
+               DEALLOCATE (rnum, hnum, state)
+               CALL close_file(funit)
+            END IF
+            DEALLOCATE (hmat)
+         END IF
+         !
          IF (calculate_forces) THEN
             focc = 2.0_dp
             IF (nspins == 1) focc = 4.0_dp
@@ -182,13 +228,10 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          DO ispin = 1, nspins
             CALL align_vectors(ec_env%cpmos(ispin), ec_env%mo_occ(ispin), mo_occ(ispin), &
-                               matrix_s(1)%matrix, unit_nr)
+                               matrix_s(1)%matrix, ec_env%orbrot_index, ec_env%phase_index, unit_nr)
          END DO
          ! set up matrices for response
          CALL ec_ext_setup(qs_env, ec_env, .TRUE., unit_nr)
-         ! orthogonality force
-         CALL matrix_r_forces(qs_env, ec_env%cpmos, ec_env%mo_occ, &
-                              ec_env%matrix_w(1, 1)%matrix, unit_nr)
       ELSE
          CALL ec_ext_setup(qs_env, ec_env, .FALSE., unit_nr)
       END IF
@@ -567,11 +610,14 @@ CONTAINS
 !> \param mo_ref ...
 !> \param mo_occ ...
 !> \param matrix_s ...
+!> \param orbrot_index ...
+!> \param phase_index ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE align_vectors(cpmos, mo_ref, mo_occ, matrix_s, unit_nr)
+   SUBROUTINE align_vectors(cpmos, mo_ref, mo_occ, matrix_s, orbrot_index, phase_index, unit_nr)
       TYPE(cp_fm_type), INTENT(IN)                       :: cpmos, mo_ref, mo_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_s
+      REAL(KIND=dp), INTENT(OUT)                         :: orbrot_index, phase_index
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'align_vectors'
@@ -607,6 +653,8 @@ CONTAINS
          WRITE (unit_nr, "(T3,A,T61,F20.8)") "External:: Orbital rotation index", a_max
          WRITE (unit_nr, "(T3,A,T71,I10)") "External:: Number of orbital phase changes", scg
       END IF
+      orbrot_index = a_max
+      phase_index = REAL(scg, KIND=dp)
 
       DEALLOCATE (diag)
       CALL cp_fm_struct_release(fm_struct)
@@ -620,124 +668,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param matrix_w ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE matrix_w_forces(qs_env, matrix_w, unit_nr)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w
-      INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'matrix_w_forces'
-
-      INTEGER                                            :: handle, iounit, nder, nimages
-      LOGICAL                                            :: debug_forces, debug_stress, use_virial
-      REAL(KIND=dp)                                      :: fconv
-      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb, sttot
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: scrm
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(virial_type), POINTER                         :: virial
-
-      CALL timeset(routineN, handle)
-
-      debug_forces = .TRUE.
-      debug_stress = .TRUE.
-
-      iounit = unit_nr
-
-      ! no k-points possible
-      CALL get_qs_env(qs_env=qs_env, &
-                      cell=cell, &
-                      dft_control=dft_control, &
-                      force=force, &
-                      ks_env=ks_env, &
-                      sab_orb=sab_orb, &
-                      para_env=para_env, &
-                      virial=virial)
-      nimages = dft_control%nimages
-      IF (nimages /= 1) THEN
-         CPABORT("K-points not implemented")
-      END IF
-
-      ! check for virial
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-
-      fconv = 1.0E-9_dp*pascal/cell%deth
-      IF (debug_stress .AND. use_virial) THEN
-         sttot = virial%pv_virial
-      END IF
-
-      ! initialize src matrix
-      NULLIFY (scrm)
-      CALL dbcsr_allocate_matrix_set(scrm, 1, 1)
-      ALLOCATE (scrm(1, 1)%matrix)
-      CALL dbcsr_create(scrm(1, 1)%matrix, template=matrix_w(1, 1)%matrix)
-      CALL cp_dbcsr_alloc_block_from_nbl(scrm(1, 1)%matrix, sab_orb)
-
-      nder = 1
-      IF (SIZE(matrix_w, 1) == 2) THEN
-         CALL dbcsr_add(matrix_w(1, 1)%matrix, matrix_w(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-      END IF
-
-      ! Overlap and kinetic energy matrices
-      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-      IF (debug_stress .AND. use_virial) stdeb = virial%pv_overlap
-      CALL build_overlap_matrix(ks_env, matrixkp_s=scrm, &
-                                matrix_name="OVERLAP MATRIX", &
-                                basis_type_a="ORB", &
-                                basis_type_b="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrixkp_p=matrix_w)
-
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL para_env%sum(fodeb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wout*dS    ", fodeb
-      END IF
-      IF (debug_stress .AND. use_virial) THEN
-         stdeb = fconv*(virial%pv_overlap - stdeb)
-         CALL para_env%sum(stdeb)
-         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-            'STRESS| Wout*dS', one_third_sum_diag(stdeb), det_3x3(stdeb)
-      END IF
-      IF (SIZE(matrix_w, 1) == 2) THEN
-         CALL dbcsr_add(matrix_w(1, 1)%matrix, matrix_w(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      END IF
-
-      ! delete scrm matrix
-      CALL dbcsr_deallocate_matrix_set(scrm)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE matrix_w_forces
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
 !> \param cpmos ...
 !> \param mo_occ ...
 !> \param matrix_r ...
 !> \param unit_nr ...
+!> \param debug_forces ...
+!> \param debug_stress ...
 ! **************************************************************************************************
-   SUBROUTINE matrix_r_forces(qs_env, cpmos, mo_occ, matrix_r, unit_nr)
+   SUBROUTINE matrix_r_forces(qs_env, cpmos, mo_occ, matrix_r, unit_nr, &
+                              debug_forces, debug_stress)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, mo_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_r
       INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug_forces, debug_stress
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'matrix_r_forces'
 
       INTEGER                                            :: handle, iounit, ispin, nao, nocc, nspins
-      LOGICAL                                            :: debug_forces, debug_stress, use_virial
+      LOGICAL                                            :: my_debug_forces, my_debug_stress, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: fconv, focc
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
@@ -755,8 +705,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      debug_forces = .TRUE.
-      debug_stress = .TRUE.
+      my_debug_forces = .TRUE.
+      my_debug_stress = .TRUE.
+      IF (PRESENT(debug_forces)) my_debug_forces = debug_forces
+      IF (PRESENT(debug_stress)) my_debug_stress = debug_stress
       iounit = unit_nr
 
       nspins = SIZE(mo_occ)
@@ -790,20 +742,20 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       fconv = 1.0E-9_dp*pascal/cell%deth
 
-      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-      IF (debug_stress .AND. use_virial) stdeb = virial%pv_overlap
+      IF (my_debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
+      IF (my_debug_stress .AND. use_virial) stdeb = virial%pv_overlap
       NULLIFY (scrm)
       CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
                                 matrix_name="OVERLAP MATRIX", &
                                 basis_type_a="ORB", basis_type_b="ORB", &
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrix_p=matrix_r)
-      IF (debug_forces) THEN
+      IF (my_debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wz*dS ", fodeb
       END IF
-      IF (debug_stress .AND. use_virial) THEN
+      IF (my_debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_overlap - stdeb)
          CALL para_env%sum(stdeb)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &

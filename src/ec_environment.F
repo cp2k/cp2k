@@ -208,10 +208,17 @@ CONTAINS
          ! EXTERNAL
          CALL section_vals_val_get(ec_section, "EXTERNAL_RESPONSE_FILENAME", &
                                    c_val=ec_env%exresp_fn)
+         CALL section_vals_val_get(ec_section, "EXTERNAL_RESPONSE_ERROR_FILENAME", &
+                                   c_val=ec_env%exresperr_fn)
          CALL section_vals_val_get(ec_section, "EXTERNAL_RESULT_FILENAME", &
                                    c_val=ec_env%exresult_fn)
          CALL section_vals_val_get(ec_section, "ERROR_ESTIMATION", &
                                    l_val=ec_env%do_error)
+         CALL section_vals_val_get(ec_section, "ERROR_ESTIMATION_METHOD", &
+                                   c_val=ec_env%error_method)
+         CALL uppercase(ec_env%error_method)
+         CALL section_vals_val_get(ec_section, "ERROR_CUTOFF", &
+                                   r_val=ec_env%error_cutoff)
 
          ec_env%do_skip = .FALSE.
 
