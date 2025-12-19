@@ -672,7 +672,7 @@ if(CP2K_USE_COSMA)
         " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly"
     )
   endif()
-  add_library(cp2k::cosma INTERFACE)
+  add_library(cp2k::cosma INTERFACE IMPORTED)
   target_link_libraries(cp2k::cosma INTERFACE cosma::cosma_prefixed_pxgemm
                                               cosma::cosma)
 endif()
