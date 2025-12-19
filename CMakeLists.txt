@@ -128,7 +128,6 @@ option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
@@ -1073,10 +1072,6 @@ if(CP2K_USE_DLAF)
           "   - libraries: ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
-if(CP2K_USE_GRPP)
-  message(" - GRPP\n")
-endif()
-
 if(CP2K_USE_TREXIO)
   message(" - TREXIO\n"
           "   - include directories: ${CP2K_TREXIO_INCLUDE_DIRS}\n"
@@ -1190,10 +1185,6 @@ endif()
 
 if(NOT CP2K_USE_GREENX)
   message("   - GreenX")
-endif()
-
-if(NOT CP2K_USE_GRPP)
-  message("   - GRPP")
 endif()
 
 message(
