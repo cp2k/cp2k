@@ -12,108 +12,108 @@
 !> \author JGH (20.07.2006)
 ! **************************************************************************************************
 MODULE qs_moments
-   USE ai_angmom,                       ONLY: angmom
-   USE ai_moments,                      ONLY: contract_cossin,&
-                                              cossin,&
-                                              diff_momop,&
-                                              diff_momop2,&
-                                              diff_momop_velocity,&
-                                              moment
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type
-   USE bibliography,                    ONLY: Mattiat2019,&
-                                              cite_reference
-   USE block_p_types,                   ONLY: block_p_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc,&
-                                              get_cell
-   USE commutator_rpnl,                 ONLY: build_com_mom_nl
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_det
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
-                                              cp_cfm_release,&
-                                              cp_cfm_type
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
-        dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
-                                              dbcsr_trace
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_double,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_type
-   USE cp_result_methods,               ONLY: cp_results_erase,&
-                                              put_results
-   USE cp_result_types,                 ONLY: cp_result_type
-   USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              max_line_length
-   USE kpoint_k_r_trafo_simple,         ONLY: replicate_rs_matrices, &
-                                              rs_to_kp
-   USE kpoint_methods,                  ONLY: kpoint_init_cell_index, &
-                                              kpoint_initialize
-   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kpoint_type,&
-                                              kpoint_create,&
-                                              kpoint_release,&
-                                              read_kpoint_section
-   USE mathconstants,                   ONLY: pi,&
-                                              twopi,&
-                                              gaussi,&
-                                              z_zero
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE moments_utils,                   ONLY: get_reference_point
-   USE orbital_pointers,                ONLY: current_maxl,&
-                                              indco,&
-                                              ncoset
-   USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_methods,                ONLY: get_particle_set
-   USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: bohr,&
-                                              debye,&
-                                              angstrom
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
-   USE rt_propagation_types,            ONLY: get_rtp,&
-                                              rt_prop_type
-   USE cp_parser_methods,               ONLY: read_float_object
-   USE input_section_types,             ONLY: section_vals_get, &
-                                              section_vals_get_subs_vals, &
-                                              section_vals_type, &
-                                              section_vals_val_get
-   USE mathlib,                         ONLY: geeig_right, &
-                                              gemm_square
-   USE string_utilities,                ONLY: uppercase
+   USE ai_angmom, ONLY: angmom
+   USE ai_moments, ONLY: contract_cossin, &
+                         cossin, &
+                         diff_momop, &
+                         diff_momop2, &
+                         diff_momop_velocity, &
+                         moment
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind
+   USE basis_set_types, ONLY: gto_basis_set_p_type, &
+                              gto_basis_set_type
+   USE bibliography, ONLY: Mattiat2019, &
+                           cite_reference
+   USE block_p_types, ONLY: block_p_type
+   USE cell_types, ONLY: cell_type, &
+                         pbc, &
+                         get_cell
+   USE commutator_rpnl, ONLY: build_com_mom_nl
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_det
+   USE cp_cfm_types, ONLY: cp_cfm_create, &
+                           cp_cfm_get_info, &
+                           cp_cfm_release, &
+                           cp_cfm_type
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_api, ONLY: &
+      dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
+      dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib, ONLY: dbcsr_dot, &
+                               dbcsr_trace
+   USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations, ONLY: cp_dbcsr_sm_fm_multiply, &
+                                  dbcsr_allocate_matrix_set, &
+                                  dbcsr_deallocate_matrix_set
+   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
+                           cp_fm_struct_double, &
+                           cp_fm_struct_release, &
+                           cp_fm_struct_type
+   USE cp_fm_types, ONLY: cp_fm_create, &
+                          cp_fm_get_info, &
+                          cp_fm_release, &
+                          cp_fm_set_all, &
+                          cp_fm_type
+   USE cp_result_methods, ONLY: cp_results_erase, &
+                                put_results
+   USE cp_result_types, ONLY: cp_result_type
+   USE distribution_1d_types, ONLY: distribution_1d_type
+   USE kinds, ONLY: default_string_length, &
+                    dp, &
+                    max_line_length
+   USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices, &
+                                      rs_to_kp
+   USE kpoint_methods, ONLY: kpoint_init_cell_index, &
+                             kpoint_initialize
+   USE kpoint_types, ONLY: get_kpoint_info, &
+                           kpoint_type, &
+                           kpoint_create, &
+                           kpoint_release, &
+                           read_kpoint_section
+   USE mathconstants, ONLY: pi, &
+                            twopi, &
+                            gaussi, &
+                            z_zero
+   USE message_passing, ONLY: mp_para_env_type
+   USE moments_utils, ONLY: get_reference_point
+   USE orbital_pointers, ONLY: current_maxl, &
+                               indco, &
+                               ncoset
+   USE parallel_gemm_api, ONLY: parallel_gemm
+   USE particle_methods, ONLY: get_particle_set
+   USE particle_types, ONLY: particle_type
+   USE physcon, ONLY: bohr, &
+                      debye, &
+                      angstrom
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_kind_types, ONLY: get_qs_kind, &
+                            get_qs_kind_set, &
+                            qs_kind_type
+   USE qs_ks_types, ONLY: get_ks_env, &
+                          qs_ks_env_type
+   USE qs_mo_types, ONLY: get_mo_set, &
+                          mo_set_type
+   USE qs_neighbor_list_types, ONLY: get_iterator_info, &
+                                     neighbor_list_iterate, &
+                                     neighbor_list_iterator_create, &
+                                     neighbor_list_iterator_p_type, &
+                                     neighbor_list_iterator_release, &
+                                     neighbor_list_set_p_type
+   USE qs_operators_ao, ONLY: build_lin_mom_matrix
+   USE qs_rho_types, ONLY: qs_rho_get, &
+                           qs_rho_type
+   USE rt_propagation_types, ONLY: get_rtp, &
+                                   rt_prop_type
+   USE cp_parser_methods, ONLY: read_float_object
+   USE input_section_types, ONLY: section_vals_get, &
+                                  section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE mathlib, ONLY: geeig_right, &
+                      gemm_square
+   USE string_utilities, ONLY: uppercase
 
 #include "./base/base_uses.f90"
 
@@ -155,8 +155,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_velocity_deriv'
 
       INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
-         last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
-         sgfb
+                 last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
+                 sgfb
       LOGICAL                                            :: found
       REAL(dp)                                           :: dab
       REAL(dp), DIMENSION(3)                             :: ra, rab, rac, rb, rbc
@@ -362,7 +362,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dsdv_moments'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+                 maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: image_cell
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
@@ -591,7 +591,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+                 maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -822,8 +822,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix'
 
       INTEGER :: dimders, handle, i, iatom, icol, ider, ii, ikind, inode, ipgf, irow, iset, j, &
-         jatom, jkind, jpgf, jset, last_jatom, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, &
-         nders, nkind, nm, nmom_build, nseta, nsetb, sgfa, sgfb
+                 jatom, jkind, jpgf, jset, last_jatom, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, &
+                 nders, nkind, nm, nmom_build, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -1156,7 +1156,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, maxco, &
-         maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+                 maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -1368,7 +1368,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix'
 
       INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, ldsa, &
-         ldsb, ldwork, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
+                 ldsb, ldwork, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work
       REAL(KIND=dp)                                      :: dab
@@ -1533,7 +1533,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix'
 
       INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, &
-         ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
+                 ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: icell
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -3124,8 +3124,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dipole_deriv_ao'
 
       INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
-         last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
-         sgfb
+                 last_jatom, lda, ldab, ldb, M_dim, maxsgf, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
+                 sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -3740,14 +3740,14 @@ CONTAINS
          ! To have a smooth complex phase of C(k) as function of k, for every n, we force
          ! the largest C_μ,n(k) to be real.
          ! This is important to have a continuous dipole moment d_nm(k) as a function of k
-         DO n=1, nmo
-            tmp_max = C_k(1,n)
-            DO mu=1, nao
-               IF (ABS(C_k(mu,n))< ABS(tmp_max)) CYCLE
-               tmp_max = C_k(mu,n)
+         DO n = 1, nmo
+            tmp_max = C_k(1, n)
+            DO mu = 1, nao
+               IF (ABS(C_k(mu, n)) < ABS(tmp_max)) CYCLE
+               tmp_max = C_k(mu, n)
             END DO
-            phase=tmp_max/ABS(tmp_max)
-            C_k(:,n)=C_k(:,n)/phase
+            phase = tmp_max/ABS(tmp_max)
+            C_k(:, n) = C_k(:, n)/phase
          END DO
 
          DO i_dir = 1, 3 ! d^x, d^y, d^z
@@ -3811,7 +3811,7 @@ CONTAINS
             IF (special_pnts(ikp) /= "") WRITE (unit_number, "(/,2X,A,A)") &
                "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
             WRITE (unit_number, "(/,1X,A,I3,1X,3(A,1F12.6))") &
-               "Kpoint:", ikp, ", kx:", xkp(1,ikp), ", ky:", xkp(2,ikp), ", kz:", xkp(3,ikp)
+               "Kpoint:", ikp, ", kx:", xkp(1, ikp), ", ky:", xkp(2, ikp), ", kz:", xkp(3, ikp)
             WRITE (unit_number, "(2X,A)") " kp  n  m  Re(dx_nm)  Im(dx_nm) &
             & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
             DO n = 1, nao

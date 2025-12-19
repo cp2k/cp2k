@@ -162,8 +162,8 @@ MODULE qs_scf_post_gpw
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
-                                              qs_moment_locop,&
-                                              qs_moment_kpoints
+                                              qs_moment_kpoints,&
+                                              qs_moment_locop
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               get_neighbor_list_set_p,&
                                               neighbor_list_iterate,&
