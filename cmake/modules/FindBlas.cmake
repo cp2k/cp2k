@@ -9,13 +9,6 @@
 #
 # authors : Mathieu Taillefumier
 
-if(NOT
-   (CMAKE_C_COMPILER_LOADED
-    OR CMAKE_CXX_COMPILER_LOADED
-    OR CMAKE_Fortran_COMPILER_LOADED))
-  message(FATAL_ERROR "FindBLAS requires Fortran, C, or C++ to be enabled.")
-endif()
-
 if(NOT CP2K_CONFIG_PACKAGE)
   set(CP2K_BLAS_VENDOR_LIST
       # cmake-format: sortable
@@ -34,8 +27,6 @@ if(NOT CP2K_CONFIG_PACKAGE)
   list(REMOVE_ITEM __BLAS_VENDOR_LIST "auto")
   list(REMOVE_ITEM __BLAS_VENDOR_LIST "CUSTOM")
 
-  # set(CP2K_BLAS_VENDOR "auto" CACHE STRING "Blas library for computations on
-  # host")
   set_property(CACHE CP2K_BLAS_VENDOR PROPERTY STRINGS ${CP2K_BLAS_VENDOR_LIST})
 
   if(NOT ${CP2K_BLAS_VENDOR} IN_LIST CP2K_BLAS_VENDOR_LIST)
@@ -152,3 +143,4 @@ mark_as_advanced(CP2K_BLAS_INCLUDE_DIRS)
 mark_as_advanced(CP2K_BLAS_LINK_LIBRARIES)
 mark_as_advanced(CP2K_BLAS_VENDOR)
 mark_as_advanced(CP2K_BLAS_FOUND)
+mark_as_advanced(CP2K_BLAS_VENDOR_LIST)

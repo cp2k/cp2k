@@ -1643,9 +1643,10 @@ set(CP2K_GPU_DFLAGS
 # ##############################################################################
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
+add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 
 # set the __SHORT_FILE__ per file for CP2K sources
-foreach(cp2k_src ${CP2K_SRCS})
+foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
   # add_fypp_sources returns a path in the current binary dir
   file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
   set_source_files_properties(
@@ -1721,14 +1722,8 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::yaml-cpp-pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:dftd4::dftd4>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
+    $<$<BOOL:${CP2K_USE_ACE}>:cp2k::ACE>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1741,12 +1736,9 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+    $<$<BOOL:${CP2K_USE_COSMA}>:cp2k::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXAC>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXMiniMax>
+    $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>

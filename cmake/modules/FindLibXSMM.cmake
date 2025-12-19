@@ -75,26 +75,28 @@ else()
     CP2K_LIBXSMM_LINK_LIBRARIES)
 endif()
 
-if(NOT TARGET cp2k::LibXSMM::libxsmm)
-  foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
+if(NOT TARGET cp2k::LibXSMM)
+  add_library(cp2k::LibXSMM INTERFACE IMPORTED)
+  foreach(__lib libxsmmf libxsmmext libxsmm libxsmmnoblas)
     string(TOUPPER "CP2K_${__lib}" __lib_search_up)
 
     if(${__lib_search_up}_FOUND AND NOT TARGET cp2k::LibXSMM::${__lib})
       add_library(cp2k::LibXSMM::${__lib} INTERFACE IMPORTED)
       target_link_directories(cp2k::LibXSMM::${__lib} INTERFACE
                               ${${__lib_search_up}_LIBRARY_DIRS})
-    endif()
-
-    set_target_properties(
-      cp2k::LibXSMM::${__lib} PROPERTIES INTERFACE_LINK_LIBRARIES
-                                         "${${__lib_search_up}_LINK_LIBRARIES}")
-
-    if(CP2K_LIBXSMM_INCLUDE_DIRS)
       set_target_properties(
         cp2k::LibXSMM::${__lib}
-        PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                   "${CP2K_LIBXSMM_INCLUDE_DIRS};${CP2K_LIBXSMM_PREFIX}/include"
-      )
+        PROPERTIES INTERFACE_LINK_LIBRARIES
+                   "${${__lib_search_up}_LINK_LIBRARIES}")
+
+      if(CP2K_LIBXSMM_INCLUDE_DIRS)
+        set_target_properties(
+          cp2k::LibXSMM::${__lib}
+          PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES
+            "${CP2K_LIBXSMM_INCLUDE_DIRS};${CP2K_LIBXSMM_PREFIX}/include")
+      endif()
+      target_link_libraries(cp2k::LibXSMM INTERFACE cp2k::LibXSMM::${__lib})
     endif()
   endforeach()
 endif()
