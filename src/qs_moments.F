@@ -3412,6 +3412,7 @@ CONTAINS
             END DO
             special_pnts(ikk) = spname(ik)
          END DO
+         DEALLOCATE (spname, kspecial)
       ELSE IF (explicit_kpnts) THEN
          CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
          CALL get_cell(cell, h=hmat)
@@ -3610,9 +3611,7 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
       CALL kpoint_release(kpoints_all)
-      DEALLOCATE (dipab)
-      DEALLOCATE (work)
-      DEALLOCATE (basis_set_list)
+      DEALLOCATE (dipab, work, basis_set_list)
       CALL timestop(handle)
 
    END SUBROUTINE build_local_moment_matrix_rs_img
@@ -3828,11 +3827,10 @@ CONTAINS
             END DO
          END IF
       END DO
-      DEALLOCATE (dipole_to_print, bc_to_print)
-      DEALLOCATE (eigenvals, bc, dS_dk_i, dH_dk_i, D_k)
-      DEALLOCATE (C_dS_C, C_dH_C, CDC, dip, S_k, H_k, C_k)
-      DEALLOCATE (S_rs, H_rs, D_rs, xkp, special_pnts)
+      DEALLOCATE (dipole_to_print, bc_to_printeigenvals, bc, dS_dk_i, dH_dk_i, D_k)
+      DEALLOCATE (C_dS_C, C_dH_C, CDC, dip, S_k, H_k, C_kS_rs, H_rs, D_rs, xkp, special_pnts)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
+      CALL kpoint_release(kpoints_all)
 
       CALL timestop(handle)
 
