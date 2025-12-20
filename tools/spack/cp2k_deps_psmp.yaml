@@ -5,6 +5,7 @@ spack:
     unify: true
   config:
     install_tree:
+      padded_length: 128
       root: $spack/opt/spack
   packages:
     all:
@@ -29,7 +30,7 @@ spack:
       buildable: false
       externals:
         - spec: xpmem@master
-          prefix: $spack/opt/spack
+          prefix: /opt/spack
     blas:
       require:
         - openblas

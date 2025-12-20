@@ -5,6 +5,7 @@ spack:
     unify: true
   config:
     install_tree:
+      padded_length: 128
       root: $spack/opt/spack
   packages:
     all:
