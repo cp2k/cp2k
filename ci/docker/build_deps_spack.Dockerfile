@@ -99,11 +99,7 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack_makefile
 RUN make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
-
-# Create Spack install directory and delete dead links
-RUN mkdir /opt/spack && find -L ${SPACK_ROOT}/var/spack/environments/myenv/spack-env/view -type l -delete
-
-# Copy the required data to the installation directory
+RUN find -L ${SPACK_ROOT}/var/spack/environments/myenv/spack-env/view -type l -delete
 RUN for d in bin include lib; do cp -rL ${SPACK_ROOT}/var/spack/environments/myenv/spack-env/view/${d} /opt/spack/; done
 
 # EOF
