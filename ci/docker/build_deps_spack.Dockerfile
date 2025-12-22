@@ -46,10 +46,10 @@ RUN git clone https://github.com/hpc/xpmem \
     && cd xpmem/lib \
     && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
     && ln -s libxpmem.so.1 libxpmem.so \
-    && mkdir -p /opt/spack/lib /opt/spack/include \
-    && mv libxpmem.so* /opt/spack/lib \
-    && cp ../include/xpmem.h /opt/spack/include/ \
-    && ldconfig /opt/spack/lib \
+    && mkdir -p /opt/spack/xpmem/lib /opt/spack/xpmem/include \
+    && mv libxpmem.so* /opt/spack/xpmem/lib \
+    && mv ../include/xpmem.h /opt/spack/xpmem/include/ \
+    && ldconfig /opt/spack/xpmem/lib \
     && cd ../../ \
     && rm -rf xpmem
 

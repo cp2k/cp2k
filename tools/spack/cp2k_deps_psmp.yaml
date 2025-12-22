@@ -29,7 +29,7 @@ spack:
       buildable: false
       externals:
         - spec: xpmem@master
-          prefix: /opt/spack
+          prefix: /opt/spack/xpmem
     blas:
       require:
         - openblas

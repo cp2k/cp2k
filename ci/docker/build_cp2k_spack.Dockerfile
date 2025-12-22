@@ -97,7 +97,7 @@ RUN CP2K_VERSION=$(cat /CP2K_VERSION) && \
     ln -sf cp2k.${CP2K_VERSION} cp2k_shell
 
 # Update library search path
-RUN echo "/opt/cp2k/lib\n/opt/spack/view/lib\n$(dirname $(find /opt/spack ! -type l -name libtorch.so 2>/dev/null || true) 2>/dev/null || true)" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
+RUN echo "/opt/cp2k/lib\n/opt/spack/xpmem/lib\n/opt/spack/view/lib\n$(dirname $(find /opt/spack ! -type l -name libtorch.so 2>/dev/null || true) 2>/dev/null || true)" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
 
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\

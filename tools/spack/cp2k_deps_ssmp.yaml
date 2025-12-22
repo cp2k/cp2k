@@ -30,6 +30,7 @@ spack:
     dbcsr:
       require:
         - ~examples
+        - ~mpi
         - +openmp
         - smm=blas
     deepmdkit:
