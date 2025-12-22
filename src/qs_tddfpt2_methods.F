@@ -538,7 +538,7 @@ CONTAINS
          valence_state%evals(:) = evals(:)
 
          ALLOCATE (valence_state%evects(nspins, nstates))
-         ALLOCATE (valence_state%mos_occ(nspins))
+         ALLOCATE (valence_state%mos_active(nspins))
          DO ispin = 1, nspins
             ! copy evects
             DO istate = 1, nstates
@@ -548,10 +548,10 @@ CONTAINS
                CALL cp_fm_to_fm(evects(ispin, istate), valence_state%evects(ispin, istate))
             END DO
             ! copy mos_occ
-            CALL cp_fm_get_info(matrix=gs_mos(ispin)%mos_occ, &
+            CALL cp_fm_get_info(matrix=gs_mos(ispin)%mos_active, &
                                 matrix_struct=matrix_struct)
-            CALL cp_fm_create(valence_state%mos_occ(ispin), matrix_struct)
-            CALL cp_fm_to_fm(gs_mos(ispin)%mos_occ, valence_state%mos_occ(ispin))
+            CALL cp_fm_create(valence_state%mos_active(ispin), matrix_struct)
+            CALL cp_fm_to_fm(gs_mos(ispin)%mos_active, valence_state%mos_active(ispin))
          END DO
       END IF
 

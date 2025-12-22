@@ -46,7 +46,7 @@ MODULE rixs_types
 
       ! entities below are coming from tddfpt_ground_state_mos type
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                                       :: mos_occ => NULL()
+         POINTER                                       :: mos_active => NULL()
 
    END TYPE tddfpt2_valence_type
 
@@ -105,7 +105,7 @@ CONTAINS
       NULLIFY (valence_state%evects)
 
       ! entities below come from tddfpt_ground_state_mos type
-      NULLIFY (valence_state%mos_occ)
+      NULLIFY (valence_state%mos_active)
 
    END SUBROUTINE tddfpt2_valence_state_create
 
@@ -130,11 +130,11 @@ CONTAINS
          IF (ALLOCATED(valence_state%evals)) THEN
             DEALLOCATE (valence_state%evals)
          END IF
-         IF (ASSOCIATED(valence_state%mos_occ)) THEN
-            DO i = 1, SIZE(valence_state%mos_occ)
-               CALL cp_fm_release(valence_state%mos_occ(i))
+         IF (ASSOCIATED(valence_state%mos_active)) THEN
+            DO i = 1, SIZE(valence_state%mos_active)
+               CALL cp_fm_release(valence_state%mos_active(i))
             END DO
-            DEALLOCATE (valence_state%mos_occ)
+            DEALLOCATE (valence_state%mos_active)
          END IF
       END IF
 
