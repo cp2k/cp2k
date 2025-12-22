@@ -97,9 +97,7 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 
 # Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
-ENV SPACK_ENV_VIEW="${SPACK_ROOT}/var/spack/environments/myenv/spack-env/view"
-RUN spack -e myenv env depfile -o spack_makefile && \
-    make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
-    cp -ar ${SPACK_ENV_VIEW}/bin ${SPACK_ENV_VIEW}/include ${SPACK_ENV_VIEW}/lib /opt/spack
+RUN spack -e myenv env depfile -o spack_makefile
+RUN make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
 
 # EOF

@@ -24,6 +24,9 @@ VERSION=$2
 
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
+  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
+  Torch_DIR="$(dirname "$(find /opt/spack ! -type l -name TorchConfig.cmake | tail -n 1)")"
+  export Torch_DIR
 elif [[ "${PROFILE}" =~ ^toolchain ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
@@ -41,9 +44,6 @@ cd build || return 1
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt
 #
 if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
-  Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
-  export Torch_DIR
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -56,9 +56,6 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
-  Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
-  export Torch_DIR
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \

@@ -136,7 +136,7 @@ spack:
     - "trexio@2.5.0"
   view:
     default:
-      root: ./spack-env/view
+      root: /opt/spack/view
       exclude:
         # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
         - gcc-runtime
