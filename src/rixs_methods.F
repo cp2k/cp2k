@@ -121,9 +121,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-      INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nao, nex_atoms, &
-         nocc_max, nspins, nstates, nvirt, output_unit, td_state
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
+      INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nactive_max, nao, &
+         ncol, nex_atoms, nocc, nspins, nstates, nvirt, output_unit, td_state
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
@@ -209,10 +209,19 @@ CONTAINS
          valence_state => rixs_env%valence_state
 
          ! gs coefficients from tddfpt
-         mo_coeffs => valence_state%mos_occ
+         mo_coeffs => valence_state%mos_active
          ! localised gs coefficients from xas_tdp
          local_gs_coeffs => core_state%mo_coeff
          valence_evects => valence_state%evects
+
+         ! res tddft
+         IF (.NOT. roks) THEN
+            CALL cp_fm_get_info(matrix=local_gs_coeffs(1), ncol_global=nocc)
+            CALL cp_fm_get_info(matrix=mo_coeffs(1), ncol_global=ncol)
+            IF (ncol /= nocc) THEN
+               CPABORT("RIXS with restricted space excitations NYI")
+            END IF
+         END IF
 
          IF (rixs_control%xas_tdp_control%do_loc) THEN
             IF (output_unit > 0) THEN
@@ -224,12 +233,12 @@ CONTAINS
             CALL rotate_vectors(valence_state%evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
          END IF
 
-         ! find max nocc for open-shell cases
-         ALLOCATE (nocc(nspins))
+         ! find max nactive for open-shell cases
+         ALLOCATE (nactive(nspins))
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=valence_state%mos_occ(ispin), nrow_global=nao, ncol_global=nocc(ispin))
+            CALL cp_fm_get_info(matrix=valence_state%mos_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
          END DO
-         nocc_max = MAXVAL(nocc)
+         nactive_max = MAXVAL(nactive)
 
          nex_atoms = core_state%nex_atoms
          nstates = valence_state%nstates
@@ -319,9 +328,9 @@ CONTAINS
             ! initialise matrices for i->f
             DO ispin = 1, nspins
                CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nao, ncol_global=nocc(ispin))
+                                        nrow_global=nao, ncol_global=nactive(ispin))
                CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nvirt, ncol_global=nocc(ispin))
+                                        nrow_global=nvirt, ncol_global=nactive(ispin))
                CALL cp_fm_create(dip_f(ispin), dip_f_struct)
                CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
                CALL cp_fm_struct_release(i_dip_f_struct)
@@ -362,16 +371,16 @@ CONTAINS
                   ! core_evects x dipmat x valence_evects (per spin)
                   DO ispin = 1, nspins
                      CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, valence_evects(ispin, td_state), dip_f(ispin), &
-                                                  ncol=nocc(ispin))
-                     CALL parallel_gemm('T', 'N', nvirt, nocc(ispin), nao, 1.0_dp, core_evects(ispin), &
+                                                  ncol=nactive(ispin))
+                     CALL parallel_gemm('T', 'N', nvirt, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
                                         dip_f(ispin), 0.0_dp, i_dip_f(ispin))
                   END DO
 
                   DO istate = 1, rixs_control%core_states
-                     DO fstate = 1, nocc_max
+                     DO fstate = 1, nactive_max
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
-                           IF (fstate <= nocc(ispin)) THEN
+                           IF (fstate <= nactive(ispin)) THEN
                               CALL cp_fm_get_submatrix(fm=i_dip_f(ispin), target_m=dip_block, start_row=istate, &
                                                        start_col=fstate, n_rows=1, n_cols=1)
                               mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
@@ -438,8 +447,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
 
-      INTEGER                                            :: ispin, istate, nactive, ncol, nrow, &
-                                                            nspins, nstates
+      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
+                                                            nstates
       REAL(kind=dp)                                      :: diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
@@ -474,13 +483,6 @@ CONTAINS
          END IF
 
          CALL cp_fm_to_fm(rotated_mo_coeffs, mo_occ(ispin))
-
-         ! rotation of transition vectors
-         CALL cp_fm_get_info(matrix=evects(ispin, 1), ncol_global=nactive)
-         IF (nactive /= ncol) THEN
-            CALL cp_warn(__LOCATION__, "RIXS with reduced occupied state TDDFPT not possible")
-            CPABORT("rotate_vectors in rixs_method")
-         END IF
 
          nstates = SIZE(evects, DIM=2)
          DO istate = 1, nstates
