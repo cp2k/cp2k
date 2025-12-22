@@ -97,14 +97,14 @@ RUN CP2K_VERSION=$(cat /CP2K_VERSION) && \
     ln -sf cp2k.${CP2K_VERSION} cp2k_shell
 
 # Update library search path
-RUN echo "/opt/cp2k/lib\n/opt/spack/lib\n$(dirname $(find /opt/spack/lib -name libtorch.so 2>/dev/null || true) 2>/dev/null || true)" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
+RUN echo "/opt/cp2k/lib\n/opt/spack/view/lib\n$(dirname $(find /opt/spack ! -type l -name libtorch.so 2>/dev/null || true) 2>/dev/null || true)" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
 
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
 \
 export OMP_STACKSIZE=64M\n\
-export PATH=/opt/cp2k/bin:/opt/spack/bin:\${PATH}\n\
+export PATH=/opt/cp2k/bin:/opt/spack/view/bin:\${PATH}\n\
 exec \"\$@\"" \
 >/opt/cp2k/bin/entrypoint.sh && chmod 755 /opt/cp2k/bin/entrypoint.sh
 
