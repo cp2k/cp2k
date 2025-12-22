@@ -122,7 +122,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
       INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nactive_max, nao, &
-         nex_atoms, nocc, nspins, nstates, nvirt, output_unit, td_state
+         ncol, nex_atoms, nocc, nspins, nstates, nvirt, output_unit, td_state
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
@@ -214,6 +214,15 @@ CONTAINS
          local_gs_coeffs => core_state%mo_coeff
          valence_evects => valence_state%evects
 
+         ! res tddft
+         IF (.NOT. roks) THEN
+            CALL cp_fm_get_info(matrix=local_gs_coeffs(1), ncol_global=nocc)
+            CALL cp_fm_get_info(matrix=mo_coeffs(1), ncol_global=ncol)
+            IF (ncol /= nocc) THEN
+               CPABORT("RIXS with restricted space excitations NYI")
+            END IF
+         END IF
+
          IF (rixs_control%xas_tdp_control%do_loc) THEN
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
@@ -228,13 +237,6 @@ CONTAINS
          ALLOCATE (nactive(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_get_info(matrix=valence_state%mos_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
-
-            ! rse tddft
-            CALL cp_fm_get_info(matrix=local_gs_coeffs(1), ncol_global=nocc)
-            IF (nactive(ispin) /= nocc) THEN
-               CPABORT("RIXS with restricted space excitations NYI")
-            END IF
-
          END DO
          nactive_max = MAXVAL(nactive)
 
