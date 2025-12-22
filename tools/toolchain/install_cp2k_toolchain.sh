@@ -246,6 +246,8 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-ace              Enable interface to ML-pace
                           Default = no
+  --with-mcl              Install MCL library for MiMiC with toolchain.
+                          Default = no
 
 FURTHER INSTRUCTIONS
 
@@ -281,7 +283,8 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol trexio greenx gmp"
+          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol 
+          trexio greenx gmp mcl"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -336,6 +339,7 @@ with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
 with_tblite="__DONTUSE__"
 with_libsmeagol="__DONTUSE__"
+with_mcl="__DONTUSE__"
 
 # for MPI, we try to detect system MPI variant
 if (command -v mpiexec > /dev/null 2>&1); then
@@ -697,6 +701,9 @@ while [ $# -ge 1 ]; do
     --with-dbcsr*)
       with_dbcsr=$(read_with $1)
       ;;
+    --with-mcl*)
+      with_mcl=$(read_with ${1})
+      ;;
     --help*)
       show_help
       exit 0
@@ -769,6 +776,10 @@ if [ "${MPI_MODE}" = "no" ]; then
   if [ "${with_cosma}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so COSMA is disabled"
     with_cosma="__DONTUSE__"
+  fi
+  if [ "${with_mcl}" != "__DONTUSE__" ]; then
+    echo "Not using MPI, so MCL is disabled"
+    with_mcl="__DONTUSE__"
   fi
 else
   # if gcc is installed, then mpi needs to be installed too
@@ -844,6 +855,7 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_ninja}" = "__INSTALL__" ] ||
   [ "${with_greenx}" = "__INSTALL__" ] ||
   [ "${with_dftd4}" = "__INSTALL__" ] ||
+  [ "${with_mcl}" = "__INSTALL__" ] ||
   [ "${with_tblite}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi

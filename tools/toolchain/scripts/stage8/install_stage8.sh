@@ -10,4 +10,5 @@
 ./scripts/stage8/install_dftd4.sh
 ./scripts/stage8/install_trexio.sh
 ./scripts/stage8/install_tblite.sh
+./scripts/stage8/install_mcl.sh
 #EOF
