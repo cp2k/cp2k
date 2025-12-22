@@ -4204,7 +4204,7 @@ CONTAINS
             END DO
          END IF
 
-         mref = MIN(50, nsample)
+         mref = MIN(350, nsample)
          nref = 0
          ALLOCATE (smat(mref, mref), tvec(mref), yvec(mref), rlist(mref))
          rlist = 0
