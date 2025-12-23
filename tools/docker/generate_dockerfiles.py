@@ -53,9 +53,13 @@ def main() -> None:
         f.write(install_deps_ubuntu())
         f.write(regtest_cmake("minimal", "ssmp"))
 
-    with OutputFile(f"Dockerfile.test_spack", args.check) as f:
+    with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_deps_spack("psmp"))
         f.write(regtest_cmake("spack", "psmp"))
+
+    with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
+        f.write(install_deps_spack("ssmp"))
+        f.write(regtest_cmake("spack", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
         f.write(install_deps_toolchain())
@@ -737,9 +741,14 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        self.content.write(
-            f"# Usage: podman build --shm-size=1g -f ./{filename} ../../\n"
-        )
+        if "_spack_" in filename:
+            self.content.write(
+                f"# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../\n"
+            )
+        else:
+            self.content.write(
+                f"# Usage: podman build --shm-size=1g -f ./{filename} ../../\n"
+            )
         self.content.write(f"#\n")
 
     def __enter__(self) -> io.StringIO:
