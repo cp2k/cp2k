@@ -102,14 +102,13 @@ benchmark cp2k 1 daint node:
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 1
+    SLURM_CPU_BIND: sockets
+    SLURM_CPUS_PER_TASK: 2
     SLURM_DEBUG: 1
-    SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 288
-    SLURM_NTASKS_PER_NODE: 288
+    SLURM_NTASKS: 144
+    SLURM_NTASKS_PER_NODE: 144
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
