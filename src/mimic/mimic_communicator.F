@@ -59,10 +59,6 @@ MODULE mimic_communicator
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mimic_communicator'
 
-   REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE, TARGET  :: grid_buffer
-   REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE, TARGET  :: grid_buffer_loc
-   REAL(dp), DIMENSION(:, :), ALLOCATABLE, SAVE, TARGET  :: coord_buffer
-
 ! **************************************************************************************************
 !> \brief MiMiC communicator class that facilitates MiMiC client-server data exchange
 !> \par History
@@ -158,11 +154,6 @@ CONTAINS
 
       this%n_spins = dft_control%nspins
 
-      ! allocate buffers
-      ALLOCATE (coord_buffer(3, this%n_atoms))
-      ALLOCATE (grid_buffer(PRODUCT(this%pw_info%pw_grid%npts)))
-      ALLOCATE (grid_buffer_loc(PRODUCT(this%pw_info%pw_grid%npts_local)))
-
       CALL set_qs_env(qs_env, mimic=.TRUE.)
       dft_control%apply_external_potential = .TRUE.
       dft_control%eval_external_potential = .FALSE.
@@ -195,9 +186,6 @@ CONTAINS
 
       CALL this%para_env%sync()
 
-      DEALLOCATE (grid_buffer)
-      DEALLOCATE (grid_buffer_loc)
-      DEALLOCATE (coord_buffer)
       CALL mcl_finalize()
 
       CALL timestop(handle)
@@ -530,36 +518,40 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':receive_potential'
 
       INTEGER, DIMENSION(3)                              :: npts, lb, ub
-      REAL(dp), DIMENSION(:), POINTER                    :: buffer
+      REAL(dp), DIMENSION(:), ALLOCATABLE, TARGET        :: buffer
+      REAL(dp), DIMENSION(:), ALLOCATABLE                :: buffer_loc
+      REAL(dp), DIMENSION(:), POINTER                    :: buffer_p
       INTEGER                                            :: i, j, k, i_proc, offset
       INTEGER                                            :: handle, length, tag
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (buffer)
+      NULLIFY (buffer_p)
       npts = this%pw_info%pw_grid%npts_local
       lb = this%pw_info%pw_grid%bounds_local(1, :)
       ub = this%pw_info%pw_grid%bounds_local(2, :)
+      ALLOCATE (buffer_loc(PRODUCT(npts)))
 
       tag = 1
 
       IF (this%is_ionode) THEN
+         ALLOCATE (buffer(PRODUCT(this%pw_info%pw_grid%npts)))
          ! receive potential at the IO process
-         CALL mcl_receive(grid_buffer, SIZE(grid_buffer), MCL_DATA, this%mcl_server)
+         CALL mcl_receive(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
          ! distribute across processes
          DO i_proc = 0, this%para_env%num_pe - 1
             length = PRODUCT(this%npts_pproc(:, i_proc))
             offset = this%lb_pproc(i_proc)*PRODUCT(npts(2:)) + 1
-            buffer => grid_buffer(offset:offset + length - 1)
+            buffer_p => buffer(offset:offset + length - 1)
             IF (i_proc /= this%para_env%source) THEN
                i = i_proc
-               CALL this%para_env%send(buffer, i, tag)
+               CALL this%para_env%send(buffer_p, i, tag)
             ELSE
-               grid_buffer_loc(:) = buffer
+               buffer_loc(:) = buffer_p
             END IF
          END DO
       ELSE
-         CALL this%para_env%recv(grid_buffer_loc, this%para_env%source, tag)
+         CALL this%para_env%recv(buffer_loc, this%para_env%source, tag)
       END IF
 
       ! set the potential
@@ -568,7 +560,7 @@ CONTAINS
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
                offset = offset + 1
-               this%potential%array(i, j, k) = -grid_buffer_loc(offset)
+               this%potential%array(i, j, k) = -buffer_loc(offset)
             END DO
          END DO
       END DO
@@ -588,27 +580,30 @@ CONTAINS
 
       INTEGER, DIMENSION(3)                              :: npts, lb, ub
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho
-      REAL(dp), DIMENSION(:), POINTER                    :: buffer
+      REAL(dp), DIMENSION(:), ALLOCATABLE, TARGET        :: buffer
+      REAL(dp), DIMENSION(:), ALLOCATABLE                :: buffer_loc
+      REAL(dp), DIMENSION(:), POINTER                    :: buffer_p
       INTEGER                                            :: i_spin, i_proc, i, j, k, offset
       INTEGER                                            :: handle, length, tag
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rho, buffer)
+      NULLIFY (rho, buffer_p)
       CALL qs_rho_get(this%density, rho_r=rho)
       npts = this%pw_info%pw_grid%npts_local
       lb = this%pw_info%pw_grid%bounds_local(1, :)
       ub = this%pw_info%pw_grid%bounds_local(2, :)
+      ALLOCATE (buffer_loc(PRODUCT(npts)))
 
       ! gather density values
-      grid_buffer_loc = 0.0_dp
+      buffer_loc = 0.0_dp
       DO i_spin = 1, this%n_spins
          offset = 0
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
                   offset = offset + 1
-                  grid_buffer_loc(offset) = grid_buffer_loc(offset) + rho(i_spin)%array(i, j, k)
+                  buffer_loc(offset) = buffer_loc(offset) + rho(i_spin)%array(i, j, k)
                END DO
             END DO
          END DO
@@ -617,22 +612,23 @@ CONTAINS
       tag = 1
 
       IF (.NOT. this%is_ionode) THEN
-         CALL this%para_env%send(grid_buffer_loc, this%para_env%source, tag)
+         CALL this%para_env%send(buffer_loc, this%para_env%source, tag)
       ELSE
+         ALLOCATE (buffer(PRODUCT(this%pw_info%pw_grid%npts)))
          ! collect from the processes at the IO process
          DO i_proc = 0, this%para_env%num_pe - 1
             length = PRODUCT(this%npts_pproc(:, i_proc))
             offset = this%lb_pproc(i_proc)*PRODUCT(npts(2:)) + 1
-            buffer => grid_buffer(offset:offset + length - 1)
+            buffer_p => buffer(offset:offset + length - 1)
             IF (i_proc /= this%para_env%source) THEN
                i = i_proc
-               CALL this%para_env%recv(buffer, i, tag)
+               CALL this%para_env%recv(buffer_p, i, tag)
             ELSE
-               buffer = grid_buffer_loc
+               buffer_p = buffer_loc
             END IF
          END DO
          ! send the density
-         CALL mcl_send(grid_buffer, SIZE(grid_buffer), MCL_DATA, this%mcl_server)
+         CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
       END IF
 
       CALL timestop(handle)
@@ -648,14 +644,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_positions'
 
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE             :: buffer
       INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
+      ALLOCATE (buffer(3, this%n_atoms))
       DO i_atom = 1, this%n_atoms
-         coord_buffer(:, i_atom) = this%atoms%els(i_atom)%r
+         buffer(:, i_atom) = this%atoms%els(i_atom)%r
       END DO
-      CALL mcl_send(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
+      CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
 
       CALL timestop(handle)
 
@@ -670,14 +668,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':receive_positions'
 
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE             :: buffer
       INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
-      CALL mcl_receive(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
-      CALL this%para_env%bcast(coord_buffer)
+      ALLOCATE (buffer(3, this%n_atoms))
+      CALL mcl_receive(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
+      CALL this%para_env%bcast(buffer)
       DO i_atom = 1, this%n_atoms
-         this%atoms%els(i_atom)%r = coord_buffer(:, i_atom)
+         this%atoms%els(i_atom)%r = buffer(:, i_atom)
       END DO
 
       CALL timestop(handle)
@@ -693,14 +693,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_forces'
 
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE             :: buffer
       INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
+      ALLOCATE (buffer(3, this%n_atoms))
       DO i_atom = 1, this%n_atoms
-         coord_buffer(:, i_atom) = this%atoms%els(i_atom)%f
+         buffer(:, i_atom) = this%atoms%els(i_atom)%f
       END DO
-      CALL mcl_send(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
+      CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
 
       CALL timestop(handle)
 
