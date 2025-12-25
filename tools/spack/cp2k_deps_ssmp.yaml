@@ -67,8 +67,8 @@ spack:
         - build_system=cmake
   specs:
     # Minimal
-    - "dbcsr@2.8.0"
-    - "openblas@0.3.29"
+    - "dbcsr@2.9.1"
+    - "openblas@0.3.30"
     # All
     - "deepmdkit@3.1.0"
     - "dftd4@3.7.0"
