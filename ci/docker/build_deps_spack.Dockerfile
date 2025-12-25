@@ -48,7 +48,7 @@ RUN git clone https://github.com/hpc/xpmem \
     && ln -s libxpmem.so.1 libxpmem.so \
     && mkdir -p /opt/spack/lib /opt/spack/include \
     && mv libxpmem.so* /opt/spack/lib \
-    && cp ../include/xpmem.h /opt/spack/include/ \
+    && mv ../include/xpmem.h /opt/spack/include/ \
     && ldconfig /opt/spack/lib \
     && cd ../../ \
     && rm -rf xpmem
@@ -99,7 +99,5 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack_makefile
 RUN make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
-ENV SPACK_ENV_VIEW="${SPACK_ROOT}/view"
-RUN cp -ar ${SPACK_ENV_VIEW}/bin ${SPACK_ENV_VIEW}/include ${SPACK_ENV_VIEW}/lib /opt/spack
 
 # EOF
