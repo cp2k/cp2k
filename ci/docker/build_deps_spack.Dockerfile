@@ -62,7 +62,7 @@ WORKDIR /root/spack
 ARG SPACK_VERSION
 ENV SPACK_VERSION=${SPACK_VERSION:-1.1.0}
 ARG SPACK_PACKAGES_VERSION
-ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-2025.07.0}
+ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-2025.11.0}
 ARG SPACK_REPO=https://github.com/spack/spack
 ENV SPACK_ROOT=/opt/spack-${SPACK_VERSION}
 ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
@@ -99,5 +99,7 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack_makefile
 RUN make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
+ENV SPACK_ENV_VIEW="${SPACK_ROOT}/view"
+RUN cp -ar ${SPACK_ENV_VIEW}/bin ${SPACK_ENV_VIEW}/include ${SPACK_ENV_VIEW}/lib /opt/spack
 
 # EOF
