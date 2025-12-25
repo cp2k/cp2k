@@ -105,12 +105,12 @@ spack:
         - build_system=cmake
   specs:
     # Minimal
-    - "dbcsr@2.8.0"
+    - "dbcsr@2.9.1"
     - "libfabric@1.22.0"
-    - "mpich@4.3.0"
+    - "mpich@4.3.2"
     - "netlib-scalapack@2.2.2"
-    - "openblas@0.3.29"
-#   - "openmpi@5.0.8"
+    - "openblas@0.3.30"
+#   - "openmpi@5.0.9"
     # All
     - "cosma@2.7.0"
     - "deepmdkit@3.1.0"
