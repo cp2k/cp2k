@@ -23,4 +23,5 @@
 "C_grb2.inp"                            = [{matcher="M035", tol=1e-12, ref=-5.360945665362}]
 "Li_NLCC.inp"                           = [{matcher="M061", tol=1e-12, ref=0.5527955347}]
 "Au.inp"                                = [{matcher="M035", tol=1e-10, ref=-136.583322713061}]
+"H-ECPGTH.inp"                          = [{matcher="M056", tol=1e-08, ref=0.0000000000}]
 #EOF

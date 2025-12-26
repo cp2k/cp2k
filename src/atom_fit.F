@@ -630,7 +630,7 @@ CONTAINS
                IF (atom%state%multiplicity == -1) THEN
                   ! no spin polarization
                   atom%weight = wem(i, j)
-                  ncore = get_maxn_occ(atom%state%core)
+                  ncore = get_maxn_occ(atom%state%core) - get_maxn_occ(atom_refs(i, j)%atom%state%core)
                   DO l = 0, lmat
                      np = atom%state%maxn_calc(l)
                      DO k = 1, np
@@ -954,7 +954,7 @@ CONTAINS
                WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
                   INT(REAL(ostate%nf, dp)/REAL(ostate%maxfun, dp)*100._dp), fopt
                CALL put_pseudo_param(ostate%xopt, ppot%gth_pot, noopt_nlcc)
-               CALL atom_write_pseudo_param(ppot%gth_pot)
+               CALL atom_write_pseudo_param(ppot%gth_pot, fopt=fopt)
             END IF
 
             IF (fopt < 1.e-12_dp) EXIT
@@ -972,7 +972,7 @@ CONTAINS
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, x, ostate)
          CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
-         CALL atom_write_pseudo_param(ppot%gth_pot)
+         CALL atom_write_pseudo_param(ppot%gth_pot, fopt=fopt)
          ! dx < SQRT(ostate%rhoend)
          IF ((dx*dx) < ostate%rhoend) EXIT
          ostate%rhobeg = step_size_scaling*ostate%rhobeg

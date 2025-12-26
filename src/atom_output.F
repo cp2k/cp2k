@@ -757,14 +757,16 @@ CONTAINS
 !> \brief Print GTH pseudo-potential parameters.
 !> \param gthpot  pseudo-potential
 !> \param iunit   output file unit
+!> \param fopt ...
 !> \par History
 !>    * 09.2012 created [Juerg Hutter]
 !> \note  The pseudo-potential is written into the 'iunit' file unit or as the file 'GTH-PARAMETER'
 !>        inside the current working directory if the I/O unit is not given explicitly.
 ! **************************************************************************************************
-   SUBROUTINE atom_write_pseudo_param(gthpot, iunit)
+   SUBROUTINE atom_write_pseudo_param(gthpot, iunit, fopt)
       TYPE(atom_gthpot_type), INTENT(INOUT)              :: gthpot
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fopt
 
       INTEGER                                            :: i, iw, j, k, n
 
@@ -773,7 +775,11 @@ CONTAINS
       ELSE
          CALL open_file(file_name="GTH-PARAMETER", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
       END IF
-      WRITE (iw, '(A)') TRIM(ADJUSTL(gthpot%symbol))//" "//TRIM(ADJUSTL(gthpot%pname))
+      IF (PRESENT(fopt)) THEN
+         WRITE (iw, '(A,F30.8)') "# "//TRIM(ADJUSTL(gthpot%symbol)), fopt
+      ELSE
+         WRITE (iw, '(A)') TRIM(ADJUSTL(gthpot%symbol))//" "//TRIM(ADJUSTL(gthpot%pname))
+      END IF
       WRITE (iw, '(4I5)') gthpot%econf(0:3)
       WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rc, gthpot%ncl, (gthpot%cl(i), i=1, gthpot%ncl)
       IF (gthpot%lpotextended) THEN

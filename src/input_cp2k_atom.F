@@ -168,6 +168,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL create_atom_reference_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_atom_print_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -197,6 +201,45 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_atom_section
+
+! **************************************************************************************************
+!> \brief Create the atom section for reference method
+!> \param section the section to create
+!> \author jgh
+! **************************************************************************************************
+   SUBROUTINE create_atom_reference_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="REFERENCE", &
+                          description="Section to specify a reference method for PP optimization.", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
+                          description="METHOD to be used as reference: [AE|PP] ", &
+                          usage="METHOD PP", &
+                          type_of_var=char_t, default_c_val="AE", n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CORE", &
+                          description="Specifies the core electrons for a pseudopotential", &
+                          usage="CORE 1s2 ... or CORE [Ne] or CORE none for 0 electron cores", repeats=.FALSE., &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_potential_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_atom_reference_section
 
 ! **************************************************************************************************
 !> \brief Create the print atom section
