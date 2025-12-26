@@ -242,3 +242,12 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - Pass `-DCP2K_USE_CRAY_PM_ENERGY` to enable power monitoring support on CRAY systems.
 - Pass `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` to enable power monitoring support of accelerators on CRAY
   systems
+
+## MIMIC (multiscale simulations)
+
+MiMiC - Multiscale simulation framework
+
+- Interface realized through MCL library, which can be downloaded from
+  <https://https://mimic-project.org>
+- For more information about the framework and supported programs see <https://mimic-project.org>
+- Pass `-DCP2K_USE_MIMIC=ON` to CMake
