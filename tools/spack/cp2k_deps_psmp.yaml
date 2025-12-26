@@ -54,8 +54,8 @@ spack:
         - smm=blas
     deepmdkit:
       require:
-        - build_system=cmake
         - +enable_pytorch
+        - build_system=cmake
     dftd4:
       require:
         - build_system=cmake
@@ -99,6 +99,10 @@ spack:
     spla:
       require:
         - +fortran
+    tblite:
+      require:
+        - +openmp
+        - build_system=cmake
     trexio:
       require:
         - +hdf5
@@ -113,26 +117,29 @@ spack:
 #   - "openmpi@5.0.9"
     # All
     - "cosma@2.7.0"
-    - "deepmdkit@3.1.0"
+    - "deepmdkit@3.1.2"
     - "dftd4@3.7.0"
     - "dla-future@0.10.0"
     - "dla-future-fortran@0.5.0"
-    - "elpa@2025.01.001"
+    - "elpa@2025.06.001"
     - "fftw@3.3.10"
     - "greenx@2.2"
     - "hdf5@1.14.6"
     - "lammps-user-pace@2023.11.25.fix2"
-    - "libint@2.9.0"
+    - "libint@2.11.1"
     - "libsmeagol@1.2"
+    - "libvdwxc@0.4.0:"
     - "libvori@220621"
     - "libxc@7.0.0"
 #   - "libxsmm@1.17"
     - "pexsi@2.0.0"
     - "plumed@2.9.2"
-    - "py-torch@2.7"
-    - "sirius@7.7.0"
+    - "py-torch@2.9.0"
+    - "sirius@7.9.0"
+    - "spfft@1.1.1"
     - "spglib@2.5.0"
     - "spla@1.6.1"
+#   - "tblite@0.5.0" CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
     - "trexio@2.5.0"
   view:
     default:
