@@ -40,19 +40,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     zstd && rm -rf /var/lib/apt/lists/*
 
-# Create dummy xpmem library for the MPICH build. At runtime the
-# container engine will inject the xpmem library from the host system
-RUN git clone https://github.com/hpc/xpmem \
-    && cd xpmem/lib \
-    && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
-    && ln -s libxpmem.so.1 libxpmem.so \
-    && mkdir -p /opt/spack/lib /opt/spack/include \
-    && mv libxpmem.so* /opt/spack/lib \
-    && mv ../include/xpmem.h /opt/spack/include/ \
-    && ldconfig /opt/spack/lib \
-    && cd ../../ \
-    && rm -rf xpmem
-
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
