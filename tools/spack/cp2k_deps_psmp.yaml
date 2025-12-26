@@ -26,10 +26,8 @@ spack:
       require:
         - +internal-hwloc
     xpmem:
-      buildable: false
-      externals:
-        - spec: xpmem@master
-          prefix: /opt/spack
+      require:
+       - spec: xpmem@master ~kernel-module
     blas:
       require:
         - openblas
