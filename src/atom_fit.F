@@ -805,7 +805,7 @@ CONTAINS
          CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .TRUE.)
          IF (nre == 1) THEN
             WRITE (iunit, '(/," POWELL| Initial errors of target values")')
-            afun = ostate%f*wtot
+            afun = ostate%f*wtot + 1.0E-8_dp
             DO i = 1, SIZE(atom_info, 1)
                DO j = 1, SIZE(atom_info, 2)
                   atom => atom_info(i, j)%atom
@@ -985,7 +985,7 @@ CONTAINS
 
          CALL put_pseudo_param(x, ppot%gth_pot, noopt_nlcc)
          CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .FALSE.)
-         afun = wtot*ostate%f
+         afun = wtot*ostate%f + 1.0E-8_dp
 
          WRITE (iunit, '(/," POWELL| Final errors of target values")')
          DO i = 1, SIZE(atom_info, 1)
