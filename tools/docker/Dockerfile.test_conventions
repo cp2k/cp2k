@@ -62,11 +62,6 @@ RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
 RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
-COPY ./tools/toolchain/scripts/arch_base.tmpl \
-     ./tools/toolchain/scripts/generate_arch_files.sh \
-     ./scripts/
-RUN ./scripts/generate_arch_files.sh && rm -rf ./build
-
 COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
 
 # Install CP2K sources.
@@ -79,8 +74,8 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
 # Compile CP2K.
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
-RUN ./build_cp2k_cmake.sh toolchain_conventions psmp
+COPY ./tools/docker/scripts/build_cp2k.sh .
+RUN ./build_cp2k.sh toolchain_conventions psmp
 
 # Run test for conventions.
 COPY ./tools/conventions ./tools/conventions

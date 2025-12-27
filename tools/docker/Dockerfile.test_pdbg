@@ -62,11 +62,6 @@ RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
 RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
-COPY ./tools/toolchain/scripts/arch_base.tmpl \
-     ./tools/toolchain/scripts/generate_arch_files.sh \
-     ./scripts/
-RUN ./scripts/generate_arch_files.sh && rm -rf ./build
-
 # Install CP2K sources.
 WORKDIR /opt/cp2k
 COPY ./src ./src
@@ -77,15 +72,15 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
 # Compile CP2K.
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
-RUN ./build_cp2k_cmake.sh toolchain pdbg
+COPY ./tools/docker/scripts/build_cp2k.sh .
+RUN ./build_cp2k.sh toolchain pdbg
 
 # Run regression tests.
 ARG TESTOPTS=""
-COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
+COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest_cmake.sh toolchain pdbg |& tee report.log && \
+    ./test_regtest.sh toolchain pdbg |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.

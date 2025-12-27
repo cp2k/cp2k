@@ -18,24 +18,24 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             mpi_mode = "mpich" if version.startswith("p") else "no"
             f.write(install_deps_toolchain(mpi_mode=mpi_mode))
-            f.write(regtest_cmake("toolchain", version))
+            f.write(regtest("toolchain", version))
 
     with OutputFile(f"Dockerfile.test_psmp_4ranks", args.check) as f:
         testopts = f"--ompthreads=1 --mpiranks=4"
         f.write(install_deps_toolchain())
-        f.write(regtest_cmake("toolchain", "psmp", testopts=testopts))
+        f.write(regtest("toolchain", "psmp", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
         f.write(install_deps_toolchain(target_cpu="generic"))
-        f.write(regtest_cmake("toolchain_generic", "psmp"))
+        f.write(regtest("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         f.write(install_deps_toolchain(mpi_mode="openmpi"))
-        f.write(regtest_cmake("toolchain", "psmp"))
+        f.write(regtest("toolchain", "psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
         f.write(install_deps_toolchain(base_image="fedora:41"))
-        f.write(regtest_cmake("toolchain", "psmp"))
+        f.write(regtest("toolchain", "psmp"))
 
     for version in "ssmp", "psmp":
         mpi_mode = "intelmpi" if version.startswith("p") else "no"
@@ -43,27 +43,27 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_intel-ifort-{version}", args.check) as f:
             base_image = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04"
             f.write(install_deps_toolchain_intel(base_image, mpi_mode, with_ifx="no"))
-            f.write(regtest_cmake("toolchain_intel", version))
+            f.write(regtest("toolchain_intel", version))
         with OutputFile(f"Dockerfile.test_intel-ifx-{version}", args.check) as f:
             base_image = "intel/oneapi-hpckit:2025.2.2-0-devel-ubuntu24.04"
             f.write(install_deps_toolchain_intel(base_image, mpi_mode, with_ifx="yes"))
-            f.write(regtest_cmake("toolchain_intel", version))
+            f.write(regtest("toolchain_intel", version))
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(install_deps_ubuntu())
-        f.write(regtest_cmake("minimal", "ssmp"))
+        f.write(regtest("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_deps_spack("psmp"))
-        f.write(regtest_cmake("spack", "psmp"))
+        f.write(regtest("spack", "psmp"))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(install_deps_spack("ssmp"))
-        f.write(regtest_cmake("spack", "ssmp"))
+        f.write(regtest("spack", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
         f.write(install_deps_toolchain())
-        f.write(regtest_cmake("toolchain_asan", "psmp"))
+        f.write(regtest("toolchain_asan", "psmp"))
 
     with OutputFile(f"Dockerfile.test_coverage", args.check) as f:
         f.write(install_deps_toolchain())
@@ -74,12 +74,12 @@ def main() -> None:
             # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
             testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
             f.write(install_deps_ubuntu(gcc_version=gcc_version))
-            f.write(regtest_cmake("ubuntu", "ssmp", testopts=testopts))
+            f.write(regtest("ubuntu", "ssmp", testopts=testopts))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
         f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
-        f.write(regtest_cmake("toolchain_arm64", "psmp"))
+        f.write(regtest("toolchain_arm64", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
         f.write(install_deps_toolchain())
@@ -88,19 +88,12 @@ def main() -> None:
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
-            f.write(regtest_cmake(f"toolchain_cuda_{gpu_ver}", "psmp"))
-
+            f.write(regtest(f"toolchain_cuda_{gpu_ver}", "psmp"))
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
             f.write(performance(f"toolchain_cuda_{gpu_ver}"))
 
     for gpu_ver in "Mi50", "Mi100":
-        with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
-            # ROCm containers require --device, which is not available for docker build.
-            # https://rocmdocs.amd.com/en/latest/ROCm_Virtualization_Containers/ROCm-Virtualization-&-Containers.html#docker-hub
-            f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
-            f.write(regtest_postponed("psmp", "local_hip"))
-
         with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
             f.write(test_build(f"toolchain_hip_{gpu_ver}", "psmp"))
@@ -127,61 +120,26 @@ def main() -> None:
 
 
 # ======================================================================================
-def regtest(
-    version: str, arch: str = "local", testopts: str = "", intel: bool = False
-) -> str:
+def regtest(profile: str, version: str, testopts: str = "") -> str:
     return (
-        install_cp2k(version=version, arch=arch, intel=intel)
+        install_cp2k(profile=profile, version=version)
         + rf"""
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
-    ./test_regtest.sh '{arch}' '{version}' |& tee report.log && \
+    ./test_regtest.sh {profile} {version} |& tee report.log && \
     rm -rf regtesting"
 """
         + print_cached_report()
-    )
-
-
-# ======================================================================================
-def regtest_cmake(profile: str, version: str, testopts: str = "") -> str:
-    return (
-        install_cp2k_cmake(profile=profile, version=version)
-        + rf"""
-# Run regression tests.
-ARG TESTOPTS="{testopts}"
-COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
-RUN /bin/bash -o pipefail -c " \
-    TESTOPTS='${{TESTOPTS}}' \
-    ./test_regtest_cmake.sh {profile} {version} |& tee report.log && \
-    rm -rf regtesting"
-"""
-        + print_cached_report()
-    )
-
-
-# ======================================================================================
-def regtest_postponed(version: str, arch: str = "local") -> str:
-    return (
-        install_cp2k(version=version, arch=arch)
-        + rf"""
-# Postpone running the regression tests until the container is executed.
-ARG TESTOPTS
-COPY ./tools/docker/scripts/test_regtest.sh ./
-ENV TESTOPTS="${{TESTOPTS}}"
-CMD ["./test_regtest.sh", "{arch}", "{version}"]
-
-#EOF
-"""
     )
 
 
 # ======================================================================================
 def test_build(profile: str, version: str) -> str:
     return (
-        install_cp2k_cmake(profile=profile, version=version)
+        install_cp2k(profile=profile, version=version)
         + rf"""
 # Run build test.
 COPY ./tools/docker/scripts/test_build.sh .
@@ -194,7 +152,7 @@ RUN ./test_build.sh "{profile}" "{version}" 2>&1 | tee report.log
 # ======================================================================================
 def performance(profile: str) -> str:
     return (
-        install_cp2k_cmake(profile=profile, version="psmp")
+        install_cp2k(profile=profile, version="psmp")
         + rf"""
 # Run performance test for {profile}.
 COPY ./benchmarks ./benchmarks
@@ -211,7 +169,7 @@ RUN ./test_performance.sh "{profile}" 2>&1 | tee report.log
 # ======================================================================================
 def coverage() -> str:
     return (
-        install_cp2k_cmake(profile="toolchain_coverage", version="psmp", revision=True)
+        install_cp2k(profile="toolchain_coverage", version="psmp", revision=True)
         + rf"""
 # Run coverage test.
 COPY ./tools/docker/scripts/test_coverage.sh .
@@ -228,7 +186,7 @@ def conventions() -> str:
         f"""
 COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
 """
-        + install_cp2k_cmake(profile="toolchain_conventions", version="psmp")
+        + install_cp2k(profile="toolchain_conventions", version="psmp")
         + f"""
 # Run test for conventions.
 COPY ./tools/conventions ./tools/conventions
@@ -241,7 +199,7 @@ RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
 # ======================================================================================
 def manual() -> str:
     return (
-        install_cp2k_cmake(profile="toolchain", version="psmp", revision=True)
+        install_cp2k(profile="toolchain", version="psmp", revision=True)
         + rf"""
 # Generate manual.
 COPY ./docs ./docs
@@ -280,7 +238,7 @@ RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
     return (
-        install_cp2k_cmake(profile="toolchain", version="ssmp")
+        install_cp2k(profile="toolchain", version="ssmp")
         + rf"""
 # Run test for {name}.
 COPY ./tools/docker/scripts/test_{name}.sh ./
@@ -335,52 +293,7 @@ ENTRYPOINT []
 
 
 # ======================================================================================
-def install_cp2k(
-    version: str,
-    arch: str,
-    revision: bool = False,
-    intel: bool = False,
-) -> str:
-    input_lines = []
-    run_lines = []
-
-    if revision:
-        input_lines.append("ARG GIT_COMMIT_SHA")
-        run_lines.append(
-            r'if [ -n "${GIT_COMMIT_SHA}" ] ; then'
-            r' echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi'
-        )
-
-    input_lines.append("COPY ./Makefile .")
-    input_lines.append("COPY ./src ./src")
-    input_lines.append("COPY ./exts ./exts")
-    input_lines.append("COPY ./tools/build_utils ./tools/build_utils")
-
-    if arch.startswith("local"):
-        arch_file = f"/opt/cp2k-toolchain/install/arch/{arch}.{version}"
-        run_lines.append("mkdir -p arch")
-        run_lines.append(f"ln -vs {arch_file} ./arch/")
-    else:
-        input_lines.append(f"COPY ./arch/{arch}.{version} /opt/cp2k/arch/")
-        run_lines.append(f"ln -s /opt/cp2k-toolchain /opt/cp2k/tools/toolchain")
-
-    input_block = "\n".join(input_lines)
-    run_block = " && \\\n    ".join(run_lines)
-
-    return rf"""
-# Install CP2K using {arch}.{version}.
-WORKDIR /opt/cp2k
-{input_block}
-RUN /bin/bash -c " \
-    {run_block}"
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
-"""
-
-
-# ======================================================================================
-def install_cp2k_cmake(profile: str, version: str, revision: bool = False) -> str:
+def install_cp2k(profile: str, version: str, revision: bool = False) -> str:
     output = ""
     if revision:
         output += "\n"
@@ -398,8 +311,8 @@ COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
 # Compile CP2K.
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
-RUN ./build_cp2k_cmake.sh {profile} {version}
+COPY ./tools/docker/scripts/build_cp2k.sh .
+RUN ./build_cp2k.sh {profile} {version}
 """
     return output
 
@@ -631,11 +544,6 @@ RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 
 COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
 RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
-
-COPY ./tools/toolchain/scripts/arch_base.tmpl \
-     ./tools/toolchain/scripts/generate_arch_files.sh \
-     ./scripts/
-RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 """.lstrip()
 
 
@@ -742,14 +650,10 @@ class OutputFile:
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
         if "_spack_" in filename:
-            self.content.write(
-                f"# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../\n"
-            )
+            usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../"
         else:
-            self.content.write(
-                f"# Usage: podman build --shm-size=1g -f ./{filename} ../../\n"
-            )
-        self.content.write(f"#\n")
+            usage = f"podman build --shm-size=1g -f ./{filename} ../../"
+        self.content.write(f"# Usage: {usage}\n#\n")
 
     def __enter__(self) -> io.StringIO:
         return self.content

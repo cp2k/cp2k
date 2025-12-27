@@ -51,7 +51,7 @@ This section has been moved to the [manual](./docs/getting-started/build-from-so
 
 ## 4. If it doesn't work
 
-If things fail, take a break... go back to 2a (or skip to step 6).
+If things fail, take a break... go back to step 2.
 
 ## 5. Regtesting
 
@@ -59,7 +59,7 @@ If compilation works fine, it is recommended to test the generated binary, to ex
 libraries, or miscompilations, etc.
 
 ```shell
-make -j ARCH=... VERSION=... test
+./tests/do_regtest.py ./build/bin/ ${VERSION}
 ```
 
 should work if you can locally execute CP2K without the need for, e.g., batch submission.
