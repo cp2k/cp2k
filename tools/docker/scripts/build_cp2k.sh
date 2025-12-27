@@ -3,8 +3,8 @@
 # authors: Ole Schuett, Matthias Krack
 
 if (($# != 2)); then
-  echo "ERROR: Script build_cp2k_cmake.sh expects exactly two arguments"
-  echo "Usage: build_cp2k_cmake.sh <PROFILE> <VERSION>"
+  echo "ERROR: Script build_cp2k.sh expects exactly two arguments"
+  echo "Usage: build_cp2k.sh <PROFILE> <VERSION>"
   exit 1
 fi
 
