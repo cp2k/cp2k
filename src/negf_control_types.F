@@ -58,6 +58,8 @@ MODULE negf_control_types
       LOGICAL                                            :: refine_fermi_level = .FALSE.
       !> to shift energies to common zero level
       LOGICAL                                            :: shift_fermi_level = .FALSE.
+      !> to read/write H and S from/to file
+      LOGICAL                                            :: read_write_HS = .FALSE.
       !> Fermi level or starting Fermi level
       REAL(kind=dp)                                      :: fermi_level = -1.0_dp
       !> Fermi level shifted to the common zero-energy level
@@ -213,7 +215,8 @@ CONTAINS
       LOGICAL                                            :: do_negf, is_explicit
       REAL(kind=dp)                                      :: eta_max, temp_current, temp_min
       TYPE(section_vals_type), POINTER                   :: cell_section, contact_section, &
-                                                            negf_section, region_section
+                                                            negf_section, region_section, &
+                                                            subsection
 
       CALL timeset(routineN, handle)
 
@@ -308,6 +311,14 @@ CONTAINS
          CALL section_vals_val_get(contact_section, "ELECTRIC_POTENTIAL", &
                                    r_val=negf_control%contacts(i_rep)%v_external, &
                                    i_rep_section=i_rep)
+
+         subsection => section_vals_get_subs_vals(contact_section, "RESTART", i_rep_section=i_rep)
+
+         CALL section_vals_val_get(subsection, "READ_WRITE_HS", &
+                                   l_val=negf_control%contacts(i_rep)%read_write_HS, &
+                                   explicit=is_explicit)
+         IF (is_explicit) negf_control%contacts(i_rep)%read_write_HS = .TRUE.
+
       END DO
 
       region_section => section_vals_get_subs_vals(negf_section, "SCATTERING_REGION")
