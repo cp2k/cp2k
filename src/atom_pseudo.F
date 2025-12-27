@@ -44,6 +44,7 @@ MODULE atom_pseudo
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
    USE physcon,                         ONLY: bohr
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -67,7 +68,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_pseudo_opt'
 
-      CHARACTER(LEN=2)                                   :: elem
+      CHARACTER(LEN=2)                                   :: elem, refm
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: ads, do_eric, do_erie, handle, i, im, &
@@ -76,7 +77,8 @@ CONTAINS
                                                             zval, zz
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
-      LOGICAL                                            :: do_gh, eri_c, eri_e, graph, pp_calc
+      LOGICAL                                            :: do_gh, do_ppref, eri_c, eri_e, explicit, &
+                                                            graph, pp_calc
       REAL(KIND=dp)                                      :: ne, nm
       REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
       TYPE(atom_basis_type), POINTER                     :: ae_basis, pp_basis
@@ -85,7 +87,7 @@ CONTAINS
       TYPE(atom_orbitals), POINTER                       :: orbitals
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info, atom_refs
       TYPE(atom_potential_type), POINTER                 :: ae_pot, p_pot
-      TYPE(atom_state), POINTER                          :: state, statepp
+      TYPE(atom_state), POINTER                          :: state, statepp, stateref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: basis_section, method_section, &
                                                             opt_section, potential_section, &
@@ -121,17 +123,29 @@ CONTAINS
       CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%PROGRAM_BANNER")
       iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%BASIS_SET", extension=".log")
       IF (iw > 0) THEN
-         CALL atom_print_basis(ae_basis, iw, " All Electron Basis")
+         CALL atom_print_basis(ae_basis, iw, " All Electron/Reference Basis")
          CALL atom_print_basis(pp_basis, iw, " Pseudopotential Basis")
       END IF
       CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%BASIS_SET")
+
+      ! check on the reference method
+      CALL section_vals_val_get(atom_section, "REFERENCE%METHOD", c_val=refm)
+      CALL uppercase(refm)
+      do_ppref = (refm == "PP")
 
       ! read and setup information on the pseudopotential
       NULLIFY (potential_section)
       potential_section => section_vals_get_subs_vals(atom_section, "POTENTIAL")
       ALLOCATE (ae_pot, p_pot)
       CALL init_atom_potential(p_pot, potential_section, zval)
-      CALL init_atom_potential(ae_pot, potential_section, -1)
+      IF (do_ppref) THEN
+         potential_section => section_vals_get_subs_vals(atom_section, "REFERENCE%POTENTIAL")
+         CALL section_vals_get(potential_section, explicit=explicit)
+         CPASSERT(explicit)
+         CALL init_atom_potential(ae_pot, potential_section, zval)
+      ELSE
+         CALL init_atom_potential(ae_pot, potential_section, -1)
+      END IF
       IF (.NOT. p_pot%confinement .AND. .NOT. ae_pot%confinement) THEN
          !set default confinement potential
          p_pot%confinement = .TRUE.
@@ -208,7 +222,7 @@ CONTAINS
             atom_info(in, im)%atom%xc_section => xc_section
             atom_refs(in, im)%atom%xc_section => xc_section
 
-            ALLOCATE (state, statepp)
+            ALLOCATE (state, statepp, stateref)
 
             ! get the electronic configuration
             CALL section_vals_val_get(atom_section, "ELECTRON_CONFIGURATION", i_rep_val=in, &
@@ -217,7 +231,7 @@ CONTAINS
             pp_calc = INDEX(tmpstringlist(1), "CORE") /= 0
             CPASSERT(.NOT. pp_calc)
 
-            ! set occupations
+            ! set occupations for the full electronic configuration
             CALL atom_set_occupation(tmpstringlist, state%occ, state%occupation, state%multiplicity)
             state%maxl_occ = get_maxl_occ(state%occ)
             state%maxn_occ = get_maxn_occ(state%occ)
@@ -232,7 +246,6 @@ CONTAINS
                state%maxn_calc(k) = MIN(state%maxn_calc(k), ae_basis%nbas(k))
             END DO
             state%core = 0._dp
-            CALL set_atom(atom_refs(in, im)%atom, zcore=zval, pp_calc=.FALSE.)
 
             IF (state%multiplicity /= -1) THEN
                ! set alpha and beta occupations
@@ -256,6 +269,52 @@ CONTAINS
                      END IF
                   END DO
                END DO
+            END IF
+
+            ! set occupations for reference calculation
+            IF (do_ppref) THEN
+               CALL section_vals_val_get(atom_section, "REFERENCE%CORE", explicit=explicit)
+               IF (explicit) THEN
+                  CALL section_vals_val_get(atom_section, "REFERENCE%CORE", c_vals=tmpstringlist)
+               ELSE
+                  CALL section_vals_val_get(atom_section, "CORE", c_vals=tmpstringlist)
+               END IF
+               CALL atom_set_occupation(tmpstringlist, stateref%core, pocc)
+               zcore = zval - NINT(SUM(stateref%core))
+               CALL set_atom(atom_refs(in, im)%atom, zcore=zcore, pp_calc=.TRUE.)
+
+               stateref%occ = state%occ - stateref%core
+               stateref%occupation = 0._dp
+               DO l = 0, lmat
+                  k = 0
+                  DO i = 1, 10
+                     IF (stateref%occ(l, i) /= 0._dp) THEN
+                        k = k + 1
+                        stateref%occupation(l, k) = state%occ(l, i)
+                        IF (state%multiplicity /= -1) THEN
+                           stateref%occa(l, k) = state%occa(l, i) - stateref%core(l, i)/2
+                           stateref%occb(l, k) = state%occb(l, i) - stateref%core(l, i)/2
+                        END IF
+                     END IF
+                  END DO
+               END DO
+
+               stateref%maxl_occ = get_maxl_occ(stateref%occ)
+               stateref%maxn_occ = get_maxn_occ(stateref%occ)
+               stateref%maxl_calc = state%maxl_calc
+               stateref%maxn_calc = 0
+               maxn = get_maxn_occ(stateref%core)
+               DO k = 0, stateref%maxl_calc
+                  stateref%maxn_calc(k) = state%maxn_calc(k) - maxn(k)
+                  stateref%maxn_calc(k) = MIN(stateref%maxn_calc(k), ae_basis%nbas(k))
+               END DO
+               stateref%multiplicity = state%multiplicity
+
+            ELSE
+
+               stateref = state
+               CALL set_atom(atom_refs(in, im)%atom, zcore=zval, pp_calc=.FALSE.)
+
             END IF
 
             ! set occupations for pseudopotential calculation
@@ -294,7 +353,11 @@ CONTAINS
             CALL section_vals_val_get(method_section, "METHOD_TYPE", i_val=method, i_rep_section=im)
             CALL section_vals_val_get(method_section, "RELATIVISTIC", i_val=reltyp, i_rep_section=im)
             CALL set_atom(atom_info(in, im)%atom, method_type=method)
-            CALL set_atom(atom_refs(in, im)%atom, method_type=method, relativistic=reltyp)
+            IF (do_ppref) THEN
+               CALL set_atom(atom_refs(in, im)%atom, method_type=method)
+            ELSE
+               CALL set_atom(atom_refs(in, im)%atom, method_type=method, relativistic=reltyp)
+            END IF
 
             ! calculate integrals: pseudopotential basis
             ! general integrals
@@ -314,12 +377,16 @@ CONTAINS
                                 eri_coulomb=eri_c, eri_exchange=eri_e)
             ! potential
             CALL atom_ppint_setup(ae_int, ae_basis, potential=ae_pot)
-            ! relativistic correction terms
-            CALL atom_relint_setup(ae_int, ae_basis, reltyp, zcore=REAL(zval, dp))
+            IF (do_ppref) THEN
+               NULLIFY (ae_int%tzora, ae_int%hdkh)
+            ELSE
+               ! relativistic correction terms
+               CALL atom_relint_setup(ae_int, ae_basis, reltyp, zcore=REAL(zval, dp))
+            END IF
             !
             CALL set_atom(atom_refs(in, im)%atom, basis=ae_basis, integrals=ae_int, potential=ae_pot)
-            state%maxn_calc(:) = MIN(state%maxn_calc(:), ae_basis%nbas(:))
-            CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
+            stateref%maxn_calc(:) = MIN(stateref%maxn_calc(:), ae_basis%nbas(:))
+            CPASSERT(ALL(stateref%maxn_calc(:) >= stateref%maxn_occ))
 
             CALL set_atom(atom_info(in, im)%atom, coulomb_integral_type=do_eric, &
                           exchange_integral_type=do_erie)
@@ -337,9 +404,9 @@ CONTAINS
             CALL create_atom_orbs(orbitals, mb, mo)
             CALL set_atom(atom_info(in, im)%atom, orbitals=orbitals)
 
-            CALL set_atom(atom_refs(in, im)%atom, state=state)
+            CALL set_atom(atom_refs(in, im)%atom, state=stateref)
             NULLIFY (orbitals)
-            mo = MAXVAL(state%maxn_calc)
+            mo = MAXVAL(stateref%maxn_calc)
             mb = MAXVAL(atom_refs(in, im)%atom%basis%nbas)
             CALL create_atom_orbs(orbitals, mb, mo)
             CALL set_atom(atom_refs(in, im)%atom, orbitals=orbitals)
@@ -354,6 +421,7 @@ CONTAINS
                CALL calculate_atom(atom_refs(in, im)%atom, iw)
                CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%SCF_INFO")
             END IF
+            DEALLOCATE (state)
          END DO
       END DO
 
