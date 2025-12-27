@@ -45,7 +45,8 @@ MODULE mathlib
              erfc_cutoff, &
              diag_antisym, &
              diag_complex, &
-             gemm_square
+             gemm_square, &
+             geeig_right
 
    ! Public functions
 
@@ -2023,5 +2024,96 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dgemm_square_3
+
+! **************************************************************************************************
+!> \brief Solve the generalized eigenvalue equation for complex matrices A*v = B*v*λ
+!> \param A_in ...
+!> \param B_in ...
+!> \param eigenvalues ...
+!> \param eigenvectors ...
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE geeig_right(A_in, B_in, eigenvalues, eigenvectors)
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: A_in, B_in
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: eigenvectors
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'geeig_right'
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cevals
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: A, B, work
+      INTEGER                                            :: handle, i, icol, irow, lda, ldb, ldc, &
+                                                            nao, nc, ncol, nmo, nx
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+
+      CALL timeset(routineN, handle)
+
+      ! Test sizes
+      nao = SIZE(A_in, 1)
+      nmo = SIZE(eigenvalues)
+      ALLOCATE (evals(nao), cevals(nao))
+      ALLOCATE (work(nao, nao), B(nao, nao), A(nao, nao))
+      A(:, :) = A_in(:, :)
+      B(:, :) = B_in(:, :)
+
+      ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
+      B = -B
+      CALL diag_complex(B, work, evals)
+      evals(:) = -evals(:)
+      nc = nao
+      DO i = 1, nao
+         IF (evals(i) < -1.0_dp) THEN
+            nc = i - 1
+            EXIT
+         END IF
+      END DO
+      CPASSERT(nc /= 0)
+
+      IF (nc /= nao) THEN
+         IF (nc < nmo) THEN
+            ! Copy NULL space definition to last vectors of eigenvectors (if needed)
+            ncol = nmo - nc
+            CALL zcopy(ncol*nao, work(1, nc + 1), 1, eigenvectors(1, nc + 1), 1)
+         END IF
+         ! Set NULL space in eigenvector matrix of S to zero
+         DO icol = nc + 1, nao
+            DO irow = 1, nao
+               work(irow, icol) = czero
+            END DO
+         END DO
+         ! Set small eigenvalues to a dummy save value
+         evals(nc + 1:nao) = 1.0_dp
+      END IF
+      ! Calculate U*s**(-1/2)
+      cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
+      DO i = 1, MIN(SIZE(work, 2), SIZE(cevals))
+         CALL zscal(MIN(SIZE(work, 2), SIZE(cevals)), cevals(i), work(1, i), 1)
+      END DO
+      ! Reduce to get U^(-C) * H * U^(-1)
+      CALL gemm_square(work, 'C', A, 'N', B)
+      CALL gemm_square(B, 'N', work, 'N', A)
+      IF (nc /= nao) THEN
+         ! set diagonal values to save large value
+         DO icol = nc + 1, nao
+            A(icol, icol) = 10000*cone
+         END DO
+      END IF
+      ! Diagonalize
+      CALL diag_complex(A, B, evals)
+      eigenvalues(1:nmo) = evals(1:nmo)
+      nx = MIN(nc, nmo)
+      ! Restore vectors C = U^(-1) * C*
+      lda = SIZE(work, 1)
+      ldb = SIZE(B, 1)
+      ldc = SIZE(eigenvectors, 1)
+      CALL ZGEMM("N", "N", nao, nx, nc, cone, work, &
+                 lda, B, ldb, czero, eigenvectors, ldc)
+
+      DEALLOCATE (evals, cevals, work, B, A)
+
+      CALL timestop(handle)
+   END SUBROUTINE geeig_right
 
 END MODULE mathlib

@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# compute ground state for graphene with PBE and SZV
+# compute the dipole moments for kpoints in the &DFT section
+"C2_pbe_scf_kp.inp"                     = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=0.344}]
+# compute the dipole moments for kpoints provided via &KPOINTS in the &MOMENTS section
+"C2_pbe_moment_kp.inp"                  = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=0.344}]
+# compute the dipole moments for kpoints provided via &KPOINT_SET in the &MOMENTS section
+"C2_pbe_moment_kpset.inp"               = [{matcher="BC_near_K_point", tol=1.0E+01, ref=-1050}]
+# ensure matching of Berry Curvature
+#EOF

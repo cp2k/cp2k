@@ -118,7 +118,8 @@ MODULE input_cp2k_print_dft
                                   create_ext_vxc_section
    USE input_cp2k_field, ONLY: create_efield_section, &
                                create_per_efield_section
-   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
+   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section, &
+                                 create_kpoints_section
    USE input_cp2k_loc, ONLY: create_localize_section, &
                              print_wanniers
    USE input_cp2k_ls, ONLY: create_ls_scf_section
@@ -1118,6 +1119,12 @@ CONTAINS
                           unit_str='bohr')
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL create_kpoint_set_section(subsection)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
+      CALL create_kpoints_section(subsection)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
