@@ -3,11 +3,11 @@
 # author: Ole Schuett
 
 if (($# != 2)); then
-  echo "Usage: test_regtest.sh <ARCH> <VERSION>"
+  echo "Usage: test_regtest.sh <PROFILE> <VERSION>"
   exit 1
 fi
 
-ARCH=$1
+PROFILE=$1
 VERSION=$2
 
 ulimit -c 0 # Disable core dumps as they can take a very long time to write.
@@ -19,62 +19,33 @@ if ((SHM_AVAIL < 1024)); then
   exit 1
 fi
 
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
+# Extend stack size only for Intel compilers.
+if "./build/bin/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
+  ulimit -s unlimited # breaks address sanitizer
+  export OMP_STACKSIZE=64m
+fi
+
+# Improve code coverage on COSMA.
+export COSMA_DIM_THRESHOLD=0
 
 # Make OpenMPI happy.
 export OMPI_MCA_plm_rsh_agent=/bin/false
 export OMPI_ALLOW_RUN_AS_ROOT=1
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
-# Use keepalive mode for GPU tests.
-if [[ "${ARCH}" == *cuda* ]] || [[ "${ARCH}" == *hip* ]]; then
-  TESTOPTS="--keepalive ${TESTOPTS}"
-fi
-
-# Flag slow tests in debug runs.
-if [[ "${ARCH}" == "local" ]] && [[ "${VERSION}" == *dbg* ]]; then
-  TESTOPTS="--flagslow ${TESTOPTS}"
-fi
-
-# Switch to stable DBCSR version if requested.
-if [ -n "${USE_STABLE_DBCSR}" ]; then
-  echo "Switching to stable DBCSR version..."
-  if ! git -C cp2k/exts/dbcsr checkout v2.1.0-rc16; then
-    echo -e "\nSummary: Could not checkout stable DBCSR version."
-    echo -e "Status: FAILED\n"
-    exit 0
-  fi
-  ln -fs python3 /usr/bin/python # DBCSR v2.1.0-rc16 needs the python binary.
-fi
-
-# Compile cp2k.
-echo -en "\nCompiling cp2k... "
-cd /opt/cp2k || exit 1
-if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  mkdir -p /workspace/artifacts/
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
-
-# Improve code coverage on COSMA.
-export COSMA_DIM_THRESHOLD=0
-
-# Extend stack size only for Intel compiler - otherwise it breaks tests on i386.
-if "./exe/${ARCH}/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
-  ulimit -s unlimited
-  export OMP_STACKSIZE=64m
+# Load Spack or Toolchain environment.
+if [[ "${PROFILE}" =~ ^spack ]]; then
+  eval "$(spack env activate myenv --sh)"
+elif [[ "${PROFILE}" =~ ^toolchain ]]; then
+  # shellcheck disable=SC1091
+  source /opt/cp2k-toolchain/install/setup
 fi
 
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
-make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
+set -x
+# shellcheck disable=SC2086
+./tests/do_regtest.py ./build/bin/ ${VERSION} ${TESTOPTS}
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
