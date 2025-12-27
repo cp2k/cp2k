@@ -18,19 +18,28 @@ MODULE negf_env_types
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
                                               force_env_type,&
                                               use_qs_force
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_env,&
                                               get_kpoint_info,&
@@ -41,6 +50,9 @@ MODULE negf_env_types
                                               negf_map_atomic_indices
    USE negf_control_types,              ONLY: negf_control_contact_type,&
                                               negf_control_type
+   USE negf_io,                         ONLY: negf_print_matrix_to_file,&
+                                              negf_read_matrix_from_file,&
+                                              negf_restart_file_name
    USE negf_matrix_utils,               ONLY: invert_cell_to_index,&
                                               negf_copy_contact_matrix,&
                                               negf_copy_sym_dbcsr_to_fm_submat,&
@@ -170,17 +182,20 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(force_env_p_type), DIMENSION(:), POINTER      :: sub_force_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(negf_atom_map_contact_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: map_contact
       TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_contact
       TYPE(qs_subsys_type), POINTER                      :: subsys, subsys_contact
+      TYPE(section_vals_type), POINTER                   :: negf_section, root_section
 
       CALL timeset(routineN, handle)
 
       ! ensure we have Quickstep enabled for all force_env
       NULLIFY (sub_force_env)
-      CALL force_env_get(force_env, in_use=in_use, qs_env=qs_env, sub_force_env=sub_force_env)
+      CALL force_env_get(force_env, in_use=in_use, qs_env=qs_env, root_section=root_section, &
+                         sub_force_env=sub_force_env)
 
       IF (ASSOCIATED(sub_force_env)) THEN
          n_force_env = SIZE(sub_force_env)
@@ -221,7 +236,9 @@ CONTAINS
       CALL qs_energies_init(qs_env, calc_forces=.FALSE.)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, do_kpoints=do_kpoints, &
                       matrix_s_kp=matrix_s_kp, matrix_ks_kp=matrix_ks_kp, &
-                      subsys=subsys, v_hartree_rspace=v_hartree_rspace)
+                      para_env=para_env, subsys=subsys, v_hartree_rspace=v_hartree_rspace)
+
+      negf_section => section_vals_get_subs_vals(root_section, "NEGF")
 
       IF (do_kpoints) THEN
          CPABORT("k-points are currently not supported for device FORCE_EVAL")
@@ -259,13 +276,16 @@ CONTAINS
          IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
             IF (log_unit > 0) &
                WRITE (log_unit, '(/,T2,A,T70,I11)') "NEGF| Construct the Kohn-Sham matrix for the contact", icontact
-
-            CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
-
-            CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
-
-            CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
-                                                qs_env_contact=qs_env_contact)
+            IF (negf_control%contacts(icontact)%read_write_HS) THEN
+               CALL negf_env_contact_read_write_hs &
+                  (icontact, sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, &
+                   para_env, negf_env, sub_env, negf_control, negf_section, log_unit, is_separate=.TRUE.)
+            ELSE
+               CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
+               CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
+               CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
+                                                   qs_env_contact=qs_env_contact)
+            END IF
             IF (log_unit > 0) WRITE (log_unit, '(/,T2,79("-"))')
          END IF
       END DO
@@ -283,6 +303,10 @@ CONTAINS
                                                       contact_control=negf_control%contacts(icontact), &
                                                       sub_env=sub_env, qs_env=qs_env, &
                                                       eps_geometry=negf_control%eps_geometry)
+            IF (negf_control%contacts(icontact)%read_write_HS) THEN
+               CALL negf_env_contact_read_write_hs(icontact, force_env, para_env, &
+                                                   negf_env, sub_env, negf_control, negf_section, log_unit, is_separate=.FALSE.)
+            END IF
          END IF
       END DO
 
@@ -372,6 +396,246 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE negf_env_contact_init_maps
+
+! **************************************************************************************************
+!> \brief Reading and writing of the electrode Hamiltonian and overlap matrices from/to a file.
+!> \param icontact     ...
+!> \param el_force_env ...
+!> \param para_env     ...
+!> \param negf_env     ...
+!> \param sub_env      ...
+!> \param negf_control ...
+!> \param negf_section ...
+!> \param log_unit     ...
+!> \param is_separate  ...
+!> \par History
+!>    * 12.2025 created  [Dmitry Ryndyk]
+! **************************************************************************************************
+   SUBROUTINE negf_env_contact_read_write_hs(icontact, el_force_env, para_env, negf_env, &
+                                             sub_env, negf_control, negf_section, log_unit, is_separate)
+      INTEGER                                            :: icontact
+      TYPE(force_env_type), POINTER                      :: el_force_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(negf_env_type), INTENT(inout)                 :: negf_env
+      TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
+      TYPE(negf_control_type), POINTER                   :: negf_control
+      TYPE(section_vals_type), POINTER                   :: negf_section
+      INTEGER, INTENT(in)                                :: log_unit
+      LOGICAL, INTENT(in)                                :: is_separate
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_contact_read_write_hs'
+
+      CHARACTER(len=default_path_length)                 :: filename_h00_1, filename_h00_2, &
+                                                            filename_h01_1, filename_h01_2, &
+                                                            filename_s00, filename_s01
+      INTEGER                                            :: handle, ispin, ncol, nrow, nspins, &
+                                                            print_unit
+      LOGICAL                                            :: exist, exist_all
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: target_m
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_environment_type), POINTER                 :: qs_env_contact
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      CALL timeset(routineN, handle)
+      logger => cp_get_default_logger()
+
+      CALL force_env_get(el_force_env, qs_env=qs_env_contact)
+      CALL get_qs_env(qs_env_contact, dft_control=dft_control, subsys=subsys)
+      nspins = dft_control%nspins
+
+      IF (.NOT. is_separate .AND. log_unit > 0) WRITE (log_unit, '(/,T2,A,T70,I11)') &
+         "NEGF| Construct the Kohn-Sham matrix for the contact", icontact
+
+      ! Check that the files exist.
+      ! ispin=0 is used to show nspins=1
+      exist_all = .TRUE.
+      IF (para_env%is_source()) THEN
+         CALL negf_restart_file_name(filename_s00, exist, negf_section, logger, icontact, s00=.TRUE.)
+         IF (.NOT. exist) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                         TRIM(filename_s00)//". This file does not exist. The file will be created.")
+            exist_all = .FALSE.
+         END IF
+         CALL negf_restart_file_name(filename_s01, exist, negf_section, logger, icontact, s01=.TRUE.)
+         IF (.NOT. exist) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                         TRIM(filename_s01)//". This file does not exist. The file will be created.")
+            exist_all = .FALSE.
+         END IF
+         IF (nspins == 1) THEN
+            CALL negf_restart_file_name(filename_h00_1, exist, negf_section, logger, icontact, ispin=0, h00=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h00_1)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+            CALL negf_restart_file_name(filename_h01_1, exist, negf_section, logger, icontact, ispin=0, h01=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h01_1)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+         END IF
+         IF (nspins == 2) THEN
+            CALL negf_restart_file_name(filename_h00_1, exist, negf_section, logger, icontact, ispin=1, h00=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h00_1)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+            CALL negf_restart_file_name(filename_h01_1, exist, negf_section, logger, icontact, ispin=1, h01=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h01_1)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+            CALL negf_restart_file_name(filename_h00_2, exist, negf_section, logger, icontact, ispin=2, h00=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h00_2)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+            CALL negf_restart_file_name(filename_h01_2, exist, negf_section, logger, icontact, ispin=2, h01=.TRUE.)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the Hamiltonian and overlap matrices from the file named: "// &
+                            TRIM(filename_h01_2)//". This file does not exist. The file will be created.")
+               exist_all = .FALSE.
+            END IF
+         END IF
+      END IF
+      CALL para_env%bcast(exist_all)
+
+      IF (exist_all) THEN
+
+         IF (log_unit > 0) WRITE (log_unit, '(/,T2,A)') "All restart files exist."
+
+         ! ++ create matrices: s_00, s_01, h_00, h_01
+         IF (para_env%is_source()) THEN
+            CALL open_file(file_name=filename_s00, file_status="OLD", &
+                           file_form="FORMATTED", file_action="READ", &
+                           file_position="REWIND", unit_number=print_unit)
+            READ (print_unit, *) nrow, ncol
+            CALL close_file(print_unit)
+         END IF
+         CALL para_env%bcast(nrow)
+         CALL para_env%bcast(ncol)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nrow, ncol_global=ncol, context=sub_env%blacs_env)
+         ALLOCATE (negf_env%contacts(icontact)%s_00, negf_env%contacts(icontact)%s_01)
+         CALL cp_fm_create(negf_env%contacts(icontact)%s_00, fm_struct)
+         CALL cp_fm_create(negf_env%contacts(icontact)%s_01, fm_struct)
+         ALLOCATE (negf_env%contacts(icontact)%h_00(nspins), negf_env%contacts(icontact)%h_01(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_create(negf_env%contacts(icontact)%h_00(ispin), fm_struct)
+            CALL cp_fm_create(negf_env%contacts(icontact)%h_01(ispin), fm_struct)
+         END DO
+         CALL cp_fm_struct_release(fm_struct)
+
+         ALLOCATE (target_m(nrow, ncol))
+         IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_s00, target_m)
+         CALL para_env%bcast(target_m)
+         CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%s_00, target_m)
+         IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "S_00 is read from "//TRIM(filename_s00)
+         IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_s01, target_m)
+         CALL para_env%bcast(target_m)
+         CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%s_01, target_m)
+         IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "S_01 is read from "//TRIM(filename_s01)
+         IF (nspins == 1) THEN
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h00_1, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_00(1), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is read from "//TRIM(filename_h00_1)
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h01_1, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_01(1), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is read from "//TRIM(filename_H01_1)
+         END IF
+         IF (nspins == 2) THEN
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h00_1, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_00(1), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is read from "//TRIM(filename_h00_1)//" for spin 1"
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h01_1, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_01(1), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is read from "//TRIM(filename_H01_1)//" for spin 1"
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h00_2, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_00(2), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is read from "//TRIM(filename_h00_2)//" for spin 2"
+            IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename_h01_2, target_m)
+            CALL para_env%bcast(target_m)
+            CALL cp_fm_set_submatrix(negf_env%contacts(icontact)%h_01(2), target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is read from "//TRIM(filename_H01_2)//" for spin 2"
+         END IF
+         DEALLOCATE (target_m)
+
+      ELSE
+
+         IF (log_unit > 0) WRITE (log_unit, '(T2,A)') &
+            "Some restart files do not exist. ALL restart files will be recalculated!"
+
+         IF (is_separate) THEN
+            CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
+            CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
+                                                qs_env_contact=qs_env_contact)
+         ELSE
+            negf_control%contacts(icontact)%read_write_HS = .FALSE.
+            CALL negf_env_contact_init_matrices_gamma(contact_env=negf_env%contacts(icontact), &
+                                                      contact_control=negf_control%contacts(icontact), &
+                                                      sub_env=sub_env, qs_env=qs_env_contact, &
+                                                      eps_geometry=negf_control%eps_geometry)
+            negf_control%contacts(icontact)%read_write_HS = .TRUE.
+         END IF
+
+         CALL cp_fm_get_info(negf_env%contacts(icontact)%s_00, nrow_global=nrow)
+         ALLOCATE (target_m(nrow, nrow))
+         CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%s_00, target_m)
+         IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_s00, target_m)
+         IF (log_unit > 0) WRITE (log_unit, '(/,T2,A)') "S_00 is saved to "//TRIM(filename_s00)
+         CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%s_01, target_m)
+         IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_s01, target_m)
+         IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "S_01 is saved to "//TRIM(filename_s01)
+         IF (nspins == 1) THEN
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_00(1), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h00_1, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is saved to "//TRIM(filename_h00_1)
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_01(1), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h01_1, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is saved to "//TRIM(filename_h01_1)
+         END IF
+         IF (nspins == 2) THEN
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_00(1), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h00_1, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is saved to "//TRIM(filename_h00_1)//" for spin 1"
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_01(1), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h01_1, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is saved to "//TRIM(filename_h01_1)//" for spin 1"
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_00(2), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h00_2, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_00 is saved to "//TRIM(filename_h00_2)//" for spin 2"
+            CALL cp_fm_get_submatrix(negf_env%contacts(icontact)%h_01(2), target_m)
+            IF (para_env%is_source()) CALL negf_print_matrix_to_file(filename_h01_2, target_m)
+            IF (log_unit > 0) WRITE (log_unit, '(T2,A)') "H_01 is saved to "//TRIM(filename_h01_2)//" for spin 2"
+         END IF
+         DEALLOCATE (target_m)
+
+      END IF
+
+      IF (.NOT. is_separate .AND. log_unit > 0) WRITE (log_unit, '(/,T2,79("-"))')
+
+      CALL timestop(handle)
+   END SUBROUTINE negf_env_contact_read_write_hs
 
 ! **************************************************************************************************
 !> \brief Extract relevant matrix blocks for the given contact.
@@ -604,73 +868,77 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Primary and secondary bulk contact cells should not overlap ")
       ELSE IF (r2_origin_cell(1) < r2_origin_cell(2)) THEN
-         ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(1)%vector)))
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) &
+            ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(1)%vector)))
          contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(1)%vector(:)
-         ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(2)%vector)))
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) &
+            ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(2)%vector)))
          contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(2)%vector(:)
       ELSE
-         ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(2)%vector)))
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell0)) &
+            ALLOCATE (contact_env%atomlist_cell0(SIZE(contact_control%atomlist_cell(2)%vector)))
          contact_env%atomlist_cell0(:) = contact_control%atomlist_cell(2)%vector(:)
-         ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(1)%vector)))
+         IF (.NOT. ALLOCATED(contact_env%atomlist_cell1)) &
+            ALLOCATE (contact_env%atomlist_cell1(SIZE(contact_control%atomlist_cell(1)%vector)))
          contact_env%atomlist_cell1(:) = contact_control%atomlist_cell(1)%vector(:)
       END IF
+      IF (.NOT. contact_control%read_write_HS) THEN
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao_c, ncol_global=nao_c, context=sub_env%blacs_env)
+         ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
+         ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_create(contact_env%h_00(ispin), fm_struct)
+            CALL cp_fm_create(contact_env%h_01(ispin), fm_struct)
+            CALL cp_fm_create(contact_env%rho_00(ispin), fm_struct)
+            CALL cp_fm_create(contact_env%rho_01(ispin), fm_struct)
+         END DO
+         ALLOCATE (contact_env%s_00, contact_env%s_01)
+         CALL cp_fm_create(contact_env%s_00, fm_struct)
+         CALL cp_fm_create(contact_env%s_01, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
 
-      NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nao_c, ncol_global=nao_c, context=sub_env%blacs_env)
-      ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
-      ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
-      DO ispin = 1, nspins
-         CALL cp_fm_create(contact_env%h_00(ispin), fm_struct)
-         CALL cp_fm_create(contact_env%h_01(ispin), fm_struct)
-         CALL cp_fm_create(contact_env%rho_00(ispin), fm_struct)
-         CALL cp_fm_create(contact_env%rho_01(ispin), fm_struct)
-      END DO
-      ALLOCATE (contact_env%s_00, contact_env%s_01)
-      CALL cp_fm_create(contact_env%s_00, fm_struct)
-      CALL cp_fm_create(contact_env%s_01, fm_struct)
-      CALL cp_fm_struct_release(fm_struct)
+         DO ispin = 1, nspins
+            CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
+                                                  fm=contact_env%h_00(ispin), &
+                                                  atomlist_row=contact_env%atomlist_cell0, &
+                                                  atomlist_col=contact_env%atomlist_cell0, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
+                                                  do_upper_diag=.TRUE., do_lower=.TRUE.)
+            CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
+                                                  fm=contact_env%h_01(ispin), &
+                                                  atomlist_row=contact_env%atomlist_cell0, &
+                                                  atomlist_col=contact_env%atomlist_cell1, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
+                                                  do_upper_diag=.TRUE., do_lower=.TRUE.)
 
-      DO ispin = 1, nspins
-         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%h_00(ispin), &
+            CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
+                                                  fm=contact_env%rho_00(ispin), &
+                                                  atomlist_row=contact_env%atomlist_cell0, &
+                                                  atomlist_col=contact_env%atomlist_cell0, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
+                                                  do_upper_diag=.TRUE., do_lower=.TRUE.)
+            CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
+                                                  fm=contact_env%rho_01(ispin), &
+                                                  atomlist_row=contact_env%atomlist_cell0, &
+                                                  atomlist_col=contact_env%atomlist_cell1, &
+                                                  subsys=subsys, mpi_comm_global=para_env, &
+                                                  do_upper_diag=.TRUE., do_lower=.TRUE.)
+         END DO
+
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
+                                               fm=contact_env%s_00, &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell0, &
                                                subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
-         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%h_01(ispin), &
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
+                                               fm=contact_env%s_01, &
                                                atomlist_row=contact_env%atomlist_cell0, &
                                                atomlist_col=contact_env%atomlist_cell1, &
                                                subsys=subsys, mpi_comm_global=para_env, &
                                                do_upper_diag=.TRUE., do_lower=.TRUE.)
-
-         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%rho_00(ispin), &
-                                               atomlist_row=contact_env%atomlist_cell0, &
-                                               atomlist_col=contact_env%atomlist_cell0, &
-                                               subsys=subsys, mpi_comm_global=para_env, &
-                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
-         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_kp(ispin, 1)%matrix, &
-                                               fm=contact_env%rho_01(ispin), &
-                                               atomlist_row=contact_env%atomlist_cell0, &
-                                               atomlist_col=contact_env%atomlist_cell1, &
-                                               subsys=subsys, mpi_comm_global=para_env, &
-                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
-      END DO
-
-      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
-                                            fm=contact_env%s_00, &
-                                            atomlist_row=contact_env%atomlist_cell0, &
-                                            atomlist_col=contact_env%atomlist_cell0, &
-                                            subsys=subsys, mpi_comm_global=para_env, &
-                                            do_upper_diag=.TRUE., do_lower=.TRUE.)
-      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_s_kp(1, 1)%matrix, &
-                                            fm=contact_env%s_01, &
-                                            atomlist_row=contact_env%atomlist_cell0, &
-                                            atomlist_col=contact_env%atomlist_cell1, &
-                                            subsys=subsys, mpi_comm_global=para_env, &
-                                            do_upper_diag=.TRUE., do_lower=.TRUE.)
-
+      END IF
       CALL timestop(handle)
    END SUBROUTINE negf_env_contact_init_matrices_gamma
 
@@ -1006,7 +1274,10 @@ CONTAINS
          ! as we do need a second replica of the bulk contact unit cell along transport
          ! direction anyway which is not available without k-points.
 
-         CPABORT("It is strongly advised to use k-points within all contact FORCE_EVAL-s")
+         CALL cp_abort(__LOCATION__, &
+                       "It is necessary to use k-points along the transport direction "// &
+                       "for all contact FORCE_EVAL-s")
+         !      It is necessary to use k-points along the transport direction within all contact FORCE_EVAL-s
 
          nspins = SIZE(mos)
 
@@ -1288,4 +1559,5 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE negf_env_contact_release
+
 END MODULE negf_env_types
