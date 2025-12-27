@@ -8,9 +8,12 @@ package manager like [Spack](https://spack.readthedocs.io).
 
 At a minimum CP2K requirements a modern C and Fortran compiler,
 [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK. For parallel builds it also needs at
-least MPI and ScaLAPACK. Descriptions of all available build options can be found in the sections on
-[](../technologies/eigensolvers/index), [](../technologies/accelerators/index), and
-[](../technologies/libraries).
+least MPI and ScaLAPACK. Descriptions of all available build options can be found in the
+technologies section:
+
+- **[](../technologies/eigensolvers/index)**
+- **[](../technologies/accelerators/index)**
+- **[](../technologies/libraries)**
 
 ## Example
 
@@ -43,6 +46,5 @@ cmake --build build -j 32
 - `-DCP2K_USE_EVERYTHING=ON` Enables all dependencies.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS=ON` Only used for
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
-- `-DCP2K_USE_CRAY_PW_ENERGY` Used to monitor power consumption on Cray systems. =
-- `-DCP2K_USE_CRAY_PW_ACCEL_ENERGY` Use to monitor power comsumption of accelerators on Cray
-  systems.
+- `-DCP2K_USE_CRAY_PM_ENERGY` Enables power monitoring on Cray systems.
+- `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` Enables power monitoring of accelerators on Cray systems.

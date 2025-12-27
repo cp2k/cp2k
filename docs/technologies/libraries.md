@@ -236,9 +236,3 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - Pass `-DCP2K_USE_HDF5=ON` to CMake to enable HDF5 support.
 - HDF5 is a hard dependency for SIRIUS and TREXIO, but can also be used by itself to allow
   read/write functionalities of QCSchema files in the active space module.
-
-## Energy monitoring on Cray systems
-
-- Pass `-DCP2K_USE_CRAY_PM_ENERGY` to enable power monitoring support on CRAY systems.
-- Pass `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` to enable power monitoring support of accelerators on CRAY
-  systems
