@@ -2,9 +2,8 @@
 
 [![Release Status][release-badge]][release-link] [![Debian Status][debian-badge]][debian-link]
 [![Fedora Status][fedora-badge]][fedora-link] [![Ubuntu Status][ubuntu-badge]][ubuntu-link]
-[![Arch Status][arch-badge]][arch-link] [![Homebrew Status][homebrew-badge]][homebrew-link]
-[![Docker Status][docker-badge]][docker-link] [![Spack Status][spack-badge]][spack-link]
-[![Conda Status][conda-badge]][conda-link]
+[![Homebrew Status][homebrew-badge]][homebrew-link] [![Docker Status][docker-badge]][docker-link]
+[![Spack Status][spack-badge]][spack-link] [![Conda Status][conda-badge]][conda-link]
 
 CP2K is a quantum chemistry and solid state physics software package that can perform atomistic
 simulations of solid state, liquid, molecular, periodic, material, crystal, and biological systems.
@@ -24,15 +23,13 @@ OpenCL).
 To clone the current master (development version):
 
 ```shell
-git clone --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone https://github.com/cp2k/cp2k.git cp2k
 ```
-
-Note the `--recursive` flag that is needed because CP2K uses git submodules.
 
 To clone a release version v*x.y*:
 
 ```shell
-git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
+git clone -b support/vx.y https://github.com/cp2k/cp2k.git cp2k
 ```
 
 For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download). For
@@ -45,9 +42,6 @@ The easiest way to build CP2K with all of its dependencies is as a
 
 For building CP2K from scratch, including GPU acceleration for NVIDIA (CUDA), AMD (HIP/ROCm), or
 OpenCL devices, see the [installation instructions](./INSTALL.md).
-
-See INSTALL.md, [section 2i](./INSTALL.md#2i-cuda-optional-improved-performance-on-gpu-systems) for
-CUDA builds, and [section 2w](./INSTALL.md#2w-rocmhip-support-for-amd-gpu) for HIP/ROCm builds.
 
 ## Links
 
@@ -64,22 +58,12 @@ CUDA builds, and [section 2w](./INSTALL.md#2w-rocmhip-support-for-amd-gpu) for H
 
 ## Directory organization
 
-- [`arch`](./arch): Collection of definitions for different architectures and compilers
-- [`benchmarks`](./benchmarks): Inputs for benchmarks
-- [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
-- [`exts`](./exts): Access to external libraries via GIT submodules
 - [`src`](./src): The source code
+- [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
 - [`tests`](./tests): Inputs for tests and regression tests
 - [`tools`](./tools): Mixed collection of useful scripts related to cp2k
+- [`benchmarks`](./benchmarks): Inputs for benchmarks
 
-Additional directories created during build process:
-
-- `lib`: Libraries built during compilation
-- `obj`: Objects and other intermediate compilation-time files
-- `exe`: Where the executables will be located
-
-[arch-badge]: https://img.shields.io/aur/version/cp2k
-[arch-link]: https://aur.archlinux.org/packages/cp2k
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k
 [conda-link]: https://anaconda.org/conda-forge/cp2k
 [debian-badge]: https://img.shields.io/debian/v/cp2k
