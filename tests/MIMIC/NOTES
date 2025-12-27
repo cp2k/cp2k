@@ -1,1 +1,0 @@
-./do_regtest.py --mpiranks 4 --restrictdir MIMIC/regtest-qmmm  /home/antalik/miniconda3/envs/mimic/mimic_install/bin psmp
