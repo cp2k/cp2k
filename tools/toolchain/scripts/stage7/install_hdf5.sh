@@ -56,7 +56,7 @@ case "$with_hdf5" in
   __SYSTEM__)
     echo "==================== Finding HDF5 from system paths ===================="
     check_command pkg-config --modversion hdf5
-    pkg_install_dir=$(h5cc -showconfig | grep "Installation point" | cut -d: -f2)
+    pkg_install_dir=$(h5cc -showconfig | grep "Installation point" | awk '{print $3}')
     if [ -d ${pkg_install_dir}/include ]; then
       HDF5_INCLUDE_DIR=${pkg_install_dir}/include
     else
