@@ -68,7 +68,7 @@ MODULE mimic_communicator
       PRIVATE
       !> communication
       TYPE(mp_para_env_type), POINTER                 :: para_env => Null()
-      LOGICAL                                         :: is_ionode
+      LOGICAL                                         :: is_ionode = .FALSE.
       INTEGER                                         :: mcl_server = 0, &
                                                          client_id = -1
       !> CP2K data

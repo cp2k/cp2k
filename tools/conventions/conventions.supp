@@ -125,6 +125,8 @@ machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org
 machine.F: Module "libxsmm" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
+mcl_api.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+mcl_requests.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated" https://cp2k.org/conv#c012
@@ -146,6 +148,7 @@ message_passing.F: Found type mpi_session without initializer https://cp2k.org/c
 message_passing.F: Found type mpi_status without initializer https://cp2k.org/conv#c016
 message_passing.F: Found type mpi_win without initializer https://cp2k.org/conv#c016
 message_passing.F: Found type mpix_stream without initializer https://cp2k.org/conv#c016
+message_passing.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.F: Module "mpi_c_interface_types" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.F: Module "mpi_f08_callbacks" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.F: Module "mpi_f08_compile_constants" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
