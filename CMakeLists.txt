@@ -164,6 +164,8 @@ cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(
   CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
@@ -816,6 +818,10 @@ if(CP2K_USE_LIBTORCH)
   endif()
 endif()
 
+if(CP2K_USE_MIMIC)
+  find_package(MiMiC REQUIRED)
+endif()
+
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
   message(
     FATAL_ERROR
@@ -1008,6 +1014,11 @@ if(CP2K_USE_SPLA_GEMM_OFFLOADING)
   message(" - SpLA GEMM offloading\n\n")
 endif()
 
+if(CP2K_USE_MIMIC)
+  message(" - MiMiC\n" "   - include directories: ${CP2K_MIMIC_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_MIMIC_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_DFTD4)
   message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
           "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")
@@ -1138,6 +1149,10 @@ endif()
 
 if(NOT CP2K_USE_SPLA)
   message("   - SpLA")
+endif()
+
+if(NOT CP2K_USE_MIMIC)
+  message("   - MiMiC")
 endif()
 
 if(NOT CP2K_USE_HDF5)

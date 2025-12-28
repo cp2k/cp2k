@@ -317,6 +317,10 @@ class Config:
         env["PIKA_COMMANDLINE_OPTIONS"] = (
             f"--pika:bind=none --pika:threads={self.ompthreads}"
         )
+        if cwd is not None and "MIMIC" == cwd.parent.name:
+            env["MCL_COMM_MODE"] = "TEST_STUB"
+            env["MCL_PROGRAM"] = "1"
+            env["MCL_TEST_DATA"] = "MCL_LOG_1"
         exe_name = f"{exe_stem}.{self.version}"
         cmd = [str(self.binary_dir / exe_name)]
         if self.valgrind:

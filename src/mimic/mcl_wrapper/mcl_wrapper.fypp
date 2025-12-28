@@ -1,0 +1,50 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+   #:set mcl_implemented_labels = [ &
+      "MCL_DATA", &
+      "MCL_LENGTH", &
+      "MCL_REQUEST", &
+      "MCL_EXIT", &
+      "MCL_SEND_CLIENT_ID", &
+      "MCL_SEND_CLIENT_NAME", &
+      "MCL_SEND_CLIENT_RUNTYPE", &
+      "MCL_SEND_CLIENT_APIVER", &
+      "MCL_RUNTYPE_QM_RS_GRID", &
+      "MCL_SEND_NUM_PARTICLES", &
+      "MCL_SEND_NUM_PARTICLE_SPECIES", &
+      "MCL_SEND_PARTICLE_SPECIES_IDS", &
+      "MCL_SEND_NUM_FRAGMENTS", &
+      "MCL_SEND_NUM_PARTICLES_IN_FRAGMENTS", &
+      "MCL_SEND_PARTICLE_IDS_IN_FRAGMENTS", &
+      "MCL_SEND_NUM_CONSTR_BONDS", &
+      "MCL_SEND_NUM_CONSTR_ANGLES", &
+      "MCL_SEND_PARTICLE_MULTIPOLES", &
+      "MCL_SEND_NUCLEAR_CHARGES", &
+      "MCL_SEND_SPECIES_MASSES", &
+      "MCL_SEND_SPECIES_ELEMENTS", &
+      "MCL_SEND_SPECIES_LABELS", &
+      "MCL_SEND_PARTICLE_POSITIONS", &
+      "MCL_RECV_PARTICLE_POSITIONS", &
+      "MCL_SEND_PARTICLE_FORCES", &
+      "MCL_SEND_ENERGY", &
+      "MCL_SEND_BOX_ORIGIN", &
+      "MCL_SEND_BOX_VECTORS", &
+      "MCL_SEND_BOX_NUM_GRIDPOINTS", &
+      "MCL_SEND_BOX_GRIDPOINT_COORDS", &
+      "MCL_SEND_DENSITY", &
+      "MCL_RECV_POTENTIAL_ON_GRIDPOINTS", &
+      "MCL_SEND_REFERENCE_CHARGES", &
+      "MCL_COMPUTE_FORCES"]
+
+   #:set mcl_direction = ["send", "receive"]
+   #:set mcl_kinds = ["INTEGER(KIND=int_4)", "INTEGER(KIND=int_8)", "REAL(KIND=sp)", "REAL(KIND=dp)"]
+   #:set mcl_kind_labels = ["i4", "i8", "sp", "dp"]
+   #:set mcl_dimensions = ["", ", DIMENSION(:)", ", DIMENSION(:,:)", ", DIMENSION(:,:,:)"]
+   #:set mcl_dimension_labels = ["0d", "1d", "2d", "3d"]
+#:endmute
+

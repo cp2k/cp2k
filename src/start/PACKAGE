@@ -17,5 +17,6 @@
         "../motion",
         "../motion/mc",
         "../emd",
+        "../mimic",
     ],
 }

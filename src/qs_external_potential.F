@@ -203,7 +203,7 @@ CONTAINS
                       cell=cell, &
                       dft_control=dft_control)
 
-      IF (dft_control%apply_external_potential) THEN
+      IF (dft_control%apply_external_potential .AND. .NOT. qs_env%mimic) THEN
          !ensure that external potential is loaded to grid
          IF (dft_control%eval_external_potential) THEN
             CALL external_e_potential(qs_env)
