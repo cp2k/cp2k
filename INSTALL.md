@@ -47,7 +47,8 @@ cd tools/toolchain/
 
 ## 3. Compile
 
-This section has been moved to the [manual](./docs/getting-started/build-from-source.md).
+This section has been moved to the
+[manual](https://manual.cp2k.org/trunk/getting-started/build-from-source.html).
 
 ## 4. If it doesn't work
 
