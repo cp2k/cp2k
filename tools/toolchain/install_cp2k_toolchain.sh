@@ -1055,12 +1055,14 @@ Done!
 To use the installed tools and libraries and cp2k version
 compiled with it you will first need to execute at the prompt:
   source ${SETUPFILE}
-To build CP2K you should change directory:
+
+If you invoked the toolchain with --install-all then you can proceed to build cp2k like this:
   cd cp2k/
-  cmake -S . -B build -DCP2K_USE_EVERYTHING=ON
+  cmake -S . -B build -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF
   cmake --build build -j 32
 
-See also https://manual.cp2k.org/trunk/getting-started/build-from-source.html
+If you installed only some packages then you'll have to assemble the matching cmake command yourself.
+For available build options see: https://manual.cp2k.org/trunk/getting-started/build-from-source.html
 
 EOF
 fi
