@@ -2,8 +2,9 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack.package import *
 from spack_repo.builtin.build_systems.cmake import CMakePackage
+
+from spack.package import *
 
 
 class LammpsUserPace(CMakePackage):
@@ -19,6 +20,7 @@ class LammpsUserPace(CMakePackage):
 
     maintainers("mkrack")
 
+    version("2025.12.4", sha256="ccfa406064ac4c58af3332bbe245318996b86facdc519520c31b790e5f416f7d")
     version(
         "2023.11.25.fix2",
         sha256="e0885351a8a730f5576dace2374fa470523a4526383c6a64af571e1344a40686",
