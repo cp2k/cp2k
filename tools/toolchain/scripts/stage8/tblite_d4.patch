@@ -1,0 +1,9 @@
+--- a/config/cmake/Finddftd4.cmake
++++ b/config/cmake/Finddftd4.cmake
+@@ -17,7 +17,7 @@
+ set(_lib "dftd4")
+ set(_pkg "DFTD4")
+ set(_url "https://github.com/dftd4/dftd4")
+-set(_rev "v3.7.0")
++set(_rev "2a858f5bfdeb429b433b1c7bfaead6057420af8a")
+
