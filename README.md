@@ -29,7 +29,7 @@ git clone https://github.com/cp2k/cp2k.git cp2k
 To clone a release version v*x.y*:
 
 ```shell
-git clone -b support/vx.y https://github.com/cp2k/cp2k.git cp2k
+git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
 
 For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download). For

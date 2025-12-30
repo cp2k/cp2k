@@ -1209,10 +1209,8 @@ endif()
 
 message(
   "\n\n" # let below line separate
-  "To run the regtests you need to run the following commands\n"
-  "\n\n cd ..\n" # let below line separate
-  " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
-  " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
+  "After building CP2K the regtests can be run with the following command:\n"
+  "   ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
 
 # files needed for cmake
 
