@@ -51,7 +51,6 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_TBLITE=OFF \
-    -DCP2K_USE_MIMIC=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
