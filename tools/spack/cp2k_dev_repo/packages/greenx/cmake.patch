@@ -1,0 +1,84 @@
+From 52408cb9fc329b2e5f9af8bb34327d58b66d5d37 Mon Sep 17 00:00:00 2001
+From: Mathieu Taillefumier <mathieu.taillefumier@free.fr>
+Date: Tue, 30 Dec 2025 16:30:28 +0100
+Subject: [PATCH] Fix for finding gmpxx when find_package(greenX) is called
+
+---
+ cmake/FindGMPXX.cmake       | 23 ++++++++++++-----------
+ cmake/greenXConfig.cmake.in |  9 ++++++++-
+ 2 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/cmake/FindGMPXX.cmake b/cmake/FindGMPXX.cmake
+index c8bbe50..2a27c11 100644
+--- a/cmake/FindGMPXX.cmake
++++ b/cmake/FindGMPXX.cmake
+@@ -10,30 +10,31 @@ if (PKG_CONFIG_FOUND)
+   pkg_check_modules(GREENX_GMPXX IMPORTED_TARGET GLOBAL gmpxx)
+   pkg_check_modules(GREENX_GMP IMPORTED_TARGET GLOBAL gmp)
+ endif()
++
++find_path(GREENX_GMPXX_INCLUDE_DIR NAMES gmpxx.h)
++
+ if(NOT GREENX_GMP_FOUND)
+-  find_path(GREENX_GMPXX_INCLUDE_DIR NAMES gmpxx.h)
+-  find_library(GREENX_GMPXX_LIBRARY NAMES gmpxx)
+-  find_library(GREENX_GMP_LIBRARY NAMES gmp)
++  find_library(GREENX_GMPXX_LIBRARIES NAMES gmpxx)
++  find_library(GREENX_GMP_LIBRARIES NAMES gmp)
+ else()
+-  set(GREENX_GMP_LIBRARY ${GREENX_GMP_LINK_LIBRARIES})
+-  set(GREENX_GMPXX_LIBRARY ${GREENX_GMPXX_LINK_LIBRARIES})
+-  set(GREENX_GMPXX_INCLUDE_DIR ${GREENX_GMP_INCLUDE_DIRS})
++  set(GREENX_GMPXX_LIBRARIES "${GREENX_GMPXX_LINK_LIBRARIES}")
++  set(GREENX_GMP_LIBRARIES "${GREENX_GMP_LINK_LIBRARIES}")
+ endif()
+ 
+-find_package_handle_standard_args(GMPXX DEFAULT_MSG GREENX_GMPXX_INCLUDE_DIRS GREENX_GMPXX_LIBRARY GREENX_GMP_LIBRARY)
++find_package_handle_standard_args(GMPXX DEFAULT_MSG GREENX_GMPXX_INCLUDE_DIR GREENX_GMPXX_LIBRARIES GREENX_GMP_LIBRARIES)
++set(GREENX_GMPXX_LIBRARIES ${GREENX_GMPXX_LIBRARIES} ${GREENX_GMP_LIBRARIES})
+ 
+-set(GREENX_GMPXX_LIBRARIES ${GREENX_GMPXX_LIBRARY} ${GREENX_GMP_LIBRARY})
+ 
+ if (NOT TARGET greenX::gmpxx)
+   add_library(greenX::gmpxx INTERFACE IMPORTED)
+   set_target_properties(greenX::gmpxx
+                         PROPERTIES
+                         INTERFACE_LINK_LIBRARIES "${GREENX_GMPXX_LIBRARIES}")
+-  if (GREENX_GMPXX_INCLUDE_DIRS)
++  if (GREENX_GMPXX_INCLUDE_DIR)
+     set_target_properties(greenX::gmpxx
+                           PROPERTIES
+-                          INTERFACE_INCLUDE_DIRECTORIES ${GREENX_GMPXX_INCLUDE_DIRS})
++                          INTERFACE_INCLUDE_DIRECTORIES ${GREENX_GMPXX_INCLUDE_DIR})
+   endif()
+ endif()
+ 
+-mark_as_advanced(GMPXX_INCLUDE_DIR GMPXX_LIBRARY)
++mark_as_advanced(GREENX_GMPXX_INCLUDE_DIR GREENX_GMPXX_LIBRARIES)
+diff --git a/cmake/greenXConfig.cmake.in b/cmake/greenXConfig.cmake.in
+index d89f70d..21bbab9 100644
+--- a/cmake/greenXConfig.cmake.in
++++ b/cmake/greenXConfig.cmake.in
+@@ -1,12 +1,19 @@
+ include(CMakeFindDependencyMacro)
+ 
++if (NOT TARGET greenX::GXCommon)
++
++set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}"
++    ${CMAKE_MODULE_PATH})
++
+ # If greenX depends on other libraries, do:
+ find_dependency(BLAS REQUIRED)
+ find_dependency(LAPACK REQUIRED)
+ 
+ if(@ENABLE_GNU_GMP@)
+-   find_dependency(GMPXX)
++   find_dependency(GMPXX REQUIRED)
+ endif()
+ 
+ # Finally, pull in the targets you exported:
+ include("${CMAKE_CURRENT_LIST_DIR}/greenXTargets.cmake")
++
++endif()
+-- 
+2.52.0
