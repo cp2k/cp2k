@@ -82,6 +82,7 @@ RUN ./setup_spack_cache.sh
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-ssmp}
 COPY ./tools/spack/cp2k_deps_${CP2K_VERSION}.yaml ./
+
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
