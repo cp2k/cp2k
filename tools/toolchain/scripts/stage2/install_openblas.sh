@@ -56,7 +56,6 @@ case "${with_openblas}" in
       # USE_THREADS=1: is not needed since CP2K's ARCH-files do not rely on
       #                plain PThread based OpenBLAS (OpenMP is used).
       #
-      # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       BUILD_DYNAMIC=0
       if [ "native" != "${TARGET_CPU}" ] || [ ! "${OPENBLAS_LIBCORE}" ]; then
         BUILD_DYNAMIC=1
@@ -70,6 +69,7 @@ case "${with_openblas}" in
           NUM_THREADS=128 \
           USE_OPENMP=1 \
           NO_AFFINITY=1 \
+          NO_SHARED=1 \
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
@@ -86,12 +86,13 @@ case "${with_openblas}" in
           NUM_THREADS=128 \
           USE_OPENMP=1 \
           NO_AFFINITY=1 \
+          NO_SHARED=1 \
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
           > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       fi
-      make MAKE_NB_JOBS=0 PREFIX="${pkg_install_dir}" install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make MAKE_NB_JOBS=0 NO_SHARED=1 PREFIX="${pkg_install_dir}" install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
     fi
