@@ -112,7 +112,7 @@ spack:
     - "mpich@4.3.2"
     - "netlib-scalapack@2.2.2"
     - "openblas@0.3.30"
-#   - "openmpi@5.0.9"
+#   - "openmpi@5.0.8"
     # All
     - "cosma@2.7.0"
     - "deepmdkit@3.1.2"

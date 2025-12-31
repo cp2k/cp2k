@@ -54,11 +54,15 @@ def main() -> None:
         f.write(regtest("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
-        f.write(install_deps_spack("psmp"))
+        f.write(install_deps_spack("psmp", "mpich"))
+        f.write(regtest("spack", "psmp"))
+
+    with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
+        f.write(install_deps_spack("psmp", "openmpi"))
         f.write(regtest("spack", "psmp"))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
-        f.write(install_deps_spack("ssmp"))
+        f.write(install_deps_spack("ssmp", "no"))
         f.write(regtest("spack", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -181,7 +185,6 @@ RUN ./test_coverage.sh 2>&1 | tee report.log
 
 # ======================================================================================
 def conventions() -> str:
-
     return (
         f"""
 COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
@@ -548,8 +551,8 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
 
 # ======================================================================================
-def install_deps_spack(version: str) -> str:
-    return rf"""
+def install_deps_spack(version: str, mpi_mode: str) -> str:
+    output = rf"""
 FROM ubuntu:24.04
 
 # Install packages required to build the CP2K dependencies with Spack
@@ -629,6 +632,19 @@ RUN ./setup_spack_cache.sh
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${{CP2K_VERSION:-{version}}}
 COPY ./tools/spack/cp2k_deps_${{CP2K_VERSION}}.yaml ./
+"""
+
+    if mpi_mode == "openmpi":
+        output += rf"""
+RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
+        -E -e '/\s*#\s*-\s+"openmpi/ s/#/ /' \
+        -E -e '/\s*-\s+mpich/ s/mpich/openmpi/' \
+        -i cp2k_deps_${{CP2K_VERSION}}.yaml
+""".strip(
+            "\n"
+        )
+
+    output += rf"""
 COPY ./tools/spack/cp2k_dev_repo ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev_repo/
 RUN spack env create myenv cp2k_deps_${{CP2K_VERSION}}.yaml && \
@@ -639,6 +655,7 @@ RUN spack -e myenv concretize -f
 RUN spack -e myenv env depfile -o spack_makefile
 RUN make -j${{NUM_PROCS}} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
 """
+    return output
 
 
 # ======================================================================================
