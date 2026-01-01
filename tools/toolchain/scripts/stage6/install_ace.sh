@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-ace_ver="v.2023.11.25.fix2"
-ace_dir="lammps-user-pace-${ace_ver}"
-ace_pkg="${ace_dir}.tar.gz"
+ace_ver="2023.11.25.fix2"
+ace_dir="lammps-user-pace-v.${ace_ver}"
+ace_pkg="ace-${ace_ver}.tar.gz"
 ace_sha256="e0885351a8a730f5576dace2374fa470523a4526383c6a64af571e1344a40686"
 
 # shellcheck source=/dev/null
@@ -38,7 +38,7 @@ case "$with_ace" in
       if [ -f ${ace_pkg} ]; then
         echo "${ace_pkg} is found"
       else
-        download_pkg_from_urlpath "${ace_sha256}" "${ace_ver}.tar.gz" "https://github.com/ICAMS/lammps-user-pace/archive/refs/tags" "${ace_pkg}"
+        download_pkg_from_cp2k_org "${ace_sha256}" "${ace_pkg}"
       fi
       [ -d ${ace_dir} ] && rm -rf ${ace_dir}
       echo "Installing from scratch into ${pkg_install_dir}"

@@ -30,8 +30,7 @@ case "${with_dbcsr}" in
       if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
         echo "dbcsr-${dbcsr_ver}.tar.gz is found"
       else
-        download_pkg_from_urlpath "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz" \
-          https://github.com/cp2k/dbcsr/releases/download/v${dbcsr_ver}
+        download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}

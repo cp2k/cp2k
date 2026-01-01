@@ -33,9 +33,7 @@ case "${with_mcl:=__INSTALL__}" in
       if [ -f mcl-${mcl_ver}.tar.gz ]; then
         echo "mcl-${mcl_ver}.tar.gz is found"
       else
-        download_pkg_from_urlpath "${mcl_sha256}" mcl-${mcl_ver}.tar.gz \
-          https://gitlab.com/mimic-project/mcl/-/archive/${mcl_ver}
-
+        download_pkg_from_cp2k_org "${mcl_sha256}" mcl-${mcl_ver}.tar.gz
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
