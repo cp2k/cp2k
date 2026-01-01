@@ -36,6 +36,7 @@ apt-get install -qq --no-install-recommends \
   unzip \
   wget \
   xxd \
+  xz-utils \
   zlib1g-dev
 
 rm -rf /var/lib/apt/lists/*

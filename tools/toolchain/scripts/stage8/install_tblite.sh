@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 tblite_ver="0.5.0"
-tblite_sha256="65ede0d66ad38f7748cb1c93367db3bd9b67f6439d8e45539bcf55182489c287"
+tblite_sha256="e8a70b72ed0a0db0621c7958c63667a9cd008c97c868a4a417ff1bc262052ea8"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -38,15 +38,15 @@ case "$with_tblite" in
     if verify_checksums "${install_lock_file}"; then
       echo "tblite-${tblite_ver} is already installed, skipping it."
     else
-      if [ -f tblite-${tblite_ver}.tar.gz ]; then
-        echo "tblite-${tblite_ver}.tar.gz is found"
+      if [ -f tblite-${tblite_ver}.tar.xz ]; then
+        echo "tblite-${tblite_ver}.tar.xz is found"
       else
-        download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
-      tar -xzf tblite-${tblite_ver}.tar.gz
+      tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
 
       rm -Rf build
