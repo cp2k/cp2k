@@ -175,9 +175,6 @@ The --with-PKG options follow the rules:
   --with-libint           libint, library for evaluation of two-body molecular
                           integrals, needed for hybrid functional calculations.
                           Default = install
-  --with-libgrpp          libgrpp, library for the evaluation of ECP integrals, needed
-                          for any calculations with semi-local ECP pseudopotentials.
-                          Default = install
   --with-fftw             Install FFTW3 library for fast fourier transform.
                           Default = install
   --with-acml             AMD core maths library, which provides LAPACK and BLAS.
@@ -281,7 +278,7 @@ EOF
 tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
+lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol 
           trexio greenx gmp mcl"
@@ -304,7 +301,6 @@ with_gcc="__SYSTEM__"
 with_dbcsr="__INSTALL__"
 with_fftw="__INSTALL__"
 with_libint="__INSTALL__"
-with_libgrpp="__INSTALL__"
 with_libxsmm="__INSTALL__"
 with_libxc="__INSTALL__"
 with_scalapack="__INSTALL__"
@@ -601,9 +597,6 @@ while [ $# -ge 1 ]; do
       ;;
     --with-libxc*)
       with_libxc=$(read_with "${1}")
-      ;;
-    --with-libgrpp*)
-      with_libgrpp=$(read_with "${1}")
       ;;
     --with-fftw*)
       with_fftw=$(read_with "${1}")
