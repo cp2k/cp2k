@@ -7,6 +7,5 @@
 ./scripts/stage3/install_libint.sh
 ./scripts/stage3/install_libxc.sh
 ./scripts/stage3/install_greenx.sh
-./scripts/stage3/install_libgrpp.sh
 
 #EOF
