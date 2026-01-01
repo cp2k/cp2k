@@ -33,6 +33,16 @@ export OMPI_MCA_plm_rsh_agent=/bin/false
 export OMPI_ALLOW_RUN_AS_ROOT=1
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
+# Use keepalive mode for GPU tests.
+if [[ "${PROFILE}" == *cuda* ]] || [[ "${PROFILE}" == *hip* ]]; then
+  TESTOPTS="--keepalive ${TESTOPTS}"
+fi
+
+# Flag slow tests in debug runs.
+if [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == *dbg* ]]; then
+  TESTOPTS="--flagslow ${TESTOPTS}"
+fi
+
 # Load Spack or Toolchain environment.
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
