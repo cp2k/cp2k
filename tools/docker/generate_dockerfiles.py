@@ -54,15 +54,15 @@ def main() -> None:
         f.write(regtest("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
-        f.write(install_deps_spack("psmp", "mpich"))
+        f.write(install_deps_spack("psmp", mpi_mode="mpich"))
         f.write(regtest("spack", "psmp"))
 
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
-        f.write(install_deps_spack("psmp", "openmpi"))
+        f.write(install_deps_spack("psmp", mpi_mode="openmpi"))
         f.write(regtest("spack", "psmp"))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
-        f.write(install_deps_spack("ssmp", "no"))
+        f.write(install_deps_spack("ssmp", mpi_mode="no"))
         f.write(regtest("spack", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -640,9 +640,7 @@ RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
         -E -e '/\s*#\s*-\s+"openmpi/ s/#/ /' \
         -E -e '/\s*-\s+mpich/ s/mpich/openmpi/' \
         -i cp2k_deps_${{CP2K_VERSION}}.yaml
-""".strip(
-            "\n"
-        )
+""".strip()
 
     output += rf"""
 COPY ./tools/spack/cp2k_dev_repo ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev_repo/
