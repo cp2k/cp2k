@@ -335,6 +335,7 @@ def install_deps_toolchain(
         mpi_mode=mpi_mode,
         with_dbcsr=with_dbcsr,
         with_gcc=with_gcc,
+        with_sirius="no",  # Does not work with statically linked OpenBLAS.
         **kwargs,
     )
     return output

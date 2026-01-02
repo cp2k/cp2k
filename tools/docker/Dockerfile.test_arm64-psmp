@@ -27,6 +27,7 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --with-dbcsr \
     --with-gcc=system \
+    --with-sirius=no \
     --with-libtorch=no \
     --with-deepmd=no \
     --with-tblite=no \

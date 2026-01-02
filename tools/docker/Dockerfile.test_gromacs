@@ -27,6 +27,7 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=no \
     --with-dbcsr \
     --with-gcc=system \
+    --with-sirius=no \
     --with-tblite=no \
     --dry-run
 

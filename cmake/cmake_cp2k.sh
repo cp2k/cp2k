@@ -100,6 +100,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_TBLITE=OFF \
+    -DCP2K_USE_SIRIUS=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -175,6 +176,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_TREXIO=OFF \
     -DCP2K_USE_MIMIC=OFF \
+    -DCP2K_USE_SIRIUS=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
