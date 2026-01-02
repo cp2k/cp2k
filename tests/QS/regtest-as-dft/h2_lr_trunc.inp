@@ -19,14 +19,14 @@
         PERIODICITY 1 1 1
       &END ERI
       &ERI_GPW
-        CUTOFF 250
+        CUTOFF 150
       &END ERI_GPW
       &FCIDUMP
         FILENAME __STD_OUT__
       &END FCIDUMP
     &END ACTIVE_SPACE
     &MGRID
-      CUTOFF 300
+      CUTOFF 200
     &END MGRID
     &POISSON
       PERIODIC XYZ
