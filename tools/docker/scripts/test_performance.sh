@@ -61,6 +61,10 @@ BENCHMARKS=(
 )
 
 if [[ "${PROFILE}" == "toolchain" ]]; then
+  echo 'Plot: name="total_timings_32omp", title="Total Timings with 32 OpenMP Threads", ylabel="time [s]"'
+  echo 'Plot: name="total_timings_32mpi", title="Total Timings with 32 MPI Ranks", ylabel="time [s]"'
+  echo ''
+
   for INPUT in "${BENCHMARKS[@]}"; do
     INPUT_BASENAME=$(basename "${INPUT}")
     LABEL=${INPUT_BASENAME%.*}
@@ -72,12 +76,15 @@ if [[ "${PROFILE}" == "toolchain" ]]; then
     cd ..
     echo ""
     /opt/cp2k/plot_performance.py \
-      "${LABEL} with 32 OpenMP Threads" "${LABEL}_timings_32omp" "${OUTPUT_OMP}" \
-      "${LABEL} with 32 MPI Ranks" "${LABEL}_timings_32mpi" "${OUTPUT_MPI}"
+      "${LABEL} with 32 OpenMP Threads" "${LABEL}" "32omp" "${OUTPUT_OMP}" \
+      "${LABEL} with 32 MPI Ranks" "${LABEL}" "32mpi" "${OUTPUT_MPI}"
     echo ""
   done
 
 elif [[ "${PROFILE}" == "toolchain_cuda_"* ]]; then
+  echo 'Plot: name="total_timings_6cpu_1gpu", title="Total Timings with 6 CPU Cores and 1 GPU", ylabel="time [s]"'
+  echo ''
+
   for INPUT in "${BENCHMARKS[@]}"; do
     if [[ "$INPUT" == "QS_single_node/H2O-hyb.inp" ]]; then
       continue # Has no gpu acceleration, yet.
@@ -91,7 +98,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]]; then
     cd ..
     echo ""
     /opt/cp2k/plot_performance.py \
-      "${LABEL} with 6 CPU Cores and 1 GPU" "${LABEL}_timings_6cpu_1gpu" "${OUTPUT}"
+      "${LABEL} with 6 CPU Cores and 1 GPU" "${LABEL}" "6cpu_1gpu" "${OUTPUT}"
     echo ""
   done
 
