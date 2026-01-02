@@ -58,7 +58,6 @@ RUN ./install_cp2k_toolchain.sh \
     --with-openblas=system \
     --with-libxc=no \
     --with-libint=no \
-    --with-libgrpp=no \
     --with-fftw=no \
     --with-libxsmm=no \
     --with-spglib=no \

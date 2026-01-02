@@ -392,7 +392,6 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_openblas="system",
         with_libxc="no",
         with_libint="no",
-        with_libgrpp="no",
         with_fftw="no",
         with_libxsmm="no",
         with_spglib="no",
