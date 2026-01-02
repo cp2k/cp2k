@@ -229,6 +229,10 @@ statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" http
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
+tblite_interface.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+tblite_interface.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+tblite_types.F: Found type tblite_type without initializer https://cp2k.org/conv#c016
+tblite_types.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement" https://cp2k.org/conv#c012
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment" https://cp2k.org/conv#c012
