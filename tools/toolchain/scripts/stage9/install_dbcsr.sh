@@ -39,7 +39,12 @@ case "${with_dbcsr}" in
       mkdir build-cpu
       cd build-cpu
       CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
-      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON -DUSE_SMM=blas -DWITH_EXAMPLES=NO"
+      CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DUSE_OPENMP=ON -DWITH_EXAMPLES=NO"
+      if [ "${with_libxsmm}" == "__DONTUSE__" ]; then
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_SMM=blas"
+      else
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_SMM=libxsmm"
+      fi
       if [ "${MPI_MODE}" == "no" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=OFF"
       else
