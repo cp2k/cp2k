@@ -4,32 +4,40 @@
 
 import re
 import sys
+from typing import Dict
 from collections import OrderedDict
 
 
 # ======================================================================================
-def main():
-    if len(sys.argv) < 4 or (len(sys.argv) - 1) % 3 != 0:
+def main() -> None:
+    if len(sys.argv) < 5 or (len(sys.argv) - 1) % 4 != 0:
         print(
-            "Usage: plot_performance.py <title_1> <plot_1> <file_1> ... "
-            "<title_N> <plot_N> <file_N>"
+            "Usage: plot_performance.py <title_1> <prefix_1> <postfix_1> <file_1> ... "
+            "<title_N> <prefix_N> <postfix_N> <file_N>"
         )
         sys.exit(1)
 
-    titles, plots, timings = [], [], []
-    for i in range((len(sys.argv) - 1) // 3):
-        titles.append(sys.argv[3 * i + 1])
-        plots.append(sys.argv[3 * i + 2])
-        timings.append(parse_timings(sys.argv[3 * i + 3]))
+    titles, prefixes, postfixes, timings = [], [], [], []
+    for i in range((len(sys.argv) - 1) // 4):
+        titles.append(sys.argv[4 * i + 1])
+        prefixes.append(sys.argv[4 * i + 2])
+        postfixes.append(sys.argv[4 * i + 3])
+        timings.append(parse_timings(sys.argv[4 * i + 4]))
 
     routines = list(set(r for t in timings for r in list(t.keys())[:6]))
     routines.remove("total")
     routines.sort(reverse=True, key=lambda r: timings[0].get(r, 0.0))
 
-    for titel, plot, timing in zip(titles, plots, timings):
-        timing["rest"] = timing["total"] - sum([timing.get(r, 0.0) for r in routines])
+    for title, prefix, postfix, timing in zip(titles, prefixes, postfixes, timings):
+        print(
+            f'PlotPoint: plot="total_timings_{postfix}", name="{prefix}", label="{prefix}", y={timing["total"]}, yerr=0.0'
+        )
+    print("")
 
-        full_title = f"Timings of {titel}"
+    for title, prefix, postfix, timing in zip(titles, prefixes, postfixes, timings):
+        timing["rest"] = timing["total"] - sum([timing.get(r, 0.0) for r in routines])
+        plot = f"{prefix}_timings_{postfix}"
+        full_title = f"Timings of {title}"
         print(f'Plot: name="{plot}", title="{full_title}", ylabel="time [s]"')
         for r in ["rest"] + routines:
             t = timing.get(r, 0.0)
@@ -38,11 +46,12 @@ def main():
 
 
 # ======================================================================================
-def parse_timings(out_fn):
+def parse_timings(out_fn: str) -> Dict[str, float]:
     output = open(out_fn, encoding="utf8").read()
 
     pattern = r"\n( -+\n - +-\n - +T I M I N G +-\n([^\n]*\n){4}.*? -+)\n"
     match = re.search(pattern, output, re.DOTALL)
+    assert match
     report_lines = match.group(1).split("\n")[7:-1]
     print("\nFrom {}:\n{}\n".format(out_fn, match.group(0).strip()))
 
