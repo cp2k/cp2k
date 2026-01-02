@@ -93,4 +93,7 @@ QS/regtest-tddfpt-force-gapw/h2o_t08.inp
 QS/regtest-smeagol-1/au-2x2x3-bulk.inp
 QS/regtest-smeagol-2/au-1x1x4-bulk.inp
 
+# Workaround for https://github.com/cp2k/cp2k/issues/4319
+QS/regtest-gpw-4/H2O_wavelet_XZ.inp
+
 #EOF
