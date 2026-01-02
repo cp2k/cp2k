@@ -513,7 +513,6 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 # https://github.com/cp2k/cp2k/issues/4362
 RUN ./install_cp2k_toolchain.sh \
 {install_args_str}
-    --with-tblite=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
