@@ -80,6 +80,7 @@ async def main() -> None:
     parser.add_argument("--restrictdir", action="append")
     parser.add_argument("--skipdir", action="append")
     parser.add_argument("--workbasedir", type=Path)
+    parser.add_argument("--cp2kdatadir", type=Path)
     parser.add_argument("--skip_unittests", action="store_true")
     parser.add_argument("--skip_regtests", action="store_true")
     parser.add_argument("binary_dir", type=Path)
@@ -113,6 +114,7 @@ async def main() -> None:
     print(f"Flag slow:      {cfg.flag_slow}")
     print(f"Debug:          {cfg.debug}")
     print(f"Binary dir:     {cfg.binary_dir}")
+    print(f"CP2K data dir:  {cfg.cp2k_data_dir}")
     print(f"VERSION:        {cfg.version}")
     print(f"Flags:          " + ",".join(flags))
 
@@ -280,6 +282,10 @@ class Config:
         leaf_dir = f"TEST-{datestamp}"
         self.work_base_dir = (args.workbasedir or args.binary_dir).resolve() / leaf_dir
         self.error_summary = self.work_base_dir / "error_summary"
+        self.cp2k_data_dir = (
+            args.cp2kdatadir
+            or Path(os.getenv("CP2K_DATA_DIR", str(self.cp2k_root / "data")))
+        ).resolve()
 
         # Parse suppression files.
         slow_supps_fn = self.cp2k_root / "tests" / "SLOW_TESTS_SUPPRESSIONS"
@@ -314,7 +320,7 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        env["CP2K_DATA_DIR"] = str(self.cp2k_root / "data")
+        env["CP2K_DATA_DIR"] = str(self.cp2k_data_dir)
         env["PIKA_COMMANDLINE_OPTIONS"] = (
             f"--pika:bind=none --pika:threads={self.ompthreads}"
         )

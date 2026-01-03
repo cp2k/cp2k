@@ -99,7 +99,6 @@ spack:
         - +fortran
     tblite:
       require:
-        - +openmp
         - build_system=cmake
     trexio:
       require:
