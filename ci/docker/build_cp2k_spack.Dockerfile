@@ -104,6 +104,7 @@ RUN printf "#!/bin/bash\n\
 ulimit -c 0 -s unlimited\n\
 \
 export OMP_STACKSIZE=64M\n\
+export CP2K_DATA_DIR=/opt/cp2k/share/cp2k/data\n\
 export PATH=/opt/cp2k/bin:/opt/spack/view/bin:\${PATH}\n\
 exec \"\$@\"" \
 >/opt/cp2k/bin/entrypoint.sh && chmod 755 /opt/cp2k/bin/entrypoint.sh
