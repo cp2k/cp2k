@@ -57,6 +57,11 @@ def main() -> None:
         f.write(install_deps_spack("psmp", mpi_mode="mpich"))
         f.write(regtest("spack", "psmp"))
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
+        testopts = f"--mpiranks=4 --ompthreads=2"
+        f.write(install_deps_spack("psmp", mpi_mode="mpich"))
+        f.write(regtest("spack", "psmp", testopts=testopts))
+
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
         f.write(install_deps_spack("psmp", mpi_mode="openmpi"))
         f.write(regtest("spack", "psmp"))
