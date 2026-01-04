@@ -25,8 +25,6 @@ On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If 
 framework, `-DCP2K_BLAS_VENDOR=Apple` must be passed to CMake to account for some interface
 incompatibilities between Accelerate and reference BLAS/LAPACK.
 
-To build against a static version of BLAS/LAPACK pass `-DCP2K_USE_STATIC_BLAS=ON` to CMake.
-
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
 MPI (version 3) and SCALAPACK are needed for parallel code. (Use the latest versions available and
