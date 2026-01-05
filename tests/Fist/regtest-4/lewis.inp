@@ -155,11 +155,6 @@
     OPTIMIZER BFGS
     &BFGS
     &END BFGS
-    &CG
-      &LINE_SEARCH
-        TYPE 3PNT
-      &END LINE_SEARCH
-    &END CG
   &END GEO_OPT
   &MD
     ANGVEL_TOL 1.E-6
