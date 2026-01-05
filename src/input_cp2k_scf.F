@@ -771,11 +771,11 @@ CONTAINS
                           usage="LINESEARCH GOLD", &
                           default_i_val=ls_2pnt, &
                           enum_c_vals=s2a("ADAPT", "NONE", "2PNT", "3PNT", "GOLD"), &
-                          enum_desc=s2a("extrapolates usually based on 3 points,"// &
-                                        " uses additional points on demand, very robust.", &
+                          enum_desc=s2a("extrapolates usually based on 3 points, "// &
+                                        "uses additional points on demand, very robust.", &
                                         "always take steps of fixed length", &
-                                        "extrapolate based on 3 points", &
                                         "extrapolate based on 2 points", &
+                                        "extrapolate based on 3 points", &
                                         "perform 1D golden section search of the minimum (very expensive)"), &
                           enum_i_vals=[ls_adapt, ls_none, ls_2pnt, ls_3pnt, ls_gold])
       CALL section_add_keyword(section, keyword)
