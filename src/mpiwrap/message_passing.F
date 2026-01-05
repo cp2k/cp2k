@@ -1007,8 +1007,13 @@ CONTAINS
 
          CALL MPI_COMM_GET_ATTR(comm%handle, MPI_TAG_UB, attrval, flag, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_get_attr @ mp_comm_get_tag_ub")
-         IF (.NOT. flag) CPABORT("Upper bound of tags not available!")
-         tag_ub = INT(attrval, KIND=KIND(tag_ub))
+         IF (.NOT. flag) THEN
+            CALL cp_warn(__LOCATION__, "Upper bound of tags not available! "// &
+                         "Only the guaranteed minimum of 32767 is used.")
+            tag_ub = 32767
+         ELSE
+            tag_ub = INT(attrval, KIND=KIND(tag_ub))
+         END IF
 #else
          MARK_USED(comm)
          tag_ub = HUGE(1)
