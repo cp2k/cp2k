@@ -1357,14 +1357,12 @@ CONTAINS
                           " in increasing order of robustness and cost. ", &
                           usage="TYPE GOLD", &
                           default_i_val=ls_gold, &
-                          enum_c_vals=s2a("NONE", "2PNT", "3PNT", "GOLD", "FIT"), &
-                          enum_desc=s2a("take fixed length steps", &
-                                        "extrapolate based on 2 points", &
-                                        "extrapolate based on on 3 points", &
+                          enum_c_vals=s2a("2PNT", "GOLD", "FIT"), &
+                          enum_desc=s2a("extrapolate based on 2 points", &
                                         "perform 1D golden section search of the minimum (very expensive)", &
                                         "perform 1D fit of a parabola on several evaluation of energy "// &
                                         "(very expensive and more robust vs numerical noise)"), &
-                          enum_i_vals=[ls_none, ls_2pnt, ls_3pnt, ls_gold, ls_fit])
+                          enum_i_vals=[ls_2pnt, ls_gold, ls_fit])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
