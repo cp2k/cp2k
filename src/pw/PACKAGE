@@ -8,5 +8,7 @@
         "../base",
         "../mpiwrap",
         "../offload",
+        "../openpmd",
+        "../input",
     ],
 }
