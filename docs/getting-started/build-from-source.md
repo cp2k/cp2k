@@ -8,8 +8,8 @@ package manager like [Spack](https://spack.readthedocs.io).
 
 At a minimum CP2K requirements a modern C and Fortran compiler,
 [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK. For parallel builds it also needs at
-least MPI and ScaLAPACK. Descriptions of all available build options can be found in the
-technologies section:
+least MPI and ScaLAPACK. To list all available build options run `cmake -LH`. Detailed descriptions
+of most build options can be found in the technologies section:
 
 - **[](../technologies/eigensolvers/index)**
 - **[](../technologies/accelerators/index)**
