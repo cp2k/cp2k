@@ -303,7 +303,7 @@ def check_data_files() -> None:
 
 
 # ======================================================================================
-def run_local_tool(*cmd: str, timeout: int = 20) -> None:
+def run_local_tool(*cmd: str, timeout: int = 30) -> None:
     p = subprocess.run(cmd, timeout=timeout, stdout=PIPE, stderr=STDOUT)
     if p.returncode != 0:
         raise Exception(p.stdout.decode("utf8"))
