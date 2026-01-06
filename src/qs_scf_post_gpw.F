@@ -233,11 +233,11 @@ MODULE qs_scf_post_gpw
    ! or not, and on whether it has been activated in the Cube or openPMD variant.
    ! Create with function cube_or_openpmd(), see there for further details.
    TYPE cp_section_key
-      CHARACTER(len=default_string_length) :: relative_section_key ! e.g. PRINT%MO_CUBES
-      CHARACTER(len=default_string_length) :: absolute_section_key ! e.g. DFT%PRINT%MO_CUBES
-      CHARACTER(len=7) :: format_name ! 'openPMD' or 'Cube', for logging
-      INTEGER :: grid_output ! either 1 for grid_output_cubes or 2 for grid_output_openpmd
-      LOGICAL :: do_output
+      CHARACTER(len=default_string_length) :: relative_section_key = "" ! e.g. PRINT%MO_CUBES
+      CHARACTER(len=default_string_length) :: absolute_section_key = "" ! e.g. DFT%PRINT%MO_CUBES
+      CHARACTER(len=7) :: format_name = "" ! 'openPMD' or 'Cube', for logging
+      INTEGER :: grid_output = -1 ! either 1 for grid_output_cubes or 2 for grid_output_openpmd
+      LOGICAL :: do_output = .FALSE.
    CONTAINS
       ! Open a file as either Cube or openPMD
       PROCEDURE, PUBLIC :: print_key_unit_nr => cp_forward_print_key_unit_nr

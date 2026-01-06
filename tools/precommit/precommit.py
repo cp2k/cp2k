@@ -225,12 +225,8 @@ def process_file(fn: str, allow_modifications: bool) -> None:
         run_remote_tool("clangformat", fn)
 
     if re.match(r".*\.(cc|cpp|cxx|hcc|hpp|hxx)$", fn):
-        if (
-            fn.endswith("/torch_c_api.cpp")
-            or fn.endswith("/ace_c_api.cpp")
-            or fn.endswith("/openPMD.cpp")
-        ):
-            # Begrudgingly tolerated because PyTorch/Ace/openPMD have no C API.
+        if basename in ["torch_c_api.cpp", "ace_c_api.cpp", "openpmd_c_api.cpp"]:
+            # Begrudgingly tolerated because some libraries have no C API.
             run_remote_tool("clangformat", fn)
         else:
             raise Exception(f"C++ is not supported.")

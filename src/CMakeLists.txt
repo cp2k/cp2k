@@ -1561,9 +1561,9 @@ endif()
 
 list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
-list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
+list(APPEND CP2K_SRCS_F openpmd_api.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
-list(APPEND CP2K_SRCS_CPP openPMD.cpp)
+list(APPEND CP2K_SRCS_CPP openpmd_c_api.cpp)
 
 # ##############################################################################
 # check that the files registered in CMakeLists.txt are all present and return
