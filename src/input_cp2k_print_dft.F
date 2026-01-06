@@ -164,6 +164,9 @@ MODULE input_cp2k_print_dft
    USE qs_mom_types, ONLY: create_mom_section
    USE string_utilities, ONLY: newline, &
                                s2a
+
+   USE cp_output_handling_openpmd, ONLY: cp_openpmd_get_default_extension
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -615,7 +618,23 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_mo_cubes_section(print_key)
+      CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "write_cube")
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="max_file_size_mb", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL create_mo_section( &
+         print_key, "MO_OPENPMD", "openPMD", [1, 1, 1], "STRIDE 2 2 2", debug_print_level + 1, "write_openpmd")
+      CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -700,43 +719,18 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_CUBE", &
-                                       description="Controls the printing of cube files with "// &
-                                       "the electronic density and, for LSD calculations, the spin density.", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+      CALL create_e_density_section( &
+         print_key, &
+         "E_DENSITY_OPENPMD", &
+         "openPMD", &
+         [1, 1, 1], &
+         "STRIDE 1 1 1", &
+         debug_print_level + 1)
+      CALL add_generic_openpmd_arguments(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DENSITY_INCLUDE", &
-                          description="Which parts of the density to include. In GAPW the electronic density "// &
-                          "is divided into a hard and a soft component, and the default (TOTAL_HARD_APPROX) "// &
-                          "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
-                          "density accurately. This avoids potential artefacts originating from the hard density. "// &
-                          "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
-                          "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
-                          "soft density being printed. In GPW these options have no effect and the cube file will "// &
-                          "only contain the valence electron density.", &
-                          usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
-                          enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
-                          enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &
-                                        "Print (hard+soft) density. Only has an effect "// &
-                                        "if PAW atoms are present. NOTE: The total "// &
-                                        "in real space might exhibit unphysical features "// &
-                                        "like spikes due to the finite and thus "// &
-                                        "truncated g vector", &
-                                        "Print only the soft density"), &
-                          enum_i_vals=[e_dens_total_hard_approx, &
-                                       e_dens_total_density, &
-                                       e_dens_soft_density], &
-                          default_i_val=e_dens_total_hard_approx)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
+      CALL create_e_density_section(print_key, "E_DENSITY_CUBE", "cube", [2, 2, 2], "STRIDE 2 2 2", high_print_level)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -952,35 +946,22 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_CUBE", &
-                                       description="Controls printing of cube files with"// &
-                                       " the electron localization function (ELF). Note that"// &
-                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
-                                       " by the kinetic energy density of a uniform el. gas of same density.", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+      CALL create_elf_print_section(print_key, "ELF_CUBE", &
+                                    "cube", &
+                                    [2, 2, 2], "STRIDE 2 2 2", high_print_level, "")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
-                          description=" ", &
-                          usage="density_cutoff 0.0001", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          type_of_var=real_t, &
-                          default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
+      CALL create_elf_print_section(print_key, "ELF_OPENPMD", &
+                                    "openPMD", &
+                                    [1, 1, 1], "STRIDE 1 1 1", debug_print_level + 1, "")
+      CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -2193,40 +2174,77 @@ CONTAINS
 
    END SUBROUTINE create_bandstructure_section
 
+   SUBROUTINE add_generic_openpmd_arguments(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
+                          description="Filename extension for openPMD files, including the dot and "// &
+                          "(for optionally activating file encoding) a file expansion pattern.", &
+                          default_c_val="_%06T."//cp_openpmd_get_default_extension(), &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
+                          description="Inline runtime config for openPMD output. Note that inline "// &
+                          "specifications are subject to restrictions imposed by the input "// &
+                          "file format, making this option useful only for very simple use cases. "// &
+                          "Refer to OPENPMD_CFG_FILE for anything else.", &
+                          default_c_val="{}", type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
+        description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE add_generic_openpmd_arguments
+
 ! **************************************************************************************************
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
 !> \param print_key ...
 ! **************************************************************************************************
-   SUBROUTINE create_mo_cubes_section(print_key)
-      TYPE(section_type), POINTER                        :: print_key
+   SUBROUTINE create_mo_section( &
+      print_key, section_name, description, stride_default, stride_usage, &
+      print_level, do_write_keyname)
+
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, do_write_keyname
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
 
       TYPE(keyword_type), POINTER                        :: keyword
 
       NULLIFY (keyword)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_CUBES", &
-                                       description="Controls the printing of the molecular orbitals (MOs) as cube files."// &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
+                                       description="Controls the printing of the molecular orbitals (MOs) as " &
+                                       //TRIM(ADJUSTL(description))// &
+                                       " files."// &
                                        " It can be used during a Real Time calculation to print the MOs."// &
                                        " In this case, the density corresponding to the time dependent MO is printed"// &
                                        " instead of the wave-function.", &
-                                       print_level=high_print_level, filename="")
+                                       print_level=print_level, filename="")
 
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          description="The stride (X,Y,Z) used to write the "//TRIM(ADJUSTL(description))//" file "// &
+                          "(larger values result in smaller "// &
+                          TRIM(ADJUSTL(description))// &
+                          " files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="max_file_size_mb", &
-                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
-                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="write_cube", &
-                          description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
+      CALL keyword_create(keyword, __LOCATION__, name=do_write_keyname, &
+                          description="If the MO " &
+                          //TRIM(ADJUSTL(description)) &
+                          //" file should be written. If false, the eigenvalues are still computed."// &
                           " Can also be useful in combination with STM calculations", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -2234,14 +2252,16 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
                           description="If the printkey is activated controls the number of lumos"// &
-                          " that are printed and dumped as a cube (-1=all)", &
+                          " that are printed and dumped as "//TRIM(ADJUSTL(description))//" (-1=all)", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="nhomo", &
-         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
+         description="If the printkey is activated controls the number of homos that dumped as "// &
+         TRIM(ADJUSTL(description))// &
+         " (-1=all),"// &
          " eigenvalues are always all dumped", &
          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
@@ -2249,20 +2269,109 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="homo_list", &
-         description="If the printkey is activated controls the index of homos dumped as a cube,"// &
+         description="If the printkey is activated controls the index of homos dumped as openPMD,"// &
          " eigenvalues are always all dumped. It overrides nhomo.", &
          usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
          n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="append the cube files when they already exist", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+   END SUBROUTINE create_mo_section
+
+   SUBROUTINE create_e_density_section( &
+      print_key, section_name, description, stride_default, &
+      stride_usage, print_level)
+
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name=section_name, &
+                                       description="Controls the printing of "//TRIM(ADJUSTL(description))//" files with "// &
+                                       "the electronic density and, for LSD calculations, the spin density.", &
+                                       print_level=print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the "//TRIM(ADJUSTL(description))//" file "// &
+                          "(larger values result in smaller "// &
+                          TRIM(ADJUSTL(description))// &
+                          " files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_mo_cubes_section
+      CALL keyword_create(keyword, __LOCATION__, name="DENSITY_INCLUDE", &
+                          description="Which parts of the density to include. In GAPW the electronic density "// &
+                          "is divided into a hard and a soft component, and the default (TOTAL_HARD_APPROX) "// &
+                          "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
+                          "density accurately. This avoids potential artefacts originating from the hard density. "// &
+                          "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
+                          "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
+                          "soft density being printed. In GPW these options have no effect and the cube file will "// &
+                          "only contain the valence electron density.", &
+                          usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
+                          enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
+                          enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &
+                                        "Print (hard+soft) density. Only has an effect "// &
+                                        "if PAW atoms are present. NOTE: The total "// &
+                                        "in real space might exhibit unphysical features "// &
+                                        "like spikes due to the finite and thus "// &
+                                        "truncated g vector", &
+                                        "Print only the soft density"), &
+                          enum_i_vals=[e_dens_total_hard_approx, &
+                                       e_dens_total_density, &
+                                       e_dens_soft_density], &
+                          default_i_val=e_dens_total_hard_approx)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_e_density_section
+
+   ! **************************************************************************************************
+!> \brief Helper to create ELF print sections (cube or openPMD)
+!> \param print_key section handle (output)
+!> \param section_name name of the section (e.g. "ELF_CUBE" or "ELF_OPENPMD")
+!> \param description Either "cube" or "openPMD", for the descriptions.
+!> \param stride_default default stride values
+!> \param stride_usage usage string for stride
+!> \param print_level print level
+!> \param filename output filename (empty string for default)
+   SUBROUTINE create_elf_print_section( &
+      print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
+      TYPE(keyword_type), POINTER :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
+                                       description="Controls printing of "//TRIM(ADJUSTL(description))// &
+                                       " files with the electron localization function (ELF). "// &
+                                       "Note that the value of ELF is defined between 0 and 1: "// &
+                                       "Pauli kinetic energy density normalized by the kinetic energy density "// &
+                                       "of a uniform el. gas of same density.", print_level=print_level, filename=filename)
+
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). "// &
+                          "You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
+                          description=" ", usage="density_cutoff 0.0001", repeats=.FALSE., n_var=1, &
+                          type_of_var=real_t, default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_elf_print_section
 
 ! **************************************************************************************************
 !> \brief ...

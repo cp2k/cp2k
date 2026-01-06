@@ -1,0 +1,84 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O-geo-ot-pdos-lumo-comp
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &ELF_OPENPMD
+        ADD_LAST NUMERIC
+        ! Write this output with ADIOS2's BP5 engine, determined by filename
+        ! ending. Write the entire output into a single ADIOS2 file.
+        OPENPMD_EXTENSION .bp5
+        STRIDE 2 2 2
+      &END ELF_OPENPMD
+      &E_DENSITY_OPENPMD
+        ! Write this output with HDF5, determined by filename ending.
+        ! Write one separate file per Iteration, determined by expansion
+        ! pattern %06T.
+        OPENPMD_EXTENSION _%06T.h5
+        STRIDE 1 1 1
+      &END E_DENSITY_OPENPMD
+      &MO_OPENPMD
+        NLUMO 2
+        ! Determine the extension by inline-specified TOML config.
+        ! Can be replaced by OPENPMD_CFG_FILE for more complex configurations.
+        OPENPMD_CFG "backend = 'adios2'"
+        OPENPMD_EXTENSION .%E
+      &END MO_OPENPMD
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EXTRAPOLATION PS
+      EXTRAPOLATION_ORDER 2
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 10
+      SCF_GUESS ATOMIC
+      &OT
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
