@@ -38,6 +38,7 @@ cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm" https://cp2k.or
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
+cp_output_handling_openpmd.F: Found type cp_openpmd_per_call_value_type without initializer https://cp2k.org/conv#c016
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104

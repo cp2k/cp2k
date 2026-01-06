@@ -5,7 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
-MODULE openPMD_api
+MODULE openpmd_api
 
 #ifdef __OPENPMD
 
@@ -1041,4 +1041,4 @@ MODULE openPMD_api
 #endif
          ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.
          ! Hence, we end up a bit further to the right than we should.
-      END MODULE openPMD_api
+      END MODULE openpmd_api

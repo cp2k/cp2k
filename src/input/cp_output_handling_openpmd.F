@@ -73,16 +73,16 @@ MODULE cp_output_handling_openpmd
 
 #ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
-      TYPE(openpmd_series_type) :: series
-      TYPE(openpmd_iteration_type) :: iteration
-      ! TYPE(openpmd_mesh_type) :: mesh
-      ! TYPE(openpmd_particle_species_type) :: particle_species
-      CHARACTER(len=default_string_length) :: name_prefix ! e.g. 'WFN_00008_1'
+      TYPE(openpmd_series_type) :: series = openpmd_series_type()
+      TYPE(openpmd_iteration_type) :: iteration = openpmd_iteration_type()
+      ! TYPE(openpmd_mesh_type) :: mesh = openpmd_mesh_type()
+      ! TYPE(openpmd_particle_species_type) :: particle_species = openpmd_particle_species_type()
+      CHARACTER(len=default_string_length) :: name_prefix = "" ! e.g. 'WFN_00008_1'
    END TYPE cp_openpmd_per_call_value_type
 
    TYPE :: cp_openpmd_per_call_type
-      INTEGER :: key ! unit_nr
-      TYPE(cp_openpmd_per_call_value_type) :: value
+      INTEGER :: key = -1 ! unit_nr
+      TYPE(cp_openpmd_per_call_value_type) :: value = cp_openpmd_per_call_value_type()
    END TYPE cp_openpmd_per_call_type
 
    TYPE :: cp_current_iteration_counter_type
@@ -93,16 +93,16 @@ MODULE cp_output_handling_openpmd
 
    TYPE :: cp_openpmd_per_callsite_value_type
       ! openPMD output Series.
-      TYPE(openpmd_series_type) :: output_series
+      TYPE(openpmd_series_type) :: output_series = openpmd_series_type()
       ! Information on the last Iteration that was written to, including
       ! CP2Ks complex Iteration number and its associated contiguous scalar
       ! openPMD Iteration number.
-      TYPE(cp_current_iteration_counter_type) :: iteration_counter
+      TYPE(cp_current_iteration_counter_type) :: iteration_counter = cp_current_iteration_counter_type()
    END TYPE cp_openpmd_per_callsite_value_type
 
    TYPE :: cp_openpmd_per_callsite_type
-      CHARACTER(len=default_string_length) :: key ! openpmd_basename
-      TYPE(cp_openpmd_per_callsite_value_type) :: value
+      CHARACTER(len=default_string_length) :: key = "" ! openpmd_basename
+      TYPE(cp_openpmd_per_callsite_value_type) :: value = cp_openpmd_per_callsite_value_type()
    END TYPE cp_openpmd_per_callsite_type
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
