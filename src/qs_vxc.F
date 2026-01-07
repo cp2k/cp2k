@@ -126,7 +126,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: my_vxc_rho, my_vxc_tau, rho_m_rspace, &
                                                             rho_r, rho_struct_r, tau, tau_struct_r
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, tmp_pw
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, tmp_pw, weights
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -151,6 +151,7 @@ CONTAINS
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      xcint_weights=weights, &
                       virial=virial, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)
@@ -272,13 +273,13 @@ CONTAINS
          IF (my_just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, tau=tau, &
                               rho_g=rho_g, xc_section=xc_section, &
-                              pw_pool=xc_pw_pool)
+                              weights=weights, pw_pool=xc_pw_pool)
 
          ELSE
             CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                    rho_g=rho_g, tau=tau, exc=exc, &
                                    xc_section=xc_section, &
-                                   pw_pool=xc_pw_pool, &
+                                   weights=weights, pw_pool=xc_pw_pool, &
                                    compute_virial=compute_virial, &
                                    virial_xc=virial%pv_xc)
          END IF
@@ -377,14 +378,14 @@ CONTAINS
             IF (my_just_energy) THEN
                exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
                                    rho_g=rho_m_gspace, xc_section=xc_section, &
-                                   pw_pool=xc_pw_pool)
+                                   weights=weights, pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
                                       rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                       xc_section=xc_section, &
-                                      pw_pool=xc_pw_pool, &
+                                      weights=weights, pw_pool=xc_pw_pool, &
                                       compute_virial=.FALSE., &
                                       virial_xc=virial_xc_tmp)
             END IF
@@ -438,14 +439,14 @@ CONTAINS
                IF (my_just_energy) THEN
                   exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
                                       rho_g=rho_m_gspace, xc_section=xc_section, &
-                                      pw_pool=xc_pw_pool)
+                                      weights=weights, pw_pool=xc_pw_pool)
                ELSE
                   ! virial untested
                   CPASSERT(.NOT. compute_virial)
                   CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
                                          rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                          xc_section=xc_section, &
-                                         pw_pool=xc_pw_pool, &
+                                         weights=weights, pw_pool=xc_pw_pool, &
                                          compute_virial=.FALSE., &
                                          virial_xc=virial_xc_tmp)
                END IF
@@ -484,14 +485,14 @@ CONTAINS
             IF (my_just_energy) THEN
                exc_m = xc_exc_calc(rho_r=rho_r, tau=tau, &
                                    rho_g=rho_g, xc_section=xc_section, &
-                                   pw_pool=xc_pw_pool)
+                                   weights=weights, pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                       rho_g=rho_g, tau=tau, exc=exc_m, &
                                       xc_section=xc_section, &
-                                      pw_pool=xc_pw_pool, &
+                                      weights=weights, pw_pool=xc_pw_pool, &
                                       compute_virial=.FALSE., &
                                       virial_xc=virial_xc_tmp)
             END IF
@@ -593,7 +594,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: exc_r
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r, vxc_rho, vxc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
 
       CALL timeset(routineN, handle)
 
@@ -601,6 +602,7 @@ CONTAINS
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      xcint_weights=weights, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)
 
@@ -665,7 +667,7 @@ CONTAINS
          CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
                                 rho_g=rho_g, tau=tau_r, exc=exc, &
                                 xc_section=xc_section, &
-                                pw_pool=xc_pw_pool, &
+                                weights=weights, pw_pool=xc_pw_pool, &
                                 compute_virial=.FALSE., &
                                 virial_xc=vdum, &
                                 exc_r=exc_r)

@@ -152,6 +152,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: vxc_GLLB, vxc_SAOP
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rho_struct_r, tau, vxc_LB, &
                                                             vxc_tau, vxc_tmp
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section_orig, &
@@ -172,6 +173,7 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       rho=rho_struct, &
+                      xcint_weights=weights, &
                       pw_env=pw_env, &
                       input=input, &
                       virial=virial, &
@@ -252,7 +254,7 @@ CONTAINS
 !                           xc_section_tmp, auxbas_pw_pool, &
 !                           compute_virial=.FALSE., virial_xc=virial_xc_tmp)
       CALL xc_vxc_pw_create1(vxc_tmp, vxc_tau, rho_r, rho_g, tau, xc_energy, &
-                             xc_section_tmp, auxbas_pw_pool, &
+                             xc_section_tmp, weights, auxbas_pw_pool, &
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       CALL section_vals_val_set(xc_fun_section_tmp, "XALPHA%_SECTION_PARAMETERS_", &
@@ -265,7 +267,7 @@ CONTAINS
 !                           xc_section_tmp, auxbas_pw_pool, &
 !                           compute_virial=.FALSE., virial_xc=virial_xc_tmp)
       CALL xc_vxc_pw_create1(vxc_LB, vxc_tau, rho_r, rho_g, tau, xc_energy, &
-                             xc_section_tmp, auxbas_pw_pool, &
+                             xc_section_tmp, weights, auxbas_pw_pool, &
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       DO ispin = 1, nspins

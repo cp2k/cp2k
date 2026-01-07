@@ -279,6 +279,7 @@ CONTAINS
 !>                         representation (modified on exit)
 !> \param kernel_env       kernel environment
 !> \param rho_ia_struct    response density for the given trial vector
+!> \param weights ...
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
 !> \param pw_env           plain wave environment
@@ -287,12 +288,13 @@ CONTAINS
 !> \param work_v_xc_tau ...
 !> \param spinflip ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
+   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, weights, is_rks_triplets, &
                               pw_env, work_v_xc, work_v_xc_tau, spinflip)
 
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(IN)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: work_v_xc, work_v_xc_tau
@@ -305,7 +307,7 @@ CONTAINS
       IF (PRESENT(spinflip)) my_spinflip = spinflip
 
       IF (kernel_env%deriv2_analytic) THEN
-         CALL tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, is_rks_triplets, my_spinflip, &
+         CALL tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, weights, is_rks_triplets, my_spinflip, &
                                        nspins, pw_env, work_v_xc, work_v_xc_tau)
       ELSE
          CALL tddfpt_apply_xc_fd(kernel_env, rho_ia_struct, is_rks_triplets, nspins, &
@@ -363,6 +365,7 @@ CONTAINS
 !> \brief Update A_ia_munu by adding exchange-correlation term.
 !> \param kernel_env       kernel environment
 !> \param rho_ia_struct    response density for the given trial vector
+!> \param weights ...
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
 !> \param spinflip ...
@@ -380,10 +383,11 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, is_rks_triplets, spinflip, &
+   SUBROUTINE tddfpt_apply_xc_analytic(kernel_env, rho_ia_struct, weights, is_rks_triplets, spinflip, &
                                        nspins, pw_env, work_v_xc, work_v_xc_tau)
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       INTEGER, INTENT(in)                                :: spinflip, nspins
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -448,7 +452,7 @@ CONTAINS
 
       CALL xc_calc_2nd_deriv_analytical(v_xc=work_v_xc, v_xc_tau=work_v_xc_tau, deriv_set=kernel_env%xc_deriv_set, &
                                         rho_set=kernel_env%xc_rho_set, &
-                                        rho1_set=kernel_env%xc_rho1_set, pw_pool=auxbas_pw_pool, &
+                                        rho1_set=kernel_env%xc_rho1_set, weights=weights, pw_pool=auxbas_pw_pool, &
                                         xc_section=kernel_env%xc_section, gapw=.FALSE., tddfpt_fac=kernel_env%beta, &
                                         spinflip=do_spinflip)
 

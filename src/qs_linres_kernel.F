@@ -199,6 +199,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_rspace_new, &
                                                             v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
@@ -318,7 +319,9 @@ CONTAINS
       NULLIFY (v_xc_tau)
       IF (deriv2_analytic) THEN
          CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
-         CALL qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
+         CALL get_qs_env(qs_env, xcint_weights=weights)
+         CALL qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
+                              lr_triplet, v_xc, v_xc_tau)
          IF (gapw .OR. gapw_xc) THEN
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
             rho1_atom_set => p_env%local_rho_set%rho_atom_set
@@ -848,6 +851,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_aux_r, tau_pw, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list
@@ -869,7 +873,7 @@ CONTAINS
             nspins = dft_control%nspins
 
             ! AUX basis contribution
-            CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+            CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, xcint_weights=weights)
             CPASSERT(ASSOCIATED(pw_env))
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             NULLIFY (tau_pw)
@@ -900,7 +904,7 @@ CONTAINS
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    auxbas_pw_pool)
             CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
-                                   rho1_aux_r, rho1_aux_g, tau_pw, auxbas_pw_pool, gapw=.FALSE., &
+                                   rho1_aux_r, rho1_aux_g, tau_pw, weights, auxbas_pw_pool, gapw=.FALSE., &
                                    xc_section=xc_section)
             IF (ASSOCIATED(v_xc_tau)) THEN
                CPABORT("Meta-GGA ADMM functionals not yet supported!")

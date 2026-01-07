@@ -816,6 +816,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rho_r_aux, rhoz_r_aux, tau_r, &
                                                             trho_r, trho_xc_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc, rhoz_aux, trho
@@ -960,11 +961,14 @@ CONTAINS
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       IF (deriv2_analytic) THEN
          NULLIFY (v_xc, v_xc_tau, tau_r)
+         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
          IF (gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
-            CALL qs_fxc_analytic(rho_xc, trho_xc_r, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+            CALL qs_fxc_analytic(rho_xc, trho_xc_r, tau_r, xc_section, weights, auxbas_pw_pool, &
+                                 .FALSE., v_xc, v_xc_tau)
          ELSE
-            CALL qs_fxc_analytic(rho, trho_r, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+            CALL qs_fxc_analytic(rho, trho_r, tau_r, xc_section, weights, auxbas_pw_pool, &
+                                 .FALSE., v_xc, v_xc_tau)
          END IF
          IF (gapw .OR. gapw_xc) THEN
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
@@ -1092,8 +1096,10 @@ CONTAINS
             NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
+               CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
                NULLIFY (tau_r)
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, tau_r, xc_section, weights, auxbas_pw_pool, &
+                                    .FALSE., v_xc, v_xc_tau)
             ELSE
                CPABORT("NYA 00007")
                NULLIFY (rhoz_aux)

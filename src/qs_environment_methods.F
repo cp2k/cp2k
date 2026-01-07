@@ -205,7 +205,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), POINTER                      :: embed_pot, external_vxc, rho_nlcc, &
                                                             spin_embed_pot, v_hartree_rspace, vee, &
-                                                            vppl
+                                                            vppl, xcint_weights
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -215,7 +215,7 @@ CONTAINS
       NULLIFY (dft_control, cell, ks_env, v_hartree_rspace, auxbas_pw_pool)
       NULLIFY (rho0_mpole)
       NULLIFY (ewald_env, ewald_pw, new_pw_env, external_vxc, rho_core, rho_nlcc, rho_nlcc_g, vee, vppl, &
-               embed_pot, spin_embed_pot)
+               embed_pot, spin_embed_pot, xcint_weights)
 
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=new_pw_env)
       IF (.NOT. ASSOCIATED(new_pw_env)) THEN
@@ -318,6 +318,23 @@ CONTAINS
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL auxbas_pw_pool%create_pw(rho_nlcc_g)
             CALL set_ks_env(ks_env, rho_nlcc_g=rho_nlcc_g)
+         END IF
+
+         ! reallocate xcint_weights
+         IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
+               CALL set_ks_env(ks_env, exc_accint=.TRUE.)
+               NULLIFY (xcint_weights)
+               CALL get_qs_env(qs_env, pw_env=new_pw_env, xcint_weights=xcint_weights)
+               IF (ASSOCIATED(xcint_weights)) THEN
+                  CALL xcint_weights%release()
+               ELSE
+                  ALLOCATE (xcint_weights)
+               END IF
+               CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
+               CALL auxbas_pw_pool%create_pw(xcint_weights)
+               CALL set_ks_env(ks_env, xcint_weights=xcint_weights)
+            END IF
          END IF
 
          ! reallocate vee: external electrostatic potential

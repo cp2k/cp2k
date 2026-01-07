@@ -148,6 +148,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
                                                             v_rspace_new, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
@@ -169,6 +170,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, &
                       pw_env=pw_env, &
+                      xcint_weights=weights, &
                       input=input, &
                       para_env=para_env, &
                       rho=rho)
@@ -274,8 +276,8 @@ CONTAINS
       END IF
 
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
-                             rho1_r_pw, rho1_g_pw, tau1_r_pw, auxbas_pw_pool, xc_section, .FALSE., &
-                             do_excitations=.TRUE., do_triplet=do_triplet, &
+                             rho1_r_pw, rho1_g_pw, tau1_r_pw, weights, auxbas_pw_pool, &
+                             xc_section, .FALSE., do_excitations=.TRUE., do_triplet=do_triplet, &
                              compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins

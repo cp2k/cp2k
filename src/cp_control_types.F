@@ -273,6 +273,9 @@ MODULE cp_control_types
                                               lmax_rho0 = 0, &
                                               lmax_sphere = 0, &
                                               quadrature = 0
+      LOGICAL                              :: accurate_xcint = .FALSE.
+      REAL(KIND=dp)                        :: aweights = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER  :: aw => NULL()
       LOGICAL                              :: alpha0_hard_from_input = .FALSE., &
                                               force_paw = .FALSE., &
                                               non_paw_atoms = .FALSE., &
@@ -964,6 +967,9 @@ CONTAINS
             DEALLOCATE (qs_control%e_cutoff)
          END IF
          IF (ASSOCIATED(qs_control%gapw_control)) THEN
+            IF (ASSOCIATED(qs_control%gapw_control%aw)) THEN
+               DEALLOCATE (qs_control%gapw_control%aw)
+            END IF
             DEALLOCATE (qs_control%gapw_control)
          END IF
          IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN

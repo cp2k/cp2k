@@ -218,6 +218,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: xv_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                                             rho_r_aux, rhox_r, rhox_r_aux, rhoxx_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -282,6 +283,7 @@ CONTAINS
       END DO
       !
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, para_env=para_env)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
       !
       NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
       IF (gapw .OR. gapw_xc) THEN
@@ -554,13 +556,14 @@ CONTAINS
             IF (.NOT. do_sf) THEN
                CPABORT("Analytic 3rd EXC derivatives not available")
             ELSE !TODO
-               CALL qs_fgxc_analytic(rho, rhox, xc_section, auxbas_pw_pool, &
+               CALL get_qs_env(qs_env, xcint_weights=weights)
+               CALL qs_fgxc_analytic(rho, rhox, xc_section, weights, auxbas_pw_pool, &
                                      fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             END IF
          ELSEIF (do_numeric) THEN
             IF (do_analytic) THEN
                CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
-                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
+                                  weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             ELSE
                CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, order, is_rks_triplets, &
                                    fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -734,7 +737,7 @@ CONTAINS
             ELSEIF (do_numeric) THEN
                IF (do_analytic) THEN
                   CALL qs_fgxc_gdiff(ks_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
-                                     is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+                                     is_rks_triplets, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                ELSE
                   CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
                                       order, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)

@@ -131,6 +131,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: V_rspace_sub
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ia_r, rho_ia_r_aux_fit
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -163,6 +164,8 @@ CONTAINS
                          rho_ao=rho_ia_ao_aux_fit, rho_g=rho_ia_g_aux_fit, &
                          rho_r=rho_ia_r_aux_fit)
       END IF
+
+      CALL get_qs_env(qs_env, xcint_weights=weights)
 
       DO ivect = 1, nvects
 
@@ -251,6 +254,7 @@ CONTAINS
                   ELSE
                      CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
                                           rho_ia_struct=work_matrices%rho_xc_struct_sub, &
+                                          weights=weights, &
                                           is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
                                           work_v_xc=work_matrices%wpw_rspace_sub, &
                                           work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
@@ -273,6 +277,7 @@ CONTAINS
                   ELSE
                      CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
                                           rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                          weights=weights, &
                                           is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
                                           work_v_xc=work_matrices%wpw_rspace_sub, &
                                           work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
@@ -331,6 +336,7 @@ CONTAINS
                   CALL tddfpt_apply_xc(A_ia_rspace=V_rspace_sub, &
                                        kernel_env=kernel_env_admm_aux, &
                                        rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                       weights=weights, &
                                        is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
                                        work_v_xc=work_matrices%wpw_rspace_sub, &
                                        work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
@@ -391,6 +397,7 @@ CONTAINS
                   CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
                                        kernel_env=kernel_env_admm_aux, &
                                        rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                       weights=weights, &
                                        is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
                                        work_v_xc=work_matrices%wpw_rspace_sub, &
                                        work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &

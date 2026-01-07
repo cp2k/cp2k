@@ -84,17 +84,20 @@ CONTAINS
 !> \param rho1_r ...
 !> \param tau1_r ...
 !> \param xc_section ...
+!> \param weights ...
 !> \param auxbas_pw_pool ...
 !> \param is_triplet ...
 !> \param v_xc ...
 !> \param v_xc_tau ...
 !> \param spinflip ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc, v_xc_tau, spinflip)
+   SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, weights, auxbas_pw_pool, &
+                              is_triplet, v_xc, v_xc_tau, spinflip)
 
       TYPE(qs_rho_type), POINTER                         :: rho0
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
       TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, INTENT(IN)                                :: is_triplet
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
@@ -136,8 +139,8 @@ CONTAINS
       CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, xc_section=xc_section, tau_r=tau0_r)
       ! Folds the density rho1 with the functional
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho0_set, rho1_r, rho1_g, tau1_r, &
-                             auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., do_triplet=is_triplet, &
-                             do_sf=do_sf)
+                             weights, auxbas_pw_pool, xc_section=xc_section, &
+                             gapw=.FALSE., do_triplet=is_triplet, do_sf=do_sf)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho0_set)
 
@@ -156,8 +159,8 @@ CONTAINS
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_fdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, is_triplet, &
-                           fxc_rho, fxc_tau)
+   SUBROUTINE qs_fxc_fdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, &
+                           is_triplet, fxc_rho, fxc_tau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
@@ -288,6 +291,7 @@ CONTAINS
 !> \param rho0_struct Ground state density, n(r).
 !> \param rho1_struct Density used to fold the functional derivatives, n^(1)(r).
 !> \param xc_section ...
+!> \param weights ...
 !> \param pw_pool ...
 !> \param fxc_rho Second functional derivative with respect to the density, n(r).
 !> \param fxc_tau mGGA contribution to the second functional derivative with respect to the density.
@@ -297,11 +301,12 @@ CONTAINS
 !> \par History
 !>    * 07.2024 Created [LHS]
 ! **************************************************************************************************
-   SUBROUTINE qs_fgxc_analytic(rho0_struct, rho1_struct, xc_section, pw_pool, &
+   SUBROUTINE qs_fgxc_analytic(rho0_struct, rho1_struct, xc_section, weights, pw_pool, &
                                fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip)
 
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
       LOGICAL, INTENT(IN), OPTIONAL                      :: spinflip
@@ -421,7 +426,7 @@ CONTAINS
       !   rho1_set         xc_rho_set_type build by xc_rho_set_create/update
       !   pw_pool          needs to be given by the calling subroutine
       !   xc_section       needs to be given by the calling subroutine
-      CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, rho1_set, pw_pool, &
+      CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, rho1_set, weights, pw_pool, &
                                         xc_section, .FALSE., spinflip=do_sf, tddfpt_fac=fac)
       ! Calculate exchange correlation kernel derivative
       CALL xc_calc_3rd_deriv_analytical(gxc_rho, gxc_tau, deriv_set, rho0_set, rho1_set, pw_pool, &
@@ -444,6 +449,7 @@ CONTAINS
 !> \param accuracy ...
 !> \param epsrho ...
 !> \param is_triplet ...
+!> \param weights ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 !> \param gxc_rho ...
@@ -451,7 +457,7 @@ CONTAINS
 !> \param spinflip ...
 ! **************************************************************************************************
    SUBROUTINE qs_fgxc_gdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, epsrho, &
-                            is_triplet, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip)
+                            is_triplet, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
@@ -459,6 +465,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: accuracy
       REAL(KIND=dp), INTENT(IN)                          :: epsrho
       LOGICAL, INTENT(IN)                                :: is_triplet
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
       LOGICAL, OPTIONAL                                  :: spinflip
 
@@ -510,7 +517,8 @@ CONTAINS
       IF (do_sf) THEN
          CALL qs_rho_get(rho1_struct, rho_r=rho1_r, tau_r=tau1_r)
          CALL qs_fxc_analytic(rho0_struct, rho1_r, tau1_r, xc_section, &
-                              auxbas_pw_pool, is_triplet, fxc_rho, fxc_tau, spinflip=do_sf)
+                              weights, auxbas_pw_pool, is_triplet, &
+                              fxc_rho, fxc_tau, spinflip=do_sf)
       ELSE
          CALL qs_fxc_fdiff(ks_env, rho0_struct, rho1_struct, xc_section, accuracy, is_triplet, &
                            fxc_rho, fxc_tau)
@@ -530,13 +538,13 @@ CONTAINS
             IF (do_sf) THEN
                ! variation in alpha density
                CALL qs_fxc_analytic(rhoin, rho1_r, tau1_r, &
-                                    xc_section, auxbas_pw_pool, is_triplet, &
+                                    xc_section, weights, auxbas_pw_pool, is_triplet, &
                                     vxc00, v_tau_rspace, spinflip=do_sf)
                ! variation in beta density
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add_b(rhoin, rho1_struct, alpha, beta)
                CALL qs_fxc_analytic(rhoin, rho1_r, tau1_r, &
-                                    xc_section, auxbas_pw_pool, is_triplet, &
+                                    xc_section, weights, auxbas_pw_pool, is_triplet, &
                                     vxc00b, v_tau_rspace, spinflip=do_sf)
             ELSE
                CALL qs_fxc_fdiff(ks_env=ks_env, rho0_struct=rhoin, rho1_struct=rho1_struct, &
