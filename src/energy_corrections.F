@@ -4071,7 +4071,7 @@ CONTAINS
          CASE ("E")
             WRITE (unit_nr, '(T2,A)') " Response Force Error Est. using extrapolated RHS"
             WRITE (unit_nr, '(T2,A,E20.10)') " Extrapolation cutoff:", ec_env%error_cutoff
-            WRITE (unit_nr, '(T2,A,E20.10)') " Max. extrapolation size:", ec_env%error_subspace
+            WRITE (unit_nr, '(T2,A,I10)') " Max. extrapolation size:", ec_env%error_subspace
          CASE DEFAULT
             CPABORT("Unknown Error Estimation Method")
          END SELECT
