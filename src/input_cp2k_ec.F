@@ -407,6 +407,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_SUBSPACE_SIZE", &
+                          description="MAX. size of subspace for response vector extrapolation.", &
+                          usage="ERROR_SUBSPACE_SIZE 100", &
+                          default_i_val=250)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_ec_section
 
 ! **************************************************************************************************

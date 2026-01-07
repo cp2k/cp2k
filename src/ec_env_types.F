@@ -150,6 +150,7 @@ MODULE ec_env_types
       LOGICAL                                          :: do_error = .FALSE.
       CHARACTER(len=1)                                 :: error_method = "E"
       REAL(KIND=dp)                                    :: error_cutoff = 0.0_dp
+      INTEGER                                          :: error_subspace = 0
       REAL(KIND=dp), DIMENSION(3, 3)                   :: rpv = 0.0_dp
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: rf => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER          :: cpref => NULL()

@@ -219,6 +219,8 @@ CONTAINS
          CALL uppercase(ec_env%error_method)
          CALL section_vals_val_get(ec_section, "ERROR_CUTOFF", &
                                    r_val=ec_env%error_cutoff)
+         CALL section_vals_val_get(ec_section, "ERROR_SUBSPACE_SIZE", &
+                                   i_val=ec_env%error_subspace)
 
          ec_env%do_skip = .FALSE.
 

@@ -68,4 +68,5 @@
 "EXT4.inp"                              = []
 "EXT5.inp"                              = []
 "EXT6.inp"                              = []
+"EXTerror.inp"                          = []
 #EOF
