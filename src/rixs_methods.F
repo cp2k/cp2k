@@ -267,8 +267,6 @@ CONTAINS
 
          ALLOCATE (core_evects(nspins), state_gs_coeffs(nspins))
          ALLOCATE (dip_block(1, nspins), mu_i0(4, nvirt), mu_if(4, nvirt, nstates), w_i0(nvirt), w_if(nstates))
-         mu_i0 = 0.0_dp
-         mu_if = 0.0_dp
          w_if(:) = valence_state%evals(:)*evolt
          ALLOCATE (i_dip_0(nspins))
          ALLOCATE (dip_f(nspins), i_dip_f(nspins))
@@ -288,6 +286,9 @@ CONTAINS
                   core_state%state_type_char(current_state%state_type), " for atom ", &
                   current_state%at_index, " of kind ", TRIM(current_state%at_symbol)
             END IF
+
+            mu_i0 = 0.0_dp
+            mu_if = 0.0_dp
 
             IF (do_sg) THEN ! singlet
                target_ex_coeffs => current_state%sg_coeffs
