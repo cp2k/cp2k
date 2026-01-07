@@ -20,7 +20,8 @@ MODULE energy_corrections
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux
    USE admm_types,                      ONLY: admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
+                                              get_atomic_kind,&
+                                              get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Belleflamme2023,&
@@ -43,18 +44,17 @@ MODULE energy_corrections
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_scale_and_add,&
+                                              cp_fm_trace,&
                                               cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_init_random,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm_triangular,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_init_random, cp_fm_release, cp_fm_set_all, &
+        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_to_fm_triangular, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -83,7 +83,8 @@ MODULE energy_corrections
                                               ec_efield_local_operator
    USE ec_env_types,                    ONLY: ec_env_potential_release,&
                                               energy_correction_type
-   USE ec_external,                     ONLY: ec_ext_energy
+   USE ec_external,                     ONLY: ec_ext_energy,&
+                                              matrix_r_forces
    USE ec_methods,                      ONLY: create_kernel,&
                                               ec_mos_init
    USE external_potential_types,        ONLY: all_potential_type,&
@@ -114,10 +115,12 @@ MODULE energy_corrections
                                               default_string_length,&
                                               dp
    USE mao_basis,                       ONLY: mao_generate_basis
-   USE mathlib,                         ONLY: det_3x3
+   USE mathlib,                         ONLY: det_3x3,&
+                                              invmat_symm
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type
@@ -158,7 +161,9 @@ MODULE energy_corrections
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_force_types,                  ONLY: qs_force_type,&
+   USE qs_force_types,                  ONLY: allocate_qs_force,&
+                                              deallocate_qs_force,&
+                                              qs_force_type,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -491,12 +496,24 @@ CONTAINS
 
          CASE (ec_functional_ext)
 
-            CALL init_response_deriv(qs_env, ec_env)
             CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
+            CALL init_response_deriv(qs_env, ec_env)
+            ! orthogonality force
+            CALL matrix_r_forces(qs_env, ec_env%cpmos, ec_env%mo_occ, &
+                                 ec_env%matrix_w(1, 1)%matrix, unit_nr, &
+                                 ec_env%debug_forces, ec_env%debug_stress)
 
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
+
+         IF (ec_env%do_error) THEN
+            ALLOCATE (ec_env%cpref(nspins))
+            DO ispin = 1, nspins
+               CALL cp_fm_create(ec_env%cpref(ispin), ec_env%cpmos(ispin)%matrix_struct)
+               CALL cp_fm_to_fm(ec_env%cpmos(ispin), ec_env%cpref(ispin))
+            END DO
+         END IF
 
          CALL response_calculation(qs_env, ec_env)
 
@@ -530,6 +547,10 @@ CONTAINS
          CALL output_response_deriv(qs_env, ec_env, unit_nr)
 
          CALL ec_properties(qs_env, ec_env)
+
+         IF (ec_env%do_error) THEN
+            CALL response_force_error(qs_env, ec_env, unit_nr)
+         END IF
 
          ! Deallocate Harris density and response density on grid
          IF (ASSOCIATED(ec_env%rhoout_r)) THEN
@@ -661,7 +682,7 @@ CONTAINS
          unit_string = "GPa"
          fconv = cp_unit_from_cp2k(1.0_dp/cell%deth, TRIM(unit_string))
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A)') "Write EXTERNAL Response Derivative: "//TRIM(ec_env%exresult_fn)
+            WRITE (unit_nr, '(/,T2,A)') "Write EXTERNAL Response Derivative: "//TRIM(ec_env%exresult_fn)
 
             CALL open_file(ec_env%exresult_fn, file_status="REPLACE", file_form="FORMATTED", &
                            file_action="WRITE", unit_number=funit)
@@ -4006,6 +4027,467 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_ot_diag_solver
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ec_env ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE response_force_error(qs_env, ec_env, unit_nr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(energy_correction_type), POINTER              :: ec_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=10)                                  :: eformat
+      INTEGER                                            :: feunit, funit, i, ia, ib, ispin, mref, &
+                                                            na, nao, natom, nb, norb, nref, &
+                                                            nsample, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind, rlist, t2cind
+      LOGICAL                                            :: debug_f, do_resp, is_source
+      REAL(KIND=dp)                                      :: focc, rfac, vres
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tvec, yvec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eforce, fmlocal, fmreord, smat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: smpforce
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
+      TYPE(cp_fm_type)                                   :: hmats
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: rpmos, Spmos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mats
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, res_force
+      TYPE(virial_type)                                  :: res_virial
+      TYPE(virial_type), POINTER                         :: ks_virial
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(/,T2,A,A,A,A,A)') "!", REPEAT("-", 25), &
+            " Response Force Error Est. ", REPEAT("-", 25), "!"
+         SELECT CASE (ec_env%error_method)
+         CASE ("F")
+            WRITE (unit_nr, '(T2,A)') " Response Force Error Est. using full RHS"
+         CASE ("D")
+            WRITE (unit_nr, '(T2,A)') " Response Force Error Est. using delta RHS"
+         CASE ("E")
+            WRITE (unit_nr, '(T2,A)') " Response Force Error Est. using extrapolated RHS"
+            WRITE (unit_nr, '(T2,A,E20.10)') " Extrapolation cutoff:", ec_env%error_cutoff
+            WRITE (unit_nr, '(T2,A,I10)') " Max. extrapolation size:", ec_env%error_subspace
+         CASE DEFAULT
+            CPABORT("Unknown Error Estimation Method")
+         END SELECT
+      END IF
+
+      IF (ABS(ec_env%orbrot_index) > 1.E-8_dp .OR. ec_env%phase_index > 1.E-8_dp) THEN
+         CPABORT("Response error calculation for rotated orbital sets not implemented")
+      END IF
+
+      SELECT CASE (ec_env%energy_functional)
+      CASE (ec_functional_harris)
+         CPWARN('Response force error calculation not possible for Harris functional.')
+      CASE (ec_functional_dc)
+         CPWARN('Response force error calculation not possible for DCDFT.')
+      CASE (ec_functional_ext)
+
+         ! backup force array
+         CALL get_qs_env(qs_env, force=ks_force, virial=ks_virial, &
+                         atomic_kind_set=atomic_kind_set)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
+         NULLIFY (res_force)
+         CALL allocate_qs_force(res_force, natom_of_kind)
+         DEALLOCATE (natom_of_kind)
+         CALL zero_qs_force(res_force)
+         res_virial = ks_virial
+         CALL zero_virial(ks_virial, reset=.FALSE.)
+         CALL set_qs_env(qs_env, force=res_force)
+         !
+         CALL get_qs_env(qs_env, natom=natom)
+         ALLOCATE (eforce(3, natom))
+         !
+         CALL get_qs_env(qs_env, para_env=para_env)
+         is_source = para_env%is_source()
+         !
+         nspins = SIZE(ec_env%mo_occ)
+         CALL cp_fm_get_info(ec_env%mo_occ(1), nrow_global=nao)
+         !
+         IF (is_source) THEN
+            CALL open_file(ec_env%exresperr_fn, file_status="OLD", file_action="READ", &
+                           file_form="FORMATTED", unit_number=funit)
+            READ (funit, '(A)') eformat
+            CALL uppercase(eformat)
+            READ (funit, *) nsample
+         END IF
+         CALL para_env%bcast(nsample, para_env%source)
+         CALL para_env%bcast(eformat, para_env%source)
+         !
+         CALL cp_fm_get_info(ec_env%mo_occ(1), matrix_struct=fm_struct)
+         CALL cp_fm_struct_create(fm_struct_mat, template_fmstruct=fm_struct, &
+                                  nrow_global=nao, ncol_global=nao)
+         ALLOCATE (fmlocal(nao, nao))
+         IF (ADJUSTL(TRIM(eformat)) == "TREXIO") THEN
+            ALLOCATE (fmreord(nao, nao))
+            CALL get_t2cindex(qs_env, t2cind)
+         END IF
+         ALLOCATE (rpmos(nsample, nspins))
+         ALLOCATE (smpforce(3, natom, nsample))
+         smpforce = 0.0_dp
+         !
+         focc = 2.0_dp
+         IF (nspins == 1) focc = 4.0_dp
+         CALL cp_fm_create(hmats, fm_struct_mat)
+         !
+         DO i = 1, nsample
+            DO ispin = 1, nspins
+               CALL cp_fm_create(rpmos(i, ispin), fm_struct)
+               IF (is_source) THEN
+                  READ (funit, *) na, nb
+                  CPASSERT(na == nao .AND. nb == nao)
+                  READ (funit, *) fmlocal
+               ELSE
+                  fmlocal = 0.0_dp
+               END IF
+               CALL para_env%bcast(fmlocal)
+               !
+               SELECT CASE (ADJUSTL(TRIM(eformat)))
+               CASE ("CP2K")
+                  ! nothing to do
+               CASE ("TREXIO")
+                  ! reshuffel indices
+                  DO ia = 1, nao
+                     DO ib = 1, nao
+                        fmreord(ia, ib) = fmlocal(t2cind(ia), t2cind(ib))
+                     END DO
+                  END DO
+                  fmlocal(1:nao, 1:nao) = fmreord(1:nao, 1:nao)
+               CASE DEFAULT
+                  CPABORT("Error file dE/dC: unknown format")
+               END SELECT
+               !
+               CALL cp_fm_set_submatrix(hmats, fmlocal, 1, 1, nao, nao)
+               CALL cp_fm_get_info(rpmos(i, ispin), ncol_global=norb)
+               CALL parallel_gemm('N', 'N', nao, norb, nao, focc, hmats, &
+                                  ec_env%mo_occ(ispin), 0.0_dp, rpmos(i, ispin))
+               IF (ec_env%error_method == "D" .OR. ec_env%error_method == "E") THEN
+                  CALL cp_fm_scale_and_add(1.0_dp, rpmos(i, ispin), -1.0_dp, ec_env%cpref(ispin))
+               END IF
+            END DO
+         END DO
+         CALL cp_fm_struct_release(fm_struct_mat)
+         IF (ADJUSTL(TRIM(eformat)) == "TREXIO") THEN
+            DEALLOCATE (fmreord, t2cind)
+         END IF
+
+         IF (is_source) THEN
+            CALL close_file(funit)
+         END IF
+
+         IF (unit_nr > 0) THEN
+            CALL open_file(ec_env%exresult_fn, file_status="OLD", file_form="FORMATTED", &
+                           file_action="WRITE", file_position="APPEND", unit_number=feunit)
+            WRITE (feunit, "(/,6X,A)") " Response Forces from error sampling [Hartree/Bohr]"
+            i = 0
+            WRITE (feunit, "(5X,I8)") i
+            DO ia = 1, natom
+               WRITE (feunit, "(5X,3F20.12)") ec_env%rf(1:3, ia)
+            END DO
+         END IF
+
+         debug_f = ec_env%debug_forces .OR. ec_env%debug_stress
+
+         IF (ec_env%error_method == "E") THEN
+            CALL get_qs_env(qs_env, matrix_s=matrix_s)
+            mats => matrix_s(1)%matrix
+            ALLOCATE (Spmos(nsample, nspins))
+            DO i = 1, nsample
+               DO ispin = 1, nspins
+                  CALL cp_fm_create(Spmos(i, ispin), fm_struct, set_zero=.TRUE.)
+                  CALL cp_dbcsr_sm_fm_multiply(mats, rpmos(i, ispin), Spmos(i, ispin), norb)
+               END DO
+            END DO
+         END IF
+
+         mref = ec_env%error_subspace
+         mref = MIN(mref, nsample)
+         nref = 0
+         ALLOCATE (smat(mref, mref), tvec(mref), yvec(mref), rlist(mref))
+         rlist = 0
+
+         CALL cp_fm_release(ec_env%cpmos)
+
+         DO i = 1, nsample
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A,I6)') " Response Force Number ", i
+            END IF
+            !
+            CALL zero_qs_force(res_force)
+            CALL zero_virial(ks_virial, reset=.FALSE.)
+            DO ispin = 1, nspins
+               CALL dbcsr_set(ec_env%matrix_hz(ispin)%matrix, 0.0_dp)
+            END DO
+            !
+            ALLOCATE (ec_env%cpmos(nspins))
+            DO ispin = 1, nspins
+               CALL cp_fm_create(ec_env%cpmos(ispin), fm_struct)
+            END DO
+            !
+            do_resp = .TRUE.
+            IF (ec_env%error_method == "F" .OR. ec_env%error_method == "D") THEN
+               DO ispin = 1, nspins
+                  CALL cp_fm_to_fm(rpmos(i, ispin), ec_env%cpmos(ispin))
+               END DO
+            ELSE IF (ec_env%error_method == "E") THEN
+               CALL cp_extrapolate(rpmos, Spmos, i, nref, rlist, smat, tvec, yvec, vres)
+               IF (vres > ec_env%error_cutoff .OR. nref < MIN(5, mref)) THEN
+                  DO ispin = 1, nspins
+                     CALL cp_fm_to_fm(rpmos(i, ispin), ec_env%cpmos(ispin))
+                  END DO
+                  DO ib = 1, nref
+                     ia = rlist(ib)
+                     rfac = -yvec(ib)
+                     DO ispin = 1, nspins
+                        CALL cp_fm_scale_and_add(1.0_dp, ec_env%cpmos(ispin), &
+                                                 rfac, rpmos(ia, ispin))
+                     END DO
+                  END DO
+               ELSE
+                  do_resp = .FALSE.
+               END IF
+               IF (unit_nr > 0) THEN
+                  WRITE (unit_nr, '(T2,A,T60,I4,T69,F12.8)') &
+                     " Response Vector Extrapolation [nref|delta] = ", nref, vres
+               END IF
+            ELSE
+               CPABORT("Unknown Error Estimation Method")
+            END IF
+
+            IF (do_resp) THEN
+               CALL matrix_r_forces(qs_env, ec_env%cpmos, ec_env%mo_occ, &
+                                    ec_env%matrix_w(1, 1)%matrix, unit_nr, &
+                                    ec_env%debug_forces, ec_env%debug_stress)
+
+               CALL response_calculation(qs_env, ec_env, silent=.TRUE.)
+
+               CALL response_force(qs_env, &
+                                   vh_rspace=ec_env%vh_rspace, &
+                                   vxc_rspace=ec_env%vxc_rspace, &
+                                   vtau_rspace=ec_env%vtau_rspace, &
+                                   vadmm_rspace=ec_env%vadmm_rspace, &
+                                   matrix_hz=ec_env%matrix_hz, &
+                                   matrix_pz=ec_env%matrix_z, &
+                                   matrix_pz_admm=ec_env%z_admm, &
+                                   matrix_wz=ec_env%matrix_wz, &
+                                   rhopz_r=ec_env%rhoz_r, &
+                                   zehartree=ec_env%ehartree, &
+                                   zexc=ec_env%exc, &
+                                   zexc_aux_fit=ec_env%exc_aux_fit, &
+                                   p_env=ec_env%p_env, &
+                                   debug=debug_f)
+               CALL total_qs_force(eforce, res_force, atomic_kind_set)
+               CALL para_env%sum(eforce)
+            ELSE
+               IF (unit_nr > 0) THEN
+                  WRITE (unit_nr, '(T2,A)') " Response Force Calculation is skipped. "
+               END IF
+               eforce = 0.0_dp
+            END IF
+            !
+            IF (ec_env%error_method == "D") THEN
+               eforce(1:3, 1:natom) = eforce(1:3, 1:natom) + ec_env%rf(1:3, 1:natom)
+               smpforce(1:3, 1:natom, i) = eforce(1:3, 1:natom)
+            ELSE IF (ec_env%error_method == "E") THEN
+               DO ib = 1, nref
+                  ia = rlist(ib)
+                  rfac = yvec(ib)
+                  eforce(1:3, 1:natom) = eforce(1:3, 1:natom) + rfac*smpforce(1:3, 1:natom, ia)
+               END DO
+               smpforce(1:3, 1:natom, i) = eforce(1:3, 1:natom)
+               eforce(1:3, 1:natom) = eforce(1:3, 1:natom) + ec_env%rf(1:3, 1:natom)
+               IF (do_resp .AND. nref < mref) THEN
+                  nref = nref + 1
+                  rlist(nref) = i
+               END IF
+            ELSE
+               smpforce(1:3, 1:natom, i) = eforce(1:3, 1:natom)
+            END IF
+
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, *) " FORCES"
+               DO ia = 1, natom
+                  WRITE (unit_nr, "(i7,3F11.6,6X,3F11.6)") ia, eforce(1:3, ia), &
+                     (eforce(1:3, ia) - ec_env%rf(1:3, ia))
+               END DO
+               WRITE (unit_nr, *)
+               ! force file
+               WRITE (feunit, "(5X,I8)") i
+               DO ia = 1, natom
+                  WRITE (feunit, "(5X,3F20.12)") eforce(1:3, ia)
+               END DO
+            END IF
+
+            CALL cp_fm_release(ec_env%cpmos)
+
+         END DO
+
+         IF (unit_nr > 0) THEN
+            CALL close_file(feunit)
+         END IF
+
+         DEALLOCATE (smat, tvec, yvec, rlist)
+
+         CALL cp_fm_release(hmats)
+         CALL cp_fm_release(rpmos)
+         IF (ec_env%error_method == "E") THEN
+            CALL cp_fm_release(Spmos)
+         END IF
+
+         DEALLOCATE (eforce, smpforce)
+
+         ! reset force array
+         CALL get_qs_env(qs_env, force=res_force, virial=ks_virial)
+         CALL set_qs_env(qs_env, force=ks_force)
+         CALL deallocate_qs_force(res_force)
+         ks_virial = res_virial
+
+      CASE DEFAULT
+         CPABORT("unknown energy correction")
+      END SELECT
+
+   END SUBROUTINE response_force_error
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rpmos ...
+!> \param Spmos ...
+!> \param ip ...
+!> \param nref ...
+!> \param rlist ...
+!> \param smat ...
+!> \param tvec ...
+!> \param yvec ...
+!> \param vres ...
+! **************************************************************************************************
+   SUBROUTINE cp_extrapolate(rpmos, Spmos, ip, nref, rlist, smat, tvec, yvec, vres)
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: rpmos, Spmos
+      INTEGER, INTENT(IN)                                :: ip, nref
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: rlist
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: smat
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: tvec, yvec
+      REAL(KIND=dp), INTENT(OUT)                         :: vres
+
+      INTEGER                                            :: i, ia, j, ja
+      REAL(KIND=dp)                                      :: aval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sinv
+
+      smat = 0.0_dp
+      tvec = 0.0_dp
+      yvec = 0.0_dp
+      aval = 0.0_dp
+
+      IF (nref > 0) THEN
+         ALLOCATE (sinv(nref, nref))
+         !
+         DO i = 1, nref
+            ia = rlist(i)
+            tvec(i) = ctrace(rpmos(ip, :), Spmos(ia, :))
+            DO j = i + 1, nref
+               ja = rlist(j)
+               smat(j, i) = ctrace(rpmos(ja, :), Spmos(ia, :))
+               smat(i, j) = smat(j, i)
+            END DO
+            smat(i, i) = ctrace(rpmos(ia, :), Spmos(ia, :))
+         END DO
+         aval = ctrace(rpmos(ip, :), Spmos(ip, :))
+         !
+         sinv(1:nref, 1:nref) = smat(1:nref, 1:nref)
+         CALL invmat_symm(sinv(1:nref, 1:nref))
+         !
+         yvec(1:nref) = MATMUL(sinv(1:nref, 1:nref), tvec(1:nref))
+         !
+         vres = aval - SUM(yvec(1:nref)*tvec(1:nref))
+         vres = SQRT(ABS(vres))
+         !
+         DEALLOCATE (sinv)
+      ELSE
+         vres = 1.0_dp
+      END IF
+
+   END SUBROUTINE cp_extrapolate
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ca ...
+!> \param cb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION ctrace(ca, cb)
+      TYPE(cp_fm_type), DIMENSION(:)                     :: ca, cb
+      REAL(KIND=dp)                                      :: ctrace
+
+      INTEGER                                            :: is, ns
+      REAL(KIND=dp)                                      :: trace
+
+      ns = SIZE(ca)
+      ctrace = 0.0_dp
+      DO is = 1, ns
+         trace = 0.0_dp
+         CALL cp_fm_trace(ca(is), cb(is), trace)
+         ctrace = ctrace + trace
+      END DO
+
+   END FUNCTION ctrace
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param t2cind ...
+! **************************************************************************************************
+   SUBROUTINE get_t2cindex(qs_env, t2cind)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: t2cind
+
+      INTEGER                                            :: i, iatom, ikind, is, iset, ishell, k, l, &
+                                                            m, natom, nset, nsgf, numshell
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lshell
+      INTEGER, DIMENSION(:), POINTER                     :: nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: lval
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      ! Reorder index for basis functions from TREXIO to CP2K
+
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, natom=natom)
+      CALL get_qs_kind_set(qs_kind_set, nshell=numshell, nsgf=nsgf)
+
+      ALLOCATE (t2cind(nsgf))
+      ALLOCATE (lshell(numshell))
+
+      ishell = 0
+      DO iatom = 1, natom
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, basis_type="ORB")
+         CALL get_gto_basis_set(basis_set, nset=nset, nshell=nshell, l=lval)
+         DO iset = 1, nset
+            DO is = 1, nshell(iset)
+               ishell = ishell + 1
+               l = lval(is, iset)
+               lshell(ishell) = l
+            END DO
+         END DO
+      END DO
+
+      i = 0
+      DO ishell = 1, numshell
+         l = lshell(ishell)
+         DO k = 1, 2*l + 1
+            m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+            t2cind(i + l + 1 + m) = i + k
+         END DO
+         i = i + 2*l + 1
+      END DO
+
+      DEALLOCATE (lshell)
+
+   END SUBROUTINE get_t2cindex
 
 END MODULE energy_corrections
 

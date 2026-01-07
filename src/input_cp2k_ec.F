@@ -368,6 +368,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESPONSE_ERROR_FILENAME", &
+                          description="Name of the file that contains response error information.", &
+                          usage="EXTERNAL_RESPONSE_ERROR_FILENAME <FILENAME>", &
+                          default_c_val="TREXIO")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESULT_FILENAME", &
                           description="Name of the file that contains results from external response calculation.", &
                           usage="EXTERNAL_RESULT_FILENAME <FILENAME>", &
@@ -383,6 +390,27 @@ CONTAINS
          usage="ERROR_ESTIMATION", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_ESTIMATION_METHOD", &
+                          description="Method used for error estimation: F(ull); D(ifferenc); E(xtrapolate).", &
+                          usage="ERROR_ESTIMATION_METHOD E", &
+                          default_c_val="E")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_CUTOFF", &
+                          description="Cutoff value for error estimation.", &
+                          usage="ERROR_CUTOFF 1.E-6", &
+                          default_r_val=1.E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ERROR_SUBSPACE_SIZE", &
+                          description="MAX. size of subspace for response vector extrapolation.", &
+                          usage="ERROR_SUBSPACE_SIZE 100", &
+                          default_i_val=250)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

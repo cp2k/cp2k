@@ -74,6 +74,8 @@ MODULE ec_env_types
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.
       LOGICAL                                          :: debug_external = .FALSE.
+      REAL(KIND=dp)                                    :: orbrot_index = 0.0_dp
+      REAL(KIND=dp)                                    :: phase_index = 0.0_dp
       ! basis set
       CHARACTER(len=20)                                :: basis = ""
       LOGICAL                                          :: mao = .FALSE.
@@ -143,10 +145,15 @@ MODULE ec_env_types
                                                           xc_section_aux => Null()
       ! External
       CHARACTER(len=40)                                :: exresp_fn = ""
+      CHARACTER(len=40)                                :: exresperr_fn = ""
       CHARACTER(len=40)                                :: exresult_fn = ""
       LOGICAL                                          :: do_error = .FALSE.
+      CHARACTER(len=1)                                 :: error_method = "E"
+      REAL(KIND=dp)                                    :: error_cutoff = 0.0_dp
+      INTEGER                                          :: error_subspace = 0
       REAL(KIND=dp), DIMENSION(3, 3)                   :: rpv = 0.0_dp
       REAL(KIND=dp), DIMENSION(:, :), POINTER          :: rf => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER          :: cpref => NULL()
    END TYPE energy_correction_type
 
 CONTAINS
@@ -220,6 +227,7 @@ CONTAINS
 
          CALL cp_fm_release(ec_env%mo_occ)
          CALL cp_fm_release(ec_env%cpmos)
+         CALL cp_fm_release(ec_env%cpref)
 
          IF (ASSOCIATED(ec_env%rf)) THEN
             DEALLOCATE (ec_env%rf)
