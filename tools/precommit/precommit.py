@@ -233,7 +233,7 @@ def process_file(fn: str, allow_modifications: bool) -> None:
 
     if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)
-        if "tools/spack/cp2k_dev_repo/packages" in fn:
+        if "tools/spack/spack_repo/cp2k_dev/packages" in fn:
             run_remote_tool("spackformat", fn)
         else:
             run_remote_tool("black", fn)

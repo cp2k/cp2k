@@ -77,8 +77,8 @@ ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 COPY ./tools/spack/cp2k_deps_${CP2K_VERSION}.yaml ./
 RUN sed -i -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_VERSION}.yaml
-COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
-RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
+COPY ./tools/spack/spack_repo/cp2k_dev ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev/
+RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev/
 RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
     spack -e myenv repo list
 
