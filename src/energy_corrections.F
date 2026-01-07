@@ -4211,6 +4211,8 @@ CONTAINS
          ALLOCATE (smat(mref, mref), tvec(mref), yvec(mref), rlist(mref))
          rlist = 0
 
+         CALL cp_fm_release(ec_env%cpmos)
+
          DO i = 1, nsample
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,I6)') " Response Force Number ", i
@@ -4320,6 +4322,9 @@ CONTAINS
                   WRITE (feunit, "(5X,3F20.12)") eforce(1:3, ia)
                END DO
             END IF
+
+            CALL cp_fm_release(ec_env%cpmos)
+
          END DO
 
          IF (unit_nr > 0) THEN
@@ -4330,7 +4335,6 @@ CONTAINS
 
          CALL cp_fm_release(hmats)
          CALL cp_fm_release(rpmos)
-         CALL cp_fm_release(ec_env%cpmos)
          IF (ec_env%error_method == "E") THEN
             CALL cp_fm_release(Spmos)
          END IF
