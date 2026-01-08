@@ -860,9 +860,8 @@ if(CP2K_USE_GREENX)
   # GreenX with AC requires GMP library
   find_library(GMP_LIBRARY NAMES gmp REQUIRED)
   get_filename_component(GMP_LIBRARY_PATH ${GMP_LIBRARY} DIRECTORY)
-  set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-L${GMP_LIBRARY_PATH}")
-  set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
-                                "-L${GMP_LIBRARY_PATH}")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -L${GMP_LIBRARY_PATH}")
+  string(APPEND CMAKE_SHARED_LINKER_FLAGS " -L${GMP_LIBRARY_PATH}")
 
   add_library(cp2k::greenx INTERFACE IMPORTED)
   target_link_libraries(cp2k::greenx INTERFACE greenX::GXCommon greenX::LibGXAC
