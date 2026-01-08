@@ -95,12 +95,12 @@ case "${with_openblas}" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
     fi
-    OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
-    OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
+    OPENBLAS_CFLAGS="-I${pkg_install_dir}/include"
+    OPENBLAS_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     OPENBLAS_ROOT="${pkg_install_dir}"
     # Prefer static library if available
     if [ -f "${pkg_install_dir}/lib/libopenblas.a" ]; then
-      OPENBLAS_LIBS="-l:libopenblas.a"
+      OPENBLAS_LIBS="${pkg_install_dir}/lib/libopenblas.a"
     else
       OPENBLAS_LIBS="-lopenblas"
     fi
