@@ -91,6 +91,12 @@ case "${with_elpa}" in
         [ "$TARGET" = "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
+        gnu_ldflags="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags"
+        if [[ "$(uname)" == "Darwin" ]]; then
+          gnu_ldflags=""
+          config_flags="${config_flags} --enable-affinity-checking=no"
+        fi
+
         mkdir -p "build_${TARGET}"
         cd "build_${TARGET}"
         ../configure --prefix="${pkg_install_dir}/${TARGET}/" \
@@ -114,7 +120,7 @@ case "${with_elpa}" in
           FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
-          LDFLAGS="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags} -lstdc++" \
+          LDFLAGS="${gnu_ldflags} ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags} -lstdc++" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
