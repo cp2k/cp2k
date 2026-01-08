@@ -6,6 +6,12 @@ spack:
   config:
     install_tree:
       root: /opt/spack
+  modules:
+    prefix_inspections:
+      ./lib:
+        - LD_LIBRARY_PATH
+      ./lib64:
+        - LD_LIBRARY_PATH
   packages:
     all:
       buildable: true
@@ -112,10 +118,12 @@ spack:
         - build_system=cmake
   specs:
     # Minimal
+    - "cmake@3.24:"
     - "dbcsr@2.9.1"
     - "libfabric@1.22.0"
     - "mpich@4.3.2"
     - "netlib-scalapack@2.2.2"
+    - "ninja@1.10:"
     - "openblas@0.3.30"
 #   - "openmpi@5.0.8"
     # All
@@ -153,5 +161,3 @@ spack:
       exclude:
         # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
         - gcc-runtime
-
-# EOF
