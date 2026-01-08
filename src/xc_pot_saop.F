@@ -496,12 +496,11 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: bo, homo, ncol, nrow
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: lsd, paw_atom
+      LOGICAL                                            :: accint, lsd, paw_atom
       REAL(dp), DIMENSION(:, :, :), POINTER              :: tau
-      REAL(KIND=dp)                                      :: density_cut, efac, exc, gradient_cut, &
-                                                            tau_cut, we_GLLB, we_LB
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: weight
+      REAL(KIND=dp)                                      :: agr, alpha, density_cut, efac, exc, &
+                                                            gradient_cut, tau_cut, we_GLLB, we_LB
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col, weight_h, weight_s
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_uniform, rho_h, rho_s, vtau, &
          vxc_GLLB_h, vxc_GLLB_s, vxc_LB_h, vxc_LB_s, vxc_SAOP_h, vxc_SAOP_s, vxc_tmp_h, vxc_tmp_s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s, vxg
@@ -537,7 +536,7 @@ CONTAINS
       TYPE(xc_rho_set_type)                              :: orb_rho_set_h, orb_rho_set_s, rho_set_h, &
                                                             rho_set_s
 
-      NULLIFY (weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
+      NULLIFY (rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
                vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
                atomic_kind_set, qs_kind_set, deriv, atomic_grid, rho_struct_ao, &
                harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
@@ -565,6 +564,8 @@ CONTAINS
       xc_section_orig => section_vals_get_subs_vals(input, "DFT%XC")
       CALL section_vals_retain(xc_section_orig)
       CALL section_vals_duplicate(xc_section_orig, xc_section_tmp)
+
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
 
       ! [SC] the following code can be traced back to SVN rev. 4296 (git:f97138b) that
       !      has removed the component 'nspins' from the derived type 'dft_control_type'.
@@ -654,7 +655,7 @@ CONTAINS
          CALL xc_rho_set_atom_update(orb_rho_set_s, needs, nspins, bounds)
 
          ALLOCATE (rho_h(1:na, 1:nr, 1:nspins), rho_s(1:na, 1:nr, 1:nspins))
-         ALLOCATE (weight(1:na, 1:nr))
+         ALLOCATE (weight_h(1:na, 1:nr), weight_s(1:na, 1:nr))
          ALLOCATE (vxc_LB_h(1:na, 1:nr, 1:nspins), vxc_LB_s(1:na, 1:nr, 1:nspins))
          ALLOCATE (vxc_GLLB_h(1:na, 1:nr, 1:nspins), vxc_GLLB_s(1:na, 1:nr, 1:nspins))
          ALLOCATE (vxc_tmp_h(1:na, 1:nr, 1:nspins), vxc_tmp_s(1:na, 1:nr, 1:nspins))
@@ -663,6 +664,23 @@ CONTAINS
 
          ! Distribute the atoms of this kind
          bo = get_limit(natom, para_env%num_pe, para_env%mepos)
+
+         DO ir = 1, nr
+            DO ia = 1, na
+               weight_h(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
+            END DO
+            IF (accint) THEN
+               alpha = dft_control%qs_control%gapw_control%aw(ikind)
+               agr = 1.0_dp + EXP(-alpha*atomic_grid%rad2(ir))
+               DO ia = 1, na
+                  weight_s(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)*agr
+               END DO
+            ELSE
+               DO ia = 1, na
+                  weight_s(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
+               END DO
+            END IF
+         END DO
 
          DO iat = 1, natom !bo(1),bo(2)
             iatom = atom_list(iat)
@@ -686,11 +704,6 @@ CONTAINS
                CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau, na, ir)
                CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau, na, ir)
             END DO
-            DO ir = 1, nr
-               DO ia = 1, na
-                  weight(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
-               END DO
-            END DO
 
             !-----------------------------!
             ! 1. Slater exchange for LB94 !
@@ -710,10 +723,10 @@ CONTAINS
             !---------------------!
             CALL xc_dset_zero_all(deriv_set)
             CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs, &
-                              weight, lsd, na, nr, exc, vxc_tmp_h, vxg, vtau)
+                              weight_h, lsd, na, nr, exc, vxc_tmp_h, vxg, vtau)
             CALL xc_dset_zero_all(deriv_set)
             CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs, &
-                              weight, lsd, na, nr, exc, vxc_tmp_s, vxg, vtau)
+                              weight_s, lsd, na, nr, exc, vxc_tmp_s, vxg, vtau)
 
             !-------------------------------------------!
             ! 2. PZ correlation for LB94 and ec_uniform !
@@ -728,12 +741,12 @@ CONTAINS
             !------!
             CALL xc_dset_zero_all(deriv_set)
             CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_h, deriv_set, 1, needs, &
-                              weight, lsd, na, nr, exc, vxc_LB_h, vxg, vtau)
+                              weight_h, lsd, na, nr, exc, vxc_LB_h, vxg, vtau)
             vxc_LB_h = vxc_LB_h + alpha*vxc_tmp_h
             DO ispin = 1, nspins
                dummy => vxc_tmp_h(:, :, ispin:ispin)
                CALL add_lb_pot(dummy, rho_set_h, lsd, ispin)
-               vxc_LB_h(:, :, ispin) = vxc_LB_h(:, :, ispin) - weight(:, :)*vxc_tmp_h(:, :, ispin)
+               vxc_LB_h(:, :, ispin) = vxc_LB_h(:, :, ispin) - weight_h(:, :)*vxc_tmp_h(:, :, ispin)
             END DO
             NULLIFY (dummy)
 
@@ -744,7 +757,7 @@ CONTAINS
             DO ispin = 1, nspins
                dummy => vxc_GLLB_h(:, :, ispin:ispin)
                CALL calc_2excpbe(dummy, rho_set_h, e_uniform, lsd)
-               vxc_GLLB_h(:, :, ispin) = vxc_GLLB_h(:, :, ispin)*weight(:, :)
+               vxc_GLLB_h(:, :, ispin) = vxc_GLLB_h(:, :, ispin)*weight_h(:, :)
             END DO
             NULLIFY (deriv, dummy, e_uniform)
 
@@ -753,13 +766,13 @@ CONTAINS
             !------!
             CALL xc_dset_zero_all(deriv_set)
             CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs, &
-                              weight, lsd, na, nr, exc, vxc_LB_s, vxg, vtau)
+                              weight_s, lsd, na, nr, exc, vxc_LB_s, vxg, vtau)
 
             vxc_LB_s = vxc_LB_s + alpha*vxc_tmp_s
             DO ispin = 1, nspins
                dummy => vxc_tmp_s(:, :, ispin:ispin)
                CALL add_lb_pot(dummy, rho_set_s, lsd, ispin)
-               vxc_LB_s(:, :, ispin) = vxc_LB_s(:, :, ispin) - weight(:, :)*vxc_tmp_s(:, :, ispin)
+               vxc_LB_s(:, :, ispin) = vxc_LB_s(:, :, ispin) - weight_s(:, :)*vxc_tmp_s(:, :, ispin)
             END DO
             NULLIFY (dummy)
 
@@ -770,7 +783,7 @@ CONTAINS
             DO ispin = 1, nspins
                dummy => vxc_GLLB_s(:, :, ispin:ispin)
                CALL calc_2excpbe(dummy, rho_set_s, e_uniform, lsd)
-               vxc_GLLB_s(:, :, ispin) = vxc_GLLB_s(:, :, ispin)*weight(:, :)
+               vxc_GLLB_s(:, :, ispin) = vxc_GLLB_s(:, :, ispin)*weight_s(:, :)
             END DO
             NULLIFY (deriv, dummy, e_uniform)
 
@@ -850,16 +863,16 @@ CONTAINS
                   DO ia = 1, na
                      IF (rho_set_h%rhoa(ia, ir, 1) > rho_set_h%rho_cutoff) &
                         vxc_GLLB_h(ia, ir, 1) = vxc_GLLB_h(ia, ir, 1) + &
-                                                weight(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rhoa(ia, ir, 1)
+                                                weight_h(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rhoa(ia, ir, 1)
                      IF (rho_set_h%rhob(ia, ir, 1) > rho_set_h%rho_cutoff) &
                         vxc_GLLB_h(ia, ir, 2) = vxc_GLLB_h(ia, ir, 2) + &
-                                                weight(ia, ir)*vxc_tmp_h(ia, ir, 2)/rho_set_h%rhob(ia, ir, 1)
+                                                weight_h(ia, ir)*vxc_tmp_h(ia, ir, 2)/rho_set_h%rhob(ia, ir, 1)
                      IF (rho_set_s%rhoa(ia, ir, 1) > rho_set_s%rho_cutoff) &
                         vxc_GLLB_s(ia, ir, 1) = vxc_GLLB_s(ia, ir, 1) + &
-                                                weight(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rhoa(ia, ir, 1)
+                                                weight_s(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rhoa(ia, ir, 1)
                      IF (rho_set_s%rhob(ia, ir, 1) > rho_set_s%rho_cutoff) &
                         vxc_GLLB_s(ia, ir, 2) = vxc_GLLB_s(ia, ir, 2) + &
-                                                weight(ia, ir)*vxc_tmp_s(ia, ir, 2)/rho_set_s%rhob(ia, ir, 1)
+                                                weight_s(ia, ir)*vxc_tmp_s(ia, ir, 2)/rho_set_s%rhob(ia, ir, 1)
                   END DO
                END DO
             ELSE
@@ -867,10 +880,10 @@ CONTAINS
                   DO ia = 1, na
                      IF (rho_set_h%rho(ia, ir, 1) > rho_set_h%rho_cutoff) &
                         vxc_GLLB_h(ia, ir, 1) = vxc_GLLB_h(ia, ir, 1) + &
-                                                weight(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rho(ia, ir, 1)
+                                                weight_h(ia, ir)*vxc_tmp_h(ia, ir, 1)/rho_set_h%rho(ia, ir, 1)
                      IF (rho_set_s%rho(ia, ir, 1) > rho_set_s%rho_cutoff) &
                         vxc_GLLB_s(ia, ir, 1) = vxc_GLLB_s(ia, ir, 1) + &
-                                                weight(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rho(ia, ir, 1)
+                                                weight_s(ia, ir)*vxc_tmp_s(ia, ir, 1)/rho_set_s%rho(ia, ir, 1)
                   END DO
                END DO
             END IF
@@ -1011,7 +1024,7 @@ CONTAINS
 
          END DO
 
-         DEALLOCATE (rho_h, rho_s, weight)
+         DEALLOCATE (rho_h, rho_s, weight_h, weight_s)
          DEALLOCATE (vxc_LB_h, vxc_LB_s)
          DEALLOCATE (vxc_GLLB_h, vxc_GLLB_s)
          DEALLOCATE (vxc_tmp_h, vxc_tmp_s)

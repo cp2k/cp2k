@@ -76,8 +76,8 @@ CONTAINS
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
-      TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
-      REAL(dp), DIMENSION(:, :), POINTER                 :: w
+      TYPE(xc_rho_cflags_type), INTENT(IN)               :: needs
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: w
       LOGICAL, INTENT(IN)                                :: lsd
       INTEGER, INTENT(in)                                :: na, nr
       REAL(dp)                                           :: exc
@@ -298,8 +298,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
-      TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
-      REAL(dp), DIMENSION(:, :), POINTER                 :: w
+      TYPE(xc_rho_cflags_type), INTENT(IN)               :: needs
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: w
       LOGICAL, INTENT(IN)                                :: lsd
       INTEGER, INTENT(in)                                :: na, nr
       REAL(dp)                                           :: exc
@@ -410,7 +410,7 @@ CONTAINS
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set, rho1_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
-      REAL(dp), DIMENSION(:, :), POINTER                 :: w
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: w
       REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet, do_sf
