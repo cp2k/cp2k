@@ -45,16 +45,29 @@ case "$with_ace" in
       tar -xzf ${ace_pkg}
       cd ${ace_dir}
 
-      # Fix for GCC 15
-      sed -i '1i #include <cstdint>' yaml-cpp/src/emitterutils.cpp
+      # Fix for GCC 15 (portable sed: prepend line 1 - Works on macOS + Linux; Doesn’t depend on sed’s i\ quirks; Avoids adding the include twice if you rebuild)
+      if ! grep -q '^#include <cstdint>' yaml-cpp/src/emitterutils.cpp; then
+        if [ "$(uname)" = "Darwin" ]; then
+          sed -i '' '1s;^;#include <cstdint>\n;' yaml-cpp/src/emitterutils.cpp
+        else
+          sed -i '1s;^;#include <cstdint>\n;' yaml-cpp/src/emitterutils.cpp
+        fi
+      fi
 
-      mkdir build
-      cd build
+      rm -rf build
+      mkdir -p build
 
-      cmake \
+      # fix: without DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp the cp line below will crash in all those cases where yaml is system installed.
+      cmake -S . -B build \
         -DCMAKE_CXX_STANDARD=17 \
-        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        -DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp=TRUE \
+        > build/cmake.log 2>&1 || tail -n ${LOG_LINES} build/cmake.log
+
+      # build (uses the generator CMake picked: make/ninja)
+      cmake --build build -j ${NPROCS:-16} \
+        > build/make.log 2>&1 || tail -n ${LOG_LINES} build/make.log
+
+      cd build
       # no make install.
       [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}
       mkdir -p ${pkg_install_dir}/lib
