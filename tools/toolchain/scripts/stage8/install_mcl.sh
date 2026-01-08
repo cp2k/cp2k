@@ -40,8 +40,51 @@ case "${with_mcl:=__INSTALL__}" in
       [ -d mcl-${mcl_ver} ] && rm -rf mcl-${mcl_ver}
       tar -xzf mcl-${mcl_ver}.tar.gz
 
+      # Fix: ensure Fortran wrapper (mclf) links against the core MCL library (mcl)
+      # (otherwise you get undefined _MCL_* at link time)
+      mcl_src_cmake="mcl-${mcl_ver}/src/CMakeLists.txt"
+      mcl_top_cmake="mcl-${mcl_ver}/CMakeLists.txt"
+
+      if [ -f "${mcl_src_cmake}" ]; then
+        mcl_cmake_to_patch="${mcl_src_cmake}"
+      elif [ -f "${mcl_top_cmake}" ]; then
+        mcl_cmake_to_patch="${mcl_top_cmake}"
+      else
+        echo "ERROR: could not find MCL CMakeLists.txt to patch" >&2
+        exit 1
+      fi
+
+      if ! grep -q "target_link_libraries(mclf PRIVATE mcl)" "${mcl_cmake_to_patch}"; then
+        cat >> "${mcl_cmake_to_patch}" <<- 'EOF'
+      
+      # CP2K toolchain fix: ensure Fortran API links against the core library
+      if(TARGET mclf AND TARGET mcl)
+        target_link_libraries(mclf PRIVATE mcl)
+      endif()
+EOF
+      fi
+
       mkdir "mcl-${mcl_ver}/build"
       cd "mcl-${mcl_ver}/build"
+
+      # Ensure CMake links MPI correctly (especially on macOS/Homebrew),
+      # by using the MPI wrapper compilers for compile + link steps.
+      MPI_C_COMPILER="$(command -v mpicc || true)"
+      MPI_CXX_COMPILER="$(command -v mpicxx || command -v mpic++ || true)"
+      MPI_Fortran_COMPILER="$(command -v mpifort || true)"
+
+      if [ -n "${MPI_C_COMPILER}" ] && [ -n "${MPI_CXX_COMPILER}" ] && [ -n "${MPI_Fortran_COMPILER}" ]; then
+        CMAKE_MPI_COMPILERS=(
+          -DCMAKE_C_COMPILER="${MPI_C_COMPILER}"
+          -DCMAKE_CXX_COMPILER="${MPI_CXX_COMPILER}"
+          -DCMAKE_Fortran_COMPILER="${MPI_Fortran_COMPILER}"
+          -DMPI_C_COMPILER="${MPI_C_COMPILER}"
+          -DMPI_CXX_COMPILER="${MPI_CXX_COMPILER}"
+          -DMPI_Fortran_COMPILER="${MPI_Fortran_COMPILER}"
+        )
+      else
+        CMAKE_MPI_COMPILERS=()
+      fi
 
       cmake \
         -DCMAKE_BUILD_TYPE=Release \
@@ -49,6 +92,7 @@ case "${with_mcl:=__INSTALL__}" in
         -DBUILD_FORTRAN_API=YES \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        "${CMAKE_MPI_COMPILERS[@]}" \
         .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail -n ${LOG_LINES} build.log
       CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
