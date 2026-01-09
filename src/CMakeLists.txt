@@ -28,6 +28,7 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 list(
   APPEND
   CP2K_SRCS_F
+  accint_weights_forces.F
   ace_nlist.F
   ace_wrapper.F
   admm_dm_methods.F

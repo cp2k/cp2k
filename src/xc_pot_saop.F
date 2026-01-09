@@ -250,9 +250,6 @@ CONTAINS
                                       xc_fun_section_tmp)
 
       CPASSERT(.NOT. compute_virial)
-!     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau, &
-!                           xc_section_tmp, auxbas_pw_pool, &
-!                           compute_virial=.FALSE., virial_xc=virial_xc_tmp)
       CALL xc_vxc_pw_create1(vxc_tmp, vxc_tau, rho_r, rho_g, tau, xc_energy, &
                              xc_section_tmp, weights, auxbas_pw_pool, &
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
@@ -263,9 +260,6 @@ CONTAINS
                                 l_val=.TRUE.)
 
       CPASSERT(.NOT. compute_virial)
-!     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau, &
-!                           xc_section_tmp, auxbas_pw_pool, &
-!                           compute_virial=.FALSE., virial_xc=virial_xc_tmp)
       CALL xc_vxc_pw_create1(vxc_LB, vxc_tau, rho_r, rho_g, tau, xc_energy, &
                              xc_section_tmp, weights, auxbas_pw_pool, &
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)

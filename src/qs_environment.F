@@ -1145,6 +1145,7 @@ CONTAINS
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
          IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
             ! cutoff radius
+            CALL get_qs_env(qs_env, nkind=nkind)
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
                IF (qs_kind%xtb_parameter%defined) THEN
@@ -1296,6 +1297,7 @@ CONTAINS
          ! Accurate XC integration
          IF (gapw_control%accurate_xcint) THEN
             CPASSERT(.NOT. ASSOCIATED(gapw_control%aw))
+            CALL get_qs_env(qs_env, nkind=nkind)
             ALLOCATE (gapw_control%aw(nkind))
             alpha = gapw_control%aweights
             DO ikind = 1, nkind

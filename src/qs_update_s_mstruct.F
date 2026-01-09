@@ -22,8 +22,7 @@ MODULE qs_update_s_mstruct
                                               kg_tnadd_embed_ri
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE pw_methods,                      ONLY: pw_set,&
-                                              pw_transfer
+   USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
@@ -140,9 +139,9 @@ CONTAINS
             CALL get_qs_env(qs_env, xcint_weights=xcint_weights, nkind=nk)
             ALLOCATE (cw(nk))
             cw = -1.0_dp
-            CALL pw_set(xcint_weights, 1.0_dp)
             CALL calculate_rho_core(xcint_weights, wtot, qs_env, &
                                     dft_control%qs_control%gapw_control%aw, cw)
+            xcint_weights%array = 1.0_dp + xcint_weights%array
             DEALLOCATE (cw)
          END IF
       END IF

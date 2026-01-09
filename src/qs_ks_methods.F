@@ -20,6 +20,7 @@
 !>      - SCCS implementation (16.10.2013,MK)
 ! **************************************************************************************************
 MODULE qs_ks_methods
+   USE accint_weights_forces,           ONLY: accint_weight_force
    USE admm_dm_methods,                 ONLY: admm_dm_calc_rho_aux,&
                                               admm_dm_merge_ks_matrix
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux,&
@@ -715,6 +716,15 @@ CONTAINS
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
+
+         IF (calculate_forces) THEN
+            IF (gapw_xc) THEN
+               CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
+            ELSE
+               CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
+            END IF
+            CALL accint_weight_force(qs_env, rho_struct, xc_section)
+         END IF
 
          IF (use_virial .AND. calculate_forces) THEN
             virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)

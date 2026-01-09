@@ -57,7 +57,7 @@ MODULE qs_vxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_vxc_create, qs_xc_density
+   PUBLIC :: qs_vxc_create, qs_xc_density, qs_xc_energy
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
 
@@ -565,25 +565,27 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param xc_ener will contain the xc energy density E_xc(r) - V_xc(r)*rho(r)
 !> \param xc_den will contain the xc energy density E_xc(r)/rho(r)
+!> \param exc will contain the xc energy density E_xc(r)
 !> \param vxc ...
 !> \param vtau ...
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE qs_xc_density(ks_env, rho_struct, xc_section, dispersion_env, &
-                            xc_ener, xc_den, vxc, vtau)
+                            xc_ener, xc_den, exc, vxc, vtau)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(pw_r3d_rs_type), INTENT(INOUT), OPTIONAL      :: xc_ener, xc_den
+      TYPE(pw_r3d_rs_type), OPTIONAL                     :: exc
       TYPE(pw_r3d_rs_type), DIMENSION(:), OPTIONAL       :: vxc, vtau
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins, vdw
       LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid, vdW_nl
-      REAL(KIND=dp)                                      :: edisp, exc, factor, rho_cutoff
+      REAL(KIND=dp)                                      :: edisp, excint, factor, rho_cutoff
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -639,6 +641,9 @@ CONTAINS
       IF (PRESENT(xc_den)) THEN
          CALL pw_zero(xc_den)
       END IF
+      IF (PRESENT(exc)) THEN
+         CALL pw_zero(exc)
+      END IF
       IF (PRESENT(vxc)) THEN
          DO ispin = 1, nspins
             CALL pw_zero(vxc(ispin))
@@ -665,7 +670,7 @@ CONTAINS
          END IF
          NULLIFY (vxc_rho, vxc_tau)
          CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
-                                rho_g=rho_g, tau=tau_r, exc=exc, &
+                                rho_g=rho_g, tau=tau_r, exc=excint, &
                                 xc_section=xc_section, &
                                 weights=weights, pw_pool=xc_pw_pool, &
                                 compute_virial=.FALSE., &
@@ -705,6 +710,9 @@ CONTAINS
                CALL pw_multiply(xc_ener, vxc_rho(ispin), rho_r(ispin), alpha=-1.0_dp)
             END DO
          END IF
+         IF (PRESENT(exc)) THEN
+            CALL pw_copy(exc_r, exc)
+         END IF
          IF (PRESENT(vxc)) THEN
             DO ispin = 1, nspins
                CALL pw_copy(vxc_rho(ispin), vxc(ispin))
@@ -735,5 +743,121 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_xc_density
+
+! **************************************************************************************************
+!> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)  or  E_xc(r)/rho(r)
+!> \param ks_env to get all the needed things
+!> \param rho_struct density
+!> \param xc_section ...
+!> \param exc will contain the xc energy density E_xc(r)
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE qs_xc_energy(ks_env, rho_struct, xc_section, exc)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type)                               :: exc
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_energy'
+
+      INTEGER                                            :: handle, ispin, myfun, nspins, vdw
+      LOGICAL                                            :: rho_g_valid, tau_r_valid, uf_grid
+      REAL(KIND=dp)                                      :: excint, factor
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: exc_r
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r, vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
+
+      CALL timeset(routineN, handle)
+
+      ! we always get true exc (not integration weighted)
+      NULLIFY (weights)
+
+      CALL get_ks_env(ks_env, &
+                      dft_control=dft_control, &
+                      pw_env=pw_env, &
+                      cell=cell, &
+                      rho_nlcc=rho_nlcc, &
+                      rho_nlcc_g=rho_nlcc_g)
+
+      CALL qs_rho_get(rho_struct, &
+                      tau_r_valid=tau_r_valid, &
+                      rho_g_valid=rho_g_valid, &
+                      rho_r=rho_r, &
+                      rho_g=rho_g, &
+                      tau_r=tau_r)
+      nspins = dft_control%nspins
+
+      CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
+      CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
+
+      CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
+      uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
+      IF (uf_grid) THEN
+         CALL cp_warn(__LOCATION__, "Fine grid option not possible with local energy")
+         CPABORT("Fine Grid in Local Energy")
+      END IF
+
+      CALL pw_zero(exc)
+
+      IF (myfun /= xc_none) THEN
+
+         CPASSERT(ASSOCIATED(rho_struct))
+         CPASSERT(dft_control%sic_method_id == sic_none)
+
+         ! add the nlcc densities
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            factor = 1.0_dp
+            DO ispin = 1, nspins
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+            END DO
+         END IF
+         NULLIFY (vxc_rho, vxc_tau)
+         CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
+                                rho_g=rho_g, tau=tau_r, exc=excint, &
+                                xc_section=xc_section, &
+                                weights=weights, pw_pool=xc_pw_pool, &
+                                compute_virial=.FALSE., &
+                                virial_xc=vdum, &
+                                exc_r=exc_r)
+
+         ! remove the nlcc densities (keep stuff in original state)
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            factor = -1.0_dp
+            DO ispin = 1, dft_control%nspins
+               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+            END DO
+         END IF
+         !
+         CALL pw_copy(exc_r, exc)
+         ! remove arrays
+         IF (ASSOCIATED(vxc_rho)) THEN
+            DO ispin = 1, nspins
+               CALL vxc_rho(ispin)%release()
+            END DO
+            DEALLOCATE (vxc_rho)
+         END IF
+         IF (ASSOCIATED(vxc_tau)) THEN
+            DO ispin = 1, nspins
+               CALL vxc_tau(ispin)%release()
+            END DO
+            DEALLOCATE (vxc_tau)
+         END IF
+         CALL exc_r%release()
+         !
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_xc_energy
 
 END MODULE qs_vxc

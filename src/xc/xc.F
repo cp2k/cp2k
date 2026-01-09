@@ -1449,14 +1449,13 @@ CONTAINS
          DO ispin = 1, nspins
             CPASSERT(ASSOCIATED(vxc_tau(ispin)%array))
          END DO
+         IF (ASSOCIATED(weights)) THEN
+            DO ispin = 1, nspins
+               CALL pw_multiply_with(vxc_tau(ispin), weights)
+            END DO
+         END IF
       END IF
       CALL xc_dset_release(deriv_set)
-
-      IF (ASSOCIATED(weights)) THEN
-         DO ispin = 1, nspins
-            CALL pw_multiply_with(vxc_tau(ispin), weights)
-         END DO
-      END IF
 
       CALL timestop(handle)
 
