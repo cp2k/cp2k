@@ -74,7 +74,6 @@ MODULE gw_utils
                                               dp,&
                                               int_8
    USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
-   USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
                                               kpoint_type
@@ -136,7 +135,7 @@ MODULE gw_utils
    PRIVATE
 
    PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, get_i_j_atoms, &
-             kpoint_init_cell_index_simple, compute_xkp, time_to_freq, analyt_conti_and_print, &
+             compute_xkp, time_to_freq, analyt_conti_and_print, &
              add_R, is_cell_in_index_to_cell, get_V_tr_R, power
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
@@ -587,34 +586,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE setup_kpoints_chi_eps_W
-
-! **************************************************************************************************
-!> \brief ...
-!> \param kpoints ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE kpoint_init_cell_index_simple(kpoints, qs_env)
-
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index_simple'
-
-      INTEGER                                            :: handle
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (dft_control, para_env, sab_orb)
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, dft_control=dft_control, sab_orb=sab_orb)
-      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE kpoint_init_cell_index_simple
 
 ! **************************************************************************************************
 !> \brief ...
