@@ -65,7 +65,6 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
@@ -76,6 +75,7 @@ RUN ./build_cp2k.sh toolchain_arm64 psmp
 
 # Run regression tests.
 ARG TESTOPTS=""
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \

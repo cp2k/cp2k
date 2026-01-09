@@ -135,6 +135,7 @@ def regtest(profile: str, version: str, testopts: str = "") -> str:
         + rf"""
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
@@ -181,6 +182,7 @@ def coverage() -> str:
         install_cp2k(profile="toolchain_coverage", version="psmp", revision=True)
         + rf"""
 # Run coverage test.
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_coverage.sh .
 RUN ./test_coverage.sh 2>&1 | tee report.log
 """
@@ -249,6 +251,7 @@ def test_3rd_party(name: str) -> str:
         install_cp2k(profile="toolchain", version="ssmp")
         + rf"""
 # Run test for {name}.
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
 """
@@ -313,7 +316,6 @@ def install_cp2k(profile: str, version: str, revision: bool = False) -> str:
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .

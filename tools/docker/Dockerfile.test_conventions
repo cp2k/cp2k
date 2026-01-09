@@ -65,7 +65,6 @@ COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
