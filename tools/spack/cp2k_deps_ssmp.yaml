@@ -40,7 +40,7 @@ spack:
         - smm=blas
     deepmdkit:
       require:
-        - +enable_pytorch
+        - +pytorch
         - build_system=cmake
     dftd4:
       require:
