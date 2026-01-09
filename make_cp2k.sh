@@ -173,6 +173,15 @@ fi
 export SPACK_VERSION="${SPACK_VERSION:-1.1.0}"
 export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
 
+# Check if all mandatory packages for the Spack/CMake build are installed in the environment
+for package in bzip2 g++ gcc gfortran git gzip patch python3 update-ca-certificates wget; do
+  if ! command -v "${package}" &> /dev/null; then
+    echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
+    echo "       Install the missing package and re-run the script"
+    ${EXIT_CMD} 1
+  fi
+done
+
 # Check if python is available
 if ! command -v python3 &> /dev/null; then
   echo "ERROR: python3 NOT found"
@@ -217,8 +226,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
     pip3 install --quiet --upgrade pip
     pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
-    # Start Spack cache
-    "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh || true
+    # (Re)start Spack cache
+    "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh
+    podman container list
   else
     HAS_PODMAN="no"
     echo "INFO: podman was not found"
@@ -306,6 +316,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     if ! spack mirror list | grep -q "local-cache"; then
       "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
     fi
+    if ((VERBOSE > 0)); then
+      "${CP2K_ROOT}"/tools/docker/spack_cache_list.sh
+    fi
+  else
+    echo "INFO: A local Spack cache is NOT used"
   fi
 
   # Install CP2K dependencies via Spack
