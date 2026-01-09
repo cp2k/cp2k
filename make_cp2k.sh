@@ -54,7 +54,10 @@
 
 # set -uo pipefail # can be useful for debugging this script
 
-SCRIPT_NAME="$(basename ${BASH_SOURCE[0]})"
+# Trust other scripts being sourced
+# shellcheck source=/dev/null
+
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
 # Check if the script is sourced or run in a subshell
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
@@ -71,7 +74,7 @@ fi
 BUILD_DEPS="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
-if command -v nproc &>/dev/null; then
+if command -v nproc &> /dev/null; then
   NUM_PROCS=${NUM_PROCS:-$(nproc)}
 else
   NUM_PROCS=${NUM_PROCS:-8}
@@ -80,7 +83,7 @@ RUN_TEST="no"
 TESTOPTS=""
 VERBOSE=0
 VERBOSE_MAKEFILE="OFF"
-VERBOSE_NINJA="-- --quiet"
+VERBOSE_NINJA="--quiet"
 
 export CP2K_ENV="cp2k_env"
 export CP2K_ROOT=${PWD}
@@ -118,7 +121,7 @@ while [[ $# -gt 0 ]]; do
       VERBOSE=1
       INSTALL_MESSAGE="LAZY"
       VERBOSE_MAKEFILE="ON"
-      VERBOSE_NINJA="-- --verbose"
+      VERBOSE_NINJA="--verbose"
       shift 1
       ;;
     --)
@@ -162,8 +165,8 @@ fi
 echo "VERBOSE_MAKEFILE = ${VERBOSE_MAKEFILE}"
 echo "VERBOSE_NINJA    = ${VERBOSE_NINJA}"
 echo "VERBOSE          = ${VERBOSE}"
-if [[ ! "${@}" == "" ]]; then
-  echo "Remaining args   = $@ (not used yet)"
+if (($# > 0)); then
+  echo "Remaining args   =" "$@" "(not used yet)"
 fi
 
 # Spack versions
@@ -171,7 +174,7 @@ export SPACK_VERSION="${SPACK_VERSION:-1.1.0}"
 export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
 
 # Check if python is available
-if ! command -v python3 &>/dev/null; then
+if ! command -v python3 &> /dev/null; then
   echo "ERROR: python3 NOT found"
   ${EXIT_CMD} 1
 fi
@@ -191,7 +194,7 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
 
   # Install Spack
   [[ ! -d ${SPACK_BUILD_PATH} ]] && mkdir -p "${SPACK_BUILD_PATH}"
-  cd "${SPACK_BUILD_PATH}"
+  cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
   export SPACK_REPO="https://github.com/spack/spack"
   if [[ ! -d "${SPACK_ROOT}" ]]; then
     wget -q "${SPACK_REPO}/archive/v${SPACK_VERSION}.tar.gz"
@@ -204,7 +207,7 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
   source "${SPACK_ROOT}/share/spack/setup-env.sh"
 
   # The package podman is required for using a local Spack cache
-  if command -v podman &>/dev/null; then
+  if command -v podman &> /dev/null; then
     HAS_PODMAN="yes"
     # Create and activate a virtual environment for Python packages
     python3 -m venv "${SPACK_BUILD_PATH}/venv"
@@ -212,7 +215,7 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
     pip3 install --quiet --upgrade pip
     pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
     # Start Spack cache
-    ${CP2K_ROOT}/tools/docker/spack_cache_start.sh || true
+    "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh || true
   else
     HAS_PODMAN="no"
     echo "INFO: podman was not found"
@@ -235,7 +238,7 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
 
   # Prepare the CP2K Spack configuration file
   export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
-  sed -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" ${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml >${CP2K_CONFIG_FILE}
+  sed -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" "${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml" > "${CP2K_CONFIG_FILE}"
 
   # Activate CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
@@ -243,12 +246,12 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
       echo "The Spack environment ${CP2K_ENV} exists and is activated"
     else
       echo "The Spack environment ${CP2K_ENV} exists but is NOT activated"
-      spack env activate ${CP2K_ENV}
+      spack env activate "${CP2K_ENV}"
       echo "The Spack environment ${CP2K_ENV} has been activated"
     fi
   else
     echo "The Spack environment ${CP2K_ENV} does NOT exist"
-    spack env create ${CP2K_ENV} ${CP2K_CONFIG_FILE} && spack env activate ${CP2K_ENV}
+    spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}" && spack env activate "${CP2K_ENV}"
     echo "The Spack environment ${CP2K_ENV} has been created and activated"
   fi
 
@@ -262,7 +265,7 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
   # Add the local CP2K development Spack repository when missing
   export CP2K_REPO="cp2k_dev"
   if ! spack repo list | grep -q "${CP2K_REPO}"; then
-    spack repo add --scope env:cp2k_env ${CP2K_ROOT}/tools/spack/spack_repo/${CP2K_REPO}
+    spack repo add --scope env:cp2k_env "${CP2K_ROOT}/tools/spack/spack_repo/${CP2K_REPO}"
   else
     echo "The CP2K development repo ${CP2K_REPO} is already present ... skipping add"
   fi
@@ -276,18 +279,18 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
   GCC_VERSION="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
   spack install --add "${GCC_VERSION}"
   echo "Using GCC compiler version ${GCC_VERSION}"
-  GCC_VERSION_SELECTED="$(echo ${GCC_VERSION} | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
+  GCC_VERSION_SELECTED="$(echo "${GCC_VERSION}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
 
   # Check if the compiler version is new enough
   GCC_VERSION_REQUIRED="9"
-  if ((${GCC_VERSION_SELECTED} < ${GCC_VERSION_REQUIRED})); then
+  if ((GCC_VERSION_SELECTED < GCC_VERSION_REQUIRED)); then
     echo "ERROR: The selected GCC compiler version ${GCC_VERSION_SELECTED} is too old, because at least version ${GCC_VERSION_REQUIRED} is required"
     ${EXIT_CMD}
   fi
 
   # Check if the compiler version is newer than the suggested version
   GCC_VERSION_SUGGESTED="12"
-  if ((${GCC_VERSION_SELECTED} < ${GCC_VERSION_SUGGESTED})); then
+  if ((GCC_VERSION_SELECTED < GCC_VERSION_SUGGESTED)); then
     echo "WARNING: The selected GCC compiler version ${GCC_VERSION_SELECTED} is quite old. At least version ${GCC_VERSION_SUGGESTED} is suggested"
   fi
 
@@ -298,21 +301,21 @@ if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
   if [[ "${HAS_PODMAN}" == "yes" ]]; then
     export SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
     if ! spack mirror list | grep -q "local-cache"; then
-      ${CP2K_ROOT}/tools/docker/scripts/setup_spack_cache.sh
+      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
     fi
   fi
 
   # Install CP2K dependencies via Spack
-  spack -e ${CP2K_ENV} concretize -f
-  spack -e ${CP2K_ENV} env depfile -o spack_makefile
-  make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
+  spack -e "${CP2K_ENV}" concretize -f
+  spack -e "${CP2K_ENV}" env depfile -o spack_makefile
+  make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
 
-  cd ${CP2K_ROOT}
+  cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
 else
 
   # Initialize Spack shell hooks
-  source "${SPACK_ROOT}/share/spack/setup-env.sh"
+  source "${SPACK_ROOT}"/share/spack/setup-env.sh
 
 fi
 
@@ -322,19 +325,20 @@ fi
 
 spack env list
 spack env status
-eval $(spack env activate --sh ${CP2K_ENV})
+eval "$(spack env activate --sh "${CP2K_ENV}")"
 
 # CMake configuration step
 export CMAKE_BUILD_PATH="${CP2K_ROOT}/build"
 
 # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
-export Torch_DIR="$(dirname "$(find ${SPACK_ROOT} ! -type l -name TorchConfig.cmake | tail -n 1)")"
+Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake | tail -n 1)")"
+export Torch_DIR
 
-if [[ ! -d ${CMAKE_BUILD_PATH} ]]; then
-  mkdir -p ${CMAKE_BUILD_PATH}
+if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
+  mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
     "psmp")
-      cmake -S ${CP2K_ROOT} -B ${CMAKE_BUILD_PATH} \
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -344,11 +348,11 @@ if [[ ! -d ${CMAKE_BUILD_PATH} ]]; then
         -DCP2K_USE_DLAF=OFF \
         -DCP2K_USE_LIBXSMM=OFF \
         -DCP2K_USE_TBLITE=OFF \
-        -Werror=dev \
-        |& tee ${CMAKE_BUILD_PATH}/cmake.log
+        -Werror=dev |&
+        tee "${CMAKE_BUILD_PATH}/cmake.log"
       ;;
     "ssmp")
-      cmake -S ${CP2K_ROOT} -B ${CMAKE_BUILD_PATH} \
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -358,8 +362,8 @@ if [[ ! -d ${CMAKE_BUILD_PATH} ]]; then
         -DCP2K_USE_MPI=OFF \
         -DCP2K_USE_LIBXSMM=OFF \
         -DCP2K_USE_TBLITE=OFF \
-        -Werror=dev \
-        |& tee ${CMAKE_BUILD_PATH}/cmake.log
+        -Werror=dev |&
+        tee "${CMAKE_BUILD_PATH}/cmake.log"
       ;;
     *)
       echo "ERROR: Unknown CP2K version ${CP2K_VERSION} specified"
@@ -370,20 +374,20 @@ fi
 
 # CMake build step
 echo -e '\n*** Compiling CP2K ***\n'
-cmake --build ${CMAKE_BUILD_PATH} --parallel ${NUM_PROCS} ${VERBOSE_NINJA} |& tee ${CMAKE_BUILD_PATH}/ninja.log
+cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_NINJA}" |& tee "${CMAKE_BUILD_PATH}/ninja.log"
 
 # CMake install step
 echo -e '\n*** Installing CP2K ***\n'
-cmake --install ${CMAKE_BUILD_PATH} |& tee ${CMAKE_BUILD_PATH}/install.log
+cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}/install.log"
 
 # Retrieve paths to "hidden" libraries
-if [[ -n $(ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found") ]]; then
+if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
-  ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found"
+  ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found"
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}\n"
-  for libname in $(ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | awk '{print $1}' | sort | uniq); do
-    library=$(find -L ${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib -name ${libname} | tail -n 1)
-    library_path="$(dirname ${library})"
+  for libname in $(ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | awk '{print $1}' | sort | uniq); do
+    library=$(find -L "${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib" -name "${libname}" | tail -n 1)
+    library_path="$(dirname "${library}")"
     if [[ -n "${library_path}" ]]; then
       case ":${LD_LIBRARY_PATH}:" in
         *":${library_path}:"*)
@@ -396,34 +400,34 @@ if [[ -n $(ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found") ]]
       esac
     fi
   done
-  if [[ -z $(ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found") ]]; then
+  if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
     echo -e "\n*** New LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
   else
     echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
-    ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | sort | uniq
+    ldd "${INSTALL_PREFIX}"/bin/cp2k."${CP2K_VERSION}" | grep "not found" | sort | uniq
   fi
   export LD_LIBRARY_PATH
 fi
 
 # Prepare script to run the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
-cat <<*** >${INSTALL_PREFIX}/bin/run_tests
+cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
 #!/bin/bash
 ulimit -c 0 -s unlimited
 export OMP_STACKSIZE=64M
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
-ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | sort | uniq
+ldd "${INSTALL_PREFIX}"/bin/cp2k."${CP2K_VERSION}" | grep "not found" | sort | uniq
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${CP2K_VERSION}
 ***
-chmod 700 ${INSTALL_PREFIX}/bin/run_tests
+chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  ${INSTALL_PREFIX}/bin/run_tests
+  "${INSTALL_PREFIX}"/bin/run_tests
 else
   echo -e "\n*** A regression test run can be launched using the script ${INSTALL_PREFIX}/bin/run_tests\n"
 fi
