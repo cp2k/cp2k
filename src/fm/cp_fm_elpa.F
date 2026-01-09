@@ -31,15 +31,28 @@ MODULE cp_fm_elpa
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
-   USE kinds, ONLY: default_string_length, &
-                    dp
+   USE kinds, ONLY: default_string_length, dp
    USE message_passing, ONLY: mp_comm_type
    USE OMP_LIB, ONLY: omp_get_max_threads
 
 #include "../base/base_uses.f90"
 
-#if defined (__ELPA)
-   USE elpa_constants, ONLY: ELPA_2STAGE_REAL_INVALID, &
+#if defined(__ELPA)
+
+#if defined(__OFFLOAD_OPENCL)
+#define CPELPA_SOLVER_STAGES 1
+#else
+#define CPELPA_SOLVER_STAGES 2
+#endif
+
+#if 2 == CPELPA_SOLVER_STAGES
+#define CPELPA_SOLVER ELPA_SOLVER_2STAGE
+#else
+#define CPELPA_SOLVER ELPA_SOLVER_1STAGE
+#endif
+
+   USE elpa_constants, ONLY: ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, ELPA_OK, &
+                             ELPA_2STAGE_REAL_INVALID, &
                              ELPA_2STAGE_REAL_DEFAULT, &
                              ELPA_2STAGE_REAL_GENERIC, &
                              ELPA_2STAGE_REAL_GENERIC_SIMPLE, &
@@ -62,9 +75,8 @@ MODULE cp_fm_elpa
                              ELPA_2STAGE_REAL_AMD_GPU, &
                              ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 
-   USE elpa, ONLY: elpa_t, elpa_solver_2stage, &
-                   elpa_init, elpa_uninit, &
-                   elpa_allocate, elpa_deallocate, elpa_ok
+   USE elpa, ONLY: elpa_t, elpa_init, elpa_uninit, &
+                   elpa_allocate, elpa_deallocate
 #endif
 
    IMPLICIT NONE
@@ -175,7 +187,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE initialize_elpa_library()
 #if defined(__ELPA)
-      IF (elpa_init(20180525) /= elpa_ok) &
+      IF (elpa_init(20180525) /= ELPA_OK) &
          CPABORT("The linked ELPA library does not support the required API version")
 #else
       CPABORT("Initialization of ELPA library requested but not enabled during build")
@@ -200,7 +212,7 @@ CONTAINS
    SUBROUTINE set_elpa_kernel(requested_kernel)
       INTEGER, INTENT(IN)                                :: requested_kernel
 
-#if defined (__ELPA)
+#if defined(__ELPA)
       INTEGER                                            :: cpuid
 
       elpa_kernel = requested_kernel
@@ -222,16 +234,17 @@ CONTAINS
          END IF
 
          ! Prefer GPU kernel if available.
-#if defined (__OFFLOAD_CUDA)
+#if !defined(__NO_OFFLOAD_ELPA)
+#if defined(__OFFLOAD_CUDA)
          elpa_kernel = ELPA_2STAGE_REAL_NVIDIA_GPU
 #endif
-#if defined (__OFFLOAD_HIP)
+#if defined(__OFFLOAD_HIP)
          elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
 #endif
-#if defined (__OFFLOAD_OPENCL)
+#if defined(__OFFLOAD_OPENCL)
          elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU_SYCL
 #endif
-
+#endif
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
          IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
             elpa_kernel = ELPA_2STAGE_REAL_DEFAULT
@@ -411,7 +424,7 @@ CONTAINS
             "ELPA| Matrix diagonalization information"
 
          ! Find name for given kernel id.
-         ! In case ELPA_2STAGE_REAL_DEFAULT was used it might not be in our elpa_kernel_ids list.
+         ! In case of ELPA_2STAGE_REAL_DEFAULT was used it might not be in our elpa_kernel_ids list.
          kernel_name = "id: "//TRIM(ADJUSTL(cp_to_string(elpa_kernel)))
          DO i = 1, SIZE(elpa_kernel_ids)
             IF (elpa_kernel_ids(i) == elpa_kernel) THEN
@@ -474,74 +487,75 @@ CONTAINS
       elpa_obj => elpa_allocate()
 
       CALL elpa_obj%set("na", n, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("nev", neig, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("local_nrows", n_rows, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("local_ncols", n_cols, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("nblk", nblk, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("mpi_comm_parent", group%get_handle(), success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("process_row", myprow, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       CALL elpa_obj%set("process_col", mypcol, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       success = elpa_obj%setup()
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
-      CALL elpa_obj%set("solver", elpa_solver_2stage, success)
-      CPASSERT(success == elpa_ok)
+      CALL elpa_obj%set("solver", CPELPA_SOLVER, success)
+      CPASSERT(success == ELPA_OK)
 
       ! enabling the GPU must happen before setting the kernel
-      IF (elpa_kernel == ELPA_2STAGE_REAL_NVIDIA_GPU) THEN
+      SELECT CASE (elpa_kernel)
+      CASE (ELPA_2STAGE_REAL_NVIDIA_GPU)
          CALL elpa_obj%set("nvidia-gpu", 1, success)
-         CPASSERT(success == elpa_ok)
-      END IF
-      IF (elpa_kernel == ELPA_2STAGE_REAL_AMD_GPU) THEN
+         CPASSERT(success == ELPA_OK)
+      CASE (ELPA_2STAGE_REAL_AMD_GPU)
          CALL elpa_obj%set("amd-gpu", 1, success)
-         CPASSERT(success == elpa_ok)
-      END IF
-      IF (elpa_kernel == ELPA_2STAGE_REAL_INTEL_GPU_SYCL) THEN
+         CPASSERT(success == ELPA_OK)
+      CASE (ELPA_2STAGE_REAL_INTEL_GPU_SYCL)
          CALL elpa_obj%set("intel-gpu", 1, success)
-         CPASSERT(success == elpa_ok)
-      END IF
+         CPASSERT(success == ELPA_OK)
+      END SELECT
 
+#if 2 == CPELPA_SOLVER_STAGES
       CALL elpa_obj%set("real_kernel", elpa_kernel, success)
-      CPWARN_IF(success /= elpa_ok, "Setting real_kernel for ELPA failed")
+      CPWARN_IF(success /= ELPA_OK, "Setting real_kernel for ELPA failed")
+#endif
 
       IF (use_qr) THEN
          CALL elpa_obj%set("qr", 1, success)
-         CPASSERT(success == elpa_ok)
+         CPASSERT(success == ELPA_OK)
       END IF
 
       ! Set number of threads only when ELPA was built with OpenMP support.
       IF (elpa_obj%can_set("omp_threads", omp_get_max_threads()) == ELPA_OK) THEN
          CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
-         CPASSERT(success == elpa_ok)
+         CPASSERT(success == ELPA_OK)
       END IF
 
       CALL elpa_obj%eigenvectors(matrix%local_data, eval, eigenvectors%local_data, success)
-      IF (success /= elpa_ok) &
+      IF (success /= ELPA_OK) &
          CPABORT("ELPA failed to diagonalize a matrix")
 
       IF (check_eigenvalues) THEN
          ! run again without QR
          CALL elpa_obj%set("qr", 0, success)
-         CPASSERT(success == elpa_ok)
+         CPASSERT(success == ELPA_OK)
 
          CALL elpa_obj%eigenvectors(matrix_noqr%local_data, eval_noqr, eigenvectors_noqr%local_data, success)
-         IF (success /= elpa_ok) &
+         IF (success /= ELPA_OK) &
             CPABORT("ELPA failed to diagonalize a matrix even without QR decomposition")
 
          IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) > th)) &
@@ -553,7 +567,7 @@ CONTAINS
       END IF
 
       CALL elpa_deallocate(elpa_obj, success)
-      CPASSERT(success == elpa_ok)
+      CPASSERT(success == ELPA_OK)
 
       eigenvalues(1:neig) = eval(1:neig)
       DEALLOCATE (eval)
