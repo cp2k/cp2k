@@ -190,10 +190,13 @@ fi
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}"
 
-if [[ "${BUILD_DEPS}" == "yes" || ! -d ${SPACK_BUILD_PATH} ]]; then
+# If requested, remove the spack folder for (re)building all CP2K dependencies
+[[ "${BUILD_DEPS}" == "yes" ]] && rm -rf "${SPACK_BUILD_PATH}"
+
+if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Install Spack
-  [[ ! -d ${SPACK_BUILD_PATH} ]] && mkdir -p "${SPACK_BUILD_PATH}"
+  [[ ! -d "${SPACK_BUILD_PATH}" ]] && mkdir -p "${SPACK_BUILD_PATH}"
   cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
   export SPACK_REPO="https://github.com/spack/spack"
   if [[ ! -d "${SPACK_ROOT}" ]]; then
