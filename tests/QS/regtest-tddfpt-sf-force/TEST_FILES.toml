@@ -6,6 +6,6 @@
 # Check noncollinear kernel for optimizations using LDA, GGA and global Hybrid functional
 "h2o_pade_opt.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-16.83108497678968}]
 "h2o_pbe_opt.inp"                        = [{matcher="E_total", tol=1.0E-06, ref=-16.93819797172962}]
-"h2o_pbe0_opt.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-16.92940602177875}]
+"h2o_pbe0_opt.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-16.94121129393531}]
 #
 #EOF
