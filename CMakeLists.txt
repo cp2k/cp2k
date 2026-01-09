@@ -188,12 +188,16 @@ cmake_dependent_option(
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
-  "CP2K_USE_ACCEL" OFF)
+  CP2K_ENABLE_ELPA_GPU "Enable acceleration for elpa related functions." ON
+  "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
   CP2K_ENABLE_GRID_GPU "Enable acceleration for grid related functions." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
+
+cmake_dependent_option(
+  CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
+  "CP2K_USE_ACCEL" OFF)
 
 cmake_dependent_option(
   CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
@@ -950,9 +954,10 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 
   message(
     "      - GPU accelerated modules\n"
-    "        - PW     module: ${CP2K_ENABLE_PW_GPU}\n"
+    "        - ELPA   module: ${CP2K_ENABLE_ELPA_GPU}\n"
     "        - GRID   module: ${CP2K_ENABLE_GRID_GPU}\n"
-    "        - DBM    module: ${CP2K_ENABLE_DBM_GPU}\n\n")
+    "        - DBM    module: ${CP2K_ENABLE_DBM_GPU}\n"
+    "        - PW     module: ${CP2K_ENABLE_PW_GPU}\n\n")
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)
