@@ -23,12 +23,8 @@ class MimicMcl(CMakePackage):
 
     version("3.0.0", sha256="3e740582836fe90e04a693cfc5a219826bcac03217f70ea5570bad6aeafda685")
 
-    variant("cxx_standard", default="17", description="Required CXX standard")
-    variant("cxx_standard_required", default=True, description="Require a specific CXX standard")
-    variant("cxx_extensions", default=False, description="Require CXX extensions")
-
     variant("build_tests", default=False, description="Build tests")
-    variant("enable_coverage", default=False, description="Enable code coverage report")
+    variant("coverage", default=False, description="Enable code coverage report")
     variant("build_fortran_api", default=True, description="Build Fortran API module")
     variant("build_shared_libs", default=True, description="Build using shared libraries")
     variant(
@@ -56,11 +52,8 @@ class MimicMcl(CMakePackage):
 
     def cmake_args(self):
         args = [
-            self.define_from_variant("CXX_STANDARD", "cxx_standard"),
-            self.define_from_variant("CXX_STANDARD_REQUIRED", "cxx_standard_required"),
-            self.define_from_variant("CXX_EXTENSIONS", "cxx_extensions"),
             self.define_from_variant("BUILD_TESTS", "build_tests"),
-            self.define_from_variant("ENABLE_COVERAGE", "enable_coverage"),
+            self.define_from_variant("ENABLE_COVERAGE", "coverage"),
             self.define_from_variant("BUILD_FORTRAN_API", "build_fortran_api"),
             self.define_from_variant("BUILD_SHARED_LIBS", "build_shared_libs"),
             self.define_from_variant("DISABLE_MPI_F08", "disable_mpi_f08"),
