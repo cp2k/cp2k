@@ -85,13 +85,6 @@ FLAG_EXCEPTIONS = (
     r"__PW_FPGA_SP",
     r"__NO_SOCKETS",
     r"__SCALAPACK_NO_WA",
-    r"__CRAY_PM_ACCEL_ENERGY",
-    r"__CRAY_PM_ENERGY",
-    r"__NO_STATM_ACCESS",
-    r"__STATM_RESIDENT",
-    r"__STATM_TOTAL",
-    r"__CRAY_PM_ACCEL_ENERGY",
-    r"__CRAY_PM_ENERGY",
     r"__STATM_RESIDENT",
     r"__STATM_TOTAL",
 )
