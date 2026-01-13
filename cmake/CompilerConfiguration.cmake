@@ -60,7 +60,10 @@ if(APPLE
   set(_CP2K_GNU_NATIVE_TUNE "-mcpu=native")
 endif()
 if(APPLE)
-  add_definitions(-D__MACOSX -D__NO_STATM_ACCESS)
+  add_definitions(-D__MACOSX)
+endif()
+if(APPLE OR BSD)
+  add_definitions(-D__NO_STATM_ACCESS)
 endif()
 
 # Release
