@@ -23,15 +23,11 @@ class MimicMcl(CMakePackage):
 
     version("3.0.0", sha256="3e740582836fe90e04a693cfc5a219826bcac03217f70ea5570bad6aeafda685")
 
-    variant("build_tests", default=False, description="Build tests")
     variant("coverage", default=False, description="Enable code coverage report")
-    variant("build_fortran_api", default=True, description="Build Fortran API module")
-    variant("build_shared_libs", default=True, description="Build using shared libraries")
-    variant(
-        "disable_mpi_f08",
-        default=False,
-        description="Disable MPI F08 Fortran module (even if it is available)",
-    )
+    variant("fortran", default=True, description="Build Fortran API module")
+    variant("mpi_f08", default=True, description="Enable MPI F08 Fortran module")
+    variant("shared", default=True, description="Build using shared libraries")
+    variant("tests", default=False, description="Build tests")
     variant(
         "build_type",
         default="Release",
@@ -42,7 +38,7 @@ class MimicMcl(CMakePackage):
     depends_on("c", type="build")
     depends_on("cxx", type="build")
 
-    depends_on("fortran", when="+build_fortran_api", type="build")
+    depends_on("fortran", when="+fortran", type="build")
 
     depends_on("cmake@3.12:", type="build")
     depends_on("mpi@2.1:", type="build")
@@ -52,10 +48,10 @@ class MimicMcl(CMakePackage):
 
     def cmake_args(self):
         args = [
-            self.define_from_variant("BUILD_TESTS", "build_tests"),
             self.define_from_variant("ENABLE_COVERAGE", "coverage"),
-            self.define_from_variant("BUILD_FORTRAN_API", "build_fortran_api"),
-            self.define_from_variant("BUILD_SHARED_LIBS", "build_shared_libs"),
-            self.define_from_variant("DISABLE_MPI_F08", "disable_mpi_f08"),
+            self.define_from_variant("BUILD_FORTRAN_API", "fortran"),
+            self.define("DISABLE_MPI_F08", self.spec.satisfies("~mpi_f08")),
+            self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
+            self.define_from_variant("BUILD_TESTS", "tests"),
         ]
         return args
