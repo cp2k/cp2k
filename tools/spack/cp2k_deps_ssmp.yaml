@@ -1,97 +1,122 @@
-# Spack environment file for a serial CP2K binary with all available dependencies
+# Spack environment file for serial CP2K binary with all available dependencies
 
 spack:
   concretizer:
     unify: true
+
   config:
     install_tree:
       root: /opt/spack
+
   modules:
     prefix_inspections:
       ./lib:
         - LD_LIBRARY_PATH
       ./lib64:
         - LD_LIBRARY_PATH
+
   packages:
     all:
       buildable: true
-      prefer:
-        - ~cuda
-        - ~mpi
-        - +openmp
-        - +pic
-        - ~rocm
-      require: target=""
+      variants:
+        - "~cuda"
+        - "~mpi"
+        - "+openmp"
+        - "+pic"
+        - "~rocm"
+
+    # Build tools
+    cmake:
+      require:
+        - "cmake@3.24:"
+
+    ninja:
+      require:
+        - "ninja@1.10:"
+
+    # ScaLAPACK, LAPACK, BLAS
     blas:
       require:
         - openblas
+
     lapack:
       require:
         - openblas
+
     openblas:
       require:
-        - +fortran
-        - threads=openmp
-    # Dependencies for CP2K
+        - "+fortran"
+        - "threads=openmp"
+
+    # Libraries needed by CP2K
     dbcsr:
       require:
-        - ~examples
-        - +openmp
-        - smm=blas
+        - "~examples"
+        - "+openmp"
+        - "smm=blas"
+
     deepmdkit:
       require:
-        - +pytorch
-        - build_system=cmake
+        - "+pytorch"
+        - "build_system=cmake"
+
     dftd4:
       require:
-        - build_system=cmake
+        - "build_system=cmake"
     fftw:
       require:
-        - +openmp
+        - "+openmp"
+
     hdf5:
       require:
-        - +fortran
+        - "+fortran"
+
     libint:
       require:
-        - +fortran
-        - tune=cp2k-lmax-5
+        - "+fortran"
+        - "tune=cp2k-lmax-5"
+
     libxc:
       require:
-        - +kxc
-        - build_system=cmake
+        - "+kxc"
+        - "build_system=cmake"
+
     py-torch:
       require:
-        - ~cuda
-        - ~distributed
-        - ~kineto
-        - ~mkldnn
-        - ~rocm
-        - ~valgrind
+        - "~cuda"
+        - "~distributed"
+        - "~kineto"
+        - "~mkldnn"
+        - "~rocm"
+        - "~valgrind"
+
+    tblite:
+      require:
+        - "build_system=cmake"
+
     trexio:
       require:
-        - +hdf5
-        - build_system=cmake
+        - "+hdf5"
+        - "build_system=cmake"
+
   specs:
-    # Minimal
-    - "cmake@3.24:"
-    - "dbcsr@2.9.1"
-    - "ninja@1.10:"
-    - "openblas@0.3.30"
-    # All
-    - "deepmdkit@3.1.2"
-    - "dftd4@3.7.0"
-    - "fftw@3.3.10"
-    - "greenx@2.2"
-    - "hdf5@1.14.6"
-    - "lammps-user-pace@2025.12.4"
-    - "libint@2.11.1"
-    - "libvori@220621"
-    - "libxc@7.0.0"
-#   - "libxsmm@1.17"
-    - "py-torch@2.9.0"
-    - "spglib@2.5.0"
-#   - "tblite@0.5.0" CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
-    - "trexio@2.5.0"
+    - dbcsr@2.9.1
+    - deepmdkit@3.1.2
+    - dftd4@3.7.0
+    - fftw@3.3.10
+    - greenx@2.2
+    - hdf5@1.14.6
+    - lammps-user-pace@2025.12.4
+    - libint@2.11.1
+    - libvori@220621
+    - libxc@7.0.0
+#   - libxsmm@1.17
+    - openblas@0.3.30
+    - py-torch@2.9.0
+    - spglib@2.5.0
+#   - tblite@0.5.0 CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
+    - trexio@2.5.0
+
   view:
     default:
       root: /opt/spack/view
