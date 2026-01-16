@@ -21,6 +21,7 @@ spack:
       prefer:
         - "~cuda"
         - "+mpi"
+        - "+mpi_f08"
         - "+openmp"
         - "+pic"
         - "~rocm"
@@ -59,6 +60,10 @@ spack:
       require:
         - openblas
 
+    libxsmm:
+      require:
+        - "blas=default"
+
     openblas:
       require:
         - "+fortran"
@@ -81,7 +86,7 @@ spack:
       require:
         - "~examples"
         - "+openmp"
-        - "smm=blas"
+        - "smm=libxsmm"
 
     deepmdkit:
       require:
@@ -174,7 +179,7 @@ spack:
     - libvdwxc@0.4.0
     - libvori@220621
     - libxc@7.0.0
-#   - libxsmm@1.17
+    - libxsmm@1.17
     - mimic-mcl@3.0.0
     - mpich@4.3.2
     - netlib-scalapack@2.2.2

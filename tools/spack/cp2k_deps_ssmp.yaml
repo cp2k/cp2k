@@ -21,6 +21,7 @@ spack:
       prefer:
         - "~cuda"
         - "~mpi"
+        - "~mpi_f08"
         - "+openmp"
         - "+pic"
         - "~rocm"
@@ -43,6 +44,10 @@ spack:
       require:
         - openblas
 
+    libxsmm:
+      require:
+        - "blas=default"
+
     openblas:
       require:
         - "+fortran"
@@ -53,7 +58,7 @@ spack:
       require:
         - "~examples"
         - "+openmp"
-        - "smm=blas"
+        - "smm=libxsmm"
 
     deepmdkit:
       require:
@@ -110,7 +115,7 @@ spack:
     - libint@2.11.1
     - libvori@220621
     - libxc@7.0.0
-#   - libxsmm@1.17
+    - libxsmm@1.17
     - openblas@0.3.30
     - py-torch@2.9.0
     - spglib@2.5.0
