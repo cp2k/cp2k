@@ -49,9 +49,8 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
-    -DCP2K_USE_TBLITE=OFF \
     -DCP2K_USE_OPENPMD=ON \
+    -DCP2K_USE_TBLITE=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -62,7 +61,6 @@ elif [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_TBLITE=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
