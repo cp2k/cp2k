@@ -18,7 +18,7 @@ spack:
   packages:
     all:
       buildable: true
-      variants:
+      prefer:
         - "~cuda"
         - "~mpi"
         - "+openmp"
