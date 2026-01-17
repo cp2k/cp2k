@@ -179,7 +179,7 @@ spack:
     - libvdwxc@0.4.0
     - libvori@220621
     - libxc@7.0.0
-    - libxsmm@1.17
+    - libxsmm@1.17-cp2k
     - mimic-mcl@3.0.0
     - mpich@4.3.2
     - netlib-scalapack@2.2.2
