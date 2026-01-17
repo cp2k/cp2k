@@ -28,7 +28,7 @@ class Libxsmm(MakefilePackage):
     # after 2.0 release.
     version("main-2023-11", commit="0d9be905527ba575c14ca5d3b4c9673916c868b2")
     version("main", branch="main")
-    version("1.17-cp2k", commit="6f883620f58afdeebab28039fc9cf580e76a5ec6")
+    version("1.17-cp2k", commit="e0c4a2389afba36c453233ad7de07bd92c715bec")
     version(
         "1.17",
         sha256="8b642127880e92e8a75400125307724635ecdf4020ca4481e5efe7640451bb92",
@@ -87,6 +87,11 @@ class Libxsmm(MakefilePackage):
         when="@1.17:",
         description="Max. JIT buffer size increased to 256 KiB",
     )
+    variant(
+        "wrap",
+        default="0",
+        description="Set WRAP to determines the kind of routine called for intercepted GEMMs",
+    )
 
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
@@ -101,7 +106,7 @@ class Libxsmm(MakefilePackage):
 
     # Version 2.0 supports both x86_64 and aarch64
     requires("target=x86_64:", "target=aarch64:")
-    requires("target=x86_64:", when="@:1")
+    # requires("target=x86_64:", when="@:1")
 
     @property
     def libs(self):
@@ -120,10 +125,10 @@ class Libxsmm(MakefilePackage):
             "FC={0}".format(spack_fc),
             "PREFIX=%s" % prefix,
         ]
-        if spec.target.family == "aarch64":
-            make_args += ["PLATFORM=1"]
-        else:
-            make_args += ["SYM=1"]
+        # if spec.target.family == "aarch64":
+        #   make_args += ["PLATFORM=1"]
+        # else:
+        #   make_args += ["SYM=1"]
 
         # JIT (AVX and later) makes MNK, M, N, or K spec. superfluous
         # make_args += ['MNK=1 4 5 6 8 9 13 16 17 22 23 24 26 32']
@@ -142,6 +147,9 @@ class Libxsmm(MakefilePackage):
 
         if spec.satisfies("+shared"):
             make(*(make_args + ["STATIC=0"]))
+
+        wrap_val = spec.variants["wrap"].value
+        make_args += ["WRAP={0}".format(wrap_val)]
 
         # builds static libraries by default
         make(*make_args)
