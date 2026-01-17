@@ -82,8 +82,8 @@ RUN ./setup_spack_cache.sh
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 COPY ./tools/spack/cp2k_deps_${CP2K_VERSION}.yaml ./
-RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
-        -E -e '/\s*#\s*-\s+"openmpi/ s/#/ /' \
+RUN sed -E -e '/\s*-\s+mpich@/ s/^ /#/' \
+        -E -e '/\s*#\s*-\s+openmpi@/ s/#/ /' \
         -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
         -i cp2k_deps_${CP2K_VERSION}.yaml
 COPY ./tools/spack/spack_repo/cp2k_dev ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev/
