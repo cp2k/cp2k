@@ -188,7 +188,8 @@ CONTAINS
          a02(i) = a2(i)/alat
          a03(i) = a3(i)/alat
       END DO
-      WRITE (iout, '(" KPSYM| NUMBER OF ATOMS (STRUCT):",I6)') nat
+      IF (iout > 0) &
+         WRITE (iout, '(" KPSYM| NUMBER OF ATOMS (STRUCT):",I6)') nat
       IF (iout > 0) &
          WRITE (iout, '(" KPSYM|",10X,"K   TYPE",14X,"X(K)")')
       itype = 0
@@ -2342,25 +2343,20 @@ CONTAINS
 !deb
       IF (iout > 0) THEN
          ! IMESH: Number of k points in the mesh.
-         IF (iout > 0) &
-            WRITE (iout, &
-                   '(" KPSYM| THE WAVEVECTOR MESH CONTAINS ",I5," POINTS")') imesh
-         IF (iout > 0) &
-            WRITE (iout, '(" KPSYM| THE POINTS ARE:")')
+         WRITE (iout, &
+                '(" KPSYM| THE WAVEVECTOR MESH CONTAINS ",I5," POINTS")') imesh
+         WRITE (iout, '(" KPSYM| THE POINTS ARE:")')
          DO ii = 1, imesh
             i = ii
             CALL mesh(iout, wva, i, igarb0, igarbg, nkpoint, nhash, &
                       list, rlist, delta)
             IF (MOD(i, 2) == 1) THEN
-               IF (iout > 0) &
-                  WRITE (iout, '(1X,I5,3F10.4)', advance="no") i, wva
+               WRITE (iout, '(1X,I5,3F10.4)', advance="no") i, wva
             ELSE
-               IF (iout > 0) &
-                  WRITE (iout, '(1X,I5,3F10.4)') i, wva
+               WRITE (iout, '(1X,I5,3F10.4)') i, wva
             END IF
          END DO
-         IF (iout > 0) &
-            WRITE (iout, *)
+         WRITE (iout, *)
       END IF
       ! ==--------------------------------------------------------------==
       IF (istriz == 1) THEN
@@ -2407,7 +2403,7 @@ CONTAINS
 280            CONTINUE
             END DO
          END DO
-         IF ((iremov > 0 .AND. iout > 0) .AND. iout > 0) &
+         IF (iremov > 0 .AND. iout > 0) &
             WRITE (iout, '(A,A,/,A,1X,I6,A,/)') &
             ' KPSYM| SOME OF THESE MESH POINTS ARE RELATED BY LATTICE ', &
             'TRANSLATION VECTORS', &
