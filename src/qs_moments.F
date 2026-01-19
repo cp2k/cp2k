@@ -3635,7 +3635,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_k, H_k, S_k, D_k, CDC, C_dH_C, &
                                                             C_dS_C, dH_dk_i, dS_dk_i
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip, dipole_to_print
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole_to_store
       INTEGER                                            :: handle, i_dir, ikp, nkp, nmo, &
                                                             n_img_scf, n_img_all, nao, &
@@ -3648,7 +3648,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvals
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc, xkp
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc_to_print
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: bc_to_store
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE  :: bc_to_store
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          ALLOCATABLE                                     :: D_rs, H_rs, S_rs
       TYPE(cell_type), POINTER                           :: cell
@@ -3717,19 +3717,20 @@ CONTAINS
       num_copy = CEILING(REAL(nkp)/num_pe)
       CALL get_cell(cell=cell, h=hmat)
 
-      ALLOCATE (dipole_to_store(num_copy, 3, nao, nao), dipole_to_print(3, nao, nao), source=z_zero)
-      ALLOCATE (bc_to_store(num_copy, 3, nao), bc_to_print(3, nao), source=0.0_dp)
+      ALLOCATE (dipole_to_store(nspin, num_copy, 3, nao, nao), source=z_zero)
+      ALLOCATE (bc_to_store(nspin, num_copy, 3, nao), source=0.0_dp)
 
-      DO ispin = 1, nspin
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, &
+!$OMP PARALLEL PRIVATE(ikp, S_k, H_k, eigenvals, C_k, &
 !$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
-!$OMP SHARED(num_pe, mepos,dipole_to_store, bc_to_store, nmo, nao, ispin, &
-!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, unit_number)
+!$OMP SHARED(num_pe, mepos, dipole_to_store, bc_to_store, nmo, nao, ispin, &
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat)
+      ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
+      ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
+      ALLOCATE (C_k(nao, nao), D_k(nao, nao), source=z_zero)
+      ALLOCATE (eigenvals(nao), bc(3, nao), source=0.0_dp)
+!$OMP DO COLLAPSE(2)
+      DO ispin = 1, nspin
          DO ikp = 1, nkp
-            ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
-            ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
-            ALLOCATE (C_k(nao, nao), D_k(nao, nao), source=z_zero)
-            ALLOCATE (eigenvals(nao), bc(3, nao), source=0.0_dp)
             IF (mod(ikp - 1, num_pe) /= mepos) CYCLE
 
             ! S^R -> S(k), H^R -> H(k)
@@ -3794,20 +3795,24 @@ CONTAINS
                END DO
             END DO
             ! Store the dipoles and berry curvature for each MPI rank
-            dipole_to_store(CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
-            bc_to_store(CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
+            dipole_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
+            bc_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
 
-            DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C,CDC, dip, S_k, H_k)
-            DEALLOCATE (C_k, D_k, eigenvals, bc)
          END DO
-!$OMP END PARALLEL DO
+      END DO
+!$OMP END DO
+      DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals, bc)
+!$OMP END PARALLEL 
 
-         DO ikp = 1, nkp
+      ALLOCATE (dipole_to_print(3, nao, nao), source=z_zero)
+      ALLOCATE (bc_to_print(3, nao), source=0.0_dp)
+      DO ikp = 1, nkp
+         DO ispin = 1, nspin
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
             IF (mod(ikp - 1, num_pe) == mepos) THEN
-               dipole_to_print(:, :, :) = dipole_to_store(CEILING(REAL(ikp)/num_pe), :, :, :)
-               bc_to_print(:, :) = bc_to_store(CEILING(REAL(ikp)/num_pe), :, :)
+               dipole_to_print(:, :, :) = dipole_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :, :)
+               bc_to_print(:, :) = bc_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :)
             END IF
             CALL para_env%sum(dipole_to_print)
             CALL para_env%sum(bc_to_print)
@@ -3834,7 +3839,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      DEALLOCATE (dipole_to_print, bc_to_print, bc_to_store, dipole_to_store)
+      DEALLOCATE (dipole_to_print, bc_to_print, bc_to_store, dipole_to_store, S_rs, H_rs, D_rs)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
 
