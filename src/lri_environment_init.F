@@ -283,7 +283,6 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, natom=natom)
          ! initialize pointers to RI basis vector
          ALLOCATE (lri_env%ri_fit%bas_ptr(2, natom))
-         ALLOCATE (kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
          nbas = 0
          DO iat = 1, natom
