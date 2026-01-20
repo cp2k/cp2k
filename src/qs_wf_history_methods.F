@@ -1176,7 +1176,9 @@ CONTAINS
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
-         !CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
+         write(6,*) "DBCSR FITTING   ", coeffs
+         CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
+         write(6,*) "STANDARD FITTING", coeffs
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1256,6 +1258,7 @@ CONTAINS
          ALLOCATE(coeffs(nvec))
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL dbcsr_tr_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
          CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
 
          my_orthogonal_wf = .TRUE.
@@ -1970,9 +1973,9 @@ CONTAINS
       CALL dgemv("n",nd,nvec,1.0_dp,d,nd,coeffs,1,0.0_dp,test_d,1)
       test_d(:) = test_d(:) - target_d(:)
       dev = dlange('f',nd,1,test_d,1,xx)
-      WRITE(6,*) "Fitting error:", dev
-      WRITE(6,*) "Fitting coeffs:", coeffs
-      WRITE(6,*) "Sum coeffs:", sum(coeffs)
+      WRITE(6,*) "STD: Fitting error:", dev
+      WRITE(6,*) "STD: Fitting coeffs:", coeffs
+      WRITE(6,*) "STD: Sum coeffs:", sum(coeffs)
 
       DEALLOCATE(d,target_d,test_d)
 
@@ -2220,6 +2223,8 @@ CONTAINS
       TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
       TYPE(dbcsr_type) :: tmp_i, tmp_j, tmp_k, target_diff
 
+      WRITE(6,*) "DBCSR_FITTING"
+
       IF (nvec.LE.0) THEN
          CPABORT("Not enough vectors to do the fitting")
       ELSE IF (nvec.EQ.1) THEN
@@ -2317,9 +2322,9 @@ CONTAINS
 !
 !   Debug: call the dgels version of the fitting.
 !
-    call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
-        & coefficients,error)
-    return
+!   call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
+!       & coefficients,error)
+!   return
 !
     allocate(a(q,q),stat=info)
     if (info.ne.0) then
@@ -2346,6 +2351,8 @@ CONTAINS
 !
 !   Solve the linear system A coeff = b.
 !
+    write(6,*) "STD: A", A
+    write(6,*) "STD: b", coefficients
     call dposv('u',q,1,a,q,coefficients,q,info)
     if (info.ne.0) then
         error = 43
@@ -2358,6 +2365,109 @@ CONTAINS
         return
     end if
 !
-end subroutine ls_fitting
+    end subroutine ls_fitting
+
+   SUBROUTINE dbcsr_tr_fitting(wf_history, current_overlap, coeffs, nvec)
+      INTEGER, INTENT(IN) :: nvec
+      TYPE(qs_wf_history_type), POINTER :: wf_history
+      TYPE(dbcsr_type), INTENT(IN) :: current_overlap
+      REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+
+      INTEGER :: ntr, i, j, info
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: b
+      TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
+      TYPE(dbcsr_type) :: tmp_i, tmp_j, tmp_k, target_overlap
+
+      IF (nvec.LE.0) THEN
+         CPABORT("Not enough vectors to do the fitting")
+      ELSE IF (nvec.EQ.1) THEN
+         coeffs(1) = 1.0_dp
+         RETURN
+      END IF
+
+      IF (mod(nvec,2).EQ.0) THEN
+          ntr = nvec/2
+      ELSE
+          ntr = (nvec-1)/2
+      END IF
+
+      ALLOCATE(A(ntr,ntr), b(ntr))
+
+      ! get the reference for the difference fitting
+      ref_state => wfi_get_snapshot(wf_history, wf_index=nvec)
+
+      ! assemble the target sum
+      CALL dbcsr_copy(target_overlap, current_overlap)
+      CALL dbcsr_add(target_overlap, ref_state%overlap, 1.0_dp, 1.0_dp)
+
+      ! allocate tmp_k
+      CALL dbcsr_copy(tmp_k, current_overlap)
+
+      ! assemble the matrix A and the RHS b
+      DO i = 1, ntr
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_copy(tmp_i, state%overlap)
+         state => wfi_get_snapshot(wf_history, wf_index=nvec-i)
+         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, 1.0_dp)
+
+         CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_overlap, &
+            0.0_dp, tmp_k)
+         CALL dbcsr_trace(tmp_k, b(i))
+         DO j = 1, i
+            state => wfi_get_snapshot(wf_history, wf_index=j)
+            CALL dbcsr_copy(tmp_j, state%overlap)
+            state => wfi_get_snapshot(wf_history, wf_index=nvec-j)
+            CALL dbcsr_add(tmp_j, state%overlap, 1.0_dp, 1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, tmp_j, 0.0_dp, tmp_k)
+            CALL dbcsr_trace(tmp_k, A(j, i))
+            A(i, j) = A(j, i)
+         END DO
+      END DO
+
+      ! technically not needed, but anyway used for consistency between
+      ! the square overlap (used here) and the lower triangular overlap
+      !A(1:ntr,1:ntr) = 0.5_dp*A(1:ntr,1:ntr)
+      !B(1:ntr) = 0.5_dp*b(1:ntr)
+
+      ! add the Tikhonov regularization
+      DO i = 1, ntr
+         A(i, i) = A(i, i) + 1e-8_dp
+      END DO
+
+      ! solve the linear system
+      write(6,*) "DBCSR: A", A
+      write(6,*) "DBCSR: b", b
+      CALL dposv('u', ntr, 1, A, ntr, b, ntr, info)
+      IF (info.ne.0) THEN
+         CPABORT("DPOSV failed.")
+      END IF
+
+      ! reorder the coefficients
+      coeffs = 0.0_dp
+      coeffs(nvec) = -1.0_dp
+      do i = 1, ntr
+        coeffs(i) = coeffs(i) + b(i)
+        coeffs(nvec-i) = coeffs(nvec-i) + b(i)
+      end do
+
+      ! debug: test how good is approximated the target overlap
+      CALL dbcsr_copy(tmp_i, current_overlap)
+      DO i = 1, nvec
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+      END DO
+      WRITE(6,*) "DBCSR: Fitting error:", dbcsr_frobenius_norm(tmp_i)
+      WRITE(6,*) "DBCSR: Fitting coeffs:", coeffs
+      WRITE(6,*) "DBCSR: Sum coeffs:", sum(coeffs)
+
+      ! free the memory
+      CALL dbcsr_release(tmp_i)
+      CALL dbcsr_release(tmp_j)
+      CALL dbcsr_release(tmp_k)
+      CALL dbcsr_release(target_overlap)
+      DEALLOCATE(A, b)
+
+   END SUBROUTINE dbcsr_tr_fitting
 
 END MODULE qs_wf_history_methods
