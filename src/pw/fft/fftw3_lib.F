@@ -459,8 +459,6 @@ CONTAINS
                                      zin, zout, fft_direction, fftw_plan_type, &
                                      valid)
 
-      IMPLICIT NONE
-
       TYPE(C_PTR), INTENT(INOUT)                         :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
@@ -513,9 +511,6 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION fftw3_is_guru_supported() RESULT(guru_supported)
-
-      IMPLICIT NONE
-
       LOGICAL :: guru_supported
 #if defined(__FFTW3)
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
@@ -992,10 +987,7 @@ CONTAINS
 !> \param plan_style ...
 ! **************************************************************************************************
    SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
-
-      IMPLICIT NONE
-
-      TYPE(fft_plan_type), INTENT(INOUT)              :: plan
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
       INTEGER, INTENT(IN)                                :: plan_style
@@ -1172,7 +1164,7 @@ CONTAINS
 !$OMP END MASTER
          CALL dfftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
 !$    end if
-! all theads need to meet at this barrier
+! all threads need to meet at this barrier
 !$OMP BARRIER
 !$    if (my_id < plan%num_threads_needed) then
          IF (scale /= 1.0_dp) CALL zdscal(plan%n*num_rows, scale, zout(scal_offset:scal_offset), 1)

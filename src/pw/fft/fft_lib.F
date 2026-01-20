@@ -284,4 +284,3 @@ CONTAINS
    END SUBROUTINE fft_1dm
 
 END MODULE fft_lib
-
