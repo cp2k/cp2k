@@ -1044,7 +1044,6 @@ CONTAINS
          END DO
 
          ! some cleanup
-         NULLIFY (weight_h, weight_s)
          DEALLOCATE (rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s)
          DEALLOCATE (drho_h, drho_s, vxg_h, vxg_s)
          DEALLOCATE (drho1_h, drho1_s)

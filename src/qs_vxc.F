@@ -253,7 +253,10 @@ CONTAINS
             END DO
             IF (tau_r_valid) THEN
                ! tau with finer grids is not implemented (at least not correctly), which this asserts
-               CPABORT("tau with finer grids not implemented")
+               CPABORT("Tau (MGGA) with finer grids not implemented")
+            END IF
+            IF (ASSOCIATED(weights)) THEN
+               CPABORT("Accurate integration with finer grids not implemented")
             END IF
          END IF
 

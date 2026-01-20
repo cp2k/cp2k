@@ -724,6 +724,13 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
             END IF
             CALL accint_weight_force(qs_env, rho_struct, xc_section)
+            !
+            IF (dft_control%do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env)
+               xc_section => admm_env%xc_section_aux
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_struct)
+               CALL accint_weight_force(qs_env, rho_struct, xc_section)
+            END IF
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN

@@ -1,0 +1,22 @@
+#
+"Ar-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944198733016}]
+"Ar-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944239056047}]
+"Ar-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848179618906}]
+"Ar-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848219953337}]
+#
+"HF-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.3509709548997}]
+"HF-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.1363374234943}]
+"HF-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.3509805804002}]
+"HF-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.2328561104310}]
+"HF-5.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.1323241157565}]
+#
+"HF-d1.inp"                             = []
+"HF-d2.inp"                             = []
+"HF-d3.inp"                             = []
+"HF-d4.inp"                             = []
+"HF-d5.inp"                             = []
+"HF-d6.inp"                             = []
+#
+"F2.inp"                                = []
+"h2o.inp"                               = [{matcher="E_total", tol=1e-12, ref=-17.26044915752584}]
+#EOF

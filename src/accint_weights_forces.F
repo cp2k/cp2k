@@ -80,20 +80,20 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
 
          CALL get_qs_env(qs_env=qs_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-         CALL get_qs_env(qs_env=qs_env, natom=natom, nkind=nkind)
+         CALL get_qs_env(qs_env, natom=natom, nkind=nkind)
          ALLOCATE (aforce(3, natom))
          ALLOCATE (calpha(nkind), cvalue(nkind))
          cvalue = 1.0_dp
          calpha(1:nkind) = dft_control%qs_control%gapw_control%aw(1:nkind)
 
-         CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, pw_env=pw_env)
+         CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(e_rspace)
 
@@ -104,7 +104,7 @@ CONTAINS
 
          CALL auxbas_pw_pool%give_back_pw(e_rspace)
 
-         CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
             DO iatom = 1, natom_of_kind
@@ -165,12 +165,12 @@ CONTAINS
       ALLOCATE (hab(1, 1))
       ALLOCATE (pab(1, 1))
 
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
+      CALL get_qs_env(qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_v)
 
       CALL transfer_pw2rs(rs_v, e_rspace)
 
-      CALL get_qs_env(qs_env=qs_env, &
+      CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       cell=cell, &
                       dft_control=dft_control, &
