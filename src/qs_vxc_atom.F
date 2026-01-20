@@ -228,7 +228,7 @@ CONTAINS
                ALLOCATE (weight_s(na, nr))
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                DO ir = 1, nr
-                  agr = 1.0_dp + EXP(-alpha*grid_atom%rad2(ir))
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
                   weight_s(:, ir) = grid_atom%weight(:, ir)*agr
                END DO
             ELSE
@@ -550,7 +550,7 @@ CONTAINS
                ALLOCATE (weight_s(na, nr))
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                DO ir = 1, nr
-                  agr = 1.0_dp + EXP(-alpha*grid_atom%rad2(ir))
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
                   weight_s(:, ir) = grid_atom%weight(:, ir)*agr
                END DO
             ELSE
@@ -886,7 +886,7 @@ CONTAINS
             ALLOCATE (weight_s(na, nr))
             alpha = dft_control%qs_control%gapw_control%aw(ikind)
             DO ir = 1, nr
-               agr = 1.0_dp + EXP(-alpha*grid_atom%rad2(ir))
+               agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
                weight_s(:, ir) = grid_atom%weight(:, ir)*agr
             END DO
          ELSE
@@ -1195,7 +1195,7 @@ CONTAINS
                ALLOCATE (weight_s(na, nr))
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                DO ir = 1, nr
-                  agr = 1.0_dp + EXP(-alpha*grid_atom%rad2(ikind))
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ikind))
                   weight_s(:, ir) = grid_atom%weight(:, ir)*agr
                END DO
             ELSE
@@ -1611,7 +1611,7 @@ CONTAINS
                ALLOCATE (weight_s(na, nr))
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                DO ir = 1, nr
-                  agr = 1.0_dp + EXP(-alpha*grid_atom%rad2(ir))
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
                   weight_s(:, ir) = grid_atom%weight(:, ir)*agr
                END DO
             ELSE

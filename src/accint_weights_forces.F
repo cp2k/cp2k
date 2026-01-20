@@ -23,6 +23,7 @@ MODULE accint_weights_forces
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -97,6 +98,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(e_rspace)
 
          CALL qs_xc_energy(ks_env, rho, xc_section, e_rspace)
+         CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
 
          CALL gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)
 

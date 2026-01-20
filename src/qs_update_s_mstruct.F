@@ -138,7 +138,7 @@ CONTAINS
          IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
             CALL get_qs_env(qs_env, xcint_weights=xcint_weights, nkind=nk)
             ALLOCATE (cw(nk))
-            cw = -1.0_dp
+            cw = 1.0_dp
             CALL calculate_rho_core(xcint_weights, wtot, qs_env, &
                                     dft_control%qs_control%gapw_control%aw, cw)
             xcint_weights%array = 1.0_dp + xcint_weights%array

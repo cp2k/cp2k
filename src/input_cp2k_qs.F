@@ -248,7 +248,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="ALPHA_WEIGHTS", &
          description="Gaussian exponent reference (rc=1.2 Bohr) for accurate integration in GAPW.", &
-         usage="ALPHA_WEIGHTS 10.0", default_r_val=8.0_dp)
+         usage="ALPHA_WEIGHTS 10.0", default_r_val=6.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

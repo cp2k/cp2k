@@ -665,7 +665,7 @@ CONTAINS
             END DO
             IF (accint) THEN
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
-               agr = 1.0_dp + EXP(-alpha*atomic_grid%rad2(ir))
+               agr = 1.0_dp - EXP(-alpha*atomic_grid%rad2(ir))
                DO ia = 1, na
                   weight_s(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)*agr
                END DO
