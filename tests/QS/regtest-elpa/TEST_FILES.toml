@@ -1,2 +1,3 @@
 "H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"H2O-6-1stage.inp"                      = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
 #EOF

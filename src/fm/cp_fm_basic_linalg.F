@@ -29,6 +29,11 @@ MODULE cp_fm_basic_linalg
    USE mathlib, ONLY: get_pseudo_inverse_svd, &
                       invert_matrix
    USE message_passing, ONLY: mp_comm_type
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+                              ieee_set_halting_mode, &
+                              IEEE_ALL
+#endif
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -731,6 +736,9 @@ CONTAINS
 #else
       INTEGER                                  :: lda, ldc
 #endif
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                    :: halt
+#endif
 
       CALL timeset(routineN, handle)
 
@@ -739,20 +747,23 @@ CONTAINS
       a => matrix_a%local_data
       c => matrix_c%local_data
 
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
 #if defined(__parallel)
-
       desca(:) = matrix_a%matrix_struct%descriptor(:)
       descc(:) = matrix_c%matrix_struct%descriptor(:)
 
       CALL pdsyrk(uplo, trans, n, k, alpha, a(1, 1), ia, ja, desca, beta, c(1, 1), 1, 1, descc)
-
 #else
-
       lda = SIZE(a, 1)
       ldc = SIZE(c, 1)
 
       CALL dsyrk(uplo, trans, n, k, alpha, a(ia, ja), lda, beta, c(1, 1), ldc)
-
+#endif
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
       CALL timestop(handle)
 
