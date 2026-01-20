@@ -10,21 +10,23 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 ## 2. Install prerequisites
 
-The easiest way to build CP2K with all its dependencies is as a
-[Docker container](./tools/docker/README.md) or via the `make_cp2k.sh` script,
-which builds CP2K using Spack and CMake locally within the CP2K_ROOT folder.
+The easiest way to build CP2K with all its dependencies is via the `make_cp2k.sh` script, which
+builds CP2K using Spack and CMake locally within the CP2K_ROOT folder.
 
 The script can either be sourced with:
+
 ```shell
 source ./make_cp2k.sh
 ```
 
 or run in a subshell with:
+
 ```shell
 ./make_cp2k.sh
 ```
-Note: it is recommended to install podman to take advantage of a spack cache.
-This will accelerate the build of the CP2K dependencies with Spack significantly.
+
+Note: it is recommended to install podman to take advantage of a spack cache. This will accelerate
+the build of the CP2K dependencies with Spack significantly.
 
 Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh) can also be run
 directly.
@@ -41,8 +43,8 @@ cd tools/toolchain/
 ```
 
 CP2K supports GPU acceleration via CUDA (for NVIDIA GPUs), HIP/ROCm (for AMD GPUs), and OpenCL (for
-a range of devices). If you wish to build with GPU support, please ensure to review sections 2i
-(CUDA), 2w (ROCm/HIP), and 2x (OpenCL) in this document for detailed instructions.
+a range of devices). If you wish to build with GPU support, please see the
+[manual](https://manual.cp2k.org/trunk/technologies/accelerators/index.html).
 
 - Launch toolchain script (example option choice for NVIDIA/CUDA):
 
