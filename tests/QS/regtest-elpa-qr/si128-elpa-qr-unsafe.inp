@@ -1,20 +1,13 @@
 &GLOBAL
   ELPA_KERNEL GENERIC
   ELPA_QR TRUE
-  ELPA_QR_UNSAFE TRUE
   PREFERRED_DIAG_LIBRARY ELPA
   PRINT_LEVEL MEDIUM
   PROJECT si128-elpa-qr-unsafe
   RUN_TYPE ENERGY
-  ! Block size must be larger than 63 to use ELPA_QR with ELPA versions 201605 or more recent
-  ! It is possible to bypass this check with ELPA_QR_UNSAFE, but for some
-  ! matrix order / matrix block size / total number of MPI processes combinations
-  ! this result in wrong eigenvalues
-  ! To test if it is safe to use ELPA_QR_UNSAFE for your system, turn on PRINT_ELPA
-  ! to verify the accuracy of all the eigenvalues (should be disabled for production)
-  ! Here it is safe to use ELPA_QR_UNSAFE
+  ! To test if it is safe to use ELPA_QR on your system, turn on PRINT_ELPA
+  ! to verify the computed eigenvalues (should be disabled for production)
   &FM
-    ! Default values
     NCOL_BLOCKS 32
     NROW_BLOCKS 32
   &END FM

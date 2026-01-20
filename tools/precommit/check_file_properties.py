@@ -75,7 +75,6 @@ FLAG_EXCEPTIONS = (
     r"TEST_LIBGRPP_.+",
     r"__LIBXSMM2",
     r"CPVERSION",
-    r"CPELPA_SOLVER_STAGES",
     r"_WIN32",
     r"OPENPMDAPI_VERSION_GE",
     r"openPMD_HAVE_MPI",
