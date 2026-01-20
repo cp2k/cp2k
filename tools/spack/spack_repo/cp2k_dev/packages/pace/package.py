@@ -20,28 +20,22 @@ class Pace(CMakePackage):
     `Phys Rev B 99 014104 (2019)<https://doi.org/10.1103/PhysRevB.99.014104>`__ for details.
     """
 
-    maintainers("hjjvandam", "rbberger")
+    maintainers("hjjvandam", "rbberger", "mkrack")
 
-    homepage = "https://www.icams.de/institute/departments-groups/atomistic-modelling-and-simulation/"
+    homepage = (
+        "https://www.icams.de/institute/departments-groups/atomistic-modelling-and-simulation/"
+    )
     git = "https://github.com/ICAMS/lammps-user-pace.git"
 
     license("GPL-2.0-or-later", checked_by="hjjvandam")
     version("main", branch="main")
+    version("2025.12.4", tag="v.2025.12.4", commit="8d0483447e94d17e01cbc1826a88cae1d8c3aab6")
     version(
-        "2025.12.4",
-        tag="v.2025.12.4",
-        commit="8d0483447e94d17e01cbc1826a88cae1d8c3aab6",
-    )
-    version(
-        "2023.11.25.2",
-        tag="v.2023.11.25.fix2",
-        commit="e60e850359b918ca93a5e9329548a58d31f4b12b",
+        "2023.11.25.2", tag="v.2023.11.25.fix2", commit="e60e850359b918ca93a5e9329548a58d31f4b12b"
     )
 
     variant("pic", default=True, description="Build position independent code")
-    variant(
-        "shared", default=False, description="Build shared libraries (otherwise static)"
-    )
+    variant("shared", default=False, description="Build shared libraries (otherwise static)")
 
     depends_on("cmake@3.10:", type="build")
     depends_on("cxx", type="build")
@@ -61,8 +55,7 @@ class Pace(CMakePackage):
         src = self.stage.source_path
         install_tree(join_path(src, "ML-PACE/ace"), join_path(prefix.include, "ace"))
         install_tree(
-            join_path(src, "ML-PACE/ace-evaluator"),
-            join_path(prefix.include, "ace-evaluator"),
+            join_path(src, "ML-PACE/ace-evaluator"), join_path(prefix.include, "ace-evaluator")
         )
         install_tree(join_path(src, "yaml-cpp/include"), prefix.include)
         mkdirp(prefix.lib)
