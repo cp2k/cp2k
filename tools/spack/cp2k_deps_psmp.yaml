@@ -148,7 +148,7 @@ spack:
     # Build tools
     - "cmake@3.24:"
     - "gcc@9:"
-    - "gmake@4.3:"
+    - "gmake@4.2:"
     - "mpich@4.3.2"
     - "ninja@1.10:"
 #   - "openmpi@5.0.8"
