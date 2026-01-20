@@ -25,15 +25,8 @@ spack:
         - "+openmp"
         - "+pic"
         - "~rocm"
-
-    # Build tools
-    cmake:
-      require:
-        - "cmake@3.24:"
-
-    ninja:
-      require:
-        - "ninja@1.10:"
+        - "build_system=cmake"
+        - "build_type=Release"
 
     # ScaLAPACK, LAPACK, BLAS
     blas:
@@ -63,11 +56,7 @@ spack:
     deepmdkit:
       require:
         - "+pytorch"
-        - "build_system=cmake"
 
-    dftd4:
-      require:
-        - "build_system=cmake"
     fftw:
       require:
         - "+openmp"
@@ -84,7 +73,6 @@ spack:
     libxc:
       require:
         - "+kxc"
-        - "build_system=cmake"
 
     py-torch:
       require:
@@ -95,32 +83,31 @@ spack:
         - "~rocm"
         - "~valgrind"
 
-    tblite:
-      require:
-        - "build_system=cmake"
-
     trexio:
       require:
         - "+hdf5"
-        - "build_system=cmake"
 
   specs:
-    - dbcsr@2.9.1
-    - deepmdkit@3.1.2
-    - dftd4@3.7.0
-    - fftw@3.3.10
-    - greenx@2.2
-    - hdf5@1.14.6
-    - lammps-user-pace@2025.12.4
-    - libint@2.11.1
-    - libvori@220621
-    - libxc@7.0.0
-    - libxsmm@1.17-cp2k
-    - openblas@0.3.30
-    - py-torch@2.9.0
-    - spglib@2.5.0
-#   - tblite@0.5.0 CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
-    - trexio@2.5.0
+    - "cmake@3.24:"
+    - "dbcsr@2.9.1"
+    - "deepmdkit@3.1.2"
+    - "dftd4@3.7.0"
+    - "fftw@3.3.10"
+    - "gcc@9:"
+    - "gmake@4.3:"
+    - "greenx@2.2"
+    - "hdf5@1.14.6"
+    - "libint@2.11.1"
+    - "libvori@220621"
+    - "libxc@7.0.0"
+    - "libxsmm@1.17-cp2k"
+    - "ninja@1.10:"
+    - "openblas@0.3.30"
+    - "pace@2025.12.4"
+    - "py-torch@2.9.0"
+    - "spglib@2.5.0"
+#   - "tblite@0.5.0" CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
+    - "trexio@2.5.0"
 
   view:
     default:
