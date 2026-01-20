@@ -1176,9 +1176,6 @@ CONTAINS
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
-         write(6,*) "DBCSR FITTING   ", coeffs
-         CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
-         write(6,*) "STANDARD FITTING", coeffs
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1259,7 +1256,6 @@ CONTAINS
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL dbcsr_tr_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
-         CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1286,7 +1282,6 @@ CONTAINS
             CALL cp_fm_create(tmp_square, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            WRITE(6,*) "SHAPE", shape(mo_coeff%local_data), n, k
             CALL save_matrix(mo_coeff%local_data,n,k,"matrices/C", wf_history%snapshot_count)
             CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
             CALL save_matrix(tmp_square%local_data,n,n,"matrices/S", wf_history%snapshot_count)
@@ -1918,69 +1913,6 @@ CONTAINS
        close(100)
    end subroutine save_matrix_bin
 
-   SUBROUTINE fitting_interface(wf_history, current_overlap, nvec, coeffs)
-      INTEGER, INTENT(IN) :: nvec
-      TYPE(qs_wf_history_type), POINTER :: wf_history
-      TYPE(dbcsr_type), INTENT(IN) :: current_overlap
-      REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
-
-      TYPE(cp_fm_type) :: square_fm
-      TYPE(qs_wf_snapshot_type), POINTER :: state
-      TYPE(cp_fm_struct_type), POINTER  :: matrix_struct, matrix_struct_new
-      INTEGER :: i, n, k, nd, error
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: d
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: target_d, &
-                                                  test_d
-      REAL(KIND=dp) :: dev, xx(1) = 0.0_dp, dlange
-
-      ! create a temporary square matrix
-      NULLIFY (state)
-      state => wfi_get_snapshot(wf_history, wf_index=1)
-      CALL cp_fm_get_info(state%wf(1), &
-                          nrow_global=n, &
-                          ncol_global=k, &
-                          matrix_struct=matrix_struct)
-
-      CALL cp_fm_struct_create(matrix_struct_new, &
-                               template_fmstruct=matrix_struct, &
-                               nrow_global=n, &
-                               ncol_global=n)
-      CALL cp_fm_create(square_fm, matrix_struct_new)
-      CALL cp_fm_struct_release(matrix_struct_new)
-
-      ! allocate the descriptor matrix
-      nd = n*(n+1)/2
-      ALLOCATE(d(nd,nvec),target_d(nd),test_d(nd))
-
-      ! convert overlaps to lower triangular dense matrices
-      CALL copy_dbcsr_to_fm(current_overlap, square_fm)
-      CALL square_to_lt(square_fm%local_data,target_d,n)
-
-      DO i = 1, nvec
-         state => wfi_get_snapshot(wf_history, wf_index=i)
-         CALL copy_dbcsr_to_fm(state%overlap, square_fm)
-         CALL square_to_lt(square_fm%local_data,d(:,i),n)
-      END DO
-
-      !CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
-      CALL tr_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
-      IF (error.ne.0) THEN
-         CPABORT("Fitting failed.")
-      END IF
-
-      ! test if the fitting is reasonable
-      CALL dgemv("n",nd,nvec,1.0_dp,d,nd,coeffs,1,0.0_dp,test_d,1)
-      test_d(:) = test_d(:) - target_d(:)
-      dev = dlange('f',nd,1,test_d,1,xx)
-      WRITE(6,*) "STD: Fitting error:", dev
-      WRITE(6,*) "STD: Fitting coeffs:", coeffs
-      WRITE(6,*) "STD: Sum coeffs:", sum(coeffs)
-
-      DEALLOCATE(d,target_d,test_d)
-
-   END SUBROUTINE fitting_interface
-
    subroutine square_to_lt(square,lt,n)
    !
    !   Given a symmetric square matrix, assemble the lower triangular.
@@ -2002,215 +1934,6 @@ CONTAINS
    !
    end subroutine square_to_lt
 
-   subroutine tr_fitting(descriptors,nd,q,target_descriptor,eps, &
-           & coefficients,error)
-       integer, intent(in) :: nd, q
-       real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
-           & eps
-       real(dp), intent(out) :: coefficients(q)
-       integer, intent(out) :: error
-
-       real(dp), allocatable :: tr_descriptors(:,:), tr_target(:), &
-           & tr_coefficients(:)
-       integer :: info, i, jp, jm, ntr, first, last
-
-       error = 0
-
-       if (q.eq.1) then
-           coefficients(1) = 1.0d0
-           return
-       end if
-
-
-       if (mod(q,2).eq.0) then
-           ntr = q/2
-       else
-           ntr = (q-1)/2
-       end if
-   !
-       last = 1
-       first = q
-   !
-       allocate(tr_descriptors(nd,ntr),tr_target(nd), &
-           & tr_coefficients(ntr),stat=info)
-       if (info.ne.0) then
-           error = 32
-           return
-       end if
-   !
-       do i = 1, ntr
-           jp = last + i - 1
-           jm = first - i
-           tr_descriptors(:,i) = descriptors(:,jp) + descriptors(:,jm)
-       end do
-   !
-       tr_target(:) = target_descriptor(:) + descriptors(:,first)
-   !
-   !   Call the normal least square fitting using the time reversible
-   !   quantities.
-   !
-       call ls_fitting(tr_descriptors,nd,ntr,tr_target,eps, &
-           & tr_coefficients,error)
-   !
-   !   Put back the coefficients where they should be.
-   !
-       coefficients = 0.0d0
-       do i = 1, ntr
-           jp = last + i - 1
-           jm = first - i
-           coefficients(jp) = coefficients(jp) + tr_coefficients(i)
-           coefficients(jm) = coefficients(jm) + tr_coefficients(i)
-       end do
-       coefficients(first) = -1.0d0
-   !
-       deallocate(tr_descriptors,tr_target,tr_coefficients,stat=info)
-       if (info.ne.0) then
-           error = 33
-           return
-       end if
-   !
-   end subroutine tr_fitting
-
-   subroutine diff_fitting(descriptors,nd,q,target_descriptor,eps, &
-           & coefficients,error)
-       integer, intent(in) :: nd, q
-       real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
-           & eps
-       real(dp), intent(out) :: coefficients(q)
-       integer, intent(out) :: error
-   !
-       real(dp), allocatable :: diff_descriptors(:,:), diff_target(:), &
-           & diff_coefficients(:)
-       integer :: info, i, j, last
-   !
-       error = 0
-       if (q.eq.1) then
-           coefficients(1) = 1.0d0
-           return
-       end if
-
-       allocate(diff_descriptors(nd,q-1),diff_target(nd), &
-           & diff_coefficients(q-1),stat=info)
-       if (info.ne.0) then
-           error = 34
-           return
-       end if
-
-       last = 1
-   !
-   !   Compute the difference between the descriptor and the reference.
-   !
-       do i = 1, q - 1
-           j = mod(i+last-1,q) + 1
-           diff_descriptors(:,i) = descriptors(:,j) - descriptors(:,last)
-       end do
-       diff_target(:) = target_descriptor(:) - descriptors(:,last)
-   !
-   !   Call the normal least square fitting using the diff quantities.
-   !
-       call ls_fitting(diff_descriptors,nd,q-1, &
-           & diff_target,eps,diff_coefficients,error)
-   !
-   !   Put back the coefficients where they should be.
-   !
-       do i = 1, q - 1
-           j = mod(i+last-1,q) + 1
-           coefficients(j) = diff_coefficients(i)
-       end do
-       coefficients(last) = 1.0d0 - sum(diff_coefficients)
-   !
-       deallocate(diff_descriptors,diff_target,diff_coefficients,stat=info)
-       if (info.ne.0) then
-           error = 35
-           return
-       end if
-   !
-   end subroutine diff_fitting
-
-   subroutine ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
-           & coefficients,error)
-   !
-   !   Given a matrix of descriptors of size (nd,q) and a target descriptor
-   !   of size (nd), find the linear combination that best approximates it.
-   !   The argument eps sets the Tikhonov regularization. This version
-   !   uses the lapack dgels, instead of constructing the pseudo-matrix.
-   !
-       integer, intent(in) :: nd, q
-       real(dp), intent(in) :: descriptors(nd,q), target_descriptor(nd), &
-           & eps
-       real(dp), intent(out) :: coefficients(q)
-       integer, intent(out) :: error
-   !
-       integer :: i, m_aug, info, lwork
-       real(dp), allocatable :: a(:,:), b(:), work(:)
-   !
-       error = 0
-       m_aug = nd
-       if (eps.ne.0.0d0) m_aug = nd + q
-   !
-       allocate(a(m_aug,q),b(m_aug),stat=info)
-       if (info.ne.0) then
-           error = 45
-           return
-       end if
-   !
-       a(1:nd,:) = descriptors
-       b(1:nd) = target_descriptor
-   !
-   !   If regularized, append eps * I to the matrix and zeros to the RHS.
-   !
-       if (eps.ne.0.0d0) then
-           a(nd+1:m_aug, :) = 0.0_dp
-           do i = 1, q
-               a(nd + i, i) = eps
-           end do
-           b(nd+1:m_aug) = 0.0_dp
-       end if
-   !
-   !   Query the optimal workspace size.
-   !
-       lwork = -1
-       allocate(work(1),stat=info)
-       if (info.ne.0) then
-           error = 46
-           return
-       end if
-   !
-       call dgels("n",m_aug,q,1,a,m_aug,b,m_aug,work,lwork,info)
-       if (info.ne.0) then
-           error = 47
-           return
-       end if
-   !
-       lwork = int(work(1))
-       deallocate(work,stat=info)
-       if (info.ne.0) then
-           error = 48
-           return
-       end if
-       allocate(work(lwork),stat=info)
-       if (info.ne.0) then
-           error = 49
-           return
-       end if
-   !
-   !   Solve the over-determined linear system.
-   !
-       call dgels("n",m_aug,q,1,a,m_aug,b,m_aug,work,lwork,info)
-       if (info.ne.0) then
-           error = 50
-           return
-       end if
-       coefficients = b(1:q)
-   !
-       deallocate(a,b,work,stat=info)
-       if (info.ne.0) then
-           error = 51
-           return
-       end if
-   !
-   end subroutine ls_fitting_dgels
-
    SUBROUTINE dbcsr_diff_fitting(wf_history, current_overlap, coeffs, nvec)
       INTEGER, INTENT(IN) :: nvec
       TYPE(qs_wf_history_type), POINTER :: wf_history
@@ -2222,8 +1945,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: b
       TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
       TYPE(dbcsr_type) :: tmp_i, tmp_j, tmp_k, target_diff
-
-      WRITE(6,*) "DBCSR_FITTING"
 
       IF (nvec.LE.0) THEN
          CPABORT("Not enough vectors to do the fitting")
@@ -2250,7 +1971,6 @@ CONTAINS
          CALL dbcsr_copy(tmp_i, state%overlap)
          CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
          CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_diff, 0.0_dp, tmp_k)
-         !CALL dbcsr_dot(tmp_i, target_diff, b(i-1))
          CALL dbcsr_trace(tmp_k, b(i-1))
 
          DO j = 2, i
@@ -2262,11 +1982,6 @@ CONTAINS
             A(i-1, j-1) = A(j-1, i-1)
          END DO
       END DO
-
-      ! technically not needed, but anyway used for consistency between
-      ! the square overlap (used here) and the lower triangular overlap
-      A(:,:) = 0.5_dp*A(:,:)
-      B(:) = 0.5_dp*b(:)
 
       ! add the Tikhonov regularization
       DO i = 1, nvec-1
@@ -2425,19 +2140,12 @@ CONTAINS
          END DO
       END DO
 
-      ! technically not needed, but anyway used for consistency between
-      ! the square overlap (used here) and the lower triangular overlap
-      !A(1:ntr,1:ntr) = 0.5_dp*A(1:ntr,1:ntr)
-      !B(1:ntr) = 0.5_dp*b(1:ntr)
-
       ! add the Tikhonov regularization
       DO i = 1, ntr
          A(i, i) = A(i, i) + 1e-8_dp
       END DO
 
       ! solve the linear system
-      write(6,*) "DBCSR: A", A
-      write(6,*) "DBCSR: b", b
       CALL dposv('u', ntr, 1, A, ntr, b, ntr, info)
       IF (info.ne.0) THEN
          CPABORT("DPOSV failed.")
@@ -2457,9 +2165,9 @@ CONTAINS
          state => wfi_get_snapshot(wf_history, wf_index=i)
          CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
       END DO
-      WRITE(6,*) "DBCSR: Fitting error:", dbcsr_frobenius_norm(tmp_i)
-      WRITE(6,*) "DBCSR: Fitting coeffs:", coeffs
-      WRITE(6,*) "DBCSR: Sum coeffs:", sum(coeffs)
+      WRITE(6,*) "Fitting error:", dbcsr_frobenius_norm(tmp_i)
+      WRITE(6,*) "Fitting coeffs:", coeffs
+      WRITE(6,*) "Sum coeffs:", sum(coeffs)
 
       ! free the memory
       CALL dbcsr_release(tmp_i)
