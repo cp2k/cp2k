@@ -62,6 +62,7 @@ spack:
       require:
         - "+fortran"
         - "threads=openmp"
+        - "build_system=makefile"
 
     scalapack:
       require:
@@ -144,8 +145,15 @@ spack:
         - "+hdf5"
 
   specs:
-    - "adios2@2.10.2"
+    # Build tools
     - "cmake@3.24:"
+    - "gcc@9:"
+    - "gmake@4.3:"
+    - "mpich@4.3.2"
+    - "ninja@1.10:"
+#   - "openmpi@5.0.8"
+    # CP2K
+    - "adios2@2.10.2"
     - "cosma@2.7.0"
     - "dbcsr@2.9.1"
     - "deepmdkit@3.1.2"
@@ -154,8 +162,6 @@ spack:
     - "dla-future-fortran@0.5.0"
     - "elpa@2025.06.001"
     - "fftw@3.3.10"
-    - "gcc@9:"
-    - "gmake@4.3:"
     - "greenx@2.2"
     - "hdf5@1.14.6"
     - "libfabric@1.22.0"
@@ -166,11 +172,8 @@ spack:
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
     - "mimic-mcl@3.0.0"
-    - "mpich@4.3.2"
     - "netlib-scalapack@2.2.2"
-    - "ninja@1.10:"
     - "openblas@0.3.30"
-#   - "openmpi@5.0.8"
     - "openpmd-api@0.16.1"
     - "pace@2025.12.4"
     - "pexsi@2.0.0"

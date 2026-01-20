@@ -88,20 +88,22 @@ spack:
         - "+hdf5"
 
   specs:
+    # Build tools
     - "cmake@3.24:"
+    - "gcc@9:"
+    - "gmake@4.3:"
+    - "ninja@1.10:"
+    # CP2K
     - "dbcsr@2.9.1"
     - "deepmdkit@3.1.2"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
-    - "gcc@9:"
-    - "gmake@4.3:"
     - "greenx@2.2"
     - "hdf5@1.14.6"
     - "libint@2.11.1"
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
-    - "ninja@1.10:"
     - "openblas@0.3.30"
     - "pace@2025.12.4"
     - "py-torch@2.9.0"
