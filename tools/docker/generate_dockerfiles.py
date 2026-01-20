@@ -639,8 +639,8 @@ COPY ./tools/spack/cp2k_deps_${{CP2K_VERSION}}.yaml ./
 
     if mpi_mode == "openmpi":
         output += rf"""
-RUN sed -E -e '/\s*-\s+mpich@/ s/^ /#/' \
-        -E -e '/\s*#\s*-\s+openmpi@/ s/#/ /' \
+RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
+        -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
         -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
         -i cp2k_deps_${{CP2K_VERSION}}.yaml
 """.strip()
