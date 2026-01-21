@@ -79,7 +79,7 @@ MODULE xc_pot_saop
                                               gaVxcgb_noGC
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_vxc_pw_create1
+   USE xc,                              ONLY: xc_vxc_pw_create
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               vxc_of_r_new,&
                                               xc_rho_set_atom_update
@@ -250,9 +250,9 @@ CONTAINS
                                       xc_fun_section_tmp)
 
       CPASSERT(.NOT. compute_virial)
-      CALL xc_vxc_pw_create1(vxc_tmp, vxc_tau, rho_r, rho_g, tau, xc_energy, &
-                             xc_section_tmp, weights, auxbas_pw_pool, &
-                             compute_virial=.FALSE., virial_xc=virial_xc_tmp)
+      CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau, &
+                            xc_section_tmp, weights, auxbas_pw_pool, &
+                            compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       CALL section_vals_val_set(xc_fun_section_tmp, "XALPHA%_SECTION_PARAMETERS_", &
                                 l_val=.FALSE.)
@@ -260,9 +260,9 @@ CONTAINS
                                 l_val=.TRUE.)
 
       CPASSERT(.NOT. compute_virial)
-      CALL xc_vxc_pw_create1(vxc_LB, vxc_tau, rho_r, rho_g, tau, xc_energy, &
-                             xc_section_tmp, weights, auxbas_pw_pool, &
-                             compute_virial=.FALSE., virial_xc=virial_xc_tmp)
+      CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau, &
+                            xc_section_tmp, weights, auxbas_pw_pool, &
+                            compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       DO ispin = 1, nspins
          CALL pw_axpy(vxc_tmp(ispin), vxc_LB(ispin), alpha)

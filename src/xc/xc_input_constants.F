@@ -34,10 +34,6 @@ MODULE xc_input_constants
                                                xc_pbe_rev = 12, &
                                                xc_pbe_sol = 13
 
-   INTEGER, PARAMETER, PUBLIC               :: xc_default_f_routine = 1, &
-                                               xc_test_lsd_f_routine = 2, &
-                                               xc_debug_new_routine = 3
-
    INTEGER, PARAMETER, PUBLIC               :: xgga_b88 = 101, &
                                                xgga_b88x = 102, &
                                                xgga_pw86 = 103, &

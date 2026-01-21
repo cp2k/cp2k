@@ -49,7 +49,7 @@ MODULE qs_vxc
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: calc_xc_density,&
                                               xc_exc_calc,&
-                                              xc_vxc_pw_create1
+                                              xc_vxc_pw_create
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -279,12 +279,12 @@ CONTAINS
                               weights=weights, pw_pool=xc_pw_pool)
 
          ELSE
-            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
-                                   rho_g=rho_g, tau=tau, exc=exc, &
-                                   xc_section=xc_section, &
-                                   weights=weights, pw_pool=xc_pw_pool, &
-                                   compute_virial=compute_virial, &
-                                   virial_xc=virial%pv_xc)
+            CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau, exc=exc, &
+                                  xc_section=xc_section, &
+                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  compute_virial=compute_virial, &
+                                  virial_xc=virial%pv_xc)
          END IF
 
          ! remove the nlcc densities (keep stuff in original state)
@@ -385,12 +385,12 @@ CONTAINS
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
-               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
-                                      rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
-                                      xc_section=xc_section, &
-                                      weights=weights, pw_pool=xc_pw_pool, &
-                                      compute_virial=.FALSE., &
-                                      virial_xc=virial_xc_tmp)
+               CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
+                                     rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
+                                     xc_section=xc_section, &
+                                     weights=weights, pw_pool=xc_pw_pool, &
+                                     compute_virial=.FALSE., &
+                                     virial_xc=virial_xc_tmp)
             END IF
 
             exc = exc - dft_control%sic_scaling_b*exc_m
@@ -446,12 +446,12 @@ CONTAINS
                ELSE
                   ! virial untested
                   CPASSERT(.NOT. compute_virial)
-                  CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
-                                         rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
-                                         xc_section=xc_section, &
-                                         weights=weights, pw_pool=xc_pw_pool, &
-                                         compute_virial=.FALSE., &
-                                         virial_xc=virial_xc_tmp)
+                  CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
+                                        rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
+                                        xc_section=xc_section, &
+                                        weights=weights, pw_pool=xc_pw_pool, &
+                                        compute_virial=.FALSE., &
+                                        virial_xc=virial_xc_tmp)
                END IF
 
                exc = exc - dft_control%sic_scaling_b*nelec_spin(ispin)*exc_m
@@ -492,12 +492,12 @@ CONTAINS
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
-               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
-                                      rho_g=rho_g, tau=tau, exc=exc_m, &
-                                      xc_section=xc_section, &
-                                      weights=weights, pw_pool=xc_pw_pool, &
-                                      compute_virial=.FALSE., &
-                                      virial_xc=virial_xc_tmp)
+               CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
+                                     rho_g=rho_g, tau=tau, exc=exc_m, &
+                                     xc_section=xc_section, &
+                                     weights=weights, pw_pool=xc_pw_pool, &
+                                     compute_virial=.FALSE., &
+                                     virial_xc=virial_xc_tmp)
             END IF
 
             exc = exc + dft_control%sic_scaling_b*exc_m
@@ -672,13 +672,13 @@ CONTAINS
             END DO
          END IF
          NULLIFY (vxc_rho, vxc_tau)
-         CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
-                                rho_g=rho_g, tau=tau_r, exc=excint, &
-                                xc_section=xc_section, &
-                                weights=weights, pw_pool=xc_pw_pool, &
-                                compute_virial=.FALSE., &
-                                virial_xc=vdum, &
-                                exc_r=exc_r)
+         CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
+                               rho_g=rho_g, tau=tau_r, exc=excint, &
+                               xc_section=xc_section, &
+                               weights=weights, pw_pool=xc_pw_pool, &
+                               compute_virial=.FALSE., &
+                               virial_xc=vdum, &
+                               exc_r=exc_r)
          ! calclulate non-local vdW functional
          ! only if this XC_SECTION has it
          ! if yes, we use the dispersion_env from ks_env
@@ -824,13 +824,13 @@ CONTAINS
             END DO
          END IF
          NULLIFY (vxc_rho, vxc_tau)
-         CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
-                                rho_g=rho_g, tau=tau_r, exc=excint, &
-                                xc_section=xc_section, &
-                                weights=weights, pw_pool=xc_pw_pool, &
-                                compute_virial=.FALSE., &
-                                virial_xc=vdum, &
-                                exc_r=exc_r)
+         CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
+                               rho_g=rho_g, tau=tau_r, exc=excint, &
+                               xc_section=xc_section, &
+                               weights=weights, pw_pool=xc_pw_pool, &
+                               compute_virial=.FALSE., &
+                               virial_xc=vdum, &
+                               exc_r=exc_r)
 
          ! remove the nlcc densities (keep stuff in original state)
          IF (ASSOCIATED(rho_nlcc)) THEN

@@ -119,7 +119,7 @@ MODULE qs_ks_utils
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
-                                              xc_vxc_pw_create1
+                                              xc_vxc_pw_create
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -359,10 +359,10 @@ CONTAINS
                               weights=weights, pw_pool=xc_pw_pool)
          ELSE
             CPASSERT(.NOT. compute_virial)
-            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
-                                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                                   weights=weights, pw_pool=xc_pw_pool, &
-                                   compute_virial=.FALSE., virial_xc=virial_xc_tmp)
+            CALL xc_vxc_pw_create(vxc_rho=vxc, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  compute_virial=.FALSE., virial_xc=virial_xc_tmp)
          END IF
 
          energy%exc = energy%exc + energy_scaling(iterm)*exc
@@ -697,10 +697,10 @@ CONTAINS
                               weights=weights, pw_pool=xc_pw_pool)
          ELSE
             CPASSERT(.NOT. compute_virial)
-            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
-                                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                                   weights=weights, pw_pool=xc_pw_pool, &
-                                   compute_virial=compute_virial, virial_xc=virial_xc_tmp)
+            CALL xc_vxc_pw_create(vxc_rho=vxc, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  compute_virial=compute_virial, virial_xc=virial_xc_tmp)
             ! add to the existing work_v_rspace
             CALL pw_axpy(vxc(1), work_v_rspace, -dft_control%sic_scaling_b*vxc(1)%pw_grid%dvol)
          END IF
