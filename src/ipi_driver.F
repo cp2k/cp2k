@@ -105,7 +105,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER         :: drv_section, motion_section
       TYPE(virial_type), POINTER               :: virial
       REAL(KIND=dp)                            :: sleeptime
-      INTEGER, DIMENSION(3)                    :: perd 
+      INTEGER, DIMENSION(3)                    :: perd
       TYPE(cell_type), POINTER                 :: oldcell
 
       CALL timeset(routineN, handle)
@@ -221,7 +221,7 @@ CONTAINS
                   subsys%particles%els(ip)%r(idir) = combuf(ii)
                END DO
             END DO
-            NULLIFY(oldcell) 
+            NULLIFY (oldcell)
             CALL cp_subsys_get(subsys, cell=oldcell)
             perd = oldcell%perd
 
