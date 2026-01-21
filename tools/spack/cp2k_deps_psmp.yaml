@@ -146,12 +146,13 @@ spack:
 
   specs:
     # Build tools
-    - "cmake@3.24:"
+    - "cmake@3.27:"
     - "gcc@9:"
     - "gmake@4.2:"
     - "mpich@4.3.2"
     - "ninja@1.10:"
 #   - "openmpi@5.0.8"
+    - "python@3.11:"
     # CP2K
     - "adios2@2.10.2"
     - "cosma@2.7.0"
