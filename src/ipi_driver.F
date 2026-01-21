@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -105,7 +105,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER         :: drv_section, motion_section
       TYPE(virial_type), POINTER               :: virial
       REAL(KIND=dp)                            :: sleeptime
-
+      INTEGER, DIMENSION(3)                    :: perd
+      TYPE(cell_type), POINTER                 :: oldcell
+ 
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Ceriotti2014)
@@ -195,9 +197,9 @@ CONTAINS
          ELSE IF (TRIM(header) == "POSDATA") THEN
             IF (ionode) THEN
                CALL readbuffer(socket, mxmat, 9)
-               cellh = RESHAPE(mxmat, [3, 3])
+               cellh = RESHAPE(mxmat, (/3, 3/))
                CALL readbuffer(socket, mxmat, 9)
-               cellih = RESHAPE(mxmat, [3, 3])
+               cellih = RESHAPE(mxmat, (/3, 3/))
                CALL readbuffer(socket, nat)
                cellh = TRANSPOSE(cellh)
                cellih = TRANSPOSE(cellih)
@@ -219,7 +221,12 @@ CONTAINS
                   subsys%particles%els(ip)%r(idir) = combuf(ii)
                END DO
             END DO
-            CALL init_cell(cpcell, hmat=cellh)
+
+            NULLIFY(oldcell)
+            CALL cp_subsys_get(subsys, cell=oldcell) 
+            perd = oldcell%perd
+
+            CALL init_cell(cpcell, hmat=cellh, periodic=perd)
             CALL cp_subsys_set(subsys, cell=cpcell)
 
             CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
@@ -240,7 +247,7 @@ CONTAINS
             vir = TRANSPOSE(virial%pv_virial)
 
             CALL external_control(should_stop, "IPI", globenv=globenv)
-            IF (should_stop) EXIT driver_loop
+            IF (should_stop) EXIT
 
             hasdata = .TRUE.
          ELSE IF (TRIM(header) == "GETFORCE") THEN
@@ -250,7 +257,7 @@ CONTAINS
                CALL writebuffer(socket, pot)
                CALL writebuffer(socket, nat)
                CALL writebuffer(socket, combuf, 3*nat)
-               CALL writebuffer(socket, RESHAPE(vir, [9]), 9)
+               CALL writebuffer(socket, RESHAPE(vir, (/9/)), 9)
 
                ! i-pi can also receive an arbitrary string, that will be printed out to the "extra"
                ! trajectory file. this is useful if you want to return additional information, e.g.
@@ -262,7 +269,7 @@ CONTAINS
             hasdata = .FALSE.
          ELSE
             IF (output_unit > 0) WRITE (output_unit, *) " @DRIVER MODE:  Socket disconnected, time to exit."
-            EXIT driver_loop
+            EXIT
          END IF
       END DO driver_loop
 
