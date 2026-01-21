@@ -89,10 +89,11 @@ spack:
 
   specs:
     # Build tools
-    - "cmake@3.24:"
+    - "cmake@3.27:"
     - "gcc@9:"
     - "gmake@4.2:"
     - "ninja@1.10:"
+    - "python@3.11:"
     # CP2K
     - "dbcsr@2.9.1"
     - "deepmdkit@3.1.2"
