@@ -817,10 +817,10 @@ CONTAINS
       ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
       ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
       ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
-      bs_env%min_RI_idx_from_AO_AO_atom(:, :) = 1!bs_env%n_RI !bs_env%n_RI
-      bs_env%max_RI_idx_from_AO_AO_atom(:, :) =  bs_env%n_RI!1!1
-      bs_env%min_AO_idx_from_RI_AO_atom(:, :) = 1! bs_env%n_AO!bs_env%n_AO
-      bs_env%max_AO_idx_from_RI_AO_atom(:, :) = bs_env%n_AO ! 1!bs_env%n_AO!1 !1
+      bs_env%min_RI_idx_from_AO_AO_atom(:, :) = bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:, :) = 1
+      bs_env%min_AO_idx_from_RI_AO_atom(:, :) = bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:, :) = 1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -835,7 +835,6 @@ CONTAINS
          CALL build_3c_integrals(t_3c_global_array, &
                                  bs_env%eps_filter, &
                                  qs_env, &
-                                 !nl_3c_global, &
                                  bs_env%nl_3c, &
                                  int_eps=bs_env%eps_filter, &
                                  basis_i=bs_env%basis_set_RI, &
@@ -864,43 +863,16 @@ CONTAINS
 
       t2 = m_walltime()
 
-      ! i_atom = 0
-      ! j_atom = 0
-      ! CALL bs_env%para_env%sync()
       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
-      ! CALL bs_env%para_env%sync()
-      ! DO i_atom = 1, bs_env%n_atom
-      !    DO j_atom = 1, bs_env%n_atom
-      !       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom(i_atom,j_atom))
-      !       CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom(i_atom,j_atom))
-      !       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom(i_atom,j_atom))
-      !       CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom(i_atom,j_atom))
-      !    END DO
-      ! END DO
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A)') ''
-         WRITE (bs_env%unit_nr, '(T2,A)') 'min_RI_idx_from_AO_AO_atom'
-         PRINT *, bs_env%min_RI_idx_from_AO_AO_atom
-         WRITE (bs_env%unit_nr, '(T2,A)') 'max_RI_idx_from_AO_AO_atom'
-         PRINT *, bs_env%max_RI_idx_from_AO_AO_atom
-         WRITE (bs_env%unit_nr, '(T2,A)') 'min_AO_idx_from_RI_AO_atom'
-         PRINT *, bs_env%min_AO_idx_from_RI_AO_atom
-         WRITE (bs_env%unit_nr, '(T2,A)') 'max_AO_idx_from_RI_AO_atom'
-         PRINT *, bs_env%max_AO_idx_from_RI_AO_atom
-      END IF
 
       bs_env%occupation_3c_int = occupation_sum
       bs_env%max_dist_AO_atoms = max_dist_AO_atoms
 
-      !CALL dbt_destroy(t_3c_global)
       CALL dbt_destroy(t_3c_global_array(1, 1))
       DEALLOCATE (t_3c_global_array)
-
-      !CALL neighbor_list_3c_destroy(nl_3c_global)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A)') ''
@@ -945,8 +917,7 @@ CONTAINS
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)
 
-         ! Pre-fetch idxues to avoid compiler issues with 
-         ! referencing 'bs_env' twice inside the ATOMIC blocks
+         ! Pre-fetch indices to avoid referencing 'bs_env' twice inside the ATOMIC blocks
          idx_RI_start = bs_env%i_RI_start_from_atom(atom_ind(1))
          idx_RI_end   = bs_env%i_RI_end_from_atom(atom_ind(1))
          

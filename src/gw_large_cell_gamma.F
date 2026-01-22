@@ -137,12 +137,6 @@ CONTAINS
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^occ_µν(i|τ|)], τ < 0
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^vir_µν(i|τ|)], τ > 0
       CALL get_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
-      !MG: Debug Print fm_Sigma_c_Gamma_time
-      ! Use last time point, positive half and first spin
-      CALL fm_write_thresh(fm_Sigma_c_Gamma_time(1,1,1), &
-                               1.0e-6_dp, 'Sigma_c_Gamma_time_firstpoint_spin1',   bs_env%unit_nr)
-      CALL fm_write_thresh(fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points,1,1), &
-                               1.0e-6_dp, 'Sigma_c_Gamma_time_lastpoint_spin1',   bs_env%unit_nr)
 
       ! Σ^c_λσ(iτ,k=0) -> Σ^c_nn(ϵ,k); ϵ_nk^GW = ϵ_nk^DFT + Σ^c_nn(ϵ,k) + Σ^x_nn(k) - v^xc_nn(k)
       CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
@@ -176,7 +170,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, &
                                                             t_3c_for_Gvir, t_3c_x_Gocc, &
                                                             t_3c_x_Gocc_2, t_3c_x_Gvir, &
-                                                            t_3c_x_Gvir_2, t_chi_prv
+                                                            t_3c_x_Gvir_2
 
       CALL timeset(routineN, handle)
 
@@ -303,29 +297,7 @@ CONTAINS
                                        filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
                                        unit_nr=bs_env%unit_nr_contract, &
                                        log_verbose=bs_env%print_contract_verbose)
-                  END IF
-                     CALL dbt_create(bs_env%t_chi,t_chi_prv)
-                     CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
-                                       tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
-                                       beta=1.0_dp, tensor_3=t_chi_prv, &
-                                       contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
-                                       contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
-                                       bounds_1=bounds_comb, &
-                                       !bounds_2=bounds_P, &
-                                       !bounds_3=bounds_Q, &
-                                       filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop2, &
-                                       unit_nr=bs_env%unit_nr_contract, &
-                                       log_verbose=bs_env%print_contract_verbose)
-                     CALL dbt_destroy(t_chi_prv)
-                     IF(flop /= flop2) THEN
-                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_Q ", bounds_Q(1), bounds_Q(2)
-                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_P ", bounds_P(1), bounds_P(2)
-                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
-                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
-                     END IF
-                     
+                  END IF                     
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
                END DO ! j_atoms
@@ -719,7 +691,6 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
-      TYPE(dbt_type)                                     :: t_M_prv
 
       CALL timeset(routineN, handle)
 
@@ -774,31 +745,6 @@ CONTAINS
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
       END IF
-         CALL dbt_create(t_M, t_M_prv)
-         CALL dbt_contract(alpha=1.0_dp, &
-                           tensor_1=t_3c_for_G, &
-                           tensor_2=t_G, &
-                           beta=1.0_dp, &
-                           tensor_3=t_M_prv, &
-                           contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
-                           contract_2=[2], notcontract_2=[1], map_2=[3], &
-                           !bounds_1=bounds_IL, &
-                           !bounds_2=bounds_comb, &
-                           bounds_3=bounds_ao_1, &
-                           flop=flop2, &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
-         CALL dbt_destroy(t_M_prv)
-            IF(flop /= flop2) THEN
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_AO_1 ", atoms_AO_1
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_AO_2 ", atoms_AO_2
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_IL ", atoms_IL
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with bounds_IL ", bounds_IL
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb
-               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
-                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
-            END IF
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -2088,7 +2034,7 @@ CONTAINS
       INTEGER(KIND=int_8) :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, RI_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao
-      TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp, t_3c_x_W_tmp_prv
+      TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
 
       CALL timeset(routineN, handle)
 
@@ -2106,19 +2052,15 @@ CONTAINS
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
 
-      CALL dbt_create(t_3c_x_W_tmp,t_3c_x_W_tmp_prv)
-      t_3c_x_W_tmp%name = "t_W"
-      t_3c_x_W_tmp_prv%name = "t_W_prv"
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
          CALL get_bounds_from_atoms(bounds_P, i_atoms, (/1, bs_env%n_atom/), &
                                     bs_env%min_RI_idx_from_AO_AO_atom, &
-                                    bs_env%max_RI_idx_from_AO_AO_atom)
-                                    ! , &
-                                    ! atoms_3=RI_atoms, &
-                                    ! indices_3_start=bs_env%i_RI_start_from_atom, &
-                                    ! indices_3_end=bs_env%i_RI_end_from_atom )
+                                    bs_env%max_RI_idx_from_AO_AO_atom, &
+                                    atoms_3=RI_atoms, &
+                                    indices_3_start=bs_env%i_RI_start_from_atom, &
+                                    indices_3_end=bs_env%i_RI_end_from_atom)
 
          ! σ
          CALL get_bounds_from_atoms(bounds_ao(:, 2), RI_atoms, i_atoms, &
@@ -2145,21 +2087,6 @@ CONTAINS
                            tensor_1=t_2c_W, &
                            tensor_2=t_3c_for_W, &
                            beta=1.0_dp, &
-                           tensor_3=t_3c_x_W_tmp_prv, &
-                           contract_1=[2], notcontract_1=[1], map_1=[1], &
-                           contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
-                           !bounds_1=bounds_P, &
-                           bounds_2=bounds_Q, &
-                           !bounds_3=bounds_ao, &
-                           flop=flop2, &
-                           move_data=.FALSE., &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
-         CALL dbt_contract(alpha=1.0_dp, &
-                           tensor_1=t_2c_W, &
-                           tensor_2=t_3c_for_W, &
-                           beta=1.0_dp, &
                            tensor_3=t_3c_x_W_tmp, &
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
@@ -2171,26 +2098,8 @@ CONTAINS
                            filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
-            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with RI_atoms ", RI_atoms
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with bounds_P ", bounds_P
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with bounds_ao ", bounds_ao
-               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
-                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
-            !print *,"MG: compute_3c_and_contract_W loop step done nr", RI_intval_idx
-!                IF (i_t ==5) THEN
-! !$OMP PARALLEL DEFAULT(NONE) &
-! !$OMP SHARED(t_3c_x_W_tmp,t_3c_x_W_tmp_prv, bs_env)
-!               CALL dbt_write_blocks(t_3c_x_W_tmp,bs_env%unit_nr,bs_env%unit_nr)
-!               CALL dbt_write_blocks(t_3c_x_W_tmp_prv,bs_env%unit_nr,bs_env%unit_nr)
-! !$OMP END PARALLEL
-!                END IF
-            END IF
 
       END DO ! RI_atoms
-      CALL dbt_destroy(t_3c_x_W_tmp_prv)
 
       ! 3. reorder tensor
       CALL dbt_copy(t_3c_x_W_tmp, t_3c_x_W, order=[1, 2, 3], move_data=.TRUE.)
@@ -2233,8 +2142,7 @@ CONTAINS
                                                             bounds_sigma, IL_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
-      TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2, &
-                                                            t_3c_x_G_prv, t_2c_Sigma_prv
+      TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
 
       CALL timeset(routineN, handle)
 
@@ -2307,32 +2215,6 @@ CONTAINS
                            filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
-         CALL dbt_create(t_3c_x_G, t_3c_x_G_prv)
-         CALL dbt_contract(alpha=1.0_dp, &
-                           tensor_1=t_2c_G, &
-                           tensor_2=t_3c_for_G, &
-                           beta=1.0_dp, &
-                           tensor_3=t_3c_x_G_prv, &
-                           contract_1=[2], notcontract_1=[1], map_1=[3], &
-                           contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                           !bounds_1=bounds_mu, &
-                           bounds_2=bounds_nu, &
-                           !bounds_3=bounds_comb, &
-                           flop=flop2, &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
-                           CALL dbt_destroy(t_3c_x_G_prv)
-            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_mu ", bounds_mu
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
-                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
-            END IF
-
-
       END DO ! IL_atoms
 
       ! Reordering: N_Qλν -> N_Qνλ
@@ -2368,29 +2250,6 @@ CONTAINS
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
       END IF
-         CALL dbt_create(t_2c_Sigma, t_2c_Sigma_prv)
-         CALL dbt_contract(alpha=sign_Sigma, &
-                           tensor_1=t_3c_x_W, &
-                           tensor_2=t_3c_x_G_2, &
-                           beta=1.0_dp, &
-                           tensor_3=t_2c_Sigma_prv, &
-                           contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
-                           contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
-                           bounds_1=bounds_comb, &
-                           !bounds_2=bounds_lambda, &
-                           !bounds_3=bounds_sigma, &
-                           filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop2, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
-                           CALL dbt_destroy(t_2c_Sigma_prv)
-            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_lambda ", bounds_lambda
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_sigma ", bounds_sigma
-               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
-                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
-            END IF
 
 
       IF (PRESENT(can_skip)) THEN
