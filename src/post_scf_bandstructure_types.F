@@ -219,7 +219,9 @@ MODULE post_scf_bandstructure_types
                                                       n_intervals_j = -1, &
                                                       n_atom_per_interval_ij = -1, &
                                                       n_intervals_inner_loop_atoms = -1, &
-                                                      n_atom_per_IL_interval = -1
+                                                      n_atom_per_IL_interval = -1, &
+                                                      n_skip_sigma = -1, &
+                                                      n_skip_chi = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: i_atom_intervals, &
                                                       j_atom_intervals, &
                                                       inner_loop_atom_intervals, &

@@ -44,7 +44,7 @@ MODULE gw_large_cell_gamma
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted, cp_fm_write_formatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -56,7 +56,9 @@ MODULE gw_large_cell_gamma
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_get_info,&
-                                              dbt_type
+                                              dbt_type, &
+                                              dbt_write_blocks, &
+                                              dbt_filter
    USE gw_communication,                ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
@@ -135,6 +137,12 @@ CONTAINS
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^occ_µν(i|τ|)], τ < 0
       ! Σ^c_λσ(iτ,k=0) = sum_νQ [sum_P (νσ|P) W^MIC_PQ(iτ)] [sum_µ (λµ|Q) G^vir_µν(i|τ|)], τ > 0
       CALL get_Sigma_c(bs_env, qs_env, fm_W_MIC_time, fm_Sigma_c_Gamma_time)
+      !MG: Debug Print fm_Sigma_c_Gamma_time
+      ! Use last time point, positive half and first spin
+      CALL fm_write_thresh(fm_Sigma_c_Gamma_time(1,1,1), &
+                               1.0e-6_dp, 'Sigma_c_Gamma_time_firstpoint_spin1',   bs_env%unit_nr)
+      CALL fm_write_thresh(fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points,1,1), &
+                               1.0e-6_dp, 'Sigma_c_Gamma_time_lastpoint_spin1',   bs_env%unit_nr)
 
       ! Σ^c_λσ(iτ,k=0) -> Σ^c_nn(ϵ,k); ϵ_nk^GW = ϵ_nk^DFT + Σ^c_nn(ϵ,k) + Σ^x_nn(k) - v^xc_nn(k)
       CALL compute_QP_energies(bs_env, qs_env, fm_Sigma_x_Gamma, fm_Sigma_c_Gamma_time)
@@ -159,7 +167,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
-      INTEGER(KIND=int_8)                                :: flop
+      INTEGER(KIND=int_8)                                :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, i_atoms, IL_atoms, &
                                                             j_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
@@ -168,7 +176,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, &
                                                             t_3c_for_Gvir, t_3c_x_Gocc, &
                                                             t_3c_x_Gocc_2, t_3c_x_Gvir, &
-                                                            t_3c_x_Gvir_2
+                                                            t_3c_x_Gvir_2, t_chi_prv
 
       CALL timeset(routineN, handle)
 
@@ -223,7 +231,14 @@ CONTAINS
                   i_atoms = bs_env%i_atom_intervals(1:2, i_intval_idx)
                   j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
 
-                  IF (bs_env%skip_chi(i_intval_idx, j_intval_idx)) CYCLE
+                  IF (bs_env%skip_chi(i_intval_idx, j_intval_idx)) THEN
+                     ! Do that only after first timestep to avoid skips due to vanishing G
+                     ! caused by gaps
+                     IF (i_t == 2) THEN
+                        bs_env%n_skip_chi = bs_env%n_skip_chi + 1
+                     END IF
+                     CYCLE
+                  END IF
 
                   DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
 
@@ -260,8 +275,8 @@ CONTAINS
                   ! "comb" (combined index)
                   !   ->  λ   bounds from j_atoms
                   !   ->  ν   bounds from i_atoms
-                  ! P   -> sparse in ν and µ (see 3.)
-                  ! Q   -> sparse in λ and σ (see 5.)
+                  ! P   -> sparse in ν (see 3.)
+                  ! Q   -> sparse in λ (see 5.)
                   bounds_comb(1:2, 1) = [bs_env%i_ao_start_from_atom(j_atoms(1)), &
                                          bs_env%i_ao_end_from_atom(j_atoms(2))]
                   bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
@@ -285,11 +300,32 @@ CONTAINS
                                        bounds_1=bounds_comb, &
                                        bounds_2=bounds_P, &
                                        bounds_3=bounds_Q, &
-                                       filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop, &
+                                       filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
                                        unit_nr=bs_env%unit_nr_contract, &
                                        log_verbose=bs_env%print_contract_verbose)
                   END IF
-
+                     CALL dbt_create(bs_env%t_chi,t_chi_prv)
+                     CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
+                                       tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
+                                       beta=1.0_dp, tensor_3=t_chi_prv, &
+                                       contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
+                                       contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
+                                       bounds_1=bounds_comb, &
+                                       !bounds_2=bounds_P, &
+                                       !bounds_3=bounds_Q, &
+                                       filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop2, &
+                                       unit_nr=bs_env%unit_nr_contract, &
+                                       log_verbose=bs_env%print_contract_verbose)
+                     CALL dbt_destroy(t_chi_prv)
+                     IF(flop /= flop2) THEN
+                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
+                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
+                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_Q ", bounds_Q(1), bounds_Q(2)
+                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with bounds_P ", bounds_P(1), bounds_P(2)
+                        print *,"MG: get_mat_chi_Gamma_tau on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
+                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
+                     END IF
+                     
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
                END DO ! j_atoms
@@ -651,6 +687,8 @@ CONTAINS
                               bounds_k=atoms_AO_2, &
                               desymmetrize=.FALSE.)
 
+      CALL dbt_filter(t_3c_array(1, 1), bs_env%eps_filter)
+
       CALL dbt_copy(t_3c_array(1, 1), t_3c, move_data=.TRUE.)
 
       CALL dbt_destroy(t_3c_array(1, 1))
@@ -678,9 +716,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
       INTEGER                                            :: handle
-      INTEGER(KIND=int_8)                                :: flop
+      INTEGER(KIND=int_8)                                :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
+      TYPE(dbt_type)                                     :: t_M_prv
 
       CALL timeset(routineN, handle)
 
@@ -735,6 +774,31 @@ CONTAINS
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
       END IF
+         CALL dbt_create(t_M, t_M_prv)
+         CALL dbt_contract(alpha=1.0_dp, &
+                           tensor_1=t_3c_for_G, &
+                           tensor_2=t_G, &
+                           beta=1.0_dp, &
+                           tensor_3=t_M_prv, &
+                           contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
+                           contract_2=[2], notcontract_2=[1], map_2=[3], &
+                           !bounds_1=bounds_IL, &
+                           !bounds_2=bounds_comb, &
+                           bounds_3=bounds_ao_1, &
+                           flop=flop2, &
+                           filter_eps=bs_env%eps_filter, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
+         CALL dbt_destroy(t_M_prv)
+            IF(flop /= flop2) THEN
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_AO_1 ", atoms_AO_1
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_AO_2 ", atoms_AO_2
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with atoms_IL ", atoms_IL
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with bounds_IL ", bounds_IL
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb
+               print *,"MG: G_times_3c on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
+                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
+            END IF
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -1766,7 +1830,7 @@ CONTAINS
 
                ! 4. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
                ! 5. M_Qνσ(iτ) = sum_P (νσ|P) (M^-1(k=0)*V^tr(k=0)*M^-1(k=0))_QP(iτ)
-               CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_V, t_2c_V)
+               CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_V, t_2c_V, 0)
 
                ! 6. tensor operations with D and computation of Σ^x
                !    Σ^x_λσ(k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) D_νµ
@@ -1883,11 +1947,18 @@ CONTAINS
                   j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
 
                   IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
-                      bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) CYCLE
+                      bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))  THEN
+                     ! Do that only after first timestep to avoid skips due to vanishing G
+                     ! caused by gaps
+                     IF (i_t == 2) THEN 
+                        bs_env%n_skip_sigma = bs_env%n_skip_sigma + 1
+                     END IF
+                     CYCLE
+                  END IF
 
                   ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
                   ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
-                  CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
+                  CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W, i_t)
 
                   ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
                   !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
@@ -2003,26 +2074,28 @@ CONTAINS
 !> \param t_3c_x_W ...
 !> \param t_2c_W ...
 ! **************************************************************************************************
-   SUBROUTINE compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
+   SUBROUTINE compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W, i_t)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
       TYPE(dbt_type)                                     :: t_3c_x_W, t_2c_W
+      INTEGER                                            :: i_t
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_and_contract_W'
 
       INTEGER                                            :: handle, RI_intval_idx
+      INTEGER(KIND=int_8) :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, RI_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao
-      TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
+      TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp, t_3c_x_W_tmp_prv
 
       CALL timeset(routineN, handle)
 
       CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_x_W_tmp)
       CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_for_W)
 
-      ! final layout will be: M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
+      ! final layout will be: M_Qνσ(iτ) = sum_P (P|νσ) W^MIC_QP(iτ)
       ! Bounds:
       ! "AO"
       !  ->  ν (AO_1 in compute_3c_integrals)  bounds from i_atoms and sparse in σ and P
@@ -2033,15 +2106,19 @@ CONTAINS
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
 
+      CALL dbt_create(t_3c_x_W_tmp,t_3c_x_W_tmp_prv)
+      t_3c_x_W_tmp%name = "t_W"
+      t_3c_x_W_tmp_prv%name = "t_W_prv"
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
          CALL get_bounds_from_atoms(bounds_P, i_atoms, (/1, bs_env%n_atom/), &
                                     bs_env%min_RI_idx_from_AO_AO_atom, &
-                                    bs_env%max_RI_idx_from_AO_AO_atom, &
-                                    atoms_3=RI_atoms, &
-                                    indices_3_start=bs_env%i_RI_start_from_atom, &
-                                    indices_3_end=bs_env%i_RI_end_from_atom)
+                                    bs_env%max_RI_idx_from_AO_AO_atom)
+                                    ! , &
+                                    ! atoms_3=RI_atoms, &
+                                    ! indices_3_start=bs_env%i_RI_start_from_atom, &
+                                    ! indices_3_end=bs_env%i_RI_end_from_atom )
 
          ! σ
          CALL get_bounds_from_atoms(bounds_ao(:, 2), RI_atoms, i_atoms, &
@@ -2063,7 +2140,22 @@ CONTAINS
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
                                    atoms_AO_1=i_atoms, atoms_RI=RI_atoms)
 
-         ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
+         ! 2. tensor operation M_Qνσ(iτ) = sum_P  W^MIC_QP(iτ) (P|νσ)
+         CALL dbt_contract(alpha=1.0_dp, &
+                           tensor_1=t_2c_W, &
+                           tensor_2=t_3c_for_W, &
+                           beta=1.0_dp, &
+                           tensor_3=t_3c_x_W_tmp_prv, &
+                           contract_1=[2], notcontract_1=[1], map_1=[1], &
+                           contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
+                           !bounds_1=bounds_P, &
+                           bounds_2=bounds_Q, &
+                           !bounds_3=bounds_ao, &
+                           flop=flop2, &
+                           move_data=.FALSE., &
+                           filter_eps=bs_env%eps_filter, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=t_2c_W, &
                            tensor_2=t_3c_for_W, &
@@ -2074,11 +2166,31 @@ CONTAINS
                            bounds_1=bounds_P, &
                            bounds_2=bounds_Q, &
                            bounds_3=bounds_ao, &
+                           flop=flop, &
+                           move_data=.FALSE., &
                            filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
+            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with RI_atoms ", RI_atoms
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with bounds_P ", bounds_P
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with bounds_ao ", bounds_ao
+               print *,"MG: compute_3c_and_contract_W on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
+                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
+            !print *,"MG: compute_3c_and_contract_W loop step done nr", RI_intval_idx
+!                IF (i_t ==5) THEN
+! !$OMP PARALLEL DEFAULT(NONE) &
+! !$OMP SHARED(t_3c_x_W_tmp,t_3c_x_W_tmp_prv, bs_env)
+!               CALL dbt_write_blocks(t_3c_x_W_tmp,bs_env%unit_nr,bs_env%unit_nr)
+!               CALL dbt_write_blocks(t_3c_x_W_tmp_prv,bs_env%unit_nr,bs_env%unit_nr)
+! !$OMP END PARALLEL
+!                END IF
+            END IF
 
       END DO ! RI_atoms
+      CALL dbt_destroy(t_3c_x_W_tmp_prv)
 
       ! 3. reorder tensor
       CALL dbt_copy(t_3c_x_W_tmp, t_3c_x_W, order=[1, 2, 3], move_data=.TRUE.)
@@ -2116,12 +2228,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_to_Sigma'
 
       INTEGER :: handle, inner_loop_atoms_interval_index
-      INTEGER(KIND=int_8)                                :: flop
+      INTEGER(KIND=int_8)                                :: flop, flop2
       INTEGER, DIMENSION(2)                              :: bounds_lambda, bounds_mu, bounds_nu, &
                                                             bounds_sigma, IL_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
-      TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
+      TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2, &
+                                                            t_3c_x_G_prv, t_2c_Sigma_prv
 
       CALL timeset(routineN, handle)
 
@@ -2137,11 +2250,11 @@ CONTAINS
       ! Afterwards e.g., is computed: Σ_λσ = sum_νQ M_Qνσ N_Qνλ (after reordering)
       ! Bounds:
       ! "comb" (combined index)
-      !   ->  Q   bounds from j_atoms and sparse in λ and µ
+      !   ->  Q   bounds from j_atoms and sparse in λ
       !   ->  λ (AO_1 in compute_3c_integrals)  sparse in Q and µ
       ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices and sparse in Q and λ
       ! ν bounds from i_atoms
-      ! σ sparse in ν and Q
+      ! σ sparse in ν
 
       ! ν
       bounds_nu(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
@@ -2189,9 +2302,36 @@ CONTAINS
                            bounds_1=bounds_mu, &
                            bounds_2=bounds_nu, &
                            bounds_3=bounds_comb, &
+                           flop=flop, &
+                           move_data=.FALSE., &
                            filter_eps=bs_env%eps_filter, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
+         CALL dbt_create(t_3c_x_G, t_3c_x_G_prv)
+         CALL dbt_contract(alpha=1.0_dp, &
+                           tensor_1=t_2c_G, &
+                           tensor_2=t_3c_for_G, &
+                           beta=1.0_dp, &
+                           tensor_3=t_3c_x_G_prv, &
+                           contract_1=[2], notcontract_1=[1], map_1=[3], &
+                           contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
+                           !bounds_1=bounds_mu, &
+                           bounds_2=bounds_nu, &
+                           !bounds_3=bounds_comb, &
+                           flop=flop2, &
+                           filter_eps=bs_env%eps_filter, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
+                           CALL dbt_destroy(t_3c_x_G_prv)
+            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_mu ", bounds_mu
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_comb ", bounds_comb
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
+                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
+            END IF
+
 
       END DO ! IL_atoms
 
@@ -2207,7 +2347,7 @@ CONTAINS
       CALL get_bounds_from_atoms(bounds_lambda, j_atoms, (/1, bs_env%n_atom/), &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
-      CALL get_bounds_from_atoms(bounds_sigma, i_atoms, (/1, bs_env%n_atom/), &
+      CALL get_bounds_from_atoms(bounds_sigma, (/1, bs_env%n_atom/), i_atoms, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
 
@@ -2222,12 +2362,36 @@ CONTAINS
                            contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                            contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
                            bounds_1=bounds_comb, &
-                           bounds_2=bounds_lambda, &
-                           bounds_3=bounds_sigma, &
-                           filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
+                           bounds_2=bounds_sigma, &
+                           bounds_3=bounds_lambda, &
+                           filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
                            unit_nr=bs_env%unit_nr_contract, &
                            log_verbose=bs_env%print_contract_verbose)
       END IF
+         CALL dbt_create(t_2c_Sigma, t_2c_Sigma_prv)
+         CALL dbt_contract(alpha=sign_Sigma, &
+                           tensor_1=t_3c_x_W, &
+                           tensor_2=t_3c_x_G_2, &
+                           beta=1.0_dp, &
+                           tensor_3=t_2c_Sigma_prv, &
+                           contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
+                           contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
+                           bounds_1=bounds_comb, &
+                           !bounds_2=bounds_lambda, &
+                           !bounds_3=bounds_sigma, &
+                           filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop2, &
+                           unit_nr=bs_env%unit_nr_contract, &
+                           log_verbose=bs_env%print_contract_verbose)
+                           CALL dbt_destroy(t_2c_Sigma_prv)
+            IF(flop /= flop2 .AND. bs_env%unit_nr > 0) THEN
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with i_atoms ", i_atoms
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with j_atoms ", j_atoms
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_lambda ", bounds_lambda
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with bounds_sigma ", bounds_sigma
+               print *,"MG: contract_to_Sigma on ",bs_env%para_env%mepos," with flop", flop, "and flop2 ", flop2, &
+                "i.e. in %:", REAL(flop - flop2, KIND=dp)/REAL(flop+flop2, KIND=dp)*100.0_dp
+            END IF
+
 
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
@@ -2290,38 +2454,23 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_skipping'
 
       INTEGER                                            :: handle, i_intval_idx, j_intval_idx, &
-                                                            n_pairs, n_skip_chi, n_skip_sigma
+                                                            n_pairs
 
       CALL timeset(routineN, handle)
 
-      n_skip_sigma = 0
-      n_skip_chi = 0
-
-      DO i_intval_idx = 1, bs_env%n_intervals_i
-         DO j_intval_idx = 1, bs_env%n_intervals_j
-            IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
-                bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) THEN
-               n_skip_sigma = n_skip_sigma + 1
-            END IF
-            IF (bs_env%skip_chi(i_intval_idx, j_intval_idx)) THEN
-               n_skip_chi = n_skip_chi + 1
-            END IF
-         END DO
-      END DO
-
       n_pairs = bs_env%n_intervals_i*bs_env%n_intervals_j
 
-      CALL bs_env%para_env_tensor%sum(n_skip_sigma)
-      CALL bs_env%para_env_tensor%sum(n_skip_chi)
+      CALL bs_env%para_env_tensor%sum(bs_env%n_skip_sigma)
+      CALL bs_env%para_env_tensor%sum(bs_env%n_skip_chi)
       CALL bs_env%para_env_tensor%sum(n_pairs)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
             'Sparsity of Σ^c(iτ,k=0): Percentage of skipped atom pairs:', &
-            REAL(100*n_skip_sigma, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
+            REAL(100*bs_env%n_skip_sigma, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
          WRITE (bs_env%unit_nr, '(T2,A,T74,F7.1,A)') &
             'Sparsity of χ(iτ,k=0): Percentage of skipped atom pairs:', &
-            REAL(100*n_skip_chi, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
+            REAL(100*bs_env%n_skip_chi, KIND=dp)/REAL(n_pairs, KIND=dp), ' %'
       END IF
 
       CALL timestop(handle)
@@ -2653,5 +2802,69 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_bounds_from_atoms
+
+   SUBROUTINE fm_write_thresh(fm, thresh, header, unit_nr, abs_vals)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      REAL(KIND=dp), INTENT(IN)                          :: thresh
+      CHARACTER(LEN=*), INTENT(IN)                       :: header
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, OPTIONAL                                  :: abs_vals
+
+      CHARACTER(LEN=*), PARAMETER :: my_footer = " | ENDING WRITING OF MATRIX", &
+         routineN = 'fm_write_thresh'
+
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_abs_vals
+
+      CALL timeset(routineN, handle)
+
+      IF (PRESENT(abs_vals)) THEN
+         my_abs_vals = abs_vals
+      ELSE
+         my_abs_vals = .FALSE.
+      END IF
+
+      CALL cp_fm_get_info(matrix=fm, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *) header
+      END IF
+      IF (my_abs_vals) THEN
+         DO i = 1, nrow_local
+            DO j = 1, ncol_local
+               IF (ABS(fm%local_data(i, j)) > thresh) THEN
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.8)") header, row_indices(i), col_indices(j), &
+                        ABS(fm%local_data(i, j))
+                  END IF
+               END IF
+            END DO
+         END DO
+      ELSE
+         DO i = 1, nrow_local
+            DO j = 1, ncol_local
+               IF (ABS(fm%local_data(i, j)) > thresh) THEN
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.8)") header, row_indices(i), col_indices(j), &
+                        fm%local_data(i, j)
+                  END IF
+               END IF
+            END DO
+         END DO
+      END IF
+      CALL fm%matrix_struct%para_env%sync()
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *) my_footer
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 END MODULE gw_large_cell_gamma
