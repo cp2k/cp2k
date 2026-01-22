@@ -97,7 +97,6 @@ CONTAINS
 !> \param simple_split ...
 !> \param unit_nr unit number for logging output
 !> \param log_verbose only for testing: verbose output
-!> \param char_id_gw ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbt_tas_multiply(transa, transb, transc, alpha, matrix_a, matrix_b, beta, matrix_c, &
@@ -1573,7 +1572,6 @@ CONTAINS
 !> \param move_data memory optimization: move data such that matrix_in is empty on return.
 !> \param nodata Data of matrix_in should not be copied to matrix_out
 !> \param optimize_pgrid Whether to change process grid
-!> \param char_id_gw ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE convert_to_new_pgrid(mp_comm_cart, matrix_in, matrix_out, move_data, nodata, optimize_pgrid)

@@ -792,8 +792,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_sparsity_3c'
 
-      INTEGER                                            :: handle, n_atom_step, RI_atom, i_atom, j_atom
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: test_2d, test_1d_row, test_1d_col, test_0d
+      INTEGER                                            :: handle, n_atom_step, RI_atom
       INTEGER(int_8)                                     :: non_zero_elements_sum, nze
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
@@ -901,7 +900,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_i_j_atom_ranges'
 
-      INTEGER :: handle, idx_RI_start, idx_RI_end, idx_AO_start, idx_AO_end
+      INTEGER                                            :: handle, idx_AO_end, idx_AO_start, &
+                                                            idx_RI_end, idx_RI_start
       INTEGER, DIMENSION(3)                              :: atom_ind
       TYPE(dbt_iterator_type)                            :: iter
 
@@ -919,10 +919,10 @@ CONTAINS
 
          ! Pre-fetch indices to avoid referencing 'bs_env' twice inside the ATOMIC blocks
          idx_RI_start = bs_env%i_RI_start_from_atom(atom_ind(1))
-         idx_RI_end   = bs_env%i_RI_end_from_atom(atom_ind(1))
-         
+         idx_RI_end = bs_env%i_RI_end_from_atom(atom_ind(1))
+
          idx_AO_start = bs_env%i_ao_start_from_atom(atom_ind(2))
-         idx_AO_end   = bs_env%i_ao_end_from_atom(atom_ind(2))
+         idx_AO_end = bs_env%i_ao_end_from_atom(atom_ind(2))
 
          ! Update values safely inside ATOMIC blocks, otherwise race conditions occur
 !$OMP ATOMIC UPDATE

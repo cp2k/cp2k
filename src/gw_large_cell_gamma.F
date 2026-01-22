@@ -44,7 +44,7 @@ MODULE gw_large_cell_gamma
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_read_unformatted, cp_fm_release, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted, cp_fm_write_formatted
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -55,10 +55,8 @@ MODULE gw_large_cell_gamma
                                               dbt_copy,&
                                               dbt_create,&
                                               dbt_destroy,&
-                                              dbt_get_info,&
-                                              dbt_type, &
-                                              dbt_write_blocks, &
-                                              dbt_filter
+                                              dbt_filter,&
+                                              dbt_type
    USE gw_communication,                ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
@@ -161,7 +159,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
-      INTEGER(KIND=int_8)                                :: flop, flop2
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, i_atoms, IL_atoms, &
                                                             j_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
@@ -259,7 +257,7 @@ CONTAINS
                                      i_atoms, j_atoms, IL_atoms)
 
                   END DO ! IL_atoms
-                  
+
                   ! 6. reorder tensors: M_Pνλ -> M_Pλν
                   CALL dbt_copy(t_3c_x_Gocc, t_3c_x_Gocc_2, move_data=.TRUE., order=[1, 3, 2])
                   CALL dbt_copy(t_3c_x_Gvir, t_3c_x_Gvir_2, move_data=.TRUE.)
@@ -297,7 +295,7 @@ CONTAINS
                                        filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
                                        unit_nr=bs_env%unit_nr_contract, &
                                        log_verbose=bs_env%print_contract_verbose)
-                  END IF                     
+                  END IF
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
                END DO ! j_atoms
@@ -688,7 +686,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
       INTEGER                                            :: handle
-      INTEGER(KIND=int_8)                                :: flop, flop2
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
 
@@ -769,7 +767,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_dist'
 
       INTEGER                                            :: atom_1, atom_2, handle
-      REAL(dp)                                           :: min_dist_AO_atoms, abs_rab
+      REAL(dp)                                           :: abs_rab, min_dist_AO_atoms
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1776,7 +1774,7 @@ CONTAINS
 
                ! 4. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
                ! 5. M_Qνσ(iτ) = sum_P (νσ|P) (M^-1(k=0)*V^tr(k=0)*M^-1(k=0))_QP(iτ)
-               CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_V, t_2c_V, 0)
+               CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_V, t_2c_V)
 
                ! 6. tensor operations with D and computation of Σ^x
                !    Σ^x_λσ(k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) D_νµ
@@ -1893,10 +1891,10 @@ CONTAINS
                   j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
 
                   IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
-                      bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))  THEN
+                      bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) THEN
                      ! Do that only after first timestep to avoid skips due to vanishing G
                      ! caused by gaps
-                     IF (i_t == 2) THEN 
+                     IF (i_t == 2) THEN
                         bs_env%n_skip_sigma = bs_env%n_skip_sigma + 1
                      END IF
                      CYCLE
@@ -1904,7 +1902,7 @@ CONTAINS
 
                   ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
                   ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
-                  CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W, i_t)
+                  CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
 
                   ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
                   !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
@@ -2020,18 +2018,17 @@ CONTAINS
 !> \param t_3c_x_W ...
 !> \param t_2c_W ...
 ! **************************************************************************************************
-   SUBROUTINE compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W, i_t)
+   SUBROUTINE compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
       TYPE(dbt_type)                                     :: t_3c_x_W, t_2c_W
-      INTEGER                                            :: i_t
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_and_contract_W'
 
       INTEGER                                            :: handle, RI_intval_idx
-      INTEGER(KIND=int_8) :: flop, flop2
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, RI_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao
       TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
@@ -2137,7 +2134,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_to_Sigma'
 
       INTEGER :: handle, inner_loop_atoms_interval_index
-      INTEGER(KIND=int_8)                                :: flop, flop2
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(2)                              :: bounds_lambda, bounds_mu, bounds_nu, &
                                                             bounds_sigma, IL_atoms
       INTEGER, DIMENSION(2, 2)                           :: bounds_comb
@@ -2251,7 +2248,6 @@ CONTAINS
                            log_verbose=bs_env%print_contract_verbose)
       END IF
 
-
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
       END IF
@@ -2312,8 +2308,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_skipping'
 
-      INTEGER                                            :: handle, i_intval_idx, j_intval_idx, &
-                                                            n_pairs
+      INTEGER                                            :: handle, n_pairs
 
       CALL timeset(routineN, handle)
 
@@ -2662,6 +2657,14 @@ CONTAINS
 
    END SUBROUTINE get_bounds_from_atoms
 
+! **************************************************************************************************
+!> \brief ...
+!> \param fm ...
+!> \param thresh ...
+!> \param header ...
+!> \param unit_nr ...
+!> \param abs_vals ...
+! **************************************************************************************************
    SUBROUTINE fm_write_thresh(fm, thresh, header, unit_nr, abs_vals)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm
