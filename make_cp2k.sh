@@ -536,14 +536,18 @@ fi
 
 # CMake build step
 echo -e '\n*** Compiling CP2K ***\n'
-if ! cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}/ninja.log"; then
+cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}"/ninja.log
+EXIT_CODE=${PIPESTATUS[0]}
+if ((EXIT_CODE != 0)); then
   echo "ERROR: The CMake build step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
 # CMake install step
 echo -e '\n*** Installing CP2K ***\n'
-if ! cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}/install.log"; then
+cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}"/install.log
+EXIT_CODE=${PIPESTATUS[0]}
+if ((EXIT_CODE != 0)); then
   echo "ERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
