@@ -47,11 +47,12 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.2
+# Version: 0.3
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
 #          - Version 0.2: Add more flags and checks (19.01.2026, MK)
+#          - Version 0.3: Add no_externals flag and perform more checks (21.01.2026, MK)
 
 # set -uo pipefail # can be useful for debugging this script
 
@@ -70,6 +71,22 @@ else
   echo "${SCRIPT_NAME}: Changes from this script in the shell environment are lost after completion"
   EXIT_CMD="exit"
 fi
+
+# Check if all mandatory packages are installed in the environment
+for package in awk bzip2 g++ gcc gfortran git make gzip patch python3 tar wget xz; do
+  if ! command -v "${package}" &> /dev/null; then
+    echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
+    echo "       Install the missing package and re-run the script"
+    ${EXIT_CMD} 1
+  fi
+done
+
+# Check if all recommended packages for the Spack/CMake build are installed in the environment
+for package in autoconf automake bison flex libtool m4 pkg-config podman; do
+  if ! command -v "${package}" &> /dev/null; then
+    echo "INFO: The package \"${package}\" was not found but is recommended"
+  fi
+done
 
 # Check platform
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -94,18 +111,28 @@ else
   echo "INFO: Using bash version ${BASH_VERSION}"
 fi
 
+# Check if the python3 version is new enough for spack
+if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 9)))'; then
+  echo "ERROR: Python version is NOT >= 3.9 (needed for Spack)"
+  echo "       Found only $(python3 -V)"
+  ${EXIT_CMD} 1
+fi
+
 # Default values
 BUILD_DEPS="no"
-BUILD_TYPE="RelWithDebInfo"
+BUILD_TYPE="Release"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 if command -v nproc &> /dev/null; then
-  NUM_PROCS=${NUM_PROCS:-$(nproc)}
+  MAX_PROCS=$(nproc)
+  NUM_PROCS=${NUM_PROCS:-${MAX_PROCS}}
 else
+  MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
 RUN_TEST="no"
 TESTOPTS=""
+USE_EXTERNALS="yes"
 VERBOSE=0
 VERBOSE_FLAG="--quiet"
 VERBOSE_MAKEFILE="OFF"
@@ -133,13 +160,32 @@ while [[ $# -gt 0 ]]; do
       HELP="yes"
       shift 1
       ;;
-    -ip | --install_path)
+    -ip | --install_path | --install_prefix)
       INSTALL_PREFIX="${2}"
       shift 2
       ;;
-    -j | --num_procs)
-      NUM_PROCS="${2}"
-      shift 2
+    -j)
+      case "${2}" in
+        -*)
+          true
+          ;;
+        [0-9]*)
+          NUM_PROCS="${2}"
+          shift 2
+          ;;
+        *)
+          echo "The -j flag can only be followed by an integer number, found \"${2}\""
+          ${EXIT_CMD} 1
+          ;;
+      esac
+      ;;
+    -j[0-9]*)
+      NUM_PROCS="${1#-j}"
+      shift 1
+      ;;
+    -ne | --no_externals)
+      USE_EXTERNALS="no"
+      shift 1
       ;;
     -t | --test)
       RUN_TEST="yes"
@@ -167,14 +213,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 export BUILD_TYPE INSTALL_MESSAGE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
   echo ""
-  echo "Usage: ${SCRIPT_NAME} [-bd|--build_deps] [-bt|--build_type (Debug|Release|RelWithDebInfo|MinSizeRel)]"
+  echo "Usage: ${SCRIPT_NAME} [-bd|--build_deps] [-bt|--build_type (Debug|Release|RelWithDebInfo)]"
   echo "                    [-cv|--cp2k_version (psmp|ssmp)] [-h|--help] [-ip|--install_path PATH]"
-  echo "                    [-j|--num_procs #processes] [-t|test \"TESTOPTS\"] [-v|--verbose]"
+  echo "                    [-j #processes] [-ne|--no_externals] [-t|test \"TESTOPTS\"] [-v|--verbose]"
+  echo ""
+  echo "Flags:"
+  echo " --build_deps   : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_type   : Set preferred CMake build type (default: \"Release\")"
+  echo " --cp2k_version : CP2K version to be built (default: \"psmp\""
+  echo " --help         : Print this help information"
+  echo " --install_path : Define the CP2K installation path (default: ./install"
+  echo " -j             : Number of processes used in parallel"
+  echo " --no_externals : Do not use external packages installed on the system. This results in longer build times,"
+  echo "                  but it can help to resolve conflicts with outdated packages on the host system, e.g. old"
+  echo "                  python or gcc versions"
+  echo " --test         : Perform a regression test run after a successful build"
+  echo " --verbose      : Write verbose output"
   echo ""
   echo "Hints:"
   echo " - Remove the folder ${CP2K_ROOT}/build to (re)build CP2K from scratch"
@@ -193,16 +253,25 @@ echo "RUN_TEST         = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS         = \"${TESTOPTS}\""
 fi
+echo "USE_EXTERNALS    = ${USE_EXTERNALS}"
 echo "VERBOSE_FLAG     = ${VERBOSE_FLAG}"
 echo "VERBOSE_MAKEFILE = ${VERBOSE_MAKEFILE}"
 echo "VERBOSE          = ${VERBOSE}"
 if (($# > 0)); then
-  echo "Remaining args   =" "$@" "(not used yet)"
+  echo "Remaining args   =" "$@" "(not used)"
+fi
+
+# Check if a valid number of processes is requested
+if ((NUM_PROCS < 1)); then
+  echo "ERROR: The requested number of processes should be larger than 0, found \"${NUM_PROCS}\""
+  ${EXIT_CMD} 1
+elif ((MAX_PROCS > 0)) && ((NUM_PROCS > MAX_PROCS)); then
+  echo "WARNING: The requested number of processes (${NUM_PROCS}) is larger than the detected number of CPU cores (${MAX_PROCS})"
 fi
 
 # Check if a valid CMake build type is selected
 case "${BUILD_TYPE}" in
-  Debug | Release | RelWithDebInfo | MinSizeRel)
+  Debug | Release | RelWithDebInfo)
     true
     ;;
   *)
@@ -210,34 +279,6 @@ case "${BUILD_TYPE}" in
     ${EXIT_CMD} 1
     ;;
 esac
-
-# Check if all mandatory packages for the Spack/CMake build are installed in the environment
-for package in bzip2 g++ gcc gfortran git gmake gzip patch python3 tar wget xz zip; do
-  if ! command -v "${package}" &> /dev/null; then
-    echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
-    echo "       Install the missing package and re-run the script"
-    ${EXIT_CMD} 1
-  fi
-done
-
-# Check if all recommended packages for the Spack/CMake build are installed in the environment
-for package in autoconf automake bison flex libtool m4 pkg-config; do
-  if ! command -v "${package}" &> /dev/null; then
-    echo "INFO:  The package \"${package}\" was not found but is recommended with Spack/CMake"
-  fi
-done
-
-# Check if python3 is available
-if ! command -v python3 &> /dev/null; then
-  echo "ERROR: python3 NOT found"
-  ${EXIT_CMD} 1
-fi
-
-# Check if the Pthon version is new enough
-if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 9)))'; then
-  echo "ERROR: Python version is NOT >= 3.9 (needed for Spack cache)"
-  ${EXIT_CMD} 1
-fi
 
 ### Build CP2K dependencies with Spack if needed or requested ###
 
@@ -257,7 +298,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   mkdir -p "${SPACK_BUILD_PATH}"
   cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
 
-  # The package podman is required for using a local Spack cache
+  # The package podman is required for using a MinIO cache
   if command -v podman &> /dev/null; then
     ((VERBOSE > 0)) && echo "Installing virtual environment for Python packages"
     HAS_PODMAN="yes"
@@ -273,6 +314,19 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     echo "INFO: podman was not found"
     echo "INFO: Install the package podman to take advantage of a Spack cache"
     echo "INFO: This accelerates a rebuild of the CP2K dependencies, significantly"
+  fi
+
+  # Add local Spack cache if podman is available
+  if [[ "${HAS_PODMAN}" == "yes" ]]; then
+    export SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+    spack mirror list
+    if ! spack mirror list | grep -q "local-cache"; then
+      echo "Setting up Spack cache"
+      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
+    fi
+    ((VERBOSE > 0)) && "${CP2K_ROOT}"/tools/docker/spack_cache_list.sh
+  else
+    echo "INFO: A local Spack cache is NOT used"
   fi
 
   # Install Spack
@@ -299,22 +353,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
   rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
 
-  # Add local Spack cache if podman is available
-  if [[ "${HAS_PODMAN}" == "yes" ]]; then
-    export SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
-    if ! spack mirror list | grep -q "local-cache"; then
-      echo "Setting up Spack cache"
-      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
-    fi
-    ((VERBOSE > 0)) && "${CP2K_ROOT}"/tools/docker/spack_cache_list.sh
-  else
-    echo "INFO: A local Spack cache is NOT used"
-  fi
-
   # Initialize Spack shell hooks
   source "${SPACK_ROOT}/share/spack/setup-env.sh"
 
-  # Prepare the CP2K Spack configuration file
+  # Prepare the CP2K spack configuration file
   export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
   sed -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
     -e "/\"build_type=/s|build_type=[^\"]*|build_type=${BUILD_TYPE}|" \
@@ -323,16 +365,16 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Activate CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
     if [[ "${SPACK_ENV:-}" == "${CP2K_ENV}" ]]; then
-      echo "The Spack environment ${CP2K_ENV} exists and is activated"
+      echo "The Spack environment \"${CP2K_ENV}\" exists and is activated"
     else
-      echo "The Spack environment ${CP2K_ENV} exists but is NOT activated"
+      echo "The Spack environment \"${CP2K_ENV}\" exists but is NOT activated"
       spack env activate "${CP2K_ENV}"
-      echo "The Spack environment ${CP2K_ENV} has been activated"
+      echo "The Spack environment \"${CP2K_ENV}\" has been activated"
     fi
   else
-    echo "The Spack environment ${CP2K_ENV} does NOT exist"
+    echo "The Spack environment \"${CP2K_ENV}\" does NOT exist"
     spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}" && spack env activate "${CP2K_ENV}"
-    echo "The Spack environment ${CP2K_ENV} has been created and activated"
+    echo "The Spack environment \"${CP2K_ENV}\" has been created and activated"
   fi
 
   # Add Spack packages builtin repository when missing
@@ -353,17 +395,39 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   spack -e ${CP2K_ENV} repo list
 
   # Find all compilers
-  spack compiler find
+  if ! spack compiler find; then
+    echo "ERROR: The compiler detection of spack failed"
+    ${EXIT_CMD} 1
+  fi
 
   spack find -c
 
   # Find all external packages
-  spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable
+  if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+    if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable; then
+      echo "ERROR: The detection of externals by spack failed"
+      ${EXIT_CMD} 1
+    fi
+  fi
+
+  # Concretize CP2K dependencies
+  if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
+    echo "HINT: The  --no_externals flag can help to resolve conflicts with outdated"
+    echo "      packages on the host system, e.g. old python or gcc versions"
+    ${EXIT_CMD} 1
+  fi
+
+  # Create spack makefile for all dependencies
+  if ! spack -e "${CP2K_ENV}" env depfile -o spack_makefile; then
+    echo "ERROR: The creation of the spack makefile failed"
+    ${EXIT_CMD} 1
+  fi
 
   # Install CP2K dependencies via Spack
-  spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize -f
-  spack -e "${CP2K_ENV}" env depfile -o spack_makefile
-  make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
+  if ! make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse; then
+    echo "ERROR: Building the CP2K dependencies with spack failed"
+    ${EXIT_CMD} 1
+  fi
 
   cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
@@ -371,13 +435,6 @@ else
 
   # Initialize Spack shell hooks
   source "${SPACK_ROOT}"/share/spack/setup-env.sh
-
-  if [[ "${HAS_PODMAN}" == "yes" ]]; then
-    # Start Spack cache
-    "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh
-    podman container list
-    ((VERBOSE > 0)) && "${CP2K_ROOT}"/tools/docker/spack_cache_list.sh
-  fi
 
 fi
 
