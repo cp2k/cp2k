@@ -3625,9 +3625,9 @@ CONTAINS
 !> \param unit_number ...
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, unit_number)
+   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: nmoments, reference
+      INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
@@ -3640,7 +3640,7 @@ CONTAINS
       INTEGER                                            :: handle, i_dir, ikp, nkp, nmo, &
                                                             n_img_scf, n_img_all, nao, &
                                                             num_pe, num_copy, mepos, n, m, mu, &
-                                                            ispin, nspin
+                                                            ispin, nspin, nmin, nmax, homo
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
@@ -3808,6 +3808,9 @@ CONTAINS
       ALLOCATE (bc_to_print(3, nao), source=0.0_dp)
       DO ikp = 1, nkp
          DO ispin = 1, nspin
+            CALL get_mo_set(mo_set=mos(ispin), homo=homo)
+            nmin=max(1,homo-(max_nmo-1)/2)
+            nmax=min(nao,homo+max_nmo/2)
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
             IF (mod(ikp - 1, num_pe) == mepos) THEN
@@ -3824,15 +3827,15 @@ CONTAINS
                IF (nspin>1) WRITE (unit_number, "(/,2X,A,I2)") "Open Shell System. Spin:", ispin
                WRITE (unit_number, "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
                & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
-               DO n = 1, nao
-                  DO m = 1, nao
+               DO n = nmin, nmax
+                  DO m = nmin, nmax
                      IF (n == m) CYCLE
                      WRITE (unit_number, "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)
                   END DO
                END DO
                WRITE (unit_number, "(/,1X,A)") "Berry Curvature"
                WRITE (unit_number, "(2X,A)") "  kp   n      YZ          ZX          XY"
-               DO n = 1, nao
+               DO n = nmin, nmax
                   WRITE (unit_number, "(2X,2I4,3(1X,G11.3))") &
                      ikp, n, bc_to_print(1, n), bc_to_print(2, n), bc_to_print(3, n)
                END DO
