@@ -147,6 +147,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -bd | --build_deps)
       BUILD_DEPS="yes"
+      shift 1
       ;;
     -bt | --build_type)
       BUILD_TYPE="${2}"
@@ -298,6 +299,33 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   mkdir -p "${SPACK_BUILD_PATH}"
   cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
 
+  # Install Spack
+  ((VERBOSE > 0)) && echo "Installing Spack ${SPACK_VERSION}"
+  export SPACK_REPO="https://github.com/spack/spack"
+  if [[ ! -d "${SPACK_ROOT}" ]]; then
+    wget -q "${SPACK_REPO}/archive/v${SPACK_VERSION}.tar.gz"
+    tar -xzf "v${SPACK_VERSION}.tar.gz"
+    rm -f "v${SPACK_VERSION}.tar.gz"
+  fi
+  export PATH="${SPACK_ROOT}/bin:${PATH}"
+
+  # Isolate user config/cache
+  export SPACK_DISABLE_LOCAL_CONFIG=true
+  export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
+  export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
+  mkdir -p "${SPACK_USER_CACHE_PATH}"
+
+  # Install Spack packages
+  ((VERBOSE > 0)) && echo "Installing Spack packages ${SPACK_PACKAGES_VERSION}"
+  export SPACK_PACKAGES_REPO="https://github.com/spack/spack-packages"
+  export SPACK_PACKAGES_ROOT="${SPACK_BUILD_PATH}/spack-packages-${SPACK_PACKAGES_VERSION}"
+  wget -q "${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz"
+  tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
+  rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
+
+  # Initialize Spack shell hooks
+  source "${SPACK_ROOT}/share/spack/setup-env.sh"
+
   # The package podman is required for using a MinIO cache
   if command -v podman &> /dev/null; then
     ((VERBOSE > 0)) && echo "Installing virtual environment for Python packages"
@@ -328,33 +356,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   else
     echo "INFO: A local Spack cache is NOT used"
   fi
-
-  # Install Spack
-  ((VERBOSE > 0)) && echo "Installing Spack ${SPACK_VERSION}"
-  export SPACK_REPO="https://github.com/spack/spack"
-  if [[ ! -d "${SPACK_ROOT}" ]]; then
-    wget -q "${SPACK_REPO}/archive/v${SPACK_VERSION}.tar.gz"
-    tar -xzf "v${SPACK_VERSION}.tar.gz"
-    rm -f "v${SPACK_VERSION}.tar.gz"
-  fi
-  export PATH="${SPACK_ROOT}/bin:${PATH}"
-
-  # Isolate user config/cache
-  export SPACK_DISABLE_LOCAL_CONFIG=true
-  export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
-  export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
-  mkdir -p "${SPACK_USER_CACHE_PATH}"
-
-  # Install Spack packages
-  ((VERBOSE > 0)) && echo "Installing Spack packages ${SPACK_PACKAGES_VERSION}"
-  export SPACK_PACKAGES_REPO="https://github.com/spack/spack-packages"
-  export SPACK_PACKAGES_ROOT="${SPACK_BUILD_PATH}/spack-packages-${SPACK_PACKAGES_VERSION}"
-  wget -q "${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz"
-  tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
-  rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
-
-  # Initialize Spack shell hooks
-  source "${SPACK_ROOT}/share/spack/setup-env.sh"
 
   # Prepare the CP2K spack configuration file
   export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
