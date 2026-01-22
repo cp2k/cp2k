@@ -124,6 +124,7 @@ CONTAINS
                              rho_r=rho_r, &            ! place where derivative is evaluated
                              tau_r=tau_r, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
+                             weights=weights, &
                              xc_section=xc_section)
 
       ! folding of second deriv with density in rho1_set
@@ -134,8 +135,8 @@ CONTAINS
                              rho1_r=rho1_r, &          ! density with which to fold
                              rho1_g=rho1_g, &          ! density with which to fold
                              tau1_r=tau1_r, &
-                             weights=weights, & ! pool for grids
                              pw_pool=auxbas_pw_pool, & ! pool for grids
+                             weights=weights, &
                              xc_section=xc_section, &
                              gapw=.FALSE., &
                              compute_virial=compute_virial, &

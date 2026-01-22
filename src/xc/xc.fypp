@@ -50,7 +50,7 @@
 
                #:if inner_arguments == []
                   IF (my_compute_virial) THEN
-                     CALL virial_drho_drho1(virial_pw, drho${appendix1}$, drho1${appendix1}$, deriv_data, virial_xc, weights)
+                     CALL virial_drho_drho1(virial_pw, drho${appendix1}$, drho1${appendix1}$, deriv_data, virial_xc)
                   END IF ! my_compute_virial
                #:endif
 
@@ -71,7 +71,7 @@
                   CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
                   virial_pw%array(:, :, :) = -rho1${appendix1}$ (:, :, :)
-                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data, weights)
+                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data)
                END IF
             END IF ! my_compute_virial
          #:endif

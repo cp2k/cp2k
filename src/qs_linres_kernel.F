@@ -347,12 +347,13 @@ CONTAINS
          IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. lr_triplet)
+               CALL get_qs_env(qs_env, xcint_weights=weights)
                xc_section_aux => admm_env%xc_section_aux
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
-                                      rho_r, auxbas_pw_pool, &
+                                      rho_r, auxbas_pw_pool, weights, &
                                       xc_section=xc_section_aux)
             END IF
          END IF
@@ -873,7 +874,7 @@ CONTAINS
             nspins = dft_control%nspins
 
             ! AUX basis contribution
-            CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, xcint_weights=weights)
+            CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CPASSERT(ASSOCIATED(pw_env))
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             NULLIFY (tau_pw)
@@ -885,6 +886,9 @@ CONTAINS
 
             CALL get_qs_env(qs_env, admm_env=admm_env)
             gapw = admm_env%do_gapw
+
+            NULLIFY (weights)
+            CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
 
             CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
             xc_section => admm_env%xc_section_aux
@@ -904,7 +908,7 @@ CONTAINS
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    auxbas_pw_pool)
             CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
-                                   rho1_aux_r, rho1_aux_g, tau_pw, weights, auxbas_pw_pool, gapw=.FALSE., &
+                                   rho1_aux_r, rho1_aux_g, tau_pw, auxbas_pw_pool, weights, gapw=.FALSE., &
                                    xc_section=xc_section)
             IF (ASSOCIATED(v_xc_tau)) THEN
                CPABORT("Meta-GGA ADMM functionals not yet supported!")

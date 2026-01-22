@@ -423,7 +423,6 @@ CONTAINS
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_pw, vxc_tau_pw
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
@@ -469,10 +468,9 @@ CONTAINS
 
       NULLIFY (vxc_tau_pw)
 
-      !deb weigts
-      NULLIFY (weights)
-      CALL xc_calc_2nd_deriv_analytical(vxc_pw, vxc_tau_pw, deriv_set, rho_set, rho1_set, weights, pw_pool, &
-                                        xc_section, gapw=.TRUE., vxg=vxg, tddfpt_fac=my_fac_triplet, spinflip=do_sf)
+      CALL xc_calc_2nd_deriv_analytical(vxc_pw, vxc_tau_pw, deriv_set, rho_set, rho1_set, pw_pool, &
+                                        xc_section, gapw=.TRUE., vxg=vxg, &
+                                        tddfpt_fac=my_fac_triplet, spinflip=do_sf)
 
       DEALLOCATE (vxc_pw)
 

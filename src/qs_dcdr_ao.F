@@ -227,7 +227,7 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       CALL xc_prep_2nd_deriv(deriv_set, rho_set, &
-                             rho_r, auxbas_pw_pool, &
+                             rho_r, auxbas_pw_pool, weights, &
                              xc_section=xc_section)
 
       ! Done with deriv_set and rho_set
@@ -254,8 +254,8 @@ CONTAINS
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
-                             rho1_r, rho1_g_pw, tau1_r, weights, auxbas_pw_pool, &
-                             xc_section, gapw=.FALSE.)
+                             rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, &
+                             weights, xc_section, gapw=.FALSE.)
 
       DO ispin = 1, dcdr_env%nspins
          v_rspace_new(ispin) = v_xc(ispin)
@@ -507,13 +507,13 @@ CONTAINS
 
          ! Get the XC potential corresponding to the perturbed density
          CALL xc_prep_2nd_deriv(my_deriv_set, my_rho_set, &
-                                rho_r, auxbas_pw_pool, &
+                                rho_r, auxbas_pw_pool, weights, &
                                 xc_section=xc_section)
 
          NULLIFY (dtau_r)
          CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, my_deriv_set, my_rho_set, &
-                                drho_r, drho_g, dtau_r, weights, auxbas_pw_pool, &
-                                xc_section, gapw=.FALSE.)
+                                drho_r, drho_g, dtau_r, auxbas_pw_pool, &
+                                weights, xc_section, gapw=.FALSE.)
          IF (ASSOCIATED(v_xc_tau)) CPABORT("Meta functionals are not supported!")
 
          CALL xc_dset_release(my_deriv_set)

@@ -1153,6 +1153,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
@@ -1182,6 +1183,9 @@ CONTAINS
       NULLIFY (pw_env)
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CPASSERT(ASSOCIATED(pw_env))
+
+      NULLIFY (weights)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
 
       NULLIFY (auxbas_pw_pool, poisson_env, pw_pools)
       ! gets the tmp grids
@@ -1230,7 +1234,7 @@ CONTAINS
                CALL qs_rho_get(rho_aux, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
-                                      rho_r, auxbas_pw_pool, &
+                                      rho_r, auxbas_pw_pool, weights, &
                                       xc_section=xc_section_aux)
             END IF
          END IF

@@ -136,10 +136,11 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
       ! calculate the arguments needed by the functionals and the values of the functional on the grid
-      CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, xc_section=xc_section, tau_r=tau0_r)
+      CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, weights, &
+                             xc_section=xc_section, tau_r=tau0_r)
       ! Folds the density rho1 with the functional
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho0_set, rho1_r, rho1_g, tau1_r, &
-                             weights, auxbas_pw_pool, xc_section=xc_section, &
+                             auxbas_pw_pool, weights, xc_section=xc_section, &
                              gapw=.FALSE., do_triplet=is_triplet, do_sf=do_sf)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho0_set)
@@ -392,8 +393,8 @@ CONTAINS
       !   pw_pool    given by the calling subroutine
       !   xc_section given by the calling subroutine
       !   tau0_r     pw_type calculated by qs_rho_get
-      CALL xc_prep_3rd_deriv(deriv_set, rho0_set, rho0_r, pw_pool, xc_section, tau_r=tau0_r, &
-                             do_sf=do_sf)
+      CALL xc_prep_3rd_deriv(deriv_set, rho0_set, rho0_r, pw_pool, weights, &
+                             xc_section, tau_r=tau0_r, do_sf=do_sf)
 
       ! Build rho1_set
       ! Get the values on the gridpoints of the rho1 density
@@ -426,7 +427,7 @@ CONTAINS
       !   rho1_set         xc_rho_set_type build by xc_rho_set_create/update
       !   pw_pool          needs to be given by the calling subroutine
       !   xc_section       needs to be given by the calling subroutine
-      CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, rho1_set, weights, pw_pool, &
+      CALL xc_calc_2nd_deriv_analytical(fxc_rho, fxc_tau, deriv_set, rho0_set, rho1_set, pw_pool, &
                                         xc_section, .FALSE., spinflip=do_sf, tddfpt_fac=fac)
       ! Calculate exchange correlation kernel derivative
       CALL xc_calc_3rd_deriv_analytical(gxc_rho, gxc_tau, deriv_set, rho0_set, rho1_set, pw_pool, &

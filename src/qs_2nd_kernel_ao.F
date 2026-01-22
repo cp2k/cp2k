@@ -324,7 +324,8 @@ CONTAINS
 
          CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, &
                                 p_env%kpp1_env%rho_set_admm, &
-                                rho1_aux_r, rho1_aux_g, tau1_aux_r, weights, auxbas_pw_pool, &
+                                rho1_aux_r, rho1_aux_g, tau1_aux_r, auxbas_pw_pool, &
+                                weights=weights, &
                                 xc_section=xc_section, gapw=.FALSE., &
                                 compute_virial=calc_virial, virial_xc=virial)
 
