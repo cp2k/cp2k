@@ -5,7 +5,7 @@
 "h2o_p1.inp"                            = [{matcher="M087", tol=1e-05, ref=0.161404623690E+02}]
 "h2o_p2.inp"                            = [{matcher="M087", tol=1e-05, ref=0.215671342368E+02}]
 #
-"h2o_ec1.inp"                           = []
-"h2o_ec2.inp"                           = []
-"h2o_ec3.inp"                           = []
+"HF-ec1.inp"                            = []
+"HF-ec2.inp"                            = []
+"HF-ec3.inp"                            = []
 #EOF

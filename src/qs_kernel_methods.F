@@ -103,6 +103,10 @@ CONTAINS
          sab_orb => sub_env%sab_orb
 
          nspins = SIZE(sub_env%mos_occ)
+
+         ! this ignores possible weighting functions for sub_env runs using FD 2nd derivatives XC
+         NULLIFY (weights)
+
       ELSE
          CPASSERT(PRESENT(qs_env))
 
@@ -111,6 +115,9 @@ CONTAINS
                          dbcsr_dist=dbcsr_dist, &
                          sab_orb=sab_orb, &
                          dft_control=dft_control)
+
+         NULLIFY (weights)
+         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
 
          nspins = dft_control%nspins
 
@@ -139,9 +146,6 @@ CONTAINS
       CALL qs_rho_get(rho_struct_sub, rho_r=rho_ij_r, tau_r=tau_ij_r)
 
       NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set)
-
-      NULLIFY (weights)
-      CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
 
       ALLOCATE (kernel_env%xc_rho_set)
       IF (is_rks_triplets) THEN
