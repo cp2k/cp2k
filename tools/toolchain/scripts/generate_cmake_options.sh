@@ -22,11 +22,11 @@ export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 if [ -n "$(grep -- "--install-all" ${INSTALLDIR}/setup)" ]; then
   export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
 else
-# If MPI used, set "CP2K_USE_MPI" to "ON"
+  # If MPI used, set "CP2K_USE_MPI" to "ON"
   if [ "${MPI_MODE}" != "no" ]; then
     export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_MPI=ON"
   fi
-# If GPU acceleration is used, add the option about GPU acceleration
+  # If GPU acceleration is used, add the option about GPU acceleration
   if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
     export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${GPUVER}"
   else
@@ -38,14 +38,14 @@ else
       fi
     fi
   fi
-# Detect if any other dependencies is used simply via the variables in file "${INSTALLDIR}"/toolchain.env
-# Disadvantage: If a new dependencies was added to CP2K, the option will have to be manually added to this script.
-# Example: 
-#  if [ "${with_abc}" != "__DONTUSE__" ]; then
-#    export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_ABC=ON"
-#  fi
+  # Detect if any other dependencies is used simply via the variables in file "${INSTALLDIR}"/toolchain.env
+  # Disadvantage: If a new dependencies was added to CP2K, the option will have to be manually added to this script.
+  # Example: 
+  #  if [ "${with_abc}" != "__DONTUSE__" ]; then
+  #    export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_ABC=ON"
+  #  fi
   if [ "${with_fftw}" != "__DONTUSE__" ] || [ "MATH_MODE" = "mkl" ]; then
-  # Intel MKL includes FFTW
+    # Intel MKL includes FFTW
     export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_FFTW3=ON"
   fi
   if [ "${with_libint}" != "__DONTUSE__" ]; then
