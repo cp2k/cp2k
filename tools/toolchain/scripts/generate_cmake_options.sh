@@ -40,7 +40,7 @@ else
   fi
   # Some options that should be specially considered:
   # Intel MKL includes FFTW
-  if [ "${with_fftw}" != "__DONTUSE__" ] || [ "MATH_MODE" = "mkl" ]; then
+  if [ "${with_fftw}" != "__DONTUSE__" ] || [ "$MATH_MODE" = "mkl" ]; then
     export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_FFTW3=ON"
   fi
   # There is only MCL (MiMiC Communication Library) and no MiMiC that can be installed via toolchain, but if one chooses to install MCL then MiMiC should have been installed?
