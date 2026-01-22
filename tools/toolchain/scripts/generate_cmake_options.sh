@@ -47,11 +47,14 @@ else
   if [ "${with_mcl}" != "__DONTUSE__" ]; then
     export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_MIMIC=ON"
   fi
+  # If user choose dftd4 rather than tblite in toolchain, the ADDED_CMAKE_OPTION below will be CP2K_USE_TBLITE by mistake.
+  if [ "${with_dftd4}" != "__DONTUSE__" ] && [ "${with_tblite}" = "__DONTUSE__" ]; then
+    export CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_DFTD4=ON"
+  fi
   # Detect if any other dependencies is used and add the proper cmake option. Since "pugixml" and "gsl" are not mentioned in CMakeLists.txt, they will not be considered.
-  for toolchain_option in $(grep -vi "dontuse\|list\|cmake\|fftw\|dbcsr" ${INSTALLDIR}/toolchain.conf | cut -d'_' -f2 | cut -d'=' -f1); do
+  for toolchain_option in $(grep -vi "dontuse\|list\|cmake\|fftw\|dbcsr\|dftd4" ${INSTALLDIR}/toolchain.conf | cut -d'_' -f2 | cut -d'=' -f1); do
     if [ $(eval echo "$with_"'$toolchain_option') != "__DONTUSE__" ]; then
-      ADDED_CMAKE_OPTION=$(sed -n '/target_compile_definitions(/,/)/p' ${CP2K_ROOT}/src/CMakeLists.txt | grep -i $toolchain_option | cut -d'{' -f2 | cut -d'}' -f1 | grep -i $toolchain_option | head -n 1)
-      # The reason that "grep -i $toolchain_option" appears twice is related to DFT-D4 which is a submodule of tblite: if user choose dftd4 rather than tblite in toolchain, the option will be added as CP2K_USE_TBLITE by mistake without the second "grep" command.
+      ADDED_CMAKE_OPTION=$(sed -n '/target_compile_definitions(/,/)/p' ${CP2K_ROOT}/src/CMakeLists.txt | grep -i $toolchain_option | cut -d'{' -f2 | cut -d'}' -f1 | head -n 1)
       # Use "if-then" below can avoid generating empty "-D=ON" options
       if [ -n "${ADDED_CMAKE_OPTION}" ]; then
         export CMAKE_OPTIONS="${CMAKE_OPTIONS} -D${ADDED_CMAKE_OPTION}=ON"
