@@ -158,8 +158,8 @@ MODULE cp_fm_elpa
 #endif
 
    ! elpa_qr_unsafe: disable block size limitations
-   LOGICAL, SAVE :: elpa_should_print = .FALSE., &
-                    elpa_qr_unsafe = .TRUE., &
+   LOGICAL, SAVE :: elpa_qr_unsafe = .TRUE., &
+                    elpa_print = .FALSE., &
                     elpa_qr = .FALSE.
 
 #if defined(__OFFLOAD_OPENCL)
@@ -170,9 +170,9 @@ MODULE cp_fm_elpa
 
    PUBLIC :: cp_fm_diag_elpa, &
              set_elpa_kernel, &
-             set_elpa_print, &
-             elpa_qr, &
              elpa_one_stage, &
+             elpa_print, &
+             elpa_qr, &
              elpa_kernel_ids, &
              elpa_kernel_names, &
              elpa_kernel_descriptions, &
@@ -185,14 +185,17 @@ CONTAINS
 !> \brief Initialize the ELPA library
 !> \param one_stage ...
 !> \param qr ...
+!> \param should_print flag that determines if additional information
+!>        is printed when the diagonalization routine is called.
 ! **************************************************************************************************
-   SUBROUTINE initialize_elpa_library(one_stage, qr)
-      LOGICAL, INTENT(IN), OPTIONAL                      :: one_stage, qr
+   SUBROUTINE initialize_elpa_library(one_stage, qr, should_print)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: one_stage, qr, should_print
 
 #if defined(__ELPA)
       IF (elpa_init(20180525) /= ELPA_OK) &
          CPABORT("The linked ELPA library does not support the required API version")
       IF (PRESENT(one_stage)) elpa_one_stage = one_stage
+      IF (PRESENT(should_print)) elpa_print = should_print
       IF (PRESENT(qr)) elpa_qr = qr
 #else
       CPABORT("Initialization of ELPA library requested but not enabled during build")
@@ -259,17 +262,6 @@ CONTAINS
       MARK_USED(requested_kernel)
 #endif
    END SUBROUTINE set_elpa_kernel
-
-! **************************************************************************************************
-!> \brief Sets a flag that determines if additional information about the ELPA diagonalization
-!>        should be printed when the diagonalization routine is called.
-!> \param flag the logical flag
-! **************************************************************************************************
-   SUBROUTINE set_elpa_print(flag)
-      LOGICAL, INTENT(IN)                                :: flag
-
-      elpa_should_print = flag
-   END SUBROUTINE set_elpa_print
 
 ! **************************************************************************************************
 !> \brief Driver routine to diagonalize a FM matrix with the ELPA library.
@@ -398,7 +390,7 @@ CONTAINS
          use_qr = use_qr .AND. (n >= 64) .AND. (nblk >= 64)
 
       ! Check if eigenvalues computed with elpa_qr_unsafe should be verified
-      IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
+      IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_print) &
          check_eigenvalues = .TRUE.
 
       CALL matrix%matrix_struct%para_env%bcast(check_eigenvalues)
@@ -412,7 +404,7 @@ CONTAINS
          CALL cp_fm_uplo_to_full(matrix_noqr, eigenvectors_noqr)
       END IF
 
-      IF (io_unit > 0 .AND. elpa_should_print) THEN
+      IF (io_unit > 0 .AND. elpa_print) THEN
          WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
             "ELPA| Matrix diagonalization information"
 

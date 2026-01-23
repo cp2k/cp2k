@@ -2,8 +2,6 @@
   PROJECT diag_cu72_broy
   ! Do not compute forces to avoid performance cliff of grid_integrate_task_list on GPU.
   RUN_TYPE ENERGY
-  &PRINT_ELPA ON
-  &END PRINT_ELPA
 &END GLOBAL
 
 &FORCE_EVAL
