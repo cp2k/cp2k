@@ -47,12 +47,13 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.3
+# Version: 0.4
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
 #          - Version 0.2: Add more flags and checks (19.01.2026, MK)
 #          - Version 0.3: Add no_externals flag and perform more checks (21.01.2026, MK)
+#          - Version 0.4: Improve error handling and provide more hints (22.01.2026, MK)
 
 # set -uo pipefail # can be useful for debugging this script
 
@@ -328,15 +329,43 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # The package podman is required for using a MinIO cache
   if command -v podman &> /dev/null; then
+    # Check podman version
+    ((VERBOSE > 0)) && podman version
+    PODMAN_VERSION=$(podman version --format '{{.Client.Version}}' | awk -F'[.-]' '{print $1}')
+    if ((PODMAN_VERSION < 4)); then
+      echo "WARNING: Outdated podman version $(podman version --format '{{.Client.Version}}') found"
+    fi
     ((VERBOSE > 0)) && echo "Installing virtual environment for Python packages"
     HAS_PODMAN="yes"
-    # Create and activate a virtual environment for Python packages
-    python3 -m venv "${SPACK_BUILD_PATH}/venv"
+    # Create and activate a virtual environment (venv) for Python packages
+    if command -v python3 -m venv --help &> /dev/null; then
+      if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
+        echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
+        ${EXIT_CMD} 1
+      fi
+    else
+      echo "ERROR: python3 -m venv was not found"
+      ${EXIT_CMD} 1
+    fi
     export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
-    pip3 install "${VERBOSE_FLAG}" --upgrade pip
-    pip3 install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
+    # Upgrade pip and install boto3
+    if command -v python3 -m pip --version &> /dev/null; then
+      python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip
+      python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
+    else
+      echo "ERROR: python3 -m pip was not found"
+      ${EXIT_CMD} 1
+    fi
     # Start Spack cache
-    "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh
+    if ! "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh; then
+      echo "ERROR: Could not start (new) spack cache"
+      echo "An error message starting with \"Error: initial journal cursor: ...\" indicates that the"
+      echo "journald logging does not work. Try to switch podman (3.x) to file-based logs by creating"
+      echo "the file \"~/.config/containers/containers.conf\" with the following two lines:"
+      echo "[containers]"
+      echo "log_driver = \"k8s-file\""
+      ${EXIT_CMD} 1
+    fi
   else
     HAS_PODMAN="no"
     echo "INFO: podman was not found"
@@ -498,28 +527,23 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       ${EXIT_CMD} 1
       ;;
   esac
-fi
-
-if ((EXIT_CODE != 0)); then
-  echo "ERROR: The CMake configuration step failed with the error code ${EXIT_CODE}"
-  echo "       You can try to remove the build folder with 'rm -rf build' and re-run"
-  ${EXIT_CMD} "${EXIT_CODE}"
+  if ((EXIT_CODE != 0)); then
+    echo "ERROR: The CMake configuration step failed with the error code ${EXIT_CODE}"
+    echo "       You can try to remove the build folder with 'rm -rf build' and re-run"
+    ${EXIT_CMD} "${EXIT_CODE}"
+  fi
 fi
 
 # CMake build step
 echo -e '\n*** Compiling CP2K ***\n'
-cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}/ninja.log"
-EXIT_CODE=$?
-if ((EXIT_CODE != 0)); then
+if ! cmake --build "${CMAKE_BUILD_PATH}" --parallel "${NUM_PROCS}" -- "${VERBOSE_FLAG}" |& tee "${CMAKE_BUILD_PATH}/ninja.log"; then
   echo "ERROR: The CMake build step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
 # CMake install step
 echo -e '\n*** Installing CP2K ***\n'
-cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}/install.log"
-EXIT_CODE=$?
-if ((EXIT_CODE != 0)); then
+if ! cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}/install.log"; then
   echo "ERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
