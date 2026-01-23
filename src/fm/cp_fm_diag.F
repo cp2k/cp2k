@@ -30,8 +30,7 @@ MODULE cp_fm_diag
    USE cp_fm_elpa, ONLY: cp_fm_diag_elpa, &
                          finalize_elpa_library, &
                          initialize_elpa_library, &
-                         set_elpa_kernel, &
-                         set_elpa_print
+                         set_elpa_kernel
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver, &
                                  cp_fm_general_cusolver
 #if defined(__DLAF)
@@ -181,9 +180,8 @@ CONTAINS
 
       ! Initialization of requested diagonalization library
       IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_ELPA) THEN
-         CALL initialize_elpa_library(one_stage=elpa_one_stage, qr=elpa_qr)
+         CALL initialize_elpa_library(one_stage=elpa_one_stage, qr=elpa_qr, should_print=elpa_print)
          CALL set_elpa_kernel(elpa_kernel)
-         CALL set_elpa_print(elpa_print)
          initialized = .TRUE.
       END IF
 #if defined(__DLAF)

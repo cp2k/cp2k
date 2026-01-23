@@ -1,18 +1,17 @@
 &GLOBAL
   ELPA_KERNEL GENERIC
+  ELPA_PRINT
   ELPA_QR TRUE
   PREFERRED_DIAG_LIBRARY ELPA
   PRINT_LEVEL MEDIUM
   PROJECT si128-elpa-qr
   RUN_TYPE ENERGY
-  ! To test if it is safe to use ELPA_QR on your system, turn on PRINT_ELPA
+  ! To test if it is safe to use ELPA_QR on your system, turn on ELPA_PRINT
   ! to verify the computed eigenvalues (should be disabled for production)
   &FM
     NCOL_BLOCKS 64
     NROW_BLOCKS 64
   &END FM
-  &PRINT_ELPA ON
-  &END PRINT_ELPA
 &END GLOBAL
 
 &FORCE_EVAL
