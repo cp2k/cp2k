@@ -1115,7 +1115,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msg))
+      CPASSERT(IS_CONTIGUOUS(msg) .OR. SIZE(msg) == 0)
 #endif
       msglen = SIZE(msg)
       CALL mpi_ibcast(msg, msglen, ${mpi_type1}$, source, comm%handle, request%handle, ierr)
@@ -1349,7 +1349,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msg))
+      CPASSERT(IS_CONTIGUOUS(msg) .OR. SIZE(msg) == 0)
 #endif
       msglen = SIZE(msg)
       IF (msglen > 0) THEN
@@ -1912,7 +1912,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msg_scatter))
+      CPASSERT(IS_CONTIGUOUS(msg_scatter) .OR. SIZE(msg_scatter) == 0)
 #endif
       msglen = 1
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
@@ -1954,7 +1954,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msg_scatter))
+      CPASSERT(IS_CONTIGUOUS(msg_scatter) .OR. SIZE(msg_scatter) == 0)
 #endif
       msglen = SIZE(msg)
       CALL mpi_iscatter(msg_scatter, msglen, ${mpi_type1}$, msg, &
@@ -1997,10 +1997,10 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msg_scatter))
-      CPASSERT(IS_CONTIGUOUS(msg))
-      CPASSERT(IS_CONTIGUOUS(sendcounts))
-      CPASSERT(IS_CONTIGUOUS(displs))
+      CPASSERT(IS_CONTIGUOUS(msg_scatter) .OR. SIZE(msg_scatter) == 0)
+      CPASSERT(IS_CONTIGUOUS(msg) .OR. SIZE(msg) == 0)
+      CPASSERT(IS_CONTIGUOUS(sendcounts) .OR. SIZE(sendcounts) == 0)
+      CPASSERT(IS_CONTIGUOUS(displs) .OR. SIZE(displs) == 0)
 #endif
       CALL mpi_iscatterv(msg_scatter, sendcounts, displs, ${mpi_type1}$, msg, &
                          recvcount, ${mpi_type1}$, root, comm%handle, request%handle, ierr)
@@ -2477,10 +2477,10 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(sendbuf))
-      CPASSERT(IS_CONTIGUOUS(recvbuf))
-      CPASSERT(IS_CONTIGUOUS(recvcounts))
-      CPASSERT(IS_CONTIGUOUS(displs))
+      CPASSERT(IS_CONTIGUOUS(sendbuf) .OR. SIZE(sendbuf) == 0)
+      CPASSERT(IS_CONTIGUOUS(recvbuf) .OR. SIZE(recvbuf) == 0)
+      CPASSERT(IS_CONTIGUOUS(recvcounts) .OR. SIZE(recvcounts) == 0)
+      CPASSERT(IS_CONTIGUOUS(displs) .OR. SIZE(displs) == 0)
 #endif
       CALL mpi_igatherv(sendbuf, sendcount, ${mpi_type1}$, &
                         recvbuf, recvcounts, displs, ${mpi_type1}$, &
@@ -2606,7 +2606,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
       scount = 1
       rcount = 1
@@ -2797,8 +2797,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
       scount = SIZE(msgout(:))
       rcount = scount
@@ -2840,8 +2840,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       scount = SIZE(msgout(:))
@@ -2884,8 +2884,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       scount = SIZE(msgout(:, :))
@@ -2928,8 +2928,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       scount = SIZE(msgout(:, :))
@@ -2972,8 +2972,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       scount = SIZE(msgout(:, :, :))
@@ -3117,10 +3117,10 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
-      CPASSERT(IS_CONTIGUOUS(rcount))
-      CPASSERT(IS_CONTIGUOUS(rdispl))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
+      CPASSERT(IS_CONTIGUOUS(rcount) .OR. SIZE(rcount) == 0)
+      CPASSERT(IS_CONTIGUOUS(rdispl) .OR. SIZE(rdispl) == 0)
 #endif
 
       scount = SIZE(msgout)
@@ -3173,10 +3173,10 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
-      CPASSERT(IS_CONTIGUOUS(rcount))
-      CPASSERT(IS_CONTIGUOUS(rdispl))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
+      CPASSERT(IS_CONTIGUOUS(rcount) .OR. SIZE(rcount) == 0)
+      CPASSERT(IS_CONTIGUOUS(rdispl) .OR. SIZE(rdispl) == 0)
 #endif
 
       scount = SIZE(msgout)
@@ -3611,8 +3611,8 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       my_tag = 0
@@ -3684,7 +3684,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
@@ -3747,7 +3747,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       my_tag = 0
@@ -3813,7 +3813,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       my_tag = 0
@@ -3876,7 +3876,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgin))
+      CPASSERT(IS_CONTIGUOUS(msgin) .OR. SIZE(msgin) == 0)
 #endif
 
       my_tag = 0
@@ -3939,7 +3939,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
 #endif
 
       my_tag = 0
@@ -4001,7 +4001,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
 #endif
 
       my_tag = 0
@@ -4064,7 +4064,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
 #endif
 
       my_tag = 0
@@ -4125,7 +4125,7 @@
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(msgout))
+      CPASSERT(IS_CONTIGUOUS(msgout) .OR. SIZE(msgout) == 0)
 #endif
 
       my_tag = 0
