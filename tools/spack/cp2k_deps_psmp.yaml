@@ -6,6 +6,7 @@ spack:
 
   config:
     install_tree:
+      padded_length: 128
       root: /opt/spack
 
   modules:
