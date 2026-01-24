@@ -54,6 +54,7 @@
 #          - Version 0.2: Add more flags and checks (19.01.2026, MK)
 #          - Version 0.3: Add no_externals flag and perform more checks (21.01.2026, MK)
 #          - Version 0.4: Improve error handling and provide more hints (22.01.2026, MK)
+#          - Version 0.5: Adapt script for use within a container (24.01.2026, MK)
 
 # set -uo pipefail # can be useful for debugging this script
 
@@ -79,13 +80,6 @@ for package in awk bzip2 g++ gcc gfortran git make gzip patch python3 tar wget x
     echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
     echo "       Install the missing package and re-run the script"
     ${EXIT_CMD} 1
-  fi
-done
-
-# Check if all recommended packages for the Spack/CMake build are installed in the environment
-for package in autoconf automake bison flex libtool m4 pkg-config podman; do
-  if ! command -v "${package}" &> /dev/null; then
-    echo "INFO: The package \"${package}\" was not found but is recommended"
   fi
 done
 
@@ -121,7 +115,8 @@ fi
 
 # Default values
 BUILD_DEPS="no"
-BUILD_TYPE="Release"
+BUILD_TYPE="${BUILD_TYPE:-Release}"
+HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 if command -v nproc &> /dev/null; then
@@ -139,7 +134,7 @@ VERBOSE_FLAG="--quiet"
 VERBOSE_MAKEFILE="OFF"
 
 export CP2K_ENV="cp2k_env"
-export CP2K_ROOT=${PWD}
+export CP2K_ROOT=${CP2K_ROOT:-${PWD}}
 export CP2K_VERSION="${CP2K_VERSION:-psmp}"
 export INSTALL_PREFIX="${INSTALL_PREFIX:-${CP2K_ROOT}/install}"
 
@@ -216,7 +211,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
-export BUILD_TYPE INSTALL_MESSAGE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_TYPE HAS_PODMAN INSTALL_MESSAGE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -310,11 +305,34 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
   export PATH="${SPACK_ROOT}/bin:${PATH}"
 
-  # Isolate user config/cache
+  # Isolate user configuration for spack
   export SPACK_DISABLE_LOCAL_CONFIG=true
   export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
   export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
   mkdir -p "${SPACK_USER_CACHE_PATH}"
+
+  # Create and activate a virtual environment (venv) for Python packages
+  if command -v python3 -m venv --help &> /dev/null; then
+    echo "Installing virtual environment for Python packages"
+    if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
+      echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
+      ${EXIT_CMD} 1
+    fi
+    export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
+  else
+    echo "ERROR: python3 -m venv was not found"
+    ${EXIT_CMD} 1
+  fi
+
+  # Upgrade pip and install boto3
+  if command -v python3 -m pip --version &> /dev/null; then
+    python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip
+    echo "Installing boto3 module"
+    python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
+  else
+    echo "ERROR: python3 -m pip was not found"
+    ${EXIT_CMD} 1
+  fi
 
   # Install Spack packages
   ((VERBOSE > 0)) && echo "Installing Spack packages ${SPACK_PACKAGES_VERSION}"
@@ -327,36 +345,26 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Initialize Spack shell hooks
   source "${SPACK_ROOT}/share/spack/setup-env.sh"
 
-  # The package podman is required for using a MinIO cache
-  if command -v podman &> /dev/null; then
-    # Check podman version
-    ((VERBOSE > 0)) && podman version
-    PODMAN_VERSION=$(podman version --format '{{.Client.Version}}' | awk -F'[.-]' '{print $1}')
-    if ((PODMAN_VERSION < 4)); then
-      echo "WARNING: Outdated podman version $(podman version --format '{{.Client.Version}}') found"
-    fi
-    ((VERBOSE > 0)) && echo "Installing virtual environment for Python packages"
-    HAS_PODMAN="yes"
-    # Create and activate a virtual environment (venv) for Python packages
-    if command -v python3 -m venv --help &> /dev/null; then
-      if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
-        echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
-        ${EXIT_CMD} 1
+  # Check if we are working within a container
+  if [[ ! -f /run/.containerenv ]]; then
+    # The package podman is required for using a MinIO cache
+    if command -v podman &> /dev/null; then
+      # Check podman version
+      ((VERBOSE > 0)) && podman version
+      PODMAN_VERSION=$(podman version --format '{{.Client.Version}}' | awk -F'[.-]' '{print $1}')
+      if ((PODMAN_VERSION < 4)); then
+        echo "WARNING: Outdated podman version $(podman version --format '{{.Client.Version}}') found"
       fi
+      HAS_PODMAN="yes"
     else
-      echo "ERROR: python3 -m venv was not found"
-      ${EXIT_CMD} 1
+      echo "INFO: podman was not found"
+      echo "INFO: Install the package podman to take advantage of a local spack cache"
+      echo "INFO: This accelerates a rebuild of the CP2K dependencies, significantly"
     fi
-    export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
-    # Upgrade pip and install boto3
-    if command -v python3 -m pip --version &> /dev/null; then
-      python3 -m pip install "${VERBOSE_FLAG}" --upgrade pip
-      python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
-    else
-      echo "ERROR: python3 -m pip was not found"
-      ${EXIT_CMD} 1
-    fi
-    # Start Spack cache
+  fi
+
+  # Start Spack cache if we are not within a container and have podman available
+  if [[ ! -f /run/.containerenv ]] && [[ "${HAS_PODMAN}" == "yes" ]]; then
     if ! "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh; then
       echo "ERROR: Could not start (new) spack cache"
       echo "An error message starting with \"Error: initial journal cursor: ...\" indicates that the"
@@ -366,22 +374,15 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       echo "log_driver = \"k8s-file\""
       ${EXIT_CMD} 1
     fi
-  else
-    HAS_PODMAN="no"
-    echo "INFO: podman was not found"
-    echo "INFO: Install the package podman to take advantage of a Spack cache"
-    echo "INFO: This accelerates a rebuild of the CP2K dependencies, significantly"
   fi
 
-  # Add local Spack cache if podman is available
-  if [[ "${HAS_PODMAN}" == "yes" ]]; then
-    export SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
-    spack mirror list
-    if ! spack mirror list | grep -q "local-cache"; then
-      echo "Setting up Spack cache"
-      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
-    fi
-    ((VERBOSE > 0)) && "${CP2K_ROOT}"/tools/docker/spack_cache_list.sh
+  # Add local spack cache if possible
+  export SPACK_CACHE=${SPACK_CACHE:-"s3://spack-cache --s3-endpoint-url=http://localhost:9000"}
+  echo "SPACK_CACHE = \"${SPACK_CACHE}\""
+  spack mirror list
+  if ! spack mirror list | grep -q "local-cache"; then
+    echo "Setting up local spack cache"
+    "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
   else
     echo "INFO: A local Spack cache is NOT used"
   fi
@@ -553,10 +554,12 @@ if ((EXIT_CODE != 0)); then
 fi
 
 # Retrieve paths to "hidden" libraries
+LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\"\n"
 if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
   ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found"
-  echo -e "\n*** Trying to update the LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}\n"
+  echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
   for libname in $(ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | awk '{print $1}' | sort | uniq); do
     library=$(find -L "${SPACK_ROOT}/opt/spack/view" "${INSTALL_PREFIX}/lib" -name "${libname}" | tail -n 1)
     library_path="$(dirname "${library}")"
@@ -574,14 +577,15 @@ if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
   done
   if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
-    echo -e "\n*** New LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
+    echo -e "\nLD_LIBRARY_PATH: \"${LD_LIBRARY_PATH}\""
   else
     echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
     ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | sort | uniq
+    ${EXIT_CMD}
   fi
-  export LD_LIBRARY_PATH
 fi
+export LD_LIBRARY_PATH
 
 # Prepare script to run the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
