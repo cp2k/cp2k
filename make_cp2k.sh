@@ -555,7 +555,7 @@ fi
 
 # Retrieve paths to "hidden" libraries
 LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
-echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\"\n"
+echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
 if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
   ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found"
