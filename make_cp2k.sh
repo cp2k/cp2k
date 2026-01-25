@@ -457,6 +457,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Install CP2K dependencies via Spack
   if ! make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
+    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+      echo "HINT:  Try to re-run the build with the --no_externals flag which avoids errors"
+      echo "       or conflicts caused by externals from the host system"
+    fi
     ${EXIT_CMD} 1
   fi
 
