@@ -701,7 +701,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+ARG SPACK_CACHE="gs://cp2k-spack-cache"
 
 WORKDIR /opt
 COPY . cp2k/
