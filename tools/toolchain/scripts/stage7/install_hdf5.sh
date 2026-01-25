@@ -44,7 +44,7 @@ case "$with_hdf5" in
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DHDF5_BUILD_FORTRAN=ON \
-        -DHDF5_ENABLE_ZLIB_SUPPORT=ON \
+        -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
