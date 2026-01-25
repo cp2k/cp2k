@@ -21,7 +21,7 @@ export CP2K_ROOT=$(cd ${ROOTDIR}/../.. && pwd)
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=../install -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 if [ -n "$(grep -- "--install-all" ${INSTALLDIR}/setup)" ]; then
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
-  # Since "--install-all" can be used together with "--with-PKG=no" or "--with-PKG=system", an extra safeguard is added here
+  # Since "--install-all" can be used together with "--with-PKG=no", an extra safeguard is added here
   for toolchain_option in $(grep -i "dontuse" ${INSTALLDIR}/toolchain.conf | cut -d'_' -f2 | cut -d'=' -f1); do
     if [ $(eval echo "$with_"'$toolchain_option') != "__DONTUSE__" ]; then
       ADDED_CMAKE_OPTION=$(sed -n '/target_compile_definitions(/,/)/p' ${CP2K_ROOT}/src/CMakeLists.txt | grep -i $toolchain_option | cut -d'{' -f2 | cut -d'}' -f1 | head -n 1)
