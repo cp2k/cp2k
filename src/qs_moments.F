@@ -3667,6 +3667,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (nmoments > 1) CPABORT("KPOINT quadrupole and higher moments not implemented.")
+      IF (max_nmo < 0) CPABORT("Negative maximum number of molecular orbitals max_nmo provided.")
 
       CALL get_qs_env(qs_env, &
                       matrix_ks_kp=matrix_ks_kp, &
@@ -3812,6 +3813,10 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin), homo=homo)
             nmin = max(1, homo - (max_nmo - 1)/2)
             nmax = min(nao, homo + max_nmo/2)
+            IF (max_nmo == 0) THEN
+               nmin = 1
+               nmax = nmo
+            END IF
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
             IF (mod(ikp - 1, num_pe) == mepos) THEN
