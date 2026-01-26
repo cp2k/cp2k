@@ -198,6 +198,9 @@ CONTAINS
       IF (PRESENT(should_print)) elpa_print = should_print
       IF (PRESENT(qr)) elpa_qr = qr
 #else
+      MARK_USED(one_stage)
+      MARK_USED(qr)
+      MARK_USED(should_print)
       CPABORT("Initialization of ELPA library requested but not enabled during build")
 #endif
    END SUBROUTINE initialize_elpa_library
@@ -494,7 +497,8 @@ CONTAINS
       CALL elpa_obj%set("solver", &
                         MERGE(ELPA_SOLVER_1STAGE, ELPA_SOLVER_2STAGE, elpa_one_stage), &
                         success)
-      CPASSERT(success == ELPA_OK)
+      IF (success /= ELPA_OK) &
+         CPABORT("Setting solver for ELPA failed")
 
       ! enabling the GPU must happen before setting the kernel
       SELECT CASE (elpa_kernel)
