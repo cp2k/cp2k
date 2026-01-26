@@ -121,20 +121,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-      INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nactive_max, nao, &
-         ncol, nex_atoms, nocc, nspins, nstates, nvirt, output_unit, td_state
+      INTEGER :: ax, c_nstates, current_state_index, fstate, handle, iatom, ispin, istate, &
+         nactive_max, nao, ncol, nex_atoms, nocc, nspins, output_unit, td_state, v_nstates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: core_evect_struct, dip_0_struct, &
-                                                            dip_f_struct, gs_coeff_struct, &
-                                                            i_dip_0_struct, i_dip_f_struct
+      TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, cRc_struct, dip_0_struct, &
+         dip_f_struct, gs_coeff_struct, i_dip_0_struct, i_dip_f_struct, Rc_struct
       TYPE(cp_fm_type)                                   :: dip_0
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, dip_f, i_dip_0, i_dip_f, &
-                                                            state_gs_coeffs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, dip_f, i_dip_0, &
+                                                            i_dip_f, Rc, state_gs_coeffs
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_coeffs
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
       TYPE(cp_fm_type), POINTER                          :: target_ex_coeffs
@@ -236,43 +235,46 @@ CONTAINS
          ! find max nactive for open-shell cases
          ALLOCATE (nactive(nspins))
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=valence_state%mos_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
+            CALL cp_fm_get_info(matrix=mo_coeffs(ispin), nrow_global=nao, ncol_global=nactive(ispin))
          END DO
          nactive_max = MAXVAL(nactive)
 
          nex_atoms = core_state%nex_atoms
-         nstates = valence_state%nstates
-         nvirt = core_state%nvirt
+         v_nstates = valence_state%nstates
+         c_nstates = core_state%nstates
 
          IF (rixs_control%core_states > 0) THEN
-            rixs_control%core_states = MIN(rixs_control%core_states, nvirt)
+            rixs_control%core_states = MIN(rixs_control%core_states, c_nstates)
          ELSE
-            rixs_control%core_states = nvirt
+            rixs_control%core_states = c_nstates
          END IF
+         c_nstates = rixs_control%core_states
 
          IF (rixs_control%valence_states > 0) THEN
-            rixs_control%valence_states = MIN(rixs_control%valence_states, nstates)
+            rixs_control%valence_states = MIN(rixs_control%valence_states, v_nstates)
          ELSE
-            rixs_control%valence_states = nstates
+            rixs_control%valence_states = v_nstates
          END IF
+         v_nstates = rixs_control%valence_states
 
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,I5,A,I5)") &
-               "RIXS| Using ", rixs_control%core_states, " core states out of ", core_state%nvirt
+               "RIXS| Using ", c_nstates, " core states out of ", core_state%nstates
             WRITE (UNIT=output_unit, FMT="(T2,A,I5,A,I5,/)") &
-               "RIXS| Using ", rixs_control%valence_states, " valence states out of ", valence_state%nstates
+               "RIXS| Using ", v_nstates, " valence states out of ", valence_state%nstates
          END IF
 
          dipmat => core_state%dipmat
 
          ALLOCATE (core_evects(nspins), state_gs_coeffs(nspins))
-         ALLOCATE (dip_block(1, nspins), mu_i0(4, nvirt), mu_if(4, nvirt, nstates), w_i0(nvirt), w_if(nstates))
-         w_if(:) = valence_state%evals(:)*evolt
+         ALLOCATE (dip_block(1, nspins), mu_i0(4, c_nstates), mu_if(4, c_nstates, v_nstates), w_i0(c_nstates), w_if(v_nstates))
+         w_if(:) = valence_state%evals(1:v_nstates)*evolt
          ALLOCATE (i_dip_0(nspins))
          ALLOCATE (dip_f(nspins), i_dip_f(nspins))
+         ALLOCATE (Rc(nspins), cRc(nspins))
 
          CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=nvirt)
+                                  nrow_global=nao, ncol_global=c_nstates)
          CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=1)
 
@@ -292,17 +294,17 @@ CONTAINS
 
             IF (do_sg) THEN ! singlet
                target_ex_coeffs => current_state%sg_coeffs
-               w_i0(:) = current_state%sg_evals(:)*evolt
+               w_i0(:) = current_state%sg_evals(1:c_nstates)*evolt
             ELSE IF (do_sc) THEN ! spin-conserving
                target_ex_coeffs => current_state%sc_coeffs
-               w_i0(:) = current_state%sc_evals(:)*evolt
+               w_i0(:) = current_state%sc_evals(1:c_nstates)*evolt
             END IF
 
             ! reshape sc and sg coeffs (separate spins to columns)
             DO ispin = 1, nspins
                CALL cp_fm_create(core_evects(ispin), core_evect_struct)
                CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
-                                       s_firstcol=(nvirt*(ispin - 1) + 1), t_firstrow=1, t_firstcol=1, nrow=nao, ncol=nvirt)
+                                       s_firstcol=(c_nstates*(ispin - 1) + 1), t_firstrow=1, t_firstcol=1, nrow=nao, ncol=c_nstates)
             END DO
             DO ispin = 1, nspins
                CALL cp_fm_create(state_gs_coeffs(ispin), gs_coeff_struct)
@@ -321,7 +323,7 @@ CONTAINS
                                      nrow_global=nao, ncol_global=1)
             CALL cp_fm_create(dip_0, dip_0_struct)
             CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nvirt, ncol_global=1)
+                                     nrow_global=c_nstates, ncol_global=1)
             DO ispin = 1, nspins
                CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
             END DO
@@ -331,11 +333,23 @@ CONTAINS
                CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
                                         nrow_global=nao, ncol_global=nactive(ispin))
                CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nvirt, ncol_global=nactive(ispin))
+                                        nrow_global=c_nstates, ncol_global=nactive(ispin))
                CALL cp_fm_create(dip_f(ispin), dip_f_struct)
                CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
                CALL cp_fm_struct_release(i_dip_f_struct)
                CALL cp_fm_struct_release(dip_f_struct)
+            END DO
+
+            ! initialise cRc
+            DO ispin = 1, nspins
+               CALL cp_fm_struct_create(Rc_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=nao, ncol_global=nactive(ispin))
+               CALL cp_fm_struct_create(cRc_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=nactive(ispin), ncol_global=nactive(ispin))
+               CALL cp_fm_create(Rc(ispin), Rc_struct)
+               CALL cp_fm_create(cRc(ispin), cRc_struct)
+               CALL cp_fm_struct_release(cRc_struct)
+               CALL cp_fm_struct_release(Rc_struct)
             END DO
 
             ! 0 -> i
@@ -344,10 +358,10 @@ CONTAINS
                ! i*R*0
                DO ispin = 1, nspins
                   CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, state_gs_coeffs(ispin), dip_0, ncol=1)
-                  CALL parallel_gemm('T', 'N', nvirt, 1, nao, 1.0_dp, core_evects(ispin), dip_0, 0.0_dp, i_dip_0(ispin))
+                  CALL parallel_gemm('T', 'N', c_nstates, 1, nao, 1.0_dp, core_evects(ispin), dip_0, 0.0_dp, i_dip_0(ispin))
                END DO
 
-               DO istate = 1, rixs_control%core_states
+               DO istate = 1, c_nstates
                   dip_block = 0.0_dp
                   DO ispin = 1, nspins
                      CALL cp_fm_get_submatrix(fm=i_dip_0(ispin), target_m=dip_block, start_row=istate, &
@@ -360,7 +374,7 @@ CONTAINS
             END DO ! ax
 
             ! i -> f
-            DO td_state = 1, rixs_control%valence_states
+            DO td_state = 1, v_nstates
 
                IF (output_unit > 0) THEN
                   WRITE (UNIT=output_unit, FMT="(T9,A,I3,A,F10.4)") &
@@ -369,15 +383,24 @@ CONTAINS
 
                DO ax = 1, 3
 
-                  ! core_evects x dipmat x valence_evects (per spin)
                   DO ispin = 1, nspins
-                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, valence_evects(ispin, td_state), dip_f(ispin), &
-                                                  ncol=nactive(ispin))
-                     CALL parallel_gemm('T', 'N', nvirt, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
+
+                     ! 1) build c^T*R*c
+                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_coeffs(ispin), Rc(ispin), ncol=nactive(ispin))
+                     CALL parallel_gemm('T', 'N', nactive(ispin), nactive(ispin), nao, 1.0_dp, mo_coeffs(ispin), &
+                                        Rc(ispin), 0.0_dp, cRc(ispin))
+
+                     ! 2) build dip_f (X*dip = X*c^T*R*c)
+                     CALL parallel_gemm('N', 'N', nao, nactive(ispin), nactive(ispin), 1.0_dp, valence_evects(ispin, td_state), &
+                                        cRc(ispin), 0.0_dp, dip_f(ispin))
+
+                     ! 3) build i_dip_f (Y*dip_f = Y^T*X*c^T*R*c)
+                     CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
                                         dip_f(ispin), 0.0_dp, i_dip_f(ispin))
+
                   END DO
 
-                  DO istate = 1, rixs_control%core_states
+                  DO istate = 1, c_nstates
                      DO fstate = 1, nactive_max
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
@@ -409,6 +432,8 @@ CONTAINS
                CALL cp_fm_release(i_dip_0(ispin))
                CALL cp_fm_release(i_dip_f(ispin))
                CALL cp_fm_release(dip_f(ispin))
+               CALL cp_fm_release(Rc(ispin))
+               CALL cp_fm_release(cRc(ispin))
             END DO
             CALL cp_fm_struct_release(i_dip_0_struct)
             CALL cp_fm_struct_release(dip_0_struct)

@@ -233,7 +233,7 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                              :: fock_matrix => NULL()
       TYPE(cp_fm_type), POINTER               :: lumo_coeffs => NULL()
-      INTEGER                                 :: nvirt = 0
+      INTEGER                                 :: nstates = 0
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
