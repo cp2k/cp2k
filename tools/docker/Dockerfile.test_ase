@@ -63,7 +63,6 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
@@ -73,6 +72,7 @@ COPY ./tools/docker/scripts/build_cp2k.sh .
 RUN ./build_cp2k.sh toolchain ssmp
 
 # Run test for ase.
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_ase.sh ./
 RUN ./test_ase.sh 2>&1 | tee report.log
 

@@ -1818,9 +1818,10 @@ if(CP2K_USE_CUDA
     cp2k
     PUBLIC $<$<BOOL:${CP2K_WITH_GPU_PROFILING}>:__OFFLOAD_PROFILING>
            $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_ELPA_GPU}>>:__NO_OFFLOAD_ELPA>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>)
 endif()
 
 # add an alias for the FetchContent. Note that FindPackage will automatically

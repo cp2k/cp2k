@@ -77,6 +77,13 @@ EOF
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
       mkdir ${pkg_install_dir}/lib/pkgconfig
       cp ${pkg_install_dir}/lib/*.pc ${pkg_install_dir}/lib/pkgconfig
+
+      # ---- macOS: pkg-config files must not use GNU ld's "-l:libfoo.a" syntax ----
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        perl -pi.bak -e 's/-l:lib([A-Za-z0-9_]+)\.a\b/-l$1/g' \
+          $(find "${pkg_install_dir}/lib" -name '*.pc' -type f)
+      fi
+
     fi
     LIBXSMM_CFLAGS="-I'${pkg_install_dir}/include'"
     LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"

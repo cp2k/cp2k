@@ -31,7 +31,10 @@ MODULE input_cp2k_global
                                               FM_DIAG_TYPE_SCALAPACK
    USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
                                               elpa_kernel_ids,&
-                                              elpa_kernel_names
+                                              elpa_kernel_names,&
+                                              elpa_one_stage,&
+                                              elpa_print,&
+                                              elpa_qr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
                                               cp_fm_struct_get_nrow_block
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -96,8 +99,8 @@ CONTAINS
       NULLIFY (print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GLOBAL", &
-                          description="Section with general information regarding which kind "// &
-                          "of simulation to perform an parameters for the whole PROGRAM", &
+                          description="Section with general information on which kind "// &
+                          "of simulation to perform and parameters for the whole PROGRAM", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -193,41 +196,35 @@ CONTAINS
                           "the ELPA library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="ELPA_NEIGVEC_MIN 32", &
-                          default_i_val=16)
+                          default_i_val=MIN(cp_fm_struct_get_nrow_block(), cp_fm_struct_get_ncol_block()))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_QR", &
                           description="For ELPA, enable a blocked QR step when reducing the input matrix "// &
-                          "to banded form in preparation for the actual diagonalization step. "// &
-                          "See implementation paper for more details. Requires ELPA version 201505 or newer, "// &
-                          "automatically deactivated otherwise. If true, QR is activated only when the "// &
-                          "the size of the diagonalized matrix is suitable. Print key PRINT_ELPA is "// &
-                          "useful in determining which matrices are suitable for QR. Might accelerate the "// &
-                          "diagonalization of suitable matrices.", &
+                          "to banded form before diagonalization. Requires ELPA version 201505 or newer and "// &
+                          "is automatically deactivated otherwise. QR is activated only when the matrix size "// &
+                          "is suitable. Keyword ELPA_PRINT helps identify suitable cases. Can accelerate "// &
+                          "diagonalization for suitable matrices.", &
                           usage="ELPA_QR", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=elpa_qr, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ELPA_QR_UNSAFE", &
-                          description="For ELPA, disable block size limitations when used together with ELPA_QR. "// &
-                          "Keyword relevant only with ELPA versions 201605 or newer. Use keyword with caution, "// &
-                          "as it might result in wrong eigenvalues with some matrix orders/block sizes "// &
-                          "when the number of MPI processes is varied. If the print key PRINT_ELPA is "// &
-                          "active the validity of the eigenvalues is checked against values calculated without "// &
-                          "ELPA QR.", &
-                          usage="ELPA_QR_UNSAFE", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_ONE_STAGE", &
+                          description="For ELPA, enable the one-stage solver (instead of the two-stage solver). "// &
+                          "Please note, ELPA_QR and ELPA_KERNEL settings may be ignored.", &
+                          usage="ELPA_ONE_STAGE", &
+                          default_l_val=elpa_one_stage, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT_ELPA", &
-                                       description="Controls the printing of ELPA diagonalization information. "// &
-                                       "Useful for testing purposes, especially together with keyword ELPA_QR.", &
-                                       filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_PRINT", &
+                          description="Controls the printing of ELPA diagonalization information. "// &
+                          "Useful for testing purposes, especially together with keyword ELPA_QR.", &
+                          usage="ELPA_PRINT", default_l_val=elpa_print, lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DLAF_NEIGVEC_MIN", &
                           description="Minimum number of eigenvectors for the use of the eigensolver from "// &

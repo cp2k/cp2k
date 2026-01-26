@@ -20,18 +20,11 @@ MODULE soc_pseudopotential_methods
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
-                                              dbcsr_allocate_matrix_set,&
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -49,7 +42,6 @@ MODULE soc_pseudopotential_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soc_pseudopotential_methods'
 
    PUBLIC :: V_SOC_xyz_from_pseudopotential, &
-             remove_soc_outside_energy_window_ao, &
              remove_soc_outside_energy_window_mo
 
 CONTAINS
@@ -186,104 +178,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE V_SOC_xyz_from_pseudopotential
-
-! **************************************************************************************************
-!> \brief Remove SOC outside of energy window (otherwise, numerical problems arise
-!>        because energetically low semicore states and energetically very high
-!>        unbound states couple to the states around the Fermi level).
-!>        This routine is for mat_V_SOC_xyz being in the atomic-orbital (ao) basis.
-!> \param mat_V_SOC_xyz ...
-!> \param e_win ...
-!> \param fm_mo_coeff ...
-!> \param homo ...
-!> \param eigenval ...
-!> \param fm_s ...
-! **************************************************************************************************
-   SUBROUTINE remove_soc_outside_energy_window_ao(mat_V_SOC_xyz, e_win, fm_mo_coeff, homo, &
-                                                  eigenval, fm_s)
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: mat_V_SOC_xyz
-      REAL(KIND=dp)                                      :: e_win
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff
-      INTEGER                                            :: homo
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenval
-      TYPE(cp_fm_type)                                   :: fm_s
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_ao'
-
-      INTEGER                                            :: handle, i_glob, iiB, j_glob, jjB, nao, &
-                                                            ncol_local, nrow_local, xyz
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: E_HOMO, E_i, E_j, E_LUMO
-      TYPE(cp_fm_type)                                   :: fm_V_ao, fm_V_mo, fm_work
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_create(fm_work, fm_s%matrix_struct)
-      CALL cp_fm_create(fm_V_ao, fm_s%matrix_struct)
-      CALL cp_fm_create(fm_V_mo, fm_s%matrix_struct)
-
-      CALL cp_fm_get_info(matrix=fm_s, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      nao = SIZE(eigenval)
-
-      E_HOMO = eigenval(homo)
-      E_LUMO = eigenval(homo + 1)
-
-      DO xyz = 1, 3
-
-         CALL copy_dbcsr_to_fm(mat_V_SOC_xyz(xyz)%matrix, fm_V_ao)
-
-         ! V_MO = C^T*V_AO*C
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_V_ao, matrix_b=fm_mo_coeff, beta=0.0_dp, matrix_c=fm_work)
-
-         CALL parallel_gemm(transa="T", transb="N", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff, matrix_b=fm_work, beta=0.0_dp, matrix_c=fm_V_mo)
-
-         DO jjB = 1, ncol_local
-            j_glob = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_glob = row_indices(iiB)
-
-               E_i = eigenval(i_glob)
-               E_j = eigenval(j_glob)
-
-               IF (E_i < E_HOMO - 0.5_dp*e_win .OR. E_i > E_LUMO + 0.5_dp*e_win .OR. &
-                   E_j < E_HOMO - 0.5_dp*e_win .OR. E_j > E_LUMO + 0.5_dp*e_win) THEN
-                  fm_V_mo%local_data(iiB, jjB) = 0.0_dp
-               END IF
-
-            END DO
-         END DO
-
-         ! V_AO = S*C*V_MO*C^T*S
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_V_mo, matrix_b=fm_mo_coeff, beta=0.0_dp, matrix_c=fm_work)
-
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff, matrix_b=fm_work, beta=0.0_dp, matrix_c=fm_V_ao)
-
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_s, matrix_b=fm_V_ao, beta=0.0_dp, matrix_c=fm_work)
-
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nao, k=nao, alpha=1.0_dp, &
-                            matrix_a=fm_work, matrix_b=fm_s, beta=0.0_dp, matrix_c=fm_V_ao)
-
-         CALL copy_fm_to_dbcsr(fm_V_ao, mat_V_SOC_xyz(xyz)%matrix)
-
-      END DO
-
-      CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(fm_V_ao)
-      CALL cp_fm_release(fm_V_mo)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE remove_soc_outside_energy_window_ao
 
 ! **************************************************************************************************
 !> \brief ...

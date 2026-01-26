@@ -2701,7 +2701,7 @@ CONTAINS
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(msgin))
+         CPASSERT(IS_CONTIGUOUS(msgin) .OR. PRODUCT(SHAPE(msgin)) == 0)
 #endif
 
          my_tag = 0
@@ -2762,7 +2762,7 @@ CONTAINS
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(msgout))
+         CPASSERT(IS_CONTIGUOUS(msgout) .OR. PRODUCT(SHAPE(msgout)) == 0)
 #endif
 
          my_tag = 0
@@ -2823,7 +2823,7 @@ CONTAINS
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(msgin))
+         CPASSERT(IS_CONTIGUOUS(msgin) .OR. PRODUCT(SHAPE(msgin)) == 0)
 #endif
 
          my_tag = 0
@@ -2884,7 +2884,7 @@ CONTAINS
 
 #if defined(__parallel)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(msgout))
+         CPASSERT(IS_CONTIGUOUS(msgout) .OR. PRODUCT(SHAPE(msgout)) == 0)
 #endif
 
          my_tag = 0
@@ -3465,7 +3465,7 @@ CONTAINS
 #if defined(__parallel)
          msglen = SIZE(msg)
 #if !defined(__GNUC__) || __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(msg))
+         CPASSERT(IS_CONTIGUOUS(msg) .OR. PRODUCT(SHAPE(msg)) == 0)
 #endif
 
          IF (msglen > 0) THEN

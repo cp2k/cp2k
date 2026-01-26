@@ -97,7 +97,6 @@ RUN make -j${NUM_PROCS} --file=spack_makefile SPACK_COLOR=never --output-sync=re
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
@@ -108,6 +107,7 @@ RUN ./build_cp2k.sh spack psmp
 
 # Run regression tests.
 ARG TESTOPTS=""
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \

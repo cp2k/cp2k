@@ -53,6 +53,12 @@ def main() -> None:
         f.write(install_deps_ubuntu())
         f.write(regtest("minimal", "ssmp"))
 
+    with OutputFile(f"Dockerfile.make_cp2k_psmp", args.check) as f:
+        f.write(install_make_cp2k("psmp", mpi_mode="mpich"))
+
+    with OutputFile(f"Dockerfile.make_cp2k_ssmp", args.check) as f:
+        f.write(install_make_cp2k("ssmp", mpi_mode="mpich"))
+
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_deps_spack("psmp", mpi_mode="mpich"))
         f.write(regtest("spack", "psmp"))
@@ -135,6 +141,7 @@ def regtest(profile: str, version: str, testopts: str = "") -> str:
         + rf"""
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
@@ -181,6 +188,7 @@ def coverage() -> str:
         install_cp2k(profile="toolchain_coverage", version="psmp", revision=True)
         + rf"""
 # Run coverage test.
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_coverage.sh .
 RUN ./test_coverage.sh 2>&1 | tee report.log
 """
@@ -249,6 +257,7 @@ def test_3rd_party(name: str) -> str:
         install_cp2k(profile="toolchain", version="ssmp")
         + rf"""
 # Run test for {name}.
+COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
 """
@@ -313,7 +322,6 @@ def install_cp2k(profile: str, version: str, revision: bool = False) -> str:
 WORKDIR /opt/cp2k
 COPY ./src ./src
 COPY ./data ./data
-COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
@@ -638,8 +646,8 @@ COPY ./tools/spack/cp2k_deps_${{CP2K_VERSION}}.yaml ./
     if mpi_mode == "openmpi":
         output += rf"""
 RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
-        -E -e '/\s*#\s*-\s+"openmpi/ s/#/ /' \
-        -E -e '/\s*-\s+mpich/ s/mpich/openmpi/' \
+        -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
+        -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
         -i cp2k_deps_${{CP2K_VERSION}}.yaml
 """.strip()
 
@@ -658,6 +666,53 @@ RUN make -j${{NUM_PROCS}} --file=spack_makefile SPACK_COLOR=never --output-sync=
 
 
 # ======================================================================================
+def install_make_cp2k(version: str, mpi_mode: str) -> str:
+    output = rf"""
+FROM "ubuntu:24.04"
+
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    bzip2 \
+    ca-certificates \
+    cmake \
+    g++ \
+    gcc \
+    gfortran \
+    git \
+    gnupg \
+    hwloc \
+    libhwloc-dev \
+    libssh-dev \
+    libssl-dev \
+    libtool \
+    libtool-bin \
+    lsb-release \
+    make \
+    ninja-build \
+    patch \
+    pkgconf \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    unzip \
+    wget \
+    xxd \
+    xz-utils \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+
+WORKDIR /opt
+COPY . cp2k/
+
+WORKDIR /opt/cp2k
+RUN ./make_cp2k.sh -cv {version} -t ""
+"""
+    return output
+
+
+# ======================================================================================
 class OutputFile:
     def __init__(self, filename: str, check: bool) -> None:
         self.filename = filename
@@ -665,7 +720,7 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        if "_spack_" in filename:
+        if "_spack_" in filename or "make_cp2k_" in filename:
             usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../"
         else:
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"

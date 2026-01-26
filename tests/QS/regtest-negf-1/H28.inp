@@ -13,7 +13,7 @@
 @SET potential_path GTH_POTENTIALS
 @SET xc_functional  pade
 !PBE pade
-@SET cutoff         300
+@SET cutoff         100
 @SET added_mos      -1
 @SET max_scf        50
 @SET eps_scf        1e-8

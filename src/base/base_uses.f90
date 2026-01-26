@@ -12,7 +12,7 @@
                                              timeset,&
                                              timestop
 
-#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) || defined(__OFFLOAD_OPENCL)
 #define __OFFLOAD
 #endif
 

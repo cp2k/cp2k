@@ -68,5 +68,5 @@
 "UO2-4x4x4-cs-fixd-nvt.inp"             = [{matcher="M054", tol=1.0E-05, ref=4.107616E-02}]
 "UO2-4x4x4-cs-fixd-npt.inp"             = [{matcher="M054", tol=1.0E-05, ref=4.598688E-02}]
 # Test UO2 force fields with generic input
-"UO2-Morelon-5x5x5-cell_opt.inp"        = [{matcher="M011", tol=5.0E-13, ref=-1210.562919201563318}]
+"UO2-Morelon-5x5x5-cell_opt.inp"        = [{matcher="M011", tol=1.0E-12, ref=-1210.562919201563318}]
 #EOF

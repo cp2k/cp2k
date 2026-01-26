@@ -553,10 +553,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "ELPA_KERNEL", i_val=globenv%k_elpa)
       CALL section_vals_val_get(global_section, "ELPA_NEIGVEC_MIN", i_val=globenv%elpa_neigvec_min)
       CALL section_vals_val_get(global_section, "ELPA_QR", l_val=globenv%elpa_qr)
-      CALL section_vals_val_get(global_section, "ELPA_QR_UNSAFE", l_val=globenv%elpa_qr_unsafe)
-      unit_nr = cp_print_key_unit_nr(logger, global_section, "PRINT_ELPA", extension=".Log")
-      IF (unit_nr > 0) globenv%elpa_print = .TRUE.
-      CALL cp_print_key_finished_output(unit_nr, logger, global_section, "PRINT_ELPA")
+      CALL section_vals_val_get(global_section, "ELPA_ONE_STAGE", l_val=globenv%elpa_one_stage)
+      CALL section_vals_val_get(global_section, "ELPA_PRINT", l_val=globenv%elpa_print)
       CALL section_vals_val_get(global_section, "DLAF_NEIGVEC_MIN", i_val=globenv%dlaf_neigvec_min)
       CALL section_vals_val_get(global_section, "DLAF_CHOLESKY_N_MIN", i_val=globenv%dlaf_cholesky_n_min)
       CALL section_vals_val_get(global_section, "PREFERRED_FFT_LIBRARY", i_val=i_fft)
@@ -1117,7 +1115,7 @@ CONTAINS
                      elpa_neigvec_min_input=globenv%elpa_neigvec_min, &
                      elpa_qr=globenv%elpa_qr, &
                      elpa_print=globenv%elpa_print, &
-                     elpa_qr_unsafe=globenv%elpa_qr_unsafe, &
+                     elpa_one_stage=globenv%elpa_one_stage, &
                      dlaf_neigvec_min_input=globenv%dlaf_neigvec_min, &
                      eps_check_diag_input=globenv%eps_check_diag)
 

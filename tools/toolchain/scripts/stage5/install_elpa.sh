@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2024.05.001"
-elpa_sha256="9caf41a3e600e2f6f4ce1931bd54185179dade9c171556d0c9b41bbc6940f2f6"
+elpa_ver="2025.06.002"
+elpa_sha256="de3180c06e2b0dbb56939e84ad1a5fd1684465bd38ad2196792d0f4028937fda"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -91,6 +91,12 @@ case "${with_elpa}" in
         [ "$TARGET" = "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
+        gnu_ldflags="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags"
+        if [[ "$(uname)" == "Darwin" ]]; then
+          gnu_ldflags=""
+          config_flags="${config_flags} --enable-affinity-checking=no"
+        fi
+
         mkdir -p "build_${TARGET}"
         cd "build_${TARGET}"
         ../configure --prefix="${pkg_install_dir}/${TARGET}/" \
@@ -114,7 +120,7 @@ case "${with_elpa}" in
           FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
-          LDFLAGS="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags} -lstdc++" \
+          LDFLAGS="${gnu_ldflags} ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags} -lstdc++" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log

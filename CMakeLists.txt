@@ -107,8 +107,9 @@ foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
   endif()
 endforeach()
 
-# set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Default installation directory for
-# libraries")
+set(CMAKE_INSTALL_LIBDIR
+    "lib"
+    CACHE PATH "Default installation directory for libraries")
 
 # =================================================================================================
 # OPTIONS
@@ -188,12 +189,16 @@ cmake_dependent_option(
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
-  "CP2K_USE_ACCEL" OFF)
+  CP2K_ENABLE_ELPA_GPU "Enable acceleration for elpa related functions." ON
+  "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
   CP2K_ENABLE_GRID_GPU "Enable acceleration for grid related functions." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
+
+cmake_dependent_option(
+  CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
+  "CP2K_USE_ACCEL" OFF)
 
 cmake_dependent_option(
   CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
@@ -855,9 +860,8 @@ if(CP2K_USE_GREENX)
   # GreenX with AC requires GMP library
   find_library(GMP_LIBRARY NAMES gmp REQUIRED)
   get_filename_component(GMP_LIBRARY_PATH ${GMP_LIBRARY} DIRECTORY)
-  set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-L${GMP_LIBRARY_PATH}")
-  set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
-                                "-L${GMP_LIBRARY_PATH}")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -L${GMP_LIBRARY_PATH}")
+  string(APPEND CMAKE_SHARED_LINKER_FLAGS " -L${GMP_LIBRARY_PATH}")
 
   add_library(cp2k::greenx INTERFACE IMPORTED)
   target_link_libraries(cp2k::greenx INTERFACE greenX::GXCommon greenX::LibGXAC
@@ -950,9 +954,10 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 
   message(
     "      - GPU accelerated modules\n"
-    "        - PW     module: ${CP2K_ENABLE_PW_GPU}\n"
+    "        - ELPA   module: ${CP2K_ENABLE_ELPA_GPU}\n"
     "        - GRID   module: ${CP2K_ENABLE_GRID_GPU}\n"
-    "        - DBM    module: ${CP2K_ENABLE_DBM_GPU}\n\n")
+    "        - DBM    module: ${CP2K_ENABLE_DBM_GPU}\n"
+    "        - PW     module: ${CP2K_ENABLE_PW_GPU}\n\n")
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)

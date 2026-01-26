@@ -80,9 +80,9 @@ MODULE global_types
       INTEGER :: blacs_grid_layout = BLACS_GRID_SQUARE ! will store the user preference for the BLACS grid
       INTEGER :: k_elpa = 1 ! optimized kernel for the ELPA diagonalization library
       INTEGER :: elpa_neigvec_min = 0 ! Minimum number of eigenvectors for ELPA usage
-      LOGICAL :: elpa_qr = .FALSE. ! allow ELPA to use QR during diagonalization
+      LOGICAL :: elpa_qr = .TRUE. ! allow ELPA to use QR during diagonalization
       LOGICAL :: elpa_print = .FALSE. ! if additional information about ELPA diagonalization should be printed
-      LOGICAL :: elpa_qr_unsafe = .FALSE. ! enable potentially unsafe ELPA options
+      LOGICAL :: elpa_one_stage = .FALSE. ! enable one-stage ELPA solver
       INTEGER :: dlaf_neigvec_min = 0 ! Minimum number of eigenvectors for DLAF eigensolver usage
       INTEGER :: dlaf_cholesky_n_min = 0 ! Minimum matrix size for DLAF Cholesky decomposition usage
       LOGICAL :: blacs_repeatable = .FALSE. ! will store the user preference for the repeatability of BLACS collectives

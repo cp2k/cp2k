@@ -124,7 +124,8 @@ list(FILTER CP2K_BLAS_LINK_LIBRARIES EXCLUDE REGEX "^$")
 # might require this information though
 
 find_package_handle_standard_args(
-  Blas REQUIRED_VARS CP2K_BLAS_LINK_LIBRARIES CP2K_BLAS_VENDOR CP2K_BLAS_FOUND)
+  ${CMAKE_FIND_PACKAGE_NAME} REQUIRED_VARS CP2K_BLAS_LINK_LIBRARIES
+                                           CP2K_BLAS_VENDOR CP2K_BLAS_FOUND)
 
 if(NOT TARGET cp2k::BLAS::blas)
   add_library(cp2k::BLAS::blas INTERFACE IMPORTED)
@@ -132,6 +133,17 @@ endif()
 
 set_target_properties(cp2k::BLAS::blas PROPERTIES INTERFACE_LINK_LIBRARIES
                                                   "${CP2K_BLAS_LINK_LIBRARIES}")
+
+# Compatibility: many external packages expect BLAS::BLAS
+if(NOT TARGET BLAS::BLAS)
+  add_library(BLAS::BLAS INTERFACE IMPORTED)
+  set_property(TARGET BLAS::BLAS PROPERTY INTERFACE_LINK_LIBRARIES
+                                          "${CP2K_BLAS_LINK_LIBRARIES}")
+  if(CP2K_BLAS_INCLUDE_DIRS)
+    set_property(TARGET BLAS::BLAS PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                            "${CP2K_BLAS_INCLUDE_DIRS}")
+  endif()
+endif()
 
 if(CP2K_BLAS_INCLUDE_DIRS)
   set_target_properties(
