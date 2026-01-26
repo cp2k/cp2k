@@ -79,7 +79,7 @@ async def main() -> None:
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
     parser.add_argument("--skipdir", action="append")
-    parser.add_argument("--workbasedir", type=Path)
+    parser.add_argument("--workbasedir", type=Path, default=Path.cwd() / "regtesting")
     parser.add_argument("--cp2kdatadir", type=Path)
     parser.add_argument("--skip_unittests", action="store_true")
     parser.add_argument("--skip_regtests", action="store_true")
@@ -279,8 +279,7 @@ class Config:
         self.skip_unittests = args.skip_unittests
         self.skip_regtests = args.skip_regtests
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        leaf_dir = f"TEST-{datestamp}"
-        self.work_base_dir = (args.workbasedir or args.binary_dir).resolve() / leaf_dir
+        self.work_base_dir = args.workbasedir.resolve() / f"TEST-{datestamp}"
         self.error_summary = self.work_base_dir / "error_summary"
         self.cp2k_data_dir = (
             args.cp2kdatadir
