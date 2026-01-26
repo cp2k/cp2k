@@ -221,7 +221,7 @@ CONTAINS
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
                                                             xc_section
@@ -723,13 +723,14 @@ CONTAINS
             ELSE
                CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
             END IF
-            CALL accint_weight_force(qs_env, rho_struct, xc_section)
+            NULLIFY (rho1)
+            CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
             !
             IF (dft_control%do_admm) THEN
                CALL get_qs_env(qs_env, admm_env=admm_env)
                xc_section => admm_env%xc_section_aux
                CALL get_admm_env(admm_env, rho_aux_fit=rho_struct)
-               CALL accint_weight_force(qs_env, rho_struct, xc_section)
+               CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
             END IF
          END IF
 

@@ -53,11 +53,14 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param rho ...
+!> \param rho1 ...
+!> \param order ...
 !> \param xc_section ...
 ! **************************************************************************************************
-   SUBROUTINE accint_weight_force(qs_env, rho, xc_section)
+   SUBROUTINE accint_weight_force(qs_env, rho, rho1, order, xc_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1
+      INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: xc_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'accint_weight_force'
@@ -97,7 +100,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL auxbas_pw_pool%create_pw(e_rspace)
 
-         CALL qs_xc_energy(ks_env, rho, xc_section, e_rspace)
+         CALL qs_xc_energy(ks_env, rho, rho1, order, xc_section, e_rspace)
          CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
 
          CALL gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)

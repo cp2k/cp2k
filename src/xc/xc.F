@@ -71,7 +71,7 @@ MODULE xc
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: xc_vxc_pw_create, &
+   PUBLIC :: xc_vxc_pw_create, xc_exc_pw_create, &
              xc_exc_calc, xc_calc_2nd_deriv_analytical, xc_calc_2nd_deriv_numerical, xc_calc_3rd_deriv_analytical, &
              xc_calc_2nd_deriv, xc_prep_2nd_deriv, xc_prep_3rd_deriv, divide_by_norm_drho, smooth_cutoff, &
              xc_uses_kinetic_energy_density, xc_uses_norm_drho
@@ -802,6 +802,7 @@ CONTAINS
       TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
+
       NULLIFY (deriv, e_0)
       exc = 0.0_dp
 
@@ -833,8 +834,71 @@ CONTAINS
          CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
          CALL xc_dset_release(deriv_set)
       END IF
+
       CALL timestop(handle)
+
    END FUNCTION xc_exc_calc
+
+! **************************************************************************************************
+!> \brief calculates just the exchange and correlation energy density
+!> \param rho_r      realspace density on the grid
+!> \param rho_g      g-space density on the grid
+!> \param tau        kinetic energy density on the grid
+!> \param xc_section XC parameters
+!> \param weights    Integration weights
+!> \param pw_pool    pool of plain-wave grids
+!> \param exc        xc energy density
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE xc_exc_pw_create(rho_r, rho_g, tau, xc_section, weights, pw_pool, exc)
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_r3d_rs_type)                               :: exc
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_exc_pw_create'
+
+      INTEGER                                            :: handle
+      REAL(dp)                                           :: density_smooth_cut_range, rho_cutoff
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: e_0
+      TYPE(xc_derivative_set_type)                       :: deriv_set
+      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_rho_set_type)                              :: rho_set
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (deriv, e_0)
+
+      CALL xc_rho_set_and_dset_create(rho_set=rho_set, &
+                                      deriv_set=deriv_set, deriv_order=0, &
+                                      rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
+                                      pw_pool=pw_pool, weights=weights, &
+                                      calc_potential=.FALSE.)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
+
+      IF (ASSOCIATED(deriv)) THEN
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
+
+         CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
+                                   r_val=rho_cutoff)
+         CALL section_vals_val_get(xc_section, "DENSITY_SMOOTH_CUTOFF_RANGE", &
+                                   r_val=density_smooth_cut_range)
+         CALL smooth_cutoff(pot=e_0, rho=rho_set%rho, &
+                            rhoa=rho_set%rhoa, rhob=rho_set%rhob, &
+                            rho_cutoff=rho_cutoff, &
+                            rho_smooth_cutoff_range=density_smooth_cut_range)
+
+         exc%array = e_0
+
+         CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
+         CALL xc_dset_release(deriv_set)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xc_exc_pw_create
 
 ! **************************************************************************************************
 !> \brief Caller routine to calculate the second order potential in the direction of rho1_r

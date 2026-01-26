@@ -16,6 +16,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE energy_corrections
+   USE accint_weights_forces,           ONLY: accint_weight_force
    USE admm_dm_methods,                 ONLY: admm_dm_calc_rho_aux
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux
    USE admm_types,                      ONLY: admm_type
@@ -875,7 +876,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: ec_hfx_sections
       TYPE(task_list_type), POINTER                      :: task_list
       TYPE(virial_type), POINTER                         :: virial
@@ -1034,6 +1035,24 @@ CONTAINS
       END IF
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=ec_env%xc_section, &
                          vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+
+      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+      !
+      NULLIFY (rho1)
+      CALL accint_weight_force(qs_env, rho_struct, rho1, 0, ec_env%xc_section)
+      !
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+         CALL para_env%sum(fodeb)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Fxc*dw        ", fodeb
+      END IF
+      IF (debug_stress .AND. use_virial) THEN
+         stdeb = fconv*(virial%pv_virial - stdeb)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            'STRESS| INT Fxc*dw        ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
 
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
