@@ -25,7 +25,7 @@ if ninja --verbose &> ninja.log; then
   echo "done"
 else
   echo -e "failed.\n\n"
-  tail -n 1000 ninja.log
+  tail -n 500 ninja.log # Stay below the 3 MB limit for dashboard reports.
   mkdir -p /workspace/artifacts/
   cp ninja.log /workspace/artifacts/
   echo -e "\nSummary: Compilation failed"
