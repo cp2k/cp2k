@@ -3622,6 +3622,7 @@ CONTAINS
 !> \param nmoments ...
 !> \param reference ...
 !> \param ref_point ...
+!> \param max_nmo ...
 !> \param unit_number ...
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
@@ -3734,8 +3735,8 @@ CONTAINS
             IF (mod(ikp - 1, num_pe) /= mepos) CYCLE
 
             ! S^R -> S(k), H^R -> H(k)
-            S_k=0
-            H_k=0
+            S_k = 0
+            H_k = 0
             CALL rs_to_kp(S_rs(1, :, :, :), S_k, index_to_cell_all, xkp(:, ikp))
             CALL rs_to_kp(H_rs(ispin, :, :, :), H_k, index_to_cell_all, xkp(:, ikp))
 
@@ -3802,15 +3803,15 @@ CONTAINS
       END DO
 !$OMP END DO
       DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals, bc)
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
 
       ALLOCATE (dipole_to_print(3, nao, nao), source=z_zero)
       ALLOCATE (bc_to_print(3, nao), source=0.0_dp)
       DO ikp = 1, nkp
          DO ispin = 1, nspin
             CALL get_mo_set(mo_set=mos(ispin), homo=homo)
-            nmin=max(1,homo-(max_nmo-1)/2)
-            nmax=min(nao,homo+max_nmo/2)
+            nmin = max(1, homo - (max_nmo - 1)/2)
+            nmax = min(nao, homo + max_nmo/2)
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
             IF (mod(ikp - 1, num_pe) == mepos) THEN
@@ -3824,7 +3825,7 @@ CONTAINS
                   "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
                WRITE (unit_number, "(/,1X,A,I3,1X,3(A,1F12.6))") &
                   "Kpoint:", ikp, ", kx:", xkp(1, ikp), ", ky:", xkp(2, ikp), ", kz:", xkp(3, ikp)
-               IF (nspin>1) WRITE (unit_number, "(/,2X,A,I2)") "Open Shell System. Spin:", ispin
+               IF (nspin > 1) WRITE (unit_number, "(/,2X,A,I2)") "Open Shell System. Spin:", ispin
                WRITE (unit_number, "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
                & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
                DO n = nmin, nmax

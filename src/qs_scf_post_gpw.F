@@ -1528,7 +1528,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER                                            :: handle, maxmom, reference, max_nmo, unit_nr
+      INTEGER                                            :: handle, max_nmo, maxmom, reference, &
+                                                            unit_nr
       LOGICAL                                            :: com_nl, do_kpoints, magnetic, periodic, &
                                                             second_ref_point, vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -1556,7 +1557,7 @@ CONTAINS
          second_ref_point = section_get_lval(section_vals=input, &
                                              keyword_name="DFT%PRINT%MOMENTS%SECOND_REFERENCE_POINT")
          max_nmo = section_get_ival(section_vals=input, &
-                                             keyword_name="DFT%PRINT%MOMENTS%MAX_NMO")
+                                    keyword_name="DFT%PRINT%MOMENTS%MAX_NMO")
 
          NULLIFY (ref_point)
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)

@@ -1101,7 +1101,9 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MAX_NMO", &
-                          description="Maximum number of molecular orbitals used for the calculation of moments for kpoints", &
+                          description="Maximum number of molecular orbitals closest to the Fermi "// &
+                          "level for which dipole matrix elements and Berry curvatures are printed "// &
+                          "per k-point. 0 for all orbitals. Ignored if not a KPOINT calculation.", &
                           usage="MAX_NMO {integer}", &
                           repeats=.FALSE., &
                           n_var=1, default_i_val=10, &
