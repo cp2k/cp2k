@@ -711,9 +711,10 @@ def parse_report(report_txt: Optional[str], log: GitLog) -> Report:
         points = [cast(PlotPoint, eval(f"PlotPoint({m})")) for m in point_matches]
 
         # Check that every plot has at least one PlotPoint
-        for plot in plots:
-            if not any([p.plot_name == plot.name for p in points]):
-                return Report("FAILED", f"Plot {plot.name} has no PlotPoints.")
+        if status == "OK":
+            for plot in plots:
+                if not any([p.plot_name == plot.name for p in points]):
+                    return Report("FAILED", f"Plot {plot.name} has no PlotPoints.")
 
         # Check that CommitSHA belongs to the master branch.
         if sha not in log.index_by_sha:
