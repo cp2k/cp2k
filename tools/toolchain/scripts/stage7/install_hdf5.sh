@@ -44,6 +44,7 @@ case "$with_hdf5" in
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DHDF5_BUILD_FORTRAN=ON \
+        -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -105,9 +106,16 @@ prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   else
     if [ -f "${pkg_install_dir}/lib/libhdf5.a" ]; then
-      HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_hl.a -l:libhdf5.a -lz -lsz"
+      HDF5_LIBS="-l:libhdf5_fortran.a -l:libhdf5_hl.a -l:libhdf5.a -lz"
     else
-      HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz -lsz"
+      HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz"
+    fi
+    if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
+      if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
+        HDF5_LIBS="${HDF5_LIBS} -lsz"
+      fi
+    elif [ -n "$(grep -- "-lsz" ${pkg_install_dir}/lib/libhdf5.settings)" ]; then
+      HDF5_LIBS="${HDF5_LIBS} -lsz"
     fi
   fi
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
