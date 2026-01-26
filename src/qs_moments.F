@@ -3848,7 +3848,8 @@ CONTAINS
             END IF
          END DO
       END DO
-      DEALLOCATE (dipole_to_print, bc_to_print, bc_to_store, dipole_to_store, S_rs, H_rs, D_rs)
+      DEALLOCATE (dipole_to_print, bc_to_print, bc_to_store, dipole_to_store)
+      DEALLOCATE (S_rs, H_rs, D_rs, special_pnts, xkp)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
 
