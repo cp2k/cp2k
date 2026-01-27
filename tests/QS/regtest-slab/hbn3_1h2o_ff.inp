@@ -43,6 +43,7 @@
       #       &END
       &V_HARTREE_CUBE
         FILENAME =${PROJECT}_espot.cube
+        MAX_FILE_SIZE_MB 0.01
       &END V_HARTREE_CUBE
     &END PRINT
     &QS

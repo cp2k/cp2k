@@ -624,7 +624,7 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="max_file_size_mb", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
                           description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
                           usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
@@ -782,6 +782,12 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -801,6 +807,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -823,7 +834,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -942,6 +957,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -982,6 +1002,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -1001,6 +1026,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2840,6 +2870,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -2874,6 +2909,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -2894,6 +2934,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FILE_SIZE_MB", &
+                          description="Limits the size of the cube file by choosing a suitable stride. Zero means no limit.", &
+                          usage="MAX_FILE_SIZE_MB 1.5", default_r_val=0.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

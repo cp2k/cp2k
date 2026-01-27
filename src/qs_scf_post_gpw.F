@@ -2362,7 +2362,9 @@ CONTAINS
                                         log_filename=.FALSE., mpi_io=mpi_io)
          CALL cp_pw_to_cube(wf_r, unit_nr, "TOTAL DENSITY", &
                             particles=particles, zeff=zcharge, &
-                            stride=section_get_ivals(dft_section, "PRINT%TOT_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                            stride=section_get_ivals(dft_section, "PRINT%TOT_DENSITY_CUBE%STRIDE"), &
+                            max_file_size_mb=section_get_rval(dft_section, "PRINT%TOT_DENSITY_CUBE%MAX_FILE_SIZE_MB"), &
+                            mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE", mpi_io=mpi_io)
          CALL auxbas_pw_pool%give_back_pw(wf_r)
@@ -2828,8 +2830,9 @@ CONTAINS
          CALL pw_scale(aux_r, udvol)
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "HARTREE POTENTIAL", particles=particles, zeff=zcharge, &
-                            stride=section_get_ivals(dft_section, &
-                                                     "PRINT%V_HARTREE_CUBE%STRIDE"), mpi_io=mpi_io)
+                            stride=section_get_ivals(dft_section, "PRINT%V_HARTREE_CUBE%STRIDE"), &
+                            max_file_size_mb=section_get_rval(dft_section, "PRINT%V_HARTREE_CUBE%MAX_FILE_SIZE_MB"), &
+                            mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%V_HARTREE_CUBE", mpi_io=mpi_io)
 
@@ -2857,8 +2860,9 @@ CONTAINS
             CALL pw_copy(vee, aux_r)
 
             CALL cp_pw_to_cube(aux_r, unit_nr, "EXTERNAL POTENTIAL", particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, &
-                                                        "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"), mpi_io=mpi_io)
+                               stride=section_get_ivals(dft_section, "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"), &
+                               max_file_size_mb=section_get_rval(dft_section, "PRINT%EXTERNAL_POTENTIAL_CUBE%MAX_FILE_SIZE_MB"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", mpi_io=mpi_io)
 
@@ -2897,10 +2901,10 @@ CONTAINS
             CALL pw_transfer(aux_g, aux_r)
             CALL pw_scale(aux_r, udvol)
 
-            CALL cp_pw_to_cube(aux_r, &
-                               unit_nr, "ELECTRIC FIELD", particles=particles, zeff=zcharge, &
-                               stride=section_get_ivals(dft_section, &
-                                                        "PRINT%EFIELD_CUBE%STRIDE"), mpi_io=mpi_io)
+            CALL cp_pw_to_cube(aux_r, unit_nr, "ELECTRIC FIELD", particles=particles, zeff=zcharge, &
+                               stride=section_get_ivals(dft_section, "PRINT%EFIELD_CUBE%STRIDE"), &
+                               max_file_size_mb=section_get_rval(dft_section, "PRINT%EFIELD_CUBE%MAX_FILE_SIZE_MB"), &
+                               mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%EFIELD_CUBE", mpi_io=mpi_io)
          END DO
@@ -3417,10 +3421,10 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_ENERGY_CUBE", &
                                         extension=".cube", middle_name="local_energy", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(eden, &
-                            unit_nr, "LOCAL ENERGY", particles=particles, &
-                            stride=section_get_ivals(dft_section, &
-                                                     "PRINT%LOCAL_ENERGY_CUBE%STRIDE"), mpi_io=mpi_io)
+         CALL cp_pw_to_cube(eden, unit_nr, "LOCAL ENERGY", particles=particles, &
+                            stride=section_get_ivals(dft_section, "PRINT%LOCAL_ENERGY_CUBE%STRIDE"), &
+                            max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_ENERGY_CUBE%MAX_FILE_SIZE_MB"), &
+                            mpi_io=mpi_io)
          IF (io_unit > 0) THEN
             INQUIRE (UNIT=unit_nr, NAME=filename)
             IF (gapw .OR. gapw_xc) THEN
@@ -3495,10 +3499,10 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_STRESS_CUBE", &
                                         extension=".cube", middle_name="local_stress", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(stress, &
-                            unit_nr, "LOCAL STRESS", particles=particles, &
-                            stride=section_get_ivals(dft_section, &
-                                                     "PRINT%LOCAL_STRESS_CUBE%STRIDE"), mpi_io=mpi_io)
+         CALL cp_pw_to_cube(stress, unit_nr, "LOCAL STRESS", particles=particles, &
+                            stride=section_get_ivals(dft_section, "PRINT%LOCAL_STRESS_CUBE%STRIDE"), &
+                            max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_STRESS_CUBE%MAX_FILE_SIZE_MB"), &
+                            mpi_io=mpi_io)
          IF (io_unit > 0) THEN
             INQUIRE (UNIT=unit_nr, NAME=filename)
             WRITE (UNIT=io_unit, FMT="(/,T3,A)") "Write 1/3*Tr(sigma) to cube file"
@@ -3593,6 +3597,7 @@ CONTAINS
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
+                        max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", mpi_io=mpi_io)
@@ -3641,6 +3646,7 @@ CONTAINS
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
+             max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", mpi_io=mpi_io)
@@ -3688,6 +3694,7 @@ CONTAINS
 
                   CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
                                      stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
+                      max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                     "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
@@ -3715,6 +3722,7 @@ CONTAINS
 
             CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
+                      max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
