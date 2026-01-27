@@ -60,7 +60,7 @@ def main() -> None:
         f.write(install_make_cp2k("psmp", mpi_mode="openmpi"))
 
     with OutputFile(f"Dockerfile.make_cp2k_ssmp", args.check) as f:
-        f.write(install_make_cp2k("ssmp", mpi_mode="mpich"))
+        f.write(install_make_cp2k("ssmp", mpi_mode="no"))
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_deps_spack("psmp", mpi_mode="mpich"))
@@ -706,9 +706,7 @@ WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi {mpi_mode}"
-
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/run_tests"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi {mpi_mode} -t \"\""
 
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]

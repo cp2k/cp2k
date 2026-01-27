@@ -40,9 +40,7 @@ WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi mpich"
-
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/run_tests"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi no -t \"\""
 
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
