@@ -120,7 +120,7 @@ BUILD_TYPE="${BUILD_TYPE:-Release}"
 HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
-MPI_MODE="psmp"
+MPI_MODE="mpich"
 if command -v nproc &> /dev/null; then
   MAX_PROCS=$(nproc)
   NUM_PROCS=${NUM_PROCS:-${MAX_PROCS}}
@@ -731,7 +731,11 @@ chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  "${INSTALL_PREFIX}"/bin/run_tests
+  if [[ -f /run/.containerenv ]]; then
+    "${INSTALL_PREFIX}"/bin/entrypoint.sh run_tests
+  else
+    "${INSTALL_PREFIX}"/bin/run_tests
+  fi
   EXIT_CODE=$?
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The regression test run failed with the error code ${EXIT_CODE}"
