@@ -56,6 +56,9 @@ def main() -> None:
     with OutputFile(f"Dockerfile.make_cp2k_psmp", args.check) as f:
         f.write(install_make_cp2k("psmp", mpi_mode="mpich"))
 
+    with OutputFile(f"Dockerfile.make_cp2k_openmpi-psmp", args.check) as f:
+        f.write(install_make_cp2k("psmp", mpi_mode="openmpi"))
+
     with OutputFile(f"Dockerfile.make_cp2k_ssmp", args.check) as f:
         f.write(install_make_cp2k("ssmp", mpi_mode="mpich"))
 
@@ -574,8 +577,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran \
     git \
     gnupg \
-    hwloc \
-    libhwloc-dev \
     libssh-dev \
     libssl-dev \
     libtool \
@@ -679,8 +680,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran \
     git \
     gnupg \
-    hwloc \
-    libhwloc-dev \
     libssh-dev \
     libssl-dev \
     libtool \
@@ -707,7 +706,13 @@ WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -cv {version} -t ""
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi {mpi_mode}"
+
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/run_tests"
+
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
+CMD ["cp2k", "--help"]
 """
     return output
 
