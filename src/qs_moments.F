@@ -3840,9 +3840,9 @@ CONTAINS
                   END DO
                END DO
                WRITE (unit_number, "(/,1X,A)") "Berry Curvature"
-               WRITE (unit_number, "(2X,A)") "  kp   n      YZ          ZX          XY"
+               WRITE (unit_number, "(2X,A)") "   kp    n      YZ          ZX          XY"
                DO n = nmin, nmax
-                  WRITE (unit_number, "(2X,2I4,3(1X,G11.3))") &
+                  WRITE (unit_number, "(2X,2I5,3(1X,G11.3))") &
                      ikp, n, bc_to_print(1, n), bc_to_print(2, n), bc_to_print(3, n)
                END DO
             END IF
