@@ -47,7 +47,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.4
+# Version: 0.6
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -55,6 +55,7 @@
 #          - Version 0.3: Add no_externals flag and perform more checks (21.01.2026, MK)
 #          - Version 0.4: Improve error handling and provide more hints (22.01.2026, MK)
 #          - Version 0.5: Adapt script for use within a container (24.01.2026, MK)
+#          - Version 0.6: Add MPI flag and revise flag parsing (27.01.2026, MK)
 
 # set -uo pipefail # can be useful for debugging this script
 
@@ -119,6 +120,7 @@ BUILD_TYPE="${BUILD_TYPE:-Release}"
 HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
+MPI_MODE="psmp"
 if command -v nproc &> /dev/null; then
   MAX_PROCS=$(nproc)
   NUM_PROCS=${NUM_PROCS:-${MAX_PROCS}}
@@ -128,7 +130,7 @@ else
 fi
 RUN_TEST="no"
 TESTOPTS=""
-USE_EXTERNALS="yes"
+USE_EXTERNALS="no"
 VERBOSE=0
 VERBOSE_FLAG="--quiet"
 VERBOSE_MAKEFILE="OFF"
@@ -150,7 +152,12 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -cv | --cp2k_version)
-      CP2K_VERSION="${2}"
+      if (($# > 1)); then
+        CP2K_VERSION="${2}"
+      else
+        echo "ERROR: No argument found for flag \"${1}\" (choose psmp or ssmp)"
+        ${EXIT_CMD} 1
+      fi
       shift 2
       ;;
     -h | --help)
@@ -158,7 +165,12 @@ while [[ $# -gt 0 ]]; do
       shift 1
       ;;
     -ip | --install_path | --install_prefix)
-      INSTALL_PREFIX="${2}"
+      if (($# > 1)); then
+        INSTALL_PREFIX="${2}"
+      else
+        echo "ERROR: No install path argument found for flag \"${1}\""
+        ${EXIT_CMD} 1
+      fi
       shift 2
       ;;
     -j)
@@ -171,7 +183,7 @@ while [[ $# -gt 0 ]]; do
           shift 2
           ;;
         *)
-          echo "The -j flag can only be followed by an integer number, found \"${2}\""
+          echo "ERROR: The -j flag can only be followed by an integer number, found \"${2}\""
           ${EXIT_CMD} 1
           ;;
       esac
@@ -180,14 +192,30 @@ while [[ $# -gt 0 ]]; do
       NUM_PROCS="${1#-j}"
       shift 1
       ;;
-    -ne | --no_externals)
-      USE_EXTERNALS="no"
-      shift 1
+    -mpi | --mpi_mode)
+      if (($# > 1)); then
+        MPI_MODE="${2}"
+      else
+        echo "ERROR: No argument found for flag \"${1}\""
+        echo "       The MPI type is required (mpich | no | openmpi)"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
       ;;
     -t | --test)
       RUN_TEST="yes"
-      TESTOPTS="${2}"
+      if (($# > 1)); then
+        TESTOPTS="${2}"
+      else
+        echo "ERROR: No argument found for flag \"${1}\""
+        echo "       A string argument with the TESTOPTS (even an empty one \"\") is required"
+        ${EXIT_CMD} 1
+      fi
       shift 2
+      ;;
+    -ue | --use_externals)
+      USE_EXTERNALS="yes"
+      shift 1
       ;;
     -v | --verbose)
       VERBOSE=1
@@ -197,11 +225,11 @@ while [[ $# -gt 0 ]]; do
       shift 1
       ;;
     --)
-      shift
+      shift 1
       break
       ;;
     -*)
-      echo "ERROR: Unknown option ${1} specified"
+      echo "ERROR: Unknown option \"${1}\" specified"
       ${EXIT_CMD} 1
       ;;
     *)
@@ -211,14 +239,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
-export BUILD_TYPE HAS_PODMAN INSTALL_MESSAGE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_TYPE HAS_PODMAN INSTALL_MESSAGE MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
   echo ""
-  echo "Usage: ${SCRIPT_NAME} [-bd|--build_deps] [-bt|--build_type (Debug|Release|RelWithDebInfo)]"
-  echo "                    [-cv|--cp2k_version (psmp|ssmp)] [-h|--help] [-ip|--install_path PATH]"
-  echo "                    [-j #processes] [-ne|--no_externals] [-t|test \"TESTOPTS\"] [-v|--verbose]"
+  echo "Usage: ${SCRIPT_NAME} [-bd|--build_deps]"
+  echo "                    [-bt|--build_type (Debug | Release | RelWithDebInfo)]"
+  echo "                    [-cv|--cp2k_version (psmp | ssmp)]"
+  echo "                    [-h|--help]"
+  echo "                    [-ip|--install_path PATH]"
+  echo "                    [-j #PROCESSES]"
+  echo "                    [-mpi|--mpi_mode (mpich | no | openmpi)]"
+  echo "                    [-t|test \"TESTOPTS\"]"
+  echo "                    [-ue|--use_externals]"
+  echo "                    [-v|--verbose]"
   echo ""
   echo "Flags:"
   echo " --build_deps   : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
@@ -227,10 +262,11 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --help         : Print this help information"
   echo " --install_path : Define the CP2K installation path (default: ./install"
   echo " -j             : Number of processes used in parallel"
-  echo " --no_externals : Do not use external packages installed on the system. This results in longer build times,"
-  echo "                  but it can help to resolve conflicts with outdated packages on the host system, e.g. old"
-  echo "                  python or gcc versions"
+  echo " --mpi_mode     : Set preferred MPI mode (default: \"mpich\")"
   echo " --test         : Perform a regression test run after a successful build"
+  echo " --use_externals: Use external packages installed on the host system. This can result in faster build times,"
+  echo "                  but it can also cause conflicts with outdated packages on the host system, e.g. old"
+  echo "                  python or gcc versions"
   echo " --verbose      : Write verbose output"
   echo ""
   echo "Hints:"
@@ -241,10 +277,12 @@ if [[ "${HELP}" == "yes" ]]; then
   ${EXIT_CMD} 0
 fi
 
+echo ""
 echo "CMAKE_BUILD_TYPE = ${BUILD_TYPE}"
 echo "CP2K_VERSION     = ${CP2K_VERSION}"
 echo "INSTALL_PREFIX   = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE  = ${INSTALL_MESSAGE}"
+echo "MPI_MODE         = ${MPI_MODE}"
 echo "NUM_PROCS        = ${NUM_PROCS} (processes)"
 echo "RUN_TEST         = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
@@ -257,6 +295,7 @@ echo "VERBOSE          = ${VERBOSE}"
 if (($# > 0)); then
   echo "Remaining args   =" "$@" "(not used)"
 fi
+echo ""
 
 # Check if a valid number of processes is requested
 if ((NUM_PROCS < 1)); then
@@ -272,7 +311,28 @@ case "${BUILD_TYPE}" in
     true
     ;;
   *)
-    echo -e "\nERROR: Invalid CMake build type \"${BUILD_TYPE}\" selected"
+    echo "ERROR: Invalid CMake build type \"${BUILD_TYPE}\" selected"
+    ${EXIT_CMD} 1
+    ;;
+esac
+
+# Check if a valid MPI type is selected
+case "${MPI_MODE}" in
+  mpich | openmpi)
+    if [[ "${CP2K_VERSION}" == "ssmp" ]]; then
+      echo "ERROR: MPI type \"${MPI_MODE}\" specified for building a serial CP2K binary"
+      ${EXIT_CMD} 1
+    fi
+    ;;
+  no)
+    if [[ "${CP2K_VERSION}" == "psmp" ]]; then
+      echo "ERROR: MPI type \"${MPI_MODE}\" specified for building an MPI-parallel CP2K binary"
+      ${EXIT_CMD} 1
+    fi
+    ;;
+  *)
+    echo "ERROR: Invalid MPI type \"${MPI_MODE}\" selected"
+    echo "       Choose from (mpich | no | openmpi)"
     ${EXIT_CMD} 1
     ;;
 esac
@@ -295,6 +355,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   mkdir -p "${SPACK_BUILD_PATH}"
   cd "${SPACK_BUILD_PATH}" || ${EXIT_CMD} 1
 
+  # Reset the spack environment
+  unset SPACK_ENV
+
   # Install Spack
   ((VERBOSE > 0)) && echo "Installing Spack ${SPACK_VERSION}"
   export SPACK_REPO="https://github.com/spack/spack"
@@ -316,12 +379,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     echo "Installing virtual environment for Python packages"
     if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
       echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
-      ${EXIT_CMD} 1
+      cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
     fi
     export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
   else
     echo "ERROR: python3 -m venv was not found"
-    ${EXIT_CMD} 1
+    cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
   fi
 
   # Upgrade pip and install boto3
@@ -331,7 +394,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
   else
     echo "ERROR: python3 -m pip was not found"
-    ${EXIT_CMD} 1
+    cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
   fi
 
   # Install Spack packages
@@ -341,6 +404,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   wget -q "${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz"
   tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
   rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
+
+  # Return from spack folder after all installations are done
+  cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
   # Initialize Spack shell hooks
   source "${SPACK_ROOT}/share/spack/setup-env.sh"
@@ -358,8 +424,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       HAS_PODMAN="yes"
     else
       echo "INFO: podman was not found"
-      echo "INFO: Install the package podman to take advantage of a local spack cache"
-      echo "INFO: This accelerates a rebuild of the CP2K dependencies, significantly"
+      echo "      Install the package podman to take advantage of a local spack cache"
+      echo "      This accelerates a rebuild of the CP2K dependencies, significantly"
     fi
   fi
 
@@ -367,6 +433,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   if [[ ! -f /run/.containerenv ]] && [[ "${HAS_PODMAN}" == "yes" ]]; then
     if ! "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh; then
       echo "ERROR: Could not start (new) spack cache"
+      echo ""
       echo "An error message starting with \"Error: initial journal cursor: ...\" indicates that the"
       echo "journald logging does not work. Try to switch podman (3.x) to file-based logs by creating"
       echo "the file \"~/.config/containers/containers.conf\" with the following two lines:"
@@ -393,19 +460,34 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     -e "/\"build_type=/s|build_type=[^\"]*|build_type=${BUILD_TYPE}|" \
     "${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml" > "${CP2K_CONFIG_FILE}"
 
-  # Activate CP2K environment if needed
+  # Apply selected MPI type if needed
+  # MPICH is selected by default for psmp and no change needed for ssmp
+  if [[ "${MPI_MODE}" == "openmpi" ]]; then
+    sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
+      -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
+      -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
+      -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # Create CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
-    if [[ "${SPACK_ENV:-}" == "${CP2K_ENV}" ]]; then
-      echo "The Spack environment \"${CP2K_ENV}\" exists and is activated"
-    else
-      echo "The Spack environment \"${CP2K_ENV}\" exists but is NOT activated"
-      spack env activate "${CP2K_ENV}"
-      echo "The Spack environment \"${CP2K_ENV}\" has been activated"
+    if [[ -n "${SPACK_ENV}" ]]; then
+      echo "The Spack environment \"${CP2K_ENV}\" exists already"
     fi
   else
     echo "The Spack environment \"${CP2K_ENV}\" does NOT exist"
-    spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}" && spack env activate "${CP2K_ENV}"
-    echo "The Spack environment \"${CP2K_ENV}\" has been created and activated"
+    if ! spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}"; then
+      echo "ERROR: The creation of the Spack environment \"${CP2K_ENV}\" failed"
+      ${EXIT_CMD} 1
+    fi
+  fi
+
+  # Activate CP2K environment if needed
+  if spack env activate "${CP2K_ENV}"; then
+    echo "The Spack environment \"${CP2K_ENV}\" has been activated"
+  else
+    echo "ERROR: The activation of the Spack environment \"${CP2K_ENV}\" failed"
+    ${EXIT_CMD} 1
   fi
 
   # Add Spack packages builtin repository when missing
@@ -436,15 +518,17 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Find all external packages
   if [[ "${USE_EXTERNALS}" == "yes" ]]; then
     if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable; then
-      echo "ERROR: The detection of externals by spack failed"
+      echo -e "\nERROR: The detection of externals by spack failed"
       ${EXIT_CMD} 1
     fi
   fi
 
   # Concretize CP2K dependencies
   if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
+    echo ""
     echo "HINT: The  --no_externals flag can help to resolve conflicts with outdated"
     echo "      packages on the host system, e.g. old python or gcc versions"
+    echo ""
     ${EXIT_CMD} 1
   fi
 
@@ -464,8 +548,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     ${EXIT_CMD} 1
   fi
 
-  cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
-
 else
 
   # Initialize Spack shell hooks
@@ -477,8 +559,15 @@ fi
 
 ### Build CP2K ###
 
-spack env list
-spack env status
+if ! spack env list | grep -q "${CP2K_ENV}"; then
+  echo "ERROR: No Spack environment \"${CP2K_ENV}\" found"
+  ${EXIT_CMD} 1
+else
+  spack env list
+  spack env status
+fi
+
+# Activate spack environment
 eval "$(spack env activate --sh ${CP2K_ENV})"
 
 # CMake configuration step
@@ -553,7 +642,7 @@ echo -e '\n*** Installing CP2K ***\n'
 cmake --install "${CMAKE_BUILD_PATH}" |& tee "${CMAKE_BUILD_PATH}"/install.log
 EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
-  echo "ERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
+  echo -e "\nERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
@@ -591,18 +680,53 @@ if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
 fi
 export LD_LIBRARY_PATH
 
-# Prepare script to run the regression tests
+# Create links to CP2K binaries
+cd "${INSTALL_PREFIX}"/bin || ${EXIT_CMD} 1
+ln -sf cp2k."${CP2K_VERSION}" cp2k
+ln -sf cp2k."${CP2K_VERSION}" cp2k."${CP2K_VERSION/smp/opt}"
+ln -sf cp2k."${CP2K_VERSION}" cp2k_shell
+cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
+
+# Allow to run as root within a container with OpenMPI
+if [[ "${MPI_MODE}" == "openmpi" ]] && [[ -f /run/.containerenv ]]; then
+  OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
+else
+  OMPI_VARS=""
+fi
+
+# Assemble flags for running the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
-cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
+
+if [[ -f /run/.containerenv ]]; then
+  # Create entrypoint script file when building within a container
+  cat << *** > "${INSTALL_PREFIX}"/bin/entrypoint.sh
 #!/bin/bash
 ulimit -c 0 -s unlimited
+${OMPI_VARS}
 export OMP_STACKSIZE=64M
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
-ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | sort | uniq
+exec "\$@"
+***
+  chmod 750 "${INSTALL_PREFIX}"/bin/entrypoint.sh
+else
+  # Otherwise put the environment setup in the regression test launch script
+  cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
+#!/bin/bash
+ulimit -c 0 -s unlimited
+${OMPI_VARS}
+export OMP_STACKSIZE=64M
+export PATH=${INSTALL_PREFIX}/bin:${PATH}
+export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
+***
+fi
+
+# Create shortcut for launching the regression tests
+cat << *** >> "${INSTALL_PREFIX}"/bin/run_tests
+ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | sort | uniq
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${CP2K_VERSION}
 ***
-chmod 750 "${INSTALL_PREFIX}/bin/run_tests"
+chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
