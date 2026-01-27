@@ -52,6 +52,7 @@ case "$with_fftw" in
           grep '\bavx\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx"
           grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx2"
           grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx512"
+          grep '\bsse2\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-sse2"
         fi
       fi
       ./configure CFLAGS="${CFLAGS} -std=c17" \
