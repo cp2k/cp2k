@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.make_cp2k_ssmp ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.make_cp2k_openmpi-psmp ../../
 #
 
 FROM "ubuntu:24.04"
@@ -40,7 +40,7 @@ WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi openmpi"
 
 RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/run_tests"
 
