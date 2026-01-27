@@ -38,10 +38,6 @@ spack:
       require:
         - "~xpmem"
 
-    openmpi:
-      require:
-        - "+internal-hwloc"
-
     xpmem:
       require:
         - "xpmem@master ~kernel-module"
