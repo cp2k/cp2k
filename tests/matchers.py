@@ -264,8 +264,11 @@ registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
 registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
 
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
-registry["Dipole_at_kp_1"] = GenericMatcher(r" 1  1  2", col=4)
+registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4)
+
+# Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
+registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=8)
 
 # Berry curvature calculated from dipoles near K point in graphene BZ
-registry["BC_near_K_point"] = GenericMatcher(r"   1   4", col=5)
+registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
 # EOF

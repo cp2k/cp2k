@@ -10,6 +10,8 @@
 # compute the dipole moments for kpoints provided via &KPOINTS in the &MOMENTS section
 "C2_pbe_moment_kp.inp"                  = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=0.344}]
 # compute the dipole moments for kpoints provided via &KPOINT_SET in the &MOMENTS section
-"C2_pbe_moment_kpset.inp"               = [{matcher="BC_near_K_point", tol=1.0E+01, ref=-1050}]
-# ensure matching of Berry Curvature
+# and ensure matching of Berry Curvature
+"C2_pbe_moment_kpset.inp"               = [{matcher="BC_near_K_point", tol=1.0E-01, ref=-7100}]
+# compute dipole for open shell system of monolayer CrSBr
+"CrSBr_open_shell.inp"                  = [{matcher="Dipole_for_CrSBr", tol=1.0E-06, ref=-1.25}]
 #EOF
