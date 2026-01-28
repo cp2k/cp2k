@@ -68,6 +68,16 @@ typedef struct {
 } plan_t;
 
 /*******************************************************************************
+ * \brief Private routine for calculating tick indices in pack plans.
+ * \author Maximilian Graml
+ ******************************************************************************/
+static inline unsigned long long calculate_tick_index(int sum_index,
+                                                      int nticks) {
+  // 1021 is used as a random prime to scramble the index
+  return ((unsigned long long)sum_index * 1021ULL) % (unsigned long long)nticks;
+}
+
+/*******************************************************************************
  * \brief Private routine for planing packs.
  * \author Ole Schuett
  ******************************************************************************/
@@ -148,12 +158,6 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
       ndata_per_pack[ipack] += ndata_mythread[ipack];
     }
   } // end of omp parallel region
-}
-
-static inline unsigned long long calculate_tick_index(long sum_index,
-                                                      long nticks) {
-  // 1021 is used as a random prime to scramble the index
-  return ((unsigned long long)sum_index * 1021ULL) % (unsigned long long)nticks;
 }
 
 /*******************************************************************************
