@@ -91,7 +91,7 @@ spack:
   specs:
     # Build tools
     - "cmake@3.27:"
-    - "gcc@9:"
+    - "gcc@10:"
     - "gmake@4.2:"
     - "ninja@1.10:"
     - "python@3.11:"
