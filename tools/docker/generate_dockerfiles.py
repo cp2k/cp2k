@@ -56,6 +56,13 @@ def main() -> None:
     with OutputFile(f"Dockerfile.make_cp2k_psmp", args.check) as f:
         f.write(install_make_cp2k("psmp", mpi_mode="mpich"))
 
+    with OutputFile(f"Dockerfile.make_cp2k_psmp-gcc15", args.check) as f:
+        f.write(install_make_cp2k("psmp", mpi_mode="mpich", gcc_version=15))
+
+    with OutputFile(f"Dockerfile.make_cp2k_psmp-4x2", args.check) as f:
+        testopts = f"--mpiranks=4 --ompthreads=2"
+        f.write(install_make_cp2k("psmp", mpi_mode="mpich", testopts=testopts))
+
     with OutputFile(f"Dockerfile.make_cp2k_openmpi-psmp", args.check) as f:
         f.write(install_make_cp2k("psmp", mpi_mode="openmpi"))
 
@@ -667,7 +674,12 @@ RUN make -j${{NUM_PROCS}} --file=spack_makefile SPACK_COLOR=never --output-sync=
 
 
 # ======================================================================================
-def install_make_cp2k(version: str, mpi_mode: str) -> str:
+def install_make_cp2k(
+    version: str,
+    mpi_mode: str,
+    gcc_version: int = 13,
+    testopts: str = "",
+) -> str:
     output = rf"""
 FROM "ubuntu:24.04"
 
@@ -675,9 +687,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++ \
-    gcc \
-    gfortran \
+    g++-{gcc_version} \
+    gcc-{gcc_version} \
+    gfortran-{gcc_version} \
     git \
     gnupg \
     libssh-dev \
@@ -700,13 +712,18 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
+# Create links in /usr/local/bin to overrule links in /usr/bin
+RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
+
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi {mpi_mode} -t \"\""
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -mpi {mpi_mode} -t \"{testopts}\""
 
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]

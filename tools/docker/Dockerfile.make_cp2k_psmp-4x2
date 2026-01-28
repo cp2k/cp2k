@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.make_cp2k_psmp ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.make_cp2k_psmp-4x2 ../../
 #
 
 FROM "ubuntu:24.04"
@@ -45,7 +45,7 @@ WORKDIR /opt
 COPY . cp2k/
 
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi mpich -t \"\""
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi mpich -t \"--mpiranks=4 --ompthreads=2\""
 
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]

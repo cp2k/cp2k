@@ -9,9 +9,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++ \
-    gcc \
-    gfortran \
+    g++-13 \
+    gcc-13 \
+    gfortran-13 \
     git \
     gnupg \
     libssh-dev \
@@ -33,6 +33,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     zstd \
     && rm -rf /var/lib/apt/lists/*
+
+# Create links in /usr/local/bin to overrule links in /usr/bin
+RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-13      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-13 /usr/local/bin/gfortran
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
