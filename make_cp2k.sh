@@ -476,14 +476,16 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     fi
   else
     echo "The Spack environment \"${CP2K_ENV}\" does NOT exist"
-    if ! spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}"; then
+    if spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}" &> /dev/null; then
+      echo "The Spack environment \"${CP2K_ENV}\" has been created"
+    else
       echo "ERROR: The creation of the Spack environment \"${CP2K_ENV}\" failed"
       ${EXIT_CMD} 1
     fi
   fi
 
   # Activate CP2K environment if needed
-  if spack env activate "${CP2K_ENV}"; then
+  if spack env activate "${CP2K_ENV}" &> /dev/null; then
     echo "The Spack environment \"${CP2K_ENV}\" has been activated"
   else
     echo "ERROR: The activation of the Spack environment \"${CP2K_ENV}\" failed"
