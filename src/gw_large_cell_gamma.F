@@ -2119,7 +2119,6 @@ CONTAINS
 !> \param bs_env ...
 !> \param occ ...
 !> \param vir ...
-!> \param clear_W ...
 !> \param can_skip ...
 ! **************************************************************************************************
    SUBROUTINE contract_to_Sigma(t_2c_G, t_3c_x_W, t_2c_Sigma, i_atoms, j_atoms, qs_env, bs_env, &
@@ -2656,77 +2655,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_bounds_from_atoms
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm ...
-!> \param thresh ...
-!> \param header ...
-!> \param unit_nr ...
-!> \param abs_vals ...
-! **************************************************************************************************
-   SUBROUTINE fm_write_thresh(fm, thresh, header, unit_nr, abs_vals)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
-      REAL(KIND=dp), INTENT(IN)                          :: thresh
-      CHARACTER(LEN=*), INTENT(IN)                       :: header
-      INTEGER, INTENT(IN)                                :: unit_nr
-      LOGICAL, OPTIONAL                                  :: abs_vals
-
-      CHARACTER(LEN=*), PARAMETER :: my_footer = " | ENDING WRITING OF MATRIX", &
-         routineN = 'fm_write_thresh'
-
-      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_abs_vals
-
-      CALL timeset(routineN, handle)
-
-      IF (PRESENT(abs_vals)) THEN
-         my_abs_vals = abs_vals
-      ELSE
-         my_abs_vals = .FALSE.
-      END IF
-
-      CALL cp_fm_get_info(matrix=fm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) header
-      END IF
-      IF (my_abs_vals) THEN
-         DO i = 1, nrow_local
-            DO j = 1, ncol_local
-               IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.8)") header, row_indices(i), col_indices(j), &
-                        ABS(fm%local_data(i, j))
-                  END IF
-               END IF
-            END DO
-         END DO
-      ELSE
-         DO i = 1, nrow_local
-            DO j = 1, ncol_local
-               IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.8)") header, row_indices(i), col_indices(j), &
-                        fm%local_data(i, j)
-                  END IF
-               END IF
-            END DO
-         END DO
-      END IF
-      CALL fm%matrix_struct%para_env%sync()
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) my_footer
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
 
 END MODULE gw_large_cell_gamma
