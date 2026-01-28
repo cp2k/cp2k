@@ -47,7 +47,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.6
+# Version: 0.7
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -56,11 +56,9 @@
 #          - Version 0.4: Improve error handling and provide more hints (22.01.2026, MK)
 #          - Version 0.5: Adapt script for use within a container (24.01.2026, MK)
 #          - Version 0.6: Add MPI flag and revise flag parsing (27.01.2026, MK)
+#          - Version 0.7: Fix container detection (28.01.2026, MK)
 
-# set -uo pipefail # can be useful for debugging this script
-
-# Trust other scripts being sourced
-# shellcheck source=/dev/null
+set -uo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
@@ -238,8 +236,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Remove leading zeros from NUM_PROCS
 NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
-export BUILD_TYPE HAS_PODMAN INSTALL_MESSAGE MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+
+# Check if we are working within a docker or podman container
+[[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
+
+export BUILD_TYPE HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS
+export RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -282,6 +286,7 @@ echo "CMAKE_BUILD_TYPE = ${BUILD_TYPE}"
 echo "CP2K_VERSION     = ${CP2K_VERSION}"
 echo "INSTALL_PREFIX   = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE  = ${INSTALL_MESSAGE}"
+echo "IN_CONTAINER     = ${IN_CONTAINER}"
 echo "MPI_MODE         = ${MPI_MODE}"
 echo "NUM_PROCS        = ${NUM_PROCS} (processes)"
 echo "RUN_TEST         = ${RUN_TEST}"
@@ -409,10 +414,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
   # Initialize Spack shell hooks
+  # shellcheck source=/dev/null
   source "${SPACK_ROOT}/share/spack/setup-env.sh"
 
-  # Check if we are working within a container
-  if [[ ! -f /run/.containerenv ]]; then
+  if [[ "${IN_CONTAINER}" == "no" ]]; then
     # The package podman is required for using a MinIO cache
     if command -v podman &> /dev/null; then
       # Check podman version
@@ -430,7 +435,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Start Spack cache if we are not within a container and have podman available
-  if [[ ! -f /run/.containerenv ]] && [[ "${HAS_PODMAN}" == "yes" ]]; then
+  if [[ "${IN_CONTAINER}" == "no" ]] && [[ "${HAS_PODMAN}" == "yes" ]]; then
     if ! "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh; then
       echo "ERROR: Could not start (new) spack cache"
       echo ""
@@ -553,6 +558,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 else
 
   # Initialize Spack shell hooks
+  # shellcheck source=/dev/null
   source "${SPACK_ROOT}"/share/spack/setup-env.sh
 
 fi
@@ -690,7 +696,7 @@ ln -sf cp2k."${CP2K_VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
 # Allow to run as root within a container with OpenMPI
-if [[ "${MPI_MODE}" == "openmpi" ]] && [[ -f /run/.containerenv ]]; then
+if [[ "${MPI_MODE}" == "openmpi" ]] && [[ "${IN_CONTAINER}" == "yes" ]]; then
   OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
 else
   OMPI_VARS=""
@@ -699,7 +705,7 @@ fi
 # Assemble flags for running the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
 
-if [[ -f /run/.containerenv ]]; then
+if [[ "${IN_CONTAINER}" == "yes" ]]; then
   # Create entrypoint script file when building within a container
   cat << *** > "${INSTALL_PREFIX}"/bin/entrypoint.sh
 #!/bin/bash
@@ -733,7 +739,7 @@ chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  if [[ -f /run/.containerenv ]]; then
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
     "${INSTALL_PREFIX}"/bin/entrypoint.sh run_tests
   else
     "${INSTALL_PREFIX}"/bin/run_tests
