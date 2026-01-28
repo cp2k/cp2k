@@ -289,7 +289,14 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
+      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
+      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
 
+      IF (bs_env%print_contract) THEN
+         bs_env%unit_nr_contract = bs_env%unit_nr
+      ELSE
+         bs_env%unit_nr_contract = 0
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
@@ -786,26 +793,33 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_sparsity_3c'
 
       INTEGER                                            :: handle, n_atom_step, RI_atom
-      INTEGER(int_8)                                     :: mem, non_zero_elements_sum, nze
+      INTEGER(int_8)                                     :: non_zero_elements_sum, nze
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
-      TYPE(dbt_type)                                     :: t_3c_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_global_array
-      TYPE(neighbor_list_3c_type)                        :: nl_3c_global
+
+!TYPE(dbt_type)                                     :: t_3c_global
+
+      !TYPE(neighbor_list_3c_type)                        :: nl_3c_global
 
       CALL timeset(routineN, handle)
 
       ! check the sparsity of 3c integral tensor (µν|P); calculate maximum distance between
       ! AO atoms µ, ν where at least a single integral (µν|P) is larger than the filter threshold
-      CALL create_3c_t(t_3c_global, bs_env%para_env, "(RI AO | AO)", [1, 2], [3], &
-                       bs_env%sizes_RI, bs_env%sizes_AO, &
-                       create_nl_3c=.TRUE., nl_3c=nl_3c_global, qs_env=qs_env)
-
-      CALL m_memory(mem)
-      CALL bs_env%para_env%max(mem)
 
       ALLOCATE (t_3c_global_array(1, 1))
-      CALL dbt_create(t_3c_global, t_3c_global_array(1, 1))
+      CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_global_array(1, 1))
+
+      ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
+      ! (Filled during loop)
+      ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      ALLOCATE (bs_env%max_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
+      bs_env%min_RI_idx_from_AO_AO_atom(:, :) = bs_env%n_RI
+      bs_env%max_RI_idx_from_AO_AO_atom(:, :) = 1
+      bs_env%min_AO_idx_from_RI_AO_atom(:, :) = bs_env%n_AO
+      bs_env%max_AO_idx_from_RI_AO_atom(:, :) = 1
 
       CALL bs_env%para_env%sync()
       t1 = m_walltime()
@@ -820,7 +834,7 @@ CONTAINS
          CALL build_3c_integrals(t_3c_global_array, &
                                  bs_env%eps_filter, &
                                  qs_env, &
-                                 nl_3c_global, &
+                                 bs_env%nl_3c, &
                                  int_eps=bs_env%eps_filter, &
                                  basis_i=bs_env%basis_set_RI, &
                                  basis_j=bs_env%basis_set_AO, &
@@ -839,20 +853,25 @@ CONTAINS
 
          CALL get_max_dist_AO_atoms(t_3c_global_array(1, 1), max_dist_AO_atoms, qs_env)
 
+         ! Extract indices per block
+         CALL get_i_j_atom_ranges(t_3c_global_array(1, 1), bs_env)
+
          CALL dbt_clear(t_3c_global_array(1, 1))
 
       END DO
 
       t2 = m_walltime()
 
+      CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
+      CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
+      CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
+      CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
+
       bs_env%occupation_3c_int = occupation_sum
       bs_env%max_dist_AO_atoms = max_dist_AO_atoms
 
-      CALL dbt_destroy(t_3c_global)
       CALL dbt_destroy(t_3c_global_array(1, 1))
       DEALLOCATE (t_3c_global_array)
-
-      CALL neighbor_list_3c_destroy(nl_3c_global)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A)') ''
@@ -869,6 +888,64 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_sparsity_3c
+
+! **************************************************************************************************
+!> \brief ...
+!> \param t_3c ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE get_i_j_atom_ranges(t_3c, bs_env)
+      TYPE(dbt_type)                                     :: t_3c
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_i_j_atom_ranges'
+
+      INTEGER                                            :: handle, idx_AO_end, idx_AO_start, &
+                                                            idx_RI_end, idx_RI_start
+      INTEGER, DIMENSION(3)                              :: atom_ind
+      TYPE(dbt_iterator_type)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+      ! Loop over blocks in 3c, for given min_atom: RI_min/max index from min_atom
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_3c, bs_env) &
+!$OMP PRIVATE(iter, atom_ind, &
+!$OMP         idx_RI_start, idx_RI_end, idx_AO_start, idx_AO_end)
+
+      CALL dbt_iterator_start(iter, t_3c)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, atom_ind)
+
+         ! Pre-fetch indices to avoid referencing 'bs_env' twice inside the ATOMIC blocks
+         idx_RI_start = bs_env%i_RI_start_from_atom(atom_ind(1))
+         idx_RI_end = bs_env%i_RI_end_from_atom(atom_ind(1))
+
+         idx_AO_start = bs_env%i_ao_start_from_atom(atom_ind(2))
+         idx_AO_end = bs_env%i_ao_end_from_atom(atom_ind(2))
+
+         ! Update values safely inside ATOMIC blocks, otherwise race conditions occur
+!$OMP ATOMIC UPDATE
+         bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)) = &
+            MIN(bs_env%min_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)), idx_RI_start)
+!$OMP ATOMIC UPDATE
+         bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)) = &
+            MAX(bs_env%max_RI_idx_from_AO_AO_atom(atom_ind(2), atom_ind(3)), idx_RI_end)
+
+!$OMP ATOMIC UPDATE
+         bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)) = &
+            MIN(bs_env%min_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)), idx_AO_start)
+!$OMP ATOMIC UPDATE
+         bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)) = &
+            MAX(bs_env%max_AO_idx_from_RI_AO_atom(atom_ind(1), atom_ind(3)), idx_AO_end)
+
+      END DO
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_i_j_atom_ranges
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1036,20 +1113,22 @@ CONTAINS
       NULLIFY (cell, particle_set, para_env)
       CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set, para_env=para_env)
 
+! IMPORTANT: Use thread-local copy for max_dist_AO_atoms via REDUCTION to avoid race conditions
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(t_3c_int, max_dist_AO_atoms, num_cells, index_to_cell, particle_set, cell) &
-!$OMP PRIVATE(iter,atom_ind,rab, abs_rab, atom_1, atom_2)
+!$OMP SHARED(t_3c_int, num_cells, index_to_cell, particle_set, cell) &
+!$OMP PRIVATE(iter, atom_ind, rab, abs_rab, atom_1, atom_2) &
+!$OMP REDUCTION(MAX:max_dist_AO_atoms)
+
       CALL dbt_iterator_start(iter, t_3c_int)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, atom_ind)
 
          atom_1 = atom_ind(2)
          atom_2 = atom_ind(3)
-
          rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
-
          abs_rab = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
 
+         ! Reduction takes care of using a thread-local copy
          max_dist_AO_atoms = MAX(max_dist_AO_atoms, abs_rab)
 
       END DO
@@ -1116,6 +1195,11 @@ CONTAINS
       ALLOCATE (bs_env%skip_Sigma_vir(n_intervals_i, n_intervals_j))
       bs_env%skip_Sigma_occ(:, :) = .FALSE.
       bs_env%skip_Sigma_vir(:, :) = .FALSE.
+      bs_env%n_skip_chi = 0
+
+      ALLOCATE (bs_env%skip_chi(n_intervals_i, n_intervals_j))
+      bs_env%skip_chi(:, :) = .FALSE.
+      bs_env%n_skip_sigma = 0
 
       ! choose atomic range for µ and σ ("inner loop (IL) atom") in
       ! M_λνP(iτ) = sum_µ (µν|P) G^occ_µλ(i|τ|,k=0)
@@ -1288,7 +1372,6 @@ CONTAINS
 
       INTEGER                                            :: color_sub, dummy_1, dummy_2, handle, &
                                                             num_pe, num_t_groups, u
-      INTEGER(KIND=int_8)                                :: mem
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1326,9 +1409,6 @@ CONTAINS
                             bs_env%atoms_j_t_group(1:2, color_sub + 1), &
                             dummy_1, dummy_2, color_sub, bs_env)
       END DO
-
-      CALL m_memory(mem)
-      CALL bs_env%para_env%max(mem)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
@@ -1593,6 +1673,8 @@ CONTAINS
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
+         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+            bs_env%input_memory_per_proc_GB, ' GB'
       END IF
 
       CALL timestop(handle)

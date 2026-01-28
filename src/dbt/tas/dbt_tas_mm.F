@@ -1637,7 +1637,6 @@ CONTAINS
             IF (move_data) CALL dbm_clear(matrix_in)
          END IF
       END IF
-
       CALL timestop(handle)
    END SUBROUTINE convert_to_new_pgrid
 

@@ -2412,7 +2412,7 @@ CONTAINS
       NULLIFY (subsection, print_key)
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of GW restarts.", &
-                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=1, repeats=.FALSE.)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the printing of restart files "// &
                                        "for χ, W, Σ.", &
@@ -2420,6 +2420,22 @@ CONTAINS
                                        common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT", &
+                          description="Prints information of contraction routines.", &
+                          usage="PRINT_DBT_CONTRACT", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT_VERBOSE", &
+                          description="Prints verbose information of contraction routines.", &
+                          usage="PRINT_DBT_CONTRACT_VERBOSE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

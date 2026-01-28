@@ -281,28 +281,42 @@ MODULE message_passing
          mp_sum_partial_cm, mp_sum_partial_zm
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_max_i, mp_max_iv, &
-         mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
-         mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
+         mp_max_im, &
+         mp_max_l, mp_max_lv, mp_max_lm, &
+         mp_max_r, mp_max_rv, mp_max_rm, &
+         mp_max_d, mp_max_dv, mp_max_dm, &
+         mp_max_c, mp_max_cv, mp_max_cm, &
+         mp_max_z, mp_max_zv, mp_max_zm, &
+         mp_max_root_i, mp_max_root_l, &
          mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
          mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
          mp_max_root_cm, mp_max_root_zm
       GENERIC, PUBLIC :: max => mp_max_i, mp_max_iv, &
-         mp_max_l, mp_max_lv, mp_max_r, mp_max_rv, &
-         mp_max_d, mp_max_dv, mp_max_c, mp_max_cv, &
-         mp_max_z, mp_max_zv, mp_max_root_i, mp_max_root_l, &
+         mp_max_im, &
+         mp_max_l, mp_max_lv, mp_max_lm, &
+         mp_max_r, mp_max_rv, mp_max_rm, &
+         mp_max_d, mp_max_dv, mp_max_dm, &
+         mp_max_c, mp_max_cv, mp_max_cm, &
+         mp_max_z, mp_max_zv, mp_max_zm, &
+         mp_max_root_i, mp_max_root_l, &
          mp_max_root_r, mp_max_root_d, mp_max_root_c, mp_max_root_z, &
          mp_max_root_im, mp_max_root_lm, mp_max_root_rm, mp_max_root_dm, &
          mp_max_root_cm, mp_max_root_zm
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: mp_min_i, mp_min_iv, &
-         mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
-         mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
-         mp_min_z, mp_min_zv
+         mp_min_im, &
+         mp_min_l, mp_min_lv, mp_min_lm, &
+         mp_min_r, mp_min_rv, mp_min_rm, &
+         mp_min_d, mp_min_dv, mp_min_dm, &
+         mp_min_c, mp_min_cv, mp_min_cm, &
+         mp_min_z, mp_min_zv, mp_min_zm
       GENERIC, PUBLIC :: min => mp_min_i, mp_min_iv, &
-         mp_min_l, mp_min_lv, mp_min_r, mp_min_rv, &
-         mp_min_d, mp_min_dv, mp_min_c, mp_min_cv, &
-         mp_min_z, mp_min_zv
+         mp_min_im, &
+         mp_min_l, mp_min_lv, mp_min_lm, &
+         mp_min_r, mp_min_rv, mp_min_rm, &
+         mp_min_d, mp_min_dv, mp_min_dm, &
+         mp_min_c, mp_min_cv, mp_min_cm, &
+         mp_min_z, mp_min_zv, mp_min_zm
 
       PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: &
          mp_sum_scatter_iv, mp_sum_scatter_lv, mp_sum_scatter_rv, &
