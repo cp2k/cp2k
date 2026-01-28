@@ -56,8 +56,8 @@ def main() -> None:
     with OutputFile(f"Dockerfile.make_cp2k_psmp", args.check) as f:
         f.write(install_make_cp2k("psmp", mpi_mode="mpich"))
 
-    with OutputFile(f"Dockerfile.make_cp2k_psmp-gcc15", args.check) as f:
-        f.write(install_make_cp2k("psmp", mpi_mode="mpich", gcc_version=15))
+    with OutputFile(f"Dockerfile.make_cp2k_psmp-gcc10", args.check) as f:
+        f.write(install_make_cp2k("psmp", mpi_mode="mpich", gcc_version=10))
 
     with OutputFile(f"Dockerfile.make_cp2k_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
