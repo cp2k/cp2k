@@ -274,10 +274,10 @@ CONTAINS
                   bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                                          bs_env%i_ao_end_from_atom(i_atoms(2))]
 
-                  CALL get_bounds_from_atoms(bounds_P, i_atoms, (/1, bs_env%n_atom/), &
+                  CALL get_bounds_from_atoms(bounds_P, i_atoms, [1, bs_env%n_atom], &
                                              bs_env%min_RI_idx_from_AO_AO_atom, &
                                              bs_env%max_RI_idx_from_AO_AO_atom)
-                  CALL get_bounds_from_atoms(bounds_Q, (/1, bs_env%n_atom/), j_atoms, &
+                  CALL get_bounds_from_atoms(bounds_Q, [1, bs_env%n_atom], j_atoms, &
                                              bs_env%min_RI_idx_from_AO_AO_atom, &
                                              bs_env%max_RI_idx_from_AO_AO_atom)
 
@@ -701,7 +701,7 @@ CONTAINS
       ! ν   bounds from i_atoms (via atoms_AO_2) and sparse in P and µ
 
       ! µ index
-      CALL get_bounds_from_atoms(bounds_IL, (/1, bs_env%n_atom/), atoms_AO_2, &
+      CALL get_bounds_from_atoms(bounds_IL, [1, bs_env%n_atom], atoms_AO_2, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom, &
                                  atoms_3=atoms_IL, &
@@ -714,7 +714,7 @@ CONTAINS
                                  bs_env%max_RI_idx_from_AO_AO_atom)
 
       ! ν index
-      CALL get_bounds_from_atoms(bounds_comb(:, 2), (/1, bs_env%n_atom/), atoms_IL, &
+      CALL get_bounds_from_atoms(bounds_comb(:, 2), [1, bs_env%n_atom], atoms_IL, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom, &
                                  atoms_3=atoms_AO_2, &
@@ -1779,7 +1779,7 @@ CONTAINS
                ! 6. tensor operations with D and computation of Σ^x
                !    Σ^x_λσ(k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) D_νµ
                CALL contract_to_Sigma(t_2c_D, t_3c_x_V, t_2c_Sigma_x, i_atoms, j_atoms, &
-                                      qs_env, bs_env, occ=.TRUE., vir=.FALSE., clear_W=.TRUE.)
+                                      qs_env, bs_env, occ=.TRUE., vir=.FALSE.)
 
             END DO ! j_atoms
          END DO ! i_atoms
@@ -1907,12 +1907,12 @@ CONTAINS
                   ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
                   !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
                   CALL contract_to_Sigma(t_2c_Gocc, t_3c_x_W, t_2c_Sigma_neg_tau, i_atoms, j_atoms, &
-                                         qs_env, bs_env, occ=.TRUE., vir=.FALSE., clear_W=.FALSE., &
+                                         qs_env, bs_env, occ=.TRUE., vir=.FALSE., &
                                          can_skip=bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx))
 
                   !    Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^vir_νµ(i|τ|) for τ > 0
                   CALL contract_to_Sigma(t_2c_Gvir, t_3c_x_W, t_2c_Sigma_pos_tau, i_atoms, j_atoms, &
-                                         qs_env, bs_env, occ=.FALSE., vir=.TRUE., clear_W=.TRUE., &
+                                         qs_env, bs_env, occ=.FALSE., vir=.TRUE., &
                                          can_skip=bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))
 
                END DO ! j_atoms
@@ -2052,7 +2052,7 @@ CONTAINS
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
-         CALL get_bounds_from_atoms(bounds_P, i_atoms, (/1, bs_env%n_atom/), &
+         CALL get_bounds_from_atoms(bounds_P, i_atoms, [1, bs_env%n_atom], &
                                     bs_env%min_RI_idx_from_AO_AO_atom, &
                                     bs_env%max_RI_idx_from_AO_AO_atom, &
                                     atoms_3=RI_atoms, &
@@ -2064,7 +2064,7 @@ CONTAINS
                                     bs_env%min_AO_idx_from_RI_AO_atom, &
                                     bs_env%max_AO_idx_from_RI_AO_atom)
          ! ν
-         CALL get_bounds_from_atoms(bounds_ao(:, 1), RI_atoms, (/1, bs_env%n_atom/), &
+         CALL get_bounds_from_atoms(bounds_ao(:, 1), RI_atoms, [1, bs_env%n_atom], &
                                     bs_env%min_AO_idx_from_RI_AO_atom, &
                                     bs_env%max_AO_idx_from_RI_AO_atom, &
                                     atoms_3=i_atoms, &
@@ -2123,12 +2123,12 @@ CONTAINS
 !> \param can_skip ...
 ! **************************************************************************************************
    SUBROUTINE contract_to_Sigma(t_2c_G, t_3c_x_W, t_2c_Sigma, i_atoms, j_atoms, qs_env, bs_env, &
-                                occ, vir, clear_W, can_skip)
+                                occ, vir, can_skip)
       TYPE(dbt_type)                                     :: t_2c_G, t_3c_x_W, t_2c_Sigma
       INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      LOGICAL                                            :: occ, vir, clear_W
+      LOGICAL                                            :: occ, vir
       LOGICAL, OPTIONAL                                  :: can_skip
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_to_Sigma'
@@ -2169,7 +2169,7 @@ CONTAINS
          IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
 
          ! µ
-         CALL get_bounds_from_atoms(bounds_mu, j_atoms, (/1, bs_env%n_atom/), &
+         CALL get_bounds_from_atoms(bounds_mu, j_atoms, [1, bs_env%n_atom], &
                                     bs_env%min_AO_idx_from_RI_AO_atom, &
                                     bs_env%max_AO_idx_from_RI_AO_atom, &
                                     atoms_3=IL_atoms, &
@@ -2177,7 +2177,7 @@ CONTAINS
                                     indices_3_end=bs_env%i_ao_end_from_atom)
 
          ! Q
-         CALL get_bounds_from_atoms(bounds_comb(:, 1), IL_atoms, (/1, bs_env%n_atom/), &
+         CALL get_bounds_from_atoms(bounds_comb(:, 1), IL_atoms, [1, bs_env%n_atom], &
                                     bs_env%min_RI_idx_from_AO_AO_atom, &
                                     bs_env%max_RI_idx_from_AO_AO_atom, &
                                     atoms_3=j_atoms, &
@@ -2223,10 +2223,10 @@ CONTAINS
                              bs_env%i_RI_end_from_atom(j_atoms(2))]
       bounds_comb(1:2, 2) = bounds_nu(1:2)
 
-      CALL get_bounds_from_atoms(bounds_lambda, j_atoms, (/1, bs_env%n_atom/), &
+      CALL get_bounds_from_atoms(bounds_lambda, j_atoms, [1, bs_env%n_atom], &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
-      CALL get_bounds_from_atoms(bounds_sigma, (/1, bs_env%n_atom/), i_atoms, &
+      CALL get_bounds_from_atoms(bounds_sigma, [1, bs_env%n_atom], i_atoms, &
                                  bs_env%min_AO_idx_from_RI_AO_atom, &
                                  bs_env%max_AO_idx_from_RI_AO_atom)
 
