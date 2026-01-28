@@ -314,7 +314,7 @@ CONTAINS
 
          CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(1), mos(re), 0.0_dp, &
                             tmp_aux_nao(1))
-         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im), mos(im), 1.0_dp, &
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(2), mos(im), 1.0_dp, &
                             tmp_aux_nao(1))
          CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(1), mos(im), 0.0_dp, &
                             tmp_aux_nao(2))
