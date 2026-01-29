@@ -22,7 +22,10 @@ CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=../install -DCP2K_DATA_DIR=${CP2K_ROOT}/da
 if [ -n "$(grep -- "--install-all" ${INSTALLDIR}/setup)" ]; then
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
   # Since "--install-all" can be used together with "--with-PKG=no", an extra safeguard is added here
-  for toolchain_option in $(grep -i "dontuse" ${INSTALLDIR}/toolchain.conf | cut -d'_' -f2 | cut -d'=' -f1); do
+  if [ "${with_dftd4}" = "__DONTUSE__" ] && [ "${with_tblite}" = "__DONTUSE__" ]; then
+    CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_DFTD4=OFF"
+  fi
+  for toolchain_option in $(grep -i "dontuse" ${INSTALLDIR}/toolchain.conf | grep -vi "dftd4" | cut -d'_' -f2 | cut -d'=' -f1); do
     if [ $(eval echo "$with_"'$toolchain_option') != "__DONTUSE__" ]; then
       ADDED_CMAKE_OPTION=$(sed -n '/target_compile_definitions(/,/)/p' ${CP2K_ROOT}/src/CMakeLists.txt | grep -i $toolchain_option | cut -d'{' -f2 | cut -d'}' -f1 | head -n 1)
       # Use "if-then" below can avoid generating empty "-D=OFF" options
@@ -75,8 +78,14 @@ fi
 # -------------------------
 # print out user instructions
 # -------------------------
-
-cat << EOF
+if [ "${dry_run}" = "__TRUE__" ]; then
+  cat << EOF
+Suggested cmake command if toolchain is built with your options: 
+  cmake .. ${CMAKE_OPTIONS}
+EOF
+else
+  echo ${CMAKE_OPTIONS} > "${INSTALLDIR}"/cmake.txt
+  cat << EOF
 
 ========================== usage =========================
 Done! The "build" directory can now be removed.
@@ -91,6 +100,10 @@ It's recommended for you to build CP2K like this after executing above command:
   make install -j $(get_nprocs)
 
 When completed, you can run "make clean" or delete this build directory to free up some space.
+
+The suggested cmake options above is saved to "${INSTALLDIR}/cmake.txt".
+For more information about available build options, see: https://manual.cp2k.org/trunk/getting-started/build-from-source.html
 EOF
+fi
 
 #EOF

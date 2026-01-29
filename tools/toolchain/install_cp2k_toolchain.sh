@@ -1037,6 +1037,7 @@ write_toolchain_env ${INSTALLDIR}
 
 # write toolchain config
 echo "tool_list=\"${tool_list}\"" > ${INSTALLDIR}/toolchain.conf
+echo "dry_run=\"${dry_run}\"" >> ${INSTALLDIR}/toolchain.conf
 for ii in ${package_list}; do
   install_mode="$(eval echo \${with_${ii}})"
   echo "with_${ii}=\"${install_mode}\"" >> ${INSTALLDIR}/toolchain.conf
@@ -1047,6 +1048,7 @@ done
 # ------------------------------------------------------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
+  ./scripts/generate_cmake_options.sh
 else
   echo "# Leak suppressions" > ${INSTALLDIR}/lsan.supp
   ./scripts/stage0/install_stage0.sh
