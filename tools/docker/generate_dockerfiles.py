@@ -53,38 +53,23 @@ def main() -> None:
         f.write(install_deps_ubuntu())
         f.write(regtest("minimal", "ssmp"))
 
-    with OutputFile(f"Dockerfile.make_cp2k_psmp", args.check) as f:
-        f.write(install_make_cp2k("psmp", mpi_mode="mpich"))
-
-    with OutputFile(f"Dockerfile.make_cp2k_psmp-gcc10", args.check) as f:
-        f.write(install_make_cp2k("psmp", mpi_mode="mpich", gcc_version=10))
-
-    with OutputFile(f"Dockerfile.make_cp2k_psmp-4x2", args.check) as f:
-        testopts = f"--mpiranks=4 --ompthreads=2"
-        f.write(install_make_cp2k("psmp", mpi_mode="mpich", testopts=testopts))
-
-    with OutputFile(f"Dockerfile.make_cp2k_openmpi-psmp", args.check) as f:
-        f.write(install_make_cp2k("psmp", mpi_mode="openmpi"))
-
-    with OutputFile(f"Dockerfile.make_cp2k_ssmp", args.check) as f:
-        f.write(install_make_cp2k("ssmp", mpi_mode="no"))
-
+    # Spack/CMake based testers
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
-        f.write(install_deps_spack("psmp", mpi_mode="mpich"))
-        f.write(regtest("spack", "psmp"))
+        f.write(install_cp2k_spack("psmp", mpi_mode="mpich"))
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-gcc10", args.check) as f:
+        f.write(install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=10))
 
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
-        f.write(install_deps_spack("psmp", mpi_mode="mpich"))
-        f.write(regtest("spack", "psmp", testopts=testopts))
+        f.write(install_cp2k_spack("psmp", mpi_mode="mpich", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
-        f.write(install_deps_spack("psmp", mpi_mode="openmpi"))
-        f.write(regtest("spack", "psmp"))
+        f.write(install_cp2k_spack("psmp", mpi_mode="openmpi"))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
-        f.write(install_deps_spack("ssmp", mpi_mode="no"))
-        f.write(regtest("spack", "ssmp"))
+        f.write(install_cp2k_spack("ssmp", mpi_mode="no"))
+    # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
         f.write(install_deps_toolchain())
@@ -570,111 +555,7 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
 
 # ======================================================================================
-def install_deps_spack(version: str, mpi_mode: str) -> str:
-    output = rf"""
-FROM ubuntu:24.04
-
-# Install packages required to build the CP2K dependencies with Spack
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    bzip2 \
-    ca-certificates \
-    cmake \
-    g++ \
-    gcc \
-    gfortran \
-    git \
-    gnupg \
-    libssh-dev \
-    libssl-dev \
-    libtool \
-    libtool-bin \
-    lsb-release \
-    make \
-    ninja-build \
-    patch \
-    pkgconf \
-    python3 \
-    python3-dev \
-    python3-pip \
-    python3-venv \
-    unzip \
-    wget \
-    xxd \
-    xz-utils \
-    zstd && rm -rf /var/lib/apt/lists/*
-
-# Create and activate a virtual environment for Python packages
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:${{PATH}}"
-RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
-
-# Retrieve the number of available CPU cores
-ARG NUM_PROCS
-ENV NUM_PROCS=${{NUM_PROCS:-32}}
-
-# Install Spack and Spack packages
-WORKDIR /root/spack
-ARG SPACK_VERSION
-ENV SPACK_VERSION=${{SPACK_VERSION:-1.1.0}}
-ARG SPACK_PACKAGES_VERSION
-ENV SPACK_PACKAGES_VERSION=${{SPACK_PACKAGES_VERSION:-2025.11.0}}
-ARG SPACK_REPO=https://github.com/spack/spack
-ENV SPACK_ROOT=/opt/spack-${{SPACK_VERSION}}
-ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
-ENV SPACK_PACKAGES_ROOT=/opt/spack-packages-${{SPACK_PACKAGES_VERSION}}
-RUN mkdir -p ${{SPACK_ROOT}} \
-    && wget -q ${{SPACK_REPO}}/archive/v${{SPACK_VERSION}}.tar.gz \
-    && tar -xzf v${{SPACK_VERSION}}.tar.gz -C /opt && rm -f v${{SPACK_VERSION}}.tar.gz \
-    && mkdir -p ${{SPACK_PACKAGES_ROOT}} \
-    && wget -q ${{SPACK_PACKAGES_REPO}}/archive/v${{SPACK_PACKAGES_VERSION}}.tar.gz \
-    && tar -xzf v${{SPACK_PACKAGES_VERSION}}.tar.gz -C /opt && rm -f v${{SPACK_PACKAGES_VERSION}}.tar.gz
-
-ENV PATH="${{SPACK_ROOT}}/bin:${{PATH}}"
-
-# Add Spack packages builtin repository
-RUN spack repo add --scope site ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/builtin
-
-# Find all compilers
-RUN spack compiler find
-
-# Find all external packages
-RUN spack external find --all --not-buildable
-
-# Add local Spack cache
-ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
-COPY ./tools/docker/scripts/setup_spack_cache.sh ./
-RUN ./setup_spack_cache.sh
-
-# Copy Spack configuration and build recipes
-ARG CP2K_VERSION
-ENV CP2K_VERSION=${{CP2K_VERSION:-{version}}}
-COPY ./tools/spack/cp2k_deps_${{CP2K_VERSION}}.yaml ./
-"""
-
-    if mpi_mode == "openmpi":
-        output += rf"""
-RUN sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
-        -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
-        -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
-        -i cp2k_deps_${{CP2K_VERSION}}.yaml
-""".strip()
-
-    output += rf"""
-COPY ./tools/spack/spack_repo/cp2k_dev ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev/
-RUN spack repo add --scope site ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev/
-RUN spack env create myenv cp2k_deps_${{CP2K_VERSION}}.yaml && \
-    spack -e myenv repo list
-
-# Install CP2K dependencies via Spack
-RUN spack -e myenv concretize -f
-RUN spack -e myenv env depfile -o spack_makefile
-RUN make -j${{NUM_PROCS}} --file=spack_makefile SPACK_COLOR=never --output-sync=recurse
-"""
-    return output
-
-
-# ======================================================================================
-def install_make_cp2k(
+def install_cp2k_spack(
     version: str,
     mpi_mode: str,
     gcc_version: int = 13,
@@ -712,19 +593,22 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Create links in /usr/local/bin to overrule links in /usr/bin
+# Create links in /usr/local/bin to override tbe links in /usr/bin
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
+# Copy CP2K repository into container
 WORKDIR /opt
 COPY . cp2k/
 
+# Build and install CP2K
 WORKDIR /opt/cp2k
 RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -mpi {mpi_mode} -t \"{testopts}\""
 
+# Finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
 CMD ["cp2k", "--help"]
