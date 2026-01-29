@@ -29,8 +29,8 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      METHOD GAPW
       GAPW_ACCURATE_XCINT T
+      METHOD GAPW
     &END QS
     &SCF
       EPS_SCF 1.0E-8

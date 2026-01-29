@@ -41,8 +41,8 @@
     &END PRINT
     &QS
       EPS_DEFAULT 1.E-14
-      METHOD GAPW
       GAPW_ACCURATE_XCINT T
+      METHOD GAPW
     &END QS
     &SCF
       EPS_SCF 1.0E-7

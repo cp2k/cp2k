@@ -21,8 +21,8 @@
     &QS
       EPS_DEFAULT 1.0E-17
       EPS_PGF_ORB 1.0E-20
-      METHOD GAPW
       GAPW_ACCURATE_XCINT T
+      METHOD GAPW
     &END QS
     &SCF
       EPS_SCF 1.0E-7

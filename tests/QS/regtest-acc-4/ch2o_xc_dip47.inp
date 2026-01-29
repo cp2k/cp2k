@@ -45,8 +45,8 @@
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-10
-      METHOD GAPW_XC
       GAPW_ACCURATE_XCINT T
+      METHOD GAPW_XC
     &END QS
     &SCF
       EPS_SCF 1.0E-7
