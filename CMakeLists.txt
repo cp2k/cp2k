@@ -184,6 +184,9 @@ cmake_dependent_option(
 cmake_dependent_option(CP2K_USE_SIRIUS_NLCG "Enable nlcg method in SIRIUS" OFF
                        "CP2K_USE_SIRIUS" OFF)
 
+cmake_dependent_option(CP2K_USE_SpFFT "Enable spare FFT in SIRIUS" OFF
+                       "CP2K_USE_SIRIUS" OFF)
+
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\"" OFF)
@@ -216,8 +219,7 @@ cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
                        "Enable FFTW3 threads support" OFF "CP2K_USE_FFTW3" OFF)
 
 cmake_dependent_option(
-  CP2K_USE_CUSOLVER_MP
-  "Use Nvidia GPU accelerated eigensolver. Only active when CUDA is ON" OFF
+  CP2K_USE_CUSOLVER_MP "Enable cuSOLVERMp. Only active when CUDA is ON" OFF
   "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
 cmake_dependent_option(CP2K_USE_NVHPC OFF "Enable Nvidia NVHPC kit"

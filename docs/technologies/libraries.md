@@ -154,6 +154,13 @@ SIRIUS is a domain specific library for electronic structure calculations.
   <https://brehm-research.de/bqb> for more information as well as the `bqbtool` to inspect BQB
   files.
 
+## SpFFT (Sparse 3D FFT)
+
+- SpFFT is a 3D FFT library for sparse frequency domain data written in C++ with support for MPI,
+  OpenMP, CUDA and ROCm.
+- Pass `-DCP2K_USE_SpFFT=ON` to CMake to enable support for SpFFT.
+- See <https://github.com/eth-cscs/SpFFT> for more information.
+
 ## Torch (Machine Learning Framework needed for NequIP)
 
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
