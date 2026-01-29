@@ -1049,7 +1049,7 @@ done
 if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
   # Avoid error in Regtest_pdbg
-  if [ -n "$(pwd |grep toolchain)" ]; then
+  if [ -n "$(pwd |grep 'tools/toolchain')" ]; then
     ./scripts/generate_cmake_options.sh
   fi
 else
