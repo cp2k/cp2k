@@ -104,8 +104,11 @@ CONTAINS
 
          nspins = SIZE(sub_env%mos_occ)
 
-         ! this ignores possible weighting functions for sub_env runs using FD 2nd derivatives XC
          NULLIFY (weights)
+         weights => sub_env%xcint_weights
+         IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
+            CPABORT("Split communicators and integration weights")
+         END IF
 
       ELSE
          CPASSERT(PRESENT(qs_env))

@@ -34,7 +34,6 @@ MODULE qs_vxc
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_multiply,&
-                                              pw_multiply_with,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
@@ -50,7 +49,6 @@ MODULE qs_vxc
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: calc_xc_density,&
                                               xc_exc_calc,&
-                                              xc_exc_pw_create,&
                                               xc_vxc_pw_create
 #include "./base/base_uses.f90"
 
@@ -59,7 +57,7 @@ MODULE qs_vxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_vxc_create, qs_xc_density, qs_xc_energy
+   PUBLIC :: qs_vxc_create, qs_xc_density
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
 
@@ -748,143 +746,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_xc_density
-
-! **************************************************************************************************
-!> \brief calculates the XC density:
-!>        order=0: exc will contain the xc energy density E_xc(r)
-!>        order=1: exc will contain V_xc(r) * rho1(r)
-!>        order=2: exc will contain F_xc(r) * rho1(r) * rho1(r)
-!> \param ks_env to get all the needed things
-!> \param rho_struct density
-!> \param rho1_struct response density
-!> \param order requested derivative order
-!> \param xc_section ...
-!> \param exc ...
-!> \author JGH
-! **************************************************************************************************
-   SUBROUTINE qs_xc_energy(ks_env, rho_struct, rho1_struct, order, xc_section, exc)
-
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho_struct, rho1_struct
-      INTEGER, INTENT(IN)                                :: order
-      TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_r3d_rs_type)                               :: exc
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_energy'
-
-      INTEGER                                            :: handle, ispin, myfun, nspins
-      LOGICAL                                            :: uf_grid
-      REAL(KIND=dp)                                      :: excint, factor
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, tau_r, vxc_rho, &
-                                                            vxc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
-
-      CALL timeset(routineN, handle)
-
-      ! we always get true exc (not integration weighted)
-      NULLIFY (weights)
-
-      CALL get_ks_env(ks_env, &
-                      dft_control=dft_control, &
-                      pw_env=pw_env, &
-                      cell=cell, &
-                      rho_nlcc=rho_nlcc, &
-                      rho_nlcc_g=rho_nlcc_g)
-
-      CALL qs_rho_get(rho_struct, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r)
-
-      nspins = dft_control%nspins
-
-      CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
-
-      CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
-      uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
-      IF (uf_grid) THEN
-         CALL cp_warn(__LOCATION__, "Fine grid option not possible with energy density")
-         CPABORT("Fine Grid in qs_xc_energy")
-      END IF
-
-      CALL pw_zero(exc)
-
-      IF (myfun /= xc_none) THEN
-
-         CPASSERT(ASSOCIATED(rho_struct))
-         CPASSERT(dft_control%sic_method_id == sic_none)
-
-         ! add the nlcc densities
-         IF (ASSOCIATED(rho_nlcc)) THEN
-            factor = 1.0_dp
-            DO ispin = 1, nspins
-               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
-            END DO
-         END IF
-
-         NULLIFY (vxc_rho, vxc_tau)
-         SELECT CASE (order)
-         CASE (0)
-            ! we could reduce to energy only here
-            CALL xc_exc_pw_create(rho_r, rho_g, tau_r, xc_section, weights, xc_pw_pool, exc)
-         CASE (1)
-            CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
-                                  rho_g=rho_g, tau=tau_r, exc=excint, &
-                                  xc_section=xc_section, &
-                                  weights=weights, pw_pool=xc_pw_pool, &
-                                  compute_virial=.FALSE., &
-                                  virial_xc=vdum)
-         CASE (2)
-            CPABORT("NYA")
-         CASE DEFAULT
-            CPABORT("Derivative order not available in qs_xc_energy")
-         END SELECT
-
-         ! remove the nlcc densities (keep stuff in original state)
-         IF (ASSOCIATED(rho_nlcc)) THEN
-            factor = -1.0_dp
-            DO ispin = 1, dft_control%nspins
-               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
-            END DO
-         END IF
-         !
-         SELECT CASE (order)
-         CASE (0)
-            !
-         CASE (1)
-            CALL qs_rho_get(rho1_struct, rho_r=rho1_r, tau_r=tau1_r)
-            CALL pw_zero(exc)
-            IF (ASSOCIATED(vxc_rho)) THEN
-               DO ispin = 1, nspins
-                  CALL pw_multiply_with(vxc_rho(ispin), rho1_r(ispin))
-                  CALL pw_axpy(vxc_rho(ispin), exc, 1.0_dp)
-                  CALL vxc_rho(ispin)%release()
-               END DO
-            END IF
-            IF (ASSOCIATED(vxc_tau)) THEN
-               DO ispin = 1, nspins
-                  CALL pw_multiply_with(vxc_tau(ispin), tau1_r(ispin))
-                  CALL pw_axpy(vxc_tau(ispin), exc, 1.0_dp)
-                  CALL vxc_tau(ispin)%release()
-               END DO
-               DEALLOCATE (vxc_tau)
-            END IF
-         CASE (2)
-            CPABORT("NYA")
-         CASE DEFAULT
-            CPABORT("Derivative order not available in qs_xc_energy")
-         END SELECT
-
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE qs_xc_energy
 
 END MODULE qs_vxc

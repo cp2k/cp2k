@@ -1474,13 +1474,6 @@ CONTAINS
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                'STRESS| INT Pz*dVxc*dw     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
          END IF
-!!deb       !
-!!          IF (dft_control%do_admm) THEN
-!!             CALL get_qs_env(qs_env, admm_env=admm_env)
-!!             xc_section => admm_env%xc_section_aux
-!!             CALL get_admm_env(admm_env, rho_aux_fit=rho_struct)
-!!             CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
-!!deb       END IF
       END IF
 
       ! Stress-tensor contribution second derivative
@@ -2134,6 +2127,31 @@ CONTAINS
             IF (use_virial) THEN
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
+            ! GAPW ADMM XC correction integrate weight contribution to force
+            IF (admm_env%do_gapw) THEN
+               IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+               IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+
+               ALLOCATE (rho1)
+               CALL qs_rho_create(rho1)
+               CALL qs_rho_set(rho1, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
+               !
+               CALL accint_weight_force(qs_env, rho_aux_fit, rho1, 1, xc_section)
+               !
+               DEALLOCATE (rho1)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+                  CALL para_env%sum(fodeb)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dKxc*rhoz_admm*dw ", fodeb
+               END IF
+               IF (debug_stress .AND. use_virial) THEN
+                  stdeb = fconv*(virial%pv_virial - stdeb)
+                  CALL para_env%sum(stdeb)
+                  IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+                     'STRESS| dKxc*rhoz_admm*dw', one_third_sum_diag(stdeb), det_3x3(stdeb)
+               END IF
+            END IF
+            ! return ADMM response densities and potentials
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
                CALL auxbas_pw_pool%give_back_pw(rhoz_r_aux(ispin))

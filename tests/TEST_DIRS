@@ -194,6 +194,9 @@ QMMM/QS/regtest-cdft                                        parallel mpiranks%2=
 DFTB/regtest-nonscc
 QS/regtest-acc-1                                            libint !ifx
 QS/regtest-acc-2                                            libint !ifx
+QS/regtest-acc-3                                            libint !ifx
+QS/regtest-acc-4                                            libint !ifx
+QS/regtest-acc-5                                            libint !ifx
 QS/regtest-tddfpt                                           libint !ifx
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
 QS/regtest-tddfpt-lri                                       libint !ifx
