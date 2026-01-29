@@ -208,17 +208,19 @@ The --with-PKG options follow the rules:
                           Default = no (unless a SIRIUS installation is requested)
   --with-gsl              Enable the gnu scientific library (required for PLUMED and SIRIUS)
                           Default = install
-  --with-libvdwxc         Enable support of Van der Waals interactions in SIRIUS.
-                          Support provided by libvdwxc.
-                          Default = install
+  --with-libvdwxc         Enable support of Van der Waals interactions using the libvdwxc library.
+                          This library is required by SIRIUS.
+                          Default = no (unless a SIRIUS installation is requested)
+  --with-spla             Enable the Specialized Parallel Linear Algebra library.
+                          This library is required by SIRIUS and is optional for GPU support.
+                          Default = no (unless a SIRIUS installation is requested)
+  --with-spfft            Enable the spare fft.
+                          This library is required by SIRIUS.
+                          Default = no (unless a SIRIUS installation is requested)
   --with-spglib           Enable the spg library (search of symmetry groups).
                           This package depends on CMake.
                           Default = install
   --with-hdf5             Enable the hdf5 library (used by the sirius and trexio libraries)
-                          Default = install
-  --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
-                          Default = install
-  --with-spla             Enable the Specialized Parallel Linear Algebra library (required by SIRIUS).
                           Default = install
   --with-cosma            Enable cosma as a replacement for ScaLAPACK matrix multiplication
                           Default = install
@@ -867,6 +869,9 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_pugixml}" = "__DONTUSE__" ] && with_pugixml="__INSTALL__"
 elif [ "${with_sirius}" = "__DONTUSE__" ]; then
   with_pugixml="__DONTUSE__"
+  with_spfft="__DONTUSE__"
+  with_libvdwxc="__DONTUSE__"
+  [ "${GPUVER}" = "no" ] && with_spla="__DONTUSE__"
 fi
 
 if [ "${with_trexio}" = "__INSTALL__" ]; then
