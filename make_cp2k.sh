@@ -352,9 +352,6 @@ case "${MPI_MODE}" in
     ;;
 esac
 
-# Update exit command
-EXIT_CMD="cd ${CP2K_ROOT} || ${EXIT_CMD}; ${EXIT_CMD}"
-
 ### Build CP2K dependencies with Spack if needed or requested ###
 
 # Spack versions
