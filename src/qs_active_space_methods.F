@@ -1001,7 +1001,9 @@ CONTAINS
             WRITE (iw, '(T2,A,I2,T30,A,T68,I12)') "ERI_GPW| Spinmatrix:", isp, &
                "nrows_local", eri_mat%nrows_local
          END DO
+         CALL m_flush(iw)
       END IF
+      CALL para_env%sync()
 
       ! set the reference active space density matrix
       nspins = active_space_env%nspins
@@ -1102,7 +1104,9 @@ CONTAINS
       CASE (no_solver)
          IF (iw > 0) THEN
             WRITE (iw, '(/,T3,A)') "No active space solver specified, skipping embedding calculation"
+            CALL m_flush(iw)
          END IF
+         CALL para_env%sync()
       CASE (qiskit_solver)
          CALL rsdft_embedding(qs_env, active_space_env, as_input)
          CALL qs_scf_compute_properties(qs_env, wf_type="MC-DFT", do_mp2=.FALSE.)
@@ -1123,7 +1127,9 @@ CONTAINS
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') &
             '!-------------------- End of Active Space Interface --------------------------!'
+         CALL m_flush(iw)
       END IF
+      CALL para_env%sync()
 
       CALL timestop(handle)
 
@@ -1377,7 +1383,7 @@ CONTAINS
 
       ! Check the input group
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
-      IF (eri_env%eri_gpw%group_size <= 1) eri_env%eri_gpw%group_size = para_env%num_pe
+      IF (eri_env%eri_gpw%group_size < 1) eri_env%eri_gpw%group_size = para_env%num_pe
       IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
          CPABORT("Group size must be a divisor of the total number of processes!")
       ! Create a new para_env or reuse the old one
@@ -1766,7 +1772,7 @@ CONTAINS
       END DO
 
       IF (print1 .AND. iw > 0) THEN
-         WRITE (iw, "(T2,'ERI_GPW|',' Number of Integrals stored ',T71,I10)") stored_integrals
+         WRITE (iw, "(T2,'ERI_GPW|',' Number of Integrals stored locally',T71,I10)") stored_integrals
       END IF
 
       IF (eri_env%eri_gpw%store_wfn) THEN

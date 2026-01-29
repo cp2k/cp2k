@@ -403,8 +403,8 @@ CONTAINS
                   CALL mp_group%allgatherv(eri%nzval_local%r_dp(irptr:irptr + nonzero_elements_local - 1), &
                                            erival(1:nindex), nonzero_elements_global, offsets)
                ELSE
-                  CALL mp_group%allgatherv(dummy_int(1:1), colind(1:nindex), nonzero_elements_global, offsets)
-                  CALL mp_group%allgatherv(dummy_real(1:1), erival(1:nindex), nonzero_elements_global, offsets)
+                  CALL mp_group%allgatherv(dummy_int(1:0), colind(1:nindex), nonzero_elements_global, offsets)
+                  CALL mp_group%allgatherv(dummy_real(1:0), erival(1:nindex), nonzero_elements_global, offsets)
                END IF
 
                DO i34l = 1, nindex
