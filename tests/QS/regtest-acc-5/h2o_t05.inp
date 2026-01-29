@@ -28,23 +28,14 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-10
       GAPW_ACCURATE_XCINT T
       METHOD GAPW
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      MAX_SCF 12
+      MAX_SCF 50
       SCF_GUESS ATOMIC
-      &OT
-        MINIMIZER DIIS
-        PRECONDITIONER FULL_ALL
-        STEPSIZE 0.05
-      &END OT
-      &OUTER_SCF
-        EPS_SCF 1.0E-7
-        MAX_SCF 20
-      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -65,13 +56,13 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD
-      O   0.000000    0.000000   -0.065587
-      H   0.000000   -0.757136    0.520545
-      H   0.000000    0.757136    0.520545
+       O   0.000000    0.000000    0.000000
+       H   0.000000   -0.757136    0.500545
+       H   0.000000    0.757136    0.500545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE

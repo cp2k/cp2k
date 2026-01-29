@@ -33,27 +33,18 @@
       METHOD GAPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
-      MAX_SCF 10
+      EPS_SCF 1.0E-8
+      MAX_SCF 50
       SCF_GUESS ATOMIC
-      &OT
-        MINIMIZER DIIS
-        PRECONDITIONER FULL_ALL
-        STEPSIZE 0.1
-      &END OT
-      &OUTER_SCF
-        EPS_SCF 1.0E-6
-        MAX_SCF 20
-      &END OUTER_SCF
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
   &PROPERTIES
     &TDDFPT
-      CONVERGENCE [eV] 1.0e-7
+      CONVERGENCE [eV] 1.0e-8
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1
@@ -66,7 +57,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD

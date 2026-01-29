@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "h2o_f01.inp"                           = [{matcher="M037", tol=1.0E-4, ref=0.137855E+00}]
-"h2o_f01_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=1.012588E+01}]
+"h2o_f01_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=1.012588E+00}]
 "h2o_f01_pbe_gapwxc.inp"                = [{matcher="M037", tol=1.0E-4, ref=0.138495E+00}]
 "h2o_f01_pbe.inp"                       = [{matcher="M037", tol=1.0E-4, ref=0.141293E+00}]
 "h2o_f02_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=0.202091E+00}]
