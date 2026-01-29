@@ -291,6 +291,7 @@ if [[ "${HELP}" == "yes" ]]; then
 fi
 
 echo ""
+echo "BUILD_DEPS       = ${BUILD_DEPS} (only: ${BUILD_DEPS_ONLY})"
 echo "CMAKE_BUILD_TYPE = ${BUILD_TYPE}"
 echo "CP2K_VERSION     = ${CP2K_VERSION}"
 echo "INSTALL_PREFIX   = ${INSTALL_PREFIX}"
