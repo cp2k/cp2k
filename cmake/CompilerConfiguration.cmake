@@ -177,11 +177,13 @@ add_compile_options(
 
 # =================================== Tweaks ===================================
 # Workaround https://gitlab.kitware.com/cmake/cmake/-/issues/27231
-get_target_property(opts MPI::MPI_Fortran INTERFACE_COMPILE_OPTIONS)
-set_target_properties(
-  MPI::MPI_Fortran PROPERTIES INTERFACE_COMPILE_OPTIONS
-                              "$<$<COMPILE_LANGUAGE:Fortran>:${opts}>")
-unset(opts)
+if(TARGET MPI::MPI_Fortran)
+  get_target_property(opts MPI::MPI_Fortran INTERFACE_COMPILE_OPTIONS)
+  set_target_properties(
+    MPI::MPI_Fortran PROPERTIES INTERFACE_COMPILE_OPTIONS
+                                "$<$<COMPILE_LANGUAGE:Fortran>:${opts}>")
+  unset(opts)
+endif()
 
 if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
   set(CMAKE_Fortran_MODOUT_FLAG "-ef") # override to get lower-case module file
