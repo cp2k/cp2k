@@ -1048,7 +1048,10 @@ done
 # ------------------------------------------------------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
-  ./scripts/generate_cmake_options.sh
+  # Avoid error in Regtest_pdbg
+  if [ -n "$(pwd |grep toolchain)" ]; then
+    ./scripts/generate_cmake_options.sh
+  fi
 else
   echo "# Leak suppressions" > ${INSTALLDIR}/lsan.supp
   ./scripts/stage0/install_stage0.sh
