@@ -212,7 +212,7 @@ The --with-PKG options follow the rules:
                           This library is required by SIRIUS.
                           Default = no (unless a SIRIUS installation is requested)
   --with-spla             Enable the Specialized Parallel Linear Algebra library.
-                          This library is required by SIRIUS.
+                          This library is required by SIRIUS and is optional for GPU support.
                           Default = no (unless a SIRIUS installation is requested)
   --with-spfft            Enable the spare fft.
                           This library is required by SIRIUS.
@@ -870,8 +870,8 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
 elif [ "${with_sirius}" = "__DONTUSE__" ]; then
   with_pugixml="__DONTUSE__"
   with_spfft="__DONTUSE__"
-  with_spla="__DONTUSE__"
   with_libvdwxc="__DONTUSE__"
+  [ "${GPUVER}" = "no" ] && with_spla="__DONTUSE__"
 fi
 
 if [ "${with_trexio}" = "__INSTALL__" ]; then
