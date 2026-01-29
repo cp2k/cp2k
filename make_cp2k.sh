@@ -47,7 +47,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.7
+# Version: 0.8
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -57,6 +57,7 @@
 #          - Version 0.5: Adapt script for use within a container (24.01.2026, MK)
 #          - Version 0.6: Add MPI flag and revise flag parsing (27.01.2026, MK)
 #          - Version 0.7: Fix container detection (28.01.2026, MK)
+#          - Version 0.8: Add --build_deps_only flag (29.01.2026, MK)
 
 set -uo pipefail
 
@@ -114,6 +115,7 @@ fi
 
 # Default values
 BUILD_DEPS="no"
+BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 HAS_PODMAN="no"
 HELP="no"
@@ -141,8 +143,13 @@ export INSTALL_PREFIX="${INSTALL_PREFIX:-${CP2K_ROOT}/install}"
 # Parse flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -bd | --build_deps)
+    -bd | --build_deps | --build_dependencies)
       BUILD_DEPS="yes"
+      shift 1
+      ;;
+    -bd_only | --build_deps_only | --build_dependencies_only)
+      BUILD_DEPS="yes"
+      BUILD_DEPS_ONLY="yes"
       shift 1
       ;;
     -bt | --build_type)
@@ -242,43 +249,45 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_TYPE HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS
-export RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE
+export MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
   echo ""
-  echo "Usage: ${SCRIPT_NAME} [-bd|--build_deps]"
-  echo "                    [-bt|--build_type (Debug | Release | RelWithDebInfo)]"
-  echo "                    [-cv|--cp2k_version (psmp | ssmp)]"
-  echo "                    [-h|--help]"
-  echo "                    [-ip|--install_path PATH]"
+  echo "Usage: ${SCRIPT_NAME} [-bd | --build_deps]"
+  echo "                    [-bd_only | --build_deps_only]"
+  echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
+  echo "                    [-cv | --cp2k_version (psmp | ssmp)]"
+  echo "                    [-h | --help]"
+  echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
-  echo "                    [-mpi|--mpi_mode (mpich | no | openmpi)]"
-  echo "                    [-t|test \"TESTOPTS\"]"
-  echo "                    [-ue|--use_externals]"
-  echo "                    [-v|--verbose]"
+  echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
+  echo "                    [-t | -test \"TESTOPTS\"]"
+  echo "                    [-ue | --use_externals]"
+  echo "                    [-v | --verbose]"
   echo ""
   echo "Flags:"
-  echo " --build_deps   : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
-  echo " --build_type   : Set preferred CMake build type (default: \"Release\")"
-  echo " --cp2k_version : CP2K version to be built (default: \"psmp\""
-  echo " --help         : Print this help information"
-  echo " --install_path : Define the CP2K installation path (default: ./install"
-  echo " -j             : Number of processes used in parallel"
-  echo " --mpi_mode     : Set preferred MPI mode (default: \"mpich\")"
-  echo " --test         : Perform a regression test run after a successful build"
-  echo " --use_externals: Use external packages installed on the host system. This can result in faster build times,"
-  echo "                  but it can also cause conflicts with outdated packages on the host system, e.g. old"
-  echo "                  python or gcc versions"
-  echo " --verbose      : Write verbose output"
+  echo " --build_deps     : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_deps_only: Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_type     : Set preferred CMake build type (default: \"Release\")"
+  echo " --cp2k_version   : CP2K version to be built (default: \"psmp\")"
+  echo " --help           : Print this help information"
+  echo " --install_path   : Define the CP2K installation path (default: ./install)"
+  echo " -j               : Number of processes used in parallel"
+  echo " --mpi_mode       : Set preferred MPI mode (default: \"mpich\")"
+  echo " --test           : Perform a regression test run after a successful build"
+  echo " --use_externals  : Use external packages installed on the host system. This can result in faster build times,"
+  echo "                    but it can also cause conflicts with outdated packages on the host system, e.g. old"
+  echo "                    python or gcc versions"
+  echo " --verbose        : Write verbose output"
   echo ""
   echo "Hints:"
   echo " - Remove the folder ${CP2K_ROOT}/build to (re)build CP2K from scratch"
   echo " - Remove the folder ${CP2K_ROOT}/spack to (re)build CP2K and all its dependencies from scratch (takes a long time)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
-  ${EXIT_CMD} 0
+  ${EXIT_CMD}
 fi
 
 echo ""
@@ -342,6 +351,9 @@ case "${MPI_MODE}" in
     ;;
 esac
 
+# Update exit command
+EXIT_CMD="cd ${CP2K_ROOT} || ${EXIT_CMD}; ${EXIT_CMD}"
+
 ### Build CP2K dependencies with Spack if needed or requested ###
 
 # Spack versions
@@ -384,12 +396,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     echo "Installing virtual environment for Python packages"
     if ! python3 -m venv "${SPACK_BUILD_PATH}/venv"; then
       echo "ERROR: The creation of a virtual environment (venv) for Python packages failed"
-      cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
+      ${EXIT_CMD} 1
     fi
     export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
   else
     echo "ERROR: python3 -m venv was not found"
-    cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
+    ${EXIT_CMD} 1
   fi
 
   # Upgrade pip and install boto3
@@ -399,7 +411,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     python3 -m pip install "${VERBOSE_FLAG}" boto3==1.38.11 google-cloud-storage==3.1.0
   else
     echo "ERROR: python3 -m pip was not found"
-    cd "${CP2K_ROOT}" || ${EXIT_CMD} 1 && ${EXIT_CMD} 1
+    ${EXIT_CMD} 1
   fi
 
   # Install Spack packages
@@ -409,9 +421,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   wget -q "${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz"
   tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
   rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
-
-  # Return from spack folder after all installations are done
-  cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
   # Initialize Spack shell hooks
   # shellcheck source=/dev/null
@@ -555,6 +564,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     ${EXIT_CMD} 1
   fi
 
+  # Return from spack folder after all installations are done
+  cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
+
+  echo -e '\n*** Installation of CP2K dependencies completed ***\n'
+
 else
 
   # Initialize Spack shell hooks
@@ -563,20 +577,26 @@ else
 
 fi
 
+# Quit after (re)building all CP2K dependencies if requested
+if [[ "${BUILD_DEPS_ONLY}" == "yes" ]]; then
+  ${EXIT_CMD}
+fi
+
 ### End of build CP2K dependencies ###
 
 ### Build CP2K ###
 
-if ! spack env list | grep -q "${CP2K_ENV}"; then
+if spack env list | grep -q "${CP2K_ENV}"; then
+  spack env list
+else
   echo "ERROR: No Spack environment \"${CP2K_ENV}\" found"
   ${EXIT_CMD} 1
-else
-  spack env list
-  spack env status
 fi
 
 # Activate spack environment
 eval "$(spack env activate --sh ${CP2K_ENV})"
+
+spack env status
 
 # CMake configuration step
 export CMAKE_BUILD_PATH="${CP2K_ROOT}/build"
@@ -652,6 +672,17 @@ EXIT_CODE=${PIPESTATUS[0]}
 if ((EXIT_CODE != 0)); then
   echo -e "\nERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
+fi
+
+# Collect and compress all log files when building within a container
+if [[ "${IN_CONTAINER}" == "yes" ]]; then
+  if ! cat "${CMAKE_BUILD_PATH}"/cmake.log \
+    "${CMAKE_BUILD_PATH}"/ninja.log \
+    "${CMAKE_BUILD_PATH}"/install.log |
+    gzip > "${CP2K_ROOT}"/install/build_cp2k.log.gz; then
+    echo -e "\nERROR: The compressed log file generation failed"
+    ${EXIT_CMD} 1
+  fi
 fi
 
 # Retrieve paths to "hidden" libraries
