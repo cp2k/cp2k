@@ -41,8 +41,8 @@ class Pace(CMakePackage):
     depends_on("cxx", type="build")
 
     # Build always with the yaml-cpp and cnpy version included in pace
-    # depends_on("yaml-cpp")
-    # depends_on("cnpy")
+    depends_on("yaml-cpp")
+    depends_on("cnpy")
 
     def cmake_args(self):
         args = [
@@ -60,5 +60,3 @@ class Pace(CMakePackage):
         install_tree(join_path(src, "yaml-cpp/include"), prefix.include)
         mkdirp(prefix.lib)
         install(join_path(self.build_directory, "libpace.a"), prefix.lib)
-        install(join_path(self.build_directory, "libcnpy.a"), prefix.lib)
-        install(join_path(self.build_directory, "build-yaml-cpp/libyaml-cpp-pace.a"), prefix.lib)
