@@ -111,7 +111,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, alpha_screening, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
-      TYPE(cp_fm_type)                                   :: fm_W
+      TYPE(cp_fm_type)                                   :: fm_A_copy, fm_W
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -153,6 +153,10 @@ CONTAINS
                                ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
       CALL cp_fm_create(fm_A, fm_struct_A, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
+      IF (tddfpt_control%do_bse_w_only) THEN
+         CALL cp_fm_create(fm_A_copy, fm_struct_A, name="fm_A_iajb")
+         CALL cp_fm_set_all(fm_A_copy, 0.0_dp)
+      END IF
 
       CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse%matrix_struct%context, nrow_global=homo**2, &
                                ncol_global=virtual**2, para_env=fm_mat_S_ab_bse%matrix_struct%para_env)
@@ -162,9 +166,11 @@ CONTAINS
       ! Create A matrix from GW Energies, v_ia,jb and W_ij,ab (different blacs_env!)
       ! v_ia,jb, which is directly initialized in A (with a factor of alpha)
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
-      CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                         matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_A)
+      IF ((.NOT. tddfpt_control%do_bse) .AND. (.NOT. tddfpt_control%do_bse_w_only)) THEN
+         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
+                            matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
+                            matrix_c=fm_A)
+      END IF
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
@@ -197,18 +203,31 @@ CONTAINS
          reordering = [1, 3, 2, 4]
          CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
                                  virtual, virtual, unit_nr, reordering, mp2_env)
+         IF (tddfpt_control%do_bse_w_only) THEN
+            CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo, virtual, &
+                                    virtual, virtual, unit_nr, reordering, mp2_env)
+         END IF
       END IF
       !full matrix W is not needed anymore, release it to save memory
-      IF (tddfpt_control%do_bse) THEN
+      IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only) THEN
          NULLIFY (ex_env)
          CALL get_qs_env(qs_env, exstate_env=ex_env)
          ALLOCATE (ex_env%bse_w_matrix_MO(1, 1)) ! for now only closed-shell
+         ALLOCATE (ex_env%bse_a_matrix_MO(1, 1)) ! for now only closed-shell
          CALL cp_fm_create(ex_env%bse_w_matrix_MO(1, 1), fm_struct_W)
+         CALL cp_fm_create(ex_env%bse_a_matrix_MO(1, 1), fm_struct_A)
          CALL cp_fm_to_fm(fm_W, ex_env%bse_w_matrix_MO(1, 1))
+         IF (tddfpt_control%do_bse_w_only) THEN
+            CALL cp_fm_to_fm(fm_A_copy, ex_env%bse_a_matrix_MO(1, 1))
+         ELSE
+            CALL cp_fm_to_fm(fm_A, ex_env%bse_a_matrix_MO(1, 1))
+         END IF
       END IF
       CALL cp_fm_release(fm_W)
+      IF (tddfpt_control%do_bse_w_only) CALL cp_fm_release(fm_A_copy)
 
       !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
+      IF (.NOT. tddfpt_control%do_bse) THEN
       DO ii = 1, nrow_local_A
 
          i_row_global = row_indices_A(ii)
@@ -226,8 +245,9 @@ CONTAINS
             END IF
          END DO
       END DO
+      END IF
 
-      IF (tddfpt_control%do_bse) THEN
+      IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only) THEN
          sizeeigen = SIZE(Eigenval)
          ALLOCATE (ex_env%gw_eigen(sizeeigen)) ! for now only closed-shell
          ex_env%gw_eigen(:) = Eigenval(:)

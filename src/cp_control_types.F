@@ -559,6 +559,7 @@ MODULE cp_control_types
       LOGICAL                              :: do_smearing = .FALSE.
       !> dynamical correlation
       LOGICAL                              :: do_bse = .FALSE.
+      LOGICAL                              :: do_bse_w_only = .FALSE.
       ! automatic generation of auxiliary basis for LRI-TDDFT
       INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction

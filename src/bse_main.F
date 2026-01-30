@@ -26,6 +26,8 @@ MODULE bse_main
                                               estimate_BSE_resources,&
                                               mult_B_with_W,&
                                               truncate_BSE_matrices
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              tddfpt2_control_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -42,7 +44,8 @@ MODULE bse_main
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -108,7 +111,9 @@ CONTAINS
          fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, &
          fm_sqrt_A_minus_B
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
 
@@ -222,7 +227,11 @@ CONTAINS
                                                homo_red, virtual_red, unit_nr, mp2_env, diag_runtime_est)
          END IF
          CALL cp_fm_release(fm_B_BSE)
-         IF (my_do_tda) THEN
+
+         NULLIFY (dft_control, tddfpt_control)
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         tddfpt_control => dft_control%tddfpt2_control
+         IF ((my_do_tda) .AND. (.NOT. tddfpt_control%do_bse)) THEN
             ! Solving the hermitian eigenvalue equation A X^n = Ω^n X^n
             CALL diagonalize_A(fm_A_BSE, homo_red, virtual_red, homo(1), &
                                unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)

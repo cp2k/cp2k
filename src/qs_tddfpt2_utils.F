@@ -133,7 +133,7 @@ CONTAINS
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
-      IF (tddfpt_control%do_bse) THEN
+      IF ((tddfpt_control%do_bse) .OR. (tddfpt_control%do_bse_w_only)) THEN
          NULLIFY (ks_env, ex_env)
          CALL get_qs_env(qs_env, exstate_env=ex_env, ks_env=ks_env)
          CALL dbcsr_copy(matrix_ks(1)%matrix, ex_env%matrix_ks(1)%matrix)
@@ -1031,7 +1031,7 @@ CONTAINS
             nv = nmo_virt_selected(ispin)
             ALLOCATE (ev_virt(nv), ev_occ(no))
             ! if do_bse and do_gw, take gw zeroth order
-            IF (tddfpt_control%do_bse) THEN
+            IF ((tddfpt_control%do_bse) .OR. (tddfpt_control%do_bse_w_only)) THEN
                ev_virt(1:nv) = ex_env%gw_eigen(nmo(ispin) + 1:nmo(ispin) + nv)
                DO i = 1, no
                   j = nmo_occ_avail(ispin) - i + 1

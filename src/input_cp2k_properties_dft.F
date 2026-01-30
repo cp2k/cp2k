@@ -1841,6 +1841,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DO_BSE_W_ONLY", &
+                          description="Debug option for BSE kernel.", &
+                          usage="DO_BSE_W_ONLY", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! LRI subsection
       CALL create_lrigpw_section(subsection)
       CALL section_add_subsection(section, subsection)
