@@ -76,6 +76,7 @@ MODULE exstates_types
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       TYPE(wfn_history_type)                             :: wfn_history = wfn_history_type()
       TYPE(cp_fm_type), POINTER, DIMENSION(:, :)         :: bse_w_matrix_MO => NULL()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:, :)         :: bse_a_matrix_MO => NULL()
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: gw_eigen
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks => NULL()
    END TYPE excited_energy_type
@@ -95,6 +96,7 @@ CONTAINS
          CALL cp_fm_release(ex_env%cpmos)
          !
          CALL cp_fm_release(ex_env%bse_w_matrix_MO)
+         CALL cp_fm_release(ex_env%bse_a_matrix_MO)
          !
          CALL exstate_matrix_release(ex_env)
          !
@@ -208,6 +210,7 @@ CONTAINS
       NULLIFY (ex_env%evect)
       NULLIFY (ex_env%cpmos)
       NULLIFY (ex_env%bse_w_matrix_MO)
+      NULLIFY (ex_env%bse_a_matrix_MO)
       IF (excited_state) THEN
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &
