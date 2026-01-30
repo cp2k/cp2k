@@ -562,7 +562,11 @@ def install_cp2k_spack(
     testopts: str = "",
 ) -> str:
     output = rf"""
-FROM "ubuntu:24.04"
+ARG BASE_IMAGE="ubuntu:24.04"
+
+###### Stage 1: Build CP2K ######
+
+FROM "${{BASE_IMAGE}}" AS build_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
@@ -594,8 +598,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to override tbe links in /usr/bin
-RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
-    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
+RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc && \
+    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++ && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
@@ -604,11 +608,49 @@ ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 WORKDIR /opt
 COPY . cp2k/
 
-# Build and install CP2K
+# Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -mpi {mpi_mode} -t \"{testopts}\""
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -mpi {mpi_mode}"
 
-# Finalise container build
+# Build and install CP2K
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -mpi {mpi_mode}"
+
+###### Stage 2: Install CP2K ######
+
+FROM "${{BASE_IMAGE}}" AS install_cp2k
+
+# Install required packages
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    g++-{gcc_version} \
+    gcc-{gcc_version} \
+    gfortran-{gcc_version} \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create links in /usr/local/bin to override tbe links in /usr/bin
+RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc && \
+    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++ && \
+    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Run CP2K regression test
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests {testopts}"
+
+# Create entrypoint and finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
 CMD ["cp2k", "--help"]
