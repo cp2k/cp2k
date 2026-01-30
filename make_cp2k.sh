@@ -163,6 +163,8 @@ while [[ $# -gt 0 ]]; do
         echo "ERROR: No argument found for flag \"${1}\" (choose psmp or ssmp)"
         ${EXIT_CMD} 1
       fi
+      # Disable MPI for a serial CP2K binary
+      [[ "${CP2K_VERSION}" == "ssmp"* ]] && MPI_MODE="no"
       shift 2
       ;;
     -h | --help)
