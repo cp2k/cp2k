@@ -641,7 +641,6 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_LIBXSMM=ON \
         -DCP2K_USE_MPI=ON \
         -DCP2K_USE_OPENPMD=ON \
-        -DCP2K_USE_TBLITE=OFF \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
@@ -659,7 +658,6 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_LIBXSMM=ON \
         -DCP2K_USE_MPI=OFF \
         -DCP2K_USE_OPENPMD=OFF \
-        -DCP2K_USE_TBLITE=OFF \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
