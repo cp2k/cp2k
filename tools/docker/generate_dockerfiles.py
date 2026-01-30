@@ -57,8 +57,13 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_cp2k_spack("psmp", mpi_mode="mpich"))
 
-    with OutputFile(f"Dockerfile.test_spack_psmp-gcc10", args.check) as f:
-        f.write(install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=10))
+    for gcc_version in 10, 11, 12, 14:
+        with OutputFile(
+            f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
+        ) as f:
+            f.write(
+                install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=gcc_version)
+            )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
