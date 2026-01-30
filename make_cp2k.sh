@@ -540,11 +540,13 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Concretize CP2K dependencies
   if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
-    echo ""
-    echo "HINT: The  --no_externals flag can help to resolve conflicts with outdated"
-    echo "      packages on the host system, e.g. old python or gcc versions"
-    echo ""
-    ${EXIT_CMD} 1
+    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+      echo ""
+      echo "HINT: The (-ue | --use_externals) flags can cause conflicts with outdated"
+      echo "      packages on the host system, e.g. old python or gcc versions"
+      echo ""
+      ${EXIT_CMD} 1
+    fi
   fi
 
   # Create spack makefile for all dependencies
