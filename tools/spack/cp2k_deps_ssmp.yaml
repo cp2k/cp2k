@@ -110,7 +110,7 @@ spack:
     - "pace@2025.12.4"
     - "py-torch@2.9.0"
     - "spglib@2.5.0"
-#   - "tblite@0.5.0" CMake build error for mctc-lib: target OpenMP::OpenMP_Fortran not found
+    - "tblite@0.5.0"
     - "trexio@2.5.0"
 
   view:
