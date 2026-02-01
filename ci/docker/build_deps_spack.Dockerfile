@@ -54,4 +54,4 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -dlc"

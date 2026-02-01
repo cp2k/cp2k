@@ -19,7 +19,7 @@ RUN echo "${CP2K_VERSION}" >/CP2K_VERSION
 WORKDIR /opt/cp2k
 
 # Build CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ${CP2K_VERSION}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ${CP2K_VERSION} -dlc"
 
 ###### Stage 2: Install CP2K ######
 
