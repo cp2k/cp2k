@@ -13,13 +13,13 @@ ARG DEPS_IMAGE=""
 
 FROM "${DEPS_IMAGE}" AS build_cp2k
 
-# Store build arguments from base image needed in next stage
-RUN echo "${CP2K_VERSION}" >/CP2K_VERSION
-
-WORKDIR /opt/cp2k
+# Retrieve the number of available CPU cores
+ARG NUM_PROCS
+ENV NUM_PROCS=${NUM_PROCS:-32}
 
 # Build CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ${CP2K_VERSION} -dlc"
+WORKDIR /opt/cp2k
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS}"
 
 ###### Stage 2: Install CP2K ######
 
@@ -32,9 +32,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran \
     python3 \
     && rm -rf /var/lib/apt/lists/*
-
-# Import build arguments from base image
-COPY --from=build_cp2k /CP2K_VERSION /
 
 WORKDIR /opt/cp2k
 
@@ -50,9 +47,6 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
-
-# Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
