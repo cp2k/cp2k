@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 0.8
+# Version: 1.0
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -60,6 +60,7 @@
 #          - Version 0.7: Fix container detection (28.01.2026, MK)
 #          - Version 0.8: Add --build_deps_only flag (29.01.2026, MK)
 #          - Version 0.9: Add --disable_local_cache flag (30.01.2026, MK)
+#          - Version 1.0: Add Cray specific configuration (01.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -121,6 +122,7 @@ fi
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
+CRAY="yes"
 DISABLE_LOCAL_CACHE="no"
 HAS_PODMAN="no"
 HELP="no"
@@ -160,6 +162,10 @@ while [[ $# -gt 0 ]]; do
     -bt | --build_type)
       BUILD_TYPE="${2}"
       shift 2
+      ;;
+    -cray)
+      CRAY="yes"
+      shift 1
       ;;
     -cv | --cp2k_version)
       if (($# > 1)); then
@@ -260,8 +266,8 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE DISABLE_LOCAL_CACHE HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE
-export MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY DISABLE_LOCAL_CACHE HAS_PODMAN IN_CONTAINER
+export INSTALL_MESSAGE MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -269,6 +275,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "Usage: ${SCRIPT_NAME} [-bd | --build_deps]"
   echo "                    [-bd_only | --build_deps_only]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
+  echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (psmp | ssmp)]"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-h | --help]"
@@ -283,7 +290,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_deps         : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_deps_only    : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_type         : Set preferred CMake build type (default: \"Release\")"
-  echo " --cp2k_versio   n    : CP2K version to be built (default: \"psmp\")"
+  echo " -cray                : Use Cray specific spack configuration"
+  echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
   echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
   echo " --help               : Print this help information"
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
@@ -499,6 +507,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
       -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
       -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # Apply Cray specific adaptation of the spack configuration if requested
+  if [[ "${CRAY}" == "yes" ]]; then
+    sed -E -e -i 's/~xpmem/+xpmem/' "${CP2K_CONFIG_FILE}"
   fi
 
   # Create CP2K environment if needed
