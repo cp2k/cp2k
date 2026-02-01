@@ -70,11 +70,14 @@ case "$with_fftw" in
     check_lib -lfftw3 "FFTW"
     check_lib -lfftw3_omp "FFTW"
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
-    pkg_install_dir=$(dirname $(dirname $(find_in_paths "libfftw3.a" $LIB_PATHS)))
+    pkg_install_dir=$(
+      result=$(find_in_paths "libfftw3.a" $LIB_PATHS)
+      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libfftw3.so" $LIB_PATHS)
+      [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
+    )
+    INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
     add_include_from_paths FFTW_CFLAGS "fftw3.h" FFTW_INC ${INCLUDE_PATHS}
     add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" ${LIB_PATHS}
-    FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
-    FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __DONTUSE__)
     # Nothing to do
