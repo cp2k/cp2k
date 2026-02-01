@@ -511,7 +511,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Apply Cray specific adaptation of the spack configuration if requested
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e -i 's/~xpmem/+xpmem/' "${CP2K_CONFIG_FILE}"
+    sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Create CP2K environment if needed
