@@ -789,7 +789,7 @@ CONTAINS
             b2 = b + INDEX(F(b:e), '(') - 1
             IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 3: F(b:e) = 'fcn(...)'
 !            WRITE(*,*)'3. F(b:e) = "fcn(...)"'
-               CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
+               CALL CompileFuncArgsSubstr(i, F, b2 + 1, e - 1, Var)
                CALL AddCompiledByte(i, n)
                RETURN
             END IF
@@ -806,7 +806,7 @@ CONTAINS
                b2 = b + INDEX(F(b + 1:e), '(')
                IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 5: F(b:e) = '-fcn(...)'
 !               WRITE(*,*)'5. F(b:e) = "-fcn(...)"'
-                  CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
+                  CALL CompileFuncArgsSubstr(i, F, b2 + 1, e - 1, Var)
                   CALL AddCompiledByte(i, n)
                   CALL AddCompiledByte(i, cNeg)
                   RETURN
@@ -854,6 +854,48 @@ CONTAINS
       IF (Comp(i)%StackPtr > Comp(i)%StackSize) Comp(i)%StackSize = Comp(i)%StackSize + 1
       IF (b2 > b) CALL AddCompiledByte(i, cNeg)
    END SUBROUTINE CompileSubstr
+   !
+! **************************************************************************************************
+!> \brief ...
+!> \param i ...
+!> \param F ...
+!> \param b ...
+!> \param e ...
+!> \param Var ...
+! **************************************************************************************************
+   RECURSIVE SUBROUTINE CompileFuncArgsSubstr(i, F, b, e, Var)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      ! Compile i-th function arguments substring F(b,e) into bytecode
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      INTEGER, INTENT(in)                                :: i
+      CHARACTER(LEN=*), INTENT(in)                       :: F
+      INTEGER, INTENT(in)                                :: b, e
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(in)         :: Var
+
+      INTEGER                                            :: b2, j, ParCnt
+
+! Function identifier
+! Function substring
+! Begin and end position substring
+! Array with variable names
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+! Check for commas for splitting function arguments into substrings
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      ParCnt = 0
+      b2 = b
+      DO j = b, e
+         IF (F(j:j) == '(') THEN
+            ParCnt = ParCnt + 1
+         ELSEIF (F(j:j) == ')') THEN
+            ParCnt = ParCnt - 1
+         ELSEIF (ParCnt == 0 .AND. F(j:j) == ',') THEN
+            CALL CompileSubstr(i, F, b2, j - 1, Var)
+            b2 = j + 1
+         END IF
+      END DO
+      CALL CompileSubstr(i, F, b2, e, Var)
+   END SUBROUTINE CompileFuncArgsSubstr
    !
 ! **************************************************************************************************
 !> \brief ...
