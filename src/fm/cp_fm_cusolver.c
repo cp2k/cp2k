@@ -441,10 +441,11 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   // Ensure consistency in block sizes and sources
   assert(mb_a == mb_b && nb_a == nb_b);
   assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
-  (void)ldB; // Suppress unused variable warning
+  assert(ldA == ldB);
 
   const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
   const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
+  assert(np_a == ldA);
 
   const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
   const cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;

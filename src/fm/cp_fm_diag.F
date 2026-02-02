@@ -1364,7 +1364,9 @@ CONTAINS
 
       IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= 64) THEN
          ! Use cuSolverMP generalized eigenvalue solver for large matrices
-         CALL cp_fm_general_cusolver(amatrix, bmatrix, eigenvectors, eigenvalues)
+         ! Use work as intermediate buffer since eigenvectors may be smaller (nao x nmo)
+         CALL cp_fm_general_cusolver(amatrix, bmatrix, work, eigenvalues)
+         CALL cp_fm_to_fm(work, eigenvectors, nmo)
 #if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Use DLA-Future generalized eigenvalue solver for large matrices
