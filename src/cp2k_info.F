@@ -255,6 +255,9 @@ CONTAINS
 #if defined(__CUSOLVERMP)
       flags = TRIM(flags)//" cusolvermp"
 #endif
+#if defined(__CUSOLVERMP_NCCL)
+      flags = TRIM(flags)//" cusolvermp_nccl"
+#endif
 #if defined(__DLAF)
       flags = TRIM(flags)//" dlaf"
 #endif

@@ -9,11 +9,16 @@
 
 #include "../offload/offload_library.h"
 #include <assert.h>
-#include <cal.h>
 #include <cuda_runtime.h>
 #include <cusolverMp.h>
 #include <mpi.h>
 #include <stdlib.h>
+
+#if defined(__CUSOLVERMP_NCCL)
+#include <nccl.h>
+#else
+#include <cal.h>
+#endif
 
 /*******************************************************************************
  * \brief Run given CUDA command and upon failure abort with a nice message.
@@ -29,6 +34,22 @@
     }                                                                          \
   } while (0)
 
+#if defined(__CUSOLVERMP_NCCL)
+/*******************************************************************************
+ * \brief Run given NCCL command and upon failure abort with a nice message.
+ * \author Jiri Vyskocil
+ ******************************************************************************/
+#define NCCL_CHECK(cmd)                                                        \
+  do {                                                                         \
+    ncclResult_t status = cmd;                                                 \
+    if (status != ncclSuccess) {                                               \
+      fprintf(stderr, "ERROR: %s %s %d\n", ncclGetErrorString(status),         \
+              __FILE__, __LINE__);                                             \
+      abort();                                                                 \
+    }                                                                          \
+  } while (0)
+
+#else
 /*******************************************************************************
  * \brief Decode given cal error.
  * \author Ole Schuett
@@ -69,6 +90,44 @@ static char *calGetErrorString(calError_t status) {
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+/*******************************************************************************
+ * \brief Callback for cal library to initiate an allgather operation.
+ * \author Ole Schuett
+ ******************************************************************************/
+static calError_t allgather(void *src_buf, void *recv_buf, size_t size,
+                            void *data, void **req) {
+  const MPI_Comm comm = *(MPI_Comm *)data;
+  MPI_Request *request = malloc(sizeof(MPI_Request));
+  *req = request;
+  const int status = MPI_Iallgather(src_buf, size, MPI_BYTE, recv_buf, size,
+                                    MPI_BYTE, comm, request);
+  return (status == MPI_SUCCESS) ? CAL_OK : CAL_ERROR;
+}
+
+/*******************************************************************************
+ * \brief Callback for cal library to test if a request has completed.
+ * \author Ole Schuett
+ ******************************************************************************/
+static calError_t req_test(void *req) {
+  MPI_Request *request = (MPI_Request *)(req);
+  int completed;
+  const int status = MPI_Test(request, &completed, MPI_STATUS_IGNORE);
+  if (status != MPI_SUCCESS) {
+    return CAL_ERROR;
+  }
+  return completed ? CAL_OK : CAL_ERROR_INPROGRESS;
+}
+
+/*******************************************************************************
+ * \brief Callback for cal library to free a request.
+ * \author Ole Schuett
+ ******************************************************************************/
+static calError_t req_free(void *req) {
+  free(req);
+  return CAL_OK;
+}
+#endif /* __CUSOLVERMP_NCCL */
 
 /*******************************************************************************
  * \brief Decode given cusolver error.
@@ -146,43 +205,6 @@ static char *cusolverGetErrorString(cusolverStatus_t status) {
   } while (0)
 
 /*******************************************************************************
- * \brief Callback for cal library to initiate an allgather operation.
- * \author Ole Schuett
- ******************************************************************************/
-static calError_t allgather(void *src_buf, void *recv_buf, size_t size,
-                            void *data, void **req) {
-  const MPI_Comm comm = *(MPI_Comm *)data;
-  MPI_Request *request = malloc(sizeof(MPI_Request));
-  *req = request;
-  const int status = MPI_Iallgather(src_buf, size, MPI_BYTE, recv_buf, size,
-                                    MPI_BYTE, comm, request);
-  return (status == MPI_SUCCESS) ? CAL_OK : CAL_ERROR;
-}
-
-/*******************************************************************************
- * \brief Callback for cal library to test if a request has completed.
- * \author Ole Schuett
- ******************************************************************************/
-static calError_t req_test(void *req) {
-  MPI_Request *request = (MPI_Request *)(req);
-  int completed;
-  const int status = MPI_Test(request, &completed, MPI_STATUS_IGNORE);
-  if (status != MPI_SUCCESS) {
-    return CAL_ERROR;
-  }
-  return completed ? CAL_OK : CAL_ERROR_INPROGRESS;
-}
-
-/*******************************************************************************
- * \brief Callback for cal library to free a request.
- * \author Ole Schuett
- ******************************************************************************/
-static calError_t req_free(void *req) {
-  free(req);
-  return CAL_OK;
-}
-
-/*******************************************************************************
  * \brief Driver routine to diagonalize a matrix with the cuSOLVERMp library.
  * \author Ole Schuett
  ******************************************************************************/
@@ -199,6 +221,17 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
 
+#if defined(__CUSOLVERMP_NCCL)
+  // Create NCCL communicator.
+  ncclUniqueId nccl_id;
+  if (rank == 0) {
+    NCCL_CHECK(ncclGetUniqueId(&nccl_id));
+  }
+  MPI_Bcast(&nccl_id, sizeof(nccl_id), MPI_BYTE, 0, comm);
+
+  ncclComm_t nccl_comm;
+  NCCL_CHECK(ncclCommInitRank(&nccl_comm, nranks, nccl_id, rank));
+#else
   // Create CAL communicator.
   cal_comm_t cal_comm = NULL;
   cal_comm_create_params_t params;
@@ -210,6 +243,7 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
   params.nranks = nranks;
   params.local_device = local_device;
   CAL_CHECK(cal_comm_create(params, &cal_comm));
+#endif
 
   // Create various handles.
   cudaStream_t stream = NULL;
@@ -219,9 +253,15 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
   CUSOLVER_CHECK(cusolverMpCreate(&cusolvermp_handle, local_device, stream));
 
   cusolverMpGrid_t grid = NULL;
+#if defined(__CUSOLVERMP_NCCL)
+  CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, nccl_comm,
+                                            nprow, npcol,
+                                            CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#else
   CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, cal_comm,
                                             nprow, npcol,
                                             CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#endif
   const int mb = matrix_desc[4];
   const int nb = matrix_desc[5];
   const int rsrc = matrix_desc[6];
@@ -281,7 +321,9 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
 
   // Wait for solver to finish.
   CUDA_CHECK(cudaStreamSynchronize(stream));
+#if !defined(__CUSOLVERMP_NCCL)
   CAL_CHECK(cal_stream_sync(cal_comm, stream));
+#endif
 
   // Check info.
   int info = -1;
@@ -310,7 +352,11 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
   CUSOLVER_CHECK(cusolverMpDestroyGrid(grid));
   CUSOLVER_CHECK(cusolverMpDestroy(cusolvermp_handle));
   CUDA_CHECK(cudaStreamDestroy(stream));
+#if defined(__CUSOLVERMP_NCCL)
+  NCCL_CHECK(ncclCommDestroy(nccl_comm));
+#else
   CAL_CHECK(cal_comm_destroy(cal_comm));
+#endif
 
   // Sync MPI ranks to include load imbalance in total timings.
   MPI_Barrier(comm);
@@ -336,6 +382,17 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
 
+#if defined(__CUSOLVERMP_NCCL)
+  // Create NCCL communicator.
+  ncclUniqueId nccl_id;
+  if (rank == 0) {
+    NCCL_CHECK(ncclGetUniqueId(&nccl_id));
+  }
+  MPI_Bcast(&nccl_id, sizeof(nccl_id), MPI_BYTE, 0, comm);
+
+  ncclComm_t nccl_comm;
+  NCCL_CHECK(ncclCommInitRank(&nccl_comm, nranks, nccl_id, rank));
+#else
   // Create CAL communicator
   cal_comm_t cal_comm = NULL;
   cal_comm_create_params_t params;
@@ -347,6 +404,7 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   params.nranks = nranks;
   params.local_device = local_device;
   CAL_CHECK(cal_comm_create(params, &cal_comm));
+#endif
 
   // Create CUDA stream and cuSOLVER handle
   cudaStream_t stream = NULL;
@@ -357,9 +415,15 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
 
   // Define grid for device computation
   cusolverMpGrid_t grid = NULL;
+#if defined(__CUSOLVERMP_NCCL)
+  CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, nccl_comm,
+                                            nprow, npcol,
+                                            CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#else
   CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, cal_comm,
                                             nprow, npcol,
                                             CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#endif
 
   // Matrix descriptors for A, B, and Z
   const int mb_a = a_matrix_desc[4];
@@ -377,6 +441,7 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   // Ensure consistency in block sizes and sources
   assert(mb_a == mb_b && nb_a == nb_b);
   assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
+  (void)ldB; // Suppress unused variable warning
 
   const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
   const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
@@ -469,7 +534,11 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   CUSOLVER_CHECK(cusolverMpDestroyGrid(grid));
   CUSOLVER_CHECK(cusolverMpDestroy(cusolvermp_handle));
   CUDA_CHECK(cudaStreamDestroy(stream));
+#if defined(__CUSOLVERMP_NCCL)
+  NCCL_CHECK(ncclCommDestroy(nccl_comm));
+#else
   CAL_CHECK(cal_comm_destroy(cal_comm));
+#endif
 
   MPI_Barrier(comm); // Synchronize MPI ranks
 }
