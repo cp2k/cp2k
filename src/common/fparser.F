@@ -42,28 +42,33 @@ MODULE fparser
                              cDiv = 6, &
                              cPow = 7, &
                              cAbs = 8, &
-                             cExp = 9, &
-                             cLog10 = 10, &
-                             cLog = 11, &
-                             cSqrt = 12, &
-                             cSinh = 13, &
-                             cCosh = 14, &
-                             cTanh = 15, &
-                             cSin = 16, &
-                             cCos = 17, &
-                             cTan = 18, &
-                             cAsin = 19, &
-                             cAcos = 20, &
-                             cAtan = 21, &
-                             cErf = 22, &
-                             cErfc = 23, &
-                             VarBegin = 24
+                             cMin = 9, &
+                             cMax = 10, &
+                             cExp = 11, &
+                             cLog10 = 12, &
+                             cLog = 13, &
+                             cSqrt = 14, &
+                             cSinh = 15, &
+                             cCosh = 16, &
+                             cTanh = 17, &
+                             cSin = 18, &
+                             cCos = 19, &
+                             cTan = 20, &
+                             cAsin = 21, &
+                             cAcos = 22, &
+                             cAtan2 = 23, &
+                             cAtan = 24, &
+                             cErf = 25, &
+                             cErfc = 26, &
+                             VarBegin = 27
    CHARACTER(LEN=1), DIMENSION(cAdd:cPow), PARAMETER :: Ops = ['+', &
                                                                '-', &
                                                                '*', &
                                                                '/', &
                                                                '^']
    CHARACTER(LEN=5), DIMENSION(cAbs:cErfc), PARAMETER :: Funcs = ['abs  ', &
+                                                                  'min  ', &
+                                                                  'max  ', &
                                                                   'exp  ', &
                                                                   'log10', &
                                                                   'log  ', &
@@ -76,10 +81,13 @@ MODULE fparser
                                                                   'tan  ', &
                                                                   'asin ', &
                                                                   'acos ', &
+                                                                  'atan2', &
                                                                   'atan ', &
                                                                   'erf  ', &
                                                                   'erfc ']
    INTEGER, DIMENSION(cAbs:cErfc), PARAMETER :: FuncsArgCnt = [1, & ! abs
+                                                               2, & ! min
+                                                               2, & ! max
                                                                1, & ! exp
                                                                1, & ! log10
                                                                1, & ! log
@@ -92,6 +100,7 @@ MODULE fparser
                                                                1, & ! tan
                                                                1, & ! asin
                                                                1, & ! acos
+                                                               2, & ! atan2
                                                                1, & ! atan
                                                                1, & ! erf
                                                                1  ] ! erfc
@@ -238,6 +247,8 @@ CONTAINS
             END IF
             SP = SP - 1
          CASE (cAbs); Comp(i)%Stack(SP) = ABS(Comp(i)%Stack(SP))
+         CASE (cMin); Comp(i)%Stack(SP - 1) = MIN(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
+         CASE (cMax); Comp(i)%Stack(SP - 1) = MAX(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
          CASE (cExp); Comp(i)%Stack(SP) = EXP(Comp(i)%Stack(SP))
          CASE (cLog10); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = LOG10(Comp(i)%Stack(SP))
@@ -257,6 +268,7 @@ CONTAINS
          CASE (cAcos); IF ((Comp(i)%Stack(SP) < -1._rn) .OR. (Comp(i)%Stack(SP) > 1._rn)) THEN
                EvalErrType = 4; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = ACOS(Comp(i)%Stack(SP))
+         CASE (cAtan2); Comp(i)%Stack(SP - 1) = ATAN2(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
          CASE (cAtan); Comp(i)%Stack(SP) = ATAN(Comp(i)%Stack(SP))
          CASE (cErf); Comp(i)%Stack(SP) = ERF(Comp(i)%Stack(SP))
          CASE (cErfc); Comp(i)%Stack(SP) = ERFC(Comp(i)%Stack(SP))
