@@ -141,6 +141,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="CUSOLVER_GENERALIZED", &
+                          description="Use cuSOLVERMp to solve the generalized eigenvalue problem directly on the GPU", &
+                          usage="CUSOLVER_GENERALIZED", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_CHOLESKY_LIBRARY", &
                           description="Specifies Cholesky decomposition library to be used. If not available, "// &
                           "the ScaLAPACK library is used", &

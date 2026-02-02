@@ -39,9 +39,12 @@ MODULE qs_scf_diagonalization
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              choose_eigv_solver,&
                                               cp_fm_geeig,&
-                                              cp_fm_geeig_canon
+                                              cp_fm_geeig_canon,&
+                                              cusolver_generalized,&
+                                              diag_type
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
@@ -115,6 +118,7 @@ MODULE qs_scf_diagonalization
    USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                               eigensolver,&
                                               eigensolver_dbcsr,&
+                                              eigensolver_generalized,&
                                               eigensolver_simple,&
                                               eigensolver_symm,&
                                               scf_env_density_mixing
@@ -247,25 +251,32 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            IF (do_level_shift) THEN
-               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
-                                mo_set=mos(ispin), &
-                                ortho=ortho, &
-                                work=scf_env%scf_work2, &
-                                cholesky_method=scf_env%cholesky_method, &
-                                do_level_shift=do_level_shift, &
-                                level_shift=scf_control%level_shift, &
-                                matrix_u_fm=scf_env%ortho, &
-                                use_jacobi=use_jacobi)
+            IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. cusolver_generalized .AND. .NOT. do_level_shift) THEN
+               CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
+                                            matrix_s=matrix_s(ispin)%matrix, &
+                                            mo_set=mos(ispin), &
+                                            work=scf_env%scf_work2)
             ELSE
-               CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
-                                mo_set=mos(ispin), &
-                                ortho=ortho, &
-                                work=scf_env%scf_work2, &
-                                cholesky_method=scf_env%cholesky_method, &
-                                do_level_shift=do_level_shift, &
-                                level_shift=scf_control%level_shift, &
-                                use_jacobi=use_jacobi)
+               IF (do_level_shift) THEN
+                  CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
+                                   mo_set=mos(ispin), &
+                                   ortho=ortho, &
+                                   work=scf_env%scf_work2, &
+                                   cholesky_method=scf_env%cholesky_method, &
+                                   do_level_shift=do_level_shift, &
+                                   level_shift=scf_control%level_shift, &
+                                   matrix_u_fm=scf_env%ortho, &
+                                   use_jacobi=use_jacobi)
+               ELSE
+                  CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin), &
+                                   mo_set=mos(ispin), &
+                                   ortho=ortho, &
+                                   work=scf_env%scf_work2, &
+                                   cholesky_method=scf_env%cholesky_method, &
+                                   do_level_shift=do_level_shift, &
+                                   level_shift=scf_control%level_shift, &
+                                   use_jacobi=use_jacobi)
+               END IF
             END IF
          END DO
 

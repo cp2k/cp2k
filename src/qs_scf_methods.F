@@ -29,6 +29,7 @@ MODULE qs_scf_methods
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
+   USE cp_fm_cusolver_api,              ONLY: cp_fm_general_cusolver
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_block_jacobi
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -62,6 +63,7 @@ MODULE qs_scf_methods
    PUBLIC :: combine_ks_matrices, &
              cp_sm_mix, &
              eigensolver, &
+             eigensolver_generalized, &
              eigensolver_dbcsr, &
              eigensolver_symm, &
              eigensolver_simple, &
@@ -251,6 +253,51 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE eigensolver
+
+! **************************************************************************************************
+!> \brief Solve the generalized eigenvalue problem using cusolverMpSygvd
+!> \param matrix_ks_fm Kohn-Sham matrix in FM format
+!> \param matrix_s     Overlap matrix (DBCSR)
+!> \param mo_set       Molecular orbital set
+!> \param work         Work matrix (used as eigenvector buffer)
+! **************************************************************************************************
+   SUBROUTINE eigensolver_generalized(matrix_ks_fm, matrix_s, mo_set, work)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ks_fm
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_generalized'
+
+      INTEGER                                            :: handle, nmo
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: s_fm
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (mo_coeff)
+      NULLIFY (mo_eigenvalues)
+
+      CALL get_mo_set(mo_set=mo_set, nmo=nmo, eigenvalues=mo_eigenvalues, mo_coeff=mo_coeff)
+      CALL cp_fm_get_info(matrix_ks_fm, matrix_struct=fm_struct)
+
+      ! Convert S matrix from DBCSR to FM (required for cuSOLVERMp)
+      CALL cp_fm_create(s_fm, fm_struct)
+      CALL copy_dbcsr_to_fm(matrix_s, s_fm)
+
+      ! Solve generalized eigenvalue problem - eigenvectors output to work buffer
+      CALL cp_fm_general_cusolver(matrix_ks_fm, s_fm, work, mo_eigenvalues)
+
+      ! Copy only the occupied MOs to mo_coeff
+      CALL cp_fm_to_fm(work, mo_coeff, nmo)
+
+      CALL cp_fm_release(s_fm)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eigensolver_generalized
 
 ! **************************************************************************************************
 !> \brief ...

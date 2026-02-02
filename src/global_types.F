@@ -85,6 +85,7 @@ MODULE global_types
       LOGICAL :: elpa_one_stage = .FALSE. ! enable one-stage ELPA solver
       INTEGER :: dlaf_neigvec_min = 0 ! Minimum number of eigenvectors for DLAF eigensolver usage
       INTEGER :: dlaf_cholesky_n_min = 0 ! Minimum matrix size for DLAF Cholesky decomposition usage
+      LOGICAL :: cusolver_generalized = .TRUE. ! use cuSOLVERMp generalized solver
       LOGICAL :: blacs_repeatable = .FALSE. ! will store the user preference for the repeatability of BLACS collectives
       REAL(KIND=dp) :: cp2k_start_time = 0.0_dp
       REAL(KIND=dp) :: cp2k_target_time = HUGE(0.0_dp) ! Maximum run time in seconds

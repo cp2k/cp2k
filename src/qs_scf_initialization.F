@@ -26,8 +26,11 @@ MODULE qs_scf_initialization
                                               cp_fm_transpose,&
                                               cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                              cp_fm_power
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              choose_eigv_solver,&
+                                              cp_fm_power,&
+                                              cusolver_generalized,&
+                                              diag_type
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -803,6 +806,12 @@ CONTAINS
          CASE (diag_standard)
             scf_env%method = general_diag_method_nr
             scf_env%needs_ortho = (.NOT. has_unit_metric) .AND. (.NOT. do_kpoints)
+            IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. &
+                cusolver_generalized .AND. &
+                scf_control%level_shift == 0.0_dp .AND. &
+                scf_env%cholesky_method /= cholesky_off) THEN
+               scf_env%needs_ortho = .FALSE.
+            END IF
             IF (has_unit_metric) THEN
                scf_env%method = special_diag_method_nr
             END IF
