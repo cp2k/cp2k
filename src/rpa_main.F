@@ -398,16 +398,16 @@ CONTAINS
 
          ! Check the input number of integration groups
          IF (input_num_integ_groups > 0) THEN
-            IF (MOD(num_integ_points, input_num_integ_groups) == 0) THEN
+            IF (num_integ_points < input_num_integ_groups) THEN
                IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
                   best_integ_group_size = ngroup/input_num_integ_groups
-                  best_num_integ_point = num_integ_points/input_num_integ_groups
+                  best_num_integ_point = (num_integ_points + input_num_integ_groups - 1)/input_num_integ_groups
                   skip_integ_group_opt = .TRUE.
                ELSE
                   IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Total number of groups not multiple of NUM_INTEG_GROUPS'
                END IF
             ELSE
-               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'NUM_QUAD_POINTS not multiple of NUM_INTEG_GROUPS'
+               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Too many integration groups for the given number of quadrature points'
             END IF
          END IF
 
@@ -430,9 +430,8 @@ CONTAINS
 
                ! check that the integration groups have the same size
                num_integ_group = ngroup/integ_group_size
-               IF (MOD(num_integ_points, num_integ_group) /= 0) CYCLE
 
-               best_num_integ_point = num_integ_points/num_integ_group
+               best_num_integ_point = (num_integ_points + num_integ_group - 1)/num_integ_group
                best_integ_group_size = integ_group_size
 
                EXIT
@@ -453,7 +452,7 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "INTEG_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "INTEG_INFO| Number of integration points per Laplace group:", best_num_integ_point
+               "INTEG_INFO| Max. number of integration points per Laplace group:", best_num_integ_point
          ELSE
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
@@ -467,7 +466,7 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "INTEG_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
+               "INTEG_INFO| Max. number of integration points per RPA group:", best_num_integ_point
          END IF
          CALL m_flush(unit_nr)
       END IF
@@ -1589,7 +1588,7 @@ CONTAINS
             END IF
 
             IF (unit_nr > 0) CALL m_flush(unit_nr)
-            CALL para_env%sync() ! sync to see output
+            CALL para_env_RPA%sync() ! sync to see output
 
          END DO ! jquad
 
