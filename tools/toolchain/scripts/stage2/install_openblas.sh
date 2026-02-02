@@ -18,10 +18,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_openblas" ] && rm "${BUILDDIR}/setup_openblas"
 
-OPENBLAS_CFLAGS=""
-OPENBLAS_LDFLAGS=""
-OPENBLAS_LIBS=""
-OPENBLAS_ROOT=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -100,7 +96,7 @@ case "${with_openblas}" in
     OPENBLAS_ROOT="${pkg_install_dir}"
     # Prefer static library if available
     if [ -f "${pkg_install_dir}/lib/libopenblas.a" ]; then
-      OPENBLAS_LIBS="${pkg_install_dir}/lib/libopenblas.a"
+      OPENBLAS_LIBS="-l:libopenblas.a"
     else
       OPENBLAS_LIBS="-lopenblas"
     fi
@@ -109,12 +105,18 @@ case "${with_openblas}" in
     echo "==================== Finding OpenBLAS from system paths ===================="
     # assume that system openblas is threaded
     check_lib -lopenblas "OpenBLAS"
-    OPENBLAS_LIBS="-lopenblas"
+    pkg_install_dir=$(
+      result=$(find_in_paths "libopenblas.a" $LIB_PATHS)
+      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libopenblas.so" $LIB_PATHS)
+      [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
+    )
+    INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
     # detect separate omp builds
     check_lib -lopenblas_openmp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_openmp"
     check_lib -lopenblas_omp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_omp"
     add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
     add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
+    OPENBLAS_LIBS="-lopenblas"
     ;;
   __DONTUSE__) ;;
 

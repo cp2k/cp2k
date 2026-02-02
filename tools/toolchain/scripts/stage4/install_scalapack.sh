@@ -18,9 +18,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_scalapack" ] && rm "${BUILDDIR}/setup_scalapack"
 
-SCALAPACK_CFLAGS=''
-SCALAPACK_LDFLAGS=''
-SCALAPACK_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -75,6 +72,11 @@ case "$with_scalapack" in
   __SYSTEM__)
     echo "==================== Finding ScaLAPACK from system paths ===================="
     check_lib -lscalapack "ScaLAPACK"
+    pkg_install_dir=$(
+      result=$(find_in_paths "libscalapack.a" $LIB_PATHS)
+      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libscalapack.so" $LIB_PATHS)
+      [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
+    )
     add_lib_from_paths SCALAPACK_LDFLAGS "libscalapack.*" $LIB_PATHS
     ;;
   __DONTUSE__) ;;
@@ -100,7 +102,6 @@ prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export SCALAPACK_ROOT="${pkg_install_dir}"
 EOF
-    cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_scalapack"
 export SCALAPACK_LDFLAGS="${SCALAPACK_LDFLAGS}"
@@ -110,6 +111,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
 EOF
+  cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
 fi
 cd "${ROOTDIR}"
 
