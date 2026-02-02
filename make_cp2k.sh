@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.0
+# Version: 1.1
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -61,6 +61,7 @@
 #          - Version 0.8: Add --build_deps_only flag (29.01.2026, MK)
 #          - Version 0.9: Add --disable_local_cache flag (30.01.2026, MK)
 #          - Version 1.0: Add Cray specific configuration (01.02.2026, MK)
+#          - Version 1.1: Allow for selecting the GCC version (02.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -124,6 +125,7 @@ BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 CRAY="yes"
 DISABLE_LOCAL_CACHE="no"
+GCC_VERSION="auto"
 HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
@@ -182,6 +184,23 @@ while [[ $# -gt 0 ]]; do
       DISABLE_LOCAL_CACHE="yes"
       shift 1
       ;;
+    -gv | --gcc_version)
+      if (($# > 1)); then
+        case "${2}" in
+          1[0-5])
+            GCC_VERSION="${2}"
+            ;;
+          *)
+            echo "ERROR: Invalid GCC version \"${2}\" specified (choose from 10 to 15)"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No argument found for flag \"${1}\" (choose a GCC version)"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
     -h | --help)
       HELP="yes"
       shift 1
@@ -199,7 +218,7 @@ while [[ $# -gt 0 ]]; do
       if (($# > 1)); then
         case "${2}" in
           -*)
-            true
+            shift 1
             ;;
           [0-9]*)
             NUM_PROCS="${2}"
@@ -213,19 +232,6 @@ while [[ $# -gt 0 ]]; do
       else
         shift 1
       fi
-      case "${2}" in
-        -*)
-          true
-          ;;
-        [0-9]*)
-          NUM_PROCS="${2}"
-          shift 2
-          ;;
-        *)
-          echo "ERROR: The -j flag can only be followed by an integer number, found \"${2}\""
-          ${EXIT_CMD} 1
-          ;;
-      esac
       ;;
     -j[0-9]*)
       NUM_PROCS="${1#-j}"
@@ -283,7 +289,7 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY DISABLE_LOCAL_CACHE HAS_PODMAN IN_CONTAINER
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY DISABLE_LOCAL_CACHE GCC_VERSION HAS_PODMAN IN_CONTAINER
 export INSTALL_MESSAGE MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
@@ -295,6 +301,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (psmp | ssmp)]"
   echo "                    [-dlc | --disable_local_cache]"
+  echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
@@ -311,6 +318,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -cray                : Use Cray specific spack configuration"
   echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
   echo " --help               : Print this help information"
+  echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
   echo " -j                   : Number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
@@ -334,6 +342,7 @@ echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "CMAKE_BUILD_TYPE    = ${BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
+echo "GCC_VERSION         = ${GCC_VERSION}"
 echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
@@ -579,10 +588,33 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   spack -e ${CP2K_ENV} repo list
 
+  if [[ "${GCC_VERSION}" != "auto" ]]; then
+    # Ask spack to add the requested GCC version
+    if spack install --add "gcc@${GCC_VERSION}"; then
+      echo "GCC version \"${GCC_VERSION}\" added for installation by spack"
+    else
+      echo "ERROR: Adding GCC version \"${GCC_VERSION}\" for installation failed"
+      ${EXIT_CMD} 1
+    fi
+  fi
+
   # Find all compilers
   if ! spack compiler find; then
     echo "ERROR: The compiler detection of spack failed"
     ${EXIT_CMD} 1
+  fi
+
+  # Retrieve the newest compiler version found by spack
+  GCC_VERSION="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
+  echo "The newest GCC compiler version found by spack is ${GCC_VERSION}"
+  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
+
+  # Check if the newest compiler version found on the host system is new enough
+  GCC_VERSION_MINIMUM="10"
+  if ((GCC_VERSION_NEWEST < GCC_VERSION_MINIMUM)); then
+    echo "ERROR: The selected GCC compiler version ${GCC_VERSION_NEWEST} is too old,"
+    echo "       because at least version ${GCC_VERSION_MINIMUM} is required"
+    ${EXIT_CMD}
   fi
 
   spack find -c
