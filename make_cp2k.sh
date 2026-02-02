@@ -597,13 +597,14 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Concretize CP2K dependencies
   if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
+    echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo ""
       echo "HINT: The (-ue | --use_externals) flags can cause conflicts with outdated"
       echo "      packages on the host system, e.g. old python or gcc versions"
       echo ""
-      ${EXIT_CMD} 1
     fi
+    ${EXIT_CMD} 1
   fi
 
   # Create spack makefile for all dependencies
@@ -625,9 +626,20 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Return from spack folder after all installations are done
   cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
+  # Make a note of the successful build
+  touch "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED"
+
   echo -e '\n*** Installation of CP2K dependencies completed ***\n'
 
 else
+
+  # Check if the CP2K dependencies have been built successfully
+  if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
+    echo "ERROR: The last build of the CP2K dependencies was not completed successfully"
+    echo "       Re-run the script with the \"--build_dependencies\" or \"-bd\" flag or"
+    echo "       remove the folder ${SPACK_BUILD_PATH}"
+    ${EXIT_CMD} 1
+  fi
 
   # Initialize Spack shell hooks
   # shellcheck source=/dev/null
@@ -707,7 +719,8 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   esac
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The CMake configuration step failed with the error code ${EXIT_CODE}"
-    echo "       You can try to remove the build folder with 'rm -rf build' and re-run"
+    echo "       You can try to remove the build folder with 'rm -rf build' and re-runx"
+    echo "       or even start the whole CP2K installation from scratch with the \"-bd\" flag"
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
 fi
