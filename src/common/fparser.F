@@ -79,6 +79,22 @@ MODULE fparser
                                                                   'atan ', &
                                                                   'erf  ', &
                                                                   'erfc ']
+   INTEGER, DIMENSION(cAbs:cErfc), PARAMETER :: FuncsArgCnt = [1, & ! abs
+                                                               1, & ! exp
+                                                               1, & ! log10
+                                                               1, & ! log
+                                                               1, & ! sqrt
+                                                               1, & ! sinh
+                                                               1, & ! cosh
+                                                               1, & ! tanh
+                                                               1, & ! sin
+                                                               1, & ! cos
+                                                               1, & ! tan
+                                                               1, & ! asin
+                                                               1, & ! acos
+                                                               1, & ! atan
+                                                               1, & ! erf
+                                                               1  ] ! erfc
 ! **************************************************************************************************
    TYPE tComp
       INTEGER(is), DIMENSION(:), POINTER :: ByteCode => NULL()
@@ -297,6 +313,7 @@ CONTAINS
             IF (j > lFunc) CALL ParseErrMsg(j, FuncStr, 'Missing function argument')
             c = Func(j:j)
             IF (c /= '(') CALL ParseErrMsg(j, FuncStr, 'Missing opening parenthesis')
+            CALL CheckFuncArgCnt(Func, FuncStr, j, lFunc, n)
          END IF
          IF (c == '(') THEN ! Check for opening parenthesis
             ParCnt = ParCnt + 1
@@ -342,6 +359,52 @@ CONTAINS
       END DO step
       IF (ParCnt > 0) CALL ParseErrMsg(j, FuncStr, 'Missing )')
    END SUBROUTINE CheckSyntax
+   !
+! **************************************************************************************************
+!> \brief ...
+!> \param Func ...
+!> \param FuncStr ...
+!> \param b ...
+!> \param e ...
+!> \param FuncId ...
+! **************************************************************************************************
+   SUBROUTINE CheckFuncArgCnt(Func, FuncStr, b, e, FuncId)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      ! Check argument count of function substring, returns 0 if count is ok
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      CHARACTER(LEN=*), INTENT(in)                       :: Func, FuncStr
+      INTEGER, INTENT(in)                                :: b, e
+      INTEGER(is), INTENT(in)                            :: FuncId
+
+      INTEGER                                            :: j, ParCnt, ArgCnt, ArgPos
+      CHARACTER(len=40)                                  :: Msg
+
+! Function string without spaces
+! Original function string
+! Begin and end position substring
+! ID of function for which arguments are parsed
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      ArgCnt = 1
+      ArgPos = 0
+      ParCnt = 0
+      DO j = b, e
+         IF (Func(j:j) == '(') THEN
+            ParCnt = ParCnt + 1
+         ELSEIF (Func(j:j) == ')') THEN
+            ParCnt = ParCnt - 1
+            IF (ParCnt == 0) EXIT
+         ELSEIF (ParCnt == 1 .AND. Func(j:j) == ',') THEN
+            ArgPos = j
+            ArgCnt = ArgCnt + 1
+         END IF
+      END DO
+      IF (ArgCnt /= FuncsArgCnt(FuncId)) THEN
+         IF (ArgCnt < FuncsArgCnt(FuncId)) ArgPos = j
+         WRITE(Msg, '(I0,A,A,A,I0)') ArgCnt, ' argument(s) in ', TRIM(Funcs(FuncId)), ' instead of ', FuncsArgCnt(FuncId)
+         CALL ParseErrMsg(ArgPos, FuncStr, Msg)
+      END IF
+   END SUBROUTINE CheckFuncArgCnt
    !
 ! **************************************************************************************************
 !> \brief ...
