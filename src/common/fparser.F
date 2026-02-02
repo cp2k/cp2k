@@ -883,7 +883,7 @@ CONTAINS
       IF (F(j:j) == '+' .OR. F(j:j) == '-') THEN ! Plus or minus sign:
          IF (j == 1) THEN ! - leading unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(') > 0) THEN ! - other unary operator ?
+         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(,') > 0) THEN ! - other unary operator ?
             res = .FALSE.
          ELSEIF (SCAN(F(j + 1:j + 1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
                  SCAN(F(j - 1:j - 1), 'eEdD') > 0) THEN
