@@ -196,6 +196,23 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -j)
+      if (($# > 1)); then
+        case "${2}" in
+          -*)
+            true
+            ;;
+          [0-9]*)
+            NUM_PROCS="${2}"
+            shift 2
+            ;;
+          *)
+            echo "ERROR: The -j flag can only be followed by an integer number, found \"${2}\""
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        shift 1
+      fi
       case "${2}" in
         -*)
           true
