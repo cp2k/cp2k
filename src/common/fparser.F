@@ -348,6 +348,9 @@ CONTAINS
          IF (ANY(c == Ops)) THEN ! Check for multiple operators
             IF (j + 1 > lFunc) CALL ParseErrMsg(j, FuncStr)
             IF (ANY(Func(j + 1:j + 1) == Ops)) CALL ParseErrMsg(j + 1, FuncStr, 'Multiple operators')
+         ELSE IF (c == ',') THEN ! Check for commas separating function arguments
+            IF (ParCnt == 0) CALL ParseErrMsg(j, FuncStr, 'Comma outside function')
+            IF (Func(j + 1:j + 1) == ',') CALL ParseErrMsg(j, FuncStr, 'Multiple commas')
          ELSE ! Check for next operand
             CALL ParseErrMsg(j, FuncStr, 'Missing operator')
          END IF
