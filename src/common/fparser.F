@@ -103,7 +103,7 @@ MODULE fparser
                                                                2, & ! atan2
                                                                1, & ! atan
                                                                1, & ! erf
-                                                               1  ] ! erfc
+                                                               1] ! erfc
 ! **************************************************************************************************
    TYPE tComp
       INTEGER(is), DIMENSION(:), POINTER :: ByteCode => NULL()
@@ -391,8 +391,8 @@ CONTAINS
       INTEGER, INTENT(in)                                :: b, e
       INTEGER(is), INTENT(in)                            :: FuncId
 
-      INTEGER                                            :: j, ParCnt, ArgCnt, ArgPos
       CHARACTER(len=40)                                  :: Msg
+      INTEGER                                            :: ArgCnt, ArgPos, j, ParCnt
 
 ! Function string without spaces
 ! Original function string
@@ -416,7 +416,7 @@ CONTAINS
       END DO
       IF (ArgCnt /= FuncsArgCnt(FuncId)) THEN
          IF (ArgCnt < FuncsArgCnt(FuncId)) ArgPos = j
-         WRITE(Msg, '(I0,A,A,A,I0)') ArgCnt, ' argument(s) in ', TRIM(Funcs(FuncId)), ' instead of ', FuncsArgCnt(FuncId)
+         WRITE (Msg, '(I0,A,A,A,I0)') ArgCnt, ' argument(s) in ', TRIM(Funcs(FuncId)), ' instead of ', FuncsArgCnt(FuncId)
          CALL ParseErrMsg(ArgPos, FuncStr, Msg)
       END IF
    END SUBROUTINE CheckFuncArgCnt
