@@ -605,16 +605,20 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Retrieve the newest compiler version found by spack
-  GCC_VERSION="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
-  echo "The newest GCC compiler version found by spack is ${GCC_VERSION}"
-  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
+  GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
+  echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
+  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
 
   # Check if the newest compiler version found on the host system is new enough
   GCC_VERSION_MINIMUM="10"
   if ((GCC_VERSION_NEWEST < GCC_VERSION_MINIMUM)); then
     echo "ERROR: The selected GCC compiler version ${GCC_VERSION_NEWEST} is too old,"
     echo "       because at least version ${GCC_VERSION_MINIMUM} is required"
-    ${EXIT_CMD}
+    ${EXIT_CMD} 1
+  fi
+
+  if [[ "${GCC_VERSION}" == "auto" ]]; then
+    echo "Spack will automatically select the GCC version which is not necessarily the newest one found"
   fi
 
   spack find -c
