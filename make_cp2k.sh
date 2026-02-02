@@ -307,8 +307,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_deps         : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_deps_only    : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_type         : Set preferred CMake build type (default: \"Release\")"
-  echo " -cray                : Use Cray specific spack configuration"
   echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
+  echo " -cray                : Use Cray specific spack configuration"
   echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
   echo " --help               : Print this help information"
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
@@ -401,8 +401,16 @@ export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}"
 
-# If requested, remove the spack folder for (re)building all CP2K dependencies
-[[ "${BUILD_DEPS}" == "always" ]] && rm -rf "${SPACK_BUILD_PATH}"
+# If requested, remove the folders spack, build, and install for (re)building all CP2K dependencies
+if [[ "${BUILD_DEPS}" == "always" ]]; then
+  # Perform full clean-up
+  for folder in "${SPACK_BUILD_PATH}" "${CP2K_ROOT}"/build "${CP2K_ROOT}"/install; do
+    if [[ -d "${folder}" ]]; then
+      echo "Removing folder \"${folder}\""
+      rm -rf "${folder}"
+    fi
+  done
+fi
 
 if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
