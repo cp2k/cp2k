@@ -552,7 +552,7 @@ CONTAINS
             IF (str(ib:ib) /= ' ') EXIT ! When lstr>0 at least 1 char in str
          END DO
          DO in = ib, lstr ! Search for name terminators
-            IF (SCAN(str(in:in), '+-*/^) ') > 0) EXIT
+            IF (SCAN(str(in:in), '+-*/^) ,') > 0) EXIT
          END DO
          DO j = 1, SIZE(Var)
             IF (str(ib:in - 1) == Var(j)) THEN
