@@ -14,9 +14,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_amd" ] && rm "${BUILDDIR}/setup_amd"
 
-AMD_CFLAGS=""
-AMD_LDFLAGS=""
-AMD_LIBS=""
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -80,7 +77,7 @@ export AMD_CFLAGS="${AMD_CFLAGS}"
 export AMD_LDFLAGS="${AMD_LDFLAGS}"
 export AMD_LIBS="${AMD_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_amd" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_amd" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_amd"

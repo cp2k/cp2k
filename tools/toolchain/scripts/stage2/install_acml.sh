@@ -14,9 +14,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_acml" ] && rm "${BUILDDIR}/setup_acml"
 
-ACML_CFLAGS=''
-ACML_LDFLAGS=''
-ACML_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -51,7 +48,7 @@ prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
-    cat "${BUILDDIR}/setup_acml" >> $SETUPFILE
+    filter_setup "${BUILDDIR}/setup_acml" "${SETUPFILE}"
   fi
   cat << EOF >> "${BUILDDIR}/setup_acml"
 export ACML_CFLAGS="${ACML_CFLAGS}"

@@ -36,9 +36,6 @@ esac
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
-LIBINT_CFLAGS=""
-LIBINT_LDFLAGS=""
-LIBINT_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -134,7 +131,6 @@ prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
-    cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libint"
 export LIBINT_CFLAGS="${LIBINT_CFLAGS}"
@@ -145,6 +141,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${LIBINT_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBINT_LDFLAGS}"
 export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
 EOF
+  filter_setup "${BUILDDIR}/setup_libint" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_libint"

@@ -17,10 +17,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_tblite" ] && rm "${BUILDDIR}/setup_tblite"
 
-TBLITE_DFLAGS=''
-TBLITE_CFLAGS=''
-TBLITE_LDFLAGS=''
-TBLITE_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -54,14 +50,12 @@ case "$with_tblite" in
       cd build
 
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
-        -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      cmake --build . -j $(get_nprocs) >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
-      cmake --install . >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
 
       cd ..
     fi
@@ -71,9 +65,13 @@ case "$with_tblite" in
   __SYSTEM__)
     echo "==================== Finding tblite from system paths ===================="
     check_command pkg-config --modversion tblite
-    add_include_from_paths TBLITE_CFLAGS "tblite.h" $INCLUDE_PATHS
-    add_include_from_paths TBLITE_CFLAGS "tblite.mod" $INCLUDE_PATHS
-    add_include_from_paths TBLITE_CFLAGS "mctc_io.mod" $INCLUDE_PATHS
+    TBLITE_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
+    add_include_from_paths TBLITE_CFLAGS "tblite.h" $TBLITE_INCLUDE_PATH
+    add_include_from_paths TBLITE_CFLAGS "tblite.mod" $TBLITE_INCLUDE_PATH
+    add_include_from_paths TBLITE_CFLAGS "dftd4.mod" $TBLITE_INCLUDE_PATH
+    add_include_from_paths TBLITE_CFLAGS "mctc_io.mod" $TBLITE_INCLUDE_PATH
+    add_include_from_paths TBLITE_CFLAGS "mstore.mod" $TBLITE_INCLUDE_PATH
+    add_include_from_paths TBLITE_CFLAGS "multicharge.mod" $TBLITE_INCLUDE_PATH
     add_lib_from_paths TBLITE_LDFLAGS "libtblite.*" $LIB_PATHS
     ;;
 
@@ -145,7 +143,7 @@ export CP_CFLAGS="\${CP_CFLAGS} \${TBLITE_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} \${TBLITE_LDFLAGS}"
 export CP_LIBS="\${TBLITE_LIBS} \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_tblite" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_tblite" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_tblite"

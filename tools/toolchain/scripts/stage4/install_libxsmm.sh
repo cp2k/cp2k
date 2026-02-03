@@ -16,9 +16,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxsmm" ] && rm "${BUILDDIR}/setup_libxsmm"
 
-LIBXSMM_CFLAGS=''
-LIBXSMM_LDFLAGS=''
-LIBXSMM_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -121,7 +118,6 @@ prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 EOF
-    cat "${BUILDDIR}/setup_libxsmm" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libxsmm"
 export LIBXSMM_CFLAGS="${LIBXSMM_CFLAGS}"
@@ -132,6 +128,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${LIBXSMM_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXSMM_LDFLAGS}"
 export CP_LIBS="\${LIBXSMM_LIBS} \${CP_LIBS}"
 EOF
+  filter_setup "${BUILDDIR}/setup_libxsmm" "${SETUPFILE}"
 fi
 cd "${ROOTDIR}"
 

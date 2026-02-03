@@ -160,7 +160,7 @@ export MATH_LIBS="\${MATH_LIBS} ${OPENBLAS_LIBS}"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
-  cat "${BUILDDIR}/setup_openblas" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_openblas" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_openblas"

@@ -99,7 +99,7 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVORI"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBVORI_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${LIBVORI_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_libvori" >> "${SETUPFILE}"
+  filter_setup "${BUILDDIR}/setup_libvori" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_libvori"

@@ -120,7 +120,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBVDWXC_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${LIBVDWXC_LIBS}|) \${CP_LIBS}"
 export VDWXC_ROOT="${pkg_install_dir}"
 EOF
-  cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_libvdwxc" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_libvdwxc"

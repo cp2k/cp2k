@@ -231,10 +231,10 @@ The --with-PKG options follow the rules:
   --with-libsmeagol       Enable interface to SMEAGOL NEGF library (requires MPI).
                           Default = no
   --with-dftd4            Enable the DFTD4 package by Grimme.
-                          This package requires CMake and Ninja.
+                          This package requires CMake.
                           Default = install
   --with-tblite           Enable the tblite package by Grimme.
-                          This package requires CMake and Ninja.
+                          This package requires CMake.
                           Default = no
   --with-trexio           Enable the trexio library (read/write TREXIO files).
                           Default = no
@@ -827,13 +827,7 @@ if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   fi
 fi
 
-#dftd4 / tblite installation requires ninja
-if [ "${with_dftd4}" = "__INSTALL__" ] ||
-  [ "${with_tblite}" = "__INSTALL__" ]; then
-  [ "${with_ninja}" = "__DONTUSE__" ] && with_ninja="__INSTALL__"
-fi
-
-#tblite includes dftd4 - deactivate it
+# tblite includes dftd4 - deactivate it
 if [ "${with_tblite}" != "__DONTUSE__" ]; then
   with_dftd4="__DONTUSE__"
 fi
@@ -1048,7 +1042,6 @@ done
 # ------------------------------------------------------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
-  ./scripts/generate_cmake_options.sh
 else
   echo "# Leak suppressions" > ${INSTALLDIR}/lsan.supp
   ./scripts/stage0/install_stage0.sh
@@ -1061,5 +1054,7 @@ else
   ./scripts/stage7/install_stage7.sh
   ./scripts/stage8/install_stage8.sh
   ./scripts/stage9/install_stage9.sh
-  ./scripts/generate_cmake_options.sh
 fi
+
+# Generate CMake options
+./scripts/generate_cmake_options.sh

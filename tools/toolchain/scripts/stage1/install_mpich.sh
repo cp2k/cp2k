@@ -19,9 +19,6 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "mpich" ] && exit 0
 [ -f "${BUILDDIR}/setup_mpich" ] && rm "${BUILDDIR}/setup_mpich"
 
-MPICH_CFLAGS=""
-MPICH_LDFLAGS=""
-MPICH_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -157,7 +154,7 @@ append_path CPATH "${pkg_install_dir}/include"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
-  cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_mpich" "${SETUPFILE}"
 fi
 
 # Update leak suppression file

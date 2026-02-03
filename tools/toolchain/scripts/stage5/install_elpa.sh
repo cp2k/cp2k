@@ -18,9 +18,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_elpa" ] && rm "${BUILDDIR}/setup_elpa"
 
-ELPA_CFLAGS=''
-ELPA_LDFLAGS=''
-ELPA_LIBS=''
 elpa_dir_openmp="_openmp"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
@@ -171,10 +168,6 @@ case "${with_elpa}" in
 esac
 if [ "$with_elpa" != "__DONTUSE__" ]; then
   ELPA_LIBS="-lelpa${elpa_dir_openmp}"
-  cat << EOF > "${BUILDDIR}/setup_elpa"
-export ELPA_VER="${elpa_ver}"
-prepend_path CPATH "${elpa_include}"
-EOF
   if [ "$with_elpa" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_elpa"
 export ELPA_ROOT="${pkg_install_dir}"
@@ -184,6 +177,7 @@ prepend_path LD_RUN_PATH "${pkg_install_dir}/cpu/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/cpu/lib"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/cpu/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/cpu"
+prepend_path CPATH "${elpa_include}"
 EOF
     if [ -d ${pkg_install_dir}/nvidia ]; then
       cat << EOF >> "${BUILDDIR}/setup_elpa"
@@ -196,8 +190,8 @@ prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/nvidia"
 EOF
     fi
   fi
-  cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
   cat << EOF >> "${BUILDDIR}/setup_elpa"
+export ELPA_VER="${elpa_ver}"
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
 export ELPA_LDFLAGS="${ELPA_LDFLAGS}"
 export ELPA_LIBS="${ELPA_LIBS}"
@@ -207,7 +201,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"
 export ELPA_ROOT="${pkg_install_dir}"
 EOF
-
+  filter_setup "${BUILDDIR}/setup_elpa" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_elpa"

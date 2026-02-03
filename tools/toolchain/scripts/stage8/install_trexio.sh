@@ -98,7 +98,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${TREXIO_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${TREXIO_LDFLAGS}"
 export CP_LIBS="${TREXIO_LIBS} \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_trexio" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_trexio" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_trexio"

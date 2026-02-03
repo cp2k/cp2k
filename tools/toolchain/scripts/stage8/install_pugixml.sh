@@ -97,7 +97,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${PUGIXML_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${PUGIXML_LDFLAGS}"
 export CP_LIBS="IF_MPI(${PUGIXML_LIBS}|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_pugixml" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_pugixml" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_pugixml"

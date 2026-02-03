@@ -149,7 +149,7 @@ else
   touch "${BUILDDIR}/setup_dbcsr"
 fi
 
-cat "${BUILDDIR}/setup_dbcsr" >> ${SETUPFILE}
+filter_setup "${BUILDDIR}/setup_dbcsr" "${SETUPFILE}"
 
 load "${BUILDDIR}/setup_dbcsr"
 write_toolchain_env "${INSTALLDIR}"

@@ -14,9 +14,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_intel" ] && rm "${BUILDDIR}/setup_intel"
 
-INTEL_CFLAGS=""
-INTEL_LDFLAGS=""
-INTEL_LIBS=""
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -85,7 +82,7 @@ export INTEL_CFLAGS="${INTEL_CFLAGS}"
 export INTEL_LDFLAGS="${INTEL_LDFLAGS}"
 export INTEL_LIBS="${INTEL_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_intel" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_intel" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_intel"

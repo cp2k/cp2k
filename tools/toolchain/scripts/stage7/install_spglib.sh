@@ -100,7 +100,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${SPGLIB_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
 export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_spglib" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_spglib"

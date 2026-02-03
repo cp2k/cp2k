@@ -19,9 +19,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"
 
-GREENX_CFLAGS=""
-GREENX_LDFLAGS=""
-GREENX_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 with_greenx=${with_greenx:__DONTUSE__}
@@ -109,7 +106,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GREENX_LDFLAGS}"
 export CP_LIBS="${GREENX_LIBS} \${CP_LIBS}"
 export GREENX_ROOT="${pkg_install_dir}"
 EOF
-  cat "${BUILDDIR}/setup_greenx" >> "$SETUPFILE"
+  filter_setup "${BUILDDIR}/setup_greenx" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_greenx"

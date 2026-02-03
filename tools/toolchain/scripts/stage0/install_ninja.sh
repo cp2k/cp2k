@@ -54,7 +54,6 @@ case "${with_ninja}" in
     ;;
   __DONTUSE__)
     # Nothing to do
-    echo "Ninja required for DFTD4"
     ;;
   *)
     echo "==================== Linking Ninja to user paths ===================="
@@ -67,7 +66,7 @@ if [ "${with_ninja}" != "__DONTUSE__" ]; then
     cat << EOF > "${BUILDDIR}/setup_ninja"
 prepend_path PATH "${pkg_install_dir}/bin"
 EOF
-    cat "${BUILDDIR}/setup_ninja" >> $SETUPFILE
+    filter_setup "${BUILDDIR}/setup_ninja" "${SETUPFILE}"
   fi
 fi
 
