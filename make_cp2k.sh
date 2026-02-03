@@ -814,7 +814,7 @@ if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
   done
   if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
-    echo -e "\nLD_LIBRARY_PATH: \"${LD_LIBRARY_PATH}\""
+    echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
   else
     echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
@@ -826,7 +826,12 @@ export LD_LIBRARY_PATH
 
 # Create links to CP2K binaries
 cd "${INSTALL_PREFIX}"/bin || ${EXIT_CMD} 1
-ln -sf cp2k."${CP2K_VERSION}" cp2k
+for binary in *."${CP2K_VERSION}"; do
+  if ! ln -sf "${binary}" "${binary%%."${CP2K_VERSION}"}"; then
+    echo "ERROR: The creation of a symbolic link for the binary ${binary} failed"
+    ${EXIT_CMD}
+  fi
+done
 ln -sf cp2k."${CP2K_VERSION}" cp2k."${CP2K_VERSION/smp/opt}"
 ln -sf cp2k."${CP2K_VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
@@ -835,7 +840,14 @@ cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 if [[ "${MPI_MODE}" == "openmpi" ]] && [[ "${IN_CONTAINER}" == "yes" ]]; then
   OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
 else
-  OMPI_VARS=""
+  OMPI_VARS="export OMPI_MCA_plm_rsh_agent=/bin/false"
+fi
+
+# MPICH and OpenMPI have different flags for exporting environment variables to MPI ranks
+if [[ "${MPI_MODE}" == "openmpi" ]]; then
+  ENV_VAR_FLAG="-x"
+else
+  ENV_VAR_FLAG="-genv"
 fi
 
 # Assemble flags for running the regression tests
@@ -843,30 +855,27 @@ TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROC
 
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
   # Create entrypoint script file when building within a container
-  cat << *** > "${INSTALL_PREFIX}"/bin/entrypoint.sh
-#!/bin/bash
-ulimit -c 0 -s unlimited
-${OMPI_VARS}
-export OMP_STACKSIZE=64M
-export PATH=${INSTALL_PREFIX}/bin:${PATH}
-export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
-exec "\$@"
-***
-  chmod 750 "${INSTALL_PREFIX}"/bin/entrypoint.sh
+  WRAPPER_SCRIPT="${INSTALL_PREFIX}"/bin/entrypoint.sh
 else
-  # Otherwise put the environment setup in the regression test launch script
-  cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
-#!/bin/bash
-ulimit -c 0 -s unlimited
-${OMPI_VARS}
-export OMP_STACKSIZE=64M
-export PATH=${INSTALL_PREFIX}/bin:${PATH}
-export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
-***
+  # Otherwise, create a launch script with the environment setup needed for CP2K
+  WRAPPER_SCRIPT="${INSTALL_PREFIX}"/bin/launch
 fi
 
+# Create wrapper script for environment setup
+cat << *** > "${WRAPPER_SCRIPT}"
+#!/bin/bash
+ulimit -c 0 -s unlimited
+export PATH=${INSTALL_PREFIX}/bin:${PATH}
+export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
+export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-8}
+export OMP_STACKSIZE=64M
+${OMPI_VARS}
+exec "\$@"
+***
+chmod 750 "${WRAPPER_SCRIPT}"
+
 # Create shortcut for launching the regression tests
-cat << *** >> "${INSTALL_PREFIX}"/bin/run_tests
+cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
 ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | sort | uniq
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${CP2K_VERSION}
 ***
@@ -875,16 +884,41 @@ chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  if [[ "${IN_CONTAINER}" == "yes" ]]; then
-    "${INSTALL_PREFIX}"/bin/entrypoint.sh run_tests
-  else
-    "${INSTALL_PREFIX}"/bin/run_tests
-  fi
+  ${WRAPPER_SCRIPT} run_tests
   EXIT_CODE=$?
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The regression test run failed with the error code ${EXIT_CODE}"
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
 else
-  echo -e "\n*** A regression test run can be launched using the script ${INSTALL_PREFIX}/bin/run_tests\n"
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    echo ""
+    echo "*** A regression test run can be launched with"
+    echo "    podman run -it --rm <image id> run_tests"
+    echo ""
+    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+      echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
+      echo "    podman run -it --rm <image id> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+    else
+      echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
+      echo "    podman run -it --rm <image id> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+    fi
+    echo ""
+  else
+    echo ""
+    echo "*** A regression test run can be launched with"
+    echo "    ${INSTALL_PREFIX}/bin/launch run_tests"
+    echo ""
+    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+      echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
+      echo "    ${INSTALL_PREFIX}/bin/launch cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo ""
+      echo "*** A CP2K run using only 4 OpenMP threads can be launched with"
+      echo "    export OMP_NUM_THREADS=4; ${INSTALL_PREFIX}/bin/launch cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+    else
+      echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
+      echo "    export OMP_NUM_THREADS=2; ${INSTALL_PREFIX}/bin/launch mpirun -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+    fi
+    echo ""
+  fi
 fi
