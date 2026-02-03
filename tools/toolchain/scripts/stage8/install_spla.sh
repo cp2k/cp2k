@@ -190,7 +190,7 @@ EOF
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPLA_LDFLAGS}"
 EOF
   fi
-  cat "${BUILDDIR}/setup_spla" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_spla" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_spla"

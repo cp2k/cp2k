@@ -19,9 +19,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gcc" ] && rm "${BUILDDIR}/setup_gcc"
 
-GCC_LDFLAGS=""
-GCC_CFLAGS=""
-TSANFLAGS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -180,7 +177,7 @@ export GCC_CFLAGS="${GCC_CFLAGS}"
 export GCC_LDFLAGS="${GCC_LDFLAGS}"
 export TSANFLAGS="${TSANFLAGS}"
 EOF
-  cat "${BUILDDIR}/setup_gcc" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_gcc" "${SETUPFILE}"
 fi
 
 # ----------------------------------------------------------------------

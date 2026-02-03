@@ -131,7 +131,7 @@ export HDF5_LIBRARIES="${HDF5_LIBS}"
 export HDF5_HL_LIBRARIES="${HDF5_LIBS}"
 export HDF5_INCLUDE_DIRS="${pkg_install_dir}/include"
 EOF
-  cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_hdf5" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_hdf5"

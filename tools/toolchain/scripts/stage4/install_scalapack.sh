@@ -111,7 +111,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_scalapack" "${SETUPFILE}"
 fi
 cd "${ROOTDIR}"
 

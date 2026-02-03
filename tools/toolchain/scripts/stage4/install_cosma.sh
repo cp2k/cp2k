@@ -274,7 +274,7 @@ export COSMA_ROOT="$pkg_install_dir"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
 export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_cosma" "${SETUPFILE}"
 
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to COSMA (probably, only the last one is actually needed)

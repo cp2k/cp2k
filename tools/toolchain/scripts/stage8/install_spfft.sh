@@ -197,7 +197,7 @@ export SpFFT_ROOT="${pkg_install_dir}"
 export SPFFT_INCLUDE_DIR="${pkg_install_dir}/include"
 export CP_LIBS="IF_MPI(${SPFFT_LIBS}|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_spfft" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_spfft" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_spfft"

@@ -18,9 +18,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
 
-GMP_CFLAGS=""
-GMP_LDFLAGS=""
-GMP_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 with_gmp=${with_gmp:__DONTUSE__}
@@ -101,7 +98,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GMP_LDFLAGS}"
 export CP_LIBS="${GMP_LIBS} \${CP_LIBS}"
 export GMP_ROOT="${pkg_install_dir}"
 EOF
-  cat "${BUILDDIR}/setup_gmp" >> "$SETUPFILE"
+  filter_setup "${BUILDDIR}/setup_gmp" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_gmp"

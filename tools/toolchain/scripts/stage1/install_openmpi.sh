@@ -19,9 +19,6 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "openmpi" ] && exit 0
 [ -f "${BUILDDIR}/setup_openmpi" ] && rm "${BUILDDIR}/setup_openmpi"
 
-OPENMPI_CFLAGS=""
-OPENMPI_LDFLAGS=""
-OPENMPI_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -150,7 +147,7 @@ export MPI_LIBS="${OPENMPI_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
 # For proper mpi_f08 support, we need at least GCC version 9 (asynchronous keyword)
 # Other compilers should work
-  if ! [ "$(gfortran -dumpversion | cut -d. -f1)" -lt 9 ]; then
+  if ! [ "\$(gfortran -dumpversion | cut -d. -f1)" -lt 9 ]; then
     export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__MPI_F08|)"
   fi
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${OPENMPI_CFLAGS}|)"
@@ -166,7 +163,7 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
-  cat "${BUILDDIR}/setup_openmpi" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_openmpi" "${SETUPFILE}"
 fi
 
 # ----------------------------------------------------------------------

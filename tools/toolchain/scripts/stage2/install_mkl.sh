@@ -14,10 +14,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_mkl" ] && rm "${BUILDDIR}/setup_mkl"
 
-MKL_CFLAGS=""
-MKL_LDFLAGS=""
-MKL_LIBS=""
-
 MKL_FFTW="yes"
 if [ "${with_libvdwxc}" != "__DONTUSE__" ] && [ "${MPI_MODE}" != "no" ]; then
   report_warning ${LINENO} "MKL FFTW3 interface is present, but FFTW library is needed for FFTW-MPI wrappers."
@@ -128,7 +124,7 @@ export FFTW_LDFLAGS="${MKL_LDFLAGS}"
 export FFTW_LIBS="${MKL_LIBS}"
 EOF
   fi
-  cat "${BUILDDIR}/setup_mkl" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_mkl" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_mkl"

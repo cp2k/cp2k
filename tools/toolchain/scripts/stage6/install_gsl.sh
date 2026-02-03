@@ -94,7 +94,7 @@ prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib64/pkgconfig"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 export CP_LIBS="IF_MPI(${GSL_LIBS}|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_gsl" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_gsl" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_gsl"

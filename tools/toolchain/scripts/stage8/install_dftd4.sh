@@ -17,10 +17,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_dftd4" ] && rm "${BUILDDIR}/setup_dftd4"
 
-DFTD4_DFLAGS=''
-DFTD4_CFLAGS=''
-DFTD4_LDFLAGS=''
-DFTD4_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -54,14 +50,12 @@ case "$with_dftd4" in
       cd build
 
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
-        -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      cmake --build . -j $(get_nprocs) >> build.log 2>&1 || tail -n ${LOG_LINES} build.log
-      cmake --install . >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make install -j $(get_nprocs) >> make.log 2>&1 || tail -n ${LOG_LINES} build.log
 
       cd ..
     fi
@@ -71,9 +65,12 @@ case "$with_dftd4" in
   __SYSTEM__)
     echo "==================== Finding DFTD4 from system paths ===================="
     check_command pkg-config --modversion dftd4
-    add_include_from_paths DFTD4_CFLAGS "dftd4.h" $INCLUDE_PATHS
-    add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $INCLUDE_PATHS
-    add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $INCLUDE_PATHS
+    DFTD4_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
+    add_include_from_paths DFTD4_CFLAGS "dftd4.h" $DFTD4_INCLUDE_PATH
+    add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $DFTD4_INCLUDE_PATH
+    add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $DFTD4_INCLUDE_PATH
+    add_include_from_paths DFTD4_CFLAGS "mstore.mod" $DFTD4_INCLUDE_PATH
+    add_include_from_paths DFTD4_CFLAGS "multicharge.mod" $DFTD4_INCLUDE_PATH
     add_lib_from_paths DFTD4_LDFLAGS "libdftd4.*" $LIB_PATHS
     ;;
 
@@ -137,7 +134,7 @@ export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}"
 export CP_LIBS="\${DFTD4_LIBS} \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_dftd4" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_dftd4" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_dftd4"

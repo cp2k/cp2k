@@ -1708,13 +1708,6 @@ include_directories(
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbm>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod_files>)
 
-# include CPATH paths to the list of directories to include. gfortran does not
-# support CPATH at all
-if(DEFINED ENV{CPATH})
-  string(REPLACE ":" ";" INCLUDE_LIST $ENV{CPATH})
-  include_directories(${INCLUDE_LIST})
-endif()
-
 add_library(cp2k_link_libs INTERFACE)
 
 # the order is important so keep it that way

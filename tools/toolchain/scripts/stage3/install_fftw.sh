@@ -120,7 +120,7 @@ export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 export FFTW_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 export FFTW3_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 EOF
-  cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_fftw" "${SETUPFILE}"
 fi
 cd "${ROOTDIR}"
 

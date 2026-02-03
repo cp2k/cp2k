@@ -16,10 +16,6 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libsmeagol" ] && rm "${BUILDDIR}/setup_libsmeagol"
 
-LIBSMEAGOL_CFLAGS=""
-LIBSMEAGOL_LDFLAGS=""
-LIBSMEAGOL_LIBS=""
-
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -108,7 +104,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBSMEAGOL_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${LIBSMEAGOL_LIBS}|) \${CP_LIBS}"
 export LIBSMEAGOL_ROOT="${pkg_install_dir}"
 EOF
-  cat "${BUILDDIR}/setup_libsmeagol" >> $SETUPFILE
+  filter_setup "${BUILDDIR}/setup_libsmeagol" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_libsmeagol"

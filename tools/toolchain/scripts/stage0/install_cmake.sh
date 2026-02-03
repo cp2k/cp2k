@@ -80,7 +80,7 @@ if [ "${with_cmake}" != "__DONTUSE__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cmake"
 prepend_path PATH "${pkg_install_dir}/bin"
 EOF
-    cat "${BUILDDIR}/setup_cmake" >> $SETUPFILE
+    filter_setup "${BUILDDIR}/setup_cmake" "${SETUPFILE}"
   fi
 fi
 

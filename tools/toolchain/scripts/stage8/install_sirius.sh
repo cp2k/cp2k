@@ -23,9 +23,6 @@ fi
 
 [ -f "${BUILDDIR}/setup_sirius" ] && rm "${BUILDDIR}/setup_sirius"
 
-SIRIUS_CFLAGS=''
-SIRIUS_LDFLAGS=''
-SIRIUS_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -271,7 +268,6 @@ prepend_path CPATH "${pkg_install_dir}/include/sirius"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
-    cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
 export SIRIUS_CFLAGS="IF_CUDA(-I${pkg_install_dir}/cuda/include/sirius|-I${pkg_install_dir}/include/sirius)"
@@ -284,6 +280,7 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI("\${SIRIUS_CFLAGS}"|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(IF_CUDA("\${SIRIUS_CUDA_LDFLAGS}"|"\${SIRIUS_LDFLAGS}")|)"
 export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
+  filter_setup "${BUILDDIR}/setup_sirius" "${SETUPFILE}"
   cat << EOF >> ${INSTALLDIR}/lsan.supp
 # leaks related to SIRIUS
 leak:cublasXtDeviceSelect

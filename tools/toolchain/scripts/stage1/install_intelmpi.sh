@@ -15,9 +15,6 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "intelmpi" ] && exit 0
 rm -f "${BUILDDIR}/setup_intelmpi"
 
-INTELMPI_CFLAGS=""
-INTELMPI_LDFLAGS=""
-INTELMPI_LIBS=""
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -123,7 +120,7 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
-  cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_intelmpi" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_intelmpi"

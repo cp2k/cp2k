@@ -114,7 +114,7 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
-    cat "${BUILDDIR}/setup_plumed" >> $SETUPFILE
+    filter_setup "${BUILDDIR}/setup_plumed" "${SETUPFILE}"
   fi
   cat << EOF >> "${BUILDDIR}/setup_plumed"
 export PLUMED_LDFLAGS="${PLUMED_LDFLAGS}"
