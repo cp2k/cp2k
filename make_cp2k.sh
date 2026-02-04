@@ -643,7 +643,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     fi
   fi
 
-  spack find -c
+  ((VERBOSE > 0)) && spack find -c
 
   # Create spack makefile for all dependencies
   if ! spack -e "${CP2K_ENV}" env depfile -o spack_makefile; then
@@ -702,7 +702,11 @@ else
 fi
 
 # Activate spack environment
-eval "$(spack env activate --sh ${CP2K_ENV})"
+if ((VERBOSE > 0)); then
+  eval "$(spack env activate --sh ${CP2K_ENV})"
+else
+  eval "$(spack env activate --sh ${CP2K_ENV} &> /dev/null)"
+fi
 
 spack env status
 
