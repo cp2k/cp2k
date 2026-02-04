@@ -523,7 +523,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   spack mirror list
   if ! spack mirror list | grep -q "local-cache"; then
     echo "Setting up local spack cache"
-    "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
+    if ((VERBOSE > 0)); then
+      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
+    else
+      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh &> /dev/null
+    fi
   else
     echo "INFO: A local Spack cache is NOT used"
   fi
@@ -615,12 +619,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   spack -e ${CP2K_ENV} repo list
 
-  # Find all compilers
-  if ! spack compiler find; then
-    echo "ERROR: The compiler detection of spack failed"
-    ${EXIT_CMD} 1
-  fi
-
   # Find all external packages
   if [[ "${USE_EXTERNALS}" == "yes" ]]; then
     if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable; then
@@ -658,6 +656,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       echo "HINT:  Try to re-run the build with the --no_externals flag which avoids errors"
       echo "       or conflicts caused by externals from the host system"
     fi
+    ${EXIT_CMD} 1
+  fi
+
+  # Find all compilers
+  if ! spack compiler find; then
+    echo "ERROR: The compiler detection of spack failed"
     ${EXIT_CMD} 1
   fi
 
@@ -702,11 +706,7 @@ else
 fi
 
 # Activate spack environment
-if ((VERBOSE > 0)); then
-  eval "$(spack env activate --sh ${CP2K_ENV})"
-else
-  eval "$(spack env activate --sh ${CP2K_ENV} &> /dev/null)"
-fi
+eval "$(spack env activate --sh ${CP2K_ENV})"
 
 spack env status
 
