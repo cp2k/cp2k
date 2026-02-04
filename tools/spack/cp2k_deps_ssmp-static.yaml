@@ -1,0 +1,107 @@
+# Spack environment file for serial statically linked CP2K binary
+
+spack:
+  concretizer:
+    unify: true
+
+  config:
+    install_tree:
+      padded_length: 128
+      root: /opt/spack
+
+  modules:
+    prefix_inspections:
+      ./lib:
+        - LD_LIBRARY_PATH
+      ./lib64:
+        - LD_LIBRARY_PATH
+
+  packages:
+    all:
+      buildable: true
+      prefer:
+        - "~cuda"
+        - "~mpi"
+        - "~mpi_f08"
+        - "+openmp"
+        - "+pic"
+        - "~rocm"
+        - "+static"
+        - "build_system=cmake"
+        - "build_type=Release"
+
+    # ScaLAPACK, LAPACK, BLAS
+    blas:
+      require:
+        - openblas
+
+    lapack:
+      require:
+        - openblas
+
+    libxsmm:
+      require:
+        - "blas=default"
+
+    openblas:
+      require:
+        - "+fortran"
+        - "threads=openmp"
+
+    # Libraries needed by CP2K
+    dbcsr:
+      require:
+        - "~examples"
+        - "+openmp"
+        - "smm=libxsmm"
+
+    fftw:
+      require:
+        - "+openmp"
+
+    hdf5:
+      require:
+        - "+fortran"
+
+    libint:
+      require:
+        - "+fortran"
+        - "tune=cp2k-lmax-5"
+
+    libxc:
+      require:
+        - "+kxc"
+
+    trexio:
+      require:
+        - "+hdf5"
+
+  specs:
+    # Build tools
+    - "cmake@3.27:"
+    - "gcc@10:"
+    - "gmake@4.2:"
+    - "ninja@1.10:"
+    - "python@3.11:"
+    # CP2K
+    - "dbcsr@2.9.1"
+    - "dftd4@3.7.0"
+    - "fftw@3.3.10"
+#    - "greenx@2.2"
+    - "hdf5@1.14.6"
+    - "libint@2.11.1"
+    - "libvori@220621"
+    - "libxc@7.0.0"
+    - "libxsmm@1.17-cp2k"
+    - "openblas@0.3.30"
+#    - "pace@2025.12.4"
+#    - "spglib@2.5.0"
+    - "tblite@0.5.0"
+    - "trexio@2.5.0"
+
+  view:
+    default:
+      root: /opt/spack/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime

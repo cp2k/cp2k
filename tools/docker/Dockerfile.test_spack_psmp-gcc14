@@ -13,9 +13,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++-14 \
-    gcc-14 \
-    gfortran-14 \
+    g++ g++-14 gcc gcc-14 gfortran gfortran-14 \
     git \
     gnupg \
     libssh-dev \
@@ -38,11 +36,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Create links in /usr/local/bin to override tbe links in /usr/bin
-RUN ln -sf /usr/bin/gcc-14      /usr/local/bin/gcc && \
-    ln -sf /usr/bin/g++-14      /usr/local/bin/g++ && \
-    ln -sf /usr/bin/gfortran-14 /usr/local/bin/gfortran
-
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 # Copy CP2K repository into container
@@ -51,10 +44,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 14 -mpi mpich -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 14 -mpi mpich"
 
 ###### Stage 2: Install CP2K ######
 
@@ -62,16 +55,9 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++-14 \
-    gcc-14 \
-    gfortran-14 \
+    g++ g++-14 gcc gcc-14 gfortran gfortran-14 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
-
-# Create links in /usr/local/bin to override tbe links in /usr/bin
-RUN ln -sf /usr/bin/gcc-14      /usr/local/bin/gcc && \
-    ln -sf /usr/bin/g++-14      /usr/local/bin/g++ && \
-    ln -sf /usr/bin/gfortran-14 /usr/local/bin/gfortran
 
 WORKDIR /opt/cp2k
 

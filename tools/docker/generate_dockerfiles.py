@@ -57,7 +57,7 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_cp2k_spack("psmp", mpi_mode="mpich"))
 
-    for gcc_version in 10, 11, 12, 14:
+    for gcc_version in 10, 11, 12, 14, 15:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
@@ -567,6 +567,10 @@ def install_cp2k_spack(
     gcc_version: int = 13,
     testopts: str = "",
 ) -> str:
+    if gcc_version in (13, 15):
+        gcc_compilers = "g++ gcc gfortran"
+    else:
+        gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
     output = rf"""
 ARG BASE_IMAGE="ubuntu:24.04"
 
@@ -578,9 +582,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++-{gcc_version} \
-    gcc-{gcc_version} \
-    gfortran-{gcc_version} \
+    {gcc_compilers} \
     git \
     gnupg \
     libssh-dev \
@@ -603,11 +605,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Create links in /usr/local/bin to override tbe links in /usr/bin
-RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc && \
-    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++ && \
-    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
-
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 # Copy CP2K repository into container
@@ -616,10 +613,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -mpi {mpi_mode}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -mpi {mpi_mode}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -mpi {mpi_mode}"
 
 ###### Stage 2: Install CP2K ######
 
@@ -627,16 +624,9 @@ FROM "${{BASE_IMAGE}}" AS install_cp2k
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++-{gcc_version} \
-    gcc-{gcc_version} \
-    gfortran-{gcc_version} \
+    {gcc_compilers} \
     python3 \
     && rm -rf /var/lib/apt/lists/*
-
-# Create links in /usr/local/bin to override tbe links in /usr/bin
-RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc && \
-    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++ && \
-    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
 WORKDIR /opt/cp2k
 

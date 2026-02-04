@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-gcc15 ../../
 #
 
 ARG BASE_IMAGE="ubuntu:24.04"
@@ -44,10 +44,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 13 -mpi mpich -ue"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 15 -mpi mpich -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 13 -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 15 -mpi mpich"
 
 ###### Stage 2: Install CP2K ######
 
