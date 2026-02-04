@@ -201,15 +201,7 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      ! input section print/xc
       NULLIFY (tddfpt_section, tddfpt_control)
-
-      CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, &
-                        do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, &
-                        lri_section, hfxsr_section)
-
-      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", &
-                                      extension=".tddfptLog")
 
       CALL get_qs_env(qs_env, &
                       blacs_env=blacs_env, &
@@ -231,6 +223,14 @@ CONTAINS
          tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
          tddfpt_control => dft_control%tddfpt2_control
       END IF
+
+      ! input section print/xc
+      CALL tddfpt_input(qs_env, tddfpt_section, tddfpt_control, do_hfx, do_admm, do_exck, &
+                        do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, &
+                        lri_section, hfxsr_section)
+
+      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", &
+                                      extension=".tddfptLog")
 
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
@@ -602,6 +602,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief TDDFPT input
 !> \param qs_env  Quickstep environment
+!> \param tddfpt_section ...
+!> \param tddfpt_control ...
 !> \param do_hfx ...
 !> \param do_admm ...
 !> \param do_exck ...
@@ -612,9 +614,12 @@ CONTAINS
 !> \param lri_section ...
 !> \param hfxsr_section ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxsr, do_hfxlr, &
-                           xc_section, tddfpt_print_section, lri_section, hfxsr_section)
+   SUBROUTINE tddfpt_input(qs_env, tddfpt_section, tddfpt_control, do_hfx, do_admm, do_exck, &
+                           do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, lri_section, &
+                           hfxsr_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: tddfpt_section
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm, do_exck, do_hfxsr, &
                                                             do_hfxlr
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section, &
@@ -627,12 +632,10 @@ CONTAINS
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_section_gs, input, &
-                                                            tddfpt_section, xc_root, xc_sub
-      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+                                                            xc_root, xc_sub
 
       NULLIFY (dft_control, input)
       CALL get_qs_env(qs_env, dft_control=dft_control, input=input)
-      tddfpt_control => dft_control%tddfpt2_control
 
       ! no k-points
       IF (dft_control%nimages > 1) CPABORT("k-points not implemented for TDDFPT")
@@ -644,8 +647,7 @@ CONTAINS
          RETURN
       END IF
 
-      NULLIFY (tddfpt_section, tddfpt_print_section)
-      tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
+      NULLIFY (tddfpt_print_section)
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
