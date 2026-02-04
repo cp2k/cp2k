@@ -548,6 +548,56 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
   fi
 
+  # Find all compilers
+  if ! spack compiler find; then
+    echo "ERROR: The compiler detection of spack failed"
+    ${EXIT_CMD} 1
+  fi
+
+  # Retrieve the newest compiler version found by spack
+  GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
+  echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
+  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
+
+  # Check if the newest compiler version found on the host system is new enough
+  GCC_VERSION_MINIMUM="10"
+  if ((GCC_VERSION_NEWEST < GCC_VERSION_MINIMUM)); then
+    echo "INFO: The newest GCC compiler version ${GCC_VERSION_NEWEST} is too old,"
+    echo "      because at least version ${GCC_VERSION_MINIMUM} is required"
+    GCC_VERSION="14"
+    echo "INFO: The lastest stable GCC version ${GCC_VERSION} will be built and used by spack"
+  fi
+
+  # Provide the selected GCC version
+  if [[ "${GCC_VERSION}" != "auto" ]]; then
+    # Ask spack to add the requested GCC version
+    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+      if spack install "gcc@${GCC_VERSION}"; then
+        echo "The GCC version ${GCC_VERSION} was installed successfully"
+      else
+        echo "ERROR: The installation of GCC version ${GCC_VERSION} failed"
+        ${EXIT_CMD} 1
+      fi
+    else
+      if spack --no-user-config --no-system-config install "gcc@${GCC_VERSION}"; then
+        echo "The GCC version ${GCC_VERSION} was installed successfully"
+      else
+        echo "ERROR: The installation of GCC version ${GCC_VERSION} failed"
+        ${EXIT_CMD} 1
+      fi
+    fi
+    if spack load "gcc@${GCC_VERSION}"; then
+      echo "GCC version ${GCC_VERSION} loaded successfully"
+    else
+      echo "Loading GCC version ${GCC_VERSION} failed"
+    fi
+    # Find all compilers
+    if ! spack compiler find; then
+      echo "ERROR: The compiler detection of spack failed"
+      ${EXIT_CMD} 1
+    fi
+  fi
+
   # Create CP2K environment if needed
   if spack env list | grep -q "${CP2K_ENV}"; then
     if [[ -n "${SPACK_ENV}" ]]; then
@@ -588,37 +638,22 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   spack -e ${CP2K_ENV} repo list
 
-  if [[ "${GCC_VERSION}" != "auto" ]]; then
-    # Ask spack to add the requested GCC version
-    if spack install --add "gcc@${GCC_VERSION}"; then
-      echo "GCC version \"${GCC_VERSION}\" added for installation by spack"
-    else
-      echo "ERROR: Adding GCC version \"${GCC_VERSION}\" for installation failed"
-      ${EXIT_CMD} 1
-    fi
-  fi
-
   # Find all compilers
   if ! spack compiler find; then
     echo "ERROR: The compiler detection of spack failed"
     ${EXIT_CMD} 1
   fi
 
-  # Retrieve the newest compiler version found by spack
-  GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
-  echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
-  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
-
-  # Check if the newest compiler version found on the host system is new enough
-  GCC_VERSION_MINIMUM="10"
-  if ((GCC_VERSION_NEWEST < GCC_VERSION_MINIMUM)); then
-    echo "ERROR: The selected GCC compiler version ${GCC_VERSION_NEWEST} is too old,"
-    echo "       because at least version ${GCC_VERSION_MINIMUM} is required"
-    ${EXIT_CMD} 1
-  fi
-
   if [[ "${GCC_VERSION}" == "auto" ]]; then
     echo "Spack will automatically select the GCC version which is not necessarily the newest one found"
+  else
+    # Add the requested GCC version to the current (active) environment
+    if spack add "gcc@${GCC_VERSION}"; then
+      echo "The GCC version ${GCC_VERSION} was added successfully to ${CP2K_ENV}"
+    else
+      echo "ERROR: Adding GCC version ${GCC_VERSION} to ${CP2K_ENV} failed"
+      ${EXIT_CMD} 1
+    fi
   fi
 
   spack find -c
@@ -894,14 +929,14 @@ else
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
     echo ""
     echo "*** A regression test run can be launched with"
-    echo "    podman run -it --rm <image id> run_tests"
+    echo "    podman run -it --rm <IMAGE ID> run_tests"
     echo ""
     if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
-      echo "    podman run -it --rm <image id> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it --rm <IMAGE ID> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-      echo "    podman run -it --rm <image id> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it --rm <IMAGE ID> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
     echo ""
   else
