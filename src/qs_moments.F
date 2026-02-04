@@ -128,7 +128,7 @@ MODULE qs_moments
    PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: qs_moment_kpoints, build_local_moment_matrix_rs_img
-   PUBLIC :: qs_moment_kpoints_old
+   PUBLIC :: qs_moment_kpoints_deep
    PUBLIC :: dipole_deriv_ao
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: build_dsdv_moments
@@ -3899,8 +3899,6 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: special_pnts
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all
 
@@ -4039,6 +4037,9 @@ CONTAINS
 !$OMP END DO
       DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals, bc)
 !$OMP END PARALLEL
+      DEALLOCATE (S_rs, H_rs, D_rs)
+      CALL dbcsr_deallocate_matrix_set(moments_rs_img)
+      CALL kpoint_release(kpoints_all)
       CALL timestop(handle)
    END SUBROUTINE qs_moment_kpoints_deep
 
