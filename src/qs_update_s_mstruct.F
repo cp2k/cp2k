@@ -20,7 +20,8 @@ MODULE qs_update_s_mstruct
                                               do_ppl_grid,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri
-   USE kinds,                           ONLY: default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
@@ -67,11 +68,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_s_mstruct'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, nk
       LOGICAL                                            :: do_ppl
+      REAL(KIND=dp)                                      :: wtot
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core, rho_nlcc_g
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, vppl
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, vppl, xcint_weights
 
       CALL timeset(routineN, handle)
 
@@ -128,6 +131,19 @@ CONTAINS
       IF (ASSOCIATED(rho_nlcc)) THEN
          CALL calculate_rho_nlcc(rho_nlcc, qs_env)
          CALL pw_transfer(rho_nlcc, rho_nlcc_g)
+      END IF
+
+      ! compute the xcint_weights
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
+            CALL get_qs_env(qs_env, xcint_weights=xcint_weights, nkind=nk)
+            ALLOCATE (cw(nk))
+            cw = 1.0_dp
+            CALL calculate_rho_core(xcint_weights, wtot, qs_env, &
+                                    dft_control%qs_control%gapw_control%aw, cw)
+            xcint_weights%array = 1.0_dp + xcint_weights%array
+            DEALLOCATE (cw)
+         END IF
       END IF
 
       ! allocates and creates the task_list

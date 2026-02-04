@@ -59,6 +59,7 @@ MODULE qs_tddfpt2_subgroups
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_retain,&
                                               pw_env_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -129,6 +130,8 @@ MODULE qs_tddfpt2_subgroups
       TYPE(distribution_2d_type), POINTER                :: dist_2d => NULL()
       !> group-specific plane wave environment
       TYPE(pw_env_type), POINTER                         :: pw_env => NULL()
+      !> integration weights
+      TYPE(pw_r3d_rs_type), POINTER                      :: xcint_weights => Null()
       !> lists of neighbours in auxiliary and primary basis sets
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                           :: sab_aux_fit => NULL(), sab_orb => NULL()
@@ -196,6 +199,7 @@ CONTAINS
       TYPE(mgrid_saved_parameters)                       :: mgrid_saved
       TYPE(mp_para_env_type), POINTER                    :: para_env_global
       TYPE(pw_env_type), POINTER                         :: pw_env_global
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -219,6 +223,12 @@ CONTAINS
       ALLOCATE (sub_env%mos_occ(nspins))
       ALLOCATE (sub_env%mos_active(nspins))
       NULLIFY (sub_env%admm_A)
+
+      CALL get_qs_env(qs_env, xcint_weights=weights)
+      sub_env%xcint_weights => weights
+      IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
+         CPABORT('subgroups and integration weights not compatible')
+      END IF
 
       IF (sub_env%is_split) THEN
          ALLOCATE (sub_env%group_distribution(0:para_env_global%num_pe - 1))
@@ -294,6 +304,10 @@ CONTAINS
          IF (sub_env%is_mgrid) THEN
             IF (tddfpt_control%mgrid_is_explicit) &
                CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+
+            IF (ASSOCIATED(weights)) THEN
+               CPABORT('Redefining MGRID and integration weights not compatible')
+            END IF
 
             NULLIFY (sub_env%pw_env)
 

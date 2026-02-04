@@ -510,7 +510,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=160)                                 :: shortform
-      CHARACTER(LEN=20)                                  :: tmpStr
       CHARACTER(len=:), ALLOCATABLE                      :: reference
       INTEGER                                            :: ifun, il, meth, myfun, reltyp
       LOGICAL                                            :: lsd
@@ -600,8 +599,6 @@ CONTAINS
       lsd = (meth == do_uks_atom)
 
       IF (myfun /= xc_none) THEN
-         CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", c_val=tmpStr)
-         IF (iw > 0) WRITE (iw, fmt="(' FUNCTIONAL| ROUTINE=',a)") TRIM(tmpStr)
          CALL xc_functionals_expand(xc_fun_section, xc_section)
          IF (iw > 0) THEN
             ifun = 0

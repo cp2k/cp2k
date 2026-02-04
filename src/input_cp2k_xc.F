@@ -46,11 +46,10 @@ MODULE input_cp2k_xc
    USE xc_input_constants,              ONLY: &
         c_pw92, c_pw92dmc, c_pw92vmc, c_pz, c_pzdmc, c_pzvmc, do_vwn3, do_vwn5, ke_lc, ke_llp, &
         ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, ke_t92, pz_orig, xalpha, xc_b97_3c, &
-        xc_b97_grimme, xc_b97_mardirossian, xc_b97_orig, xc_debug_new_routine, &
-        xc_default_f_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
-        xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
-        xc_deriv_spline3_smooth, xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
-        xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_test_lsd_f_routine, &
+        xc_b97_grimme, xc_b97_mardirossian, xc_b97_orig, xc_deriv_collocate, xc_deriv_nn10_smooth, &
+        xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+        xc_deriv_spline3, xc_deriv_spline3_smooth, xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, &
+        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
         xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, xgga_pw86, xgga_pw91, xgga_revpbe
    USE xc_libxc,                        ONLY: libxc_add_sections
 #include "./base/base_uses.f90"
@@ -1316,19 +1315,6 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="tau_cutoff", &
                           description="The cutoff on tau used by the xc calculation", &
                           usage="tau_cutoff 1.e-11", default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="FUNCTIONAL_ROUTINE", &
-         description="Select the code for xc calculation", &
-         usage="FUNCTIONAL_ROUTINE (DEFAULT|TEST_LSD|DEBUG)", &
-         default_i_val=xc_default_f_routine, &
-         enum_c_vals=s2a("DEFAULT", "TEST_LSD", "DEBUG"), &
-         enum_i_vals=[xc_default_f_routine, xc_test_lsd_f_routine, xc_debug_new_routine], &
-         enum_desc=s2a("Carry out exchange-correlation functional calculation", &
-                       "Use test local-spin-density approximation code for exchange-correlation functional calculation", &
-                       "Use debug new code for exchange-correlation functional calculation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

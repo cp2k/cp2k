@@ -986,6 +986,9 @@ CONTAINS
       IF (qs_control%gapw_control%basis_1c /= gapw_1c_orb) THEN
          qs_control%gapw_control%eps_svd = MAX(qs_control%gapw_control%eps_svd, 1.E-12_dp)
       END IF
+      ! GAPW accurate integration
+      CALL section_vals_val_get(qs_section, "GAPW_ACCURATE_XCINT", l_val=qs_control%gapw_control%accurate_xcint)
+      CALL section_vals_val_get(qs_section, "ALPHA_WEIGHTS", r_val=qs_control%gapw_control%aweights)
 
       ! Integers grids
       CALL section_vals_val_get(qs_section, "PW_GRID", i_val=itmp)
@@ -2447,6 +2450,12 @@ CONTAINS
             "QS|                         eps_ppnl:", &
             qs_control%eps_ppnl
          IF (qs_control%gapw) THEN
+            IF (qs_control%gapw_control%accurate_xcint) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.6)") &
+                  "QS| GAPW|      XC integration using accurate scheme: Ref. exponent =", &
+                  qs_control%gapw_control%aweights
+            END IF
+            !
             SELECT CASE (qs_control%gapw_control%basis_1c)
             CASE (gapw_1c_orb)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &

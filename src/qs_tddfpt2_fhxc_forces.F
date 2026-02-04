@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_fhxc_forces
+   USE accint_weights_forces,           ONLY: accint_weight_force
    USE admm_methods,                    ONLY: admm_projection_derivative
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
@@ -218,6 +219,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: xv_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                                             rho_r_aux, rhox_r, rhox_r_aux, rhoxx_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -282,6 +284,7 @@ CONTAINS
       END DO
       !
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, para_env=para_env)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
       !
       NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
       IF (gapw .OR. gapw_xc) THEN
@@ -554,13 +557,14 @@ CONTAINS
             IF (.NOT. do_sf) THEN
                CPABORT("Analytic 3rd EXC derivatives not available")
             ELSE !TODO
-               CALL qs_fgxc_analytic(rho, rhox, xc_section, auxbas_pw_pool, &
+               CALL get_qs_env(qs_env, xcint_weights=weights)
+               CALL qs_fgxc_analytic(rho, rhox, xc_section, weights, auxbas_pw_pool, &
                                      fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             END IF
          ELSEIF (do_numeric) THEN
             IF (do_analytic) THEN
                CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
-                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
+                                  weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             ELSE
                CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, order, is_rks_triplets, &
                                    fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -568,12 +572,6 @@ CONTAINS
          ELSE
             CPABORT("FHXC forces analytic/numeric")
          END IF
-
-         ! Well, this is a hack :-(
-         ! When qs_rho_set() was called on rhox it assumed ownership of the passed arrays.
-         ! However, these arrays actually belong to ex_env. Hence, we can not call qs_rho_release()
-         ! because this would release the arrays. Instead we're simply going to deallocate rhox.
-         DEALLOCATE (rhox)
 
          IF (nspins == 2) THEN
             DO ispin = 1, nspins
@@ -643,6 +641,21 @@ CONTAINS
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]", fodeb
          END IF
          CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+         ! grid weight contribution to forces
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         CALL accint_weight_force(qs_env, rho, rhox, 2, xc_section, is_rks_triplets)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*fxc[Dx]*dw", fodeb
+         END IF
+
+         ! Well, this is a hack :-(
+         ! When qs_rho_set() was called on rhox it assumed ownership of the passed arrays.
+         ! However, these arrays actually belong to ex_env. Hence, we can not call qs_rho_release()
+         ! because this would release the arrays. Instead we're simply going to deallocate rhox.
+         DEALLOCATE (rhox)
 
          IF (gapw .OR. gapw_xc) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
@@ -734,13 +747,24 @@ CONTAINS
             ELSEIF (do_numeric) THEN
                IF (do_analytic) THEN
                   CALL qs_fgxc_gdiff(ks_env, rho_aux_fit, rhox_aux, xc_section, order, eps_delta, &
-                                     is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+                                     is_rks_triplets, weights, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                ELSE
                   CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
                                       order, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                END IF
             ELSE
                CPABORT("FHXC forces analytic/numeric")
+            END IF
+
+            ! grid weight contribution to forces ADMM XC correction term
+            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            !
+            CALL accint_weight_force(qs_env, rho_aux_fit, rhox_aux, 2, xc_section, is_rks_triplets)
+            !
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL para_env%sum(fodeb)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx_admm*fxc[Dx_admm]*dw", fodeb
             END IF
 
             ! Well, this is a hack :-(

@@ -106,6 +106,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
 
@@ -113,7 +114,7 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool, pw_env, rho_r, vxc, vxc_tau)
 
-      CALL get_qs_env(qs_env, pw_env=pw_env)
+      CALL get_qs_env(qs_env, pw_env=pw_env, xcint_weights=weights)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ! Get density
       CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
@@ -123,6 +124,7 @@ CONTAINS
                              rho_r=rho_r, &            ! place where derivative is evaluated
                              tau_r=tau_r, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
+                             weights=weights, &
                              xc_section=xc_section)
 
       ! folding of second deriv with density in rho1_set
@@ -134,6 +136,7 @@ CONTAINS
                              rho1_g=rho1_g, &          ! density with which to fold
                              tau1_r=tau1_r, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
+                             weights=weights, &
                              xc_section=xc_section, &
                              gapw=.FALSE., &
                              compute_virial=compute_virial, &

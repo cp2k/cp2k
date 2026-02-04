@@ -92,6 +92,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
 
       CALL timeset(routineN, handle)
@@ -102,6 +103,13 @@ CONTAINS
          sab_orb => sub_env%sab_orb
 
          nspins = SIZE(sub_env%mos_occ)
+
+         NULLIFY (weights)
+         weights => sub_env%xcint_weights
+         IF (sub_env%is_split .AND. ASSOCIATED(weights)) THEN
+            CPABORT("Split communicators and integration weights")
+         END IF
+
       ELSE
          CPASSERT(PRESENT(qs_env))
 
@@ -110,6 +118,9 @@ CONTAINS
                          dbcsr_dist=dbcsr_dist, &
                          sab_orb=sab_orb, &
                          dft_control=dft_control)
+
+         NULLIFY (weights)
+         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
 
          nspins = dft_control%nspins
 
@@ -154,14 +165,14 @@ CONTAINS
          END IF
 
          CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r2, &
-                                auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r2)
+                                auxbas_pw_pool, weights, xc_section=xc_section, tau_r=tau_ij_r2)
 
          IF (ASSOCIATED(tau_ij_r)) DEALLOCATE (tau_ij_r2)
 
          DEALLOCATE (rho_ij_r2)
       ELSE
          CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r, &
-                                auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r)
+                                auxbas_pw_pool, weights, xc_section=xc_section, tau_r=tau_ij_r)
       END IF
 
       ! ++ allocate structure for response density

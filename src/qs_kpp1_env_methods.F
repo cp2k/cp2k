@@ -148,6 +148,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho1_r_pw, tau1_r, tau1_r_pw, &
                                                             v_rspace_new, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
@@ -273,9 +274,12 @@ CONTAINS
 
       END IF
 
+      NULLIFY (weights)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
+
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
-                             rho1_r_pw, rho1_g_pw, tau1_r_pw, auxbas_pw_pool, xc_section, .FALSE., &
-                             do_excitations=.TRUE., do_triplet=do_triplet, &
+                             rho1_r_pw, rho1_g_pw, tau1_r_pw, auxbas_pw_pool, weights, &
+                             xc_section, .FALSE., do_excitations=.TRUE., do_triplet=do_triplet, &
                              compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins
@@ -496,6 +500,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: my_rho_r, my_tau_r, rho_r, tau_r
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: admm_xc_section, input, xc_section
 
@@ -506,6 +511,9 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env, &
                       matrix_s=matrix_s, rho=rho, input=input, &
                       admm_env=admm_env, dft_control=dft_control)
+
+      NULLIFY (weights)
+      CALL get_qs_env(qs_env, xcint_weights=weights)
 
       CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
       nspins = SIZE(rho_r)
@@ -551,7 +559,7 @@ CONTAINS
 
          ALLOCATE (kpp1_env%deriv_set, kpp1_env%rho_set)
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
-                                my_rho_r, auxbas_pw_pool, &
+                                my_rho_r, auxbas_pw_pool, weights, &
                                 xc_section=xc_section, tau_r=my_tau_r)
 
          IF (nspins == 1 .AND. do_triplet) THEN
@@ -578,7 +586,7 @@ CONTAINS
                CALL qs_rho_get(rho, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
-                                      rho_r, auxbas_pw_pool, &
+                                      rho_r, auxbas_pw_pool, weights, &
                                       xc_section=admm_xc_section)
             END IF
          END IF

@@ -401,6 +401,7 @@ CONTAINS
 !> \param kinetic ...
 !> \param qs_charges ...
 !> \param vppl ...
+!> \param xcint_weights ...
 !> \param rho_core ...
 !> \param rho_nlcc ...
 !> \param rho_nlcc_g ...
@@ -508,7 +509,8 @@ CONTAINS
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
                          rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
-                         vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
+                         vppl, xcint_weights, rho_core, rho_nlcc, rho_nlcc_g, &
+                         ks_env, ks_qmmm_env, wf_history, scf_env, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
                          molecule_set, subsys, cp_subsys, oce, local_rho_set, rho_atom_set, &
                          task_list, task_list_soft, &
@@ -572,7 +574,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
-      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: vppl
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: vppl, xcint_weights
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho_core
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho_nlcc
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho_nlcc_g
@@ -816,6 +818,7 @@ CONTAINS
                       matrix_s_RI_aux_kp=matrix_s_RI_aux_kp, &
                       rho=rho, &
                       rho_xc=rho_xc, &
+                      xcint_weights=xcint_weights, &
                       rho_core=rho_core, &
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g, &

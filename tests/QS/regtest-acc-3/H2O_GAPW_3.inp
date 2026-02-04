@@ -1,0 +1,93 @@
+##REFERENCE##
+#
+# PBE
+# HF Energy  -76.3600550759
+#
+# Excited State   1:      Singlet-B1     7.0944 eV  174.76 nm  f=0.0271  <S**2>=0.000
+#       5 ->  6         0.70668
+# Excited State   2:      Singlet-A2     8.9854 eV  137.98 nm  f=0.0000  <S**2>=0.000
+#       5 ->  7         0.70699
+# Excited State   3:      Singlet-A1     9.3872 eV  132.08 nm  f=0.0899  <S**2>=0.000
+#       4 ->  6         0.70208
+#
+# PBE0
+# HF Energy  -76.3624232785
+#
+# Excited State   1:      Singlet-B1     7.7365 eV  160.26 nm  f=0.0285  <S**2>=0.000
+#       5 ->  6         0.70657
+# Excited State   2:      Singlet-A2     9.6344 eV  128.69 nm  f=0.0000  <S**2>=0.000
+#       5 ->  7         0.70484
+# Excited State   3:      Singlet-A1    10.0954 eV  122.81 nm  f=0.0955  <S**2>=0.000
+#       4 ->  6         0.70276
+#############
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O_GAPW
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC NONE
+      METHOD basis_projection
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      GAPW_ACCURATE_XCINT T
+      METHOD GAPW
+    &END QS
+    &SCF
+      MAX_SCF 40
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &TDDFPT
+      CONVERGENCE 1.0e-5
+      MAX_ITER 10
+      MAX_KV 10
+      ##ADMM_KERNEL_CORRECTION_SYMMETRIC
+      NSTATES 3
+    &END TDDFPT
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET ORB 6-311Gxx
+      BASIS_SET AUX_FIT 3-21Gx
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET ORB 6-311Gxx
+      BASIS_SET AUX_FIT 3-21Gx
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

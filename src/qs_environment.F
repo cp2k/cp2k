@@ -605,10 +605,10 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: occ
       LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
          do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, &
-         has_unit_metric, lribas, mp2_present, orb_gradient
+         has_unit_metric, lribas, mp2_present, orb_gradient, paw_atom
       REAL(KIND=dp)                                      :: alpha, ccore, ewald_rcut, fxx, maxocc, &
-                                                            rcut, total_zeff_corr, verlet_skin, &
-                                                            zeff_correction
+                                                            rc, rcut, total_zeff_corr, &
+                                                            verlet_skin, zeff_correction
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1145,6 +1145,7 @@ CONTAINS
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
          IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
             ! cutoff radius
+            CALL get_qs_env(qs_env, nkind=nkind)
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
                IF (qs_kind%xtb_parameter%defined) THEN
@@ -1293,6 +1294,22 @@ CONTAINS
          END IF
          ! NLCC
          CALL init_gapw_nlcc(qs_kind_set)
+         ! Accurate XC integration
+         IF (gapw_control%accurate_xcint) THEN
+            CPASSERT(.NOT. ASSOCIATED(gapw_control%aw))
+            CALL get_qs_env(qs_env, nkind=nkind)
+            ALLOCATE (gapw_control%aw(nkind))
+            alpha = gapw_control%aweights
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind, hard_radius=rc, paw_atom=paw_atom)
+               IF (paw_atom) THEN
+                  gapw_control%aw(ikind) = alpha*(1.2_dp/rc)**2
+               ELSE
+                  gapw_control%aw(ikind) = 0.0_dp
+               END IF
+            END DO
+         END IF
       ELSE IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
          ! allocate local ri environment
          ! nothing to do here?

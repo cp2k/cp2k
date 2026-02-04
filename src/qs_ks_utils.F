@@ -119,7 +119,7 @@ MODULE qs_ks_utils
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
-                                              xc_vxc_pw_create1
+                                              xc_vxc_pw_create
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -179,6 +179,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: work_v_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau, vxc, vxc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
@@ -215,6 +216,7 @@ CONTAINS
                       mos=mo_array, &
                       rho=rho, &
                       pw_env=pw_env, &
+                      xcint_weights=weights, &
                       input=input, &
                       cell=cell, &
                       virial=virial)
@@ -225,6 +227,10 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
+      ! No accurate integration possible (as there is no GAPW)
+      IF (ASSOCIATED(weights)) THEN
+         CALL cp_abort(__LOCATION__, "No accurate xc integration possible.")
+      END IF
       ! some assumptions need to be checked
       ! we have two spins
       CPASSERT(SIZE(mo_array, 1) == 2)
@@ -350,12 +356,13 @@ CONTAINS
          ! compute the exchange energies / potential if needed
          IF (just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
-                              pw_pool=xc_pw_pool)
+                              weights=weights, pw_pool=xc_pw_pool)
          ELSE
             CPASSERT(.NOT. compute_virial)
-            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
-                                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                                   pw_pool=xc_pw_pool, compute_virial=.FALSE., virial_xc=virial_xc_tmp)
+            CALL xc_vxc_pw_create(vxc_rho=vxc, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  compute_virial=.FALSE., virial_xc=virial_xc_tmp)
          END IF
 
          energy%exc = energy%exc + energy_scaling(iterm)*exc
@@ -494,6 +501,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: work_v_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, tau, vxc, vxc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(pw_r3d_rs_type), TARGET                       :: orb_rho_r, tmp_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -512,6 +520,7 @@ CONTAINS
                       mo_derivs=mo_derivs, &
                       mos=mo_array, &
                       rho=rho, &
+                      xcint_weights=weights, &
                       pw_env=pw_env, &
                       input=input, &
                       cell=cell, &
@@ -685,12 +694,13 @@ CONTAINS
 
          IF (just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
-                              pw_pool=xc_pw_pool)
+                              weights=weights, pw_pool=xc_pw_pool)
          ELSE
             CPASSERT(.NOT. compute_virial)
-            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
-                                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
-                                   pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp)
+            CALL xc_vxc_pw_create(vxc_rho=vxc, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  compute_virial=compute_virial, virial_xc=virial_xc_tmp)
             ! add to the existing work_v_rspace
             CALL pw_axpy(vxc(1), work_v_rspace, -dft_control%sic_scaling_b*vxc(1)%pw_grid%dvol)
          END IF

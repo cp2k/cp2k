@@ -237,6 +237,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="GAPW_ACCURATE_XCINT", &
+         description="Use a more accurate integration scheme for the soft XC energy in GAPW.", &
+         usage="GAPW_ACCURATE_XCINT", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="ALPHA_WEIGHTS", &
+         description="Gaussian exponent reference (rc=1.2 Bohr) for accurate integration in GAPW.", &
+         usage="ALPHA_WEIGHTS 10.0", default_r_val=6.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MIN_PAIR_LIST_RADIUS", &
                           description="Set the minimum value [Bohr] for the overlap pair list radius."// &
                           " Default is 0.0 Bohr, negative values are changed to the cell size."// &

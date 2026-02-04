@@ -100,13 +100,14 @@ CONTAINS
                                                             myfun, na, natom, nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
-                                                            tau_f
-      REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
+      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
+                                                            paw_atom, tau_f
+      REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
+                                                            gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho_h, rho_s, tau_h, tau_s, vtau_h, &
                                                             vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
@@ -159,6 +160,7 @@ CONTAINS
       IF (PRESENT(rho_atom_set_external)) my_rho_atom_set => rho_atom_set_external
 
       nlcc = has_nlcc(my_kind_set)
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
 
       my_xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
@@ -193,7 +195,7 @@ CONTAINS
          exc1 = 0.0_dp
 
          ! Nullify some pointers for work-arrays
-         NULLIFY (rho_h, drho_h, rho_s, drho_s, weight)
+         NULLIFY (rho_h, drho_h, rho_s, drho_s, weight_h, weight_s)
          NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
          NULLIFY (tau_h, tau_s)
          NULLIFY (vtau_h, vtau_s)
@@ -220,6 +222,20 @@ CONTAINS
             bounds(2, 1) = na
             bounds(2, 2) = nr
 
+            ! set integration weights
+            IF (accint) THEN
+               weight_h => grid_atom%weight
+               ALLOCATE (weight_s(na, nr))
+               alpha = dft_control%qs_control%gapw_control%aw(ikind)
+               DO ir = 1, nr
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
+                  weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+               END DO
+            ELSE
+               weight_h => grid_atom%weight
+               weight_s => grid_atom%weight
+            END IF
+
             ! create a place where to put the derivatives
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
@@ -234,7 +250,6 @@ CONTAINS
 
             CALL reallocate(rho_h, 1, na, 1, nr, 1, nspins)
             CALL reallocate(rho_s, 1, na, 1, nr, 1, nspins)
-            weight => grid_atom%weight
             CALL reallocate(vxc_h, 1, na, 1, nr, 1, nspins)
             CALL reallocate(vxc_s, 1, na, 1, nr, 1, nspins)
             !
@@ -320,7 +335,7 @@ CONTAINS
                ! hard atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
+               CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight_h, &
                                  lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h, energy_only=energy_only, &
                                  adiabatic_rescale_factor=my_adiabatic_rescale_factor)
                rho_atom%exc_h = rho_atom%exc_h + exc_h
@@ -329,7 +344,7 @@ CONTAINS
                ! soft atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
+               CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight_s, &
                                  lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s, energy_only=energy_only, &
                                  adiabatic_rescale_factor=my_adiabatic_rescale_factor)
                rho_atom%exc_s = rho_atom%exc_s + exc_s
@@ -364,6 +379,9 @@ CONTAINS
             CALL xc_dset_release(deriv_set)
             CALL xc_rho_set_release(rho_set_h)
             CALL xc_rho_set_release(rho_set_s)
+            IF (accint) THEN
+               DEALLOCATE (weight_s)
+            END IF
 
          END DO ! ikind
 
@@ -413,13 +431,13 @@ CONTAINS
                                                             nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
-                                                            tau_f
-      REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
-                                                            tau_cut
+      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
+                                                            paw_atom, tau_f
+      REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
+                                                            gradient_cut, tau_cut
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho_h, rho_s, tau_h, tau_s, vtau_h, &
                                                             vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
@@ -463,6 +481,7 @@ CONTAINS
                       rho_atom_set=my_rho_atom_set)
 
       nlcc = has_nlcc(my_kind_set)
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
 
       my_xc_section => section_vals_get_subs_vals(input, &
                                                   "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
@@ -498,7 +517,7 @@ CONTAINS
          exc1 = 0.0_dp
 
          ! Nullify some pointers for work-arrays
-         NULLIFY (rho_h, drho_h, rho_s, drho_s, weight)
+         NULLIFY (rho_h, drho_h, rho_s, drho_s, weight_h, weight_s)
          NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
          NULLIFY (tau_h, tau_s)
          NULLIFY (vtau_h, vtau_s)
@@ -525,6 +544,20 @@ CONTAINS
             bounds(2, 1) = na
             bounds(2, 2) = nr
 
+            ! set integration weights
+            IF (accint) THEN
+               weight_h => grid_atom%weight
+               ALLOCATE (weight_s(na, nr))
+               alpha = dft_control%qs_control%gapw_control%aw(ikind)
+               DO ir = 1, nr
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
+                  weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+               END DO
+            ELSE
+               weight_h => grid_atom%weight
+               weight_s => grid_atom%weight
+            END IF
+
             ! create a place where to put the derivatives
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
@@ -539,7 +572,6 @@ CONTAINS
 
             CALL reallocate(rho_h, 1, na, 1, nr, 1, nspins)
             CALL reallocate(rho_s, 1, na, 1, nr, 1, nspins)
-            weight => grid_atom%weight
             CALL reallocate(vxc_h, 1, na, 1, nr, 1, nspins)
             CALL reallocate(vxc_s, 1, na, 1, nr, 1, nspins)
             !
@@ -625,7 +657,7 @@ CONTAINS
                ! hard atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_epr(xc_fun_section, rho_set_h, deriv_set, needs, weight, &
+               CALL vxc_of_r_epr(xc_fun_section, rho_set_h, deriv_set, needs, weight_h, &
                                  lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h)
                rho_atom%exc_h = rho_atom%exc_h + exc_h
 
@@ -633,7 +665,7 @@ CONTAINS
                ! soft atom density !
                !-------------------!
                CALL xc_dset_zero_all(deriv_set)
-               CALL vxc_of_r_epr(xc_fun_section, rho_set_s, deriv_set, needs, weight, &
+               CALL vxc_of_r_epr(xc_fun_section, rho_set_s, deriv_set, needs, weight_s, &
                                  lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s)
                rho_atom%exc_s = rho_atom%exc_s + exc_s
 
@@ -680,6 +712,9 @@ CONTAINS
             CALL xc_dset_release(deriv_set)
             CALL xc_rho_set_release(rho_set_h)
             CALL xc_rho_set_release(rho_set_s)
+            IF (accint) THEN
+               DEALLOCATE (weight_s)
+            END IF
 
          END DO ! ikind
 
@@ -740,19 +775,21 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: local_loop_limit
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: gradient_functional, lsd, my_do_sf, &
-                                                            paw_atom, scale_rho, tau_f
-      REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
+      LOGICAL                                            :: accint, gradient_functional, lsd, &
+                                                            my_do_sf, paw_atom, scale_rho, tau_f
+      REAL(KIND=dp)                                      :: agr, alpha, density_cut, gradient_cut, &
+                                                            rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: rtau
       REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: weight
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: weight_h, weight_s
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho1_h, drho1_s, drho_h, drho_s, vxg_h, &
                                                             vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -772,13 +809,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set)
-      NULLIFY (rho_h, rho_s, drho_h, drho_s, weight)
+      NULLIFY (rho_h, rho_s, drho_h, drho_s, weight_h, weight_s)
       NULLIFY (rho1_h, rho1_s, drho1_h, drho1_s)
       NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
       NULLIFY (tau_h, tau_s, tau1_h, tau1_s)
 
       CALL get_qs_env(qs_env=qs_env, &
                       input=input, &
+                      dft_control=dft_control, &
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
@@ -787,6 +825,8 @@ CONTAINS
       ELSE
          my_kind_set => qs_kind_set
       END IF
+
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
 
       CALL section_vals_val_get(input, "DFT%LSD", l_val=lsd)
       CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
@@ -840,6 +880,20 @@ CONTAINS
          nr = grid_atom%nr
          na = grid_atom%ng_sphere
 
+         ! set integration weights
+         IF (accint) THEN
+            weight_h => grid_atom%weight
+            ALLOCATE (weight_s(na, nr))
+            alpha = dft_control%qs_control%gapw_control%aw(ikind)
+            DO ir = 1, nr
+               agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
+               weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+            END DO
+         ELSE
+            weight_h => grid_atom%weight
+            weight_s => grid_atom%weight
+         END IF
+
          ! Array dimension: here anly one dimensional arrays are used,
          ! i.e. only the first column of deriv_data is read.
          ! The other to dimensions  are set to size equal 1.
@@ -876,8 +930,6 @@ CONTAINS
          ALLOCATE (vxc_h(1:na, 1:nr, 1:nspins), vxc_s(1:na, 1:nr, 1:nspins))
          vxc_h = 0.0_dp
          vxc_s = 0.0_dp
-
-         weight => grid_atom%weight
 
          IF (gradient_functional) THEN
             ALLOCATE (drho_h(1:4, 1:na, 1:nr, 1:nspins), drho1_h(1:4, 1:na, 1:nr, 1:nspins), &
@@ -970,12 +1022,12 @@ CONTAINS
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_h, rho1_set=rho1_set_h, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=do_triplet, &
+                                   w=weight_h, vxc=vxc_h, vxg=vxg_h, do_triplet=do_triplet, &
                                    do_sf=my_do_sf)
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_s, rho1_set=rho1_set_s, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_s, vxg=vxg_s, do_triplet=do_triplet, &
+                                   w=weight_s, vxc=vxc_s, vxg=vxg_s, do_triplet=do_triplet, &
                                    do_sf=my_do_sf)
 
             CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
@@ -992,7 +1044,6 @@ CONTAINS
          END DO
 
          ! some cleanup
-         NULLIFY (weight)
          DEALLOCATE (rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s)
          DEALLOCATE (drho_h, drho_s, vxg_h, vxg_s)
          DEALLOCATE (drho1_h, drho1_s)
@@ -1002,6 +1053,9 @@ CONTAINS
          CALL xc_rho_set_release(rho1_set_h)
          CALL xc_rho_set_release(rho_set_s)
          CALL xc_rho_set_release(rho1_set_s)
+         IF (accint) THEN
+            DEALLOCATE (weight_s)
+         END IF
 
       END DO
 
@@ -1039,13 +1093,14 @@ CONTAINS
                                                             nr, ns, nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
-                                                            tau_f
-      REAL(dp)                                           :: beta, density_cut, exc_h, exc_s, &
-                                                            gradient_cut, oeps1, oeps2, tau_cut
+      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
+                                                            paw_atom, tau_f
+      REAL(dp)                                           :: agr, alpha, beta, density_cut, exc_h, &
+                                                            exc_s, gradient_cut, oeps1, oeps2, &
+                                                            tau_cut
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
                                                             rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
                                                             tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
@@ -1099,6 +1154,8 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
 
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
+
       IF (myfun == xc_none) THEN
          ! no action needed?
       ELSE
@@ -1131,6 +1188,20 @@ CONTAINS
             nr = grid_atom%nr
             na = grid_atom%ng_sphere
 
+            ! set integration weights
+            IF (accint) THEN
+               weight_h => grid_atom%weight
+               ALLOCATE (weight_s(na, nr))
+               alpha = dft_control%qs_control%gapw_control%aw(ikind)
+               DO ir = 1, nr
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ikind))
+                  weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+               END DO
+            ELSE
+               weight_h => grid_atom%weight
+               weight_s => grid_atom%weight
+            END IF
+
             ! Prepare the structures needed to calculate and store the xc derivatives
 
             ! Array dimension: here anly one dimensional arrays are used,
@@ -1151,8 +1222,6 @@ CONTAINS
             ! allocate the required 3d arrays where to store rho and drho
             CALL xc_rho_set_atom_update(rho_set_h, needs, mspins, bounds)
             CALL xc_rho_set_atom_update(rho_set_s, needs, mspins, bounds)
-
-            weight => grid_atom%weight
 
             ALLOCATE (rho_h(na, nr, mspins), rho_s(na, nr, mspins), &
                       rho0_h(na, nr, nspins), rho0_s(na, nr, nspins), &
@@ -1320,7 +1389,7 @@ CONTAINS
 
                   ! hard atom density !
                   CALL xc_dset_zero_all(deriv_set)
-                  CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
+                  CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight_h, &
                                     lsd, na, nr, exc_h, vxc_h, vxg_h, vtau_h)
                   IF (is_triplet) THEN
                      vxc_h(:, :, 1) = vxc_h(:, :, 1) - vxc_h(:, :, 2)
@@ -1333,7 +1402,7 @@ CONTAINS
                   END IF
                   ! soft atom density !
                   CALL xc_dset_zero_all(deriv_set)
-                  CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
+                  CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight_s, &
                                     lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s)
                   IF (is_triplet) THEN
                      vxc_s(:, :, 1) = vxc_s(:, :, 1) - vxc_s(:, :, 2)
@@ -1399,6 +1468,9 @@ CONTAINS
                DEALLOCATE (tau_h, tau_s, tau0_h, tau0_s, tau1_h, tau1_s)
                DEALLOCATE (vtau_h, vtau_s)
             END IF
+            IF (accint) THEN
+               DEALLOCATE (weight_s)
+            END IF
 
          END DO ! ikind
 
@@ -1439,14 +1511,14 @@ CONTAINS
                                                             nr, ns, nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
-                                                            tau_f
-      REAL(dp)                                           :: beta, density_cut, gradient_cut, oeps1, &
-                                                            tau_cut
+      LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
+                                                            paw_atom, tau_f
+      REAL(dp)                                           :: agr, alpha, beta, density_cut, &
+                                                            gradient_cut, oeps1, tau_cut
       REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc_h, vxc_s
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
                                                             rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
                                                             tau_h, tau_s, vtau_h, vtau_s
@@ -1494,6 +1566,8 @@ CONTAINS
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
 
+      accint = dft_control%qs_control%gapw_control%accurate_xcint
+
       IF (myfun == xc_none) THEN
          ! no action needed?
       ELSE
@@ -1530,6 +1604,20 @@ CONTAINS
             nr = grid_atom%nr
             na = grid_atom%ng_sphere
 
+            ! set integration weights
+            IF (accint) THEN
+               weight_h => grid_atom%weight
+               ALLOCATE (weight_s(na, nr))
+               alpha = dft_control%qs_control%gapw_control%aw(ikind)
+               DO ir = 1, nr
+                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
+                  weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+               END DO
+            ELSE
+               weight_h => grid_atom%weight
+               weight_s => grid_atom%weight
+            END IF
+
             ! Prepare the structures needed to calculate and store the xc derivatives
 
             ! Array dimension: here anly one dimensional arrays are used,
@@ -1556,8 +1644,6 @@ CONTAINS
             CALL xc_rho_set_atom_update(rho_set_s, needs, mspins, bounds)
             CALL xc_rho_set_atom_update(rho1_set_h, needs, mspins, bounds)
             CALL xc_rho_set_atom_update(rho1_set_s, needs, mspins, bounds)
-
-            weight => grid_atom%weight
 
             ALLOCATE (rho_h(na, nr, nspins), rho_s(na, nr, nspins), &
                       rho0_h(na, nr, nspins), rho0_s(na, nr, nspins), &
@@ -1717,13 +1803,13 @@ CONTAINS
                   CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                          rho_set=rho_set_h, rho1_set=rho1_set_h, &
                                          deriv_set=deriv_set, &
-                                         w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=is_triplet)
+                                         w=weight_h, vxc=vxc_h, vxg=vxg_h, do_triplet=is_triplet)
                   ! soft atom density !
                   CALL xc_dset_zero_all(deriv_set)
                   CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                          rho_set=rho_set_s, rho1_set=rho1_set_s, &
                                          deriv_set=deriv_set, &
-                                         w=weight, vxc=vxc_s, vxg=vxg_s, do_triplet=is_triplet)
+                                         w=weight_s, vxc=vxc_s, vxg=vxg_s, do_triplet=is_triplet)
                   ! potentials
                   DO ns = 1, nspins
                      fint_hh(ns)%r_coef(:, :) = 0.0_dp
@@ -1773,6 +1859,9 @@ CONTAINS
             IF (tau_f) THEN
                DEALLOCATE (tau_h, tau_s, tau0_h, tau0_s, tau1_h, tau1_s)
                DEALLOCATE (vtau_h, vtau_s)
+            END IF
+            IF (accint) THEN
+               DEALLOCATE (weight_s)
             END IF
 
          END DO ! ikind

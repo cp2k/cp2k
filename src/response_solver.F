@@ -15,6 +15,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE response_solver
+   USE accint_weights_forces,           ONLY: accint_weight_force
    USE admm_methods,                    ONLY: admm_projection_derivative
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
@@ -136,7 +137,9 @@ MODULE response_solver
    USE qs_rho0_methods,                 ONLY: init_rho0
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                               calculate_rho_atom_coeff
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               calculate_xc_2nd_deriv_atom
@@ -904,7 +907,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho_aux_fit, rho_xc
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list, task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
@@ -1291,16 +1294,16 @@ CONTAINS
          END IF
          CALL auxbas_pw_pool%give_back_pw(rho_tot_gspace_gs)
          IF (ASSOCIATED(rho_r_gs)) THEN
-         DO ispin = 1, nspins
-            CALL auxbas_pw_pool%give_back_pw(rho_r_gs(ispin))
-         END DO
-         DEALLOCATE (rho_r_gs)
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%give_back_pw(rho_r_gs(ispin))
+            END DO
+            DEALLOCATE (rho_r_gs)
          END IF
          IF (ASSOCIATED(rho_g_gs)) THEN
-         DO ispin = 1, nspins
-            CALL auxbas_pw_pool%give_back_pw(rho_g_gs(ispin))
-         END DO
-         DEALLOCATE (rho_g_gs)
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%give_back_pw(rho_g_gs(ispin))
+            END DO
+            DEALLOCATE (rho_g_gs)
          END IF
       END IF !gapw
 
@@ -1437,6 +1440,40 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_copy(rhoz_r(ispin), rhopz_r(ispin))
          END DO
+      END IF
+
+      IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+      END IF
+
+      IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
+         ! GAPW Accurate integration
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+         ALLOCATE (rho1)
+         CALL qs_rho_create(rho1)
+         IF (gapw_xc) THEN
+            CALL get_qs_env(qs_env=qs_env, rho_xc=rho0)
+            CALL qs_rho_set(rho1, rho_r=rhoz_r_xc, rho_g=rhoz_g_xc)
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, rho=rho0)
+            CALL qs_rho_set(rho1, rho_r=rhoz_r, rho_g=rhoz_g)
+         END IF
+         CALL accint_weight_force(qs_env, rho0, rho1, 1, xc_section)
+         DEALLOCATE (rho1)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Vxc*dw     ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_virial - stdeb)
+            CALL para_env%sum(stdeb)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT Pz*dVxc*dw     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
       END IF
 
       ! Stress-tensor contribution second derivative
@@ -2090,6 +2127,31 @@ CONTAINS
             IF (use_virial) THEN
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
+            ! GAPW ADMM XC correction integrate weight contribution to force
+            IF (admm_env%do_gapw) THEN
+               IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+               IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+
+               ALLOCATE (rho1)
+               CALL qs_rho_create(rho1)
+               CALL qs_rho_set(rho1, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
+               !
+               CALL accint_weight_force(qs_env, rho_aux_fit, rho1, 1, xc_section)
+               !
+               DEALLOCATE (rho1)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+                  CALL para_env%sum(fodeb)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dKxc*rhoz_admm*dw ", fodeb
+               END IF
+               IF (debug_stress .AND. use_virial) THEN
+                  stdeb = fconv*(virial%pv_virial - stdeb)
+                  CALL para_env%sum(stdeb)
+                  IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+                     'STRESS| dKxc*rhoz_admm*dw', one_third_sum_diag(stdeb), det_3x3(stdeb)
+               END IF
+            END IF
+            ! return ADMM response densities and potentials
             DO ispin = 1, nspins
                CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
                CALL auxbas_pw_pool%give_back_pw(rhoz_r_aux(ispin))
