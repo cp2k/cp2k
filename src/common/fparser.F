@@ -42,28 +42,33 @@ MODULE fparser
                              cDiv = 6, &
                              cPow = 7, &
                              cAbs = 8, &
-                             cExp = 9, &
-                             cLog10 = 10, &
-                             cLog = 11, &
-                             cSqrt = 12, &
-                             cSinh = 13, &
-                             cCosh = 14, &
-                             cTanh = 15, &
-                             cSin = 16, &
-                             cCos = 17, &
-                             cTan = 18, &
-                             cAsin = 19, &
-                             cAcos = 20, &
-                             cAtan = 21, &
-                             cErf = 22, &
-                             cErfc = 23, &
-                             VarBegin = 24
+                             cMin = 9, &
+                             cMax = 10, &
+                             cExp = 11, &
+                             cLog10 = 12, &
+                             cLog = 13, &
+                             cSqrt = 14, &
+                             cSinh = 15, &
+                             cCosh = 16, &
+                             cTanh = 17, &
+                             cSin = 18, &
+                             cCos = 19, &
+                             cTan = 20, &
+                             cAsin = 21, &
+                             cAcos = 22, &
+                             cAtan2 = 23, &
+                             cAtan = 24, &
+                             cErf = 25, &
+                             cErfc = 26, &
+                             VarBegin = 27
    CHARACTER(LEN=1), DIMENSION(cAdd:cPow), PARAMETER :: Ops = ['+', &
                                                                '-', &
                                                                '*', &
                                                                '/', &
                                                                '^']
    CHARACTER(LEN=5), DIMENSION(cAbs:cErfc), PARAMETER :: Funcs = ['abs  ', &
+                                                                  'min  ', &
+                                                                  'max  ', &
                                                                   'exp  ', &
                                                                   'log10', &
                                                                   'log  ', &
@@ -76,9 +81,29 @@ MODULE fparser
                                                                   'tan  ', &
                                                                   'asin ', &
                                                                   'acos ', &
+                                                                  'atan2', &
                                                                   'atan ', &
                                                                   'erf  ', &
                                                                   'erfc ']
+   INTEGER, DIMENSION(cAbs:cErfc), PARAMETER :: FuncsArgCnt = [1, & ! abs
+                                                               2, & ! min
+                                                               2, & ! max
+                                                               1, & ! exp
+                                                               1, & ! log10
+                                                               1, & ! log
+                                                               1, & ! sqrt
+                                                               1, & ! sinh
+                                                               1, & ! cosh
+                                                               1, & ! tanh
+                                                               1, & ! sin
+                                                               1, & ! cos
+                                                               1, & ! tan
+                                                               1, & ! asin
+                                                               1, & ! acos
+                                                               2, & ! atan2
+                                                               1, & ! atan
+                                                               1, & ! erf
+                                                               1] ! erfc
 ! **************************************************************************************************
    TYPE tComp
       INTEGER(is), DIMENSION(:), POINTER :: ByteCode => NULL()
@@ -222,6 +247,8 @@ CONTAINS
             END IF
             SP = SP - 1
          CASE (cAbs); Comp(i)%Stack(SP) = ABS(Comp(i)%Stack(SP))
+         CASE (cMin); Comp(i)%Stack(SP - 1) = MIN(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
+         CASE (cMax); Comp(i)%Stack(SP - 1) = MAX(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
          CASE (cExp); Comp(i)%Stack(SP) = EXP(Comp(i)%Stack(SP))
          CASE (cLog10); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = LOG10(Comp(i)%Stack(SP))
@@ -241,6 +268,7 @@ CONTAINS
          CASE (cAcos); IF ((Comp(i)%Stack(SP) < -1._rn) .OR. (Comp(i)%Stack(SP) > 1._rn)) THEN
                EvalErrType = 4; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = ACOS(Comp(i)%Stack(SP))
+         CASE (cAtan2); Comp(i)%Stack(SP - 1) = ATAN2(Comp(i)%Stack(SP - 1), Comp(i)%Stack(SP)); SP = SP - 1
          CASE (cAtan); Comp(i)%Stack(SP) = ATAN(Comp(i)%Stack(SP))
          CASE (cErf); Comp(i)%Stack(SP) = ERF(Comp(i)%Stack(SP))
          CASE (cErfc); Comp(i)%Stack(SP) = ERFC(Comp(i)%Stack(SP))
@@ -297,6 +325,7 @@ CONTAINS
             IF (j > lFunc) CALL ParseErrMsg(j, FuncStr, 'Missing function argument')
             c = Func(j:j)
             IF (c /= '(') CALL ParseErrMsg(j, FuncStr, 'Missing opening parenthesis')
+            CALL CheckFuncArgCnt(Func, FuncStr, j, lFunc, n)
          END IF
          IF (c == '(') THEN ! Check for opening parenthesis
             ParCnt = ParCnt + 1
@@ -331,6 +360,9 @@ CONTAINS
          IF (ANY(c == Ops)) THEN ! Check for multiple operators
             IF (j + 1 > lFunc) CALL ParseErrMsg(j, FuncStr)
             IF (ANY(Func(j + 1:j + 1) == Ops)) CALL ParseErrMsg(j + 1, FuncStr, 'Multiple operators')
+         ELSE IF (c == ',') THEN ! Check for commas separating function arguments
+            IF (ParCnt == 0) CALL ParseErrMsg(j, FuncStr, 'Comma outside function')
+            IF (Func(j + 1:j + 1) == ',') CALL ParseErrMsg(j, FuncStr, 'Multiple commas')
          ELSE ! Check for next operand
             CALL ParseErrMsg(j, FuncStr, 'Missing operator')
          END IF
@@ -342,6 +374,52 @@ CONTAINS
       END DO step
       IF (ParCnt > 0) CALL ParseErrMsg(j, FuncStr, 'Missing )')
    END SUBROUTINE CheckSyntax
+   !
+! **************************************************************************************************
+!> \brief ...
+!> \param Func ...
+!> \param FuncStr ...
+!> \param b ...
+!> \param e ...
+!> \param FuncId ...
+! **************************************************************************************************
+   SUBROUTINE CheckFuncArgCnt(Func, FuncStr, b, e, FuncId)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      ! Check argument count of function substring, returns 0 if count is ok
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      CHARACTER(LEN=*), INTENT(in)                       :: Func, FuncStr
+      INTEGER, INTENT(in)                                :: b, e
+      INTEGER(is), INTENT(in)                            :: FuncId
+
+      CHARACTER(len=40)                                  :: Msg
+      INTEGER                                            :: ArgCnt, ArgPos, j, ParCnt
+
+! Function string without spaces
+! Original function string
+! Begin and end position substring
+! ID of function for which arguments are parsed
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      ArgCnt = 1
+      ArgPos = 0
+      ParCnt = 0
+      DO j = b, e
+         IF (Func(j:j) == '(') THEN
+            ParCnt = ParCnt + 1
+         ELSEIF (Func(j:j) == ')') THEN
+            ParCnt = ParCnt - 1
+            IF (ParCnt == 0) EXIT
+         ELSEIF (ParCnt == 1 .AND. Func(j:j) == ',') THEN
+            ArgPos = j
+            ArgCnt = ArgCnt + 1
+         END IF
+      END DO
+      IF (ArgCnt /= FuncsArgCnt(FuncId)) THEN
+         IF (ArgCnt < FuncsArgCnt(FuncId)) ArgPos = j
+         WRITE (Msg, '(I0,A,A,A,I0)') ArgCnt, ' argument(s) in ', TRIM(Funcs(FuncId)), ' instead of ', FuncsArgCnt(FuncId)
+         CALL ParseErrMsg(ArgPos, FuncStr, Msg)
+      END IF
+   END SUBROUTINE CheckFuncArgCnt
    !
 ! **************************************************************************************************
 !> \brief ...
@@ -486,7 +564,7 @@ CONTAINS
             IF (str(ib:ib) /= ' ') EXIT ! When lstr>0 at least 1 char in str
          END DO
          DO in = ib, lstr ! Search for name terminators
-            IF (SCAN(str(in:in), '+-*/^) ') > 0) EXIT
+            IF (SCAN(str(in:in), '+-*/^) ,') > 0) EXIT
          END DO
          DO j = 1, SIZE(Var)
             IF (str(ib:in - 1) == Var(j)) THEN
@@ -723,7 +801,7 @@ CONTAINS
             b2 = b + INDEX(F(b:e), '(') - 1
             IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 3: F(b:e) = 'fcn(...)'
 !            WRITE(*,*)'3. F(b:e) = "fcn(...)"'
-               CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
+               CALL CompileFuncArgsSubstr(i, F, b2 + 1, e - 1, Var)
                CALL AddCompiledByte(i, n)
                RETURN
             END IF
@@ -740,7 +818,7 @@ CONTAINS
                b2 = b + INDEX(F(b + 1:e), '(')
                IF (CompletelyEnclosed(F, b2, e)) THEN ! Case 5: F(b:e) = '-fcn(...)'
 !               WRITE(*,*)'5. F(b:e) = "-fcn(...)"'
-                  CALL CompileSubstr(i, F, b2 + 1, e - 1, Var)
+                  CALL CompileFuncArgsSubstr(i, F, b2 + 1, e - 1, Var)
                   CALL AddCompiledByte(i, n)
                   CALL AddCompiledByte(i, cNeg)
                   RETURN
@@ -791,6 +869,48 @@ CONTAINS
    !
 ! **************************************************************************************************
 !> \brief ...
+!> \param i ...
+!> \param F ...
+!> \param b ...
+!> \param e ...
+!> \param Var ...
+! **************************************************************************************************
+   RECURSIVE SUBROUTINE CompileFuncArgsSubstr(i, F, b, e, Var)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      ! Compile i-th function arguments substring F(b,e) into bytecode
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      INTEGER, INTENT(in)                                :: i
+      CHARACTER(LEN=*), INTENT(in)                       :: F
+      INTEGER, INTENT(in)                                :: b, e
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(in)         :: Var
+
+      INTEGER                                            :: b2, j, ParCnt
+
+! Function identifier
+! Function substring
+! Begin and end position substring
+! Array with variable names
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+! Check for commas for splitting function arguments into substrings
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      ParCnt = 0
+      b2 = b
+      DO j = b, e
+         IF (F(j:j) == '(') THEN
+            ParCnt = ParCnt + 1
+         ELSEIF (F(j:j) == ')') THEN
+            ParCnt = ParCnt - 1
+         ELSEIF (ParCnt == 0 .AND. F(j:j) == ',') THEN
+            CALL CompileSubstr(i, F, b2, j - 1, Var)
+            b2 = j + 1
+         END IF
+      END DO
+      CALL CompileSubstr(i, F, b2, e, Var)
+   END SUBROUTINE CompileFuncArgsSubstr
+   !
+! **************************************************************************************************
+!> \brief ...
 !> \param j ...
 !> \param F ...
 !> \return ...
@@ -817,7 +937,7 @@ CONTAINS
       IF (F(j:j) == '+' .OR. F(j:j) == '-') THEN ! Plus or minus sign:
          IF (j == 1) THEN ! - leading unary operator ?
             res = .FALSE.
-         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(') > 0) THEN ! - other unary operator ?
+         ELSEIF (SCAN(F(j - 1:j - 1), '+-*/^(,') > 0) THEN ! - other unary operator ?
             res = .FALSE.
          ELSEIF (SCAN(F(j + 1:j + 1), '0123456789') > 0 .AND. & ! - in exponent of real number ?
                  SCAN(F(j - 1:j - 1), 'eEdD') > 0) THEN
