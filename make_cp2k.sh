@@ -761,7 +761,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   esac
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The CMake configuration step failed with the error code ${EXIT_CODE}"
-    echo "       You can try to remove the build folder with 'rm -rf build' and re-runx"
+    echo "       You can try to remove the build folder with 'rm -rf build' and re-run"
     echo "       or even start the whole CP2K installation from scratch with the \"-bd\" flag"
     ${EXIT_CMD} "${EXIT_CODE}"
   fi
