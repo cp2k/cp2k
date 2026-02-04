@@ -938,8 +938,8 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
       if [ "$MPICH_DIR" ]; then
         cray_mpich_include_path="$MPICH_DIR/include"
         cray_mpich_lib_path="$MPICH_DIR/lib"
-        export INCLUDE_PATHS="$INCLUDE_PATHS cray_mpich_include_path"
-        export LIB_PATHS="$LIB_PATHS cray_mpich_lib_path"
+        export INCLUDE_PATHS="$INCLUDE_PATHS $cray_mpich_include_path"
+        export LIB_PATHS="$LIB_PATHS $cray_mpich_lib_path"
       fi
       if [ "$with_mpich" = "__DONTUSE__" ]; then
         add_include_from_paths MPI_CFLAGS "mpi.h" $INCLUDE_PATHS
