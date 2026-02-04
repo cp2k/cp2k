@@ -568,34 +568,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     echo "INFO: The lastest stable GCC version ${GCC_VERSION} will be built and used by spack"
   fi
 
-  # Provide the selected GCC version
-  if [[ "${GCC_VERSION}" != "auto" ]]; then
-    # Ask spack to add the requested GCC version
-    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
-      if spack install "gcc@${GCC_VERSION}"; then
-        echo "The GCC version ${GCC_VERSION} was installed successfully"
-      else
-        echo "ERROR: The installation of GCC version ${GCC_VERSION} failed"
-        ${EXIT_CMD} 1
-      fi
-    else
-      if spack --no-user-config --no-system-config install "gcc@${GCC_VERSION}"; then
-        echo "The GCC version ${GCC_VERSION} was installed successfully"
-      else
-        echo "ERROR: The installation of GCC version ${GCC_VERSION} failed"
-        ${EXIT_CMD} 1
-      fi
-    fi
-    if spack load "gcc@${GCC_VERSION}"; then
-      echo "GCC version ${GCC_VERSION} loaded successfully"
-    else
-      echo "Loading GCC version ${GCC_VERSION} failed"
-    fi
-    # Find all compilers
-    if ! spack compiler find; then
-      echo "ERROR: The compiler detection of spack failed"
-      ${EXIT_CMD} 1
-    fi
+  # Add a specific GCC version to the spack configuration if requested
+  if [[ "${GCC_VERSION}" == "auto" ]]; then
+    echo "Spack will automatically select the GCC version which is not necessarily the newest one found"
+  else
+    sed -E -e "s/gcc@10:/gcc@${GCC_VERSION}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Create CP2K environment if needed
@@ -644,39 +621,29 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     ${EXIT_CMD} 1
   fi
 
-  if [[ "${GCC_VERSION}" == "auto" ]]; then
-    echo "Spack will automatically select the GCC version which is not necessarily the newest one found"
-  else
-    # Add the requested GCC version to the current (active) environment
-    if spack add "gcc@${GCC_VERSION}"; then
-      echo "The GCC version ${GCC_VERSION} was added successfully to ${CP2K_ENV}"
-    else
-      echo "ERROR: Adding GCC version ${GCC_VERSION} to ${CP2K_ENV} failed"
-      ${EXIT_CMD} 1
-    fi
-  fi
-
-  spack find -c
-
   # Find all external packages
   if [[ "${USE_EXTERNALS}" == "yes" ]]; then
     if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable; then
       echo -e "\nERROR: The detection of externals by spack failed"
       ${EXIT_CMD} 1
     fi
-  fi
-
-  # Concretize CP2K dependencies
-  if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
-    echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
-    if [[ "${USE_EXTERNALS}" == "yes" ]]; then
+    # Concretize CP2K dependencies
+    if ! spack -e "${CP2K_ENV}" concretize --fresh; then
+      echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       echo ""
       echo "HINT: The (-ue | --use_externals) flags can cause conflicts with outdated"
       echo "      packages on the host system, e.g. old python or gcc versions"
       echo ""
+      ${EXIT_CMD} 1
     fi
-    ${EXIT_CMD} 1
+  else
+    if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
+      echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
+      ${EXIT_CMD} 1
+    fi
   fi
+
+  spack find -c
 
   # Create spack makefile for all dependencies
   if ! spack -e "${CP2K_ENV}" env depfile -o spack_makefile; then
