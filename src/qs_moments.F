@@ -128,6 +128,7 @@ MODULE qs_moments
    PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: qs_moment_kpoints, build_local_moment_matrix_rs_img
+   PUBLIC :: qs_moment_kpoints_old
    PUBLIC :: dipole_deriv_ao
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: build_dsdv_moments
@@ -3626,12 +3627,12 @@ CONTAINS
 !> \param unit_number ...
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number)
+   SUBROUTINE qs_moment_kpoints_old(qs_env, nmoments, reference, ref_point, max_nmo, unit_number)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_old'
       COMPLEX(KIND=dp)                                   :: phase, tmp_max
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_k, H_k, S_k, D_k, CDC, C_dH_C, &
                                                             C_dS_C, dH_dk_i, dS_dk_i
@@ -3852,6 +3853,309 @@ CONTAINS
       DEALLOCATE (S_rs, H_rs, D_rs, special_pnts, xkp)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_moment_kpoints_old
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param xkp ...
+!> \param rcc ...
+!> \param dipole_to_store ...
+!> \param bc_to_store ...
+!> \param mpi_dist ...
+!> \param calc_bc ...
+! **************************************************************************************************
+   SUBROUTINE qs_moment_kpoints_deep(qs_env, xkp, rcc, dipole_to_store, bc_to_store, mpi_dist, calc_bc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, OPTIONAL                                  :: mpi_dist, calc_bc
+      LOGICAL                                            :: my_mpi_dist, my_calc_bc
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_deep'
+      COMPLEX(KIND=dp)                                   :: phase, tmp_max
+      COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_k, H_k, S_k, D_k, CDC, C_dH_C, &
+                                                            C_dS_C, dH_dk_i, dS_dk_i
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         ALLOCATABLE                                     :: dipole_to_store
+      INTEGER                                            :: handle, i_dir, ikp, nkp, nmo, &
+                                                            n_img_scf, n_img_all, nao, &
+                                                            num_pe, num_copy, mepos, n, m, mu, &
+                                                            ispin, nspin
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvals
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc, xkp
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE  :: bc_to_store
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         ALLOCATABLE                                     :: D_rs, H_rs, S_rs
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_rs_img, matrix_ks_kp, &
+                                                            matrix_s_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: special_pnts
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all
+
+      CALL timeset(routineN, handle)
+      my_calc_bc = .FALSE.
+      my_mpi_dist = .FALSE.
+      IF (PRESENT(mpi_dist)) my_mpi_dist = mpi_dist
+      IF (PRESENT(calc_bc)) my_calc_bc = calc_bc
+
+      CALL get_qs_env(qs_env, &
+                      matrix_ks_kp=matrix_ks_kp, &
+                      matrix_s_kp=matrix_s_kp, &
+                      sab_all=sab_all, &
+                      cell=cell, &
+                      kpoints=kpoints_scf, &
+                      para_env=para_env, &
+                      dft_control=dft_control, &
+                      mos=mos)
+
+      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
+      nspin = SIZE(matrix_ks_kp, 1)
+      nkp = SIZE(xkp, 2)
+
+      ! create kpoint environment kpoints_all which contains all neighbor cells R
+      ! without considering any lattice symmetry
+      n_img_scf = dft_control%nimages
+      NULLIFY (kpoints_all)
+      CALL kpoint_create(kpoints_all)
+      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, dft_control)!changes nimages
+      dft_control%nimages = n_img_scf
+
+      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, index_to_cell=index_to_cell_all)
+      n_img_all = SIZE(index_to_cell_all, 2)
+
+      NULLIFY (moments_rs_img)
+      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_all)
+      ! D_μ,ν = <φ_μ|r|φ_ν>
+      CALL build_local_moment_matrix_rs_img(qs_env, moments_rs_img, rcc=rcc)
+
+      ALLOCATE (S_rs(1, nao, nao, n_img_all), H_rs(nspin, nao, nao, n_img_all), source=0.0_dp)
+      ALLOCATE (D_rs(3, nao, nao, n_img_all), source=0.0_dp)
+
+      ! Convert real-space dbcsr matrices into arrays
+      CALL replicate_rs_matrices(matrix_s_kp, kpoints_scf, S_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(matrix_ks_kp, kpoints_scf, H_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(moments_rs_img, kpoints_all, D_rs, cell_to_index_all)
+
+      mepos = para_env%mepos
+      num_pe = para_env%num_pe
+      num_copy = nkp
+      IF (my_mpi_dist) num_copy = CEILING(REAL(nkp)/num_pe)
+      CALL get_cell(cell=cell, h=hmat)
+
+!$OMP PARALLEL PRIVATE(ikp, S_k, H_k, eigenvals, C_k, &
+!$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
+!$OMP SHARED(num_pe, mepos, dipole_to_store, bc_to_store, nmo, nao, ispin, &
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat)
+      ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
+      ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
+      ALLOCATE (C_k(nao, nao), D_k(nao, nao), source=z_zero)
+      ALLOCATE (eigenvals(nao), bc(3, nao), source=0.0_dp)
+!$OMP DO COLLAPSE(2)
+      DO ispin = 1, nspin
+         DO ikp = 1, nkp
+            IF (mod(ikp - 1, num_pe) /= mepos) CYCLE
+
+            ! S^R -> S(k), H^R -> H(k)
+            S_k = 0
+            H_k = 0
+            CALL rs_to_kp(S_rs(1, :, :, :), S_k, index_to_cell_all, xkp(:, ikp))
+            CALL rs_to_kp(H_rs(ispin, :, :, :), H_k, index_to_cell_all, xkp(:, ikp))
+
+            ! Diagonalize H(k)C(k) = S(k)C(k)ε(k)
+            CALL geeig_right(H_k, S_k, eigenvals, C_k)
+
+            ! To have a smooth complex phase of C(k) as function of k, for every n, we force
+            ! the largest C_μ,n(k) to be real.
+            ! This is important to have a continuous dipole moment d_nm(k) as a function of k
+            DO n = 1, nmo
+               tmp_max = C_k(1, n)
+               DO mu = 1, nao
+                  IF (ABS(C_k(mu, n)) < ABS(tmp_max)) CYCLE
+                  tmp_max = C_k(mu, n)
+               END DO
+               phase = tmp_max/ABS(tmp_max)
+               C_k(:, n) = C_k(:, n)/phase
+            END DO
+
+            DO i_dir = 1, 3 ! d^x, d^y, d^z
+
+               ! ∇ S(k) = Σ_R iR S^R e^(ikR), ∇ H(k) = Σ_R iR H^R e^(ikR)
+               CALL rs_to_kp(S_rs(1, :, :, :), dS_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
+               CALL rs_to_kp(H_rs(ispin, :, :, :), dH_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
+
+               ! Σ_R D^R e^(ikR) = D(k), D_μ,ν = <φ_μ|r|φ_ν>
+               CALL rs_to_kp(D_rs(i_dir, :, :, :), D_k(:, :), index_to_cell_all, xkp(:, ikp))
+
+               ! Basis transform to Kohn-Sham basis: (C^H) ∇ S C, (C^H) ∇ H C, (C^H) D C
+               CALL gemm_square(C_k, 'C', dS_dk_i, 'N', C_k, 'N', C_dS_C)
+               CALL gemm_square(C_k, 'C', dH_dk_i, 'N', C_k, 'N', C_dH_C)
+               CALL gemm_square(C_k, 'C', D_k, 'N', C_k, 'N', CDC)
+
+               ! Compute the dipole
+               ! d_nm (k) = - i/(ε(n)-ε(m)) [ (C^H)(dH(k)/dk)C ]_nm
+               !            + i ε(n)/(ε(n)-ε(m)) [ (C^H)(dS(k)/dk)C ]_nm + [ (C^H)D(k)C ]_nm
+               DO n = 1, nmo
+                  DO m = 1, nmo
+                     IF (n == m) CYCLE ! diagonal elements would need to be computed from
+                     ! a numerical k-derivative which is not implemented
+                     dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                        + gaussi*eigenvals(n)*C_dS_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                        + CDC(n, m)
+                  END DO
+               END DO
+            END DO
+            ! Compute the Berry curvature from the dipoles
+            ! Ω^γ_n = Σ_m 2*Im[d^α_nm (d^β_mn)*], where, α, β, γ belong to {x, y, z}
+            bc = 0.0_dp
+            IF (my_calc_bc) THEN
+               DO i_dir = 1, 3
+                  DO n = 1, nmo
+                     DO m = 1, nmo
+                        IF (n == m) CYCLE
+                        bc(i_dir, n) = bc(i_dir, n) &
+                                       + 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
+                     END DO
+                  END DO
+               END DO
+            END IF
+            ! Store the dipoles and berry curvature for each MPI rank
+            dipole_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
+            bc_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
+
+         END DO
+      END DO
+!$OMP END DO
+      DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals, bc)
+!$OMP END PARALLEL
+      CALL timestop(handle)
+   END SUBROUTINE qs_moment_kpoints_deep
+
+! **************************************************************************************************
+!> \brief Calculate and print dipole moment elements d_nm(k) for k-point calculations
+!> \param qs_env ...
+!> \param nmoments ...
+!> \param reference ...
+!> \param ref_point ...
+!> \param max_nmo ...
+!> \param unit_number ...
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
+      REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
+      INTEGER, INTENT(IN)                                :: unit_number
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         ALLOCATABLE                                     :: dipole_to_store
+      INTEGER                                            :: handle, ikp, nkp, nmo, nao, &
+                                                            num_pe, num_copy, mepos, n, m, &
+                                                            ispin, nspin, nmin, nmax, homo
+      REAL(KIND=dp), DIMENSION(3)                        :: rcc
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: xkp
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc_to_print
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE  :: bc_to_store
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: special_pnts
+
+      CALL timeset(routineN, handle)
+
+      IF (nmoments > 1) CPABORT("KPOINT quadrupole and higher moments not implemented.")
+      IF (max_nmo < 0) CPABORT("Negative maximum number of molecular orbitals max_nmo provided.")
+
+      CALL get_qs_env(qs_env, &
+                      para_env=para_env, &
+                      matrix_ks_kp=matrix_ks_kp, &
+                      mos=mos)
+
+      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
+      CALL get_xkp_for_dipole_calc(qs_env, xkp, special_pnts)
+      CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
+      nspin = SIZE(matrix_ks_kp, 1)
+      nkp = SIZE(xkp, 2)
+
+      mepos = para_env%mepos
+      num_pe = para_env%num_pe
+      num_copy = CEILING(REAL(nkp)/num_pe)
+
+      ALLOCATE (dipole_to_store(nspin, num_copy, 3, nao, nao), source=z_zero)
+      ALLOCATE (bc_to_store(nspin, num_copy, 3, nao), source=0.0_dp)
+
+      IF (unit_number > 0) WRITE (unit_number, FMT="(/,T2,A)") &
+         '!-----------------------------------------------------------------------------!'
+      IF (unit_number > 0) WRITE (unit_number, "(T22,A)") "Periodic Dipole Matrix Elements"
+
+      CALL qs_moment_kpoints_deep(qs_env, &
+                                  xkp, &
+                                  rcc, &
+                                  dipole_to_store, &
+                                  bc_to_store, &
+                                  mpi_dist=.TRUE., &
+                                  calc_bc=.TRUE.)
+
+      ALLOCATE (dipole_to_print(3, nao, nao), source=z_zero)
+      ALLOCATE (bc_to_print(3, nao), source=0.0_dp)
+      DO ikp = 1, nkp
+         DO ispin = 1, nspin
+            CALL get_mo_set(mo_set=mos(ispin), homo=homo)
+            nmin = max(1, homo - (max_nmo - 1)/2)
+            nmax = min(nao, homo + max_nmo/2)
+            IF (max_nmo == 0) THEN
+               nmin = 1
+               nmax = nmo
+            END IF
+            dipole_to_print = 0.0_dp
+            bc_to_print = 0.0_dp
+            IF (mod(ikp - 1, num_pe) == mepos) THEN
+               dipole_to_print(:, :, :) = dipole_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :, :)
+               bc_to_print(:, :) = bc_to_store(ispin, CEILING(REAL(ikp)/num_pe), :, :)
+            END IF
+            CALL para_env%sum(dipole_to_print)
+            CALL para_env%sum(bc_to_print)
+            IF (unit_number > 0) THEN
+               IF (special_pnts(ikp) /= "") WRITE (unit_number, "(/,2X,A,A)") &
+                  "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
+               WRITE (unit_number, "(/,1X,A,I3,1X,3(A,1F12.6))") &
+                  "Kpoint:", ikp, ", kx:", xkp(1, ikp), ", ky:", xkp(2, ikp), ", kz:", xkp(3, ikp)
+               IF (nspin > 1) WRITE (unit_number, "(/,2X,A,I2)") "Open Shell System. Spin:", ispin
+               WRITE (unit_number, "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
+               & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
+               DO n = nmin, nmax
+                  DO m = nmin, nmax
+                     IF (n == m) CYCLE
+                     WRITE (unit_number, "(2X,I4,2I4,6(G11.3))") ikp, n, m, dipole_to_print(1:3, n, m)
+                  END DO
+               END DO
+               WRITE (unit_number, "(/,1X,A)") "Berry Curvature"
+               WRITE (unit_number, "(2X,A)") "   kp    n      YZ          ZX          XY"
+               DO n = nmin, nmax
+                  WRITE (unit_number, "(2X,2I5,3(1X,G11.3))") &
+                     ikp, n, bc_to_print(1, n), bc_to_print(2, n), bc_to_print(3, n)
+               END DO
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (dipole_to_print, bc_to_print, bc_to_store, dipole_to_store)
+      DEALLOCATE (special_pnts, xkp)
 
       CALL timestop(handle)
 
