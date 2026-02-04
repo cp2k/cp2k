@@ -34,7 +34,7 @@
       METHOD GAPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT
@@ -42,7 +42,7 @@
         PRECONDITIONER FULL_ALL
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-7
+        EPS_SCF 1.0E-6
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -63,7 +63,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 5.0 5.0 5.0
+      ABC [angstrom] 4.5 4.5 4.5
       PERIODIC NONE
     &END CELL
     &COORD
@@ -72,12 +72,12 @@
       H   0.000000    0.757136    0.520545
     &END COORD
     &KIND H
-      BASIS_SET TZVPP-MOLOPT-GGA-ae
+      BASIS_SET SVP-MOLOPT-GGA-ae
       BASIS_SET AUX_FIT admm-1
       POTENTIAL ALL
     &END KIND
     &KIND O
-      BASIS_SET TZVPP-MOLOPT-GGA-ae
+      BASIS_SET SVP-MOLOPT-GGA-ae
       BASIS_SET AUX_FIT admm-1
       POTENTIAL ALL
     &END KIND

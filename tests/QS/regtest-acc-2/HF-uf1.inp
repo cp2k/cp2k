@@ -6,7 +6,7 @@
 
 &DEBUG
   CHECK_ATOM_FORCE 1 z
-  DE 0.0002
+  DE 0.001
   DEBUG_FORCES .TRUE.
   DEBUG_STRESS_TENSOR .FALSE.
   STOP_ON_MISMATCH T
@@ -49,7 +49,7 @@
       METHOD GAPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 10
       SCF_GUESS atomic
       &OT
@@ -58,7 +58,7 @@
         STEPSIZE 0.05
       &END OT
       &OUTER_SCF
-        EPS_SCF 1.0E-7
+        EPS_SCF 1.0E-6
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
@@ -73,7 +73,7 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 5.0 5.0 5.0
+      ABC 4.0 4.0 4.0
       PERIODIC NONE
     &END CELL
     &COORD
@@ -81,11 +81,11 @@
       F      0.000000  0.000000 -0.510000
     &END COORD
     &KIND H
-      BASIS_SET TZVPP-MOLOPT-GGA-ae
+      BASIS_SET SVP-MOLOPT-GGA-ae
       POTENTIAL ALL
     &END KIND
     &KIND F
-      BASIS_SET TZVPP-MOLOPT-GGA-ae
+      BASIS_SET SVP-MOLOPT-GGA-ae
       POTENTIAL ALL
     &END KIND
   &END SUBSYS

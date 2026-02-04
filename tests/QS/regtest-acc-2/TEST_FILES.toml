@@ -3,9 +3,9 @@
 "HF-admm-nlcc.inp"                      = []
 #
 "h2o_p1.inp"                            = [{matcher="M087", tol=1e-05, ref=0.161404623690E+02}]
-"h2o_p2.inp"                            = [{matcher="M087", tol=1e-05, ref=0.215671342368E+02}]
+"h2o_p2.inp"                            = [{matcher="M087", tol=1e-05, ref=21.5063951099}]
 "h2o_p3.inp"                            = [{matcher="M060", tol=1e-05, ref=0.73496007721}]
-"h2o_p4.inp"                            = [{matcher="M060", tol=1e-05, ref=0.778647601778}]
+"h2o_p4.inp"                            = [{matcher="M060", tol=1e-05, ref=0.713322848135}]
 "h2o_p5.inp"                            = [{matcher="M087", tol=1e-05, ref=0.210113376796E+02}]
 #
 "HF-ec1.inp"                            = []

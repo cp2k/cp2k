@@ -53,11 +53,6 @@
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1
-      &MGRID
-        CUTOFF 250
-        NGRIDS 5
-        REL_CUTOFF 50
-      &END MGRID
       &XC
         &XC_FUNCTIONAL PBE
         &END XC_FUNCTIONAL

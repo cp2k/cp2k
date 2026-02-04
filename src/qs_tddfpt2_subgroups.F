@@ -305,6 +305,10 @@ CONTAINS
             IF (tddfpt_control%mgrid_is_explicit) &
                CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
 
+            IF (ASSOCIATED(weights)) THEN
+               CPABORT('Redefining MGRID and integration weights not compatible')
+            END IF
+
             NULLIFY (sub_env%pw_env)
 
             CALL pw_env_create(sub_env%pw_env)

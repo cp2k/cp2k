@@ -42,11 +42,6 @@
       MAX_ITER 10
       MAX_KV 10
       NSTATES 3
-      &MGRID
-        CUTOFF 250
-        NGRIDS 5
-        REL_CUTOFF 50
-      &END MGRID
     &END TDDFPT
   &END PROPERTIES
   &SUBSYS
