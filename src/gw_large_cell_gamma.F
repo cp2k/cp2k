@@ -7,6 +7,8 @@
 
 ! **************************************************************************************************
 !> \brief Routines from paper [Graml2024]
+!> \par History
+!>      01.2026 Maximilian Graml: add more bounds to exploit sparsity in 3c integrals, fixes
 !> \author Jan Wilhelm
 !> \date 07.2023
 ! **************************************************************************************************
@@ -235,27 +237,29 @@ CONTAINS
                   DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
 
                      IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
-
+                     ! Idea: Use sparsity in 3c integrals behind χ_PQ(iτ,k=0)
+                     !   ->  λ   bounds from j_atoms -> sparse in IL_atoms through σ in
+                     !                                   N_Qλν(iτ) = sum_σ (Qλ|σ) G^vir_νσ(i|τ|,k=0)
+                     !   ->  ν   bounds from i_atoms -> sparse in IL_atoms through µ in
+                     !                                   M_Pνλ(iτ) = sum_µ (Pν|µ) G^occ_λµ(i|τ|,k=0)
                      CALL check_dist(i_atoms, IL_atoms, qs_env, bs_env, dist_too_long_i)
                      CALL check_dist(j_atoms, IL_atoms, qs_env, bs_env, dist_too_long_j)
-                     IF (dist_too_long_i .OR. dist_too_long_j) CYCLE
-
-                     ! 2. compute 3-center integrals (Pν|µ) ("|": truncated Coulomb operator)
-                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gocc, &
-                                               atoms_AO_1=i_atoms, atoms_AO_2=IL_atoms)
-
-                     ! 3. tensor operation M_Pνλ(iτ) = sum_µ (Pν|µ) G^occ_λµ(i|τ|,k=0)
-                     CALL G_times_3c(t_3c_for_Gocc, t_2c_Gocc, t_3c_x_Gocc, bs_env, &
-                                     j_atoms, i_atoms, IL_atoms)
-
-                     ! 4. compute 3-center integrals (Qλ|σ) ("|": truncated Coulomb operator)
-                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gvir, &
-                                               atoms_AO_1=j_atoms, atoms_AO_2=IL_atoms)
-
-                     ! 5. tensor operation N_Qλν(iτ) = sum_σ (Qλ|σ) G^vir_νσ(i|τ|,k=0)
-                     CALL G_times_3c(t_3c_for_Gvir, t_2c_Gvir, t_3c_x_Gvir, bs_env, &
-                                     i_atoms, j_atoms, IL_atoms)
-
+                     IF (.NOT. dist_too_long_i) THEN
+                        ! 2. compute 3-center integrals (Pν|µ) ("|": truncated Coulomb operator)
+                        CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gocc, &
+                                                  atoms_AO_1=i_atoms, atoms_AO_2=IL_atoms)
+                        ! 3. tensor operation M_Pνλ(iτ) = sum_µ (Pν|µ) G^occ_λµ(i|τ|,k=0)
+                        CALL G_times_3c(t_3c_for_Gocc, t_2c_Gocc, t_3c_x_Gocc, bs_env, &
+                                        j_atoms, i_atoms, IL_atoms)
+                     END IF
+                     IF (.NOT. dist_too_long_j) THEN
+                        ! 4. compute 3-center integrals (Qλ|σ) ("|": truncated Coulomb operator)
+                        CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gvir, &
+                                                  atoms_AO_1=j_atoms, atoms_AO_2=IL_atoms)
+                        ! 5. tensor operation N_Qλν(iτ) = sum_σ (Qλ|σ) G^vir_νσ(i|τ|,k=0)
+                        CALL G_times_3c(t_3c_for_Gvir, t_2c_Gvir, t_3c_x_Gvir, bs_env, &
+                                        i_atoms, j_atoms, IL_atoms)
+                     END IF
                   END DO ! IL_atoms
 
                   ! 6. reorder tensors: M_Pνλ -> M_Pλν
@@ -616,7 +620,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_integrals'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(2)                              :: my_atoms_AO_1, my_atoms_AO_2, my_atoms_RI
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_array
 
       CALL timeset(routineN, handle)
@@ -626,22 +629,6 @@ CONTAINS
 
       ALLOCATE (t_3c_array(1, 1))
       CALL dbt_create(t_3c, t_3c_array(1, 1))
-
-      IF (PRESENT(atoms_AO_1)) THEN
-         my_atoms_AO_1 = atoms_AO_1
-      ELSE
-         my_atoms_AO_1 = [1, bs_env%n_atom]
-      END IF
-      IF (PRESENT(atoms_AO_2)) THEN
-         my_atoms_AO_2 = atoms_AO_2
-      ELSE
-         my_atoms_AO_2 = [1, bs_env%n_atom]
-      END IF
-      IF (PRESENT(atoms_RI)) THEN
-         my_atoms_RI = atoms_RI
-      ELSE
-         my_atoms_RI = [1, bs_env%n_atom]
-      END IF
 
       CALL build_3c_integrals(t_3c_array, &
                               bs_env%eps_filter, &
@@ -776,7 +763,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
 
-      min_dist_AO_atoms = 1.0E5_dp
+      min_dist_AO_atoms = HUGE(1.0_dp)
       DO atom_1 = atoms_1(1), atoms_1(2)
          DO atom_2 = atoms_2(1), atoms_2(2)
             rab = pbc(particle_set(atom_1)%r(1:3), particle_set(atom_2)%r(1:3), cell)
@@ -2311,7 +2298,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_pairs = bs_env%n_intervals_i*bs_env%n_intervals_j
+      n_pairs = bs_env%n_intervals_i*bs_env%n_intervals_j*bs_env%n_spin
 
       CALL bs_env%para_env_tensor%sum(bs_env%n_skip_sigma)
       CALL bs_env%para_env_tensor%sum(bs_env%n_skip_chi)
