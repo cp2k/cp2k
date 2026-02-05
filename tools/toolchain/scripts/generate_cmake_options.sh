@@ -35,7 +35,7 @@ else
   # If MPI is used, set "CP2K_USE_MPI" to "ON"
   if [ "${MPI_MODE}" != "no" ]; then
     CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_MPI=ON"
-    if [ -n $(grep "IF_MPI(-D__MPI_F08|)" "${INSTALLDIR}"/toolchain.conf) ]; then
+    if [ -n "$(grep "MPI_F08" "${INSTALLDIR}"/toolchain.env)" ]; then
       CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_MPI_F08=ON"
     fi
   fi
