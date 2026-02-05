@@ -1534,8 +1534,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="TDDFPT", &
                           description="Parameters needed to set up the Time-Dependent "// &
                           "Density Functional Perturbation Theory. "// &
-                          "Current implementation works for hybrid functionals. "// &
-                          "Can be used with Gaussian and Plane Waves (GPW) method only.", &
+                          "Current implementation works for hybrid functionals. ", &
                           n_keywords=14, n_subsections=4, repeats=.FALSE., &
                           citations=[Iannuzzi2005])
 
