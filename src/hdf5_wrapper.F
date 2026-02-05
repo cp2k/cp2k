@@ -25,6 +25,7 @@ MODULE hdf5_wrapper
 #endif
    USE iso_c_binding, ONLY: C_LOC, &
                             c_ptr
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
    USE kinds, ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -172,6 +173,8 @@ CONTAINS
       TYPE(c_ptr)                                        :: buffer
       TYPE(c_ptr), TARGET                                :: in_between_ptr
 
+      output_unit = cp_logger_get_default_io_unit()
+
       ! create a scalar dataspace
       CALL h5screate_f(h5s_scalar_f, space_id, error)
       IF (error < 0) THEN
@@ -248,6 +251,8 @@ CONTAINS
       INTEGER(KIND=hid_t)                                :: attr_id, space_id, type_id
       TYPE(c_ptr)                                        :: buffer
 
+      output_unit = cp_logger_get_default_io_unit()
+
       ! create a scalar dataspace
       CALL h5screate_f(h5s_scalar_f, space_id, error)
       IF (error < 0) THEN
@@ -321,6 +326,8 @@ CONTAINS
       INTEGER(KIND=hid_t)                                :: attr_id, space_id, type_id
       INTEGER, TARGET                                    :: attr_data_to_int
       TYPE(c_ptr)                                        :: buffer
+
+      output_unit = cp_logger_get_default_io_unit()
 
       ! 8-bit integers in enum bool_type
 
@@ -401,6 +408,8 @@ CONTAINS
       INTEGER                                            :: error, output_unit
       INTEGER(KIND=hid_t)                                :: attr_id, space_id, type_id
       TYPE(c_ptr)                                        :: buffer
+
+      output_unit = cp_logger_get_default_io_unit()
 
       ! create a scalar dataspace
       CALL h5screate_f(h5s_scalar_f, space_id, error)
