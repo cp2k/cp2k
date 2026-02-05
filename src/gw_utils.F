@@ -7,6 +7,8 @@
 
 ! **************************************************************************************************
 !> \brief
+!> \par History
+!>      01.2026 Maximilian Graml: add more bounds to exploit sparsity in 3c integrals, fixes
 !> \author Jan Wilhelm
 !> \date 07.2023
 ! **************************************************************************************************
@@ -811,7 +813,7 @@ CONTAINS
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_global_array(1, 1))
 
       ! Allocate arrays to store min/max indices for overlap with other AO/RI functions on each atom
-      ! (Filled during loop)
+      ! (Filled during loop via get_i_j_atom_ranges)
       ALLOCATE (bs_env%min_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
       ALLOCATE (bs_env%max_RI_idx_from_AO_AO_atom(bs_env%n_atom, bs_env%n_atom))
       ALLOCATE (bs_env%min_AO_idx_from_RI_AO_atom(bs_env%n_atom, bs_env%n_atom))
@@ -862,13 +864,15 @@ CONTAINS
 
       t2 = m_walltime()
 
+      ! Sync/max for max_dist_AO_atoms is done inside each get_max_dist_AO_atoms
+      bs_env%max_dist_AO_atoms = max_dist_AO_atoms
+      ! occupation_sum is a global quantity, also needs no sync here
+      bs_env%occupation_3c_int = occupation_sum
+
       CALL bs_env%para_env%min(bs_env%min_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_RI_idx_from_AO_AO_atom)
       CALL bs_env%para_env%min(bs_env%min_AO_idx_from_RI_AO_atom)
       CALL bs_env%para_env%max(bs_env%max_AO_idx_from_RI_AO_atom)
-
-      bs_env%occupation_3c_int = occupation_sum
-      bs_env%max_dist_AO_atoms = max_dist_AO_atoms
 
       CALL dbt_destroy(t_3c_global_array(1, 1))
       DEALLOCATE (t_3c_global_array)
@@ -878,9 +882,9 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,F27.1,A)') &
             'Computed 3-center integrals (µν|P), execution time', t2 - t1, ' s'
          WRITE (bs_env%unit_nr, '(T2,A,F48.3,A)') 'Percentage of non-zero (µν|P)', &
-            occupation_sum*100, ' %'
+            bs_env%occupation_3c_int*100, ' %'
          WRITE (bs_env%unit_nr, '(T2,A,F33.1,A)') 'Max. distance between µ,ν in non-zero (µν|P)', &
-            max_dist_AO_atoms*angstrom, ' A'
+            bs_env%max_dist_AO_atoms*angstrom, ' A'
          WRITE (bs_env%unit_nr, '(T2,2A,I20,A)') 'Required memory if storing all 3-center ', &
             'integrals (µν|P)', INT(REAL(non_zero_elements_sum, KIND=dp)*8.0E-9_dp), ' GB'
       END IF
@@ -1093,7 +1097,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_max_dist_AO_atoms(t_3c_int, max_dist_AO_atoms, qs_env)
       TYPE(dbt_type)                                     :: t_3c_int
-      REAL(KIND=dp)                                      :: max_dist_AO_atoms
+      REAL(KIND=dp), INTENT(INOUT)                       :: max_dist_AO_atoms
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_max_dist_AO_atoms'
@@ -1112,6 +1116,9 @@ CONTAINS
 
       NULLIFY (cell, particle_set, para_env)
       CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set, para_env=para_env)
+
+      ! max_dist_AO_atoms is compared to earlier steps in the loop with step n_atom_step
+      ! do not initialize/overwrite here
 
 ! IMPORTANT: Use thread-local copy for max_dist_AO_atoms via REDUCTION to avoid race conditions
 !$OMP PARALLEL DEFAULT(NONE) &
