@@ -71,8 +71,7 @@ case "$with_fftw" in
     check_lib -lfftw3_omp "FFTW"
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
     pkg_install_dir=$(
-      result=$(find_in_paths "libfftw3.a" $LIB_PATHS)
-      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libfftw3.so" $LIB_PATHS)
+      result=$(find_in_paths "libfftw3.*" $LIB_PATHS)
       [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
     )
     INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"

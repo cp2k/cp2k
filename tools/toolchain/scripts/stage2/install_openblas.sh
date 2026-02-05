@@ -106,8 +106,7 @@ case "${with_openblas}" in
     # assume that system openblas is threaded
     check_lib -lopenblas "OpenBLAS"
     pkg_install_dir=$(
-      result=$(find_in_paths "libopenblas.a" $LIB_PATHS)
-      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libopenblas.so" $LIB_PATHS)
+      result=$(find_in_paths "libopenblas.*" $LIB_PATHS)
       [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
     )
     INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"

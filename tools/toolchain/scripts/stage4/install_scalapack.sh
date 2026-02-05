@@ -73,8 +73,7 @@ case "$with_scalapack" in
     echo "==================== Finding ScaLAPACK from system paths ===================="
     check_lib -lscalapack "ScaLAPACK"
     pkg_install_dir=$(
-      result=$(find_in_paths "libscalapack.a" $LIB_PATHS)
-      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libscalapack.so" $LIB_PATHS)
+      result=$(find_in_paths "libscalapack*" $LIB_PATHS)
       [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
     )
     add_lib_from_paths SCALAPACK_LDFLAGS "libscalapack.*" $LIB_PATHS
