@@ -29,6 +29,7 @@ MODULE input_cp2k_mm
         do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, do_ff_g96, do_ff_harmonic, &
         do_ff_legendre, do_ff_mixed_bend_stretch, do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, &
         do_ff_opls, do_ff_quartic, do_ff_undef
+   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: use_mom_ref_coac,&
                                               use_mom_ref_com,&
                                               use_mom_ref_user,&
@@ -1300,11 +1301,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GENPOT", &
                           description="This section specifies the input parameters for a generic potential type. "// &
-                          "A functional form is specified. Mathematical Operators recognized are +, -, *, /, ** "// &
-                          "or alternatively ^, whereas symbols for brackets must be (). "// &
-                          "The function parser recognizes the (single argument) Fortran 90 intrinsic functions "// &
-                          "abs, exp, log10, log, sqrt, sinh, cosh, tanh, sin, cos, tan, asin, acos, atan, erf, erfc. "// &
-                          "Parsing for intrinsic functions is not case sensitive.", &
+                          docf(), &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
