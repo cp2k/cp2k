@@ -20,6 +20,7 @@ MODULE input_cp2k_colvar
                                               high_print_level,&
                                               low_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: gaussian,&
                                               numerical,&
                                               rmsd_all,&
@@ -2071,7 +2072,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="COMBINE_COLVAR", &
                           description="Allows the possibility to combine several COLVARs into one COLVAR "// &
-                          "with a generic function.", &
+                          "with a generic function. "//docf(), &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
