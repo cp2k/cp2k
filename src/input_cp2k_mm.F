@@ -1315,7 +1315,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the functional form in mathematical notation.", &
-                          usage="FUNCTION a*EXP(-b*x^2)/x+D*log10(x)", type_of_var=lchar_t, &
+                          usage="FUNCTION a\*EXP(-b\*x^2)/x+D\*log10(x)", type_of_var=lchar_t, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
