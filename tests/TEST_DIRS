@@ -193,10 +193,10 @@ QS/regtest-ps-implicit-1-1                                  fftw3
 QMMM/QS/regtest-cdft                                        parallel mpiranks%2==0
 DFTB/regtest-nonscc
 QS/regtest-acc-1                                            libint !ifx
-QS/regtest-acc-2                                            libint !ifx
+QS/regtest-acc-2                                            libint libxc !ifx
 QS/regtest-acc-3                                            libint !ifx
-QS/regtest-acc-4                                            libint !ifx
-QS/regtest-acc-5                                            libint !ifx
+QS/regtest-acc-4                                            libint libxc !ifx
+QS/regtest-acc-5                                            libint libxc !ifx
 QS/regtest-tddfpt                                           libint !ifx
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
 QS/regtest-tddfpt-lri                                       libint !ifx

@@ -105,15 +105,16 @@ case "${with_openblas}" in
     echo "==================== Finding OpenBLAS from system paths ===================="
     # assume that system openblas is threaded
     check_lib -lopenblas "OpenBLAS"
-    pkg_install_dir=$(
-      result=$(find_in_paths "libopenblas.a" $LIB_PATHS)
-      [ "$result" = "__FALSE__" ] && result=$(find_in_paths "libopenblas.so" $LIB_PATHS)
-      [ "$result" != "__FALSE__" ] && dirname $(dirname "$result")
-    )
-    INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
     # detect separate omp builds
     check_lib -lopenblas_openmp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_openmp"
     check_lib -lopenblas_omp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_omp"
+    pkg_install_dir="$(dirname $(dirname $(find_in_paths "libopenblas.*" $LIB_PATHS)))"
+    # Deal with the condition that libfftw3 is installed in "/usr/lib/x86_64-linux-gnu"
+    if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
+      pkg_install_dir="/usr"
+    else
+      INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
+    fi
     add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
     add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
     OPENBLAS_LIBS="-lopenblas"
