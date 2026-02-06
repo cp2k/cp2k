@@ -1,20 +1,18 @@
 #!/bin/bash -e
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 greenx_ver="2.2"
 greenx_sha256="cf0abb77cc84a3381a690a6ac7ca839da0007bb9e6120f3f25e47de50e29431f"
 
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"

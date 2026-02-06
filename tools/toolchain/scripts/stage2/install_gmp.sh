@@ -1,19 +1,18 @@
 #!/bin/bash -e
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gmp_ver="6.3.0"
 gmp_sha256="e56fd59d76810932a0555aa15a14b61c16bed66110d3c75cc2ac49ddaa9ab24c"
-# shellcheck disable=SC1091
+
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
