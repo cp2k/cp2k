@@ -72,7 +72,7 @@ case "$with_fftw" in
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
     pkg_install_dir="$(dirname $(dirname $(find_in_paths "libfftw3.*" $LIB_PATHS)))"
     # Deal with the condition that libfftw3 is installed in "/usr/lib/x86_64-linux-gnu"
-    if [ -n "$(grep "/usr/lib" ${pkg_install_dir})" ]; then
+    if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
       pkg_install_dir="/usr"
     else
       INCLUDE_PATHS=${INCLUDE_PATHS}:"$pkg_install_dir/include"
