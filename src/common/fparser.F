@@ -28,7 +28,8 @@ MODULE fparser
              parsef, & ! Parse single function string
              evalf, & ! Evaluate single function
              finalizef, & ! Finalize the function parser
-             evalfd
+             evalfd, &
+             docf
    INTEGER, PUBLIC            :: EvalErrType ! =0: no error occurred, >0: evaluation error
    !------- -------- --------- --------- --------- --------- --------- --------- -------
    PRIVATE
@@ -1141,5 +1142,33 @@ CONTAINS
       END IF
       vals(ipar) = xval
    END FUNCTION evalfd
+   !
+! **************************************************************************************************
+!> \brief ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION docf() RESULT(doc)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      ! Returns documentation for function parser and its available operators and functions
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      CHARACTER(LEN=:), ALLOCATABLE                      :: doc
+
+      INTEGER                                            :: i
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      doc = doc//"A functional form is specified. Mathematical Operators recognized are "
+      DO i = cAdd, cPow
+         IF (i > cAdd) doc = doc//", "
+         doc = doc//Ops(i)
+      END DO
+      doc = doc//" or alternatively **, whereas symbols for brackets must be (). The function"// &
+            " parser recognizes the Fortran 90 intrinsic functions "
+      DO i = cAbs, cErfc
+         IF (i > cAbs) doc = doc//", "
+         doc = doc//TRIM(Funcs(i))
+      END DO
+      doc = doc//". Parsing for intrinsic functions is not case sensitive."
+   END FUNCTION docf
 
 END MODULE fparser
