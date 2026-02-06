@@ -900,15 +900,6 @@ export CP_CFLAGS=""
 export CP_LDFLAGS="-Wl,--enable-new-dtags"
 
 # ------------------------------------------------------------------------
-# Start writing setup file
-# ------------------------------------------------------------------------
-cat << EOF > "$SETUPFILE"
-#!/bin/bash
-source "${SCRIPTDIR}/tool_kit.sh"
-export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
-EOF
-
-# ------------------------------------------------------------------------
 # Special settings for CRAY Linux Environment (CLE)
 # TODO: CLE should be handle like gcc or Intel using a with_cray flag and
 #       this section should be moved to a separate file install_cray.
@@ -1032,6 +1023,18 @@ case ${GPUVER} in
     exit 1
     ;;
 esac
+
+# ------------------------------------------------------------------------
+# Start writing overall setup file
+# ------------------------------------------------------------------------
+cat << EOF > "$SETUPFILE"
+#!/bin/bash
+# This setup file is to be sourced before building and running CP2K.
+# Read tool_kit.sh for definitions and purposes of custom functions active
+# in current shell, such as prepend_path().
+source "${SCRIPTDIR}/tool_kit.sh"
+export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
+EOF
 
 write_toolchain_env ${INSTALLDIR}
 

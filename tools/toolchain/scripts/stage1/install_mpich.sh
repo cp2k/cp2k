@@ -19,6 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "mpich" ] && exit 0
 [ -f "${BUILDDIR}/setup_mpich" ] && rm "${BUILDDIR}/setup_mpich"
 
+WHAT="MPICH"
 MPICH_CFLAGS=""
 MPICH_LDFLAGS=""
 MPICH_LIBS=""
@@ -27,7 +28,7 @@ cd "${BUILDDIR}"
 
 case "${with_mpich}" in
   __INSTALL__)
-    echo "==================== Installing MPICH ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/mpich-${mpich_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -78,7 +79,7 @@ case "${with_mpich}" in
     MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding MPICH from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command mpiexec "mpich" && MPIEXEC="$(command -v mpiexec)"
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
@@ -99,7 +100,7 @@ case "${with_mpich}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking MPICH to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_mpich}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -152,6 +153,7 @@ append_path CPATH "${pkg_install_dir}/include"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
 fi
 
@@ -164,6 +166,7 @@ leak:MPIU_Find_local_and_external
 leak:MPL_malloc
 EOF
 
+unset WHAT
 load "${BUILDDIR}/setup_mpich"
 write_toolchain_env "${INSTALLDIR}"
 

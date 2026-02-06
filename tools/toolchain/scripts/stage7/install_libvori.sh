@@ -19,12 +19,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libvori" ] && rm "${BUILDDIR}/setup_libvori"
 
+WHAT="libvori"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_libvori:=__INSTALL__}" in
   __INSTALL__)
-    echo "==================== Installing libvori ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libvori-${libvori_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -58,14 +59,14 @@ case "${with_libvori:=__INSTALL__}" in
     LIBVORI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding libvori from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lvori "libvori"
     add_lib_from_paths LIBVORI_LDFLAGS "libvori.*" "$LIB_PATHS"
     ;;
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking libvori to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_libvori}"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -99,9 +100,11 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__LIBVORI"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBVORI_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${LIBVORI_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_libvori" >> "${SETUPFILE}"
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libvori"
 write_toolchain_env "${INSTALLDIR}"
 

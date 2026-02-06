@@ -17,6 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_dftd4" ] && rm "${BUILDDIR}/setup_dftd4"
 
+WHAT="DFTD4"
 DFTD4_DFLAGS=''
 DFTD4_CFLAGS=''
 DFTD4_LDFLAGS=''
@@ -28,7 +29,7 @@ case "$with_dftd4" in
   __DONTUSE__) ;;
 
   __INSTALL__)
-    echo "==================== Installing DFTD4 ===================="
+    echo "==================== Installing ${WHAT} ===================="
     require_env OPENBLAS_ROOT
     require_env MATH_LIBS
 
@@ -69,7 +70,7 @@ case "$with_dftd4" in
     ;;
 
   __SYSTEM__)
-    echo "==================== Finding DFTD4 from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion dftd4
     add_include_from_paths DFTD4_CFLAGS "dftd4.h" $INCLUDE_PATHS
     add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $INCLUDE_PATHS
@@ -78,7 +79,7 @@ case "$with_dftd4" in
     ;;
 
   *)
-    echo "==================== Linking DFTD4 to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_dftd4"
     check_dir "${pkg_install_dir}/include"
     ;;
@@ -137,9 +138,11 @@ export CP_CFLAGS="\${CP_CFLAGS} \${DFTD4_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} \${DFTD4_LDFLAGS}"
 export CP_LIBS="\${DFTD4_LIBS} \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_dftd4" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_dftd4"
 write_toolchain_env "${INSTALLDIR}"
 

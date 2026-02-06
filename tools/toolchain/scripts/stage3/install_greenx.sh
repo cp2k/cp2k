@@ -19,6 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"
 
+WHAT="GreenX"
 GREENX_CFLAGS=""
 GREENX_LDFLAGS=""
 GREENX_LIBS=""
@@ -28,7 +29,7 @@ with_greenx=${with_greenx:__DONTUSE__}
 with_gmp=${with_greenx:__DONTUSE__}
 case "$with_greenx" in
   __INSTALL__)
-    echo "==================== Installing GreenX ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/greenX-${greenx_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -69,7 +70,7 @@ case "$with_greenx" in
     GREENX_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding GreenX from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lGXCommon "greenx"
     check_lib -lgx_ac "greenx"
     check_lib -lgx_minimax "greenx"
@@ -77,7 +78,7 @@ case "$with_greenx" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking GreenX to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_greenx"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include/modules"
@@ -109,9 +110,11 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GREENX_LDFLAGS}"
 export CP_LIBS="${GREENX_LIBS} \${CP_LIBS}"
 export GREENX_ROOT="${pkg_install_dir}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_greenx" >> "$SETUPFILE"
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_greenx"
 write_toolchain_env "${INSTALLDIR}"
 

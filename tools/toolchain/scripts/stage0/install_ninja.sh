@@ -14,12 +14,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_ninja" ] && rm "${BUILDDIR}/setup_ninja"
 
+WHAT="Ninja"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_ninja}" in
   __INSTALL__)
-    echo "==================== Installing Ninja  ===================="
+    echo "==================== Installing ${WHAT} ===================="
     ninja_ver="1.13.1"
     ninja_sha256="f0055ad0369bf2e372955ba55128d000cfcc21777057806015b45e4accbebf23"
 
@@ -49,7 +50,7 @@ case "${with_ninja}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding Ninja from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command ninja "ninja"
     ;;
   __DONTUSE__)
@@ -57,7 +58,7 @@ case "${with_ninja}" in
     echo "Ninja required for DFTD4"
     ;;
   *)
-    echo "==================== Linking Ninja to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_ninja}"
     check_dir "${with_ninja}/bin"
     ;;
@@ -67,10 +68,12 @@ if [ "${with_ninja}" != "__DONTUSE__" ]; then
     cat << EOF > "${BUILDDIR}/setup_ninja"
 prepend_path PATH "${pkg_install_dir}/bin"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_ninja" >> $SETUPFILE
   fi
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_ninja"
 write_toolchain_env "${INSTALLDIR}"
 

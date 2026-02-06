@@ -18,6 +18,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_elpa" ] && rm "${BUILDDIR}/setup_elpa"
 
+WHAT="ELPA"
 ELPA_CFLAGS=''
 ELPA_LDFLAGS=''
 ELPA_LIBS=''
@@ -34,7 +35,7 @@ fi
 
 case "${with_elpa}" in
   __INSTALL__)
-    echo "==================== Installing ELPA ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/elpa-${elpa_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     enable_openmp="yes"
@@ -135,7 +136,7 @@ case "${with_elpa}" in
     ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib' -Wl,-rpath,'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding ELPA from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lelpa_openmp "ELPA"
     # get the include paths
     elpa_include="$(find_in_paths "elpa_openmp-*" $INCLUDE_PATHS)"
@@ -152,7 +153,7 @@ case "${with_elpa}" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking ELPA to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_elpa"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
@@ -196,6 +197,7 @@ prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/nvidia"
 EOF
     fi
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
   cat << EOF >> "${BUILDDIR}/setup_elpa"
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
@@ -210,6 +212,7 @@ EOF
 
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_elpa"
 write_toolchain_env "${INSTALLDIR}"
 

@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_SpLA" ] && rm "${BUILDDIR}/setup_SpLA"
 
+WHAT="SpLA"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_spla}" in
   __INSTALL__)
-    echo "==================== Installing SpLA ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/SpLA-${spla_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -127,7 +128,7 @@ case "${with_spla}" in
     SPLA_HIP_LDFLAGS="-L'${pkg_install_dir}/lib/hip' -Wl,-rpath,'${pkg_install_dir}/lib/hip'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding SpLA from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion spla
     add_include_from_paths SPLA_CFLAGS "spla.h" $INCLUDE_PATHS
     add_lib_from_paths SPLA_LDFLAGS "libspla.*" $LIB_PATHS
@@ -136,7 +137,7 @@ case "${with_spla}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking SpLA to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_spla"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -190,9 +191,11 @@ EOF
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPLA_LDFLAGS}"
 EOF
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_spla" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_spla"
 write_toolchain_env "${INSTALLDIR}"
 

@@ -16,6 +16,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libsmeagol" ] && rm "${BUILDDIR}/setup_libsmeagol"
 
+WHAT="libsmeagol"
 LIBSMEAGOL_CFLAGS=""
 LIBSMEAGOL_LDFLAGS=""
 LIBSMEAGOL_LIBS=""
@@ -30,7 +31,7 @@ fi
 
 case "${with_libsmeagol}" in
   __INSTALL__)
-    echo "==================== Installing libsmeagol ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libsmeagol-${libsmeagol_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -68,13 +69,13 @@ case "${with_libsmeagol}" in
     LIBSMEAGOL_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
-    echo "==================== Finding libsmeagol from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     echo "Please rerun the toolchain using --with-libsmeagol=<path> option"
     exit 1
     ;;
   __DONTUSE__) ;;
   *)
-    echo "==================== Linking libsmeagol to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_libsmeagol}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/obj"
@@ -108,9 +109,11 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBSMEAGOL_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${LIBSMEAGOL_LIBS}|) \${CP_LIBS}"
 export LIBSMEAGOL_ROOT="${pkg_install_dir}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_libsmeagol" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libsmeagol"
 write_toolchain_env "${INSTALLDIR}"
 

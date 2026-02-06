@@ -18,12 +18,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_openblas" ] && rm "${BUILDDIR}/setup_openblas"
 
+WHAT="OpenBLAS"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_openblas}" in
   __INSTALL__)
-    echo "==================== Installing OpenBLAS ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/openblas-${openblas_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -102,7 +103,7 @@ case "${with_openblas}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding OpenBLAS from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     # assume that system openblas is threaded
     check_lib -lopenblas "OpenBLAS"
     pkg_install_dir=$(
@@ -121,7 +122,7 @@ case "${with_openblas}" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking OpenBLAS to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_openblas"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"
@@ -159,9 +160,11 @@ export MATH_LIBS="\${MATH_LIBS} ${OPENBLAS_LIBS}"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_openblas" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_openblas"
 write_toolchain_env "${INSTALLDIR}"
 

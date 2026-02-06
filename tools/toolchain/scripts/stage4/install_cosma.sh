@@ -21,6 +21,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_cosma" ] && rm "${BUILDDIR}/setup_cosma"
 
+WHAT="COSMA"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -29,7 +30,7 @@ case "$with_cosma" in
     require_env OPENBLAS_ROOT
     require_env SCALAPACK_ROOT
 
-    echo "==================== Installing COSMA ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/COSMA-${cosma_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
 
@@ -221,7 +222,7 @@ case "$with_cosma" in
     COSMA_HIP_LDFLAGS="-L'${COSMA_HIP_LIBDIR}' -Wl,-rpath,'${COSMA_HIP_LIBDIR}'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding COSMA from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion cosma
     add_include_from_paths COSMA_CFLAGS "cosma.h" $INCLUDE_PATHS
     add_lib_from_paths COSMA_LDFLAGS "libcosma.*" $LIB_PATHS
@@ -229,7 +230,7 @@ case "$with_cosma" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking COSMA to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_cosma"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -274,6 +275,7 @@ export COSMA_ROOT="$pkg_install_dir"
 export COSMA_INCLUDE_DIR="$pkg_install_dir/include"
 export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE
 
   cat << EOF >> ${INSTALLDIR}/lsan.supp
@@ -285,6 +287,7 @@ leak:cosma::cosma_context<std::complex<double> >::register_state
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_cosma"
 write_toolchain_env "${INSTALLDIR}"
 

@@ -23,6 +23,7 @@ fi
 
 [ -f "${BUILDDIR}/setup_sirius" ] && rm "${BUILDDIR}/setup_sirius"
 
+WHAT="SIRIUS"
 SIRIUS_CFLAGS=''
 SIRIUS_LDFLAGS=''
 SIRIUS_LIBS=''
@@ -33,7 +34,7 @@ case "$with_sirius" in
   __DONTUSE__) ;;
 
   __INSTALL__)
-    echo "==================== Installing SIRIUS ===================="
+    echo "==================== Installing ${WHAT} ===================="
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
@@ -199,6 +200,7 @@ case "$with_sirius" in
     fi
     ;;
   __SYSTEM__)
+    echo "==================== Finding ${WHAT} from system paths ===================="
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
@@ -244,7 +246,7 @@ case "$with_sirius" in
     add_lib_from_paths SIRIUS_LDFLAGS "libsirius_cxx.*" $LIB_PATHS
     ;;
   *)
-    echo "==================== Linking SIRIUS_Dist to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_sirius"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/lib64"
@@ -271,6 +273,7 @@ prepend_path CPATH "${pkg_install_dir}/include/sirius"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_sirius" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_sirius"
@@ -293,6 +296,7 @@ leak:sirius::sddk::memory_block_descriptor::free_subblock
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_sirius"
 write_toolchain_env "${INSTALLDIR}"
 

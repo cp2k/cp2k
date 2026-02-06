@@ -18,6 +18,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_plumed" ] && rm "${BUILDDIR}/setup_plumed"
 
+WHAT="PLUMED"
 PLUMED_LDFLAGS=''
 PLUMED_LIBS=''
 
@@ -32,7 +33,7 @@ fi
 
 case "$with_plumed" in
   __INSTALL__)
-    echo "==================== Installing PLUMED ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/plumed-${plumed_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -82,14 +83,14 @@ case "$with_plumed" in
     PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding PLUMED from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lplumed "PLUMED"
     add_lib_from_paths PLUMED_LDFLAGS "libplumed*" $LIB_PATHS
     ;;
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking PLUMED to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_plumed"
     check_dir "${pkg_install_dir}/lib"
     PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -114,6 +115,7 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_plumed" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_plumed"
@@ -126,6 +128,7 @@ export PLUMED_ROOT="${pkg_install_dir}"
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_plumed"
 write_toolchain_env "${INSTALLDIR}"
 

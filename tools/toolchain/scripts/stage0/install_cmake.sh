@@ -14,12 +14,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_cmake" ] && rm "${BUILDDIR}/setup_cmake"
 
+WHAT="CMake"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_cmake}" in
   __INSTALL__)
-    echo "==================== Installing CMake ===================="
+    echo "==================== Installing ${WHAT} ===================="
     cmake_ver="3.31.7"
     cmake_ext="sh"
     if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
@@ -63,14 +64,14 @@ case "${with_cmake}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding CMake from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command cmake "cmake"
     ;;
   __DONTUSE__)
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking CMake to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_cmake}"
     check_dir "${with_cmake}/bin"
     ;;
@@ -80,10 +81,12 @@ if [ "${with_cmake}" != "__DONTUSE__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cmake"
 prepend_path PATH "${pkg_install_dir}/bin"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_cmake" >> $SETUPFILE
   fi
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_cmake"
 write_toolchain_env "${INSTALLDIR}"
 

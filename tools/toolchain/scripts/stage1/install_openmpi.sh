@@ -19,6 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "openmpi" ] && exit 0
 [ -f "${BUILDDIR}/setup_openmpi" ] && rm "${BUILDDIR}/setup_openmpi"
 
+WHAT="OpenMPI"
 OPENMPI_CFLAGS=""
 OPENMPI_LDFLAGS=""
 OPENMPI_LIBS=""
@@ -27,7 +28,7 @@ cd "${BUILDDIR}"
 
 case "${with_openmpi}" in
   __INSTALL__)
-    echo "==================== Installing OpenMPI ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/openmpi-${openmpi_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -82,7 +83,7 @@ case "${with_openmpi}" in
     OPENMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding OpenMPI from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command mpiexec "openmpi" && MPIEXEC="$(command -v mpiexec)"
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
@@ -98,7 +99,7 @@ case "${with_openmpi}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking OpenMPI to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_openmpi}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -166,6 +167,7 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_openmpi" >> ${SETUPFILE}
 fi
 
@@ -229,6 +231,7 @@ leak:progress_engine
 leak:__GI___strdup
 EOF
 
+unset WHAT
 load "${BUILDDIR}/setup_openmpi"
 write_toolchain_env "${INSTALLDIR}"
 

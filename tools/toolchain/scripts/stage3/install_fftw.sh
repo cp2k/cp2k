@@ -18,13 +18,14 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_fftw" ] && rm "${BUILDDIR}/setup_fftw"
 
+WHAT="FFTW"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_fftw" in
   __INSTALL__)
     require_env MPI_LIBS
-    echo "==================== Installing FFTW ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/fftw-${fftw_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
 
@@ -66,7 +67,7 @@ case "$with_fftw" in
     FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding FFTW from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lfftw3 "FFTW"
     check_lib -lfftw3_omp "FFTW"
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
@@ -83,7 +84,7 @@ case "$with_fftw" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking FFTW to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_fftw"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -119,6 +120,7 @@ export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 export FFTW_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 export FFTW3_ROOT="${FFTW_ROOT:-${pkg_install_dir}}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
 fi
 cd "${ROOTDIR}"
@@ -137,6 +139,7 @@ cat << EOF >> ${INSTALLDIR}/valgrind.supp
 }
 EOF
 
+unset WHAT
 load "${BUILDDIR}/setup_fftw"
 write_toolchain_env "${INSTALLDIR}"
 

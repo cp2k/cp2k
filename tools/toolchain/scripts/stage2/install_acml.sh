@@ -14,6 +14,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_acml" ] && rm "${BUILDDIR}/setup_acml"
 
+WHAT="ACML"
 ACML_CFLAGS=''
 ACML_LDFLAGS=''
 ACML_LIBS=''
@@ -22,12 +23,12 @@ cd "${BUILDDIR}"
 
 case "$with_acml" in
   __INSTALL__)
-    echo "==================== Installing ACML ===================="
+    echo "==================== Installing ${WHAT} ===================="
     report_error $LINENO "To install ACML you should either contact your system administrator or go to https://developer.amd.com/tools-and-sdks/archive/amd-core-math-library-acml/acml-downloads-resources/ and download the correct version for your system."
     exit 1
     ;;
   __SYSTEM__)
-    echo "==================== Finding ACML from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lacml "ACML"
     add_include_from_paths ACML_CFLAGS "acml.h" $INCLUDE_PATHS
     add_lib_from_paths ACML_LDFLAGS "libacml.*" $LIB_PATHS
@@ -35,7 +36,7 @@ case "$with_acml" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking ACML to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_acml"
     check_dir "${pkg_install_dir}/lib"
     ACML_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -51,6 +52,7 @@ prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_acml" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_acml"
@@ -63,6 +65,7 @@ export MATH_LIBS="\${MATH_LIBS} ${ACML_LIBS}"
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_acml"
 write_toolchain_env "${INSTALLDIR}"
 

@@ -19,6 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gcc" ] && rm "${BUILDDIR}/setup_gcc"
 
+WHAT="GCC"
 GCC_LDFLAGS=""
 GCC_CFLAGS=""
 TSANFLAGS=""
@@ -27,7 +28,7 @@ cd "${BUILDDIR}"
 
 case "${with_gcc}" in
   __INSTALL__)
-    echo "==================== Installing GCC ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/gcc-${gcc_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -120,7 +121,7 @@ case "${with_gcc}" in
     GCC_LDFLAGS="-L'${pkg_install_dir}/lib64' -L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib64' -Wl,-rpath,'${pkg_install_dir}/lib64'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding GCC from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command gcc "gcc" && CC="$(command -v gcc)" || exit 1
     check_command g++ "gcc" && CXX="$(command -v g++)" || exit 1
     check_command gfortran "gcc" && FC="$(command -v gfortran)" || exit 1
@@ -134,7 +135,7 @@ case "${with_gcc}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking GCC to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_gcc}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -180,6 +181,7 @@ export GCC_CFLAGS="${GCC_CFLAGS}"
 export GCC_LDFLAGS="${GCC_LDFLAGS}"
 export TSANFLAGS="${TSANFLAGS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_gcc" >> ${SETUPFILE}
 fi
 
@@ -216,6 +218,7 @@ export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF
 
+unset WHAT
 load "${BUILDDIR}/setup_gcc"
 write_toolchain_env "${INSTALLDIR}"
 

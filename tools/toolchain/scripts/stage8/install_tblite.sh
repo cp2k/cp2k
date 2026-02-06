@@ -17,6 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_tblite" ] && rm "${BUILDDIR}/setup_tblite"
 
+WHAT="tblite"
 TBLITE_DFLAGS=''
 TBLITE_CFLAGS=''
 TBLITE_LDFLAGS=''
@@ -28,7 +29,7 @@ case "$with_tblite" in
   __DONTUSE__) ;;
 
   __INSTALL__)
-    echo "==================== Installing tblite ===================="
+    echo "==================== Installing ${WHAT} ===================="
     require_env OPENBLAS_ROOT
     require_env MATH_LIBS
 
@@ -69,7 +70,7 @@ case "$with_tblite" in
     ;;
 
   __SYSTEM__)
-    echo "==================== Finding tblite from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion tblite
     add_include_from_paths TBLITE_CFLAGS "tblite.h" $INCLUDE_PATHS
     add_include_from_paths TBLITE_CFLAGS "tblite.mod" $INCLUDE_PATHS
@@ -78,7 +79,7 @@ case "$with_tblite" in
     ;;
 
   *)
-    echo "==================== Linking TBLITE to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_tblite"
     check_dir "${pkg_install_dir}/include"
     ;;
@@ -145,9 +146,11 @@ export CP_CFLAGS="\${CP_CFLAGS} \${TBLITE_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} \${TBLITE_LDFLAGS}"
 export CP_LIBS="\${TBLITE_LIBS} \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_tblite" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_tblite"
 write_toolchain_env "${INSTALLDIR}"
 

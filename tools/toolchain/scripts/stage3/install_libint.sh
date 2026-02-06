@@ -36,6 +36,7 @@ esac
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
+WHAT="LIBINT"
 LIBINT_CFLAGS=""
 LIBINT_LDFLAGS=""
 LIBINT_LIBS=""
@@ -44,7 +45,7 @@ cd "${BUILDDIR}"
 
 case "$with_libint" in
   __INSTALL__)
-    echo "==================== Installing LIBINT ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -104,7 +105,7 @@ case "$with_libint" in
     LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding LIBINT from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lint2 "libint"
     add_include_from_paths -p LIBINT_CFLAGS "libint" $INCLUDE_PATHS
     add_lib_from_paths LIBINT_LDFLAGS "libint2.*" $LIB_PATHS
@@ -112,7 +113,7 @@ case "$with_libint" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking LIBINT to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_libint"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -134,6 +135,7 @@ prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_libint" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libint"
@@ -147,6 +149,7 @@ export CP_LIBS="${LIBINT_LIBS} \${CP_LIBS}"
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libint"
 write_toolchain_env "${INSTALLDIR}"
 

@@ -18,12 +18,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_scalapack" ] && rm "${BUILDDIR}/setup_scalapack"
 
+WHAT="ScaLAPACK"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_scalapack" in
   __INSTALL__)
-    echo "==================== Installing ScaLAPACK ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/scalapack-${scalapack_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -70,7 +71,7 @@ case "$with_scalapack" in
     SCALAPACK_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
-    echo "==================== Finding ScaLAPACK from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lscalapack "ScaLAPACK"
     pkg_install_dir=$(
       result=$(find_in_paths "libscalapack.a" $LIB_PATHS)
@@ -82,7 +83,7 @@ case "$with_scalapack" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking ScaLAPACK to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_scalapack"
     check_dir "${pkg_install_dir}/lib"
     SCALAPACK_LDFLAGS="-L${pkg_install_dir}/lib -Wl,-rpath,${pkg_install_dir}/lib"
@@ -111,6 +112,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${SCALAPACK_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(-lscalapack|) \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_scalapack" >> $SETUPFILE
 fi
 cd "${ROOTDIR}"
@@ -123,6 +125,7 @@ cat << EOF >> ${INSTALLDIR}/lsan.supp
 leak:pdpotrf_
 EOF
 
+unset WHAT
 load "${BUILDDIR}/setup_scalapack"
 write_toolchain_env "${INSTALLDIR}"
 

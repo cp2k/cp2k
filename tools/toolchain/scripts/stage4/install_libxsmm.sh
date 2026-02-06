@@ -16,6 +16,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxsmm" ] && rm "${BUILDDIR}/setup_libxsmm"
 
+WHAT="LIBXSMM"
 LIBXSMM_CFLAGS=''
 LIBXSMM_LDFLAGS=''
 LIBXSMM_LIBS=''
@@ -24,7 +25,7 @@ cd "${BUILDDIR}"
 
 case "$with_libxsmm" in
   __INSTALL__)
-    echo "==================== Installing Libxsmm ===================="
+    echo "==================== Installing ${WHAT} ===================="
     if [[ ("$OPENBLAS_ARCH" != "x86_64") && ("$OPENBLAS_ARCH" != "arm64") ]]; then
       report_warning $LINENO "libxsmm is not supported on arch ${OPENBLAS_ARCH}"
       cat << EOF > "${BUILDDIR}/setup_libxsmm"
@@ -89,7 +90,7 @@ EOF
     LIBXSMM_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding Libxsmm from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lxsmm "libxsmm"
     check_lib -lxsmmf "libxsmm"
     check_lib -lxsmmext "libxsmm"
@@ -99,7 +100,7 @@ EOF
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking Libxsmm to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_libxsmm"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/include"
@@ -121,6 +122,7 @@ prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_libxsmm" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libxsmm"
@@ -135,6 +137,7 @@ EOF
 fi
 cd "${ROOTDIR}"
 
+unset WHAT
 load "${BUILDDIR}/setup_libxsmm"
 write_toolchain_env "${INSTALLDIR}"
 

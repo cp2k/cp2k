@@ -14,6 +14,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_mkl" ] && rm "${BUILDDIR}/setup_mkl"
 
+WHAT="Intel MKL"
 MKL_CFLAGS=""
 MKL_LDFLAGS=""
 MKL_LIBS=""
@@ -29,12 +30,12 @@ cd "${BUILDDIR}"
 
 case "${with_mkl}" in
   __INSTALL__)
-    echo "==================== Installing MKL ===================="
-    report_error ${LINENO} "To install MKL, please contact your system administrator."
+    echo "==================== Installing ${WHAT} ===================="
+    report_error ${LINENO} "__INSTALL__ is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)
-    echo "==================== Finding MKL from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     if ! [ -z "${MKLROOT}" ]; then
       echo "MKLROOT is found to be ${MKLROOT}"
     else
@@ -48,7 +49,7 @@ case "${with_mkl}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking MKL to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     check_dir "${with_mkl}"
     MKLROOT="${with_mkl}"
     ;;
@@ -128,9 +129,11 @@ export FFTW_LDFLAGS="${MKL_LDFLAGS}"
 export FFTW_LIBS="${MKL_LIBS}"
 EOF
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_mkl" >> ${SETUPFILE}
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_mkl"
 write_toolchain_env "${INSTALLDIR}"
 

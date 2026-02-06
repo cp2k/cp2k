@@ -20,6 +20,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_ace" ] && rm "${BUILDDIR}/setup_ace"
 
+WHAT="ACE"
 ACE_LDFLAGS=''
 ACE_LIBS=''
 
@@ -28,7 +29,7 @@ cd "${BUILDDIR}"
 
 case "$with_ace" in
   __INSTALL__)
-    echo "==================== Installing Ace ======================="
+    echo "==================== Installing ${WHAT} ======================="
     pkg_install_dir="${INSTALLDIR}/${ace_dir}"
     install_lock_file="${pkg_install_dir}/install_successful"
     ace_root="${pkg_install_dir}"
@@ -86,17 +87,18 @@ case "$with_ace" in
     ACE_DFLAGS="-D__ACE ${ACE_CFLAGS}"
     ACE_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
-    #    not supported
-    #  __SYSTEM__)
-    #    echo "==================== Finding Ace from system paths ===================="
+  __SYSTEM__)
+    echo "==================== Finding ${WHAT} from system paths ===================="
+    report_error ${LINENO} "__SYSTEM__ is not supported"
+    exit 1
     #    check_lib -lace "ACE"
     #    add_lib_from_paths ACE_LDFLAGS "libpace*" $LIB_PATHS
     #    add_include_from_paths ACE_CFLAGS "ace" $INCLUDE_PATHS
     #    ACE_DFLAGS="-D__ACE"
-    #    ;;
+    ;;
   __DONTUSE__) ;;
   *)
-    echo "==================== Linking ACE to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_ace"
     check_dir "${pkg_install_dir}/include/ace"
     check_dir "${pkg_install_dir}/include/ace-evaluator"
@@ -121,6 +123,7 @@ prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_ace" >> $SETUPFILE
   fi
 
@@ -139,6 +142,7 @@ EOF
 #EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_ace"
 write_toolchain_env "${INSTALLDIR}"
 

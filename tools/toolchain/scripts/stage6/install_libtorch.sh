@@ -20,12 +20,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libtorch" ] && rm "${BUILDDIR}/setup_libtorch"
 
+WHAT="LibTorch"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_libtorch}" in
   __INSTALL__)
-    echo "==================== Installing libtorch ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libtorch-${libtorch_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     archive_file="libtorch-cxx11-abi-shared-with-deps-${libtorch_ver}+cpu.zip"
@@ -51,7 +52,7 @@ case "${with_libtorch}" in
     LIBTORCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding libtorch from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -ltorch "libtorch"
     add_include_from_paths LIBTORCH_CXXFLAGS "libtorch.h" $INCLUDE_PATHS
     add_lib_from_paths LIBTORCH_LDFLAGS "libtorch.*" "$LIB_PATHS"
@@ -59,7 +60,7 @@ case "${with_libtorch}" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking libtorch to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_libtorch}"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -96,7 +97,6 @@ export CXXFLAGS="\${CXXFLAGS} ${LIBTORCH_CXXFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBTORCH_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} -lc10 -ltorch_cpu -ltorch"
 EOF
-    cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
   else
     cat << EOF >> "${BUILDDIR}/setup_libtorch"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBTORCH"
@@ -104,10 +104,12 @@ export CXXFLAGS="\${CXXFLAGS} ${LIBTORCH_CXXFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBTORCH_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} -lc10 -ltorch_cpu -ltorch"
 EOF
-    cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
+  cat "${BUILDDIR}/setup_libtorch" >> "${SETUPFILE}"
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libtorch"
 write_toolchain_env "${INSTALLDIR}"
 
