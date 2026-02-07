@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.1
+# Version: 1.2
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -62,6 +62,7 @@
 #          - Version 0.9: Add --disable_local_cache flag (30.01.2026, MK)
 #          - Version 1.0: Add Cray specific configuration (01.02.2026, MK)
 #          - Version 1.1: Allow for selecting the GCC version (02.02.2026, MK)
+#          - Version 1.2: Add option for static build (05.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -137,6 +138,7 @@ else
   MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
+REBUILD_CP2K="no"
 RUN_TEST="no"
 TESTOPTS=""
 USE_EXTERNALS="no"
@@ -171,9 +173,16 @@ while [[ $# -gt 0 ]]; do
       ;;
     -cv | --cp2k_version)
       if (($# > 1)); then
-        CP2K_VERSION="${2}"
+        case "${2}" in
+          psmp | ssmp | ssmp-static)
+            CP2K_VERSION="${2}"
+            ;;
+          *)
+            echo "ERROR: Invalid CP2K version \"${2}\" (choose psmp, ssmp, or ssmp-static)"
+            ;;
+        esac
       else
-        echo "ERROR: No argument found for flag \"${1}\" (choose psmp or ssmp)"
+        echo "ERROR: No argument found for flag \"${1}\" (choose psmp, ssmp, or ssmp-static)"
         ${EXIT_CMD} 1
       fi
       # Disable MPI for a serial CP2K binary
@@ -247,6 +256,10 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -rc | --rebuild_cp2k)
+      REBUILD_CP2K="yes"
+      shift 1
+      ;;
     -t | --test)
       RUN_TEST="yes"
       if (($# > 1)); then
@@ -290,7 +303,7 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
 export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY DISABLE_LOCAL_CACHE GCC_VERSION HAS_PODMAN IN_CONTAINER
-export INSTALL_MESSAGE MPI_MODE NUM_PROCS RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -299,13 +312,14 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-bd_only | --build_deps_only]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
-  echo "                    [-cv | --cp2k_version (psmp | ssmp)]"
+  echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
+  echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | -test \"TESTOPTS\"]"
   echo "                    [-ue | --use_externals]"
   echo "                    [-v | --verbose]"
@@ -322,15 +336,18 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
   echo " -j                   : Number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
+  echo " --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test               : Perform a regression test run after a successful build"
-  echo " --use_externals      : Use external packages installed on the host system. This can result in faster"
-  echo "                        build times, but it can also cause conflicts with outdated packages on the"
-  echo "                        host system, e.g. old python or gcc versions"
+  echo " --use_externals      : Use external packages installed on the host system. This results in much"
+  echo "                        faster build times, but it can also cause conflicts with outdated packages"
+  echo "                        pulled in from the host system, e.g. old python or gcc versions"
   echo " --verbose            : Write verbose output"
   echo ""
   echo "Hints:"
   echo " - Remove the folder ${CP2K_ROOT}/build to (re)build CP2K from scratch"
+  echo "   (see also --rebuild_cp2k flag)"
   echo " - Remove the folder ${CP2K_ROOT}/spack to (re)build CP2K and all its dependencies from scratch"
+  echo "   (see also --build_deps flag)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
   ${EXIT_CMD}
@@ -348,6 +365,7 @@ echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
+echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
 echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS            = \"${TESTOPTS}\""
@@ -383,7 +401,7 @@ esac
 # Check if a valid MPI type is selected
 case "${MPI_MODE}" in
   mpich | openmpi)
-    if [[ "${CP2K_VERSION}" == "ssmp" ]]; then
+    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
       echo "ERROR: MPI type \"${MPI_MODE}\" specified for building a serial CP2K binary"
       ${EXIT_CMD} 1
     fi
@@ -410,10 +428,19 @@ export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}"
 
-# If requested, remove the folders spack, build, and install for (re)building all CP2K dependencies
+# If requested, remove the spack folder for (re)building all CP2K dependencies
 if [[ "${BUILD_DEPS}" == "always" ]]; then
-  # Perform full clean-up
-  for folder in "${SPACK_BUILD_PATH}" "${CP2K_ROOT}"/build "${CP2K_ROOT}"/install; do
+  for folder in ${SPACK_BUILD_PATH}; do
+    if [[ -d "${folder}" ]]; then
+      echo "Removing folder \"${folder}\""
+      rm -rf "${folder}"
+    fi
+  done
+fi
+
+# If requested, remove the build folder for (re)building CP2K
+if [[ "${REBUILD_CP2K}" == "yes" ]]; then
+  for folder in ${CP2K_ROOT}/build; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
@@ -635,6 +662,19 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       ${EXIT_CMD} 1
     fi
   else
+    # If the installation of a specific GCC version for building CP2K is requested,
+    # then an installation of the same GCC version on the host system has to be removed
+    # from the configuration for a static build of CP2K
+    if [[ "${CP2K_VERSION}" == *"-static" ]]; then
+      echo "INFO: A static build of CP2K with GCC ${GCC_VERSION} is requested without using"
+      echo "      any externals which requires to build that GCC version with spack"
+      echo "      while removing a gcc@${GCC_VERSION} installed on the host from the spack"
+      echo "      configuration at the same time"
+      if ! spack compiler remove "gcc@${GCC_VERSION}"; then
+        echo -e "\nERROR: Removing the gcc@${GCC_VERSION} compiler failed"
+        ${EXIT_CMD} 1
+      fi
+    fi
     if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       ${EXIT_CMD} 1
@@ -754,6 +794,46 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
+    "ssmp-static")
+      # Find some static libraries in advance
+      LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
+      LIBM="$(find /usr -name libm.a 2> /dev/null)"
+      cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
+        -GNinja \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_EXE_LINKER_FLAGS="-static" \
+        -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+        -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+        -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
+        -DCMAKE_SKIP_RPATH=ON \
+        -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
+        -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
+        -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
+        -DCP2K_USE_EVERYTHING=ON \
+        -DCP2K_USE_ACE=OFF \
+        -DCP2K_USE_DEEPMD=OFF \
+        -DCP2K_USE_DFTD4=ON \
+        -DCP2K_USE_GREENX=OFF \
+        -DCP2K_USE_HDF5=OFF \
+        -DCP2K_USE_LIBINT2=ON \
+        -DCP2K_USE_LIBTORCH=OFF \
+        -DCP2K_USE_LIBXC=ON \
+        -DCP2K_USE_LIBXSMM=ON \
+        -DCP2K_USE_MPI=OFF \
+        -DCP2K_USE_PEXSI=OFF \
+        -DCP2K_USE_SPGLIB=ON \
+        -DCP2K_USE_VORI=ON \
+        -DCP2K_USE_TBLITE=ON \
+        -DCP2K_USE_TREXIO=OFF \
+        -Werror=dev |&
+        tee "${CMAKE_BUILD_PATH}/cmake.log"
+      EXIT_CODE=$?
+      # It is almost impossible to avoid that shared libraries are pulled in
+      # when the CP2K dependencies are built and thus just change all shared
+      # to static libraries hoping that these are also available
+      sed -E -e "s/\.so/.a/g" -i build/build.ninja
+      ;;
     *)
       echo "ERROR: Unknown CP2K version ${CP2K_VERSION} specified"
       ${EXIT_CMD} 1
@@ -796,14 +876,17 @@ if [[ "${IN_CONTAINER}" == "yes" ]]; then
   fi
 fi
 
+# Cut extension from the CP2K version (e.g. ssmp-static -> ssmp)
+export VERSION=${CP2K_VERSION%%-*}
+
 # Retrieve paths to "hidden" libraries
 LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
-if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
+if ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep -q "not found"; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
-  ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found"
+  ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found"
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
-  for libname in $(ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | awk '{print $1}' | sort | uniq); do
+  for libname in $(ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found" | awk '{print $1}' | sort | uniq); do
     library=$(find -L "${SPACK_ROOT}/opt/spack/view" "${INSTALL_PREFIX}/lib" -name "${libname}" | tail -n 1)
     library_path="$(dirname "${library}")"
     if [[ -n "${library_path}" ]]; then
@@ -818,13 +901,13 @@ if ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
       esac
     fi
   done
-  if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep -q "not found"; then
+  if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep -q "not found"; then
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
     echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
   else
     echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
-    ldd "${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION}" | grep "not found" | sort | uniq
+    ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found" | sort | uniq
     ${EXIT_CMD}
   fi
 fi
@@ -832,14 +915,14 @@ export LD_LIBRARY_PATH
 
 # Create links to CP2K binaries
 cd "${INSTALL_PREFIX}"/bin || ${EXIT_CMD} 1
-for binary in *."${CP2K_VERSION}"; do
-  if ! ln -sf "${binary}" "${binary%%."${CP2K_VERSION}"}"; then
+for binary in *."${VERSION}"; do
+  if ! ln -sf "${binary}" "${binary%%."${VERSION}"}"; then
     echo "ERROR: The creation of a symbolic link for the binary ${binary} failed"
     ${EXIT_CMD}
   fi
 done
-ln -sf cp2k."${CP2K_VERSION}" cp2k."${CP2K_VERSION/smp/opt}"
-ln -sf cp2k."${CP2K_VERSION}" cp2k_shell
+ln -sf cp2k."${VERSION}" cp2k."${VERSION/smp/opt}"
+ln -sf cp2k."${VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
 # Allow to run as root within a container with OpenMPI
@@ -882,8 +965,8 @@ chmod 750 "${WRAPPER_SCRIPT}"
 
 # Create shortcut for launching the regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
-ldd ${INSTALL_PREFIX}/bin/cp2k.${CP2K_VERSION} | grep "not found" | sort | uniq
-${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${CP2K_VERSION}
+ldd ${INSTALL_PREFIX}/bin/cp2k.${VERSION} | grep "not found" | sort | uniq
+${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 
@@ -902,7 +985,7 @@ else
     echo "*** A regression test run can be launched with"
     echo "    podman run -it --rm <IMAGE ID> run_tests"
     echo ""
-    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+    if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
       echo "    podman run -it --rm <IMAGE ID> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
@@ -915,7 +998,7 @@ else
     echo "*** A regression test run can be launched with"
     echo "    ${INSTALL_PREFIX}/bin/launch run_tests"
     echo ""
-    if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+    if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
       echo "    ${INSTALL_PREFIX}/bin/launch cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
       echo ""
