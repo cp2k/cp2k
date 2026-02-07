@@ -1,0 +1,11 @@
+--- a/f_check	2024-04-04 20:26:04.000000000 +0000
++++ b/f_check	2025-12-03 01:13:59.000000000 +0000
+@@ -86,7 +86,7 @@
+ 		vendor=CRAY
+ 		openmp='-fopenmp'
+ 		;;
+-   	    *Arm\ F90*)
++	    *Arm\ F90*|*F90\ Flang*|*F90\ AOCC*)
+ 		vendor=FLANG
+ 		openmp='-fopenmp'
+ 		;;	

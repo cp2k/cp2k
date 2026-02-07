@@ -54,6 +54,7 @@ def main() -> None:
         f.write(regtest("minimal", "ssmp"))
 
     # Spack/CMake based testers
+
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(install_cp2k_spack("psmp", mpi_mode="mpich"))
 
@@ -74,6 +75,10 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(install_cp2k_spack("ssmp", mpi_mode="no"))
+
+    with OutputFile(f"Dockerfile.test_spack_ssmp-static", args.check) as f:
+        f.write(install_cp2k_spack("ssmp-static", mpi_mode="no", gcc_version=14))
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -567,10 +572,21 @@ def install_cp2k_spack(
     gcc_version: int = 13,
     testopts: str = "",
 ) -> str:
-    if gcc_version in (13, 15):
+    # Ubuntu 24.04 provides no gcc-15 package
+    if gcc_version == 15:
         gcc_compilers = "g++ gcc gfortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
+    # Static CP2K builds use the GCC compiler built with spack
+    if version.endswith("-static"):
+        use_externals = ""
+        # The default GCC 13 compiler is used for static builds
+        # A spack build of the same GCC version as the default one
+        # of the host system and ignoring all externals at the same
+        # time is not supported
+        gcc_compilers = "g++ gcc gfortran"
+    else:
+        use_externals = "-ue"
     output = rf"""
 ARG BASE_IMAGE="ubuntu:24.04"
 
@@ -613,7 +629,7 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} -ue"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
 
 # Build and install CP2K
 RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -mpi {mpi_mode}"
