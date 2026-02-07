@@ -109,7 +109,7 @@ case "${with_openblas}" in
     check_lib -lopenblas_openmp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_openmp"
     check_lib -lopenblas_omp 2> /dev/null && OPENBLAS_LIBS="-lopenblas_omp"
     pkg_install_dir="$(dirname $(dirname $(find_in_paths "libopenblas.*" $LIB_PATHS)))"
-    # Deal with the condition that libfftw3 is installed in "/usr/lib/x86_64-linux-gnu"
+    # Deal with the condition that libopenblas is installed in "/usr/lib/x86_64-linux-gnu"
     if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
       pkg_install_dir="/usr"
     else

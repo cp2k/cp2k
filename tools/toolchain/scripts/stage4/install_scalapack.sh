@@ -73,11 +73,11 @@ case "$with_scalapack" in
     echo "==================== Finding ScaLAPACK from system paths ===================="
     check_lib -lscalapack "ScaLAPACK"
     pkg_install_dir="$(dirname $(dirname $(find_in_paths "libscalapack*" $LIB_PATHS)))"
-    # Deal with the condition that libfftw3 is installed in "/usr/lib/x86_64-linux-gnu"
+    # Deal with the condition that libscalapack is installed in "/usr/lib/x86_64-linux-gnu"
     if [[ "${pkg_install_dir}" == "/usr/lib"* ]]; then
       pkg_install_dir="/usr"
     fi
-    add_lib_from_paths SCALAPACK_LDFLAGS "libscalapack.*" $LIB_PATHS
+    add_lib_from_paths SCALAPACK_LDFLAGS "libscalapack*" $LIB_PATHS
     ;;
   __DONTUSE__) ;;
 
