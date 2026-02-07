@@ -13,7 +13,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++ gcc gfortran \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     git \
     gnupg \
     libssh-dev \
@@ -55,7 +55,7 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
