@@ -1,0 +1,13 @@
+diff --git a/ctest/CMakeLists.txt b/ctest/CMakeLists.txt
+index 4496eff82..093c83541 100644
+--- a/ctest/CMakeLists.txt
++++ b/ctest/CMakeLists.txt
+@@ -5,6 +5,8 @@ if (NOT NOFORTRAN)
+ enable_language(Fortran)
+ endif()
+ 
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOCHANGE")
++
+ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DADD${BU} -DCBLAS")
+ if (BINARY32 AND CMAKE_C_PLATFORM_ID MATCHES "MinGW" AND CMAKE_Fortran_COMPILER_VERSION VERSION_EQUAL 14.2)
+        list(REMOVE_ITEM ${CMAKE_Fortran_FLAGS} -O3 -O2 -O1 -Os)

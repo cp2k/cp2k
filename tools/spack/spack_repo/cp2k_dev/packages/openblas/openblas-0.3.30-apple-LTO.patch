@@ -1,0 +1,13 @@
+diff --git a/Makefile.system b/Makefile.system
+index 38646c3c6..e81ccf083 100644
+--- a/Makefile.system
++++ b/Makefile.system
+@@ -436,7 +436,7 @@ ifeq (x$(XCVER), x 15)
+ CCOMMON_OPT += -Wl,-ld_classic
+ FCOMMON_OPT += -Wl,-ld_classic
+ endif
+-ifeq (x$(XCVER), x 16)
++ifeq ($(shell [ $(XCVER) -ge 16 ] && echo yes),yes)
+ ifeq ($(F_COMPILER), GFORTRAN)
+ override CEXTRALIB := $(filter-out(-lto_library, $(CEXTRALIB))) 
+ endif
