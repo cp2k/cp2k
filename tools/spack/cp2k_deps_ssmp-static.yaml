@@ -1,4 +1,4 @@
-# Spack environment file for serial statically linked CP2K binary
+# Spack environment file for a serial statically linked CP2K binary
 
 spack:
   concretizer:
@@ -26,6 +26,7 @@ spack:
         - "+openmp"
         - "+pic"
         - "~rocm"
+    #   - "~shared" this does not work because of gettext
         - "+static"
         - "build_system=cmake"
         - "build_type=Release"
@@ -53,28 +54,33 @@ spack:
       require:
         - "~examples"
         - "+openmp"
+        - "~shared"
         - "smm=libxsmm"
 
     fftw:
       require:
         - "+openmp"
+        - "~shared"
 
     hdf5:
       require:
         - "+fortran"
+        - "~shared"
 
     libint:
       require:
         - "+fortran"
+        - "~shared"
         - "tune=cp2k-lmax-5"
 
     libxc:
       require:
         - "+kxc"
+        - "~shared"
 
-    trexio:
+    spglib:
       require:
-        - "+hdf5"
+        - "~shared"
 
   specs:
     # Build tools
@@ -87,17 +93,15 @@ spack:
     - "dbcsr@2.9.1"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
-#    - "greenx@2.2"
-    - "hdf5@1.14.6"
+#   - "hdf5@1.14.6"
     - "libint@2.11.1"
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
     - "openblas@0.3.30"
-#    - "pace@2025.12.4"
-#    - "spglib@2.5.0"
+    - "pace@2025.12.4"
+    - "spglib@2.5.0"
     - "tblite@0.5.0"
-    - "trexio@2.5.0"
 
   view:
     default:
