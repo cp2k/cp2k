@@ -666,13 +666,15 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     # then an installation of the same GCC version on the host system has to be removed
     # from the configuration for a static build of CP2K
     if [[ "${CP2K_VERSION}" == *"-static" ]]; then
-      echo "INFO: A static build of CP2K with GCC ${GCC_VERSION} is requested without using"
-      echo "      any externals which requires to build that GCC version with spack"
-      echo "      while removing a gcc@${GCC_VERSION} installed on the host from the spack"
-      echo "      configuration at the same time"
-      if ! spack compiler remove "gcc@${GCC_VERSION}"; then
-        echo -e "\nERROR: Removing the gcc@${GCC_VERSION} compiler failed"
-        ${EXIT_CMD} 1
+      if spack compilers | grep -q "gcc@${GCC_VERSION}"; then
+        echo "INFO: A static build of CP2K with GCC ${GCC_VERSION} is requested without using"
+        echo "      any externals which requires to build that GCC version with spack"
+        echo "      while removing a gcc@${GCC_VERSION} installed on the host from the spack"
+        echo "      configuration at the same time"
+        if ! spack compiler remove "gcc@${GCC_VERSION}"; then
+          echo -e "\nERROR: Removing the gcc@${GCC_VERSION} compiler failed"
+          ${EXIT_CMD} 1
+        fi
       fi
     fi
     if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
