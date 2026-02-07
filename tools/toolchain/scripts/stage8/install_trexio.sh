@@ -17,6 +17,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_trexio" ] && rm "${BUILDDIR}/setup_trexio"
 
+WHAT="TREXIO"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -24,7 +25,7 @@ case "$with_trexio" in
   __DONTUSE__) ;;
 
   __INSTALL__)
-    echo "==================== Installing TREXIO ===================="
+    echo "==================== Installing ${WHAT} ===================="
     require_env HDF5_LIBS
     require_env HDF5_CFLAGS
     require_env HDF5_LDFLAGS
@@ -57,7 +58,7 @@ case "$with_trexio" in
     TREXIO_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding trexio from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     require_env HDF5_LIBS
     require_env HDF5_CFLAGS
     require_env HDF5_LDFLAGS
@@ -66,7 +67,7 @@ case "$with_trexio" in
     add_lib_from_paths trexio_LDFLAGS "libtrexio.*" $LIB_PATHS
     ;;
   *)
-    echo "==================== Linking TREXIO to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_trexio"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -98,9 +99,11 @@ export CP_CFLAGS="\${CP_CFLAGS} ${TREXIO_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${TREXIO_LDFLAGS}"
 export CP_LIBS="${TREXIO_LIBS} \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_trexio" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_trexio"
 write_toolchain_env "${INSTALLDIR}"
 

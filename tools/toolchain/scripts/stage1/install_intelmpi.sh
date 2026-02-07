@@ -15,6 +15,7 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "intelmpi" ] && exit 0
 rm -f "${BUILDDIR}/setup_intelmpi"
 
+WHAT="Intel MPI"
 INTELMPI_CFLAGS=""
 INTELMPI_LDFLAGS=""
 INTELMPI_LIBS=""
@@ -23,12 +24,12 @@ cd "${BUILDDIR}"
 
 case "${with_intelmpi}" in
   __INSTALL__)
-    echo "==================== Installing Intel MPI ===================="
-    echo '__INSTALL__ is not supported; please manually install Intel MPI'
+    echo "==================== Installing ${WHAT} ===================="
+    report_error ${LINENO} "__INSTALL__ is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)
-    echo "==================== Finding Intel MPI from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command mpiexec "intelmpi" && MPIEXEC="$(realpath $(command -v mpiexec))"
     if [ "${with_intel}" != "__DONTUSE__" ]; then
       if [ "${with_ifx}" = "yes" ]; then
@@ -56,7 +57,7 @@ case "${with_intelmpi}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking Intel MPI to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_intelmpi}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -123,9 +124,11 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_intelmpi"
 write_toolchain_env "${INSTALLDIR}"
 

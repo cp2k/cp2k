@@ -14,6 +14,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_amd" ] && rm "${BUILDDIR}/setup_amd"
 
+WHAT="AMD Compiler"
 AMD_CFLAGS=""
 AMD_LDFLAGS=""
 AMD_LIBS=""
@@ -22,12 +23,12 @@ cd "${BUILDDIR}"
 
 case "${with_amd}" in
   __INSTALL__)
-    echo "==================== Installing the AMD compiler ======================"
-    echo "__INSTALL__ is not supported; please install the AMD compiler manually"
+    echo "==================== Installing ${WHAT} ======================"
+    report_error ${LINENO} "__INSTALL__ is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)
-    echo "==================== Finding AMD compiler from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command clang "amd" && CC="$(realpath $(command -v clang))" || exit 1
     check_command clang++ "amd" && CXX="$(realpath $(command -v clang++))" || exit 1
     check_command flang "amd" && FC="$(realpath $(command -v flang))" || exit 1
@@ -38,7 +39,7 @@ case "${with_amd}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking AMD compiler to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_amd}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -80,9 +81,11 @@ export AMD_CFLAGS="${AMD_CFLAGS}"
 export AMD_LDFLAGS="${AMD_LDFLAGS}"
 export AMD_LIBS="${AMD_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_amd" >> ${SETUPFILE}
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_amd"
 write_toolchain_env "${INSTALLDIR}"
 

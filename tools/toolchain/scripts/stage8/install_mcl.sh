@@ -19,12 +19,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_mcl" ] && rm "${BUILDDIR}/setup_mcl"
 
+WHAT="MCL"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_mcl:=__INSTALL__}" in
   __INSTALL__)
-    echo "==================== Installing MCL ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/mcl-${mcl_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -102,7 +103,7 @@ EOF
     MCL_LDFLAGS="-L'${pkg_install_dir}/lib/MiMiC' -Wl,-rpath,'${pkg_install_dir}/lib/MiMiC'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding MCL from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lmclf "mcl"
     add_lib_from_paths MCL_LDFLAGS "mclf.*" "$LIB_PATHS"
     add_lib_from_paths MCL_LDFLAGS "mcl.*" "$LIB_PATHS"
@@ -110,7 +111,7 @@ EOF
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking MCL to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_mcl}"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -144,9 +145,11 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__MIMIC"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${MCL_LDFLAGS}"
 export CP_LIBS="\${CP_LIBS} ${MCL_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_mcl" >> "${SETUPFILE}"
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_mcl"
 write_toolchain_env "${INSTALLDIR}"
 

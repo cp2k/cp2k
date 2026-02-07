@@ -14,6 +14,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_intel" ] && rm "${BUILDDIR}/setup_intel"
 
+WHAT="Intel Compiler"
 INTEL_CFLAGS=""
 INTEL_LDFLAGS=""
 INTEL_LIBS=""
@@ -22,12 +23,12 @@ cd "${BUILDDIR}"
 
 case "${with_intel}" in
   __INSTALL__)
-    echo "==================== Installing the Intel compiler ===================="
-    echo "__INSTALL__ is not supported; please install the Intel compiler manually"
+    echo "==================== Installing ${WHAT} ===================="
+    report_error ${LINENO} "__INSTALL__ is not supported; please install manually"
     exit 1
     ;;
   __SYSTEM__)
-    echo "==================== Finding Intel compiler from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command icx "intel" && CC="$(realpath $(command -v icx))" || exit 1
     check_command icpx "intel" && CXX="$(realpath $(command -v icpx))" || exit 1
     if [ "${with_ifx}" = "yes" ]; then
@@ -42,7 +43,7 @@ case "${with_intel}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking Intel compiler to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_intel}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
@@ -85,9 +86,11 @@ export INTEL_CFLAGS="${INTEL_CFLAGS}"
 export INTEL_LDFLAGS="${INTEL_LDFLAGS}"
 export INTEL_LIBS="${INTEL_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_intel" >> ${SETUPFILE}
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_intel"
 write_toolchain_env "${INSTALLDIR}"
 

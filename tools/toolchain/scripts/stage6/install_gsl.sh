@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gsl" ] && rm "${BUILDDIR}/setup_gsl"
 
+WHAT="GSL"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_gsl" in
   __INSTALL__)
-    echo "==================== Installing GSL ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/gsl-${gsl_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -51,7 +52,7 @@ case "$with_gsl" in
     GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding GSL from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion gsl
     add_include_from_paths GSL_CFLAGS "gsl.h" $INCLUDE_PATHS
     add_lib_from_paths GSL_LDFLAGS "libgsl.*" $LIB_PATHS
@@ -60,7 +61,7 @@ case "$with_gsl" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking GSL to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_gsl"
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"
@@ -94,9 +95,11 @@ prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib64/pkgconfig"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 export CP_LIBS="IF_MPI(${GSL_LIBS}|) \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_gsl" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_gsl"
 write_toolchain_env "${INSTALLDIR}"
 

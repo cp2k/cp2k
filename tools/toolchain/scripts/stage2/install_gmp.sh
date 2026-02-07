@@ -1,23 +1,23 @@
 #!/bin/bash -e
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gmp_ver="6.3.0"
 gmp_sha256="e56fd59d76810932a0555aa15a14b61c16bed66110d3c75cc2ac49ddaa9ab24c"
-# shellcheck disable=SC1091
+
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
 
+WHAT="GMP"
 GMP_CFLAGS=""
 GMP_LDFLAGS=""
 GMP_LIBS=""
@@ -26,7 +26,7 @@ cd "${BUILDDIR}"
 with_gmp=${with_gmp:__DONTUSE__}
 case "$with_gmp" in
   __INSTALL__)
-    echo "==================== Installing GMP ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/gmp-${gmp_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -59,7 +59,7 @@ case "$with_gmp" in
     GMP_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding GMP from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lgmp "gmp"
     check_lib -lgmpxx "gmpxx"
     add_include_from_paths GMP_CFLAGS "gmp.h" "$INCLUDE_PATHS"
@@ -69,7 +69,7 @@ case "$with_gmp" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking GMP to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_gmp"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -101,9 +101,11 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GMP_LDFLAGS}"
 export CP_LIBS="${GMP_LIBS} \${CP_LIBS}"
 export GMP_ROOT="${pkg_install_dir}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_gmp" >> "$SETUPFILE"
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_gmp"
 write_toolchain_env "${INSTALLDIR}"
 

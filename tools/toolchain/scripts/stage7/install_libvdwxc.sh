@@ -16,6 +16,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libvdwxc" ] && rm "${BUILDDIR}/setup_libvdwxc"
 
+WHAT="libvdwxc"
 if [ "$MPI_MODE" = "no" ] && [ $with_sirius = "__FALSE__" ]; then
   report_warning $LINENO "MPI and SIRIUS are disabled, skipping libvdwxc installation"
   exit 0
@@ -29,7 +30,7 @@ case "$with_libvdwxc" in
     require_env FFTW3_INCLUDES
     require_env FFTW3_LIBS
 
-    echo "==================== Installing libvdwxc ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libvdwxc-${libvdwxc_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -80,7 +81,7 @@ case "$with_libvdwxc" in
     LIBVDWXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding libvdwxc from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion libvdwxc
     add_include_from_paths LIBVDWXC_CFLAGS "vdwxc.h" $INCLUDE_PATHS
     add_lib_from_paths LIBVDWXC_LDFLAGS "libvdwxc*" $LIB_PATHS
@@ -89,7 +90,7 @@ case "$with_libvdwxc" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking libvdwxc to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_libvdwxc"
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"
@@ -120,9 +121,11 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${LIBVDWXC_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${LIBVDWXC_LIBS}|) \${CP_LIBS}"
 export VDWXC_ROOT="${pkg_install_dir}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libvdwxc"
 write_toolchain_env "${INSTALLDIR}"
 

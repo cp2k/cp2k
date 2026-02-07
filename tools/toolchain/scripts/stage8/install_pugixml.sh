@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_pugixml" ] && rm "${BUILDDIR}/setup_pugixml"
 
+WHAT="pugixml"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_pugixml}" in
   __INSTALL__)
-    echo "==================== Installing pugixml ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/pugixml-${pugixml_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -53,7 +54,7 @@ case "${with_pugixml}" in
     PUGIXML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding pugixml from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion pugixml
     add_include_from_paths PUGIXML_CFLAGS "pugixml.hpp" ${INCLUDE_PATHS}
     add_lib_from_paths PUGIXML_LDFLAGS "libpugixml.*" ${LIB_PATHS}
@@ -62,7 +63,7 @@ case "${with_pugixml}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking pugixml to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_pugixml}"
     # Use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
     PUGIXML_LIBDIR="${pkg_install_dir}/lib"
@@ -97,9 +98,11 @@ export CP_CFLAGS="\${CP_CFLAGS} ${PUGIXML_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${PUGIXML_LDFLAGS}"
 export CP_LIBS="IF_MPI(${PUGIXML_LIBS}|) \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_pugixml" >> ${SETUPFILE}
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_pugixml"
 write_toolchain_env "${INSTALLDIR}"
 

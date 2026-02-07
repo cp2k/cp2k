@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_spglib" ] && rm "${BUILDDIR}/setup_spglib"
 
+WHAT="Spglib"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_spglib" in
   __INSTALL__)
-    echo "==================== Installing Spglib ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/spglib-${spglib_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -63,7 +64,7 @@ case "$with_spglib" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding Spglib from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion spglib
     add_include_from_paths SPGLIB_CFLAGS "spglib.h" $INCLUDE_PATHS
     add_lib_from_paths SPGLIB_LDFLAGS "libspglib.*" $LIB_PATHS
@@ -71,7 +72,7 @@ case "$with_spglib" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking Spglib to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_spglib"
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"
@@ -100,9 +101,11 @@ export CP_CFLAGS="\${CP_CFLAGS} ${SPGLIB_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${SPGLIB_LDFLAGS}"
 export CP_LIBS="${SPGLIB_LIBS} \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_spglib"
 write_toolchain_env "${INSTALLDIR}"
 

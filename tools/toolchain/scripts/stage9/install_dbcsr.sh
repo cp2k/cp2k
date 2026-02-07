@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_dbcsr" ] && rm "${BUILDDIR}/setup_dbcsr"
 
+WHAT="DBCSR"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_dbcsr}" in
   __INSTALL__)
-    echo "==================== Installing DBCSR ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/dbcsr-${dbcsr_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -94,7 +95,7 @@ case "${with_dbcsr}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding DBCSR from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -ldbcsr "dbcsr"
     add_include_from_paths DBCSR_CFLAGS "dbcsr.h" $INCLUDE_PATHS
     add_lib_from_paths DBCSR_LDFLAGS "dbcsr.*" $LIB_PATHS
@@ -103,7 +104,7 @@ case "${with_dbcsr}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking DBCSR to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_dbcsr}"
     DBCSR_LIBDIR="${pkg_install_dir}/lib"
     check_dir "${DBCSR_LIBDIR}"
@@ -148,9 +149,10 @@ EOF
 else
   touch "${BUILDDIR}/setup_dbcsr"
 fi
-
+echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
 cat "${BUILDDIR}/setup_dbcsr" >> ${SETUPFILE}
 
+unset WHAT
 load "${BUILDDIR}/setup_dbcsr"
 write_toolchain_env "${INSTALLDIR}"
 

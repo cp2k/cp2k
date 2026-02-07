@@ -17,12 +17,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_hdf5" ] && rm "${BUILDDIR}/setup_hdf5"
 
+WHAT="HDF5"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_hdf5" in
   __INSTALL__)
-    echo "==================== Installing HDF5 ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/hdf5-${hdf5_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -55,7 +56,7 @@ case "$with_hdf5" in
     HDF5_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding HDF5 from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion hdf5
     pkg_install_dir=$(h5cc -showconfig | grep "Installation point" | awk '{print $3}')
     if [ -d ${pkg_install_dir}/include ]; then
@@ -75,7 +76,7 @@ case "$with_hdf5" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking HDF5 to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="${with_hdf5}"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -131,9 +132,11 @@ export HDF5_LIBRARIES="${HDF5_LIBS}"
 export HDF5_HL_LIBRARIES="${HDF5_LIBS}"
 export HDF5_INCLUDE_DIRS="${pkg_install_dir}/include"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_hdf5"
 write_toolchain_env "${INSTALLDIR}"
 

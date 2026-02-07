@@ -16,12 +16,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_SpFFT" ] && rm "${BUILDDIR}/setup_SpFFT"
 
+WHAT="SpFFT"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "${with_spfft}" in
   __INSTALL__)
-    echo "==================== Installing SpFFT ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/SpFFT-${spfft_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -147,7 +148,7 @@ case "${with_spfft}" in
     SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath,'${pkg_install_dir}/lib/cuda'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding SpFFT from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_command pkg-config --modversion spfft
     add_include_from_paths SPFFT_CFLAGS "spfft.h" $INCLUDE_PATHS
     add_lib_from_paths SPFFT_LDFLAGS "libspfft.*" $LIB_PATHS
@@ -156,7 +157,7 @@ case "${with_spfft}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking SpFFT to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_spfft"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -197,9 +198,11 @@ export SpFFT_ROOT="${pkg_install_dir}"
 export SPFFT_INCLUDE_DIR="${pkg_install_dir}/include"
 export CP_LIBS="IF_MPI(${SPFFT_LIBS}|) \${CP_LIBS}"
 EOF
+  echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
   cat "${BUILDDIR}/setup_spfft" >> $SETUPFILE
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_spfft"
 write_toolchain_env "${INSTALLDIR}"
 

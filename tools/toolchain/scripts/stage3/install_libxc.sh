@@ -16,6 +16,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxc" ] && rm "${BUILDDIR}/setup_libxc"
 
+WHAT="LIBXC"
 LIBXC_CFLAGS=""
 LIBXC_LDFLAGS=""
 LIBXC_LIBS=""
@@ -24,7 +25,7 @@ cd "${BUILDDIR}"
 
 case "$with_libxc" in
   __INSTALL__)
-    echo "==================== Installing LIBXC ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/libxc-${libxc_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -59,7 +60,7 @@ case "$with_libxc" in
     LIBXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding LIBXC from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -lxcf03 "libxc"
     check_lib -lxc "libxc"
     add_include_from_paths LIBXC_CFLAGS "xc.h" $INCLUDE_PATHS
@@ -68,7 +69,7 @@ case "$with_libxc" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking LIBXC to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_libxc"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
@@ -90,6 +91,7 @@ prepend_path CPATH "$pkg_install_dir/include"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_libxc" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_libxc"
@@ -104,6 +106,7 @@ export LIBXC_ROOT="${pkg_install_dir}"
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_libxc"
 write_toolchain_env "${INSTALLDIR}"
 

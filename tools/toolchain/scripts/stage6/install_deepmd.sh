@@ -19,6 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_deepmd" ] && rm "${BUILDDIR}/setup_deepmd"
 
+WHAT="DeePMD-kit"
 DEEPMD_LDFLAGS=''
 DEEPMD_LIBS=''
 
@@ -27,7 +28,7 @@ cd "${BUILDDIR}"
 
 case "$with_deepmd" in
   __INSTALL__)
-    echo "==================== Installing DeePMD ===================="
+    echo "==================== Installing ${WHAT} ===================="
     pkg_install_dir="${INSTALLDIR}/deepmd-kit-${deepmd_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
     deepmd_root="${pkg_install_dir}"
@@ -61,7 +62,7 @@ case "$with_deepmd" in
     DEEPMD_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,--no-as-needed -ldeepmd_c -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding DeePMD from system paths ===================="
+    echo "==================== Finding ${WHAT} from system paths ===================="
     check_lib -ldeepmd "DEEPMD"
     add_lib_from_paths DEEPMD_LDFLAGS "libdeepmd*" $LIB_PATHS
     add_include_from_paths DEEPMD_CFLAGS "deepmd" $INCLUDE_PATHS
@@ -69,7 +70,7 @@ case "$with_deepmd" in
     ;;
   __DONTUSE__) ;;
   *)
-    echo "==================== Linking DEEPMD to user paths ===================="
+    echo "==================== Linking ${WHAT} to user paths ===================="
     pkg_install_dir="$with_deepmd"
     check_dir "${pkg_install_dir}/include/deepmd"
     check_dir "${pkg_install_dir}/lib"
@@ -91,6 +92,7 @@ prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 EOF
+    echo "# ==================== For ${WHAT} ==================== #" >> ${SETUPFILE}
     cat "${BUILDDIR}/setup_deepmd" >> $SETUPFILE
   fi
 
@@ -111,6 +113,7 @@ leak:deepmd::AtomMap::AtomMap
 EOF
 fi
 
+unset WHAT
 load "${BUILDDIR}/setup_deepmd"
 write_toolchain_env "${INSTALLDIR}"
 
