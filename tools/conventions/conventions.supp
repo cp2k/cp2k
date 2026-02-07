@@ -256,12 +256,6 @@ topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://
 trexio.F: Found STOP statement in procedure "trexio_assert" https://cp2k.org/conv#c205
 trexio.F: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
 trexio_utils.F: Module "trexio" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c204
-xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c204
-xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug" https://cp2k.org/conv#c203
-xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c203
-xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug" https://cp2k.org/conv#c012
-xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd" https://cp2k.org/conv#c012
 xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
 xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
 xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205

@@ -3722,9 +3722,9 @@ CONTAINS
       ALLOCATE (dipole_to_store(nspin, num_copy, 3, nao, nao), source=z_zero)
       ALLOCATE (bc_to_store(nspin, num_copy, 3, nao), source=0.0_dp)
 
-!$OMP PARALLEL PRIVATE(ikp, S_k, H_k, eigenvals, C_k, &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(ispin, ikp, S_k, H_k, eigenvals, C_k, &
 !$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
-!$OMP SHARED(num_pe, mepos, dipole_to_store, bc_to_store, nmo, nao, ispin, &
+!$OMP SHARED(num_pe, mepos, dipole_to_store, bc_to_store, nmo, nao, nspin, &
 !$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
       ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
