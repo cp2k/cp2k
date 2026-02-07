@@ -106,6 +106,8 @@ def main() -> None:
                 continue
             if root.startswith("./tools/fedora"):
                 continue
+            if root.startswith("./tools/spack/spack_repo/cp2k_dev/packages"):
+                continue
             if root.startswith("./data/DFTB/scc"):
                 continue
             if root.startswith("./arch"):
