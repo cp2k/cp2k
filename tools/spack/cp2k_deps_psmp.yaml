@@ -179,7 +179,7 @@ spack:
     - "py-torch@2.9.0"
     - "sirius@7.9.0"
     - "spfft@1.1.1"
-    - "spglib@2.5.0"
+    - "spglib@2.7.0"
     - "spla@1.6.1"
     - "tblite@0.5.0"
     - "trexio@2.5.0"
