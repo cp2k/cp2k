@@ -54,7 +54,6 @@ RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ssmp -gv 13 -mpi no"
 FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    findutils \
     g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
