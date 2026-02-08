@@ -101,6 +101,9 @@ CONTAINS
       CALL section_vals_val_get(pao_section, "MAX_CYCLES", i_val=pao%max_cycles)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,I11)") " PAO|", "MAX_CYCLES", pao%max_cycles
 
+      CALL section_vals_val_get(pao_section, "IGNORE_CONVERGENCE_FAILURE", l_val=pao%ignore_convergence_failure)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,L11)") " PAO|", "IGNORE_CONVERGENCE_FAILURE", pao%ignore_convergence_failure
+
       CALL section_vals_val_get(pao_section, "PARAMETERIZATION", i_val=pao%parameterization)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T70,A11)") " PAO|", "PARAMETERIZATION", id2str(pao%parameterization)
 
@@ -293,6 +296,15 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MAX_CYCLES", &
                           description="Maximum number of PAO line search cycles for a given hamiltonian.", &
                           default_i_val=75)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="IGNORE_CONVERGENCE_FAILURE", &
+                          description="If true, only a warning is issued if a PAO "// &
+                          "optimization has not converged. By default, a run is aborted "// &
+                          "if the required convergence criteria have not been achieved.", &
+                          usage="IGNORE_CONVERGENCE_FAILURE logical_value", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
