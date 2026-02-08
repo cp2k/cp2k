@@ -4,9 +4,7 @@
 
 import argparse
 import torch
-
 from pathlib import Path
-from torch.utils.data import DataLoader
 
 from pao.dataset import PaoDataset, collate_fn
 from pao.training import train_model
@@ -35,9 +33,6 @@ def main() -> None:
         cutoff=model.cutoff,
         files=args.training_data,
     )
-    dataloader = DataLoader(
-        dataset, batch_size=args.batch, shuffle=True, collate_fn=collate_fn
-    )
 
     # Check compatability between model and training data.
     assert dataset.kind.atomic_number == model.atomic_number
@@ -47,7 +42,7 @@ def main() -> None:
     assert dataset.all_kind_names == model.all_kind_names
 
     # Train the model.
-    train_model(model, dataloader, args.epochs)
+    train_model(model, dataset, epochs=args.epochs, batch_size=args.batch)
 
     # Save the model.
     torch.jit.save(model, args.model)  # type: ignore

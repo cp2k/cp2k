@@ -4,18 +4,16 @@
 
 import torch
 import argparse
-import numpy as np
 from pathlib import Path
 
 from pao.dataset import PaoDataset
-from pao.training import loss_function
+from pao.training import validate_model
 
 
 # ======================================================================================
 def main() -> None:
     description = "Validates a given equivariant PAO-ML model against test data."
     parser = argparse.ArgumentParser(description=description)
-    # parser.add_argument("--batch", type=int, default=64)
     parser.add_argument("--model", required=True)
     parser.add_argument("--threshold", type=float, default=1.0)
 
@@ -44,17 +42,11 @@ def main() -> None:
     assert dataset.all_kind_names == model.all_kind_names
 
     # Compute losses.
-    losses = []
-    for example in dataset:
-        outputs = model(example)
-        loss = loss_function(outputs["xblock"], example["xblock"])
-        losses.append(loss.item())
-
-    print("minimum loss: {:.8e}".format(np.amin(losses).item()))
-    print("median  loss: {:.8e}".format(np.median(losses).item()))
-    print("maximum loss: {:.8e}".format(np.amax(losses).item()))
-
-    assert np.median(losses).item() < args.threshold
+    stats = validate_model(model, dataset)
+    print("validation minimum loss: {:.8e}".format(stats.min_loss))
+    print("validation median  loss: {:.8e}".format(stats.median_loss))
+    print("validation maximum loss: {:.8e}".format(stats.max_loss))
+    assert stats.median_loss < args.threshold
 
 
 # ======================================================================================
