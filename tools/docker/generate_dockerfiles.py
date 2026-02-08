@@ -731,7 +731,6 @@ RUN dnf -qy install \
         elif base_image == "ubuntu:24.04":
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    findutils \
     {gcc_compilers} \
     python3 \
     && rm -rf /var/lib/apt/lists/*
