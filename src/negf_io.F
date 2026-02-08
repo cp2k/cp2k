@@ -47,19 +47,24 @@ CONTAINS
 !> \param h01 ...
 !> \param s00 ...
 !> \param s01 ...
+!> \param h   ...
+!> \param s   ...
+!> \param hc ...
+!> \param sc ...
 !> \par History
 !>    * 12.2025 created  [Dmitry Ryndyk]
 ! **************************************************************************************************
-   SUBROUTINE negf_restart_file_name(filename, exist, negf_section, logger, icontact, ispin, h00, h01, s00, s01)
+   SUBROUTINE negf_restart_file_name(filename, exist, negf_section, logger, icontact, ispin, h00, h01, s00, s01, h, s, hc, sc)
       CHARACTER(LEN=default_path_length), INTENT(OUT)    :: filename
       LOGICAL, INTENT(OUT)                               :: exist
       TYPE(section_vals_type), POINTER                   :: negf_section
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER, INTENT(IN), OPTIONAL                      :: icontact, ispin
-      LOGICAL, INTENT(IN), OPTIONAL                      :: h00, h01, s00, s01
+      LOGICAL, INTENT(IN), OPTIONAL                      :: h00, h01, s00, s01, h, s, hc, sc
 
       CHARACTER(len=default_string_length)               :: middle_name, string1, string2
-      LOGICAL                                            :: my_h00, my_h01, my_s00, my_s01
+      LOGICAL                                            :: my_h, my_h00, my_h01, my_hc, my_s, &
+                                                            my_s00, my_s01, my_sc
       TYPE(section_vals_type), POINTER                   :: contact_section, print_key
 
       my_h00 = .FALSE.
@@ -70,17 +75,25 @@ CONTAINS
       IF (PRESENT(s00)) my_s00 = s00
       my_s01 = .FALSE.
       IF (PRESENT(s01)) my_s01 = s01
+      my_h = .FALSE.
+      IF (PRESENT(h)) my_h = h
+      my_s = .FALSE.
+      IF (PRESENT(s)) my_s = s
+      my_hc = .FALSE.
+      IF (PRESENT(hc)) my_hc = hc
+      my_sc = .FALSE.
+      IF (PRESENT(sc)) my_sc = sc
 
       exist = .FALSE.
+
+      WRITE (string1, *) icontact
+      WRITE (string2, *) ispin
 
       ! try to read from the filename that is generated automatically from the printkey
       contact_section => section_vals_get_subs_vals(negf_section, "CONTACT")
       print_key => section_vals_get_subs_vals(contact_section, "RESTART", i_rep_section=icontact)
 
       IF (my_h00) THEN
-
-         WRITE (string1, *) icontact
-         WRITE (string2, *) ispin
          IF (ispin == 0) THEN
             middle_name = "N"//TRIM(string1)//"-H00"
          ELSE
@@ -91,8 +104,6 @@ CONTAINS
       END IF
 
       IF (my_h01) THEN
-         WRITE (string1, *) icontact
-         WRITE (string2, *) ispin
          IF (ispin == 0) THEN
             middle_name = "N"//TRIM(string1)//"-H01"
          ELSE
@@ -103,15 +114,48 @@ CONTAINS
       END IF
 
       IF (my_s00) THEN
-         WRITE (string1, *) icontact
          middle_name = "N"//TRIM(string1)//"-S00"
          filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
                                                      extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_s01) THEN
-         WRITE (string1, *) icontact
          middle_name = "N"//TRIM(string1)//"-S01"
+         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
+                                                     extension=".hs", my_local=.FALSE.)
+      END IF
+
+      ! try to read from the filename that is generated automatically from the printkey
+      print_key => section_vals_get_subs_vals(negf_section, "SCATTERING_REGION%RESTART")
+
+      IF (my_h) THEN
+         IF (ispin == 0) THEN
+            middle_name = "Hs"
+         ELSE
+            middle_name = "Hs-S"//TRIM(string2)
+         END IF
+         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
+                                                     extension=".hs", my_local=.FALSE.)
+      END IF
+
+      IF (my_s) THEN
+         middle_name = "Ss"
+         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
+                                                     extension=".hs", my_local=.FALSE.)
+      END IF
+
+      IF (my_hc) THEN
+         IF (ispin == 0) THEN
+            middle_name = "Hsc-N"//TRIM(string1)
+         ELSE
+            middle_name = "Hsc-N"//TRIM(string1)//"-S"//TRIM(string2)
+         END IF
+         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
+                                                     extension=".hs", my_local=.FALSE.)
+      END IF
+
+      IF (my_sc) THEN
+         middle_name = "Ssc-N"//TRIM(string1)
          filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
                                                      extension=".hs", my_local=.FALSE.)
       END IF
