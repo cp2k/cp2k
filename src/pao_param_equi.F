@@ -178,7 +178,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, iatom, j, k, m, n
       LOGICAL                                            :: found
-      REAL(dp)                                           :: denom, w
+      REAL(dp)                                           :: denom, penalty_sum, w
       REAL(dp), DIMENSION(:), POINTER                    :: ANNA_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: ANNA, ANNA_evecs, ANNA_inv, block_A, &
                                                             block_B, block_G, block_Ma, block_Mb, &
@@ -218,11 +218,14 @@ CONTAINS
          CALL dbcsr_reserve_diag_blocks(matrix_G_nondiag)
       END IF
 
+      penalty_sum = 0.0_dp
+
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(pao,ls_mstruct,matrix_X_nondiag,matrix_G_nondiag,matrix_Ma,matrix_Mb,gradient,penalty) &
 !$OMP PRIVATE(iter,arow,acol,iatom,found,n,m,w,i,j,k,denom) &
 !$OMP PRIVATE(NN,ANNA,ANNA_evals,ANNA_evecs,ANNA_inv,D,G,M1,M2,M3,M4,M5) &
-!$OMP PRIVATE(block_X,block_A,block_B,block_N,block_Ma, block_Mb, block_G)
+!$OMP PRIVATE(block_X,block_A,block_B,block_N,block_Ma, block_Mb, block_G) &
+!$OMP REDUCTION(+:penalty_sum)
       CALL dbcsr_iterator_start(iter, matrix_X_nondiag)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -242,7 +245,7 @@ CONTAINS
          IF (PRESENT(penalty)) THEN
             DO i = 1, m
                w = 1.0_dp - SUM(block_A(:, i)**2)
-               penalty = penalty + pao%penalty_strength*w**2
+               penalty_sum = penalty_sum + pao%penalty_strength*w**2
             END DO
          END IF
 
@@ -334,7 +337,8 @@ CONTAINS
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
          CALL dbcsr_get_info(pao%matrix_X, group=group)
-         CALL group%sum(penalty)
+         CALL group%sum(penalty_sum)
+         penalty = penalty_sum
       END IF
 
       CALL dbcsr_release(matrix_X_nondiag)
