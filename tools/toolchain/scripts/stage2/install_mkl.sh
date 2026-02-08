@@ -67,13 +67,13 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   mkl_lib_dir="${MKLROOT}/lib/${mkl_arch_dir}"
   # check we have required libraries
   if [ ${with_ifx} = "yes" ]; then
-      mkl_interface_lib="mkl_intel_lp64"
-      mkl_threading_lib="mkl_intel_thread"
-      mkl_thread_extra="-liomp5"
+    mkl_interface_lib="mkl_intel_lp64"
+    mkl_threading_lib="mkl_intel_thread"
+    mkl_thread_extra="-liomp5"
   else
-      mkl_interface_lib="mkl_gf_lp64"
-      mkl_threading_lib="mkl_sequential"
-      mkl_thread_extra=""
+    mkl_interface_lib="mkl_gf_lp64"
+    mkl_threading_lib="mkl_sequential"
+    mkl_thread_extra=""
   fi
   mkl_required_libs="lib${mkl_interface_lib}.so lib${mkl_threading_lib}.so libmkl_core.so"
   for ii in $mkl_required_libs; do
