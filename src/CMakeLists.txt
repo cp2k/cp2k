@@ -1862,18 +1862,30 @@ set_target_properties(
   cp2k-bin
   PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              POSITION_INDEPENDENT_CODE ON
-             LINKER_LANGUAGE "CXX"
+             LINKER_LANGUAGE "Fortran"
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
 
+target_link_libraries(cp2k-bin PRIVATE stdc++)
 target_link_libraries(cp2k-bin PUBLIC cp2k)
 
 foreach(_app ${__CP2K_APPS})
-  set_target_properties(
-    ${_app}
-    PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-               POSITION_INDEPENDENT_CODE ON
-               LINKER_LANGUAGE "CXX"
-               OUTPUT_NAME "${_app}.${__cp2k_ext}")
+  # libcp2k_unittest is a C main program; keep linking it with CXX
+  if(_app STREQUAL "libcp2k_unittest")
+    set_target_properties(
+      ${_app}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+                 POSITION_INDEPENDENT_CODE ON
+                 LINKER_LANGUAGE "CXX"
+                 OUTPUT_NAME "${_app}.${__cp2k_ext}")
+  else()
+    set_target_properties(
+      ${_app}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+                 POSITION_INDEPENDENT_CODE ON
+                 LINKER_LANGUAGE "Fortran"
+                 OUTPUT_NAME "${_app}.${__cp2k_ext}")
+    target_link_libraries(${_app} PRIVATE stdc++)
+  endif()
 
   if(CP2K_USE_ACCEL MATCHES HIP)
     set_property(TARGET ${_app} PROPERTY HIP_ARCHITECTURES

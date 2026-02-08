@@ -26,7 +26,7 @@ cd "${BUILDDIR}"
 case "${with_mkl}" in
   __INSTALL__)
     echo "==================== Installing MKL ===================="
-    report_error ${LINENO} "To install MKL, please contact your system administrator."
+    report_error ${LINENO} "__INSTALL__ is not supported; please manually install Intel MKL."
     exit 1
     ;;
   __SYSTEM__)
@@ -66,7 +66,16 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   esac
   mkl_lib_dir="${MKLROOT}/lib/${mkl_arch_dir}"
   # check we have required libraries
-  mkl_required_libs="libmkl_gf_lp64.so libmkl_sequential.so libmkl_core.so"
+  if [ ${with_ifx} = "yes" ]; then
+      mkl_interface_lib="mkl_intel_lp64"
+      mkl_threading_lib="mkl_intel_thread"
+      mkl_thread_extra="-liomp5"
+  else
+      mkl_interface_lib="mkl_gf_lp64"
+      mkl_threading_lib="mkl_sequential"
+      mkl_thread_extra=""
+  fi
+  mkl_required_libs="lib${mkl_interface_lib}.so lib${mkl_threading_lib}.so libmkl_core.so"
   for ii in $mkl_required_libs; do
     if [ ! -f "$mkl_lib_dir/${ii}" ]; then
       report_error $LINENO "missing MKL library ${ii}"
@@ -92,8 +101,8 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
 
   # set the correct lib flags from MLK link adviser
   MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath,${mkl_lib_dir} ${mkl_scalapack_lib}"
-  MKL_LIBS+=" -Wl,--start-group -lmkl_gf_lp64 -lmkl_sequential -lmkl_core"
-  MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
+  MKL_LIBS+=" -Wl,--start-group -l${mkl_interface_lib} -l${mkl_threading_lib} -lmkl_core"
+  MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group ${mkl_thread_extra} -lpthread -lm -ldl"
   # setup_mkl disables using separate FFTW library (see below)
   MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include"
   if [ "${MKL_FFTW}" != "no" ]; then
