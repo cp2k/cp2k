@@ -1,40 +1,31 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-gcc10 ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-fedora ../../
 #
 
-ARG BASE_IMAGE="ubuntu:24.04"
+ARG BASE_IMAGE="fedora:43"
 
 ###### Stage 1: Build CP2K ######
 
 FROM "${BASE_IMAGE}" AS build_cp2k
 
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    bzip2 \
-    ca-certificates \
+RUN dnf -qy install \
     cmake \
-    g++ g++-10 gcc gcc-10 gfortran gfortran-10 \
+    g++ gcc gfortran \
     git \
-    gnupg \
-    libssh-dev \
-    libssl-dev \
     libtool \
-    libtool-bin \
-    lsb-release \
     make \
     ninja-build \
     patch \
-    pkgconf \
+    perl-core \
+    pkg-config \
     python3 \
-    python3-dev \
-    python3-pip \
-    python3-venv \
+    python3-devel \
     unzip \
     wget \
-    xxd \
-    xz-utils \
-    zstd \
-    && rm -rf /var/lib/apt/lists/*
+    zlib-devel \
+    zlib-static \
+    && dnf clean -q all
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
@@ -44,20 +35,19 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 10 -mpi mpich -ue"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 15 -mpi mpich -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 10 -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 15 -mpi mpich"
 
 ###### Stage 2: Install CP2K ######
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    findutils \
-    g++ g++-10 gcc gcc-10 gfortran gfortran-10 \
+RUN dnf -qy install \
+    g++ gcc gfortran \
     python3 \
-    && rm -rf /var/lib/apt/lists/*
+    && dnf clean -q all
 
 WORKDIR /opt/cp2k
 

@@ -53,8 +53,8 @@ RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 11 -mpi mpich"
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
-# Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    findutils \
     g++ g++-11 gcc gcc-11 gfortran gfortran-11 \
     python3 \
     && rm -rf /var/lib/apt/lists/*

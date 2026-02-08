@@ -66,6 +66,16 @@ def main() -> None:
                 install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=gcc_version)
             )
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-fedora", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                base_image="fedora:43",
+                gcc_version=15,
+            )
+        )
+
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
         f.write(install_cp2k_spack("psmp", mpi_mode="mpich", testopts=testopts))
@@ -569,11 +579,12 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 def install_cp2k_spack(
     version: str,
     mpi_mode: str,
+    base_image: str = "ubuntu:24.04",
     gcc_version: int = 13,
     testopts: str = "",
 ) -> str:
     # Ubuntu 24.04 provides no gcc-15 package
-    if gcc_version == 15:
+    if gcc_version == 15 or base_image == "fedora:43":
         gcc_compilers = "g++ gcc gfortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
@@ -587,13 +598,94 @@ def install_cp2k_spack(
         gcc_compilers = "g++ gcc gfortran"
     else:
         use_externals = "-ue"
-    output = rf"""
-ARG BASE_IMAGE="ubuntu:24.04"
+    # Assemble docker file
+    output = (
+        install_base_image(
+            base_image=f"{base_image}", gcc_compilers=gcc_compilers, stage="build"
+        )
+        + rf"""
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+
+# Copy CP2K repository into container
+WORKDIR /opt
+COPY . cp2k/
+
+# Build CP2K dependencies
+WORKDIR /opt/cp2k
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
+
+# Build and install CP2K
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -mpi {mpi_mode}"
+"""
+    )
+    output += (
+        install_base_image(
+            base_image=f"{base_image}", gcc_compilers=gcc_compilers, stage="install"
+        )
+        + rf"""
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Run CP2K regression test
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests {testopts}"
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
+CMD ["cp2k", "--help"]
+"""
+    )
+    return output
+
+
+# ======================================================================================
+def install_base_image(
+    base_image: str,
+    gcc_compilers: str,
+    stage: str,
+) -> str:
+    if stage == "build":
+        output = rf"""
+ARG BASE_IMAGE="{base_image}"
 
 ###### Stage 1: Build CP2K ######
 
 FROM "${{BASE_IMAGE}}" AS build_cp2k
-
+"""
+        if base_image == "fedora:43":
+            output += rf"""
+RUN dnf -qy install \
+    cmake \
+    {gcc_compilers} \
+    git \
+    libtool \
+    make \
+    ninja-build \
+    patch \
+    perl-core \
+    pkg-config \
+    python3 \
+    python3-devel \
+    unzip \
+    wget \
+    zlib-devel \
+    zlib-static \
+    && dnf clean -q all
+"""
+        elif base_image == "ubuntu:24.04":
+            output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
@@ -620,53 +712,34 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     zstd \
     && rm -rf /var/lib/apt/lists/*
-
-ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
-
-# Copy CP2K repository into container
-WORKDIR /opt
-COPY . cp2k/
-
-# Build CP2K dependencies
-WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
-
-# Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -mpi {mpi_mode}"
-
+"""
+        else:
+            print(f"ERROR: Unknown base image {base_image} specified")
+    elif stage == "install":
+        output = rf"""
 ###### Stage 2: Install CP2K ######
 
 FROM "${{BASE_IMAGE}}" AS install_cp2k
-
-# Install required packages
+"""
+        if base_image == "fedora:43":
+            output += rf"""
+RUN dnf -qy install \
+    {gcc_compilers} \
+    python3 \
+    && dnf clean -q all
+"""
+        elif base_image == "ubuntu:24.04":
+            output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    findutils \
     {gcc_compilers} \
     python3 \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/cp2k
-
-# Install CP2K dependencies built with spack
-COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
-
-# Install CP2K
-COPY --from=build_cp2k /opt/cp2k/install ./install
-
-# Install CP2K regression tests
-COPY --from=build_cp2k /opt/cp2k/tests ./tests
-COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
-
-# Install CP2K/Quickstep CI benchmarks
-COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
-
-# Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests {testopts}"
-
-# Create entrypoint and finalise container build
-WORKDIR /mnt
-ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
-CMD ["cp2k", "--help"]
 """
+        else:
+            print(f"ERROR: Unknown base image {base_image} specified")
+    else:
+        print(f"ERROR: Unknown stage {stage} specified")
     return output
 
 
