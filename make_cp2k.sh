@@ -82,7 +82,7 @@ else
 fi
 
 # Check if all mandatory packages are installed in the environment
-for package in awk bzip2 g++ gcc gfortran git make gzip patch python3 tar wget xz; do
+for package in awk bzip2 find g++ gcc gfortran git make gzip patch python3 tar wget xz; do
   if ! command -v "${package}" &> /dev/null; then
     echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
     echo "       Install the missing package and re-run the script"
@@ -428,6 +428,9 @@ export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}"
 
+# Define the CP2K spack configuration file
+export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
+
 # If requested, remove the spack folder for (re)building all CP2K dependencies
 if [[ "${BUILD_DEPS}" == "always" ]]; then
   for folder in ${SPACK_BUILD_PATH}; do
@@ -560,7 +563,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Prepare the CP2K spack configuration file
-  export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
   sed -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
     -e "/\"build_type=/s|build_type=[^\"]*|build_type=${BUILD_TYPE}|" \
     "${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml" > "${CP2K_CONFIG_FILE}"
@@ -604,6 +606,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     echo "Spack will automatically select the GCC version which is not necessarily the newest one found"
   else
     sed -E -e "s/gcc@10:/gcc@${GCC_VERSION}/" -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # Disable PEXSI because of an issue with SuperLU using GCC 15
+  if [[ "${CP2K_VERSION}" == "psmp"* ]] && ((GCC_VERSION == 15)); then
+    sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
+    echo "INFO: PEXSI has been disabled because of an issue with SuperLU using GCC 15"
   fi
 
   # Create CP2K environment if needed
@@ -759,6 +767,10 @@ export CMAKE_BUILD_PATH="${CP2K_ROOT}/build"
 Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake | tail -n 1)")"
 export Torch_DIR
 
+# Check if PEXSI was built
+CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' spack/cp2k_deps_psmp.yaml && echo OFF || echo ON)"
+export CP2K_USE_PEXSI
+
 if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
@@ -775,6 +787,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_LIBXSMM=ON \
         -DCP2K_USE_MPI=ON \
         -DCP2K_USE_OPENPMD=ON \
+        -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
@@ -884,11 +897,11 @@ export VERSION=${CP2K_VERSION%%-*}
 # Retrieve paths to "hidden" libraries
 LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
-if ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep -q "not found"; then
+if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
-  ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found"
+  ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found'
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
-  for libname in $(ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found" | awk '{print $1}' | sort | uniq); do
+  for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
     library=$(find -L "${SPACK_ROOT}/opt/spack/view" "${INSTALL_PREFIX}/lib" -name "${libname}" | tail -n 1)
     library_path="$(dirname "${library}")"
     if [[ -n "${library_path}" ]]; then
@@ -903,13 +916,13 @@ if ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep -q "not found"; then
       esac
     fi
   done
-  if ! ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep -q "not found"; then
+  if ! ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
     echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
   else
     echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
-    ldd "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | grep "not found" | sort | uniq
+    ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | sort | uniq
     ${EXIT_CMD}
   fi
 fi
