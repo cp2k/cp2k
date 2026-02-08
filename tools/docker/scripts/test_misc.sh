@@ -33,8 +33,9 @@ run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
 run_test ./tools/docker/generate_dockerfiles.py --check
 
 # Test pao-ml training.
-run_test ./tools/pao-ml/pao-train.py --kind=H --epochs=200 ./tools/pao-ml/example.pao
-run_test ./tools/pao-ml/pao-retrain.py --model="DZVP-MOLOPT-GTH-PAO4-H.pt" --epochs=200 ./tools/pao-ml/example.pao
+# Passing example.pao twice to have enough samples to split off 20% for validation.
+run_test ./tools/pao-ml/pao-train.py --kind=H --epochs=200 ./tools/pao-ml/example.pao ./tools/pao-ml/example.pao
+run_test ./tools/pao-ml/pao-retrain.py --model="DZVP-MOLOPT-GTH-PAO4-H.pt" --epochs=200 ./tools/pao-ml/example.pao ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-1 --model="DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-6 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-H.pt" ./tools/pao-ml/example.pao
 run_test ./tools/pao-ml/pao-validate.py --threshold=1e-5 --model="tests/QS/regtest-pao-5/DZVP-MOLOPT-GTH-PAO4-O.pt" ./tools/pao-ml/example.pao

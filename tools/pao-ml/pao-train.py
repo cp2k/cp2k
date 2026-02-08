@@ -6,10 +6,9 @@ import torch
 import argparse
 import e3nn.util.jit  # type: ignore
 from pathlib import Path
-from torch.utils.data import DataLoader
 
 from pao.model import PaoModel
-from pao.dataset import PaoDataset, collate_fn
+from pao.dataset import PaoDataset
 from pao.training import train_model
 
 
@@ -52,9 +51,6 @@ def main() -> None:
         cutoff=args.cutoff,
         files=args.training_data,
     )
-    dataloader = DataLoader(
-        dataset, batch_size=args.batch, shuffle=True, collate_fn=collate_fn
-    )
 
     # Construct the model.
     model_py = PaoModel(
@@ -78,7 +74,7 @@ def main() -> None:
     print(f"PAO-ML model will have {num_model_params} parameters.")
 
     # Train the model.
-    train_model(model, dataloader, args.epochs)
+    train_model(model, dataset, epochs=args.epochs, batch_size=args.batch)
 
     # Save the model.
     default_fn = f"{dataset.kind.prim_basis_name}-PAO{dataset.kind.pao_basis_size}-{args.kind}.pt"
