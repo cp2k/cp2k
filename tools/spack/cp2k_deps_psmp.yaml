@@ -175,7 +175,7 @@ spack:
     - "openpmd-api@0.16.1"
     - "pace@2025.12.4"
     - "pexsi@2.0.0"
-    - "plumed@2.9.2"
+    - "plumed@2.10.0"
     - "py-torch@2.9.0"
     - "sirius@7.9.0"
     - "spfft@1.1.1"
