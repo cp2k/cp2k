@@ -168,6 +168,7 @@ MODULE pao_types
       INTEGER                          :: optimizer = -1
       INTEGER                          :: cg_init_steps = -1
       LOGICAL                          :: precondition = .FALSE.
+      LOGICAL                          :: ignore_convergence_failure = .FALSE.
       CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
       CHARACTER(LEN=default_path_length) :: restart_file = ""
       TYPE(filename_type), DIMENSION(:), ALLOCATABLE :: ml_training_set

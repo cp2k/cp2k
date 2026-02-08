@@ -285,7 +285,11 @@ CONTAINS
          ! check for early abort without convergence?
          CALL external_control(should_stop, "PAO", start_time=qs_env%start_time, target_time=qs_env%target_time)
          IF (should_stop .OR. pao%istep >= pao%max_pao) THEN
-            CPWARN("PAO not converged!")
+            IF (pao%ignore_convergence_failure) THEN
+               CPWARN("PAO not converged!")
+            ELSE
+               CPABORT("PAO not converged!")
+            END IF
             pao_is_done = .TRUE.
             EXIT
          END IF
