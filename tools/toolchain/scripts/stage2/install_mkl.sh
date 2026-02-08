@@ -66,7 +66,7 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
   esac
   mkl_lib_dir="${MKLROOT}/lib/${mkl_arch_dir}"
   # check we have required libraries
-  if [ ${with_ifx} = "yes" ]; then
+  if [ ${with_intel} != "__DONTUSE__" ]; then
     mkl_interface_lib="mkl_intel_lp64"
     mkl_threading_lib="mkl_intel_thread"
     mkl_thread_extra="-liomp5"

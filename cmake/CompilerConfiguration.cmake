@@ -132,14 +132,17 @@ add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
 
 # Baseline
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-stand;f08;-fpp;-qopenmp;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-qopenmp;-D__MAX_CONTR=4;-align;array64byte>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-integer-size;32;-qno-opt-dynamic-align>"
+  "$<$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise>"
+  "$<$<COMPILE_LANG_AND_ID:C,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise>"
 )
 
 # Release
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O3;-xHOST;-g>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-xHOST;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O2;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O2;-xHOST;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O2;-xHOST;-g>"
 )
 
 # Debug
