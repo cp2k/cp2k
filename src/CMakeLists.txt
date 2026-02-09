@@ -1655,7 +1655,9 @@ add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 # ifx/icx workarounds for known compiler optimization bugs
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
   set_source_files_properties(
-    ${CMAKE_CURRENT_BINARY_DIR}/hfx_contraction_methods.F
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
+    ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
+    ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
     PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
   set_source_files_properties(
     ${CMAKE_CURRENT_BINARY_DIR}/dbt/tas/dbt_tas_mm.F
