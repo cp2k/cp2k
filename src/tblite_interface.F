@@ -74,6 +74,7 @@ MODULE tblite_interface
                                      get_iterator_info, neighbor_list_set_p_type, &
                                      neighbor_list_iterator_p_type, neighbor_list_iterator_release
    USE qs_overlap, ONLY: create_sab_matrix
+   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
    USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type
