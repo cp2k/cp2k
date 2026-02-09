@@ -1,0 +1,73 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_ssmp-rawhide ../../
+#
+
+ARG BASE_IMAGE="fedora:rawhide"
+
+###### Stage 1: Build CP2K ######
+
+FROM "${BASE_IMAGE}" AS build_cp2k
+
+RUN dnf -qy install \
+    cmake \
+    g++ gcc gfortran \
+    git \
+    libtool \
+    make \
+    ninja-build \
+    patch \
+    perl-core \
+    pkg-config \
+    python3 \
+    python3-devel \
+    unzip \
+    wget \
+    zlib-devel \
+    zlib-static \
+    && dnf clean -q all
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+
+# Copy CP2K repository into container
+WORKDIR /opt
+COPY . cp2k/
+
+# Build CP2K dependencies
+WORKDIR /opt/cp2k
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv ssmp -gv 16 -mpi no -ue"
+
+# Build and install CP2K
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ssmp -gv 16 -mpi no"
+
+###### Stage 2: Install CP2K ######
+
+FROM "${BASE_IMAGE}" AS install_cp2k
+
+RUN dnf -qy install \
+    g++ gcc gfortran \
+    python3 \
+    && dnf clean -q all
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Run CP2K regression test
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests "
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]
