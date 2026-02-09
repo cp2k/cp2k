@@ -1,0 +1,84 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-opensuse ../../
+#
+
+ARG BASE_IMAGE="opensuse/leap:15.6"
+
+###### Stage 1: Build CP2K ######
+
+FROM "${BASE_IMAGE}" AS build_cp2k
+
+RUN zypper --non-interactive ref && \
+    zypper --non-interactive in --no-recommends \
+    bzip2 \
+    cmake \
+    gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
+    git \
+    gzip \
+    libssh-devel \
+    libopenssl-devel \
+    libtool \
+    lsb-release \
+    make \
+    patch \
+    pkgconf \
+    python311 \
+    python311-devel \
+    unzip \
+    wget \
+    xz \
+    zstd \
+    && zypper --non-interactive clean --all
+
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+
+# Copy CP2K repository into container
+WORKDIR /opt
+COPY . cp2k/
+
+# Build CP2K dependencies
+WORKDIR /opt/cp2k
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 14 -mpi mpich -ue"
+
+# Build and install CP2K
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 14 -mpi mpich"
+
+###### Stage 2: Install CP2K ######
+
+FROM "${BASE_IMAGE}" AS install_cp2k
+
+RUN zypper --non-interactive ref && \
+    zypper --non-interactive in --no-recommends \
+    gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
+    python311 \
+    && zypper --non-interactive clean --all
+
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Run CP2K regression test
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests "
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
+CMD ["cp2k", "--help"]
