@@ -698,8 +698,8 @@ RUN dnf -qy install \
 """
         elif base_image.startswith("opensuse/leap:"):
             output += rf"""
-RUN zypper --non-interactive ref && \
-    zypper --non-interactive in --no-recommends \
+RUN zypper --non-interactive --quiet ref && \
+    zypper --non-interactive --quiet in --no-recommends \
     bzip2 \
     cmake \
     {gcc_compilers} \
@@ -718,7 +718,7 @@ RUN zypper --non-interactive ref && \
     wget \
     xz \
     zstd \
-    && zypper --non-interactive clean --all
+    && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
@@ -769,11 +769,11 @@ RUN dnf -qy install \
 """
         elif base_image.startswith("opensuse/leap:"):
             output += rf"""
-RUN zypper --non-interactive ref && \
-    zypper --non-interactive in --no-recommends \
+RUN zypper --non-interactive --quiet ref && \
+    zypper --non-interactive --quiet in --no-recommends \
     {gcc_compilers} \
     python311 \
-    && zypper --non-interactive clean --all
+    && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
