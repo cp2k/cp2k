@@ -196,11 +196,11 @@ while [[ $# -gt 0 ]]; do
     -gv | --gcc_version)
       if (($# > 1)); then
         case "${2}" in
-          1[0-5])
+          1[0-6])
             GCC_VERSION="${2}"
             ;;
           *)
-            echo "ERROR: Invalid GCC version \"${2}\" specified (choose from 10 to 15)"
+            echo "ERROR: Invalid GCC version \"${2}\" specified (choose from 10 to 16)"
             ${EXIT_CMD} 1
             ;;
         esac
@@ -314,7 +314,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
   echo "                    [-dlc | --disable_local_cache]"
-  echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15)]"
+  echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
@@ -608,10 +608,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E -e "s/gcc@10:/gcc@${GCC_VERSION}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
-  # Disable PEXSI because of an issue with SuperLU using GCC 15
-  if [[ "${CP2K_VERSION}" == "psmp"* ]] && ((GCC_VERSION == 15)); then
+  # Disable PEXSI because of an issue with SuperLU using recent GCC versions
+  if [[ "${CP2K_VERSION}" == "psmp"* ]] && ((GCC_VERSION > 14)); then
     sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
-    echo "INFO: PEXSI has been disabled because of an issue with SuperLU using GCC 15"
+    echo "INFO: PEXSI has been disabled because of an issue with SuperLU using GCC 15 or newer"
   fi
 
   # Create CP2K environment if needed
