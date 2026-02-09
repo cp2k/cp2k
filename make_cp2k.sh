@@ -946,6 +946,7 @@ if [[ "${MPI_MODE}" == "openmpi" ]] && [[ "${IN_CONTAINER}" == "yes" ]]; then
 else
   OMPI_VARS="export OMPI_MCA_plm_rsh_agent=/bin/false"
 fi
+export OMPI_VARS
 
 # MPICH and OpenMPI have different flags for exporting environment variables to MPI ranks
 if [[ "${MPI_MODE}" == "openmpi" ]]; then
@@ -953,20 +954,16 @@ if [[ "${MPI_MODE}" == "openmpi" ]]; then
 else
   ENV_VAR_FLAG="-genv"
 fi
+export ENV_VAR_FLAG
 
 # Assemble flags for running the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
+export TESTOPTS
 
-if [[ "${IN_CONTAINER}" == "yes" ]]; then
-  # Create entrypoint script file when building within a container
-  WRAPPER_SCRIPT="${INSTALL_PREFIX}"/bin/entrypoint.sh
-else
-  # Otherwise, create a launch script with the environment setup needed for CP2K
-  WRAPPER_SCRIPT="${INSTALL_PREFIX}"/bin/launch
-fi
-
-# Create wrapper script for environment setup
-cat << *** > "${WRAPPER_SCRIPT}"
+# Create launch script for environment setup
+LAUNCH_SCRIPT="${INSTALL_PREFIX}"/bin/launch
+export LAUNCH_SCRIPT
+cat << *** > "${LAUNCH_SCRIPT}"
 #!/bin/bash
 ulimit -c 0 -s unlimited
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
@@ -976,7 +973,7 @@ export OMP_STACKSIZE=64M
 ${OMPI_VARS}
 exec "\$@"
 ***
-chmod 750 "${WRAPPER_SCRIPT}"
+chmod 750 "${LAUNCH_SCRIPT}"
 
 # Create shortcut for launching the regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
@@ -988,7 +985,7 @@ chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  ${WRAPPER_SCRIPT} run_tests
+  ${LAUNCH_SCRIPT} run_tests
   EXIT_CODE=$?
   if ((EXIT_CODE != 0)); then
     echo "ERROR: The regression test run failed with the error code ${EXIT_CODE}"
@@ -1011,17 +1008,17 @@ else
   else
     echo ""
     echo "*** A regression test run can be launched with"
-    echo "    ${INSTALL_PREFIX}/bin/launch run_tests"
+    echo "    ${LAUNCH_SCRIPT}/bin/launch run_tests"
     echo ""
     if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
-      echo "    ${INSTALL_PREFIX}/bin/launch cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    ${LAUNCH_SCRIPT} cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
       echo ""
       echo "*** A CP2K run using only 4 OpenMP threads can be launched with"
-      echo "    export OMP_NUM_THREADS=4; ${INSTALL_PREFIX}/bin/launch cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-      echo "    export OMP_NUM_THREADS=2; ${INSTALL_PREFIX}/bin/launch mpirun -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpirun -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
     echo ""
   fi

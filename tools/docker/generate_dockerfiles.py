@@ -651,12 +651,12 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/entrypoint.sh /opt/cp2k/install/bin/run_tests {testopts}"
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
-ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
-CMD ["cp2k", "--help"]
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]
 """
     )
     return output
