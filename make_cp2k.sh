@@ -980,7 +980,7 @@ chmod 750 "${WRAPPER_SCRIPT}"
 
 # Create shortcut for launching the regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
-ldd ${INSTALL_PREFIX}/bin/cp2k.${VERSION} | grep "not found" | sort | uniq
+ldd ${INSTALL_PREFIX}/bin/cp2k.${VERSION} | grep -E '\s=>\snot found' | sort | uniq
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
