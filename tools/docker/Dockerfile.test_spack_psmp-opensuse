@@ -9,8 +9,8 @@ ARG BASE_IMAGE="opensuse/leap:15.6"
 
 FROM "${BASE_IMAGE}" AS build_cp2k
 
-RUN zypper --non-interactive ref && \
-    zypper --non-interactive in --no-recommends \
+RUN zypper --non-interactive --quiet ref && \
+    zypper --non-interactive --quiet in --no-recommends \
     bzip2 \
     cmake \
     gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
@@ -29,7 +29,7 @@ RUN zypper --non-interactive ref && \
     wget \
     xz \
     zstd \
-    && zypper --non-interactive clean --all
+    && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
@@ -51,11 +51,11 @@ RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 14 -mpi mpich"
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
-RUN zypper --non-interactive ref && \
-    zypper --non-interactive in --no-recommends \
+RUN zypper --non-interactive --quiet ref && \
+    zypper --non-interactive --quiet in --no-recommends \
     gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
     python311 \
-    && zypper --non-interactive clean --all
+    && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
