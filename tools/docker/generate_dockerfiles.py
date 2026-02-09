@@ -66,6 +66,26 @@ def main() -> None:
                 install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=gcc_version)
             )
 
+    with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "ssmp",
+                mpi_mode="no",
+                base_image="fedora:rawhide",
+                gcc_version=16,
+            )
+        )
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-rawhide", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                base_image="fedora:rawhide",
+                gcc_version=16,
+            )
+        )
+
     with OutputFile(f"Dockerfile.test_spack_psmp-fedora", args.check) as f:
         f.write(
             install_cp2k_spack(
