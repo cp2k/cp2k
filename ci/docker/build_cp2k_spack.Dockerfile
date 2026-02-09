@@ -25,11 +25,8 @@ RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ${CP2K_VERSION} -dlc -j$
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
-# Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ \
-    gcc \
-    gfortran \
+    g++ gcc gfortran \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -50,5 +47,5 @@ COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
-ENTRYPOINT ["/opt/cp2k/install/bin/entrypoint.sh"]
-CMD ["cp2k", "--help"]
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]
