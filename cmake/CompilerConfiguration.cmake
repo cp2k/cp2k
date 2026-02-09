@@ -132,11 +132,19 @@ add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
 
 # Baseline
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-qopenmp;-D__MAX_CONTR=4;-align;array64byte>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-integer-size;32;-qno-opt-dynamic-align>"
-  "$<$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise>"
-  "$<$<COMPILE_LANG_AND_ID:C,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-fpp;-qopenmp;-heap-arrays;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-qopenmp;-heap-arrays；0;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-qno-opt-dynamic-align;-fno-asynchronous-unwind-tables>"
+  "$<$<COMPILE_LANG_AND_ID:C,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise;-fno-asynchronous-unwind-tables>"
+  "$<$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>:-fno-strict-aliasing;-fp-model;precise;-fno-asynchronous-unwind-tables>"
 )
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM" AND MKL_FOUND)
+  add_compile_definitions(
+    "$<$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>:MKL_LP64;__DBCSR_INT64>"
+    "$<$<COMPILE_LANG_AND_ID:C,IntelLLVM>:MKL_LP64;__DBCSR_INT64>"
+    "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:__DBCSR_INT64>"
+    "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:__DBCSR_INT64>")
+endif()
 
 # Release
 add_compile_options(
