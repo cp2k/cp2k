@@ -71,8 +71,18 @@ def main() -> None:
             install_cp2k_spack(
                 "psmp",
                 mpi_mode="mpich",
-                base_image="fedora:43",
+                base_image="fedora:latest",
                 gcc_version=15,
+            )
+        )
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-opensuse", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                base_image="opensuse/leap:15.6",
+                gcc_version=14,
             )
         )
 
@@ -583,9 +593,11 @@ def install_cp2k_spack(
     gcc_version: int = 13,
     testopts: str = "",
 ) -> str:
-    # Ubuntu 24.04 provides no gcc-15 package
-    if gcc_version == 15 or base_image == "fedora:43":
+    # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
+    if gcc_version == 15 or base_image.startswith("fedora:"):
         gcc_compilers = "g++ gcc gfortran"
+    elif base_image.startswith("opensuse/leap:"):
+        gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
     # Static CP2K builds use the GCC compiler built with spack
@@ -664,7 +676,7 @@ ARG BASE_IMAGE="{base_image}"
 
 FROM "${{BASE_IMAGE}}" AS build_cp2k
 """
-        if base_image == "fedora:43":
+        if base_image.startswith("fedora:"):
             output += rf"""
 RUN dnf -qy install \
     cmake \
@@ -684,7 +696,34 @@ RUN dnf -qy install \
     zlib-static \
     && dnf clean -q all
 """
-        elif base_image == "ubuntu:24.04":
+        elif base_image.startswith("opensuse/leap:"):
+            output += rf"""
+RUN zypper --non-interactive ref && \
+    zypper --non-interactive in --no-recommends \
+    bzip2 \
+    cmake \
+    {gcc_compilers} \
+    git \
+    gzip \
+    libssh-devel \
+    libopenssl-devel \
+    libtool \
+    lsb-release \
+    make \
+    patch \
+    pkgconf \
+    python311 \
+    python311-devel \
+    unzip \
+    wget \
+    xz \
+    zstd \
+    && zypper --non-interactive clean --all
+
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python
+"""
+        elif base_image.startswith("ubuntu:"):
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
@@ -721,14 +760,25 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 FROM "${{BASE_IMAGE}}" AS install_cp2k
 """
-        if base_image == "fedora:43":
+        if base_image.startswith("fedora:"):
             output += rf"""
 RUN dnf -qy install \
     {gcc_compilers} \
     python3 \
     && dnf clean -q all
 """
-        elif base_image == "ubuntu:24.04":
+        elif base_image.startswith("opensuse/leap:"):
+            output += rf"""
+RUN zypper --non-interactive ref && \
+    zypper --non-interactive in --no-recommends \
+    {gcc_compilers} \
+    python311 \
+    && zypper --non-interactive clean --all
+
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python
+"""
+        elif base_image.startswith("ubuntu:"):
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     {gcc_compilers} \

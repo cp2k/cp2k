@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-fedora ../../
 #
 
-ARG BASE_IMAGE="fedora:43"
+ARG BASE_IMAGE="fedora:latest"
 
 ###### Stage 1: Build CP2K ######
 
