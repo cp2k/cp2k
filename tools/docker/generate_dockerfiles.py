@@ -119,6 +119,18 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_spack_ssmp-static", args.check) as f:
         f.write(install_cp2k_spack("ssmp-static", mpi_mode="no", gcc_version=14))
 
+    with OutputFile(f"Dockerfile.test_spack_ssmp-P100", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "ssmp",
+                mpi_mode="no",
+                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                gcc_version=13,
+                gpu_model="P100",
+                testopts="--keepalive",
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -611,12 +623,13 @@ def install_cp2k_spack(
     mpi_mode: str,
     base_image: str = "ubuntu:24.04",
     gcc_version: int = 13,
+    gpu_model: str = "none",
     testopts: str = "",
 ) -> str:
     # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
-    if gcc_version == 15 or base_image.startswith("fedora:"):
+    if gcc_version == 15 or "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
-    elif base_image.startswith("opensuse/leap:"):
+    elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
@@ -633,7 +646,7 @@ def install_cp2k_spack(
     # Assemble docker file
     output = (
         install_base_image(
-            base_image=f"{base_image}", gcc_compilers=gcc_compilers, stage="build"
+            base_image=rf"{base_image}", gcc_compilers=gcc_compilers, stage="build"
         )
         + rf"""
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
@@ -644,15 +657,15 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -mpi {mpi_mode}"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}"
 """
     )
     output += (
         install_base_image(
-            base_image=f"{base_image}", gcc_compilers=gcc_compilers, stage="install"
+            base_image=rf"{base_image}", gcc_compilers=gcc_compilers, stage="install"
         )
         + rf"""
 WORKDIR /opt/cp2k
@@ -696,7 +709,7 @@ ARG BASE_IMAGE="{base_image}"
 
 FROM "${{BASE_IMAGE}}" AS build_cp2k
 """
-        if base_image.startswith("fedora:"):
+        if "fedora" in base_image:
             output += rf"""
 RUN dnf -qy install \
     cmake \
@@ -716,7 +729,7 @@ RUN dnf -qy install \
     zlib-static \
     && dnf clean -q all
 """
-        elif base_image.startswith("opensuse/leap:"):
+        elif "opensuse/leap" in base_image:
             output += rf"""
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
@@ -743,7 +756,17 @@ RUN zypper --non-interactive --quiet ref && \
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
-        elif base_image.startswith("ubuntu:"):
+        elif "ubuntu" in base_image:
+            if "nvidia" in base_image:
+                output += rf"""
+# Setup CUDA environment
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+"""
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
@@ -773,21 +796,21 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 """
         else:
-            print(f"ERROR: Unknown base image {base_image} specified")
+            print(f"\nERROR: Unknown base image {base_image} specified\n")
     elif stage == "install":
         output = rf"""
 ###### Stage 2: Install CP2K ######
 
 FROM "${{BASE_IMAGE}}" AS install_cp2k
 """
-        if base_image.startswith("fedora:"):
+        if "fedora" in base_image:
             output += rf"""
 RUN dnf -qy install \
     {gcc_compilers} \
     python3 \
     && dnf clean -q all
 """
-        elif base_image.startswith("opensuse/leap:"):
+        elif "opensuse/leap" in base_image:
             output += rf"""
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
@@ -798,7 +821,17 @@ RUN zypper --non-interactive --quiet ref && \
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
-        elif base_image.startswith("ubuntu:"):
+        elif "ubuntu" in base_image:
+            if "nvidia" in base_image:
+                output += rf"""
+# Setup CUDA environment
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+"""
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     {gcc_compilers} \
@@ -806,9 +839,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 """
         else:
-            print(f"ERROR: Unknown base image {base_image} specified")
+            print(f"\nERROR: Unknown base image {base_image} specified\n")
     else:
-        print(f"ERROR: Unknown stage {stage} specified")
+        print(f"\nERROR: Unknown stage {stage} specified\n")
     return output
 
 
@@ -820,7 +853,7 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        if "_spack_" in filename or "make_cp2k_" in filename:
+        if "_spack_" in filename:
             usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../"
         else:
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"

@@ -44,10 +44,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gv 11 -mpi mpich -ue"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 11 -mpi mpich -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 11 -mpi mpich"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 11 -gpu none -mpi mpich"
 
 ###### Stage 2: Install CP2K ######
 
