@@ -29,6 +29,12 @@ spack:
         - "build_system=cmake"
         - "build_type=Release"
 
+    cuda:
+      buildable: false
+      externals:
+        - spec: cuda@12.8
+          prefix: /usr/local/cuda
+
     # Build tools
     mpi:
       require:
@@ -107,6 +113,7 @@ spack:
 
     libxc:
       require:
+        - "~cuda"
         - "+kxc"
 
     openpmd-api:

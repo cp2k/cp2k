@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.2
+# Version: 1.3
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -63,6 +63,7 @@
 #          - Version 1.0: Add Cray specific configuration (01.02.2026, MK)
 #          - Version 1.1: Allow for selecting the GCC version (02.02.2026, MK)
 #          - Version 1.2: Add option for static build (05.02.2026, MK)
+#          - Version 1.3: Add CUDA GPU support (10.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -125,8 +126,10 @@ BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 CRAY="yes"
+CUDA_ARG=0
 DISABLE_LOCAL_CACHE="no"
 GCC_VERSION="auto"
+GPU_MODEL="none"
 HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
@@ -179,6 +182,7 @@ while [[ $# -gt 0 ]]; do
             ;;
           *)
             echo "ERROR: Invalid CP2K version \"${2}\" (choose psmp, ssmp, or ssmp-static)"
+            ${EXIT_CMD} 1
             ;;
         esac
       else
@@ -206,6 +210,40 @@ while [[ $# -gt 0 ]]; do
         esac
       else
         echo "ERROR: No argument found for flag \"${1}\" (choose a GCC version)"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
+    -gm | -gpu | --gpu_model)
+      if (($# > 1)); then
+        case "${2^^}" in
+          P100 | V100 | A100 | H100)
+            GPU_MODEL="${2^^}"
+            case "${GPU_MODEL}" in
+              P100)
+                CUDA_ARG=60
+                ;;
+              V100)
+                CUDA_ARG=70
+                ;;
+              A100)
+                CUDA_ARG=80
+                ;;
+              H100)
+                CUDA_ARG=90
+                ;;
+            esac
+            ;;
+          NONE)
+            GPU_MODEL="${2,,}"
+            ;;
+          *)
+            echo "ERROR: Invalid GPU model \"${2}\" specified (choose P100, V100, A100, H100 or none)"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No argument found for flag \"${1}\" (choose P100, V100, A100, H100 or none)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -302,8 +340,9 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY DISABLE_LOCAL_CACHE GCC_VERSION HAS_PODMAN IN_CONTAINER
-export INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY CUDA_ARG DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL
+HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS \
+  VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -314,6 +353,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
   echo "                    [-dlc | --disable_local_cache]"
+  echo "                    [-gm | -gpu  | --gpu_model (P100 | V100 | A100 | H100 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
@@ -333,6 +373,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
   echo " --help               : Print this help information"
   echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
+  echo " --gpu_model          : Select GPU model (default: none)"
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
   echo " -j                   : Number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
@@ -360,6 +401,11 @@ echo "CMAKE_BUILD_TYPE    = ${BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
+if ((CUDA_ARG > 0)); then
+  echo "GPU                 = ${GPU_MODEL} (CUDA arch: ${CUDA_ARG})"
+else
+  echo "GPU                 = ${GPU_MODEL}"
+fi
 echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
@@ -418,6 +464,20 @@ case "${MPI_MODE}" in
     ${EXIT_CMD} 1
     ;;
 esac
+
+# Perform CUDA GPU related settings
+if ((CUDA_ARG > 0)); then
+  CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=ON"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_USE_ACCEL=ON -DCMAKE_CUDA_ARCHITECTURES=${GPU_MODEL}"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_ELPA_GPU=ON"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_GRID_GPU=ON"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_DBM_GPU=ON"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_PW_GPU=ON"
+else
+  CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
+fi
+export CMAKE_CUDA_FLAGS
+((VERBOSE > 0)) && echo -e "CMAKE_CUDA_FLAGS    = \"${CMAKE_CUDA_FLAGS}\"\n"
 
 ### Build CP2K dependencies with Spack if needed or requested ###
 
@@ -574,6 +634,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
       -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
       -i "${CP2K_CONFIG_FILE}"
+  fi
+
+  # Activate CUDA in the spack configuration file if requested
+  if ((CUDA_ARG > 0)); then
+    sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARG}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply Cray specific adaptation of the spack configuration if requested
@@ -792,6 +857,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_MPI=ON \
         -DCP2K_USE_OPENPMD=ON \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
+        "${CMAKE_CUDA_FLAGS}" \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
@@ -809,6 +875,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_LIBXSMM=ON \
         -DCP2K_USE_MPI=OFF \
         -DCP2K_USE_OPENPMD=OFF \
+        "${CMAKE_CUDA_FLAGS}" \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
