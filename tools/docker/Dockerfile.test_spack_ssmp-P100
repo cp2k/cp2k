@@ -1,19 +1,27 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_ssmp-static ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_ssmp-P100 ../../
 #
 
-ARG BASE_IMAGE="ubuntu:24.04"
+ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
 
 ###### Stage 1: Build CP2K ######
 
 FROM "${BASE_IMAGE}" AS build_cp2k
 
+# Setup CUDA environment
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++ gcc gfortran \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     git \
     gnupg \
     libssh-dev \
@@ -44,17 +52,25 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv ssmp-static -gpu none -gv 14 -mpi no "
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv ssmp -gpu P100 -gv 13 -mpi no -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ssmp-static -gv 14 -gpu none -mpi no"
+RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv ssmp -gv 13 -gpu P100 -mpi no"
 
 ###### Stage 2: Install CP2K ######
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
+# Setup CUDA environment
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -74,7 +90,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests "
+RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive"
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt

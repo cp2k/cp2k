@@ -126,7 +126,7 @@ BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 CRAY="yes"
-CUDA_ARG=0
+CUDA_ARCH=0
 DISABLE_LOCAL_CACHE="no"
 GCC_VERSION="auto"
 GPU_MODEL="none"
@@ -221,18 +221,21 @@ while [[ $# -gt 0 ]]; do
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
-                CUDA_ARG=60
+                CUDA_ARCH=60
                 ;;
               V100)
-                CUDA_ARG=70
+                CUDA_ARCH=70
                 ;;
               A100)
-                CUDA_ARG=80
+                CUDA_ARCH=80
                 ;;
               H100)
-                CUDA_ARG=90
+                CUDA_ARCH=90
                 ;;
             esac
+            # Currently needed
+            USE_EXTERNALS="yes"
+            echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
             ;;
           NONE)
             GPU_MODEL="${2,,}"
@@ -340,9 +343,9 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY CUDA_ARG DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL
-HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS \
-  VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY CUDA_ARCH DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL
+export HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS
+export VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -401,8 +404,8 @@ echo "CMAKE_BUILD_TYPE    = ${BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
-if ((CUDA_ARG > 0)); then
-  echo "GPU                 = ${GPU_MODEL} (CUDA arch: ${CUDA_ARG})"
+if ((CUDA_ARCH > 0)); then
+  echo "GPU                 = ${GPU_MODEL} (CUDA arch: ${CUDA_ARCH})"
 else
   echo "GPU                 = ${GPU_MODEL}"
 fi
@@ -466,18 +469,36 @@ case "${MPI_MODE}" in
 esac
 
 # Perform CUDA GPU related settings
-if ((CUDA_ARG > 0)); then
-  CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=ON"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_USE_ACCEL=ON -DCMAKE_CUDA_ARCHITECTURES=${GPU_MODEL}"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_ELPA_GPU=ON"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_GRID_GPU=ON"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_DBM_GPU=ON"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_ENABLE_PW_GPU=ON"
+if ((CUDA_ARCH > 0)); then
+  # Check if the selected CUDA arch is valid if the  nvidia-smi command
+  # is available  which usually not the case within a container
+  if command -v nvidia-smi &> /dev/null; then
+    HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | awk '{print 10*$1}')
+    if ((CUDA_ARCH > HOST_CUDA_ARCH)); then
+      echo "ERROR: The requested CUDA arch (${CUDA_ARCH}) is larger than the maximum"
+      echo "       CUDA arch (${HOST_CUDA_ARCH}) supported by the host system"
+      ${EXIT_CMD} 1
+    fi
+  fi
+  # Check for the environment variable CUDA_PATH
+  if [[ -z "${CUDA_PATH:-}" ]]; then
+    echo "ERROR: The variable CUDA_PATH is unset or empty"
+    ${EXIT_CMD} 1
+  else
+    echo -e "CUDA_PATH           = ${CUDA_PATH}"
+  fi
+  if [[ -n "${CUDA_VERSION:-}" ]]; then
+    echo -e "CUDA_VERSION        = ${CUDA_VERSION}"
+  fi
+  CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=CUDA"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
+  CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
+  CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
+  echo -e "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}\n"
 else
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
 fi
 export CMAKE_CUDA_FLAGS
-((VERBOSE > 0)) && echo -e "CMAKE_CUDA_FLAGS    = \"${CMAKE_CUDA_FLAGS}\"\n"
 
 ### Build CP2K dependencies with Spack if needed or requested ###
 
@@ -637,8 +658,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Activate CUDA in the spack configuration file if requested
-  if ((CUDA_ARG > 0)); then
-    sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARG}/" -i "${CP2K_CONFIG_FILE}"
+  if ((CUDA_ARCH > 0)); then
+    sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply Cray specific adaptation of the spack configuration if requested
@@ -844,6 +865,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
     "psmp")
+      # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -857,12 +879,13 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_MPI=ON \
         -DCP2K_USE_OPENPMD=ON \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
-        "${CMAKE_CUDA_FLAGS}" \
+        ${CMAKE_CUDA_FLAGS} \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
     "ssmp")
+      # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -875,7 +898,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCP2K_USE_LIBXSMM=ON \
         -DCP2K_USE_MPI=OFF \
         -DCP2K_USE_OPENPMD=OFF \
-        "${CMAKE_CUDA_FLAGS}" \
+        ${CMAKE_CUDA_FLAGS} \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
@@ -972,8 +995,13 @@ if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot fou
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
   ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found'
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
+  # Assemble all search paths for libraries
+  SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
+  ((CUDA_ARCH > 0)) && SEARCH_PATHS+=" ${CUDA_PATH}"
+  # Search for missing libraries
   for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
-    library=$(find -L "${SPACK_ROOT}/opt/spack/view" "${INSTALL_PREFIX}/lib" -name "${libname}" | tail -n 1)
+    # shellcheck disable=SC2086
+    library=$(find -L ${SEARCH_PATHS} -name "${libname}" | tail -n 1)
     library_path="$(dirname "${library}")"
     if [[ -n "${library_path}" ]]; then
       case ":${LD_LIBRARY_PATH}:" in
