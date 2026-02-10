@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openblas_ver="0.3.30" # Keep in sync with get_openblas_arch.sh
-openblas_sha256="27342cff518646afb4c2b976d809102e368957974c250a25ccc965e53063c95d"
+openblas_ver="0.3.31" # Keep in sync with get_openblas_arch.sh
+openblas_sha256="6dd2a63ac9d32643b7cc636eab57bf4e57d0ed1fff926dfbc5d3d97f2d2be3a6"
 openblas_pkg="OpenBLAS-${openblas_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -32,7 +32,8 @@ case "${with_openblas}" in
       if [ -f ${openblas_pkg} ]; then
         echo "${openblas_pkg} is found"
       else
-        download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"
+        #download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"
+        download_pkg_from_urlpath "${openblas_sha256}" "${openblas_pkg}" https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.31
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
