@@ -1259,3 +1259,20 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
   FILES_MATCHING
   PATTERN "*.cmake")
+
+# Create symlink: popt -> psmp, sopt -> ssmp
+foreach(__ext_pair "psmp:popt" "ssmp:sopt")
+  string(REPLACE ":" ";" __ext_list ${__ext_pair})
+  list(GET __ext_list 0 __src_ext)
+  list(GET __ext_list 1 __link_ext)
+  if(__cp2k_ext MATCHES ${__src_ext})
+    install(
+      CODE "
+      message(STATUS \"Creating symlink: cp2k.${__link_ext} -> cp2k.${__src_ext}\")
+      execute_process(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          cp2k.${__src_ext}
+          \${CMAKE_INSTALL_PREFIX}/bin/cp2k.${__link_ext})
+    ")
+  endif()
+endforeach()
