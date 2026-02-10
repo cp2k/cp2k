@@ -27,6 +27,8 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran \
+    hwloc \
+    libhwloc-dev \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
