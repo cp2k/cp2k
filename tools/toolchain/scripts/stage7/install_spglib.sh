@@ -30,8 +30,7 @@ case "$with_spglib" in
       if [ -f spglib-${spglib_ver}.tar.gz ]; then
         echo "spglib-${spglib_ver}.tar.gz is found"
       else
-        #download_pkg_from_cp2k_org "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"
-        download_pkg_from_urlpath "${spglib_sha256}" "v${spglib_ver}.tar.gz" https://github.com/spglib/spglib/archive/refs/tags "spglib-${spglib_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
