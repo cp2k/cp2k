@@ -768,7 +768,11 @@ Torch_DIR="$(dirname "$(find "${SPACK_ROOT}" ! -type l -name TorchConfig.cmake |
 export Torch_DIR
 
 # Check if PEXSI was built
-CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' spack/cp2k_deps_psmp.yaml && echo OFF || echo ON)"
+if [[ "${MPI_MODE}" != "no" ]]; then
+  CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' spack/cp2k_deps_psmp.yaml && echo OFF || echo ON)"
+else
+  CP2K_USE_PEXSI="ON"
+fi
 export CP2K_USE_PEXSI
 
 if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
@@ -1008,7 +1012,7 @@ else
   else
     echo ""
     echo "*** A regression test run can be launched with"
-    echo "    ${LAUNCH_SCRIPT}/bin/launch run_tests"
+    echo "    ${LAUNCH_SCRIPT} run_tests"
     echo ""
     if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
