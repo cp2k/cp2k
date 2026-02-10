@@ -37,7 +37,7 @@ if(NOT CP2K_CONFIG_PACKAGE)
       # cmake-format: sortable
       "sequential" "thread" "gnu-thread" "intel-thread" "tbb-thread" "openmp")
 
-  if(CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
+  if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM" AND CP2K_MKL_FOUND)
     set(_default_threading "thread")
   else()
     set(_default_threading "sequential")
