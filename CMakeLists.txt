@@ -1260,7 +1260,7 @@ install(
   FILES_MATCHING
   PATTERN "*.cmake")
 
-# Create symlink: psmp -> popt, ssmp -> sopt
+# Create symlink: popt -> psmp, sopt -> ssmp
 foreach(__ext_pair "psmp:popt" "ssmp:sopt")
   string(REPLACE ":" ";" __ext_list ${__ext_pair})
   list(GET __ext_list 0 __src_ext)
