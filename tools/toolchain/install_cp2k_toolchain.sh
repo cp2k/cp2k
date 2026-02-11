@@ -51,9 +51,12 @@ source "${SCRIPTDIR}"/tool_kit.sh
 # ------------------------------------------------------------------------
 show_help() {
   cat << EOF
-This script will help you compile and install, or link libraries
-CP2K depends on and setup a set of ARCH files that you can use
-to compile CP2K.
+This script will help you prepare the toolchain for compiling and using CP2K.
+There are a number of dependency packages for CP2K, which may be downloaded
+from internet and freshly installed, or detected from system path and linked.
+Once these dependencies are ready, the CMake options for compiling CP2K and
+further instructions will be printed at the end of this script's execution.
+See README.md under the toolchain directory for more information.
 
 USAGE:
 
@@ -204,7 +207,7 @@ Specific options:
                           and is also used to get arch information.
                           --math-mode option (see above) should be consistent.
                           Default = install
-  --with-mkl              Use Intel Math Kernel Library (MKL), which provides 
+  --with-mkl              Use Intel Math Kernel Library (MKL), which provides
                           LAPACK and BLAS library.
                           If MKL's FFTW3 interface is suitable (no FFTW-MPI
                           support), it replaces the FFTW library.
@@ -249,7 +252,8 @@ Specific options:
                           This package is required for PLUMED and SIRIUS.
                           Default = install
   --with-libtorch         Enable libtorch as a machine learning framework.
-                          This package is needed for NequIP and Allegro.
+                          This package is required for DeePMD-kit, NequIP and
+                          Allegro.
                           Default = no
   --with-plumed           Enable interface to the PLUMED library for enhanced
                           sampling methods.
@@ -276,7 +280,8 @@ Specific options:
                           This package requires CMake.
                           Default = install
   --with-tblite           Enable the tblite package by Grimme for GFN-xtb and
-                          DFT-D4 methods.
+                          DFT-D4 methods. If tblite is used then standalone
+                          DFTD4 is not used.
                           This package requires CMake.
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
@@ -293,7 +298,7 @@ Specific options:
                           Default = no
   --with-spfft            Enable SpFFT for sparse Fourier Transform.
                           This library is required by SIRIUS.
-                          Default = no 
+                          Default = no
   --with-trexio           Enable the trexio library for TREXIO file format.
                           Default = no
   --with-mcl              Install MCL library for MiMiC with toolchain.
@@ -338,7 +343,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol 
+          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
           trexio greenx gmp mcl"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
@@ -902,8 +907,9 @@ fi
 # If CUDA or HIP are enabled, make sure the GPU version has been defined.
 if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   if [ "${GPUVER}" = "no" ]; then
-    report_error ${LINENO} "When enabling CUDA or HIP, a supported GPU version
-is needed. See help message of this script produced by --help option."
+    report_error ${LINENO} "Either CUDA or HIP is enabled, but --gpu-ver is not
+set to one of the known architectures. See help message of this script produced
+by --help option for supported ones."
     exit 1
   fi
 fi
@@ -937,7 +943,8 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_mcl}" = "__INSTALL__" ] ||
   [ "${with_tblite}" = "__INSTALL__" ]; then
   if [ "${with_cmake}" = "__DONTUSE__" ]; then
-    report_warning ${LINENO} "CMake is used for installing one of the packages."
+    report_warning ${LINENO} "Installing one of the packages requires CMake but
+CMake is not found in system, so a new copy of CMake will be installed first."
     with_cmake="__INSTALL__"
   fi
 fi
