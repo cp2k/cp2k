@@ -480,21 +480,14 @@ if ((CUDA_ARCH > 0)); then
       ${EXIT_CMD} 1
     fi
   fi
-  # Check for the environment variable CUDA_PATH
-  if [[ -z "${CUDA_PATH:-}" ]]; then
-    echo "ERROR: The variable CUDA_PATH is unset or empty"
-    ${EXIT_CMD} 1
-  else
-    echo -e "CUDA_PATH           = ${CUDA_PATH}"
-  fi
-  if [[ -n "${CUDA_VERSION:-}" ]]; then
-    echo -e "CUDA_VERSION        = ${CUDA_VERSION}"
-  fi
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=CUDA"
   CMAKE_CUDA_FLAGS+=" -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
   echo -e "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}\n"
+  echo -e "CUDA_VERSION        = ${CUDA_VERSION}"
+  echo -e "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
+  echo -e "PATH                = ${PATH}"
 else
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
 fi
