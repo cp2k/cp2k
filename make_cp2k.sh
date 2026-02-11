@@ -991,6 +991,7 @@ if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot fou
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
   # Assemble all search paths for libraries
   SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
+  ((CUDA_ARCH > 0)) && SEARCH_PATHS+=" /usr/local/cuda"
   # Search for missing libraries
   for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
     # shellcheck disable=SC2086
