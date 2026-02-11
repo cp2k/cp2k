@@ -60,6 +60,8 @@ MODULE negf_control_types
       LOGICAL                                            :: shift_fermi_level = .FALSE.
       !> to read/write H and S from/to file
       LOGICAL                                            :: read_write_HS = .FALSE.
+      !> if restart from files is really done
+      LOGICAL                                            :: is_restart = .FALSE.
       !> Fermi level or starting Fermi level
       REAL(kind=dp)                                      :: fermi_level = -1.0_dp
       !> Fermi level shifted to the common zero-energy level
@@ -83,6 +85,16 @@ MODULE negf_control_types
       !> atoms belonging to the scattering region as well as atoms belonging to
       !> screening regions of all the contacts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_S_screening
+      !> to read/write H and S from/to file
+      LOGICAL                                            :: read_write_HS = .FALSE.
+      !> to update the atomic Hamiltonian during NEGF self-consistent cycle
+      LOGICAL                                            :: update_HS = .FALSE.
+      !> if dft of entire system is done
+      LOGICAL                                            :: is_dft_entire = .FALSE.
+      !> if restart from files is really done
+      LOGICAL                                            :: is_restart = .FALSE.
+      !> the common restart file projectname-negf.restart is written if any of is_restart is .TRUE.
+      LOGICAL                                            :: write_common_restart_file = .FALSE.
       !> do not keep contact self-energy matrices
       LOGICAL                                            :: disable_cache = .FALSE.
       !> convergence criteria for adaptive integration methods
@@ -327,6 +339,12 @@ CONTAINS
          CALL read_negf_atomlist(negf_control%atomlist_S, region_section, 1, subsys)
       END IF
 
+      subsection => section_vals_get_subs_vals(negf_section, "SCATTERING_REGION%RESTART")
+      CALL section_vals_val_get(subsection, "READ_WRITE_HS", &
+                                l_val=negf_control%read_write_HS, &
+                                explicit=is_explicit)
+      IF (is_explicit) negf_control%read_write_HS = .TRUE.
+
       CALL section_vals_val_get(negf_section, "DISABLE_CACHE", l_val=negf_control%disable_cache)
 
       CALL section_vals_val_get(negf_section, "EPS_DENSITY", r_val=negf_control%conv_density)
@@ -355,6 +373,8 @@ CONTAINS
       CALL section_vals_val_get(negf_section, "V_SHIFT", r_val=negf_control%v_shift)
       CALL section_vals_val_get(negf_section, "V_SHIFT_OFFSET", r_val=negf_control%v_shift_offset)
       CALL section_vals_val_get(negf_section, "V_SHIFT_MAX_ITERS", i_val=negf_control%v_shift_maxiters)
+
+      CALL section_vals_val_get(negf_section, "UPDATE_HS", l_val=negf_control%update_HS)
 
       ! check consistency
       IF (negf_control%eta < 0.0_dp) THEN

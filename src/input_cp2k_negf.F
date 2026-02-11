@@ -12,7 +12,8 @@
 MODULE input_cp2k_negf
    USE bibliography,                    ONLY: Bailey2006,&
                                               Papior2017
-   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+   USE cp_output_handling,              ONLY: add_last_numeric,&
+                                              cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
                                               low_print_level,&
@@ -71,7 +72,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_atomlist_section(subsection, "SCATTERING_REGION", "Defines atoms which form the scattering region.", .FALSE.)
+      CALL create_scattering_region_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -208,6 +209,12 @@ CONTAINS
                           n_var=1, type_of_var=integer_t, default_i_val=30)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="UPDATE_HS", &
+                          description="Change the atomic Hamiltonian during NEGF self-consistent cycle."// &
+                          " If .FALSE., only the density matrix is updated.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       ! PRINT subsection
       CALL section_create(subsection, __LOCATION__, "PRINT", "Printing of information during the NEGF.", &
@@ -222,6 +229,16 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL create_print_dos_section(print_key, "TRANSMISSION", "the transmission coefficient")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      ! RESTART subsection
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
+                                       description="Controls the dumping of the restart files during NEGF SCF."// &
+                                       " By default keeps a short history of three restarts.", &
+                                       print_level=low_print_level, common_iter_levels=3, &
+                                       each_iter_names=s2a("NEGF_SCF"), each_iter_values=[20], &
+                                       add_last=add_last_numeric, filename="RESTART")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -327,7 +344,7 @@ CONTAINS
 
       ! RESTART subsection
       CALL section_create(subsection, __LOCATION__, "RESTART", &
-                          "Read and write restart files for the given contact.", repeats=.FALSE.)
+                          "Controls reading and writing of the restart files for the specified contact.", repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
                           description=' Controls part of the filename for output. '// &
@@ -359,6 +376,73 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_contact_section
+
+! **************************************************************************************************
+!> \brief Create a scattering region section.
+!> \param section              NEGF section
+!> \par History
+!>    * 02.2026 created [Dmitry Ryndyk]
+! **************************************************************************************************
+   SUBROUTINE create_scattering_region_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="SCATTERING_REGION", &
+                          description="Section defining the scattering region of NEGF setup.", &
+                          n_keywords=2, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
+                          description="Specifies a list of atoms.", &
+                          usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
+                          description="Specifies a list of named molecular fragments.", &
+                          usage="MOLNAME WAT MEOH", repeats=.TRUE., &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! RESTART subsection
+      CALL section_create(subsection, __LOCATION__, "RESTART", &
+                          "Controls reading and writing of the initial restart files for the scattering region,"// &
+                          " including the coupling to the electrodes.", repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
+                          description=' Controls part of the filename. '// &
+                          ' Use filename to obtain projectname-filename. '// &
+                          ' Use ./filename to get filename.'// &
+                          ' A middle name (type of matrix, contact number for coupling matrices, spin if 2 spins)'// &
+                          ' and extension are always added to the filename.', &
+                          usage="FILENAME ./filename ", &
+                          default_lc_val="")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="READ_WRITE_HS", &
+                          description="Requests reading of the Hamiltonian and overlap matrices from a file."// &
+                          " For the scattering region, including the coupling to the electrodes."// &
+                          " If at least one of these files doesn't exist, all Hamiltonian and overlap matrices"// &
+                          " are calculated and saved. If no name is specified by FILENAME, the default file names are"// &
+                          " projectname-H, projectname-H-Nn, projectname-S, projectname-S-Nn"// &
+                          " for restricted calculations with identical spin population, or"// &
+                          " projectname-H-Ss, projectname-H-Nn-Ss, projectname-S-Ss, projectname-S-Nn-Ss"// &
+                          " for unrestricted calculations with two spin components,"// &
+                          " where n is the number of the contact and s is the spin index."// &
+                          " Otherwise, projectname is modified.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_scattering_region_section
 
 ! **************************************************************************************************
 !> \brief Create an atomic list section.
@@ -446,7 +530,7 @@ CONTAINS
    END SUBROUTINE create_print_program_run_info_section
 
 ! **************************************************************************************************
-!> \brief Create the DOS print section.
+!> \brief Create the DOS/TRANSMISSION print section.
 !> \param section              section to create
 !> \param name                 name of the new section
 !> \param description          section description
