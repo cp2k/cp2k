@@ -123,7 +123,7 @@ MODULE qs_scf
                                               set_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_ks_methods,                   ONLY: evaluate_core_matrix_p_mix_new,&
+   USE qs_ks_methods,                   ONLY: evaluate_core_matrix_traces,&
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_did_change,&
@@ -524,8 +524,9 @@ CONTAINS
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CPASSERT(scf_env%mixing_method > 0)
                CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
-               CALL evaluate_core_matrix_p_mix_new(qs_env)
+               CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
