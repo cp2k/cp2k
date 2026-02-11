@@ -350,7 +350,9 @@ CONTAINS
             dispersion_env%alp = 14._dp
             !
             dispersion_env%cnfun = 3
-            dispersion_env%rc_cn = get_cn_radius(dispersion_env)
+            IF (dispersion_env%rc_cn < 0.0_dp) THEN
+               dispersion_env%rc_cn = get_cn_radius(dispersion_env)
+            END IF
             IF (PRESENT(pp_section)) THEN
                eeq_section => section_vals_get_subs_vals(pp_section, "EEQ")
                CALL read_eeq_param(eeq_section, dispersion_env%eeq_sparam)
