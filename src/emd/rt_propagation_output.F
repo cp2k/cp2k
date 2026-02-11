@@ -336,10 +336,12 @@ CONTAINS
                                             0.0_dp, tmp_ao)
                         CALL dbcsr_trace(tmp_ao, trace)
                         strace = strace + trace
-                        j_int(spin, i) = strace
+!     dft_control%rtp_control%vec_pot(1)
+                        j_int(spin, i) = -trace + dft_control%rtp_control%vec_pot(i)*nel(spin)
+!!  j_int(spin, i) = strace
                      END DO
                   END DO
-!  The term -(1/V)\int{(1/2)\sum_n f_n [\psi_n^*(t)(A(t))\psi_n(t) +cc]} missing. Is it just A(t)*number of electrons?
+!  PP term missing
 
                   IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                        dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT"), cp_p_file)) THEN
