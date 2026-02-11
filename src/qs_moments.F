@@ -3626,6 +3626,7 @@ CONTAINS
 !> \param berry_c berry curvature calculated using Ω^γ_n = Σ_m 2*Im[d^α_nm (d^β_mn)*]
 !> \param do_parallel option to distribute the result in dipole across
 !>        different MPI ranks
+!> \author Shridhar Shanbhag
 ! **************************************************************************************************
    SUBROUTINE qs_moment_kpoints_deep(qs_env, xkp, dipole, rcc, berry_c, do_parallel)
       TYPE(qs_environment_type), POINTER                 :: qs_env
