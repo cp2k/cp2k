@@ -133,6 +133,7 @@ CONTAINS
 
       INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
                                                             output_unit, spin, unit_nr
+      INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
@@ -167,7 +168,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, sab_all=sab_all, sab_orb=sab_orb, &
-                      dbcsr_dist=dbcsr_dist)
+                      dbcsr_dist=dbcsr_dist,nelectron_spin=nelectron_spin)
 
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
 
@@ -337,7 +338,7 @@ CONTAINS
                         CALL dbcsr_trace(tmp_ao, trace)
                         strace = strace + trace
 !     dft_control%rtp_control%vec_pot(1)
-                        j_int(spin, i) = -trace + dft_control%rtp_control%vec_pot(i)*nel(spin)
+                        j_int(spin, i) = -trace + dft_control%rtp_control%vec_pot(i)*nelectron_spin(spin)
 !!  j_int(spin, i) = strace
                      END DO
                   END DO
