@@ -484,10 +484,11 @@ if ((CUDA_ARCH > 0)); then
   CMAKE_CUDA_FLAGS+=" -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
-  echo -e "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}\n"
-  echo -e "CUDA_VERSION        = ${CUDA_VERSION}"
-  echo -e "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
-  echo -e "PATH                = ${PATH}"
+  echo "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}"
+  echo "CUDA_VERSION        = ${CUDA_VERSION}"
+  echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
+  echo "PATH                = ${PATH}"
+  echo ""
 else
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
 fi
@@ -982,7 +983,7 @@ fi
 export VERSION=${CP2K_VERSION%%-*}
 
 # Retrieve paths to "hidden" libraries
-LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
 if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
@@ -990,7 +991,6 @@ if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot fou
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
   # Assemble all search paths for libraries
   SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
-  ((CUDA_ARCH > 0)) && SEARCH_PATHS+=" ${CUDA_PATH}"
   # Search for missing libraries
   for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
     # shellcheck disable=SC2086
