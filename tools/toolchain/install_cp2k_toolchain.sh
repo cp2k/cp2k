@@ -634,24 +634,24 @@ Otherwise use option no."
     --with-mpich-device=*)
       user_input="${1#*=}"
       export MPICH_DEVICE="${user_input}"
-      export MPI_MODE=mpich
+      export MPI_MODE="mpich"
       ;;
     --with-mpich*)
       with_mpich=$(read_with "${1}")
       if [ "${with_mpich}" != "__DONTUSE__" ]; then
-        export MPI_MODE=mpich
+        export MPI_MODE="mpich"
       fi
       ;;
     --with-openmpi*)
       with_openmpi=$(read_with "${1}")
       if [ "${with_openmpi}" != "__DONTUSE__" ]; then
-        export MPI_MODE=openmpi
+        export MPI_MODE="openmpi"
       fi
       ;;
     --with-intelmpi*)
       with_intelmpi=$(read_with "${1}" "__SYSTEM__")
       if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
-        export MPI_MODE=intelmpi
+        export MPI_MODE="intelmpi"
       fi
       ;;
     --with-amd*)
@@ -777,7 +777,7 @@ Otherwise use option no."
       exit 0
       ;;
     *)
-      report_error "Unknown flag: ${1}"
+      report_error ${LINENO} "Unknown flag: ${1}"
       exit 1
       ;;
   esac
@@ -804,8 +804,8 @@ if [ "${with_gcc}" = "__INSTALL__" ]; then
     with_gcc="__SYSTEM__"
   fi
 fi
-if [ "${with_amd}" != "__DONTUSE__" ] && [ "${with_intel}" != "__DONTUSE__" ]
-then
+if [ "${with_amd}" != "__DONTUSE__" ] && \
+   [ "${with_intel}" != "__DONTUSE__" ]; then
   report_error ${LINENO} "The AMD and Intel compilers cannot be used together."
   exit 1
 fi
@@ -874,14 +874,26 @@ else
     mpich)
       with_openmpi="__DONTUSE__"
       with_intelmpi="__DONTUSE__"
+      if [ "${with_mpich}" = "__DONTUSE__" ]; then
+        with_mpich="__INSTALL__"
+      fi
       ;;
     openmpi)
       with_mpich="__DONTUSE__"
       with_intelmpi="__DONTUSE__"
+      if [ "${with_openmpi}" = "__DONTUSE__" ]; then
+        with_openmpi="__INSTALL__"
+      fi
       ;;
     intelmpi)
       with_mpich="__DONTUSE__"
       with_openmpi="__DONTUSE__"
+      if [ "${with_intelmpi}" = "__DONTUSE__" ]; then
+        report_error ${LINENO} \
+"While --mpi-mode=intelmpi is set, no Intel MPI has been found or linked in the
+system and currently toolchain installation is not supported."
+        exit 1
+      fi
       ;;
   esac
 fi
