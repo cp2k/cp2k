@@ -133,8 +133,8 @@ CONTAINS
 
       INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
                                                             output_unit, spin, unit_nr
-      INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
+      INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
       REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
@@ -168,7 +168,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, sab_all=sab_all, sab_orb=sab_orb, &
-                      dbcsr_dist=dbcsr_dist,nelectron_spin=nelectron_spin)
+                      dbcsr_dist=dbcsr_dist, nelectron_spin=nelectron_spin)
 
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
 
