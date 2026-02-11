@@ -131,6 +131,18 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-P100", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                gcc_version=13,
+                gpu_model="P100",
+                testopts="--keepalive",
+            )
+        )
+
     # End Spack/CMake based tester
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
@@ -757,16 +769,6 @@ RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
         elif "ubuntu" in base_image:
-            if "nvidia" in base_image:
-                output += rf"""
-# Setup CUDA environment
-ENV CUDA_PATH /usr/local/cuda
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
-
-# Disable JIT cache as there seems to be an issue with file locking on overlayfs
-# See also https://github.com/cp2k/cp2k/pull/2337
-ENV CUDA_CACHE_DISABLE 1
-"""
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
@@ -822,16 +824,6 @@ RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
         elif "ubuntu" in base_image:
-            if "nvidia" in base_image:
-                output += rf"""
-# Setup CUDA environment
-ENV CUDA_PATH /usr/local/cuda
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
-
-# Disable JIT cache as there seems to be an issue with file locking on overlayfs
-# See also https://github.com/cp2k/cp2k/pull/2337
-ENV CUDA_CACHE_DISABLE 1
-"""
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     {gcc_compilers} \
