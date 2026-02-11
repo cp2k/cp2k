@@ -133,6 +133,7 @@ MODULE qs_environment
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
+   USE pyscon,                          ONLY: kelvin
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_basis_rotation_methods,       ONLY: qs_basis_rotation
    USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
@@ -1265,9 +1266,8 @@ CONTAINS
             ! set tblite default smearing
             scf_control%smear%do_smear = .TRUE.
             scf_control%smear%method = smear_fermi_dirac
-            scf_control%smear%electronic_temperature = 300._dp
+            scf_control%smear%electronic_temperature = 300._dp/kelvin
             scf_control%smear%eps_fermi_dirac = 1.E-6_dp
-            scf_control%smear%fixed_magnetic_moment = .TRUE.
          END IF
       END IF
       dft_control%smear = scf_control%smear%do_smear
