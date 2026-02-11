@@ -945,6 +945,16 @@ CONTAINS
                       para_env=para_env, &
                       xas_env=xas_env)
 
+      !Check restricted optimizers available for tblite library
+      IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+         IF (dft_control%lsd) THEN
+            CPABORT("LSD option not compatible with tblite library. Always use restricted orbitals.")
+         END IF
+         IF (scf_env%method == ot_method_nr) THEN
+            CPABORT("OT SCF option not compatible with tblite library")
+         END IF
+      END IF
+
       ! Calculate ortho matrix
       ndep = 0
       IF (scf_env%needs_ortho) THEN

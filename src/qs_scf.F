@@ -524,13 +524,9 @@ CONTAINS
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-               IF (scf_env%mixing_method > 0) THEN
-                  CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
-                  CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
-               ELSE
-                  CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .TRUE.)
-                  CALL evaluate_core_matrix_traces(qs_env)
-               END IF
+               CPASSERT(scf_env%mixing_method > 0)
+               CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+               CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
