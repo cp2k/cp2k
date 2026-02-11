@@ -804,10 +804,11 @@ if [ "${with_gcc}" = "__INSTALL__" ]; then
     with_gcc="__SYSTEM__"
   fi
 fi
-if [ "${with_amd}" != "__DONTUSE__" ] && \
-   [ "${with_intel}" != "__DONTUSE__" ]; then
-  report_error ${LINENO} "The AMD and Intel compilers cannot be used together."
-  exit 1
+if [ "${with_amd}" != "__DONTUSE__" ]; then
+  if [ "${with_intel}" != "__DONTUSE__" ]; then
+    report_error ${LINENO} "The AMD and Intel compilers can't be used together."
+    exit 1
+  fi
 fi
 # MPI library conflicts
 if [ "${MPI_MODE}" = "no" ]; then
@@ -889,9 +890,9 @@ else
       with_mpich="__DONTUSE__"
       with_openmpi="__DONTUSE__"
       if [ "${with_intelmpi}" = "__DONTUSE__" ]; then
-        report_error ${LINENO} \
-"While --mpi-mode=intelmpi is set, no Intel MPI has been found or linked in the
-system and currently toolchain installation is not supported."
+        report_error ${LINENO} "While --mpi-mode=intelmpi is set, no Intel MPI
+could be found or linked in the system, and installation by toolchain is not
+supported. Please install manually and check executable path before rerunning."
         exit 1
       fi
       ;;
@@ -901,7 +902,8 @@ fi
 # If CUDA or HIP are enabled, make sure the GPU version has been defined.
 if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   if [ "${GPUVER}" = "no" ]; then
-    report_error ${LINENO} "When enabling CUDA or HIP, GPU version is needed."
+    report_error ${LINENO} "When enabling CUDA or HIP, a supported GPU version
+is needed. See help message of this script produced by --help option."
     exit 1
   fi
 fi
