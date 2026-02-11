@@ -3639,7 +3639,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole
-      INTEGER                                            :: handle, i_dir, ikp, nkp, nmo, &
+      INTEGER                                            :: handle, i_dir, ikp, nkp, &
                                                             n_img_scf, n_img_all, nao, &
                                                             num_pe, num_copy, mepos, n, m, mu, &
                                                             ispin, nspin
@@ -3681,7 +3681,7 @@ CONTAINS
                       dft_control=dft_control, &
                       mos=mos)
 
-      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
       CALL get_cell(cell=cell, h=hmat)
       nspin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
@@ -3724,7 +3724,7 @@ CONTAINS
 
 !$OMP PARALLEL PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
 !$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
-!$OMP SHARED(num_pe, mepos, dipole, berry_c, nmo, nao, nspin, &
+!$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, &
 !$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, calc_bc)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
       ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
@@ -3748,7 +3748,7 @@ CONTAINS
             ! To have a smooth complex phase of C(k) as function of k, for every n, we force
             ! the largest C_μ,n(k) to be real.
             ! This is important to have a continuous dipole moment d_nm(k) as a function of k
-            DO n = 1, nmo
+            DO n = 1, nao
                tmp_max = C_k(1, n)
                DO mu = 1, nao
                   IF (ABS(C_k(mu, n)) < ABS(tmp_max)) CYCLE
@@ -3775,8 +3775,8 @@ CONTAINS
                ! Compute the dipole
                ! d_nm (k) = - i/(ε(n)-ε(m)) [ (C^H)(dH(k)/dk)C ]_nm
                !            + i ε(n)/(ε(n)-ε(m)) [ (C^H)(dS(k)/dk)C ]_nm + [ (C^H)D(k)C ]_nm
-               DO n = 1, nmo
-                  DO m = 1, nmo
+               DO n = 1, nao
+                  DO m = 1, nao
                      IF (n == m) CYCLE ! diagonal elements would need to be computed from
                      ! a numerical k-derivative which is not implemented
                      dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
@@ -3790,8 +3790,8 @@ CONTAINS
             IF (calc_bc) THEN
                bc = 0.0_dp
                DO i_dir = 1, 3
-                  DO n = 1, nmo
-                     DO m = 1, nmo
+                  DO n = 1, nao
+                     DO m = 1, nao
                         IF (n == m) CYCLE
                         bc(i_dir, n) = bc(i_dir, n) &
                                        + 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
@@ -3805,7 +3805,8 @@ CONTAINS
          END DO
       END DO
 !$OMP END DO
-      DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals, bc)
+      DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals)
+      IF (calc_bc) DEALLOCATE (bc)
 !$OMP END PARALLEL
       DEALLOCATE (S_rs, H_rs, D_rs)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
@@ -3833,7 +3834,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole
-      INTEGER                                            :: handle, ikp, nkp, nmo, nao, &
+      INTEGER                                            :: handle, ikp, nkp, nao, &
                                                             num_pe, mepos, n, m, &
                                                             ispin, nspin, nmin, nmax, homo
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
@@ -3855,7 +3856,7 @@ CONTAINS
                       matrix_ks_kp=matrix_ks_kp, &
                       mos=mos)
 
-      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=nmo)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
       CALL get_xkp_for_dipole_calc(qs_env, xkp, special_pnts)
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
       nspin = SIZE(matrix_ks_kp, 1)
@@ -3885,7 +3886,7 @@ CONTAINS
             nmax = min(nao, homo + max_nmo/2)
             IF (max_nmo == 0) THEN
                nmin = 1
-               nmax = nmo
+               nmax = nao
             END IF
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
