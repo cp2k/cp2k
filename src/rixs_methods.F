@@ -60,7 +60,7 @@ MODULE rixs_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rixs_methods'
 
-   PUBLIC :: rixs, rixs_core
+   PUBLIC :: rixs
 
 CONTAINS
 
@@ -222,16 +222,6 @@ CONTAINS
             END IF
          END IF
 
-         IF (rixs_control%xas_tdp_control%do_loc) THEN
-            IF (output_unit > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                  "RIXS| Found localised XAS_TDP orbitals"
-               WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                  "RIXS| Rotating TDDFPT vectors..."
-            END IF
-            CALL rotate_vectors(valence_state%evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
-         END IF
-
          ! find max nactive for open-shell cases
          ALLOCATE (nactive(nspins))
          DO ispin = 1, nspins
@@ -387,7 +377,7 @@ CONTAINS
 
                      ! 1) build c^T*R*c
                      CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_coeffs(ispin), Rc(ispin), ncol=nactive(ispin))
-                     CALL parallel_gemm('T', 'N', nactive(ispin), nactive(ispin), nao, 1.0_dp, mo_coeffs(ispin), &
+                     CALL parallel_gemm('T', 'N', nactive(ispin), nactive(ispin), nao, 1.0_dp, local_gs_coeffs(ispin), & 
                                         Rc(ispin), 0.0_dp, cRc(ispin))
 
                      ! 2) build dip_f (X*dip = X*c^T*R*c)
@@ -457,75 +447,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rixs_core
-
-! **************************************************************************************************
-!> \brief Rotate vectors. Returns rotated mo_occ and evects.
-!> \param evects ...
-!> \param mo_ref ...
-!> \param mo_occ ...
-!> \param overlap_matrix ...
-!> \param unit_nr ...
-! **************************************************************************************************
-
-   SUBROUTINE rotate_vectors(evects, mo_ref, mo_occ, overlap_matrix, unit_nr)
-      TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mo_ref, mo_occ
-      TYPE(dbcsr_type), POINTER                          :: overlap_matrix
-      INTEGER                                            :: unit_nr
-
-      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
-                                                            nstates
-      REAL(kind=dp)                                      :: diff
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
-      TYPE(cp_fm_type)                                   :: emat, rotated_mo_coeffs, smo
-      TYPE(cp_fm_type), POINTER                          :: current_evect
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      NULLIFY (emat_struct, para_env, blacs_env, current_evect)
-
-      nspins = SIZE(evects, DIM=1)
-      DO ispin = 1, nspins
-
-         CALL cp_fm_get_info(matrix=mo_occ(ispin), nrow_global=nrow, ncol_global=ncol, &
-                             para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(smo, mo_occ(ispin)%matrix_struct)
-
-         ! rotate mo_occ
-         ! smo = matrix_s x mo_occ
-         CALL cp_dbcsr_sm_fm_multiply(overlap_matrix, mo_occ(ispin), smo, ncol, alpha=1.0_dp, beta=0.0_dp)
-         CALL cp_fm_struct_create(emat_struct, nrow_global=ncol, ncol_global=ncol, &
-                                  para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(emat, emat_struct)
-         ! emat = mo_ref^T x smo
-         CALL parallel_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, mo_ref(ispin), smo, 0.0_dp, emat)
-         CALL cp_fm_create(rotated_mo_coeffs, mo_occ(ispin)%matrix_struct)
-         ! rotated_mo_coeffs = cpmos x emat
-         CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, mo_occ(ispin), emat, 0.0_dp, rotated_mo_coeffs)
-
-         diff = MAXVAL(ABS(rotated_mo_coeffs%local_data - mo_occ(ispin)%local_data))
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, FMT="(T9,A,I2,A,F10.6,/)") "For spin ", ispin, ": Max difference between orbitals = ", diff
-         END IF
-
-         CALL cp_fm_to_fm(rotated_mo_coeffs, mo_occ(ispin))
-
-         nstates = SIZE(evects, DIM=2)
-         DO istate = 1, nstates
-            ASSOCIATE (current_evect => evects(ispin, istate))
-               CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, current_evect, emat, 0.0_dp, smo)
-               CALL cp_fm_to_fm(smo, current_evect)
-            END ASSOCIATE
-         END DO
-
-         CALL cp_fm_struct_release(emat_struct)
-         CALL cp_fm_release(smo)
-         CALL cp_fm_release(emat)
-         CALL cp_fm_release(rotated_mo_coeffs)
-
-      END DO ! ispin
-
-   END SUBROUTINE rotate_vectors
 
 !**************************************************************************************************
 !> \brief Print RIXS spectrum.
