@@ -175,7 +175,7 @@ spack:
     - "fftw@3.3.10"
     - "greenx@2.2"
     - "hdf5@1.14.6"
-    - "libfabric@1.22.0"
+    - "libfabric@2.4.0"
     - "libint@2.11.2"
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
