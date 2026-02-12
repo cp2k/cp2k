@@ -683,7 +683,7 @@ RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_versi
 WORKDIR /opt/cp2k
 
 # Install CP2K dependencies built with spack
-COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 
 # Install CP2K
 COPY --from=build_cp2k /opt/cp2k/install ./install
