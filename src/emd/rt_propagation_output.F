@@ -134,6 +134,7 @@ CONTAINS
       INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
                                                             output_unit, spin, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
+      INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
       REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
@@ -167,7 +168,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, sab_all=sab_all, sab_orb=sab_orb, &
-                      dbcsr_dist=dbcsr_dist)
+                      dbcsr_dist=dbcsr_dist, nelectron_spin=nelectron_spin)
 
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
 
@@ -336,10 +337,12 @@ CONTAINS
                                             0.0_dp, tmp_ao)
                         CALL dbcsr_trace(tmp_ao, trace)
                         strace = strace + trace
-                        j_int(spin, i) = strace
+!     dft_control%rtp_control%vec_pot(1)
+                        j_int(spin, i) = -trace + dft_control%rtp_control%vec_pot(i)*nelectron_spin(spin)
+!!  j_int(spin, i) = strace
                      END DO
                   END DO
-!  The term -(1/V)\int{(1/2)\sum_n f_n [\psi_n^*(t)(A(t))\psi_n(t) +cc]} missing. Is it just A(t)*number of electrons?
+!  PP term missing
 
                   IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                        dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT"), cp_p_file)) THEN

@@ -8,6 +8,7 @@
 "CH3-BP-NO_CORR_GPW.inp"                = [{matcher="E_total", tol=1e-13, ref=-7.42984195401204}]
 "CH3-BP-NO_CORR_GAPW.inp"               = [{matcher="E_total", tol=5e-13, ref=-39.16560942438255}]
 "H2O-admm-emd.inp"                      = [{matcher="M002", tol=1e-11, ref=-16.8569938021}]
+"H2O-admm-emd_lsd.inp"                  = [{matcher="M002", tol=1e-11, ref=-16.8754913713}]
 "H2-admm-rtp.inp"                       = [{matcher="E_total", tol=1e-12, ref=-0.76379607928513}]
 "H2-admm-rtp_restart.inp"               = [{matcher="E_total", tol=1e-12, ref=-0.76379608071662}]
 #EOF
