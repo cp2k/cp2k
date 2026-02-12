@@ -100,7 +100,7 @@ spack:
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
 #   - "hdf5@1.14.6"
-    - "libint@2.11.1"
+    - "libint@2.11.2"
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
