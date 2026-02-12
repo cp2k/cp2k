@@ -176,7 +176,7 @@ spack:
     - "greenx@2.2"
     - "hdf5@1.14.6"
     - "libfabric@1.22.0"
-    - "libint@2.11.1"
+    - "libint@2.11.2"
     - "libsmeagol@1.2"
     - "libvdwxc@0.4.0"
     - "libvori@220621"
