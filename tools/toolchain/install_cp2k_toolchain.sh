@@ -41,6 +41,22 @@ export ARCH_FILE_TEMPLATE="${SCRIPTDIR}/arch_base.tmpl"
 TOOLCHAIN_OPTIONS="$@"
 
 # ------------------------------------------------------------------------
+# Exit this script if it is not called from the ./tools/toolchain directory
+# ------------------------------------------------------------------------
+if [ "${ROOTDIR}" != "${SCRIPT_DIR}" ]; then
+  cat << EOF
+ERROR: (${SCRIPT_NAME}, line ${LINENO}) Incorrect execution location.
+The absolute path of the main toolchain script is at:
+  ${SCRIPT_DIR}
+Actual working directory where it is currently called:
+  ${ROOTDIR}
+Please enter the absolute path above before executing the main toolchain script
+so that subsequent scripts can be found and files can be placed correctly.
+EOF
+  exit 1
+fi
+
+# ------------------------------------------------------------------------
 # Load common variables and tools
 # ------------------------------------------------------------------------
 source "${SCRIPTDIR}"/common_vars.sh
@@ -247,17 +263,19 @@ Specific options:
   --with-ace              Enable interface to ML-pace library.
                           Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
+                          This does not include other DeepModeling utilities
+                          like DP-GEN or dpdata.
                           Default = no
   --with-gsl              Enable the GNU scientific library (GSL).
                           This package is required for PLUMED and SIRIUS.
                           Default = install
   --with-libtorch         Enable libtorch as a machine learning framework.
-                          This package is required for DeePMD-kit, NequIP and
-                          Allegro.
+                          This package is required for NequIP and Allegro, and
+                          also for installing DeePMD-kit.
                           Default = no
   --with-plumed           Enable interface to the PLUMED library for enhanced
                           sampling methods.
-                          This package requires MPI.
+                          This package requires MPI, GSL and FFTW.
                           Default = no
   --with-hdf5             Enable the hdf5 library for file format support.
                           This package is used by sirius and trexio.
@@ -311,6 +329,13 @@ Specific options:
 
 FURTHER INSTRUCTIONS
 
+The toolchain script does not use system-dependent package managers (e.g. apt,
+yum, dnf) for finding resource and configuring or installing packages. However,
+the script assumes that several prerequisites including (but not limited to)
+wget, bzip2 and make are present, which should be ready from package managers.
+Prior to executing the toolchain script, the install_requirements.sh script in
+the toolchain directory can help collecting them.
+
 All packages to be installed locally will be downloaded and built inside
 ./build, and then installed into package specific directories inside ./install.
 
@@ -325,6 +350,42 @@ build process. The script will know if a package has been successfully
 installed, and will just carry on and recompile and install the last
 package it is working on. This is true even if you lose the content of
 the entire ./build directory.
+
+For HPC users who wish to install toolchain dependencies and CP2K on public
+supercomputer clusters for oneself: as this is a complicated process, it is
+strongly advised to contact local system administrators or managers for timely,
+specific assistance. Nevertheless, some hints and observations may be useful:
+(1) Generally root or sudo power is not necessary, and a convenient directory
+with read and write permission as well as sufficient disk space should be okay
+when installing toolchain and CP2K for a single user.
+(2) The server is very likely to have multiple compilers, MPI libraries, math
+libraries and other packages that are managed by module systems, such as LMod
+and Environment Modules. Users can load or unload modules to control active
+environment variables and paths in runtime without conflicts. It is recommended
+to check for available modules (with "module avail", "module show" or similar
+commands) beforehand, and activate desired compatible packages when running the
+toolchain script with "--with-PKG=system" options to avoid repeated labour.
+(3) If no internet connection is available for downloading packages from public
+resources on the server, an offline installation of toolchain and CP2K may be
+carried out by downloading all packages elsewhere, transferring them to server
+and placing them under the ./build directory. The toolchain script will not
+attempt to download packages if they are already present in the build directory
+with filenames reflecting the correct versions.
+(4) An important common feature of clusters is the distinction of node types:
+there may be login nodes and compute nodes, hosted on separate machines with
+different hardware specs. This should be accounted for in any installation; for
+instance, running toolchain script directly on login node with the option of
+"--target-cpu=native" (which is default too if omitted) and executing CP2K on
+compute node afterwards may result in undefined behaviors due to the login node
+and compute node having different CPU architectures with different range of
+supported instruction sets. The option with best portability for compiling at
+the cost of reduced performance is "--target-cpu=generic".
+(5) Again, be careful about the environment if CP2K is to be executed with job
+submission scripts to the job queue system handling resource allocation. Active
+environment variables and paths on the login node (by loading modules, sourcing
+scripts, editing ~/.bashrc or /etc/profile files, etc.) may NOT be active on
+the compute node where CP2K actually runs, unless all appropriate commands are
+explicitly written in the job submission script.
 
   +----------------------------------------------------------------+
   |  YOU SHOULD ALWAYS SOURCE ./install/setup BEFORE YOU RUN CP2K  |
@@ -782,7 +843,8 @@ Otherwise use option no."
       exit 0
       ;;
     *)
-      report_error ${LINENO} "Unknown flag: ${1}"
+      report_error ${LINENO} "Unknown flag: ${1}
+See help message of this script produced by --help option for supported ones."
       exit 1
       ;;
   esac
