@@ -496,12 +496,12 @@ export CMAKE_CUDA_FLAGS
 
 ### Build CP2K dependencies with Spack if needed or requested ###
 
-# Spack versions
-export SPACK_VERSION="${SPACK_VERSION:-1.1.0}"
-export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-2025.11.0}"
-
+# Spack version
+export SPACK_VERSION="${SPACK_VERSION:-1.1.1}"
+export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-40c689a44fb723ccb158b49ce0f4ad6621b8b00c}" SPACK_PACKAGES_DATE="11.02.2026"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
-export SPACK_ROOT="${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}"
+export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
+export SPACK_PACKAGES_ROOT="${SPACK_BUILD_PATH}/spack-packages-${SPACK_PACKAGES_VERSION}"
 
 # Define the CP2K spack configuration file
 export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
@@ -536,12 +536,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   unset SPACK_ENV
 
   # Install Spack
-  ((VERBOSE > 0)) && echo "Installing Spack ${SPACK_VERSION}"
-  export SPACK_REPO="https://github.com/spack/spack"
   if [[ ! -d "${SPACK_ROOT}" ]]; then
-    wget -q "${SPACK_REPO}/archive/v${SPACK_VERSION}.tar.gz"
-    tar -xzf "v${SPACK_VERSION}.tar.gz"
-    rm -f "v${SPACK_VERSION}.tar.gz"
+    echo "Installing Spack ${SPACK_VERSION}"
+    wget -q "https://github.com/spack/spack/archive/v${SPACK_VERSION}.tar.gz"
+    tar -xzf "v${SPACK_VERSION}.tar.gz" && rm -f "v${SPACK_VERSION}.tar.gz"
+    mv -f "${SPACK_BUILD_PATH}/spack-${SPACK_VERSION}" "${SPACK_ROOT}"
   fi
   export PATH="${SPACK_ROOT}/bin:${PATH}"
 
@@ -576,12 +575,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Install Spack packages
-  ((VERBOSE > 0)) && echo "Installing Spack packages ${SPACK_PACKAGES_VERSION}"
-  export SPACK_PACKAGES_REPO="https://github.com/spack/spack-packages"
-  export SPACK_PACKAGES_ROOT="${SPACK_BUILD_PATH}/spack-packages-${SPACK_PACKAGES_VERSION}"
-  wget -q "${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz"
-  tar -xzf "v${SPACK_PACKAGES_VERSION}.tar.gz"
-  rm -f "v${SPACK_PACKAGES_VERSION}.tar.gz"
+  if [[ ! -d "${SPACK_PACKAGES_ROOT}" ]]; then
+    echo "Installing Spack packages ${SPACK_PACKAGES_VERSION} (${SPACK_PACKAGES_DATE})"
+    wget -q "https://github.com/spack/spack-packages/archive/${SPACK_PACKAGES_VERSION}.tar.gz"
+    tar -xzf "${SPACK_PACKAGES_VERSION}.tar.gz" && rm -f "${SPACK_PACKAGES_VERSION}.tar.gz"
+  fi
 
   # Initialize Spack shell hooks
   # shellcheck source=/dev/null
@@ -700,6 +698,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       echo "The Spack environment \"${CP2K_ENV}\" exists already"
     fi
   else
+    cat "${CP2K_CONFIG_FILE}"
     echo "The Spack environment \"${CP2K_ENV}\" does NOT exist"
     if spack env create "${CP2K_ENV}" "${CP2K_CONFIG_FILE}" &> /dev/null; then
       echo "The Spack environment \"${CP2K_ENV}\" has been created"
@@ -987,7 +986,7 @@ export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
 if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
-  ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found'
+  ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | sort | uniq
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
   # Assemble all search paths for libraries
   SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
