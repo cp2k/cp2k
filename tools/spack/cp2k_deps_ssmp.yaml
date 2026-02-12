@@ -1,4 +1,4 @@
-# Spack environment file for serial CP2K binary with all available dependencies
+# Spack environment file for a serial CP2K binary with all available dependencies
 
 spack:
   concretizer:
@@ -11,9 +11,11 @@ spack:
 
   modules:
     prefix_inspections:
-      ./lib:
+      bin:
+        - PATH
+      lib:
         - LD_LIBRARY_PATH
-      ./lib64:
+      lib64:
         - LD_LIBRARY_PATH
 
   packages:
