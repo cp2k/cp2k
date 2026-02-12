@@ -145,6 +145,7 @@ option(
   CP2K_USE_FFTW3_WITH_MKL
   "MKL has its own compatible implementation of the FFTW3 library. This option, when ON, will use the separate and original FFTW3 library."
   OFF)
+option(CP2K_USE_DBCSR_CONFIG "Return DBCSR cmake configuration parameters" OFF)
 
 # MPI-enabled options
 cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support"
@@ -620,7 +621,17 @@ message("\n------------------------------------------------------------")
 message("-                          DBCSR                           -")
 message("------------------------------------------------------------\n")
 
-find_package(DBCSR 2.6 REQUIRED)
+if(CP2K_USE_DBCSR_CONFIG)
+  find_package(DBCSR 2.9 REQUIRED CONFIG)
+  if(CP2K_USE_MPI AND NOT DBCSR_USE_MPI)
+    message(
+      FATAL_ERROR
+        "DBCSR needs to be compiled with MPI support when CP2K MPI support is enabled"
+    )
+  endif()
+else()
+  find_package(DBCSR 2.6 REQUIRED)
+endif()
 
 # Discover CP2K_OPENCL_BACKEND. DBCSR must be discovered prior (DBCSR_DIR).
 if(CP2K_USE_ACCEL MATCHES "OPENCL")

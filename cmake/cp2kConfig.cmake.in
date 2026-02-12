@@ -29,6 +29,7 @@ if(NOT TARGET cp2k::cp2k)
   # Define LAPACK and BLAS TARGETS
 
   if(@CP2K_USE_MPI@)
+    set(CP2K_USE_MPI @CP2K_USE_MPI@)
     find_dependency(SCALAPACK REQUIRED)
   endif()
   unset(CP2K_CONFIG_PACKAGE)
@@ -38,95 +39,118 @@ if(NOT TARGET cp2k::cp2k)
   find_dependency(DBCSR 2.8 REQUIRED)
 
   if(@CP2K_USE_LIBXSMM@)
+    set(CP2K_USE_LIBXSMM @CP2K_USE_LIBXSMM@)
     find_dependency(LibXSMM REQUIRED)
   endif()
 
   if(@CP2K_USE_HIP@)
+    set(CP2K_USE_HIP @CP2K_USE_HIP@)
     # Find HIP
     find_dependency(hipfft REQUIRED IMPORTED CONFIG)
     find_dependency(hipblas REQUIRED IMPORTED CONFIG)
   endif()
 
   if(@CP2K_USE_CUDA@)
+    set(CP2K_USE_CUDA @CP2K_USE_CUDA@)
     find_dependency(CUDAToolkit REQUIRED)
   endif()
   if(@CP2K_USE_ELPA@)
+    set(CP2K_USE_ELPA @CP2K_USE_ELPA@)
     find_dependency(Elpa REQUIRED)
   endif()
 
   if(@CP2K_USE_DLAF@)
+    set(CP2K_USE_DLAF @CP2K_USE_DLAF@)
     find_dependency(DLAF REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBXC@)
+    set(CP2K_USE_LIBXC @CP2K_USE_LIBXC@)
     find_dependency(LibXC 7 REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_COSMA@)
+    set(CP2K_USE_COSMA @CP2K_USE_COSMA@)
     find_dependency(cosma REQUIRED)
   endif()
 
   if(@CP2K_USE_MPI@)
+    set(CP2K_USE_MPI @CP2K_USE_MPI@)
     find_dependency(MPI REQUIRED)
   endif()
 
   if(@CP2K_USE_FFTW3@)
+    set(CP2K_USE_FFTW3 @CP2K_USE_FFTW3@)
     find_dependency(Fftw REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBINT2@)
+    set(CP2K_USE_LIBINT2 @CP2K_USE_LIBINT2@)
     find_dependency(Libint2 REQUIRED)
   endif()
 
   if(@CP2K_USE_SPGLIB@)
+    set(CP2K_USE_SPGLIB @CP2K_USE_SPGLIB@)
     find_dependency(LibSPG REQUIRED)
   endif()
 
   if(@CP2K_USE_SPLA@)
+    set(CP2K_USE_SPLA @CP2K_USE_SPLA@)
     find_dependency(SPLA REQUIRED)
   endif()
 
   if(@CP2K_USE_SIRIUS@)
+    set(CP2K_USE_SIRIUS @CP2K_USE_SIRIUS@)
     find_dependency(sirius REQUIRED)
   endif()
 
   if(@CP2K_USE_PLUMED@)
+    set(CP2K_USE_PLUMED @CP2K_USE_PLUMED@)
     find_dependency(Plumed REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBTORCH@)
+    set(CP2K_USE_TORCH @CP2K_USE_TORCH@)
     find_dependency(Torch REQUIRED)
   endif()
 
   if(@CP2K_USE_HDF5@)
+    set(CP2K_USE_HDF5 @CP2K_USE_HDF5@)
     find_dependency(HDF5 REQUIRED COMPONENTS C Fortran)
   endif()
 
   if(@CP2K_USE_DFTD4@)
+    set(CP2K_USE_DFTD4 @CP2K_USE_DFTD4@)
     find_dependency(dftd4 REQUIRED)
   endif()
 
   if(@CP2K_USE_DEEPMD@)
+    set(CP2K_USE_DEEPMD @CP2K_USE_DEEPMD@)
     find_dependency(DeepMD REQUIRED)
   endif()
 
   if(@CP2K_USE_PEXSI@)
+    set(CP2K_USE_PEXSI @CP2K_USE_PEXSI@)
     find_dependency(PEXSI REQUIRED)
   endif()
 
   if(@CP2K_USE_ACE@)
+    set(CP2K_USE_ACE @CP2K_USE_ACE@)
     find_dependency(ACE REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBSMEAGOL@)
+    set(CP2K_USE_ACE @CP2K_USE_LIBSMEAGOL@)
     find_dependency(libsmeagol REQUIRED)
   endif()
 
   if(@CP2K_USE_VORI@)
+    set(CP2K_USE_VORI @CP2K_USE_LIBVORI@)
     find_dependency(LibVORI REQUIRED)
   endif()
 
   if(@CP2K_USE_GREENX@)
+    set(CP2K_USE_GREENX @CP2K_USE_GREENX@)
     find_dependency(greenX REQUIRED)
   endif()
 
