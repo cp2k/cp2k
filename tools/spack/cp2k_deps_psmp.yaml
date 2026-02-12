@@ -178,7 +178,7 @@ spack:
     - "libfabric@1.22.0"
     - "libint@2.11.2"
     - "libsmeagol@1.2"
-    - "libvdwxc@0.4.0"
+    - "libvdwxc@0.5.0"
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
