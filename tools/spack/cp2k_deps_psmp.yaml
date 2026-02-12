@@ -190,7 +190,7 @@ spack:
     - "pexsi@2.0.0"
     - "plumed@2.10.0"
     - "py-torch@2.10.0"
-    - "sirius@7.9.0"
+    - "sirius@7.10.0"
     - "spfft@1.1.1"
     - "spglib@2.7.0"
     - "spla@1.6.1"
