@@ -164,7 +164,7 @@ spack:
 #   - "openmpi@5.0.8"
     - "python@3.11:"
     # CP2K
-    - "adios2@2.10.2"
+    - "adios2@2.11.0"
     - "cosma@2.7.0"
     - "dbcsr@2.9.1"
     - "deepmdkit@3.1.2"
