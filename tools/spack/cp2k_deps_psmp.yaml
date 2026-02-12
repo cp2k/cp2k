@@ -185,7 +185,7 @@ spack:
     - "mimic-mcl@3.0.0"
     - "netlib-scalapack@2.2.2"
     - "openblas@0.3.31"
-    - "openpmd-api@0.16.1"
+    - "openpmd-api@0.17.0"
     - "pace@2025.12.4"
     - "pexsi@2.0.0"
     - "plumed@2.10.0"
