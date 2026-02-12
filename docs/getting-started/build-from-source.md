@@ -48,3 +48,4 @@ cmake --build build -j 32
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
 - `-DCP2K_USE_CRAY_PM_ENERGY` Enables power monitoring on Cray systems.
 - `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` Enables power monitoring of accelerators on Cray systems.
+- `-DCP2K_USE_DBCSR_CONFIG` Make dbcsr cmake options (`DBCSR_USE_BLA`) available.
