@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.3
+# Version: 1.4
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -64,6 +64,7 @@
 #          - Version 1.1: Allow for selecting the GCC version (02.02.2026, MK)
 #          - Version 1.2: Add option for static build (05.02.2026, MK)
 #          - Version 1.3: Add CUDA GPU support (10.02.2026, MK)
+#          - Version 1.4: Drop download of spack-packages (12.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -498,10 +499,8 @@ export CMAKE_CUDA_FLAGS
 
 # Spack version
 export SPACK_VERSION="${SPACK_VERSION:-1.1.1}"
-export SPACK_PACKAGES_VERSION="${SPACK_PACKAGES_VERSION:-40c689a44fb723ccb158b49ce0f4ad6621b8b00c}" SPACK_PACKAGES_DATE="11.02.2026"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
-export SPACK_PACKAGES_ROOT="${SPACK_BUILD_PATH}/spack-packages-${SPACK_PACKAGES_VERSION}"
 
 # Define the CP2K spack configuration file
 export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
@@ -572,13 +571,6 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       echo "ERROR: python3 -m pip was not found"
       ${EXIT_CMD} 1
     fi
-  fi
-
-  # Install Spack packages
-  if [[ ! -d "${SPACK_PACKAGES_ROOT}" ]]; then
-    echo "Installing Spack packages ${SPACK_PACKAGES_VERSION} (${SPACK_PACKAGES_DATE})"
-    wget -q "https://github.com/spack/spack-packages/archive/${SPACK_PACKAGES_VERSION}.tar.gz"
-    tar -xzf "${SPACK_PACKAGES_VERSION}.tar.gz" && rm -f "${SPACK_PACKAGES_VERSION}.tar.gz"
   fi
 
   # Initialize Spack shell hooks
@@ -716,11 +708,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     ${EXIT_CMD} 1
   fi
 
-  # Add Spack packages builtin repository when missing
-  if ! spack repo list | grep -q "builtin"; then
-    spack repo add --scope env:"${CP2K_ENV}" "${SPACK_PACKAGES_ROOT}/repos/spack_repo/builtin"
-  else
-    echo "Spack built-in repo already present ... skipping add"
+  # Update the repo builtin
+  if ! spack repo update; then
+    echo "ERROR: The update of the repo builtin failed"
+    ${EXIT_CMD} 1
   fi
 
   # Add the local CP2K development Spack repository when missing
