@@ -147,7 +147,8 @@ class Openblas(CMakePackage, MakefilePackage):
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
-    depends_on("fortran", type="build")
+    depends_on("fortran", when="+fortran", type="build")
+    depends_on("fortran", when="@:0.3.20", type="build")
     depends_on("perl", when="@:0.3.20", type="build")
 
     # https://github.com/OpenMathLib/OpenBLAS/pull/4879
@@ -307,7 +308,7 @@ class Openblas(CMakePackage, MakefilePackage):
     patch("openblas-0.3.21-0.3.26_aocc.patch", when="@0.3.21:0.3.26 %aocc@5.0.0:")
 
     # Requires support for -mtune=generic
-    conflicts("%fortran=clang %llvm@18")
+    conflicts("%fortran=llvm@18")
 
     # See https://github.com/spack/spack/issues/19932#issuecomment-733452619
     # Notice: fixed on Amazon Linux GCC 7.3.1 (which is an unofficial version
