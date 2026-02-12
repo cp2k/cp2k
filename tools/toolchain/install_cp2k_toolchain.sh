@@ -538,8 +538,11 @@ else
 fi
 
 # ------------------------------------------------------------------------
-# parse user options
+# Parse user options
 # ------------------------------------------------------------------------
+echo "Toolchain script received the following options:"
+echo "  ${TOOLCHAIN_OPTIONS}"
+echo "Parsing options and resolving conflicts..."
 while [ $# -ge 1 ]; do
   case ${1} in
     -j)
@@ -1202,20 +1205,26 @@ done
 # Build packages unless dry-run mode is enabled.
 # ------------------------------------------------------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
-  printf "Toolchain script received the following options:\n  %s\n" \
-    "${TOOLCHAIN_OPTIONS}"
+  printf "With --dry-run option, this script concludes with a report.\n"
+  printf "The setup, toolchain env and conf files are written to ./install.\n"
   printf "System specifications:\n"
   printf '   -%-20s = %s\n' "j" "${NPROCS_OVERWRITE}"
   printf '  --%-20s = %s\n' "target-cpu" "${TARGET_CPU}"
   printf '  --%-20s = %s\n' "gpu-ver" "${GPUVER}"
   printf '  --%-20s = %s\n' "mpi-mode" "${MPI_MODE}"
   printf '  --%-20s = %s\n' "math-mode" "${MATH_MODE}"
+  printf '  --%-20s = %s\n' "enable-tsan" "${enable_tsan}"
+  printf '  --%-20s = %s\n' "enable-cuda" "${enable_cuda}"
+  printf '  --%-20s = %s\n' "enable-hip" "${enable_hip}"
+  printf '  --%-20s = %s\n' "enable-opencl" "${enable_opencl}"
+  printf '  --%-20s = %s\n' "enable-cray" "${enable_cray}"
   printf "List of effective settings after resolving package conflicts:\n"
   for ii in ${package_list}; do
     install_mode=$(eval "echo \${with_${ii}}")
     printf '  --with-%-15s = %s\n' "${ii}" "${install_mode}"
   done
 else
+  echo "Options have been parsed successfully."
   echo "Compiling with ${NPROCS_OVERWRITE} processes for target ${TARGET_CPU}."
   echo "# Leak suppressions" > "${INSTALLDIR}"/lsan.supp
   ./scripts/stage0/install_stage0.sh
