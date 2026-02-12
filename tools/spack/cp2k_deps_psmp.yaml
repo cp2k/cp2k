@@ -150,6 +150,10 @@ spack:
       require:
         - "+hdf5"
 
+  repos:
+    builtin:
+      commit: 40c689a44fb723ccb158b49ce0f4ad6621b8b00c # 2026-02-11
+
   specs:
     # Build tools
     - "cmake@3.27:"
