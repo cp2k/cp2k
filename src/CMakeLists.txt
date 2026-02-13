@@ -1652,6 +1652,28 @@ set(CP2K_GPU_DFLAGS
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 
+# Intel oneAPI workarounds for known compiler optimization bugs
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+  set_source_files_properties(
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
+    ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
+    ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
+    PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
+  set_source_files_properties(
+    ${CMAKE_CURRENT_BINARY_DIR}/dbt/tas/dbt_tas_mm.F
+    ${CMAKE_CURRENT_BINARY_DIR}/dbt/dbt_unittest.F
+    ${CMAKE_CURRENT_BINARY_DIR}/dbt/dbt_methods.F
+    ${CMAKE_CURRENT_BINARY_DIR}/dbt/dbt_test.F
+    ${CMAKE_CURRENT_BINARY_DIR}/dbm/dbm_api.F
+    PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O0")
+endif()
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+  set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
+                              PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
+  set_source_files_properties(dbm/dbm_multiply.c
+                              PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O0")
+endif()
+
 # set the __SHORT_FILE__ per file for CP2K sources
 foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
   # add_fypp_sources returns a path in the current binary dir
