@@ -90,6 +90,7 @@ spack:
 
     elpa:
       require:
+        - "~cuda"
         - "+openmp"
 
     fftw:
