@@ -33,7 +33,6 @@ export BUILDDIR="${ROOTDIR}/build"
 export INSTALLDIR="${ROOTDIR}/install"
 export SETUPFILE="${INSTALLDIR}/setup"
 export SHA256_CHECKSUM="${SCRIPTDIR}/checksums.sha256"
-export ARCH_FILE_TEMPLATE="${SCRIPTDIR}/arch_base.tmpl"
 
 # ------------------------------------------------------------------------
 # Make a copy of all options for $SETUPFILE
