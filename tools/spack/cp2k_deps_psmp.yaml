@@ -42,14 +42,6 @@ spack:
       require:
         - mpich
 
-    mpich:
-      require:
-        - "~xpmem"
-
-    xpmem:
-      require:
-        - "xpmem@master ~kernel-module"
-
     # ScaLAPACK, LAPACK, BLAS
     blas:
       require:
@@ -108,6 +100,11 @@ spack:
       require:
         - "+fortran"
 
+    libfabric:
+      require:
+        - "~cuda"
+#       - "fabrics=cxi"
+
     libint:
       require:
         - "+fortran"
@@ -117,6 +114,10 @@ spack:
       require:
         - "~cuda"
         - "+kxc"
+
+    mctc-lib:
+      require:
+        - "~openmp"
 
     openpmd-api:
       require:
@@ -137,9 +138,13 @@ spack:
 
     sirius:
       require:
+        - "~apps"
+        - "+dftd3"
+        - "+dlaf"
+        - "+elpa"
         - "+fortran"
         - "+pugixml"
-        - "~apps"
+        - "+scalapack"
         - "+vdwxc"
 
     spla:
@@ -152,11 +157,12 @@ spack:
 
   repos:
     builtin:
-      commit: 40c689a44fb723ccb158b49ce0f4ad6621b8b00c # 2026-02-11
+      commit: 89e70e65e55b27552f6ac07df2970e62adb9b3e2 # 2026-02-13
 
   specs:
     # Build tools
     - "cmake@3.27:"
+#   - "cray-mpich@8.1.30"
     - "gcc@10:"
     - "gmake@4.2:"
     - "mpich@4.3.2"
