@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-P100 ../../
 #
 
-ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
+ARG BASE_IMAGE="docker.io/nvidia/cuda:13.1.1-devel-ubuntu24.04"
 
 ###### Stage 1: Build CP2K ######
 

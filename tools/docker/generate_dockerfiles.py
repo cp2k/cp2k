@@ -124,7 +124,7 @@ def main() -> None:
             install_cp2k_spack(
                 "ssmp",
                 mpi_mode="no",
-                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                base_image="docker.io/nvidia/cuda:13.1.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 testopts="--keepalive",
@@ -136,7 +136,7 @@ def main() -> None:
             install_cp2k_spack(
                 "psmp",
                 mpi_mode="mpich",
-                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                base_image="docker.io/nvidia/cuda:13.1.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 testopts="--keepalive",
