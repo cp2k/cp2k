@@ -125,7 +125,6 @@ developing applications that use %{name}.
 %prep
 %autosetup -p1
 rm tools/build_utils/fypp
-rm -r exts/dbcsr
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
