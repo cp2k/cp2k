@@ -38,6 +38,7 @@ MODULE ec_env_types
                                               qs_p_env_type
    USE qs_period_efield_types,          ONLY: efield_berry_release,&
                                               efield_berry_type
+   USE scf_control_types,               ONLY: smear_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
 #include "./base/base_uses.f90"
@@ -81,10 +82,13 @@ MODULE ec_env_types
       LOGICAL                                          :: mao = .FALSE.
       ! Skip EC calculation if ground-state didnt converge
       LOGICAL                                          :: do_skip = .FALSE., skip_ec = .FALSE.
+      ! MAO basis
       INTEGER                                          :: mao_max_iter = 0
       REAL(KIND=dp)                                    :: mao_eps_grad = 0.0_dp
       REAL(KIND=dp)                                    :: mao_eps1 = 0.0_dp
       INTEGER                                          :: mao_iolevel = 0
+      !
+      TYPE(smear_type)                                 :: smear
       ! energy components
       REAL(KIND=dp)                                    :: etotal = 0.0_dp, old_etotal = 0.0_dp
       REAL(KIND=dp)                                    :: eband = 0.0_dp, ecore = 0.0_dp, exc = 0.0_dp, &
@@ -92,6 +96,7 @@ MODULE ec_env_types
       REAL(KIND=dp)                                    :: edispersion = 0.0_dp, efield_elec = 0.0_dp, &
                                                           efield_nuclear = 0.0_dp, ex = 0.0_dp, exc_aux_fit = 0.0_dp
       REAL(KIND=dp)                                    :: exc1 = 0.0_dp, exc1_aux_fit = 0.0_dp, ehartree_1c = 0.0_dp
+      REAL(KIND=dp)                                    :: ekTS = 0.0_dp
       ! forces
       TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list

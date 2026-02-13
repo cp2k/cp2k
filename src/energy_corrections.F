@@ -32,9 +32,9 @@ MODULE energy_corrections
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
-        dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -44,18 +44,20 @@ MODULE energy_corrections
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_trace,&
-                                              cp_fm_triangular_invert
-   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_trace
+   USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_init_random, cp_fm_release, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_to_fm_triangular, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_init_random,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -184,8 +186,11 @@ MODULE energy_corrections
                                               local_rho_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                               make_basis_sm
-   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+   USE qs_mo_occupation,                ONLY: set_mo_occupation
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
                                               get_mo_set,&
+                                              init_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -298,6 +303,7 @@ CONTAINS
             ec_env%vhxc = 0.0_dp
             ec_env%edispersion = 0.0_dp
             ec_env%exc_aux_fit = 0.0_dp
+            ec_env%ekTS = 0.0_dp
             ec_env%exc1 = 0.0_dp
             ec_env%ehartree_1c = 0.0_dp
             ec_env%exc1_aux_fit = 0.0_dp
@@ -757,6 +763,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -818,6 +825,10 @@ CONTAINS
          END DO
 
       END IF
+
+      ! Electronic entropy term
+      CALL get_qs_env(qs_env=qs_env, energy=energy)
+      ec_env%ekTS = energy%ktS
 
       ! External field (nonperiodic case)
       ec_env%efield_nuclear = 0.0_dp
@@ -2776,7 +2787,7 @@ CONTAINS
 
       SELECT CASE (ec_env%ks_solver)
       CASE (ec_diagonalization)
-         CALL ec_diag_solver(qs_env, ksmat, smat, pmat, wmat)
+         CALL ec_diag_solver(qs_env, ec_env, ksmat, smat, pmat, wmat)
       CASE (ec_ot_diag)
          CALL ec_ot_diag_solver(qs_env, ec_env, ksmat, smat, pmat, wmat)
       CASE (ec_matrix_sign, ec_matrix_trs4, ec_matrix_tc2)
@@ -2918,6 +2929,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Solve KS equation using diagonalization
 !> \param qs_env ...
+!> \param ec_env ...
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param matrix_p ...
@@ -2926,28 +2938,29 @@ CONTAINS
 !>      03.2014 created [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE ec_diag_solver(qs_env, matrix_ks, matrix_s, matrix_p, matrix_w)
+   SUBROUTINE ec_diag_solver(qs_env, ec_env, matrix_ks, matrix_s, matrix_p, matrix_w)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(energy_correction_type)                       :: ec_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_p, matrix_w
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_diag_solver'
 
       INTEGER                                            :: handle, ispin, nmo(2), nsize, nspins
-      REAL(KIND=dp)                                      :: eps_filter, focc(2)
+      REAL(KIND=dp)                                      :: eps_filter, flexible_electron_count, &
+                                                            focc(2), n_el_f
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigvals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_ks, fm_mo, fm_ortho
-      TYPE(dbcsr_type), POINTER                          :: buf1_dbcsr, buf2_dbcsr, buf3_dbcsr, &
-                                                            ortho_dbcsr, ref_matrix
+      TYPE(cp_fm_type)                                   :: fm_k, fm_s, fm_w
+      TYPE(cp_fm_type), POINTER                          :: fm_mos
+      TYPE(dbcsr_type), POINTER                          :: ref_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: moset
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (blacs_env, para_env)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, para_env=para_env)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       eps_filter = dft_control%qs_control%eps_filter_matrix
@@ -2956,85 +2969,56 @@ CONTAINS
       nmo = 0
       CALL get_qs_env(qs_env=qs_env, nelectron_spin=nmo)
       focc = 1._dp
-      IF (nspins == 1) THEN
-         focc = 2._dp
-         nmo(1) = nmo(1)/2
-      END IF
+      IF (nspins == 1) focc = 2._dp
 
       CALL dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
-      ALLOCATE (eigenvalues(nsize))
 
-      NULLIFY (fm_struct, ref_matrix)
+      NULLIFY (blacs_env, para_env)
+      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, para_env=para_env)
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nsize, &
                                ncol_global=nsize, para_env=para_env)
-      CALL cp_fm_create(fm_ortho, fm_struct)
-      CALL cp_fm_create(fm_ks, fm_struct)
-      CALL cp_fm_create(fm_mo, fm_struct)
+      CALL cp_fm_create(fm_k, fm_struct)
+      CALL cp_fm_create(fm_s, fm_struct)
+      CALL cp_fm_create(fm_w, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
-      ! factorization
-      ref_matrix => matrix_s(1, 1)%matrix
-      NULLIFY (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr, buf3_dbcsr)
-      CALL dbcsr_init_p(ortho_dbcsr)
-      CALL dbcsr_create(ortho_dbcsr, template=ref_matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(buf1_dbcsr)
-      CALL dbcsr_create(buf1_dbcsr, template=ref_matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(buf2_dbcsr)
-      CALL dbcsr_create(buf2_dbcsr, template=ref_matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init_p(buf3_dbcsr)
-      CALL dbcsr_create(buf3_dbcsr, template=ref_matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
+      ! MO sets
+      flexible_electron_count = 0.0_dp
+      IF (ec_env%smear%do_smear) flexible_electron_count = 0.0001_dp
 
-      ref_matrix => matrix_s(1, 1)%matrix
-      CALL copy_dbcsr_to_fm(ref_matrix, fm_ortho)
-      CALL cp_fm_cholesky_decompose(fm_ortho)
-      CALL cp_fm_triangular_invert(fm_ortho)
-      CALL cp_fm_set_all(fm_ks, 0.0_dp)
-      CALL cp_fm_to_fm_triangular(fm_ortho, fm_ks, "U")
-      CALL copy_fm_to_dbcsr(fm_ks, ortho_dbcsr)
+      ALLOCATE (moset(nspins))
       DO ispin = 1, nspins
-         ! calculate ZHZ(T)
-         CALL dbcsr_desymmetrize(matrix_ks(ispin, 1)%matrix, buf1_dbcsr)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, buf1_dbcsr, ortho_dbcsr, &
-                             0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
-         CALL dbcsr_multiply("T", "N", 1.0_dp, ortho_dbcsr, buf2_dbcsr, &
-                             0.0_dp, buf1_dbcsr, filter_eps=eps_filter)
-         ! copy to fm format
-         CALL copy_dbcsr_to_fm(buf1_dbcsr, fm_ks)
-         CALL choose_eigv_solver(fm_ks, fm_mo, eigenvalues)
-         ! back transform of mos c = Z(T)*c
-         CALL copy_fm_to_dbcsr(fm_mo, buf1_dbcsr)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, ortho_dbcsr, buf1_dbcsr, &
-                             0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
-         ! density matrix
-         CALL dbcsr_set(matrix_p(ispin, 1)%matrix, 0.0_dp)
-         CALL dbcsr_multiply("N", "T", focc(ispin), buf2_dbcsr, buf2_dbcsr, &
-                             1.0_dp, matrix_p(ispin, 1)%matrix, &
-                             retain_sparsity=.TRUE., last_k=nmo(ispin))
-
-         ! energy weighted density matrix
-         CALL dbcsr_set(matrix_w(ispin, 1)%matrix, 0.0_dp)
-         CALL cp_fm_column_scale(fm_mo, eigenvalues)
-         CALL copy_fm_to_dbcsr(fm_mo, buf1_dbcsr)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, ortho_dbcsr, buf1_dbcsr, &
-                             0.0_dp, buf3_dbcsr, filter_eps=eps_filter)
-         CALL dbcsr_multiply("N", "T", focc(ispin), buf2_dbcsr, buf3_dbcsr, &
-                             1.0_dp, matrix_w(ispin, 1)%matrix, &
-                             retain_sparsity=.TRUE., last_k=nmo(ispin))
+         n_el_f = nmo(ispin)
+         CALL allocate_mo_set(moset(ispin), nsize, nsize, nmo(ispin), n_el_f, &
+                              focc(ispin), flexible_electron_count)
+         CALL init_mo_set(moset(ispin), fm_ref=fm_w, name="MO")
       END DO
 
-      CALL cp_fm_release(fm_ks)
-      CALL cp_fm_release(fm_mo)
-      CALL cp_fm_release(fm_ortho)
-      CALL dbcsr_release(ortho_dbcsr)
-      CALL dbcsr_release(buf1_dbcsr)
-      CALL dbcsr_release(buf2_dbcsr)
-      CALL dbcsr_release(buf3_dbcsr)
-      DEALLOCATE (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr, buf3_dbcsr)
-      DEALLOCATE (eigenvalues)
+      DO ispin = 1, nspins
+         ref_matrix => matrix_s(1, 1)%matrix
+         CALL copy_dbcsr_to_fm(ref_matrix, fm_s)
+         ref_matrix => matrix_ks(ispin, 1)%matrix
+         CALL copy_dbcsr_to_fm(ref_matrix, fm_k)
+         CALL get_mo_set(moset(ispin), eigenvalues=eigvals, mo_coeff=fm_mos)
+         CALL cp_fm_geeig(fm_k, fm_s, fm_mos, eigvals, fm_w)
+      END DO
+      !
+      CALL set_mo_occupation(moset, ec_env%smear)
+      !
+      DO ispin = 1, nspins
+         ec_env%ekTS = ec_env%ekTS + moset(ispin)%kTS
+         CALL calculate_density_matrix(moset(ispin), matrix_p(ispin, 1)%matrix)
+         CALL calculate_w_matrix(moset(ispin), matrix_w(ispin, 1)%matrix)
+      END DO
+      !
+      CALL cp_fm_release(fm_k)
+      CALL cp_fm_release(fm_s)
+      CALL cp_fm_release(fm_w)
+      DO ispin = 1, nspins
+         CALL deallocate_mo_set(moset(ispin))
+      END DO
+      DEALLOCATE (moset)
 
       CALL timestop(handle)
 
@@ -3076,7 +3060,8 @@ CONTAINS
          ec_env%eband = eband + ec_env%efield_nuclear
 
          ! Add Harris functional "correction" terms
-         ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%edispersion - ec_env%ex
+         ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%ekTS + &
+                         ec_env%edispersion - ec_env%ex
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eband    ", ec_env%eband
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ehartree ", ec_env%ehartree
@@ -3084,6 +3069,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ex       ", ec_env%ex
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Evhxc    ", ec_env%vhxc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eentropy ", ec_env%ekTS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Harris Functional   ", ec_env%etotal
          END IF
 
@@ -3094,7 +3080,7 @@ CONTAINS
 
          ec_env%ecore = ec_env%ecore + ec_env%efield_nuclear
          ec_env%etotal = ec_env%ecore + ec_env%ehartree + ec_env%ehartree_1c + &
-                         ec_env%exc + ec_env%exc1 + ec_env%edispersion + &
+                         ec_env%exc + ec_env%exc1 + ec_env%ekTS + ec_env%edispersion + &
                          ec_env%ex + ec_env%exc_aux_fit + ec_env%exc1_aux_fit
 
          IF (unit_nr > 0) THEN
@@ -3104,6 +3090,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ex       ", ec_env%ex
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc_aux_fit", ec_env%exc_aux_fit + ec_env%exc1_aux_fit
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eentropy ", ec_env%ekTS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
          END IF
 
