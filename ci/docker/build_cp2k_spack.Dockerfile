@@ -27,15 +27,13 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran \
-    hwloc \
-    libhwloc-dev \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/cp2k
 
 # Install CP2K dependencies built with spack
-COPY --from=build_cp2k /opt/cp2k/spack/spack-1.1.0/opt/spack ./spack/spack-1.1.0/opt/spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
 
 # Install CP2K
 COPY --from=build_cp2k /opt/cp2k/install ./install
