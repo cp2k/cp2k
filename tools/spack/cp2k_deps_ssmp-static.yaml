@@ -86,7 +86,7 @@ spack:
 
   repos:
     builtin:
-      commit: 40c689a44fb723ccb158b49ce0f4ad6621b8b00c # 2026-02-11
+      commit: 89e70e65e55b27552f6ac07df2970e62adb9b3e2 # 2026-02-13
 
   specs:
     # Build tools
