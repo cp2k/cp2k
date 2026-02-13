@@ -103,7 +103,7 @@ spack:
     libfabric:
       require:
         - "~cuda"
-        - "fabrics=cxi"
+#       - "fabrics=cxi"
 
     libint:
       require:
