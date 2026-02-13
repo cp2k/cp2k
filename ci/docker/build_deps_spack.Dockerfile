@@ -19,8 +19,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran \
     git \
     gnupg \
-    hwloc \
-    libhwloc-dev \
     libssh-dev \
     libssl-dev \
     libtool \
