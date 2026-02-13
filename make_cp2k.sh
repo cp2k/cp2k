@@ -486,7 +486,7 @@ if ((CUDA_ARCH > 0)); then
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
   echo "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}"
-  echo "CUDA_VERSION        = ${CUDA_VERSION}"
+  [[ -n "${CUDA_VERSION:-}" ]] && echo "CUDA_VERSION        = ${CUDA_VERSION}"
   echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
   echo "PATH                = ${PATH}"
   echo ""
