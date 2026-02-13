@@ -1659,8 +1659,6 @@ if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
     ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
     ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
     PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
-endif()
-if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
   set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
                               PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
 endif()
