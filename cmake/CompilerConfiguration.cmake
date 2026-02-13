@@ -134,14 +134,15 @@ add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand;f08;-fpp;-qopenmp;-heap-arrays;-D__MAX_CONTR=4>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-stand;f08;-fpp;-qopenmp;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-fp-model;consistent;-fpscomp;logicals>"
 )
 
 # Release
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS;-fpscomp;logicals>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O3;-xHOST;-g>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-xHOST;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O2;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O2;-xHOST;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O2;-xHOST;-g>"
 )
 
 # Debug

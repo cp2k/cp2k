@@ -37,13 +37,8 @@ if(NOT CP2K_CONFIG_PACKAGE)
       # cmake-format: sortable
       "sequential" "thread" "gnu-thread" "intel-thread" "tbb-thread" "openmp")
 
-  if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM" AND CP2K_MKL_FOUND)
-    set(_default_threading "thread")
-  else()
-    set(_default_threading "sequential")
-  endif()
   set(CP2K_BLAS_THREADING
-      "${_default_threading}"
+      "sequential"
       CACHE STRING "threaded blas library")
   set_property(CACHE CP2K_BLAS_THREADING PROPERTY STRINGS
                                                   ${CP2K_BLAS_THREAD_LIST})
