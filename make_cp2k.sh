@@ -126,7 +126,7 @@ fi
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-CRAY="yes"
+CRAY="no"
 CUDA_ARCH=0
 DISABLE_LOCAL_CACHE="no"
 GCC_VERSION="auto"
@@ -403,6 +403,7 @@ echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "CMAKE_BUILD_TYPE    = ${BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
+echo "CRAY                = ${CRAY}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
 if ((CUDA_ARCH > 0)); then
@@ -486,7 +487,7 @@ if ((CUDA_ARCH > 0)); then
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
   echo "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}"
-  echo "CUDA_VERSION        = ${CUDA_VERSION}"
+  [[ -n "${CUDA_VERSION:-}" ]] && echo "CUDA_VERSION        = ${CUDA_VERSION}"
   echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
   echo "PATH                = ${PATH}"
   echo ""
@@ -648,7 +649,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Apply Cray specific adaptation of the spack configuration if requested
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
+    sed -E -e '0,/\s*-\s+mpich/ s/mpich/cray-mpich/' \
+      -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
+      -E -e '/\s*#\s*-\s+"cray-mpich@/ s/#/ /' \
+      -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Find all compilers
