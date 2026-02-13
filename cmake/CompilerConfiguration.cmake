@@ -141,7 +141,7 @@ add_compile_options(
 # Release
 add_compile_options(
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-xHOST;-g;-D__HAS_IEEE_EXCEPTIONS>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,IntelLLVM>>:-O3;-xHOST;-g>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-xHOST;-g>"
 )
