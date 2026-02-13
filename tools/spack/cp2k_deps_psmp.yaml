@@ -42,14 +42,6 @@ spack:
       require:
         - mpich
 
-    mpich:
-      require:
-        - "~xpmem"
-
-    xpmem:
-      require:
-        - "xpmem@master ~kernel-module"
-
     # ScaLAPACK, LAPACK, BLAS
     blas:
       require:
@@ -108,6 +100,11 @@ spack:
       require:
         - "+fortran"
 
+    libfabric:
+      require:
+        - "~cuda"
+        - "fabrics=cxi"
+
     libint:
       require:
         - "+fortran"
@@ -117,6 +114,10 @@ spack:
       require:
         - "~cuda"
         - "+kxc"
+
+    mctc-lib:
+      require:
+        - "~openmp"
 
     openpmd-api:
       require:
@@ -137,9 +138,13 @@ spack:
 
     sirius:
       require:
+        - "~apps"
+        - "+dftd3"
+        - "+dlaf"
+        - "+elpa"
         - "+fortran"
         - "+pugixml"
-        - "~apps"
+        - "+scalapack"
         - "+vdwxc"
 
     spla:
