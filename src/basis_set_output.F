@@ -186,7 +186,7 @@ CONTAINS
          WRITE (iunit, "(I5,2I3,I5,2X,10(I3))") n(1, iset), lmin(iset), lmax(iset), npgf(iset), &
             (lset(ll), ll=lmin(iset), lmax(iset))
          DO ipgf = 1, npgf(iset)
-            WRITE (iunit, "(F20.10,50(F15.10))") zet(ipgf, iset), (gcc(ipgf, ishell, iset), ishell=1, nshell(iset))
+            WRITE (iunit, "(ES26.17E3,1X,*(ES26.17E3))") zet(ipgf, iset), (gcc(ipgf, ishell, iset), ishell=1, nshell(iset))
          END DO
       END DO
 
