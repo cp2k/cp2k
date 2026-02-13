@@ -162,6 +162,7 @@ spack:
   specs:
     # Build tools
     - "cmake@3.27:"
+#   - "cray-mpich@8.1.30"
     - "gcc@10:"
     - "gmake@4.2:"
     - "mpich@4.3.2"

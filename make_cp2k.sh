@@ -649,8 +649,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Apply Cray specific adaptation of the spack configuration if requested
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e '/\s*-\s+"mpich/ s/mpich/cray-mpich@8.1.30/' \
+    sed -E -e '0,/\s*-\s+mpich/ s/mpich/cray-mpich/' \
       -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
+      -E -e '/\s*#\s*-\s+"cray-mpich@/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
   fi
 
