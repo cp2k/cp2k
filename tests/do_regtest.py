@@ -253,6 +253,21 @@ async def main() -> None:
 
 
 # ======================================================================================
+def _is_intel_mpi(mpiexec_cmd: str = "mpiexec") -> bool:
+    """Check if the given mpiexec command belongs to Intel MPI."""
+    try:
+        result = subprocess.run(
+            [mpiexec_cmd, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return "Intel" in result.stdout or "Intel" in result.stderr
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+# ======================================================================================
 class Config:
     def __init__(self, args: argparse.Namespace):
         self.timeout = args.timeout
@@ -266,6 +281,9 @@ class Config:
         self.mpiexec = args.mpiexec
         if "{N}" not in self.mpiexec:  # backwards compatibility
             self.mpiexec = f"{self.mpiexec} ".replace(" ", " -n {N} ", 1).strip()
+        self.intel_mpi = _is_intel_mpi(self.mpiexec.split()[0])
+        if self.intel_mpi and "--bind-to" in self.mpiexec:
+            self.mpiexec = self.mpiexec.replace(" --bind-to none", "")
         self.smoketest = args.smoketest
         self.valgrind = args.valgrind
         self.keepalive = args.keepalive
@@ -319,6 +337,8 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
+        if self.intel_mpi:
+            env["I_MPI_PIN"] = "0"
         env["CP2K_DATA_DIR"] = str(self.cp2k_data_dir)
         env["PIKA_COMMANDLINE_OPTIONS"] = (
             f"--pika:bind=none --pika:threads={self.ompthreads}"

@@ -1656,11 +1656,15 @@ add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
   set_source_files_properties(
     ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
-    ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
-    ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
     PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
-  set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
-                              PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    set_source_files_properties(
+      ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
+      ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
+      PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
+    set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
+                                PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
+  endif()
 endif()
 
 # set the __SHORT_FILE__ per file for CP2K sources
