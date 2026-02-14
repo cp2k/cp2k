@@ -162,9 +162,11 @@ CONTAINS
       ! Create A matrix from GW Energies, v_ia,jb and W_ij,ab (different blacs_env!)
       ! v_ia,jb, which is directly initialized in A (with a factor of alpha)
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
-      CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
-                         matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_A)
+      IF (.NOT. tddfpt_control%do_bse) THEN
+         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha, &
+                            matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
+                            matrix_c=fm_A)
+      END IF
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
@@ -203,12 +205,16 @@ CONTAINS
          NULLIFY (ex_env)
          CALL get_qs_env(qs_env, exstate_env=ex_env)
          ALLOCATE (ex_env%bse_w_matrix_MO(1, 1)) ! for now only closed-shell
+         ALLOCATE (ex_env%bse_a_matrix_MO(1, 1)) ! for now only closed-shell
          CALL cp_fm_create(ex_env%bse_w_matrix_MO(1, 1), fm_struct_W)
+         CALL cp_fm_create(ex_env%bse_a_matrix_MO(1, 1), fm_struct_A)
          CALL cp_fm_to_fm(fm_W, ex_env%bse_w_matrix_MO(1, 1))
+         CALL cp_fm_to_fm(fm_A, ex_env%bse_a_matrix_MO(1, 1))
       END IF
       CALL cp_fm_release(fm_W)
 
       !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
+      IF (.NOT. tddfpt_control%do_bse) THEN
       DO ii = 1, nrow_local_A
 
          i_row_global = row_indices_A(ii)
@@ -226,6 +232,7 @@ CONTAINS
             END IF
          END DO
       END DO
+      END IF
 
       IF (tddfpt_control%do_bse) THEN
          sizeeigen = SIZE(Eigenval)

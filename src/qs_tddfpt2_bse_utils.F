@@ -17,17 +17,18 @@ MODULE qs_tddfpt2_bse_utils
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_gemm,&
+                                              cp_fm_matvec,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_set_element,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_release, cp_fm_set_all, cp_fm_set_element, &
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_vectorssum, cp_fm_write_formatted
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -49,7 +50,7 @@ MODULE qs_tddfpt2_bse_utils
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC:: tddfpt_apply_bse
+   PUBLIC:: tddfpt_apply_bse_debug, tddfpt_apply_bse
    PUBLIC:: zeroth_order_gw
 
 CONTAINS
@@ -192,14 +193,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Update action of TDDFPT operator on trial vectors by adding BSE W term.
+!> \brief debug version
 !> \param Aop_evects ...
 !> \param evects ...
 !> \param gs_mos ...
 !> \param qs_env ...
-!> \note Based on the subroutine tddfpt_apply_hfx() which was originally created by
-!>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_bse(Aop_evects, evects, gs_mos, qs_env)
+   SUBROUTINE tddfpt_apply_bse_debug(Aop_evects, evects, gs_mos, qs_env)
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
@@ -207,21 +207,32 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_bse'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_bse_debug'
 
       INTEGER :: a_nao_col, a_virt_col, b_nao_col, c_virt_col, handle, i_occ_row, i_row_global, &
-         ii, ispin, ivect, j_col_global, j_occ_row, jj, k_occ_col, mu_col_global, nao, ncol_block, &
-         ncol_local, nrow_block, nrow_local, nspins, nvects, nvirt
+         ii, iounit, ispin, ivect, j_col_global, j_occ_row, jj, k_occ_col, mu_col_global, nao, &
+         ncol_block, ncol_block_bse, ncol_block_cs, ncol_local, ncol_local_bse, ncol_local_cs, &
+         nrow_block, nrow_block_bse, nrow_block_cs, nrow_local, nrow_local_bse, nrow_local_cs, &
+         nspins, nvects, nvirt
       INTEGER, DIMENSION(2)                              :: nactive
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_bse, &
+                                                            col_indices_cs, row_indices, &
+                                                            row_indices_bse, row_indices_cs
       REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: my_block, my_bse_w_matrix_MO, my_CSvirt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, matrix_struct
       TYPE(cp_fm_type)                                   :: CSvirt, fms, WXaoao, WXmat2, WXvirtao
       TYPE(cp_fm_type), POINTER                          :: bse_w_matrix_MO
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      NULLIFY (logger) !get output_unit
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL timeset(routineN, handle)
 
@@ -280,9 +291,16 @@ CONTAINS
             NULLIFY (row_indices, col_indices)
             CALL cp_fm_get_info(matrix=WXvirtao, nrow_local=nrow_local, ncol_local=ncol_local, &
                                 row_indices=row_indices, col_indices=col_indices, &
-                                nrow_block=nrow_block, ncol_block=ncol_block)
+                                nrow_block=nrow_block, ncol_block=ncol_block, local_data=my_block)
+            CALL cp_fm_get_info(matrix=CSvirt, nrow_local=nrow_local_cs, ncol_local=ncol_local_cs, &
+                                row_indices=row_indices_cs, col_indices=col_indices_cs, &
+                                nrow_block=nrow_block_cs, ncol_block=ncol_block_cs, local_data=my_CSvirt)
+            CALL cp_fm_get_info(matrix=bse_w_matrix_MO, nrow_local=nrow_local_bse, ncol_local=ncol_local_bse, &
+                                row_indices=row_indices_bse, col_indices=col_indices_bse, &
+                                nrow_block=nrow_block_bse, ncol_block=ncol_block_bse, local_data=my_bse_w_matrix_MO)
 
             CALL cp_fm_set_all(WXvirtao, 0.0_dp)
+
             DO ii = 1, nrow_local
                i_row_global = row_indices(ii)
                DO jj = 1, ncol_local
@@ -290,7 +308,6 @@ CONTAINS
 
                   i_occ_row = (i_row_global - 1)/nactive(ispin) + 1
                   j_occ_row = MOD(i_row_global - 1, nactive(ispin)) + 1
-
                   a_virt_col = (j_col_global - 1)/nao + 1
                   b_nao_col = MOD(j_col_global - 1, nao) + 1
 
@@ -317,7 +334,6 @@ CONTAINS
 
                   i_occ_row = (i_row_global - 1)/nactive(ispin) + 1
                   j_occ_row = MOD(i_row_global - 1, nactive(ispin)) + 1
-
                   a_nao_col = (j_col_global - 1)/nao + 1
                   b_nao_col = MOD(j_col_global - 1, nao) + 1
 
@@ -349,18 +365,17 @@ CONTAINS
                   j_occ_row = MOD(i_row_global - 1, nactive(ispin)) + 1
                   a_nao_col = (j_col_global - 1)/nao + 1
                   b_nao_col = MOD(j_col_global - 1, nao) + 1
-                  IF (a_nao_col == b_nao_col) THEN
-                     WXmat2%local_data(b_nao_col, i_occ_row) = WXmat2%local_data(b_nao_col, i_occ_row) + &
-                                 WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, ivect)%local_data(a_nao_col, j_occ_row)
-                  END IF
-                  IF (a_nao_col /= b_nao_col) THEN
-                     WXmat2%local_data(a_nao_col, i_occ_row) = WXmat2%local_data(a_nao_col, i_occ_row) + &
+
+                  WXmat2%local_data(a_nao_col, i_occ_row) = WXmat2%local_data(a_nao_col, i_occ_row) + &
                                  WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, ivect)%local_data(b_nao_col, j_occ_row)
-                  END IF
                END DO
             END DO
 
             CALL cp_fm_release(WXaoao)
+
+            IF (iounit > 0) THEN
+               CALL cp_fm_write_formatted(WXmat2, iounit, "WXmat2")
+            END IF
 
             CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect), -1.0_dp, WXmat2)
 
@@ -373,5 +388,195 @@ CONTAINS
 
       CALL timestop(handle)
 
+   END SUBROUTINE tddfpt_apply_bse_debug
+
+! **************************************************************************************************
+!> \brief ...
+!> \param Aop_evects ...
+!> \param evects ...
+!> \param gs_mos ...
+!> \param qs_env ...
+!> \param S_evects ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_apply_bse(Aop_evects, evects, gs_mos, qs_env, S_evects)
+
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: S_evects
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_bse'
+
+      INTEGER                                            :: handle, ispin, ivect, nao, nspins, &
+                                                            nvects, nvirt
+      INTEGER, DIMENSION(2)                              :: nactive
+      REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries, rho
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
+      TYPE(cp_fm_type)                                   :: CSvirt, evects_mo, evects_unsplit, fms, &
+                                                            rhomu, rhosplit
+      TYPE(cp_fm_type), POINTER                          :: bse_a_matrix_MO
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(excited_energy_type), POINTER                 :: ex_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(evects, 1)
+      nvects = SIZE(evects, 2)
+      IF (nspins > 1) THEN
+         alpha = 1.0_dp
+      ELSE
+         alpha = 2.0_dp
+      END IF
+      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
+      END DO
+
+      NULLIFY (ex_env, para_env, blacs_env, matrix_s)
+      CALL get_qs_env(qs_env, exstate_env=ex_env, para_env=para_env, blacs_env=blacs_env, &
+                      matrix_s=matrix_s)
+
+      CALL cp_fm_struct_create(fmstruct=fmstruct, para_env=para_env, &
+                               context=blacs_env, nrow_global=nao, ncol_global=nao)
+      CALL cp_fm_create(fms, fmstruct)
+      CALL cp_fm_struct_release(fmstruct)
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fms)
+
+      NULLIFY (bse_a_matrix_MO)
+      bse_a_matrix_MO => ex_env%bse_a_matrix_MO(1, 1)
+      para_env => bse_a_matrix_MO%matrix_struct%para_env
+
+      DO ivect = 1, nvects
+         DO ispin = 1, nspins
+            NULLIFY (fmstruct)
+            CALL cp_fm_get_info(matrix=evects(ispin, 1), &
+                                nrow_global=nao, ncol_global=nactive(ispin))
+            nvirt = SIZE(gs_mos(ispin)%evals_virt)
+
+            CALL cp_fm_struct_create(fmstruct=fmstruct, para_env=para_env, &
+                                     context=blacs_env, nrow_global=nvirt, ncol_global=nao)
+            CALL cp_fm_create(CSvirt, fmstruct)
+            CALL cp_fm_struct_release(fmstruct)
+            CALL cp_fm_gemm('T', 'N', nvirt, nao, nao, 1.0_dp, gs_mos(ispin)%mos_virt, fms, 0.0_dp, &
+                            CSvirt)
+
+            NULLIFY (fmstruct)
+            CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nvirt, ncol_global=nactive(ispin))
+            CALL cp_fm_create(evects_mo, fmstruct)
+            CALL cp_fm_struct_release(fmstruct)
+            NULLIFY (fmstruct)
+            CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nvirt, ncol_global=nactive(ispin))
+            CALL cp_fm_create(rhosplit, fmstruct)
+            CALL cp_fm_struct_release(fmstruct)
+            NULLIFY (fmstruct)
+            CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nao, ncol_global=nactive(ispin))
+            CALL cp_fm_create(rhomu, fmstruct)
+            CALL cp_fm_struct_release(fmstruct)
+            NULLIFY (fmstruct)
+            CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nactive(ispin)*nvirt, ncol_global=1)
+            CALL cp_fm_create(evects_unsplit, fmstruct)
+            CALL cp_fm_struct_release(fmstruct)
+
+!    get X_jb
+            CALL parallel_gemm("T", "N", nvirt, nactive(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
+                               S_evects(ispin, ivect), 0.0_dp, evects_mo)
+!    rearrange X_jb
+            CALL contract_bse(evects_mo, evects_unsplit, nactive(ispin), nvirt, eigvec_entries)
+!    contract A_iajb X_jb
+            ALLOCATE (rho(nvirt*nactive(ispin)))
+            CALL cp_fm_matvec(bse_a_matrix_MO, eigvec_entries, rho, 1.0_dp, 0.0_dp)
+!    rearrange rho_ia
+            CALL split_bse(rho, rhosplit, nvirt)
+!    get rho_imu
+            CALL parallel_gemm("T", "N", nao, nactive(ispin), nvirt, 1.0_dp, CSvirt, &
+                               rhosplit, 0.0_dp, rhomu)
+
+            CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect), 1.0_dp, rhomu)
+
+            CALL cp_fm_release(rhomu)
+            CALL cp_fm_release(CSvirt)
+            CALL cp_fm_release(evects_mo)
+            CALL cp_fm_release(rhosplit)
+            CALL cp_fm_release(evects_unsplit)
+            DEALLOCATE (rho)
+            DEALLOCATE (eigvec_entries)
+
+         END DO! ispin
+      END DO !ivect
+
+      CALL cp_fm_release(fms)
+
+      CALL timestop(handle)
+
    END SUBROUTINE tddfpt_apply_bse
+
+! **************************************************************************************************
+!> \brief ...
+!> \param evects_mo ...
+!> \param evects_unsplit ...
+!> \param nactive ...
+!> \param nvirt ...
+!> \param eigvec_entries ...
+! **************************************************************************************************
+   SUBROUTINE contract_bse(evects_mo, evects_unsplit, nactive, nvirt, eigvec_entries)
+      TYPE(cp_fm_type), INTENT(IN)                       :: evects_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: evects_unsplit
+      INTEGER                                            :: nactive, nvirt
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_bse'
+
+      INTEGER                                            :: handle, jj
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (eigvec_entries(nvirt*nactive))
+      DO jj = 1, nactive
+         CALL cp_fm_to_fm_submat(msource=evects_mo, mtarget=evects_unsplit, &
+                                 nrow=nvirt, ncol=1, s_firstrow=1, s_firstcol=jj, &
+                                 t_firstrow=(jj - 1)*nvirt + 1, t_firstcol=1)
+      END DO
+      CALL cp_fm_vectorssum(evects_unsplit, eigvec_entries, "R")
+
+      CALL timestop(handle)
+   END SUBROUTINE contract_bse
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rho ...
+!> \param rhosplit ...
+!> \param nvirt ...
+! **************************************************************************************************
+   SUBROUTINE split_bse(rho, rhosplit, nvirt)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: rho
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: rhosplit
+      INTEGER, INTENT(IN)                                :: nvirt
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'split_bse'
+
+      INTEGER                                            :: handle, i_occ_row, ii, j_occ_row
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_set_all(rhosplit, 0.0_dp)
+
+      DO ii = 1, SIZE(rho)
+         i_occ_row = (ii - 1)/nvirt + 1
+         j_occ_row = MOD(ii - 1, nvirt) + 1
+         CALL cp_fm_set_element(rhosplit, j_occ_row, i_occ_row, rho(ii))
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE split_bse
+
 END MODULE qs_tddfpt2_bse_utils

@@ -408,6 +408,4 @@ QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio
 QS/regtest-rtbse-gxac                                       libint greenx !ifx
 QS/regtest-cneo
-
-# TODO: Re-enable once problems with MPI are resolved (https://github.com/cp2k/cp2k/pull/4445)
-# QS/regtest-tddfpt-bse                                       libint libxc
+QS/regtest-tddfpt-bse                                       libint libxc

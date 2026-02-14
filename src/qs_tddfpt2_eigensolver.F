@@ -559,7 +559,9 @@ CONTAINS
          END IF
          IF (do_bse) THEN
             ! add dynamical screening
-            CALL tddfpt_apply_bse(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env)
+            ! CALL tddfpt_apply_bse_debug(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env)
+            CALL tddfpt_apply_bse(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env, &
+                                  S_evects=S_evects)
          END IF
 
       END IF
