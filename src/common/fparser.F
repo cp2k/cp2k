@@ -1148,44 +1148,27 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION docf() RESULT(doc)
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
       ! Returns documentation for function parser and its available operators and functions
-      ! Manually allocate length to avoid segmentation fault with Intel compilers
-      CHARACTER(LEN=3000)    :: doc
-      INTEGER                :: i, pos
+      !----- -------- --------- --------- --------- --------- --------- --------- -------
+      CHARACTER(LEN=:), ALLOCATABLE                      :: doc
 
-      doc = ''
-      pos = 1
+      INTEGER                                            :: i
 
-      CALL append("A functional form is specified. Mathematical Operators recognized are ")
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+      doc = "A functional form is specified. Mathematical Operators recognized are "
       DO i = cAdd, cPow
-         IF (i > cAdd) CALL append(", ")
-         CALL append(Ops(i))
+         IF (i > cAdd) doc = doc//", "
+         doc = doc//Ops(i)
       END DO
-      CALL append(" or alternatively **, whereas symbols for brackets must be (). The function"// &
-                  " parser recognizes the Fortran 90 intrinsic functions ")
+      doc = doc//" or alternatively **, whereas symbols for brackets must be (). The function"// &
+            " parser recognizes the Fortran 90 intrinsic functions "
       DO i = cAbs, cErfc
-         IF (i > cAbs) CALL append(", ")
-         CALL append(TRIM(Funcs(i)))
+         IF (i > cAbs) doc = doc//", "
+         doc = doc//TRIM(Funcs(i))
       END DO
-      CALL append(". Parsing for intrinsic functions is not case sensitive.")
-
-   CONTAINS
-! **************************************************************************************************
-!> \brief ...
-!> \param txt ...
-! **************************************************************************************************
-      SUBROUTINE append(txt)
-      CHARACTER(LEN=*), INTENT(IN)                       :: txt
-
-      INTEGER                                            :: len_txt
-
-         len_txt = LEN_TRIM(txt)
-         doc(pos:pos + len_txt - 1) = TRIM(txt)
-         IF (pos + len_txt - 1 <= 3000) THEN
-            doc(pos:pos + len_txt - 1) = txt(1:len_txt)
-            pos = pos + len_txt
-         END IF
-      END SUBROUTINE append
+      doc = doc//". Parsing for intrinsic functions is not case sensitive."
    END FUNCTION docf
 
 END MODULE fparser
