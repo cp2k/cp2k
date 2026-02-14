@@ -669,10 +669,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}"
+RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}
 """
     )
     output += (
@@ -696,7 +696,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}"
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
@@ -799,6 +799,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 """
         else:
             print(f"\nERROR: Unknown base image {base_image} specified\n")
+        if "nvidia" in base_image:
+            output += rf"""
+# Setup CUDA environment
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+"""
     elif stage == "install":
         output = rf"""
 ###### Stage 2: Install CP2K ######
@@ -832,6 +837,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 """
         else:
             print(f"\nERROR: Unknown base image {base_image} specified\n")
+        if "nvidia" in base_image:
+            output += rf"""
+# Setup CUDA environment
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+"""
     else:
         print(f"\nERROR: Unknown stage {stage} specified\n")
     return output
