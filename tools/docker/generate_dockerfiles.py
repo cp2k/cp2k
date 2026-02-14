@@ -669,10 +669,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}"
+RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}
 """
     )
     output += (
@@ -696,7 +696,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}"
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
