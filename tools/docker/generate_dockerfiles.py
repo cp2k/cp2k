@@ -669,10 +669,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
+RUN /bin/bash -o pipefail -c "./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}"
+RUN /bin/bash -o pipefail -c "./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}"
 """
     )
     output += (
@@ -802,8 +802,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin:${{PATH}}
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:${{LD_LIBRARY_PATH}}
+ENV PATH /usr/local/cuda/bin
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 """
     elif stage == "install":
         output = rf"""
@@ -841,8 +841,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin:${{PATH}}
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:${{LD_LIBRARY_PATH}}
+ENV PATH /usr/local/cuda/bin
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 """
     else:
         print(f"\nERROR: Unknown stage {stage} specified\n")

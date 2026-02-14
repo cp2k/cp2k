@@ -37,8 +37,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+ENV PATH /usr/local/cuda/bin
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
@@ -48,10 +48,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue"
+RUN /bin/bash -o pipefail -c "./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue"
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich"
+RUN /bin/bash -o pipefail -c "./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich"
 
 ###### Stage 2: Install CP2K ######
 
@@ -63,8 +63,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+ENV PATH /usr/local/cuda/bin
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
 WORKDIR /opt/cp2k
 
