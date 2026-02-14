@@ -802,7 +802,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 """
     elif stage == "install":
@@ -841,7 +840,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         if "nvidia" in base_image:
             output += rf"""
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 """
     else:

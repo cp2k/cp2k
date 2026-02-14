@@ -37,7 +37,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
@@ -63,7 +62,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Setup CUDA environment
-ENV PATH /usr/local/cuda/bin
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
 WORKDIR /opt/cp2k
