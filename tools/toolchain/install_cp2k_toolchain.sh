@@ -142,8 +142,10 @@ OPTIONS:
                           increase build time and library size.
                           Default = 5
 --log-lines               In case a package build returns a non-zero exit code,
-                          the number of final lines dumped to log file in the
-                          corresponding directory.
+                          the number of final lines from the log file in the
+                          corresponding directory that will be dumped to the
+                          command line. Due to limited length, this snippet may
+                          not contain the very first warning or error message.
                           Default = 200
 --dry-run                 After writing toolchain config and env files to the
                           install directory, just print a list of effective
@@ -328,7 +330,11 @@ Specific options:
 
 FURTHER INSTRUCTIONS
 
-The toolchain script does not use system-dependent package managers (e.g. apt,
+An alternative way to prepare the dependencies and environment for CP2K is to
+use Spack along with podman, which is handled by make_cp2k.sh, another script
+that has nothing to do with the current toolchain script.
+
+This toolchain script does not use system-dependent package managers (e.g. apt,
 yum, dnf) for finding resource and configuring or installing packages. However,
 the script assumes that several prerequisites including (but not limited to)
 wget, bzip2 and make are present, which should be ready from package managers.
@@ -371,14 +377,16 @@ and placing them under the ./build directory. The toolchain script will not
 attempt to download packages if they are already present in the build directory
 with filenames reflecting the correct versions.
 (4) An important common feature of clusters is the distinction of node types:
-there may be login nodes and compute nodes, hosted on separate machines with
-different hardware specs. This should be accounted for in any installation; for
-instance, running toolchain script directly on login node with the option of
-"--target-cpu=native" (which is default too if omitted) and executing CP2K on
-compute node afterwards may result in undefined behaviors due to the login node
-and compute node having different CPU architectures with different range of
-supported instruction sets. The option with best portability for compiling at
-the cost of reduced performance is "--target-cpu=generic".
+"login node", where users log in and perform tasks with low workload; and
+"compute node", where resource-intensive computation jobs are carried out.
+They may be hosted on separate machines, and their hardware specifications
+(CPU, RAM, disk space, etc.) may be similar or different. Therefore, care must
+be taken especially for the latter case; for instance, running toolchain script
+on login node with the option of "--target-cpu=native" (which is default too if
+omitted) and executing CP2K on compute node afterwards may result in unknown
+behaviors due to discrepancies in CPU architectures and supported instruction
+sets. The option with best portability for compiling programs at the cost of
+reduced (non-optimal) performance is "--target-cpu=generic".
 (5) Again, be careful about the environment if CP2K is to be executed with job
 submission scripts to the job queue system handling resource allocation. Active
 environment variables and paths on the login node (by loading modules, sourcing
