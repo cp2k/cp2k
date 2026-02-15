@@ -789,6 +789,14 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     ${EXIT_CMD} 1
   fi
 
+  # Fix Libs list in elpa pkg-config file when CUDA is used
+  if ((CUDA_ARCH > 0)); then
+    ELPA_PKG_CONFIG_FILE="$(find -L "${SPACK_ROOT}/opt/spack/view" -name "elpa*.pc")"
+    if [[ -f "${ELPA_PKG_CONFIG_FILE}" ]]; then
+      sed -E -e 's|Libs: |Libs: -L/usr/local/cuda/lib64 |' -i "${ELPA_PKG_CONFIG_FILE}"
+    fi
+  fi
+
   # Return from spack folder after all installations are done
   cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
