@@ -42,10 +42,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue"
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich"
+RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich
 
 ###### Stage 2: Install CP2K ######
 
@@ -76,7 +76,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests "
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests 
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
