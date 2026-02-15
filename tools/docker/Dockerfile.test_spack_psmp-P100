@@ -36,6 +36,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup CUDA environment
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 # Copy CP2K repository into container
@@ -44,10 +47,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue"
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu P100 -gv 13 -mpi mpich -ue
 
 # Build and install CP2K
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich"
+RUN ./make_cp2k.sh -cv psmp -gv 13 -gpu P100 -mpi mpich
 
 ###### Stage 2: Install CP2K ######
 
@@ -57,6 +60,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
+
+# Setup CUDA environment
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
 WORKDIR /opt/cp2k
 
@@ -74,7 +80,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Run CP2K regression test
-RUN /bin/bash -o pipefail -c "/opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive"
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive
 
 # Create entrypoint and finalise container build
 WORKDIR /mnt
