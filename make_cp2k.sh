@@ -683,9 +683,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Disable PEXSI because of an issue with SuperLU using recent GCC versions
-  if [[ "${CP2K_VERSION}" == "psmp"* ]] && ((GCC_VERSION_NEWEST > 14)); then
+  if ((CUDA_ARCH > 0)) || ((GCC_VERSION_NEWEST > 14)); then
     sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
-    echo "INFO: PEXSI has been disabled because of an issue with SuperLU using GCC 15 or newer"
+    echo "INFO: PEXSI has been disabled because CUDA or GCC 15 is used"
   fi
 
   # Create CP2K environment if needed
