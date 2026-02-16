@@ -821,6 +821,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
             output += rf"""
 # Setup CUDA environment
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
 """
     elif stage == "install":
         output = rf"""
@@ -859,6 +863,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
             output += rf"""
 # Setup CUDA environment
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
 """
     else:
         print(f"\nERROR: Unknown stage {stage} specified\n")
