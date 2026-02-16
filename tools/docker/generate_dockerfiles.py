@@ -56,14 +56,21 @@ def main() -> None:
     # Spack/CMake based testers
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
-        f.write(install_cp2k_spack("psmp", mpi_mode="mpich"))
+        f.write(
+            install_cp2k_spack("psmp", mpi_mode="mpich", feature_flags="-ef openpmd")
+        )
 
     for gcc_version in 10, 11, 12, 14, 15:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
             f.write(
-                install_cp2k_spack("psmp", mpi_mode="mpich", gcc_version=gcc_version)
+                install_cp2k_spack(
+                    "psmp",
+                    mpi_mode="mpich",
+                    gcc_version=gcc_version,
+                    feature_flags="-ef openpmd",
+                )
             )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
@@ -83,6 +90,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
                 gcc_version=16,
+                feature_flags="-ef openpmd",
             )
         )
 
@@ -93,6 +101,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="fedora:latest",
                 gcc_version=15,
+                feature_flags="-ef openpmd",
             )
         )
 
@@ -103,15 +112,22 @@ def main() -> None:
                 mpi_mode="mpich",
                 base_image="opensuse/leap:15.6",
                 gcc_version=14,
+                feature_flags="-ef openpmd",
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
-        f.write(install_cp2k_spack("psmp", mpi_mode="mpich", testopts=testopts))
+        f.write(
+            install_cp2k_spack(
+                "psmp", mpi_mode="mpich", testopts=testopts, feature_flags="-ef openpmd"
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
-        f.write(install_cp2k_spack("psmp", mpi_mode="openmpi"))
+        f.write(
+            install_cp2k_spack("psmp", mpi_mode="openmpi", feature_flags="-ef openpmd")
+        )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(install_cp2k_spack("ssmp", mpi_mode="no"))
@@ -139,6 +155,7 @@ def main() -> None:
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
+                feature_flags="-ef openpmd",
                 testopts="--keepalive",
             )
         )
@@ -636,6 +653,7 @@ def install_cp2k_spack(
     base_image: str = "ubuntu:24.04",
     gcc_version: int = 13,
     gpu_model: str = "none",
+    feature_flags: str = "",
     testopts: str = "",
 ) -> str:
     # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
@@ -669,10 +687,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals}
+RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals} {feature_flags}
 
 # Build and install CP2K
-RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode}
+RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
     output += (
