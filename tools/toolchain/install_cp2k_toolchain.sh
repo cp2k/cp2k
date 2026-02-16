@@ -32,7 +32,6 @@ export SCRIPTDIR="${ROOTDIR}/scripts"
 export BUILDDIR="${ROOTDIR}/build"
 export INSTALLDIR="${ROOTDIR}/install"
 export SETUPFILE="${INSTALLDIR}/setup"
-export SHA256_CHECKSUM="${SCRIPTDIR}/checksums.sha256"
 
 # ------------------------------------------------------------------------
 # Make a copy of all options for $SETUPFILE
