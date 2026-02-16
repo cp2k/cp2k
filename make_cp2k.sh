@@ -48,7 +48,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.4
+# Version: 1.5
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -65,6 +65,7 @@
 #          - Version 1.2: Add option for static build (05.02.2026, MK)
 #          - Version 1.3: Add CUDA GPU support (10.02.2026, MK)
 #          - Version 1.4: Drop download of spack-packages (12.02.2026, MK)
+#          - Version 1.5: Add flags to enable/disable features selectively (15.02.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -126,6 +127,12 @@ fi
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
+CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
+CMAKE_FEATURE_FLAGS="-DCP2K_BLAS_VENDOR=OpenBLAS" # LAPACK/BLAS from OpenBLAS by default
+CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_FFTW3=ON"       # FFTW3 is always activated unless explicitly disabled
+CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DLAF=OFF"       # DLAF is deactivated by default
+CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by default
+CMAKE_FEATURE_FLAGS_GPU="-DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
 CRAY="no"
 CUDA_ARCH=0
 DISABLE_LOCAL_CACHE="no"
@@ -144,6 +151,7 @@ else
 fi
 REBUILD_CP2K="no"
 RUN_TEST="no"
+SED_PATTERN_LIST=""
 TESTOPTS=""
 USE_EXTERNALS="no"
 VERBOSE=0
@@ -177,12 +185,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     -cv | --cp2k_version)
       if (($# > 1)); then
-        case "${2}" in
+        case "${2,,}" in
           psmp | ssmp | ssmp-static)
-            CP2K_VERSION="${2}"
+            CP2K_VERSION="${2,,}"
             ;;
           *)
-            echo "ERROR: Invalid CP2K version \"${2}\" (choose psmp, ssmp, or ssmp-static)"
+            echo "ERROR: Invalid CP2K version \"${2}\" specified (choose psmp, ssmp, or ssmp-static)"
             ${EXIT_CMD} 1
             ;;
         esac
@@ -191,7 +199,102 @@ while [[ $# -gt 0 ]]; do
         ${EXIT_CMD} 1
       fi
       # Disable MPI for a serial CP2K binary
-      [[ "${CP2K_VERSION}" == "ssmp"* ]] && MPI_MODE="no"
+      if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
+        MPI_MODE="no"
+        CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
+      fi
+      shift 2
+      ;;
+    -df | --disable | --disable_feature | -ef | --enable | --enable_feature)
+      if (($# > 1)); then
+        case "${1}" in
+          -df | --disable | --disable_feature)
+            ON_OFF="OFF"
+            SUBST="s/^ /#/'"
+            ;;
+          -ef | --enable | --enable_feature)
+            ON_OFF="ON"
+            SUBST="s/#/ /'"
+            ;;
+        esac
+        case "${2,,}" in
+          all)
+            CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
+            for package in adios2 cosma deepmdkit dftd4 dla-future dla-future-fortran \
+              elpa greenx hdf5 libfabric libint libvdwxc libsmeagol libvori libxc \
+              libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
+              spglib spla tblite trexio; do
+              SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
+            done
+            ;;
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | \
+            libint2 | libvdwxc | libxc | libxsmm | mimic_mcl | openpmd | pexsi | \
+            plumed | sirius | smeagol | spfft | spglib | spla | tblite | trexio | vori)
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
+            # Translate package selection to sed pattern
+            case "${2,,}" in
+              ace)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
+                ;;
+              cosma | libvdwxc | spfft | spla | sirius)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"cosma@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"libvdwxc@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"spfft@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"spla@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"sirius@/ ${SUBST}"
+                ;;
+              dftd4 | elpa | greenx | hdf5 | libxc | pexsi | plumed | spglib | tblite | trexio)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                ;;
+              deepmd)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}kit@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                ;;
+              dlaf)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future*@/ ${SUBST}"
+                ;;
+              fftw3)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"fftw@/ ${SUBST}"
+                ;;
+              libint2)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"libint@/ ${SUBST}"
+                ;;
+              libxsmm)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "OFF" ]]; then
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=${2,,}\"/ s/${2,,}/blas/'"
+                fi
+                ;;
+              mimic_mcl)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"mimic-mcl@/ ${SUBST}"
+                ;;
+              openpmd | adios2)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"adios2@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"openpmd-api@/ ${SUBST}"
+                ;;
+              smeagol | vori)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"lib${2,,}@/ ${SUBST}"
+                ;;
+            esac
+            ;;
+          cray_pm_accel_energy | cusolver_mp | spla_gemm_offloading | unified_memory)
+            CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
+            ;;
+          dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
+            CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
+            ;;
+          none)
+            # do nothing
+            ;;
+          *)
+            echo "ERROR: Unknown CP2K feature \"${2}\" specified"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No feature found for flag \"${1}\""
+        ${EXIT_CMD} 1
+      fi
       shift 2
       ;;
     -dlc | --disable_local_cache)
@@ -242,7 +345,7 @@ while [[ $# -gt 0 ]]; do
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo "ERROR: Invalid GPU model \"${2}\" specified (choose P100, V100, A100, H100 or none)"
+            echo "ERROR: Unknown GPU model \"${2}\" specified (choose P100, V100, A100, H100 or none)"
             ${EXIT_CMD} 1
             ;;
         esac
@@ -290,10 +393,23 @@ while [[ $# -gt 0 ]]; do
       ;;
     -mpi | --mpi_mode)
       if (($# > 1)); then
-        MPI_MODE="${2}"
+        case "${2,,}" in
+          mpich | openmpi)
+            CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"
+            MPI_MODE="${2,,}"
+            ;;
+          no | none | off)
+            CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
+            MPI_MODE="no"
+            ;;
+          *)
+            echo "ERROR: Unknown MPI mode \"${2}\" specified (choose mpich, openmpi, or no)"
+            ${EXIT_CMD} 1
+            ;;
+        esac
       else
         echo "ERROR: No argument found for flag \"${1}\""
-        echo "       The MPI type is required (mpich | no | openmpi)"
+        echo "       The MPI mode is required (choose mpich,  openmpi, or no)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -344,9 +460,23 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Check if we are working within a docker or podman container
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CRAY CUDA_ARCH DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL
-export HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS
-export VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+# Assemble CMake feature flag list
+CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
+
+# Clean CMake feature flag list from repeated entries
+declare -A seen=()
+out=()
+for flag in ${CMAKE_FEATURE_FLAGS}; do
+  [[ ${seen[${flag}]+_} ]] || {
+    seen[${flag}]=1
+    out+=("${flag}")
+  }
+done
+CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
+
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CRAY CUDA_ARCH \
+  DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS \
+  REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -356,7 +486,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
+  echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
+  echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-gm | -gpu  | --gpu_model (P100 | V100 | A100 | H100 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
@@ -374,7 +506,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_type         : Set preferred CMake build type (default: \"Release\")"
   echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
   echo " -cray                : Use Cray specific spack configuration"
+  echo " --disable_feature    : Disable feature or package"
   echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
+  echo " --enable_feature     : Enable feature or package (default: all)"
   echo " --help               : Print this help information"
   echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model          : Select GPU model (default: none)"
@@ -394,6 +528,13 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " - Remove the folder ${CP2K_ROOT}/spack to (re)build CP2K and all its dependencies from scratch"
   echo "   (see also --build_deps flag)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
+  echo ""
+  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 |"
+  echo "          libvdwcx | libxsmm | mimic_mcl | openpmd | pexsi | plumed | sirius | smeagol | spfft |"
+  echo "          spglib | spla | tblite | trexio | vori"
+  echo ""
+  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
+  echo "          spla_gemm_offloading | unified_memory"
   echo ""
   ${EXIT_CMD}
 fi
@@ -429,6 +570,14 @@ if (($# > 0)); then
   echo "Remaining args   =" "$@" "(not used)"
 fi
 echo ""
+echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH:-}"
+echo ""
+echo "PATH                = ${PATH:-}"
+echo ""
+echo "CMAKE_FEATURE_FLAGS = ${CMAKE_FEATURE_FLAGS}"
+echo ""
+
+((VERBOSE > 0)) && echo "SED_PATTERN_LIST    = ${SED_PATTERN_LIST}"
 
 # Check if a valid number of processes is requested
 if ((NUM_PROCS < 1)); then
@@ -483,13 +632,19 @@ if ((CUDA_ARCH > 0)); then
     fi
   fi
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=CUDA"
-  CMAKE_CUDA_FLAGS+=" -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
   CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
+  CMAKE_CUDA_FLAGS+=" ${CMAKE_FEATURE_FLAGS_GPU}"
+  out=()
+  for flag in ${CMAKE_CUDA_FLAGS}; do
+    [[ ${seen[${flag}]+_} ]] || {
+      seen[${flag}]=1
+      out+=("${flag}")
+    }
+  done
+  CMAKE_CUDA_FLAGS="$(printf '%s\n' "${out[*]}")"
   echo "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}"
   [[ -n "${CUDA_VERSION:-}" ]] && echo "CUDA_VERSION        = ${CUDA_VERSION}"
-  echo "LD_LIBRARY_PATH     = ${LD_LIBRARY_PATH}"
-  echo "PATH                = ${PATH}"
   echo ""
 else
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
@@ -508,7 +663,7 @@ export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
 
 # If requested, remove the spack folder for (re)building all CP2K dependencies
 if [[ "${BUILD_DEPS}" == "always" ]]; then
-  for folder in ${SPACK_BUILD_PATH}; do
+  for folder in ${SPACK_BUILD_PATH} ${CP2K_ROOT}/build; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
@@ -629,16 +784,18 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Prepare the CP2K spack configuration file
-  sed -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
+  sed -E \
+    -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
     -e "/\"build_type=/s|build_type=[^\"]*|build_type=${BUILD_TYPE}|" \
     "${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml" > "${CP2K_CONFIG_FILE}"
 
   # Apply selected MPI type if needed
   # MPICH is selected by default for psmp and no change needed for ssmp
   if [[ "${MPI_MODE}" == "openmpi" ]]; then
-    sed -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
-      -E -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
-      -E -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
+    sed -E \
+      -e '/\s*-\s+"mpich@/ s/^ /#/' \
+      -e '/\s*#\s*-\s+"openmpi@/ s/#/ /' \
+      -e '/\s*-\s+mpich/ s/mpich$/openmpi/' \
       -i "${CP2K_CONFIG_FILE}"
   fi
 
@@ -649,11 +806,15 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Apply Cray specific adaptation of the spack configuration if requested
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e '0,/\s*-\s+mpich/ s/mpich/cray-mpich/' \
-      -E -e '/\s*-\s+"mpich@/ s/^ /#/' \
-      -E -e '/\s*#\s*-\s+"cray-mpich@/ s/#/ /' \
+    sed -E \
+      -e '0,/\s*-\s+mpich/ s/mpich/cray-mpich/' \
+      -e '/\s*-\s+"mpich@/ s/^ /#/' \
+      -e '/\s*#\s*-\s+"cray-mpich@/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
   fi
+
+  # Apply feature selection to spack configuration file
+  eval sed -E "${SED_PATTERN_LIST}" -i "${CP2K_CONFIG_FILE}"
 
   # Find all compilers
   if ! spack compiler find; then
@@ -869,11 +1030,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
         -DCMAKE_SKIP_RPATH=ON \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
-        -DCP2K_USE_EVERYTHING=ON \
-        -DCP2K_USE_DLAF=OFF \
-        -DCP2K_USE_LIBXSMM=ON \
-        -DCP2K_USE_MPI=ON \
-        -DCP2K_USE_OPENPMD=ON \
+        ${CMAKE_FEATURE_FLAGS} \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
         ${CMAKE_CUDA_FLAGS} \
         -Werror=dev |&
@@ -889,11 +1046,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
         -DCMAKE_SKIP_RPATH=ON \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
-        -DCP2K_USE_EVERYTHING=ON \
-        -DCP2K_USE_DLAF=OFF \
-        -DCP2K_USE_LIBXSMM=ON \
-        -DCP2K_USE_MPI=OFF \
-        -DCP2K_USE_OPENPMD=OFF \
+        ${CMAKE_FEATURE_FLAGS} \
         ${CMAKE_CUDA_FLAGS} \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
