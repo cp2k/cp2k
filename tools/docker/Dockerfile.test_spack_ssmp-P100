@@ -39,6 +39,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 # Setup CUDA environment
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
+
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 # Copy CP2K repository into container
@@ -63,6 +67,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Setup CUDA environment
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+# Disable JIT cache as there seems to be an issue with file locking on overlayfs
+# See also https://github.com/cp2k/cp2k/pull/2337
+ENV CUDA_CACHE_DISABLE 1
 
 WORKDIR /opt/cp2k
 
