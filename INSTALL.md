@@ -30,9 +30,6 @@ or run in a subshell with:
 Note: it is recommended to install podman to take advantage of a spack cache. This will accelerate
 the build of the CP2K dependencies with Spack significantly.
 
-For more about building CP2K with Spack, see
-[manual](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html).
-
 ### Method 2: Toolchain
 
 Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh) can also be run
