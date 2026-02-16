@@ -1,5 +1,7 @@
 # Spack environment file for a serial CP2K binary with all available dependencies
 
+# Edit this file with care because it is automatically changed by the make_cp2k.sh script
+
 spack:
   concretizer:
     unify: true
