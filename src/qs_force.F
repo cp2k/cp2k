@@ -241,8 +241,14 @@ CONTAINS
       ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
       ! digested with overlap matrix derivatives
       IF (dft_control%dft_plus_u) THEN
-         NULLIFY (matrix_w)
-         CALL get_qs_env(qs_env, matrix_w=matrix_w)
+         IF (dft_control%nimages > 1) THEN
+            NULLIFY (matrix_w_kp)
+            CALL get_qs_env(qs_env, matrix_w_kp=matrix_w_kp)
+            matrix_w => matrix_w_kp(:, 1)
+         ELSE
+            NULLIFY (matrix_w)
+            CALL get_qs_env(qs_env, matrix_w=matrix_w)
+         END IF
          CALL plus_u(qs_env=qs_env, matrix_w=matrix_w)
       END IF
 

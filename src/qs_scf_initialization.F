@@ -916,6 +916,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -926,7 +927,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho, xas_env, mo_coeff)
+      NULLIFY (qs_kind_set, matrix_s, matrix_s_kp, dft_control, mos, qs_kind, rho, xas_env, mo_coeff)
 
       logger => cp_get_default_logger()
 
@@ -1093,13 +1094,26 @@ CONTAINS
 
       ! DFT+U methods based on Lowdin charges need S^(1/2)
       IF (dft_control%dft_plus_u) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
-            IF (s_minus_half_available) THEN
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, scf_env%ortho, scf_env%s_half, &
-                                            nao)
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp)
             ELSE
-               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%s_half)
+               CALL get_qs_env(qs_env, matrix_s=matrix_s)
+            END IF
+            IF (s_minus_half_available) THEN
+               IF (do_kpoints) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s_kp(1, 1)%matrix, scf_env%ortho, &
+                                               scf_env%s_half, nao)
+               ELSE
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, scf_env%ortho, &
+                                               scf_env%s_half, nao)
+               END IF
+            ELSE
+               IF (do_kpoints) THEN
+                  CALL copy_dbcsr_to_fm(matrix_s_kp(1, 1)%matrix, scf_env%s_half)
+               ELSE
+                  CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%s_half)
+               END IF
                CALL cp_fm_power(scf_env%s_half, scf_env%scf_work2, 0.5_dp, &
                                 scf_control%eps_eigval, ndep)
             END IF

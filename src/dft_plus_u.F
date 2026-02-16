@@ -220,7 +220,7 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
-      LOGICAL                                            :: debug, dft_plus_u_atom, &
+      LOGICAL                                            :: debug, dft_plus_u_atom, do_kpoints, &
                                                             fm_work1_local_alloc, &
                                                             fm_work2_local_alloc, found, &
                                                             just_energy, smear
@@ -236,6 +236,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_kp, matrix_s_kp
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -263,6 +264,8 @@ CONTAINS
       NULLIFY (fmstruct)
       NULLIFY (matrix_p)
       NULLIFY (matrix_s)
+      NULLIFY (matrix_p_kp)
+      NULLIFY (matrix_s_kp)
       NULLIFY (l)
       NULLIFY (last_sgf)
       NULLIFY (nshell)
@@ -291,23 +294,31 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, &
                       energy=energy, &
-                      matrix_s=matrix_s, &
                       particle_set=particle_set, &
                       rho=rho, &
                       scf_env=scf_env, &
                       virial=virial, &
                       para_env=para_env, &
-                      blacs_env=blacs_env)
+                      blacs_env=blacs_env, &
+                      do_kpoints=do_kpoints)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
       CPASSERT(ASSOCIATED(dft_control))
       CPASSERT(ASSOCIATED(energy))
-      CPASSERT(ASSOCIATED(matrix_s))
       CPASSERT(ASSOCIATED(particle_set))
       CPASSERT(ASSOCIATED(rho))
 
-      sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-      CALL qs_rho_get(rho, rho_ao=matrix_p) ! Density matrices in sparse format
+      IF (do_kpoints) THEN
+         CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s_kp)
+         CPASSERT(ASSOCIATED(matrix_s_kp))
+         sm_s => matrix_s_kp(1, 1)%matrix ! Overlap matrix in sparse format
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p_kp) ! Density matrices in sparse format
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+         CPASSERT(ASSOCIATED(matrix_s))
+         sm_s => matrix_s(1)%matrix
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+      END IF
 
       energy%dft_plus_u = 0.0_dp
 
@@ -408,7 +419,12 @@ CONTAINS
             NULLIFY (sm_w)
          END IF
 
-         sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+         ! Density matrix for spin ispin in sparse format
+         IF (do_kpoints) THEN
+            sm_p => matrix_p_kp(ispin, 1)%matrix
+         ELSE
+            sm_p => matrix_p(ispin)%matrix
+         END IF
 
          CALL dbcsr_set(sm_q, 0.0_dp)
          CALL dbcsr_set(sm_v, 0.0_dp)
@@ -880,8 +896,9 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
-      LOGICAL                                            :: debug, dft_plus_u_atom, found, &
-                                                            just_energy, occupation_enforced, smear
+      LOGICAL                                            :: debug, dft_plus_u_atom, do_kpoints, &
+                                                            found, just_energy, &
+                                                            occupation_enforced, smear
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_plus_u_kind, orb_occ
       REAL(KIND=dp)                                      :: eps_scf, eps_u_ramping, fspin, occ, trq, &
                                                             trq2, u_minus_j, u_minus_j_target, &
@@ -894,6 +911,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: kind_a
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_kp, matrix_s_kp
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -916,6 +934,8 @@ CONTAINS
       NULLIFY (h_block)
       NULLIFY (matrix_p)
       NULLIFY (matrix_s)
+      NULLIFY (matrix_p_kp)
+      NULLIFY (matrix_s_kp)
       NULLIFY (l)
       NULLIFY (last_sgf)
       NULLIFY (nelec)
@@ -947,7 +967,8 @@ CONTAINS
                       energy=energy, &
                       particle_set=particle_set, &
                       rho=rho, &
-                      para_env=para_env)
+                      para_env=para_env, &
+                      do_kpoints=do_kpoints)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
       CPASSERT(ASSOCIATED(dft_control))
@@ -959,15 +980,24 @@ CONTAINS
          NULLIFY (sm_s)
       ELSE
          ! Get overlap matrix in sparse format
-         CALL get_qs_env(qs_env=qs_env, &
-                         matrix_s=matrix_s)
-         CPASSERT(ASSOCIATED(matrix_s))
-         sm_s => matrix_s(1)%matrix
+         IF (do_kpoints) THEN
+            CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s_kp)
+            CPASSERT(ASSOCIATED(matrix_s_kp))
+            sm_s => matrix_s_kp(1, 1)%matrix
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            CPASSERT(ASSOCIATED(matrix_s))
+            sm_s => matrix_s(1)%matrix
+         END IF
       END IF
 
       ! Get density matrices in sparse format
 
-      CALL qs_rho_get(rho, rho_ao=matrix_p)
+      IF (do_kpoints) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p_kp)
+      ELSE
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+      END IF
 
       energy%dft_plus_u = 0.0_dp
 
@@ -1008,8 +1038,11 @@ CONTAINS
          END IF
 
          ! Get density matrix for spin ispin in sparse format
-
-         sm_p => matrix_p(ispin)%matrix
+         IF (do_kpoints) THEN
+            sm_p => matrix_p_kp(ispin, 1)%matrix
+         ELSE
+            sm_p => matrix_p(ispin)%matrix
+         END IF
 
          IF (.NOT. ASSOCIATED(sm_q)) THEN
             ALLOCATE (sm_q)
@@ -1538,7 +1571,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
-      LOGICAL                                            :: dft_plus_u_atom, found, just_energy
+      LOGICAL                                            :: dft_plus_u_atom, do_kpoints, found, &
+                                                            just_energy
       REAL(KIND=dp)                                      :: eps_u_ramping, fspin, q, u_minus_j, &
                                                             u_minus_j_target, u_ramping, v
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dEdq, trps
@@ -1547,6 +1581,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p_kp, matrix_s_kp
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -1567,6 +1602,8 @@ CONTAINS
       NULLIFY (h_block)
       NULLIFY (matrix_p)
       NULLIFY (matrix_s)
+      NULLIFY (matrix_p_kp)
+      NULLIFY (matrix_s_kp)
       NULLIFY (l)
       NULLIFY (last_sgf)
       NULLIFY (nshell)
@@ -1588,7 +1625,8 @@ CONTAINS
                       energy=energy, &
                       particle_set=particle_set, &
                       rho=rho, &
-                      para_env=para_env)
+                      para_env=para_env, &
+                      do_kpoints=do_kpoints)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
       CPASSERT(ASSOCIATED(dft_control))
@@ -1600,15 +1638,23 @@ CONTAINS
          NULLIFY (sm_s)
       ELSE
          ! Get overlap matrix in sparse format
-         CALL get_qs_env(qs_env=qs_env, &
-                         matrix_s=matrix_s)
-         CPASSERT(ASSOCIATED(matrix_s))
-         sm_s => matrix_s(1)%matrix
+         IF (do_kpoints) THEN
+            CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s_kp)
+            CPASSERT(ASSOCIATED(matrix_s_kp))
+            sm_s => matrix_s_kp(1, 1)%matrix
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            CPASSERT(ASSOCIATED(matrix_s))
+            sm_s => matrix_s(1)%matrix
+         END IF
       END IF
 
       ! Get density matrices in sparse format
-
-      CALL qs_rho_get(rho, rho_ao=matrix_p)
+      IF (do_kpoints) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p_kp)
+      ELSE
+         CALL qs_rho_get(rho, rho_ao=matrix_p)
+      END IF
 
       energy%dft_plus_u = 0.0_dp
 
@@ -1664,7 +1710,12 @@ CONTAINS
             NULLIFY (sm_w)
          END IF
 
-         sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+         ! Density matrix for spin ispin in sparse format
+         IF (do_kpoints) THEN
+            sm_p => matrix_p_kp(ispin, 1)%matrix
+         ELSE
+            sm_p => matrix_p(ispin)%matrix
+         END IF
 
          ! Calculate Trace(P*S) assuming symmetric matrices
 
