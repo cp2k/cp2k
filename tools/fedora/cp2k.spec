@@ -125,7 +125,6 @@ developing applications that use %{name}.
 %prep
 %autosetup -p1
 rm tools/build_utils/fypp
-rm -r exts/dbcsr
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
@@ -149,6 +148,7 @@ for mpi in '' mpich openmpi; do
     module load mpi/${mpi}-%{_arch}
     cmake_mpi_args=(
       "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib64"
       "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
       "-DCP2K_USE_MPI:BOOL=ON"
