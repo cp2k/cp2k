@@ -112,9 +112,9 @@ MODULE negf_env_types
       !> energy of the HOMO
       REAL(kind=dp)                                      :: homo_energy = -1.0_dp
       !> number of electrons Sp(rho_00,s_00)
-      REAL(kind=dp)                                      :: nelectrons_qs_cell0
+      REAL(kind=dp)                                      :: nelectrons_qs_cell0 = 0.0_dp
       !> number of electrons Sp(rho_01,s_01)
-      REAL(kind=dp)                                      :: nelectrons_qs_cell1
+      REAL(kind=dp)                                      :: nelectrons_qs_cell1 = 0.0_dp
       !> diagonal (h_00) and off-diagonal (h_01) blocks of the contact Kohn-Sham matrix ([number_of_spins]).
       !> The matrix h_01 is of the shape [nao_cell0 x nao_cell1]
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: h_00, h_01
@@ -147,9 +147,9 @@ MODULE negf_env_types
       !> density mixing method
       INTEGER                                           :: mixing_method = -1
       !> number of electrons Sp(rho_s,s_s)
-      REAL(kind=dp)                                     :: nelectrons_ref
+      REAL(kind=dp)                                     :: nelectrons_ref = 0.0_dp
       !> number of electrons Sp(rho_s,s_s)
-      REAL(kind=dp)                                     :: nelectrons
+      REAL(kind=dp)                                     :: nelectrons = 0.0_dp
    END TYPE negf_env_type
 
 ! **************************************************************************************************

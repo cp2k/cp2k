@@ -3722,7 +3722,7 @@ CONTAINS
       ALLOCATE (dipole(nspin, num_copy, 3, nao, nao), source=z_zero)
       IF (calc_bc) ALLOCATE (berry_c(nspin, num_copy, 3, nao), source=0.0_dp)
 
-!$OMP PARALLEL PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
 !$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
 !$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, &
 !$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, calc_bc)
