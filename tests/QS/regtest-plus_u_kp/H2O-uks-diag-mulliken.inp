@@ -1,0 +1,103 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT H2O-uks-diag
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+  &GEO_OPT
+    MAX_ITER 2
+    OPTIMIZER BFGS
+  &END GEO_OPT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    LSD
+    MULTIPLICITY 1
+    PLUS_U_METHOD mulliken
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &KPOINTS
+      SCHEME MONKHORST-PACK 3 3 3
+    &END KPOINTS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &DFT_CONTROL_PARAMETERS
+      &END DFT_CONTROL_PARAMETERS
+      &MO
+        EIGENVALUES
+        NDIGITS 12
+        RANGE 2 12
+        &EACH
+          QS_SCF 5
+        &END EACH
+      &END MO
+      &PLUS_U
+        &EACH
+          QS_SCF 1
+        &END EACH
+      &END PLUS_U
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      ADDED_MOS 8 2
+      EPS_SCF 1.0E-5
+      MAX_SCF 30
+      SCF_GUESS atomic
+      &OT off
+        MINIMIZER CG
+      &END OT
+      &OUTER_SCF off
+        EPS_SCF 1.0E-5
+        MAX_SCF 10
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          ADD_LAST NUMERIC
+          BACKUP_COPIES 0
+          FILENAME =RESTART-uks-diag-mulliken
+          &EACH
+            GEO_OPT 1
+            QS_SCF 30
+          &END EACH
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &COORD
+      O  0.000   0.000   -0.111
+      H  0.000  -0.744    0.495
+      H  0.000   0.744    0.495
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q6
+      &DFT_PLUS_U
+        L 1
+        U_MINUS_J 0.08
+      &END DFT_PLUS_U
+    &END KIND
+    &PRINT
+      &KINDS
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL
