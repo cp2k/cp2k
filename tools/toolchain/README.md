@@ -17,9 +17,9 @@ If you are new to CP2K, and want a basic CP2K binary, then just calling
 > ./install_cp2k_toolchain.sh
 ```
 
-may be enough. This will use your system gcc, and mpi library (if existing) and build libint, libxc,
-fftw and openblas (MKL will be used instead if MKLROOT env variable is found) from scratch, and give
-you a set of arch files that allow you to compile CP2K.
+may be enough. This will use your system GCC and MPI library (if existing), and build libint, libxc,
+FFTW and OpenBLAS (MKL will be used instead if `MKLROOT` env variable is found) from scratch, and
+then provide instructions on how to compile CP2K using the tools provided by toolchain.
 
 ## Complete toolchain build
 
@@ -43,7 +43,7 @@ scratch.
 
 ### MPI implementation choice
 
-If you do not have a MPI installation, by default the `--install-all` option will install MPICH for
+If you do not have an MPI installation, by default the `--install-all` option will install MPICH for
 you. You can change this default behavior by setting `--mpi-mode` after the `--install-all` option.
 
 ## Trouble Shooting
@@ -54,26 +54,26 @@ Below are solutions to some of the common problems you may encounter when runnin
 
 Look at the error message. If it does not indicate the reason for failure then it is likely that
 some error occurred during compilation of the package. You can look at the compiler log in the file
-make.log in the source directory of the package in `./build`.
+`make.log` in the source directory of the package in `./build`.
 
 One of the causes on some systems may be the fact that too many parallel make processes were
 initiated. By default the script tries to use all of the processors on you node. You can override
-this behavior using `-j` option.
+this behavior using `-j N` option, where `N` specifies the number of processors to use.
 
 ### The script failed at a tarball downloading stage
 
 Try run again with `--no-check-certificate` option. See the help section for this option for
 details.
 
-### I've used --with-XYZ=system cannot find the XYZ library
+### I've used `--with-XYZ=system` but the XYZ library cannot be found
 
 The installation script in "system" mode will try to find a library in the following system PATHS:
-`LD_LIBRARY_PATH`, `LD_RUN_PATH`, `LIBRARY_PATH`, `/usr/local/lib64`, `/usr/local/lib`,
-`/usr/lib64`, `/usr/lib`.
+`LD_LIBRARY_PATH`, `LD_RUN_PATH`, `LIBRARY_PATH`, `/usr/local/lib64`, `/usr/local/lib`, `/usr/lib`,
+`/usr/lib64`, and if using Ubuntu, `/usr/lib/x86_64-linux-gnu` or `/usr/lib/aarch-linux-gnu`.
 
-For MKL libraries, the installation script will try to look for MKLROOT environment variable.
+For MKL libraries, the installation script will try to look for `MKLROOT` environment variable.
 
-You can use:
+If you are using environment modules, you can use:
 
 ```shell
 > module show XYZ
@@ -89,8 +89,8 @@ for the library.
 
 ## Licenses
 
-The toolchain only downloads and installs packages that are
-[compatible with the GPL](https://www.gnu.org/licenses/gpl-faq.html#WhatDoesCompatMean). The
+__The toolchain only downloads and installs packages that are__
+__[compatible with the GPL](https://www.gnu.org/licenses/gpl-faq.html#WhatDoesCompatMean).__ The
 following table list the licenses of all those packages. While the toolchain does support linking
 proprietary software packages, like e.g. MKL, these have to be installed separately by the user.
 
