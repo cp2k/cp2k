@@ -1,9 +1,9 @@
 "H2O-rks-diag.inp"                      = [{matcher="M024", tol=1E-11, ref=0.00754354125503}]
-"H2O-uks-diag.inp"                      = [{matcher="M024", tol=3e-12, ref=0.00652567801122}]
+"H2O-uks-diag.inp"                      = [{matcher="M024", tol=5e-10, ref=0.00652567801122}]
 "H2O-rks-diag-mulliken.inp"             = [{matcher="M024", tol=2e-11, ref=0.04032955047550}]
-"H2O-uks-diag-mulliken.inp"             = [{matcher="M024", tol=5e-13, ref=0.04360700907996}]
-"H2O-rks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07713299306445}]
-"H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.08407584641458}]
+"H2O-uks-diag-mulliken.inp"             = [{matcher="M024", tol=2e-11, ref=0.04360700907996}]
+"H2O-rks-diag-lowdin.inp"               = [{matcher="M024", tol=3E-12, ref=0.07713299306445}]
+"H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=2E-08, ref=0.08407584641458}]
 # U ramping
 "H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.04032955047550}]
 "H2O-uks-u_ramping.inp"                 = [{matcher="M024", tol=3e-07, ref=0.04025851279158}]

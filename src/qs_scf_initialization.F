@@ -1094,12 +1094,12 @@ CONTAINS
 
       ! DFT+U methods based on Lowdin charges need S^(1/2)
       IF (dft_control%dft_plus_u) THEN
+         IF (do_kpoints) THEN
+            CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp)
+         ELSE
+            CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         END IF
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
-            IF (do_kpoints) THEN
-               CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp)
-            ELSE
-               CALL get_qs_env(qs_env, matrix_s=matrix_s)
-            END IF
             IF (s_minus_half_available) THEN
                IF (do_kpoints) THEN
                   CALL cp_dbcsr_sm_fm_multiply(matrix_s_kp(1, 1)%matrix, scf_env%ortho, &
