@@ -621,9 +621,9 @@ esac
 
 # Perform CUDA GPU related settings
 if ((CUDA_ARCH > 0)); then
-  # Check if the selected CUDA arch is valid if the  nvidia-smi command
-  # is available  which usually not the case within a container
+  # Check if the selected CUDA arch is valid when the nvidia-smi command is available
   if command -v nvidia-smi &> /dev/null; then
+    nvidia-smi
     HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | awk '{print 10*$1}')
     if ((CUDA_ARCH > HOST_CUDA_ARCH)); then
       echo "ERROR: The requested CUDA arch (${CUDA_ARCH}) is larger than the maximum"
@@ -1137,8 +1137,10 @@ fi
 # Cut extension from the CP2K version (e.g. ssmp-static -> ssmp)
 export VERSION=${CP2K_VERSION%%-*}
 
+# Add CP2K lib folder to library search path
+LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+
 # Retrieve paths to "hidden" libraries
-export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
 if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
   echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
@@ -1146,7 +1148,6 @@ if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot fou
   echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
   # Assemble all search paths for libraries
   SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
-  ((CUDA_ARCH > 0)) && SEARCH_PATHS+=" /usr/local/cuda"
   # Search for missing libraries
   for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
     # shellcheck disable=SC2086
@@ -1168,10 +1169,9 @@ if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot fou
     echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
     echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
   else
-    echo -e "\n*** The update of the LD_LIBRARY_PATH was NOT successful"
+    echo -e "\n*** WARNING: The update of the LD_LIBRARY_PATH was NOT successful"
     echo -e "\n*** The following libraries were NOT found:"
     ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | sort | uniq
-    ${EXIT_CMD}
   fi
 fi
 export LD_LIBRARY_PATH
@@ -1215,7 +1215,7 @@ cat << *** > "${LAUNCH_SCRIPT}"
 #!/bin/bash
 ulimit -c 0 -s unlimited
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
-export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-8}
 export OMP_STACKSIZE=64M
 ${OMPI_VARS}
