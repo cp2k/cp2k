@@ -1652,6 +1652,21 @@ set(CP2K_GPU_DFLAGS
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 
+# Intel oneAPI workarounds for known compiler optimization bugs
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+  set_source_files_properties(
+    ${CMAKE_CURRENT_BINARY_DIR}/hfxbase/hfx_contraction_methods.F
+    PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    set_source_files_properties(
+      ${CMAKE_CURRENT_BINARY_DIR}/aobasis/paw_basis_types.F
+      ${CMAKE_CURRENT_BINARY_DIR}/mp2_optimize_ri_basis.F
+      PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O1")
+    set_source_files_properties(grid/dgemm/grid_dgemm_prepare_pab.c
+                                PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -O2")
+  endif()
+endif()
+
 # set the __SHORT_FILE__ per file for CP2K sources
 foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
   # add_fypp_sources returns a path in the current binary dir
@@ -1862,18 +1877,30 @@ set_target_properties(
   cp2k-bin
   PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
              POSITION_INDEPENDENT_CODE ON
-             LINKER_LANGUAGE "CXX"
+             LINKER_LANGUAGE "Fortran"
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
 
+target_link_libraries(cp2k-bin PRIVATE stdc++)
 target_link_libraries(cp2k-bin PUBLIC cp2k)
 
 foreach(_app ${__CP2K_APPS})
-  set_target_properties(
-    ${_app}
-    PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-               POSITION_INDEPENDENT_CODE ON
-               LINKER_LANGUAGE "CXX"
-               OUTPUT_NAME "${_app}.${__cp2k_ext}")
+  # libcp2k_unittest is a C main program; keep linking it with CXX
+  if(_app STREQUAL "libcp2k_unittest")
+    set_target_properties(
+      ${_app}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+                 POSITION_INDEPENDENT_CODE ON
+                 LINKER_LANGUAGE "CXX"
+                 OUTPUT_NAME "${_app}.${__cp2k_ext}")
+  else()
+    set_target_properties(
+      ${_app}
+      PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+                 POSITION_INDEPENDENT_CODE ON
+                 LINKER_LANGUAGE "Fortran"
+                 OUTPUT_NAME "${_app}.${__cp2k_ext}")
+    target_link_libraries(${_app} PRIVATE stdc++)
+  endif()
 
   if(CP2K_USE_ACCEL MATCHES HIP)
     set_property(TARGET ${_app} PROPERTY HIP_ARCHITECTURES

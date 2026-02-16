@@ -1157,7 +1157,7 @@ CONTAINS
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
-      doc = doc//"A functional form is specified. Mathematical Operators recognized are "
+      doc = "A functional form is specified. Mathematical Operators recognized are "
       DO i = cAdd, cPow
          IF (i > cAdd) doc = doc//", "
          doc = doc//Ops(i)
