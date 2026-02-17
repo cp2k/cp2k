@@ -45,7 +45,7 @@ def shfmt():
 # ======================================================================================
 @app.route("/shellcheck", methods=["POST"])
 def shellcheck():
-    return run_tool(["shellcheck"])
+    return run_tool(["shellcheck"], timeout=10)
 
 
 # ======================================================================================
