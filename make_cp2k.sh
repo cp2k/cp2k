@@ -117,10 +117,12 @@ else
 fi
 
 # Check if the python3 version is new enough for spack
-if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 9)))'; then
-  echo "ERROR: Python version is NOT >= 3.9 (needed for Spack)"
+if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 10)))'; then
+  echo "ERROR: Python version is NOT >= 3.10 (needed for Spack)"
   echo "       Found only $(python3 -V)"
   ${EXIT_CMD} 1
+else
+  echo "INFO: Found $(python3 -V)"
 fi
 
 # Default values
@@ -891,7 +893,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Find all external packages
   if [[ "${USE_EXTERNALS}" == "yes" ]]; then
-    if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find --not-buildable; then
+    if ! spack -C "${SPACK_USER_CONFIG_PATH}" external find; then
       echo -e "\nERROR: The detection of externals by spack failed"
       ${EXIT_CMD} 1
     fi
