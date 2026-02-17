@@ -15,7 +15,6 @@ RUN dnf -qy install \
     git \
     libtool \
     make \
-    ninja-build \
     patch \
     perl-core \
     pkg-config \
