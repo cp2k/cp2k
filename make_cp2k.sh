@@ -142,8 +142,8 @@ HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 MPI_MODE="mpich"
-if command -v nproc &> /dev/null; then
-  MAX_PROCS=$(nproc)
+if command -v lscpu &> /dev/null; then
+  MAX_PROCS="$(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l)"
   NUM_PROCS=${NUM_PROCS:-${MAX_PROCS}}
 else
   MAX_PROCS=-1
@@ -227,26 +227,19 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
             ;;
-          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | \
-            libint2 | libvdwxc | libxc | libxsmm | mimic_mcl | openpmd | pexsi | \
-            plumed | sirius | smeagol | spfft | spglib | spla | tblite | trexio | vori)
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 | \
+            libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | \
+            spglib | tblite | trexio | vori)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             # Translate package selection to sed pattern
             case "${2,,}" in
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | libvdwxc | spfft | spla | sirius)
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"cosma@/ ${SUBST}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"libvdwxc@/ ${SUBST}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"spfft@/ ${SUBST}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"spla@/ ${SUBST}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"sirius@/ ${SUBST}"
-                ;;
-              dftd4 | elpa | greenx | hdf5 | libxc | pexsi | plumed | spglib | tblite | trexio)
+              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | tblite | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
-              deepmd)
+              deepmd | libtorch)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}kit@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
                 ;;
@@ -265,17 +258,27 @@ while [[ $# -gt 0 ]]; do
                   SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=${2,,}\"/ s/${2,,}/blas/'"
                 fi
                 ;;
-              mimic_mcl)
+              mimic)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"mimic-mcl@/ ${SUBST}"
                 ;;
               openpmd | adios2)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"adios2@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"openpmd-api@/ ${SUBST}"
                 ;;
-              smeagol | vori)
+              vori)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"lib${2,,}@/ ${SUBST}"
                 ;;
             esac
+            ;;
+          libvdwxc | spfft | spla | sirius)
+            echo "WARNING: You've enabled or disabled one of libvdwxc/spfft/spla/sirius, so"
+            echo "         the rest packages of them will also be enabled or disabled!"
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBVDWXC=${ON_OFF} -DCP2K_USE_SpFFT=${ON_OFF}"
+            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SPLA=${ON_OFF} -DCP2K_USE_SIRIUS=${ON_OFF}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"libvdwxc@/ ${SUBST}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"spfft@/ ${SUBST}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"spla@/ ${SUBST}"
+            SED_PATTERN_LIST+=" -e '/\s*-\s+\"sirius@/ ${SUBST}"
             ;;
           cray_pm_accel_energy | cusolver_mp | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
@@ -506,9 +509,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_type         : Set preferred CMake build type (default: \"Release\")"
   echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
   echo " -cray                : Use Cray specific spack configuration"
-  echo " --disable_feature    : Disable feature or package"
-  echo " --disable_local_cache: CP2K version to be built (default: \"psmp\")"
+  echo " --disable_local_cache: Don't add local Spack cache"
   echo " --enable_feature     : Enable feature or package (default: all)"
+  echo " --disable_feature    : Disable feature or package"
   echo " --help               : Print this help information"
   echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model          : Select GPU model (default: none)"
@@ -530,8 +533,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
   echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 |"
-  echo "          libvdwcx | libxsmm | mimic_mcl | openpmd | pexsi | plumed | sirius | smeagol | spfft |"
-  echo "          spglib | spla | tblite | trexio | vori"
+  echo "          libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed | sirius |"
+  echo "          spfft | spglib | spla | tblite | trexio | vori "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"
@@ -1125,6 +1128,10 @@ if ((EXIT_CODE != 0)); then
   echo -e "\nERROR: The CMake installation step failed with the error code ${EXIT_CODE}"
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
+
+# Clean cached files in build directory after installation
+echo -e '\n*** Cleaning cached files in build directory after installation ***\n'
+cmake --build "${CMAKE_BUILD_PATH}" --target clean > /dev/null 2>&1
 
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
