@@ -761,7 +761,7 @@ CONTAINS
       END IF
 
       IF (dft_control%restricted) THEN
-         !For ROKS usefull only first term
+         !For ROKS useful only first term
          nspins = 1
       ELSE
          nspins = dft_control%nspins

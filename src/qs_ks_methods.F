@@ -1060,7 +1060,7 @@ CONTAINS
             CPASSERT(SIZE(mo_array) == 2)
             ! use a temporary array with the same size as the first spin for the second spin
 
-            ! uniform_occupation is needed for this case, otherwise we can no
+            ! uniform_occupation is needed for this case, otherwise we can not
             ! reconstruct things in ot, since we irreversibly sum
             CALL get_mo_set(mo_set=mo_array(1), uniform_occupation=uniform_occupation)
             CPASSERT(uniform_occupation)
@@ -1068,7 +1068,7 @@ CONTAINS
             CPASSERT(uniform_occupation)
 
             ! The beta-spin might have fewer orbitals than alpa-spin...
-            ! create tempoary matrices with beta_nmo columns
+            ! create temporary matrices with beta_nmo columns
             CALL get_mo_set(mo_set=mo_array(2), mo_coeff_b=mo_coeff_b)
             CALL dbcsr_create(mo_derivs2_tmp1, template=mo_coeff_b)
 
