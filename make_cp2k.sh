@@ -816,10 +816,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Apply feature selection to spack configuration file
-  eval sed -E "${SED_PATTERN_LIST}" -i "${CP2K_CONFIG_FILE}"
+  if [[ -n "${SED_PATTERN_LIST}" ]]; then
+    eval sed -E "${SED_PATTERN_LIST}" -i "${CP2K_CONFIG_FILE}"
+  fi
 
   # Find all compilers
-  if ! spack compiler find; then
+  if ! spack compiler find &> /dev/null; then
     echo "ERROR: The compiler detection of spack failed"
     ${EXIT_CMD} 1
   fi
@@ -827,7 +829,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Retrieve the newest compiler version found by spack
   GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
   echo "The newest GCC compiler version found by spack is ${GCC_VERSION_NEWEST}"
-  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
+  GCC_VERSION_NEWEST="$(echo "${GCC_VERSION_NEWEST}" | sed -E -e 's/.*@([0-9]+).*/\1/' | cut -d. -f1)"
 
   # Check if the newest compiler version found on the host system is new enough
   GCC_VERSION_MINIMUM="10"
