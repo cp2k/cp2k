@@ -116,6 +116,17 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_psmp-rockylinux", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                base_image="rockylinux:9.3",
+                gcc_version=11,
+                feature_flags="-df libxsmm -ef openpmd",
+            )
+        )
+
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
         testopts = f"--mpiranks=4 --ompthreads=2"
         f.write(
@@ -661,6 +672,9 @@ def install_cp2k_spack(
         gcc_compilers = "g++ gcc gfortran"
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
+    elif "rockylinux" in base_image:
+        # Rockylinux provides only GCC 11
+        gcc_compilers = f"gcc gcc-c++ gcc-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
     # Static CP2K builds use the GCC compiler built with spack
@@ -747,7 +761,6 @@ RUN dnf -qy install \
     git \
     libtool \
     make \
-    ninja-build \
     patch \
     perl-core \
     pkg-config \
@@ -786,6 +799,29 @@ RUN zypper --non-interactive --quiet ref && \
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
+        elif "rockylinux" in base_image:
+            output += rf"""
+RUN dnf -y install dnf-plugins-core && \
+    dnf --enablerepo=crb -qy install \
+    bzip2 \
+    cmake \
+    {gcc_compilers} \
+    git \
+    libtool \
+    openssl-devel \
+    patch \
+    python3.11 \
+    python3.11-devel \
+    python3.11-pip \
+    unzip \
+    wget \
+    xz \
+    zlib-devel \
+    zlib-static \
+    && dnf clean -q all
+
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
+"""
         elif "ubuntu" in base_image:
             output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -801,7 +837,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libtool-bin \
     lsb-release \
     make \
-    ninja-build \
     patch \
     pkgconf \
     python3 \
@@ -849,6 +884,17 @@ RUN zypper --non-interactive --quiet ref && \
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
+"""
+        elif "rockylinux" in base_image:
+            output += rf"""
+RUN dnf -y install dnf-plugins-core && \
+    dnf --enablerepo=crb -qy install \
+    {gcc_compilers} \
+    python3.11 \
+    python3.11-pip \
+    && dnf clean -q all
+
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 """
         elif "ubuntu" in base_image:
             output += rf"""
