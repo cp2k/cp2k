@@ -107,10 +107,6 @@ foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
   endif()
 endforeach()
 
-set(CMAKE_INSTALL_LIBDIR
-    "lib"
-    CACHE PATH "Default installation directory for libraries")
-
 # =================================================================================================
 # OPTIONS
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
