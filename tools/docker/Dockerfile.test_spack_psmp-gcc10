@@ -22,7 +22,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libtool-bin \
     lsb-release \
     make \
-    ninja-build \
     patch \
     pkgconf \
     python3 \
