@@ -10,6 +10,8 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 ## 2. Install prerequisites
 
+### Method 1: Spack
+
 The easiest way to build CP2K with all its dependencies is via the `make_cp2k.sh` script, which
 builds CP2K using Spack and CMake locally within the CP2K_ROOT folder.
 
@@ -27,6 +29,8 @@ or run in a subshell with:
 
 Note: it is recommended to install podman to take advantage of a spack cache. This will accelerate
 the build of the CP2K dependencies with Spack significantly.
+
+### Method 2: Toolchain
 
 Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh) can also be run
 directly.
@@ -50,14 +54,14 @@ a range of devices). If you wish to build with GPU support, please see the
 
 ```shell
 ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
-     --with-fftw=system --with-reflapack=no  --enable-cuda
+     --with-fftw=system  --enable-cuda
 ```
 
 - For AMD/ROCm/HIP support, use:
 
 ```shell
 ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
-     --with-fftw=system --with-reflapack=no  --enable-hip
+     --with-fftw=system  --enable-hip
 ```
 
 ## 3. Compile

@@ -114,7 +114,6 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 | openblas  | [BSD 3-Clause](https://github.com/xianyi/OpenBLAS/blob/develop/LICENSE)            | Yes                                                                              |
 | openmpi   | [BSD 3-Clause](https://github.com/open-mpi/ompi/blob/master/LICENSE)               | Yes                                                                              |
 | plumed    | [LGPL](https://github.com/plumed/plumed2/blob/master/COPYING.LESSER)               | Yes                                                                              |
-| reflapack | [BSD 3-Clause](http://www.netlib.org/lapack/LICENSE.txt)                           | Yes                                                                              |
 | scalapack | [BSD 3-Clause](http://www.netlib.org/scalapack/LICENSE)                            | Yes                                                                              |
 | sirius    | [BSD 2-Clause](https://github.com/electronic-structure/SIRIUS/blob/master/LICENSE) | Yes                                                                              |
 | spfft     | [BSD 3-Clause](https://github.com/eth-cscs/SpFFT/blob/master/LICENSE)              | Yes                                                                              |
@@ -152,13 +151,6 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 - `script/parse_if.py` is a python code for parsing the `IF_XYZ(A|B)` constructs in the script.
   Nested structures will be parsed correctly. See
   [`IF_XYZ` constructs](./README_FOR_DEVELOPERS.md#the-if_xyz-constructs) below.
-
-- `checksums.sha256` contains the pre-calculated SHA256 checksums for the tar balls of all of the
-  packages. This is used by the `download_pkg` macro in `script/toolkit.sh`.
-
-- `arch_base.tmpl` contains the template skeleton structure for the arch files. The
-  `install_cp2k_toolchain` script will set all the variables used in the template file, and then do
-  an eval to expand all of `${VARIABLE}` items in `arch_base.tmpl` to give the cp2k arch files.
 
 ### `enable-FEATURE` options
 
