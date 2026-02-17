@@ -1041,6 +1041,17 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! K-point MO wavefunction dump for post-processing
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_KP", &
+                                       description="Write k-point resolved MO coefficients, "// &
+                                       "overlap matrices, eigenvalues and occupations to a "// &
+                                       "text file (.mokp) for post-processing (PDOS, etc.). "// &
+                                       "Only effective for k-point calculations.", &
+                                       print_level=debug_print_level + 1, &
+                                       add_last=add_last_numeric, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL create_pdos_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

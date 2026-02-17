@@ -87,6 +87,7 @@ MODULE qs_scf_post_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_mo_dump,                  ONLY: write_kpoint_mo_data
    USE kpoint_types,                    ONLY: kpoint_type
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
@@ -2024,8 +2025,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
+      CHARACTER(len=512)                                 :: msg
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
-      LOGICAL                                            :: all_equal, do_kpoints, explicit
+      LOGICAL                                            :: all_equal, do_kpoints, explicit, &
+                                                            mokp_already_written
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -2055,6 +2058,8 @@ CONTAINS
                                                             trexio_section
 
 ! TYPE(kpoint_type), POINTER                         :: kpoints
+
+      mokp_already_written = .FALSE.
 
       CALL timeset(routineN, handle)
 
@@ -2107,6 +2112,17 @@ CONTAINS
             END IF
          END IF
 
+         ! K-point MO wavefunction dump
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_KP"), &
+                   cp_p_file)) THEN
+            IF (do_kpoints) THEN
+               CALL write_kpoint_mo_data(qs_env)
+               mokp_already_written = .TRUE.
+            ELSE
+               CPWARN("MO_KP is only available for k-point calculations, ignored for Gamma-only")
+            END IF
+         END IF
+
          ! DOS printout after the SCF cycle is completed
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS") &
                    , cp_p_file)) THEN
@@ -2122,7 +2138,14 @@ CONTAINS
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS"), &
                    cp_p_file)) THEN
             IF (do_kpoints) THEN
-               CPWARN("Projected density of states (pDOS) is not implemented for k points")
+               WRITE (UNIT=msg, FMT="(A)") &
+                  "Projected density of states (PDOS) has not been directly implemented "// &
+                  "for k-points currently. Switching to DFT%PRINT%MO_KP instead, which "// &
+                  "prints *.mokp that can be used for generating PDOS."
+               CPWARN(msg)
+               IF (.NOT. mokp_already_written) THEN
+                  CALL write_kpoint_mo_data(qs_env)
+               END IF
             ELSE
                CALL get_qs_env(qs_env, &
                                mos=mos, &
