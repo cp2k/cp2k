@@ -98,7 +98,7 @@ CONTAINS
    SUBROUTINE plus_u(qs_env, matrix_h, matrix_w)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'plus_u'
@@ -203,7 +203,7 @@ CONTAINS
                      print_level)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -214,7 +214,7 @@ CONTAINS
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
       INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, ishell, ispin, j, &
-         jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, natom_of_kind, nkind, norb, nsb, &
+         jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, natom_of_kind, nimg, nkind, norb, nsb, &
          nsbsize, nset, nsgf, nsgf_kind, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(1)                              :: iloc
@@ -235,7 +235,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -291,7 +291,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, &
                       energy=energy, &
-                      matrix_s=matrix_s, &
+                      matrix_s_kp=matrix_s, &
                       particle_set=particle_set, &
                       rho=rho, &
                       scf_env=scf_env, &
@@ -306,12 +306,16 @@ CONTAINS
       CPASSERT(ASSOCIATED(particle_set))
       CPASSERT(ASSOCIATED(rho))
 
-      sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-      CALL qs_rho_get(rho, rho_ao=matrix_p) ! Density matrices in sparse format
+      sm_s => matrix_s(1, 1)%matrix ! Overlap matrix in sparse format
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
 
       energy%dft_plus_u = 0.0_dp
 
       nspin = dft_control%nspins
+      nimg = dft_control%nimages
+      IF (nimg /= 1) THEN
+         CPABORT("Lowdin option with k-points NYA in DFT+U")
+      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -396,19 +400,19 @@ CONTAINS
 
          IF (PRESENT(matrix_h)) THEN
             ! Hamiltonian matrix for spin ispin in sparse format
-            sm_h => matrix_h(ispin)%matrix
+            sm_h => matrix_h(ispin, 1)%matrix
          ELSE
             NULLIFY (sm_h)
          END IF
 
          IF (PRESENT(matrix_w)) THEN
             ! Energy weighted density matrix for spin ispin in sparse format
-            sm_w => matrix_w(ispin)%matrix
+            sm_w => matrix_w(ispin, 1)%matrix
          ELSE
             NULLIFY (sm_w)
          END IF
 
-         sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+         sm_p => matrix_p(ispin, 1)%matrix ! Density matrix for spin ispin in sparse format
 
          CALL dbcsr_set(sm_q, 0.0_dp)
          CALL dbcsr_set(sm_v, 0.0_dp)
@@ -864,7 +868,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: orthonormal_basis
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -874,8 +878,8 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
-      INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, ishell, ispin, j, &
-         jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, natom_of_kind, nkind, norb, nsb, &
+      INTEGER :: atom_a, handle, i, i0, iatom, ic, ikind, iorb, isb, iset, isgf, ishell, ispin, j, &
+         jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, natom_of_kind, nimg, nkind, norb, nsb, &
          nsbsize, nset, nsgf_kind, nspin
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
@@ -893,7 +897,7 @@ CONTAINS
                                                             v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: kind_a
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -960,14 +964,14 @@ CONTAINS
       ELSE
          ! Get overlap matrix in sparse format
          CALL get_qs_env(qs_env=qs_env, &
-                         matrix_s=matrix_s)
+                         matrix_s_kp=matrix_s)
          CPASSERT(ASSOCIATED(matrix_s))
-         sm_s => matrix_s(1)%matrix
       END IF
+      nimg = dft_control%nimages
 
       ! Get density matrices in sparse format
 
-      CALL qs_rho_get(rho, rho_ao=matrix_p)
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
       energy%dft_plus_u = 0.0_dp
 
@@ -997,302 +1001,197 @@ CONTAINS
       END IF
 
       ! Loop over all spins
-
       DO ispin = 1, nspin
 
-         IF (PRESENT(matrix_h)) THEN
-            ! Hamiltonian matrix for spin ispin in sparse format
-            sm_h => matrix_h(ispin)%matrix
-         ELSE
-            NULLIFY (sm_h)
-         END IF
+         ! Loop over cell images
+         DO ic = 1, nimg
+            IF (.NOT. orthonormal_basis) THEN
+               sm_s => matrix_s(1, ic)%matrix
+            END IF
 
-         ! Get density matrix for spin ispin in sparse format
-
-         sm_p => matrix_p(ispin)%matrix
-
-         IF (.NOT. ASSOCIATED(sm_q)) THEN
-            ALLOCATE (sm_q)
-            CALL dbcsr_get_block_diag(sm_p, sm_q)
-         END IF
-         CALL dbcsr_set(sm_q, 0.0_dp)
-
-         IF (.NOT. ASSOCIATED(sm_v)) THEN
-            ALLOCATE (sm_v)
-            CALL dbcsr_get_block_diag(sm_p, sm_v)
-         END IF
-         CALL dbcsr_set(sm_v, 0.0_dp)
-
-         DO iatom = 1, natom
-
-            CALL dbcsr_get_block_p(matrix=sm_p, &
-                                   row=iatom, &
-                                   col=iatom, &
-                                   block=p_block, &
-                                   found=found)
-
-            IF (.NOT. ASSOCIATED(p_block)) CYCLE
-
-            CALL dbcsr_get_block_p(matrix=sm_q, &
-                                   row=iatom, &
-                                   col=iatom, &
-                                   block=q_block, &
-                                   found=found)
-            CPASSERT(ASSOCIATED(q_block))
-
-            IF (orthonormal_basis) THEN
-               ! S is the unit matrix
-               DO isgf = 1, SIZE(q_block, 1)
-                  q_block(isgf, isgf) = p_block(isgf, isgf)
-               END DO
+            IF (PRESENT(matrix_h)) THEN
+               ! Hamiltonian matrix for spin ispin in sparse format
+               sm_h => matrix_h(ispin, ic)%matrix
             ELSE
-               CALL dbcsr_get_block_p(matrix=sm_s, &
+               NULLIFY (sm_h)
+            END IF
+
+            ! Get density matrix for spin ispin in sparse format
+
+            sm_p => matrix_p(ispin, ic)%matrix
+
+            IF (.NOT. ASSOCIATED(sm_q)) THEN
+               ALLOCATE (sm_q)
+               CALL dbcsr_get_block_diag(sm_p, sm_q)
+            END IF
+            CALL dbcsr_set(sm_q, 0.0_dp)
+
+            IF (.NOT. ASSOCIATED(sm_v)) THEN
+               ALLOCATE (sm_v)
+               CALL dbcsr_get_block_diag(sm_p, sm_v)
+            END IF
+            CALL dbcsr_set(sm_v, 0.0_dp)
+
+            DO iatom = 1, natom
+
+               CALL dbcsr_get_block_p(matrix=sm_p, &
                                       row=iatom, &
                                       col=iatom, &
-                                      block=s_block, &
+                                      block=p_block, &
                                       found=found)
-               CPASSERT(ASSOCIATED(s_block))
-               ! Exploit that P and S are symmetric
-               DO jsgf = 1, SIZE(p_block, 2)
-                  DO isgf = 1, SIZE(p_block, 1)
-                     q_block(isgf, jsgf) = p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                  END DO
-               END DO
-            END IF ! orthonormal basis set
 
-         END DO ! next atom "iatom"
-
-         ! E[DFT+U] = E[DFT] + E[U]
-         !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
-
-         ! V(i,j)[DFT+U] = V(i,j)[DFT] + V(i,j)[U]
-         !               = dE[DFT]/dP(i,j) + dE[U]/dP(i,j)
-         !               = dE[DFT]/dP(i,j) + (dE(U)/dq)*(dq/dP(i,j))
-
-         ! Loop over all atomic kinds
-
-         DO ikind = 1, nkind
-
-            ! Load the required atomic kind data
-
-            CALL get_atomic_kind(atomic_kind_set(ikind), &
-                                 atom_list=atom_list, &
-                                 name=atomic_kind_name, &
-                                 natom=natom_of_kind)
-
-            CALL get_qs_kind(qs_kind_set(ikind), &
-                             dft_plus_u_atom=dft_plus_u_atom, &
-                             l_of_dft_plus_u=lu, &
-                             nsgf=nsgf_kind, &
-                             basis_set=orb_basis_set, &
-                             u_minus_j=u_minus_j, &
-                             u_minus_j_target=u_minus_j_target, &
-                             u_ramping=u_ramping, &
-                             eps_u_ramping=eps_u_ramping, &
-                             nelec=nelec, &
-                             orbitals=orbitals, &
-                             eps_scf=eps_scf, &
-                             max_scf=max_scf, &
-                             smear=smear)
-
-            ! Check, if the atoms of this atomic kind need a DFT+U correction
-
-            IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
-            IF (.NOT. dft_plus_u_atom) CYCLE
-            IF (lu < 0) CYCLE
-
-            ! Apply U ramping if requested
-
-            IF ((ispin == 1) .AND. (u_ramping > 0.0_dp)) THEN
-               IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
-                  u_minus_j = MIN(u_minus_j + u_ramping, u_minus_j_target)
-                  CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
-               END IF
-               IF (should_output .AND. (output_unit > 0)) THEN
-                  WRITE (UNIT=output_unit, FMT="(T3,A,3X,A,F0.3,A)") &
-                     "Kind name: "//TRIM(ADJUSTL(atomic_kind_name)), &
-                     "U(eff) = ", u_minus_j*evolt, " eV"
-               END IF
-            END IF
-
-            IF (u_minus_j == 0.0_dp) CYCLE
-
-            is_plus_u_kind(ikind) = .TRUE.
-
-            ! Load the required Gaussian basis set data
-
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                   first_sgf=first_sgf, &
-                                   l=l, &
-                                   last_sgf=last_sgf, &
-                                   nset=nset, &
-                                   nshell=nshell)
-
-            ! Count the relevant shell blocks of this atomic kind
-
-            nsb = 0
-            DO iset = 1, nset
-               DO ishell = 1, nshell(iset)
-                  IF (l(ishell, iset) == lu) nsb = nsb + 1
-               END DO
-            END DO
-
-            nsbsize = (2*lu + 1)
-            n = nsb*nsbsize
-
-            ALLOCATE (q_matrix(n, n))
-            q_matrix(:, :) = 0.0_dp
-
-            ! Print headline if requested
-
-            IF (should_output .AND. (print_level > low_print_level)) THEN
-               IF (output_unit > 0) THEN
-                  ALLOCATE (symbol(nsbsize))
-                  DO m = -lu, lu
-                     symbol(lu + m + 1) = sgf_symbol(0, lu, m)
-                  END DO
-                  IF (nspin > 1) THEN
-                     WRITE (UNIT=spin_info, FMT="(A8,I2)") " of spin", ispin
-                  ELSE
-                     spin_info = ""
-                  END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T3,A,I0,A,/,/,T5,A,10(2X,A6))") &
-                     "DFT+U occupations"//TRIM(spin_info)//" for the atoms of atomic kind ", ikind, &
-                     ": "//TRIM(atomic_kind_name), &
-                     "Atom   Shell  ", (ADJUSTR(symbol(i)), i=1, nsbsize), " Trace"
-                  DEALLOCATE (symbol)
-               END IF
-            END IF
-
-            ! Loop over all atoms of the current atomic kind
-
-            DO iatom = 1, natom_of_kind
-
-               atom_a = atom_list(iatom)
-
-               q_matrix(:, :) = 0.0_dp
-
-               ! Get diagonal block
+               IF (.NOT. ASSOCIATED(p_block)) CYCLE
 
                CALL dbcsr_get_block_p(matrix=sm_q, &
-                                      row=atom_a, &
-                                      col=atom_a, &
+                                      row=iatom, &
+                                      col=iatom, &
                                       block=q_block, &
                                       found=found)
+               CPASSERT(ASSOCIATED(q_block))
 
-               ! Calculate energy contribution to E(U)
-
-               IF (ASSOCIATED(q_block)) THEN
-
-                  i = 0
-                  DO iset = 1, nset
-                     DO ishell = 1, nshell(iset)
-                        IF (l(ishell, iset) /= lu) CYCLE
-                        DO isgf = first_sgf(ishell, iset), last_sgf(ishell, iset)
-                           i = i + 1
-                           j = 0
-                           DO jset = 1, nset
-                              DO jshell = 1, nshell(jset)
-                                 IF (l(jshell, jset) /= lu) CYCLE
-                                 DO jsgf = first_sgf(jshell, jset), last_sgf(jshell, jset)
-                                    j = j + 1
-                                    q_matrix(i, j) = q_block(isgf, jsgf)
-                                 END DO ! next contracted spherical Gaussian function "jsgf"
-                              END DO ! next shell "jshell"
-                           END DO ! next shell set "jset"
-                        END DO ! next contracted spherical Gaussian function "isgf"
-                     END DO ! next shell "ishell"
-                  END DO ! next shell set "iset"
-
-                  ! Perform the requested manipulations of the (initial) orbital occupations
-
-                  IF (ASSOCIATED(orbitals)) THEN
-                     IF ((qs_env%scf_env%iter_delta >= eps_scf) .OR. &
-                         ((qs_env%scf_env%outer_scf%iter_count == 0) .AND. &
-                          (qs_env%scf_env%iter_count <= max_scf))) THEN
-                        ALLOCATE (orb_occ(nsbsize))
-                        ALLOCATE (q_eigval(n))
-                        q_eigval(:) = 0.0_dp
-                        ALLOCATE (q_eigvec(n, n))
-                        q_eigvec(:, :) = 0.0_dp
-                        norb = SIZE(orbitals)
-                        CALL jacobi(q_matrix, q_eigval, q_eigvec)
-                        q_matrix(:, :) = 0.0_dp
-                        IF (nelec(ispin) >= 0.5_dp) THEN
-                           trq = nelec(ispin)/SUM(q_eigval(1:n))
-                           q_eigval(1:n) = trq*q_eigval(1:n)
-                        END IF
-                        DO isb = 1, nsb
-                           trq = 0.0_dp
-                           DO i = (isb - 1)*nsbsize + 1, isb*nsbsize
-                              trq = trq + q_eigval(i)
-                           END DO
-                           IF (smear) THEN
-                              occ = trq/REAL(norb, KIND=dp)
-                           ELSE
-                              occ = 1.0_dp/fspin
-                           END IF
-                           orb_occ(:) = .FALSE.
-                           iloc = MAXLOC(q_eigvec(:, isb*nsbsize))
-                           jsb = INT((iloc(1) - 1)/nsbsize) + 1
-                           i = 0
-                           i0 = (jsb - 1)*nsbsize + 1
-                           iorb = -1000
-                           DO j = i0, jsb*nsbsize
-                              i = i + 1
-                              IF (i > norb) THEN
-                                 DO m = -lu, lu
-                                    IF (.NOT. orb_occ(lu + m + 1)) THEN
-                                       iorb = i0 + lu + m
-                                       orb_occ(lu + m + 1) = .TRUE.
-                                    END IF
-                                 END DO
-                              ELSE
-                                 iorb = i0 + lu + orbitals(i)
-                                 orb_occ(lu + orbitals(i) + 1) = .TRUE.
-                              END IF
-                              CPASSERT(iorb /= -1000)
-                              iloc = MAXLOC(q_eigvec(iorb, :))
-                              q_eigval(iloc(1)) = MIN(occ, trq)
-                              q_matrix(:, iloc(1)) = q_eigval(iloc(1))*q_eigvec(:, iloc(1)) ! backtransform left
-                              trq = trq - q_eigval(iloc(1))
-                           END DO
-                        END DO
-                        q_matrix(:, :) = MATMUL(q_matrix, TRANSPOSE(q_eigvec)) ! backtransform right
-                        DEALLOCATE (orb_occ)
-                        DEALLOCATE (q_eigval)
-                        DEALLOCATE (q_eigvec)
-                        occupation_enforced = .TRUE.
-                     END IF
-                  END IF ! orbitals associated
-
-                  trq = 0.0_dp
-                  trq2 = 0.0_dp
-
-                  DO i = 1, n
-                     trq = trq + q_matrix(i, i)
-                     DO j = 1, n
-                        trq2 = trq2 + q_matrix(i, j)*q_matrix(j, i)
+               IF (orthonormal_basis) THEN
+                  ! S is the unit matrix
+                  DO isgf = 1, SIZE(q_block, 1)
+                     q_block(isgf, isgf) = p_block(isgf, isgf)
+                  END DO
+               ELSE
+                  CALL dbcsr_get_block_p(matrix=sm_s, &
+                                         row=iatom, &
+                                         col=iatom, &
+                                         block=s_block, &
+                                         found=found)
+                  CPASSERT(ASSOCIATED(s_block))
+                  ! Exploit that P and S are symmetric
+                  DO jsgf = 1, SIZE(p_block, 2)
+                     DO isgf = 1, SIZE(p_block, 1)
+                        q_block(isgf, jsgf) = p_block(isgf, jsgf)*s_block(isgf, jsgf)
                      END DO
                   END DO
+               END IF ! orthonormal basis set
 
-                  trq = fspin*trq
-                  trq2 = fspin*fspin*trq2
+            END DO ! next atom "iatom"
+
+            ! E[DFT+U] = E[DFT] + E[U]
+            !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
+
+            ! V(i,j)[DFT+U] = V(i,j)[DFT] + V(i,j)[U]
+            !               = dE[DFT]/dP(i,j) + dE[U]/dP(i,j)
+            !               = dE[DFT]/dP(i,j) + (dE(U)/dq)*(dq/dP(i,j))
+
+            ! Loop over all atomic kinds
+
+            DO ikind = 1, nkind
+
+               ! Load the required atomic kind data
+
+               CALL get_atomic_kind(atomic_kind_set(ikind), &
+                                    atom_list=atom_list, &
+                                    name=atomic_kind_name, &
+                                    natom=natom_of_kind)
+
+               CALL get_qs_kind(qs_kind_set(ikind), &
+                                dft_plus_u_atom=dft_plus_u_atom, &
+                                l_of_dft_plus_u=lu, &
+                                nsgf=nsgf_kind, &
+                                basis_set=orb_basis_set, &
+                                u_minus_j=u_minus_j, &
+                                u_minus_j_target=u_minus_j_target, &
+                                u_ramping=u_ramping, &
+                                eps_u_ramping=eps_u_ramping, &
+                                nelec=nelec, &
+                                orbitals=orbitals, &
+                                eps_scf=eps_scf, &
+                                max_scf=max_scf, &
+                                smear=smear)
+
+               ! Check, if the atoms of this atomic kind need a DFT+U correction
+
+               IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
+               IF (.NOT. dft_plus_u_atom) CYCLE
+               IF (lu < 0) CYCLE
+
+               ! Apply U ramping if requested
+
+               IF ((ispin == 1) .AND. (u_ramping > 0.0_dp)) THEN
+                  IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
+                     u_minus_j = MIN(u_minus_j + u_ramping, u_minus_j_target)
+                     CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
+                  END IF
+                  IF (should_output .AND. (output_unit > 0)) THEN
+                     WRITE (UNIT=output_unit, FMT="(T3,A,3X,A,F0.3,A)") &
+                        "Kind name: "//TRIM(ADJUSTL(atomic_kind_name)), &
+                        "U(eff) = ", u_minus_j*evolt, " eV"
+                  END IF
+               END IF
+
+               IF (u_minus_j == 0.0_dp) CYCLE
+
+               is_plus_u_kind(ikind) = .TRUE.
+
+               ! Load the required Gaussian basis set data
+
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                      first_sgf=first_sgf, &
+                                      l=l, &
+                                      last_sgf=last_sgf, &
+                                      nset=nset, &
+                                      nshell=nshell)
+
+               ! Count the relevant shell blocks of this atomic kind
+
+               nsb = 0
+               DO iset = 1, nset
+                  DO ishell = 1, nshell(iset)
+                     IF (l(ishell, iset) == lu) nsb = nsb + 1
+                  END DO
+               END DO
+
+               nsbsize = (2*lu + 1)
+               n = nsb*nsbsize
+
+               ALLOCATE (q_matrix(n, n))
+               q_matrix(:, :) = 0.0_dp
+
+               ! Print headline if requested
+
+               IF (should_output .AND. (print_level > low_print_level)) THEN
+                  IF (output_unit > 0) THEN
+                     ALLOCATE (symbol(nsbsize))
+                     DO m = -lu, lu
+                        symbol(lu + m + 1) = sgf_symbol(0, lu, m)
+                     END DO
+                     IF (nspin > 1) THEN
+                        WRITE (UNIT=spin_info, FMT="(A8,I2)") " of spin", ispin
+                     ELSE
+                        spin_info = ""
+                     END IF
+                     WRITE (UNIT=output_unit, FMT="(/,T3,A,I0,A,/,/,T5,A,10(2X,A6))") &
+                        "DFT+U occupations"//TRIM(spin_info)//" for the atoms of atomic kind ", ikind, &
+                        ": "//TRIM(atomic_kind_name), &
+                        "Atom   Shell  ", (ADJUSTR(symbol(i)), i=1, nsbsize), " Trace"
+                     DEALLOCATE (symbol)
+                  END IF
+               END IF
+
+               ! Loop over all atoms of the current atomic kind
+
+               DO iatom = 1, natom_of_kind
+
+                  atom_a = atom_list(iatom)
+
+                  q_matrix(:, :) = 0.0_dp
+
+                  ! Get diagonal block
+
+                  CALL dbcsr_get_block_p(matrix=sm_q, &
+                                         row=atom_a, &
+                                         col=atom_a, &
+                                         block=q_block, &
+                                         found=found)
 
                   ! Calculate energy contribution to E(U)
 
-                  energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
-
-                  ! Calculate potential V(U) = dE(U)/dq
-
-                  IF (.NOT. just_energy) THEN
-
-                     CALL dbcsr_get_block_p(matrix=sm_v, &
-                                            row=atom_a, &
-                                            col=atom_a, &
-                                            block=v_block, &
-                                            found=found)
-                     CPASSERT(ASSOCIATED(v_block))
+                  IF (ASSOCIATED(q_block)) THEN
 
                      i = 0
                      DO iset = 1, nset
@@ -1306,11 +1205,7 @@ CONTAINS
                                     IF (l(jshell, jset) /= lu) CYCLE
                                     DO jsgf = first_sgf(jshell, jset), last_sgf(jshell, jset)
                                        j = j + 1
-                                       IF (isgf == jsgf) THEN
-                                          v_block(isgf, isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i, i))
-                                       ELSE
-                                          v_block(isgf, jsgf) = -u_minus_j*fspin*q_matrix(j, i)
-                                       END IF
+                                       q_matrix(i, j) = q_block(isgf, jsgf)
                                     END DO ! next contracted spherical Gaussian function "jsgf"
                                  END DO ! next shell "jshell"
                               END DO ! next shell set "jset"
@@ -1318,148 +1213,264 @@ CONTAINS
                         END DO ! next shell "ishell"
                      END DO ! next shell set "iset"
 
-                  END IF ! not just energy
+                     ! Perform the requested manipulations of the (initial) orbital occupations
 
-               END IF ! q_block associated
+                     IF (ASSOCIATED(orbitals)) THEN
+                        IF ((qs_env%scf_env%iter_delta >= eps_scf) .OR. &
+                            ((qs_env%scf_env%outer_scf%iter_count == 0) .AND. &
+                             (qs_env%scf_env%iter_count <= max_scf))) THEN
+                           ALLOCATE (orb_occ(nsbsize))
+                           ALLOCATE (q_eigval(n))
+                           q_eigval(:) = 0.0_dp
+                           ALLOCATE (q_eigvec(n, n))
+                           q_eigvec(:, :) = 0.0_dp
+                           norb = SIZE(orbitals)
+                           CALL jacobi(q_matrix, q_eigval, q_eigvec)
+                           q_matrix(:, :) = 0.0_dp
+                           IF (nelec(ispin) >= 0.5_dp) THEN
+                              trq = nelec(ispin)/SUM(q_eigval(1:n))
+                              q_eigval(1:n) = trq*q_eigval(1:n)
+                           END IF
+                           DO isb = 1, nsb
+                              trq = 0.0_dp
+                              DO i = (isb - 1)*nsbsize + 1, isb*nsbsize
+                                 trq = trq + q_eigval(i)
+                              END DO
+                              IF (smear) THEN
+                                 occ = trq/REAL(norb, KIND=dp)
+                              ELSE
+                                 occ = 1.0_dp/fspin
+                              END IF
+                              orb_occ(:) = .FALSE.
+                              iloc = MAXLOC(q_eigvec(:, isb*nsbsize))
+                              jsb = INT((iloc(1) - 1)/nsbsize) + 1
+                              i = 0
+                              i0 = (jsb - 1)*nsbsize + 1
+                              iorb = -1000
+                              DO j = i0, jsb*nsbsize
+                                 i = i + 1
+                                 IF (i > norb) THEN
+                                    DO m = -lu, lu
+                                       IF (.NOT. orb_occ(lu + m + 1)) THEN
+                                          iorb = i0 + lu + m
+                                          orb_occ(lu + m + 1) = .TRUE.
+                                       END IF
+                                    END DO
+                                 ELSE
+                                    iorb = i0 + lu + orbitals(i)
+                                    orb_occ(lu + orbitals(i) + 1) = .TRUE.
+                                 END IF
+                                 CPASSERT(iorb /= -1000)
+                                 iloc = MAXLOC(q_eigvec(iorb, :))
+                                 q_eigval(iloc(1)) = MIN(occ, trq)
+                                 q_matrix(:, iloc(1)) = q_eigval(iloc(1))*q_eigvec(:, iloc(1)) ! backtransform left
+                                 trq = trq - q_eigval(iloc(1))
+                              END DO
+                           END DO
+                           q_matrix(:, :) = MATMUL(q_matrix, TRANSPOSE(q_eigvec)) ! backtransform right
+                           DEALLOCATE (orb_occ)
+                           DEALLOCATE (q_eigval)
+                           DEALLOCATE (q_eigvec)
+                           occupation_enforced = .TRUE.
+                        END IF
+                     END IF ! orbitals associated
 
-               ! Consider print requests
+                     trq = 0.0_dp
+                     trq2 = 0.0_dp
 
-               IF (should_output .AND. (print_level > low_print_level)) THEN
-                  CALL para_env%sum(q_matrix)
-                  IF (output_unit > 0) THEN
-                     ALLOCATE (q_work(nsb, nsbsize))
-                     q_work(:, :) = 0.0_dp
-                     DO isb = 1, nsb
-                        j = 0
-                        DO i = (isb - 1)*nsbsize + 1, isb*nsbsize
-                           j = j + 1
-                           q_work(isb, j) = q_matrix(i, i)
+                     DO i = 1, n
+                        trq = trq + q_matrix(i, i)
+                        DO j = 1, n
+                           trq2 = trq2 + q_matrix(i, j)*q_matrix(j, i)
                         END DO
                      END DO
-                     DO isb = 1, nsb
-                        WRITE (UNIT=output_unit, FMT="(T3,I6,2X,I6,2X,10F8.3)") &
-                           atom_a, isb, q_work(isb, :), SUM(q_work(isb, :))
-                     END DO
-                     WRITE (UNIT=output_unit, FMT="(T12,A,2X,10F8.3)") &
-                        "Total", (SUM(q_work(:, i)), i=1, nsbsize), SUM(q_work)
-                     WRITE (UNIT=output_unit, FMT="(A)") ""
-                     DEALLOCATE (q_work)
-                     IF (debug) THEN
-                        ! Print the DFT+U occupation matrix
-                        WRITE (UNIT=output_unit, FMT="(T9,70I10)") (i, i=1, n)
-                        DO i = 1, n
-                           WRITE (UNIT=output_unit, FMT="(T3,I6,70F10.6)") i, q_matrix(i, :)
-                        END DO
-                        ! Print the eigenvalues and eigenvectors of the occupation matrix
-                        ALLOCATE (q_eigval(n))
-                        q_eigval(:) = 0.0_dp
-                        ALLOCATE (q_eigvec(n, n))
-                        q_eigvec(:, :) = 0.0_dp
-                        CALL jacobi(q_matrix, q_eigval, q_eigvec)
-                        WRITE (UNIT=output_unit, FMT="(/,T9,70I10)") (i, i=1, n)
-                        WRITE (UNIT=output_unit, FMT="(T9,71F10.6)") (q_eigval(i), i=1, n), &
-                           SUM(q_eigval(1:n))
-                        DO i = 1, n
-                           WRITE (UNIT=output_unit, FMT="(T3,I6,70F10.6)") i, q_eigvec(i, :)
-                        END DO
-                        DEALLOCATE (q_eigval)
-                        DEALLOCATE (q_eigvec)
-                     END IF ! debug
-                  END IF
-                  IF (debug) THEN
-                     ! Print the full atomic occupation matrix block
-                     ALLOCATE (q_work(nsgf_kind, nsgf_kind))
-                     q_work(:, :) = 0.0_dp
-                     IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
-                     CALL para_env%sum(q_work)
+
+                     trq = fspin*trq
+                     trq2 = fspin*fspin*trq2
+
+                     ! Calculate energy contribution to E(U)
+
+                     energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
+
+                     ! Calculate potential V(U) = dE(U)/dq
+
+                     IF (.NOT. just_energy) THEN
+
+                        CALL dbcsr_get_block_p(matrix=sm_v, &
+                                               row=atom_a, &
+                                               col=atom_a, &
+                                               block=v_block, &
+                                               found=found)
+                        CPASSERT(ASSOCIATED(v_block))
+
+                        i = 0
+                        DO iset = 1, nset
+                           DO ishell = 1, nshell(iset)
+                              IF (l(ishell, iset) /= lu) CYCLE
+                              DO isgf = first_sgf(ishell, iset), last_sgf(ishell, iset)
+                                 i = i + 1
+                                 j = 0
+                                 DO jset = 1, nset
+                                    DO jshell = 1, nshell(jset)
+                                       IF (l(jshell, jset) /= lu) CYCLE
+                                       DO jsgf = first_sgf(jshell, jset), last_sgf(jshell, jset)
+                                          j = j + 1
+                                          IF (isgf == jsgf) THEN
+                                             v_block(isgf, isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i, i))
+                                          ELSE
+                                             v_block(isgf, jsgf) = -u_minus_j*fspin*q_matrix(j, i)
+                                          END IF
+                                       END DO ! next contracted spherical Gaussian function "jsgf"
+                                    END DO ! next shell "jshell"
+                                 END DO ! next shell set "jset"
+                              END DO ! next contracted spherical Gaussian function "isgf"
+                           END DO ! next shell "ishell"
+                        END DO ! next shell set "iset"
+
+                     END IF ! not just energy
+
+                  END IF ! q_block associated
+
+                  ! Consider print requests
+
+                  IF (should_output .AND. (print_level > low_print_level)) THEN
+                     CALL para_env%sum(q_matrix)
                      IF (output_unit > 0) THEN
-                        norb = SIZE(q_work, 1)
-                        WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
-                        DO i = 1, norb
-                           WRITE (UNIT=output_unit, FMT="(T3,I6,200F10.6)") i, q_work(i, :)
+                        ALLOCATE (q_work(nsb, nsbsize))
+                        q_work(:, :) = 0.0_dp
+                        DO isb = 1, nsb
+                           j = 0
+                           DO i = (isb - 1)*nsbsize + 1, isb*nsbsize
+                              j = j + 1
+                              q_work(isb, j) = q_matrix(i, i)
+                           END DO
                         END DO
-                        ALLOCATE (q_eigval(norb))
-                        q_eigval(:) = 0.0_dp
-                        ALLOCATE (q_eigvec(norb, norb))
-                        q_eigvec(:, :) = 0.0_dp
-                        CALL jacobi(q_work, q_eigval, q_eigvec)
-                        WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
-                        WRITE (UNIT=output_unit, FMT="(T9,201F10.6)") (q_eigval(i), i=1, norb), &
-                           SUM(q_eigval(1:norb))
-                        DO i = 1, norb
-                           WRITE (UNIT=output_unit, FMT="(T3,I6,200F10.6)") i, q_eigvec(i, :)
+                        DO isb = 1, nsb
+                           WRITE (UNIT=output_unit, FMT="(T3,I6,2X,I6,2X,10F8.3)") &
+                              atom_a, isb, q_work(isb, :), SUM(q_work(isb, :))
                         END DO
-                        DEALLOCATE (q_eigval)
-                        DEALLOCATE (q_eigvec)
+                        WRITE (UNIT=output_unit, FMT="(T12,A,2X,10F8.3)") &
+                           "Total", (SUM(q_work(:, i)), i=1, nsbsize), SUM(q_work)
+                        WRITE (UNIT=output_unit, FMT="(A)") ""
+                        DEALLOCATE (q_work)
+                        IF (debug) THEN
+                           ! Print the DFT+U occupation matrix
+                           WRITE (UNIT=output_unit, FMT="(T9,70I10)") (i, i=1, n)
+                           DO i = 1, n
+                              WRITE (UNIT=output_unit, FMT="(T3,I6,70F10.6)") i, q_matrix(i, :)
+                           END DO
+                           ! Print the eigenvalues and eigenvectors of the occupation matrix
+                           ALLOCATE (q_eigval(n))
+                           q_eigval(:) = 0.0_dp
+                           ALLOCATE (q_eigvec(n, n))
+                           q_eigvec(:, :) = 0.0_dp
+                           CALL jacobi(q_matrix, q_eigval, q_eigvec)
+                           WRITE (UNIT=output_unit, FMT="(/,T9,70I10)") (i, i=1, n)
+                           WRITE (UNIT=output_unit, FMT="(T9,71F10.6)") (q_eigval(i), i=1, n), &
+                              SUM(q_eigval(1:n))
+                           DO i = 1, n
+                              WRITE (UNIT=output_unit, FMT="(T3,I6,70F10.6)") i, q_eigvec(i, :)
+                           END DO
+                           DEALLOCATE (q_eigval)
+                           DEALLOCATE (q_eigvec)
+                        END IF ! debug
                      END IF
-                     DEALLOCATE (q_work)
-                  END IF ! debug
-               END IF ! should output
-
-            END DO ! next atom "iatom" of atomic kind "ikind"
-
-            IF (ALLOCATED(q_matrix)) THEN
-               DEALLOCATE (q_matrix)
-            END IF
-
-         END DO ! next atomic kind "ikind"
-
-         ! Add V(i,j)[U] to V(i,j)[DFT]
-
-         IF (ASSOCIATED(sm_h)) THEN
-
-            DO ikind = 1, nkind
-
-               IF (.NOT. is_plus_u_kind(ikind)) CYCLE
-
-               kind_a => atomic_kind_set(ikind)
-
-               CALL get_atomic_kind(atomic_kind=kind_a, &
-                                    atom_list=atom_list, &
-                                    natom=natom_of_kind)
-
-               DO iatom = 1, natom_of_kind
-
-                  atom_a = atom_list(iatom)
-
-                  CALL dbcsr_get_block_p(matrix=sm_h, &
-                                         row=atom_a, &
-                                         col=atom_a, &
-                                         block=h_block, &
-                                         found=found)
-
-                  IF (.NOT. ASSOCIATED(h_block)) CYCLE
-
-                  CALL dbcsr_get_block_p(matrix=sm_v, &
-                                         row=atom_a, &
-                                         col=atom_a, &
-                                         block=v_block, &
-                                         found=found)
-                  CPASSERT(ASSOCIATED(v_block))
-
-                  IF (orthonormal_basis) THEN
-                     DO isgf = 1, SIZE(h_block, 1)
-                        h_block(isgf, isgf) = h_block(isgf, isgf) + v_block(isgf, isgf)
-                     END DO
-                  ELSE
-                     CALL dbcsr_get_block_p(matrix=sm_s, &
-                                            row=atom_a, &
-                                            col=atom_a, &
-                                            block=s_block, &
-                                            found=found)
-                     CPASSERT(ASSOCIATED(s_block))
-                     DO jsgf = 1, SIZE(h_block, 2)
-                        DO isgf = 1, SIZE(h_block, 1)
-                           h_block(isgf, jsgf) = h_block(isgf, jsgf) + v_block(isgf, jsgf)*s_block(isgf, jsgf)
-                        END DO
-                     END DO
-                  END IF ! orthonormal basis set
+                     IF (debug) THEN
+                        ! Print the full atomic occupation matrix block
+                        ALLOCATE (q_work(nsgf_kind, nsgf_kind))
+                        q_work(:, :) = 0.0_dp
+                        IF (ASSOCIATED(q_block)) q_work(:, :) = q_block(:, :)
+                        CALL para_env%sum(q_work)
+                        IF (output_unit > 0) THEN
+                           norb = SIZE(q_work, 1)
+                           WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
+                           DO i = 1, norb
+                              WRITE (UNIT=output_unit, FMT="(T3,I6,200F10.6)") i, q_work(i, :)
+                           END DO
+                           ALLOCATE (q_eigval(norb))
+                           q_eigval(:) = 0.0_dp
+                           ALLOCATE (q_eigvec(norb, norb))
+                           q_eigvec(:, :) = 0.0_dp
+                           CALL jacobi(q_work, q_eigval, q_eigvec)
+                           WRITE (UNIT=output_unit, FMT="(/,T9,200I10)") (i, i=1, norb)
+                           WRITE (UNIT=output_unit, FMT="(T9,201F10.6)") (q_eigval(i), i=1, norb), &
+                              SUM(q_eigval(1:norb))
+                           DO i = 1, norb
+                              WRITE (UNIT=output_unit, FMT="(T3,I6,200F10.6)") i, q_eigvec(i, :)
+                           END DO
+                           DEALLOCATE (q_eigval)
+                           DEALLOCATE (q_eigvec)
+                        END IF
+                        DEALLOCATE (q_work)
+                     END IF ! debug
+                  END IF ! should output
 
                END DO ! next atom "iatom" of atomic kind "ikind"
 
-            END DO ! Next atomic kind "ikind"
+               IF (ALLOCATED(q_matrix)) THEN
+                  DEALLOCATE (q_matrix)
+               END IF
 
-         END IF ! An update of the Hamiltonian matrix is requested
+            END DO ! next atomic kind "ikind"
+
+            ! Add V(i,j)[U] to V(i,j)[DFT]
+
+            IF (ASSOCIATED(sm_h)) THEN
+
+               DO ikind = 1, nkind
+
+                  IF (.NOT. is_plus_u_kind(ikind)) CYCLE
+
+                  kind_a => atomic_kind_set(ikind)
+
+                  CALL get_atomic_kind(atomic_kind=kind_a, &
+                                       atom_list=atom_list, &
+                                       natom=natom_of_kind)
+
+                  DO iatom = 1, natom_of_kind
+
+                     atom_a = atom_list(iatom)
+
+                     CALL dbcsr_get_block_p(matrix=sm_h, &
+                                            row=atom_a, &
+                                            col=atom_a, &
+                                            block=h_block, &
+                                            found=found)
+
+                     IF (.NOT. ASSOCIATED(h_block)) CYCLE
+
+                     CALL dbcsr_get_block_p(matrix=sm_v, &
+                                            row=atom_a, &
+                                            col=atom_a, &
+                                            block=v_block, &
+                                            found=found)
+                     CPASSERT(ASSOCIATED(v_block))
+
+                     IF (orthonormal_basis) THEN
+                        DO isgf = 1, SIZE(h_block, 1)
+                           h_block(isgf, isgf) = h_block(isgf, isgf) + v_block(isgf, isgf)
+                        END DO
+                     ELSE
+                        CALL dbcsr_get_block_p(matrix=sm_s, &
+                                               row=atom_a, &
+                                               col=atom_a, &
+                                               block=s_block, &
+                                               found=found)
+                        CPASSERT(ASSOCIATED(s_block))
+                        DO jsgf = 1, SIZE(h_block, 2)
+                           DO isgf = 1, SIZE(h_block, 1)
+                              h_block(isgf, jsgf) = h_block(isgf, jsgf) + v_block(isgf, jsgf)*s_block(isgf, jsgf)
+                           END DO
+                        END DO
+                     END IF ! orthonormal basis set
+
+                  END DO ! next atom "iatom" of atomic kind "ikind"
+
+               END DO ! Next atomic kind "ikind"
+
+            END IF ! An update of the Hamiltonian matrix is requested
+
+         END DO ! next cell image
 
       END DO ! next spin "ispin"
 
@@ -1523,7 +1534,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: orthonormal_basis
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -1534,7 +1545,7 @@ CONTAINS
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
       INTEGER :: atom_a, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, jsgf, lu, &
-         m, natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgf
+         m, natom, natom_of_kind, nimg, nkind, nsb, nset, nsgf, nspin, sgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
@@ -1546,7 +1557,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, s_block, w_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -1601,18 +1612,22 @@ CONTAINS
       ELSE
          ! Get overlap matrix in sparse format
          CALL get_qs_env(qs_env=qs_env, &
-                         matrix_s=matrix_s)
+                         matrix_s_kp=matrix_s)
          CPASSERT(ASSOCIATED(matrix_s))
-         sm_s => matrix_s(1)%matrix
+         sm_s => matrix_s(1, 1)%matrix
       END IF
 
       ! Get density matrices in sparse format
 
-      CALL qs_rho_get(rho, rho_ao=matrix_p)
+      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
       energy%dft_plus_u = 0.0_dp
 
       nspin = dft_control%nspins
+      nimg = dft_control%nimages
+      IF (nimg /= 1) THEN
+         CPABORT("MULLIKEN_CHARGES option with k-points NYA in DFT+U")
+      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -1650,7 +1665,7 @@ CONTAINS
 
          IF (PRESENT(matrix_h)) THEN
             ! Hamiltonian matrix for spin ispin in sparse format
-            sm_h => matrix_h(ispin)%matrix
+            sm_h => matrix_h(ispin, 1)%matrix
             dEdq(:) = 0.0_dp
          ELSE
             NULLIFY (sm_h)
@@ -1658,13 +1673,13 @@ CONTAINS
 
          IF (PRESENT(matrix_w)) THEN
             ! Energy weighted density matrix for spin ispin in sparse format
-            sm_w => matrix_w(ispin)%matrix
+            sm_w => matrix_w(ispin, 1)%matrix
             dEdq(:) = 0.0_dp
          ELSE
             NULLIFY (sm_w)
          END IF
 
-         sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+         sm_p => matrix_p(ispin, 1)%matrix ! Density matrix for spin ispin in sparse format
 
          ! Calculate Trace(P*S) assuming symmetric matrices
 

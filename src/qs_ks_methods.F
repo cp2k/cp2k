@@ -852,8 +852,7 @@ CONTAINS
          IF (just_energy) THEN
             CALL plus_u(qs_env=qs_env)
          ELSE
-            ksmat => ks_matrix(:, 1)
-            CALL plus_u(qs_env=qs_env, matrix_h=ksmat)
+            CALL plus_u(qs_env=qs_env, matrix_h=ks_matrix)
          END IF
       ELSE
          energy%dft_plus_u = 0.0_dp
