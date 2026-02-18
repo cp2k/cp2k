@@ -6,6 +6,7 @@
 "CH2O_gfn2.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299848}]
 "COBe_gfn2.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-6.6920408600}]
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
+"NH3_gfn2.inp"                           = [{matcher="E_total", tol=1.0E-8, ref=-4.4259996366}]
 "CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "COBe_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
