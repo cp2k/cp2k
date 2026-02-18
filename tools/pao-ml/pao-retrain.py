@@ -45,7 +45,7 @@ def main() -> None:
     train_model(model, dataset, epochs=args.epochs, batch_size=args.batch)
 
     # Save the model.
-    torch.jit.save(model, args.model)  # type: ignore
+    torch.jit.save(model, args.model)
     print(f"Saved model to file: {args.model}")
 
 

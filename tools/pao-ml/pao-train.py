@@ -79,7 +79,7 @@ def main() -> None:
     # Save the model.
     default_fn = f"{dataset.kind.prim_basis_name}-PAO{dataset.kind.pao_basis_size}-{args.kind}.pt"
     fn = args.model or default_fn
-    torch.jit.save(model, fn)  # type: ignore
+    torch.jit.save(model, fn)
     print(f"Saved model to file: {fn}")
 
 
