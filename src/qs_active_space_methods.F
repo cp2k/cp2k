@@ -482,7 +482,7 @@ CONTAINS
 
          ! create canonical orbitals
          CALL get_qs_env(qs_env, scf_control=scf_control)
-         IF (dft_control%restricted) THEN
+         IF (dft_control%roks .AND. scf_control%roks_scheme /= high_spin_roks) THEN
             CPABORT("Unclear how we define MOs in the general restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
@@ -611,7 +611,7 @@ CONTAINS
 
       CASE (manual_selection)
          ! create canonical orbitals
-         IF (dft_control%restricted) THEN
+         IF (dft_control%roks) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
