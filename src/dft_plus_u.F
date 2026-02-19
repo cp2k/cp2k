@@ -1544,8 +1544,8 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
-      INTEGER :: atom_a, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, jsgf, lu, &
-         m, natom, natom_of_kind, nimg, nkind, nsb, nset, nsgf, nspin, sgf
+      INTEGER :: atom_a, handle, i, iatom, ic, ikind, isb, iset, isgf, ishell, ispin, jatom, jsgf, &
+         lu, m, natom, natom_of_kind, nimg, nkind, nsb, nset, nsgf, nspin, sgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
@@ -1614,7 +1614,6 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, &
                          matrix_s_kp=matrix_s)
          CPASSERT(ASSOCIATED(matrix_s))
-         sm_s => matrix_s(1, 1)%matrix
       END IF
 
       ! Get density matrices in sparse format
@@ -1625,9 +1624,6 @@ CONTAINS
 
       nspin = dft_control%nspins
       nimg = dft_control%nimages
-      IF (nimg /= 1) THEN
-         CPABORT("MULLIKEN_CHARGES option with k-points NYA in DFT+U")
-      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -1663,78 +1659,72 @@ CONTAINS
 
       DO ispin = 1, nspin
 
-         IF (PRESENT(matrix_h)) THEN
-            ! Hamiltonian matrix for spin ispin in sparse format
-            sm_h => matrix_h(ispin, 1)%matrix
-            dEdq(:) = 0.0_dp
-         ELSE
-            NULLIFY (sm_h)
-         END IF
-
-         IF (PRESENT(matrix_w)) THEN
-            ! Energy weighted density matrix for spin ispin in sparse format
-            sm_w => matrix_w(ispin, 1)%matrix
-            dEdq(:) = 0.0_dp
-         ELSE
-            NULLIFY (sm_w)
-         END IF
-
-         sm_p => matrix_p(ispin, 1)%matrix ! Density matrix for spin ispin in sparse format
+         IF (.NOT. just_energy) dEdq(:) = 0.0_dp
 
          ! Calculate Trace(P*S) assuming symmetric matrices
 
          trps(:) = 0.0_dp
 
-         CALL dbcsr_iterator_start(iter, sm_p)
-
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
-
+         DO ic = 1, nimg
             IF (orthonormal_basis) THEN
-
-               IF (iatom /= jatom) CYCLE
-
-               IF (ASSOCIATED(p_block)) THEN
-                  sgf = first_sgf_atom(iatom)
-                  DO isgf = 1, SIZE(p_block, 1)
-                     trps(sgf) = trps(sgf) + p_block(isgf, isgf)
-                     sgf = sgf + 1
-                  END DO
-               END IF
-
+               NULLIFY (sm_s)
             ELSE
+               sm_s => matrix_s(1, ic)%matrix
+            END IF
+            sm_p => matrix_p(ispin, ic)%matrix ! Density matrix for spin ispin in sparse format
 
-               CALL dbcsr_get_block_p(matrix=sm_s, &
-                                      row=iatom, &
-                                      col=jatom, &
-                                      block=s_block, &
-                                      found=found)
-               CPASSERT(ASSOCIATED(s_block))
+            CALL dbcsr_iterator_start(iter, sm_p)
 
-               sgf = first_sgf_atom(jatom)
-               DO jsgf = 1, SIZE(p_block, 2)
-                  DO isgf = 1, SIZE(p_block, 1)
-                     trps(sgf) = trps(sgf) + p_block(isgf, jsgf)*s_block(isgf, jsgf)
-                  END DO
-                  sgf = sgf + 1
-               END DO
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               IF (iatom /= jatom) THEN
-                  sgf = first_sgf_atom(iatom)
-                  DO isgf = 1, SIZE(p_block, 1)
-                     DO jsgf = 1, SIZE(p_block, 2)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
+
+               IF (orthonormal_basis) THEN
+
+                  IF (iatom /= jatom) CYCLE
+
+                  IF (ASSOCIATED(p_block)) THEN
+                     sgf = first_sgf_atom(iatom)
+                     DO isgf = 1, SIZE(p_block, 1)
+                        trps(sgf) = trps(sgf) + p_block(isgf, isgf)
+                        sgf = sgf + 1
+                     END DO
+                  END IF
+
+               ELSE
+
+                  CALL dbcsr_get_block_p(matrix=sm_s, &
+                                         row=iatom, &
+                                         col=jatom, &
+                                         block=s_block, &
+                                         found=found)
+                  CPASSERT(ASSOCIATED(s_block))
+
+                  sgf = first_sgf_atom(jatom)
+                  DO jsgf = 1, SIZE(p_block, 2)
+                     DO isgf = 1, SIZE(p_block, 1)
                         trps(sgf) = trps(sgf) + p_block(isgf, jsgf)*s_block(isgf, jsgf)
                      END DO
                      sgf = sgf + 1
                   END DO
-               END IF
 
-            END IF ! orthonormal basis set
+                  IF (iatom /= jatom) THEN
+                     sgf = first_sgf_atom(iatom)
+                     DO isgf = 1, SIZE(p_block, 1)
+                        DO jsgf = 1, SIZE(p_block, 2)
+                           trps(sgf) = trps(sgf) + p_block(isgf, jsgf)*s_block(isgf, jsgf)
+                        END DO
+                        sgf = sgf + 1
+                     END DO
+                  END IF
 
-         END DO ! next atom "iatom"
+               END IF ! orthonormal basis set
 
-         CALL dbcsr_iterator_stop(iter)
+            END DO ! next atom "iatom"
+
+            CALL dbcsr_iterator_stop(iter)
+
+         END DO ! cell images
 
          CALL para_env%sum(trps)
 
@@ -1905,68 +1895,78 @@ CONTAINS
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
 
-         IF (ASSOCIATED(sm_h)) THEN
+         IF (PRESENT(matrix_h)) THEN
 
-            CALL dbcsr_iterator_start(iter, sm_h)
-
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block)
-
+            DO ic = 1, nimg
                IF (orthonormal_basis) THEN
+                  NULLIFY (sm_s)
+               ELSE
+                  sm_s => matrix_s(1, ic)%matrix
+               END IF
+               sm_h => matrix_h(ispin, ic)%matrix
 
-                  IF (iatom /= jatom) CYCLE
+               CALL dbcsr_iterator_start(iter, sm_h)
 
-                  IF (ASSOCIATED(h_block)) THEN
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+                  CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block)
+
+                  IF (orthonormal_basis) THEN
+
+                     IF (iatom /= jatom) CYCLE
+
+                     IF (ASSOCIATED(h_block)) THEN
+                        sgf = first_sgf_atom(iatom)
+                        DO isgf = 1, SIZE(h_block, 1)
+                           h_block(isgf, isgf) = h_block(isgf, isgf) + dEdq(sgf)
+                           sgf = sgf + 1
+                        END DO
+                     END IF
+
+                  ELSE
+
+                     ! Request katom just to check for consistent sparse matrix pattern
+
+                     CALL dbcsr_get_block_p(matrix=sm_s, &
+                                            row=iatom, &
+                                            col=jatom, &
+                                            block=s_block, &
+                                            found=found)
+                     CPASSERT(ASSOCIATED(s_block))
+
+                     ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
+
                      sgf = first_sgf_atom(iatom)
+
                      DO isgf = 1, SIZE(h_block, 1)
-                        h_block(isgf, isgf) = h_block(isgf, isgf) + dEdq(sgf)
+                        IF (dEdq(sgf) /= 0.0_dp) THEN
+                           v = 0.5_dp*dEdq(sgf)
+                           DO jsgf = 1, SIZE(h_block, 2)
+                              h_block(isgf, jsgf) = h_block(isgf, jsgf) + v*s_block(isgf, jsgf)
+                           END DO
+                        END IF
                         sgf = sgf + 1
                      END DO
-                  END IF
 
-               ELSE
+                     sgf = first_sgf_atom(jatom)
 
-                  ! Request katom just to check for consistent sparse matrix pattern
+                     DO jsgf = 1, SIZE(h_block, 2)
+                        IF (dEdq(sgf) /= 0.0_dp) THEN
+                           v = 0.5_dp*dEdq(sgf)
+                           DO isgf = 1, SIZE(h_block, 1)
+                              h_block(isgf, jsgf) = h_block(isgf, jsgf) + v*s_block(isgf, jsgf)
+                           END DO
+                        END IF
+                        sgf = sgf + 1
+                     END DO
 
-                  CALL dbcsr_get_block_p(matrix=sm_s, &
-                                         row=iatom, &
-                                         col=jatom, &
-                                         block=s_block, &
-                                         found=found)
-                  CPASSERT(ASSOCIATED(s_block))
+                  END IF ! orthonormal basis set
 
-                  ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
+               END DO ! Next atom "iatom"
 
-                  sgf = first_sgf_atom(iatom)
+               CALL dbcsr_iterator_stop(iter)
 
-                  DO isgf = 1, SIZE(h_block, 1)
-                     IF (dEdq(sgf) /= 0.0_dp) THEN
-                        v = 0.5_dp*dEdq(sgf)
-                        DO jsgf = 1, SIZE(h_block, 2)
-                           h_block(isgf, jsgf) = h_block(isgf, jsgf) + v*s_block(isgf, jsgf)
-                        END DO
-                     END IF
-                     sgf = sgf + 1
-                  END DO
-
-                  sgf = first_sgf_atom(jatom)
-
-                  DO jsgf = 1, SIZE(h_block, 2)
-                     IF (dEdq(sgf) /= 0.0_dp) THEN
-                        v = 0.5_dp*dEdq(sgf)
-                        DO isgf = 1, SIZE(h_block, 1)
-                           h_block(isgf, jsgf) = h_block(isgf, jsgf) + v*s_block(isgf, jsgf)
-                        END DO
-                     END IF
-                     sgf = sgf + 1
-                  END DO
-
-               END IF ! orthonormal basis set
-
-            END DO ! Next atom "iatom"
-
-            CALL dbcsr_iterator_stop(iter)
+            END DO
 
          END IF ! An update of the Hamiltonian matrix is requested
 
@@ -1974,56 +1974,63 @@ CONTAINS
          ! w.r.t. the nuclear positions, which requires an update of the
          ! energy weighted density W.
 
-         IF (ASSOCIATED(sm_w) .AND. (.NOT. orthonormal_basis)) THEN
+         IF (PRESENT(matrix_w) .AND. (.NOT. orthonormal_basis)) THEN
 
-            CALL dbcsr_iterator_start(iter, sm_p)
+            DO ic = 1, nimg
+               sm_s => matrix_s(1, ic)%matrix
+               sm_p => matrix_p(ispin, ic)%matrix
+               sm_w => matrix_w(ispin, ic)%matrix
 
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_start(iter, sm_p)
 
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               ! Skip the diagonal blocks of the W matrix
+                  CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
 
-               IF (iatom == jatom) CYCLE
+                  ! Skip the diagonal blocks of the W matrix
 
-               ! Request katom just to check for consistent sparse matrix patterns
+                  IF (iatom == jatom) CYCLE
 
-               CALL dbcsr_get_block_p(matrix=sm_w, &
-                                      row=iatom, &
-                                      col=jatom, &
-                                      block=w_block, &
-                                      found=found)
-               CPASSERT(ASSOCIATED(w_block))
+                  ! Request katom just to check for consistent sparse matrix patterns
 
-               ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
+                  CALL dbcsr_get_block_p(matrix=sm_w, &
+                                         row=iatom, &
+                                         col=jatom, &
+                                         block=w_block, &
+                                         found=found)
+                  CPASSERT(ASSOCIATED(w_block))
 
-               sgf = first_sgf_atom(iatom)
+                  ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
-               DO isgf = 1, SIZE(w_block, 1)
-                  IF (dEdq(sgf) /= 0.0_dp) THEN
-                     v = -0.5_dp*dEdq(sgf)
-                     DO jsgf = 1, SIZE(w_block, 2)
-                        w_block(isgf, jsgf) = w_block(isgf, jsgf) + v*p_block(isgf, jsgf)
-                     END DO
-                  END IF
-                  sgf = sgf + 1
-               END DO
+                  sgf = first_sgf_atom(iatom)
 
-               sgf = first_sgf_atom(jatom)
+                  DO isgf = 1, SIZE(w_block, 1)
+                     IF (dEdq(sgf) /= 0.0_dp) THEN
+                        v = -0.5_dp*dEdq(sgf)
+                        DO jsgf = 1, SIZE(w_block, 2)
+                           w_block(isgf, jsgf) = w_block(isgf, jsgf) + v*p_block(isgf, jsgf)
+                        END DO
+                     END IF
+                     sgf = sgf + 1
+                  END DO
 
-               DO jsgf = 1, SIZE(w_block, 2)
-                  IF (dEdq(sgf) /= 0.0_dp) THEN
-                     v = -0.5_dp*dEdq(sgf)
-                     DO isgf = 1, SIZE(w_block, 1)
-                        w_block(isgf, jsgf) = w_block(isgf, jsgf) + v*p_block(isgf, jsgf)
-                     END DO
-                  END IF
-                  sgf = sgf + 1
-               END DO
+                  sgf = first_sgf_atom(jatom)
 
-            END DO ! next block node "jatom"
+                  DO jsgf = 1, SIZE(w_block, 2)
+                     IF (dEdq(sgf) /= 0.0_dp) THEN
+                        v = -0.5_dp*dEdq(sgf)
+                        DO isgf = 1, SIZE(w_block, 1)
+                           w_block(isgf, jsgf) = w_block(isgf, jsgf) + v*p_block(isgf, jsgf)
+                        END DO
+                     END IF
+                     sgf = sgf + 1
+                  END DO
 
-            CALL dbcsr_iterator_stop(iter)
+               END DO ! next block node "jatom"
+
+               CALL dbcsr_iterator_stop(iter)
+
+            END DO
 
          END IF ! W matrix update requested
 

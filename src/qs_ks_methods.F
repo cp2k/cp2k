@@ -848,7 +848,6 @@ CONTAINS
 
       ! Add DFT+U contribution, if requested
       IF (dft_control%dft_plus_u) THEN
-         CPASSERT(nimages == 1)
          IF (just_energy) THEN
             CALL plus_u(qs_env=qs_env)
          ELSE
