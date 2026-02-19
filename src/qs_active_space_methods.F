@@ -63,7 +63,7 @@ MODULE qs_active_space_methods
       eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, &
       eri_operator_trunc, eri_operator_lr_trunc, &
       manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
-      eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
+      eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt, high_spin_roks
    USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
                                   section_vals_set_subs_vals, section_vals_type, &
                                   section_vals_val_get, &
@@ -481,8 +481,9 @@ CONTAINS
          END DO
 
          ! create canonical orbitals
-         IF (dft_control%restricted) THEN
-            CPABORT("Unclear how we define MOs in the restricted case ... stopping")
+         CALL get_qs_env(qs_env, scf_control=scf_control)
+         IF (dft_control%roks .AND. scf_control%roks_scheme /= high_spin_roks) THEN
+            CPABORT("Unclear how we define MOs in the general restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
                IF (dft_control%do_admm_mo) THEN
@@ -610,7 +611,7 @@ CONTAINS
 
       CASE (manual_selection)
          ! create canonical orbitals
-         IF (dft_control%restricted) THEN
+         IF (dft_control%roks) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
@@ -935,6 +936,8 @@ CONTAINS
       ! allocate container for integrals (CSR matrix)
       CALL get_qs_env(qs_env, para_env=para_env)
       m = (nspins*(nspins + 1))/2
+      ! With ROHF/ROKS, we need ERIs from only a single set of orbitals
+      IF (dft_control%roks) m = 1
       ALLOCATE (active_space_env%eri%eri(m))
       DO i = 1, m
          CALL get_mo_set(active_space_env%mos_active(1), nmo=nmo)
@@ -980,7 +983,8 @@ CONTAINS
             WRITE (iw, '(T2,A,T71,F10.1)') "ERI_GPW| Relative energy cutoff [Ry]", eri_rel_cutoff
          END IF
          !
-         CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri, qs_env, iw)
+         CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri, qs_env, iw, &
+                                dft_control%roks)
          !
       CASE DEFAULT
          CPABORT("Unknown ERI method")
@@ -1093,7 +1097,7 @@ CONTAINS
       ! set the reference energy in the active space
       active_space_env%energy_ref = energy%total
       ! calculate inactive energy and embedding potential
-      CALL subspace_fock_matrix(active_space_env)
+      CALL subspace_fock_matrix(active_space_env, dft_control%roks)
 
       ! associate the active space environment with the qs environment
       CALL set_qs_env(qs_env, active_space=active_space_env)
@@ -1115,7 +1119,7 @@ CONTAINS
       END SELECT
 
       ! Output a FCIDUMP file if requested
-      IF (active_space_env%fcidump) CALL fcidump(active_space_env, as_input)
+      IF (active_space_env%fcidump) CALL fcidump(active_space_env, as_input, dft_control%roks)
 
       ! Output a QCSchema file if requested
       IF (active_space_env%qcschema) THEN
@@ -1305,16 +1309,18 @@ CONTAINS
 !> \param eri_env ...
 !> \param qs_env ...
 !> \param iw ...
+!> \param restricted ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE calculate_eri_gpw(mos, orbitals, eri_env, qs_env, iw)
+   SUBROUTINE calculate_eri_gpw(mos, orbitals, eri_env, qs_env, iw, restricted)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       INTEGER, DIMENSION(:, :), POINTER                  :: orbitals
       TYPE(eri_type)                                     :: eri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iw
+      LOGICAL, INTENT(IN)                                :: restricted
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
@@ -1413,6 +1419,9 @@ CONTAINS
       progression_factor = qs_control%progression_factor
       n_multigrid = SIZE(qs_control%e_cutoff)
       nspins = SIZE(mos)
+      ! In case of ROHF/ROKS, we assume the orbital coefficients in both spin channels to be the same
+      ! and save operations by calculating ERIs from only one spin channel
+      IF (restricted) nspins = 1
       ! Allocate new cutoffs (just in private qs_control, not in qs_control_old)
       ALLOCATE (qs_control%e_cutoff(n_multigrid))
 
@@ -1560,6 +1569,9 @@ CONTAINS
 
       ! pre-calculate wavefunctions on reals space grid
       nspins = SIZE(mos)
+      ! In case of ROHF/ROKS, we assume the orbital coefficients in both spin channels to be the same
+      ! and save operations by calculating ERIs from only one spin channel
+      IF (restricted) nspins = 1
       IF (eri_env%eri_gpw%store_wfn) THEN
          ! pre-calculate wavefunctions on reals space grid
          rsize = 0.0_dp
@@ -2210,13 +2222,15 @@ CONTAINS
 !> \brief Writes a FCIDUMP file
 !> \param active_space_env ...
 !> \param as_input ...
+!> \param restricted ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE fcidump(active_space_env, as_input)
+   SUBROUTINE fcidump(active_space_env, as_input, restricted)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(section_vals_type), POINTER                   :: as_input
+      LOGICAL, INTENT(IN)                                :: restricted
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, m1, m2, &
                                                             nmo, norb, nspins
@@ -2233,7 +2247,8 @@ CONTAINS
       !
       nspins = active_space_env%nspins
       norb = SIZE(active_space_env%active_orbitals, 1)
-      IF (nspins == 1) THEN
+      IF (nspins == 1 .OR. restricted) THEN
+         ! Closed shell or restricted open-shell
          ASSOCIATE (ms2 => active_space_env%multiplicity, &
                     nelec => active_space_env%nelec_active)
 
@@ -2243,6 +2258,7 @@ CONTAINS
                WRITE (iw, "(A,1000(I1,','))") "  ORBSYM=", (isym, i=1, norb)
                isym = 0
                WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
+               IF (restricted) WRITE (iw, "(A,I1,A)") "  UHF=", 0, ","
                WRITE (iw, "(A)") " /"
             END IF
             !
@@ -2382,12 +2398,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates active space Fock matrix and inactive energy
 !> \param active_space_env ...
+!> \param restricted ...
 !> \par History
 !>      06.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE subspace_fock_matrix(active_space_env)
+   SUBROUTINE subspace_fock_matrix(active_space_env, restricted)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
+      LOGICAL, INTENT(IN)                                :: restricted
 
       INTEGER                                            :: i1, i2, is, norb, nspins
       REAL(KIND=dp)                                      :: eeri, eref, esub, mval
@@ -2465,13 +2483,22 @@ CONTAINS
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2), ks_b_mat)
          !
          !
-         eri_aa => active_space_env%eri%eri(1)%csr_mat
-         eri_ab => active_space_env%eri%eri(2)%csr_mat
-         eri_bb => active_space_env%eri%eri(3)%csr_mat
-         CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                                              tr_mixed_eri=.FALSE., comm_exchange=active_space_env%eri%comm_exchange)
-         CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                                              tr_mixed_eri=.TRUE., comm_exchange=active_space_env%eri%comm_exchange)
+         IF (restricted) THEN
+            ! In the restricted case, we use the same ERIs for each spin channel
+            eri_aa => active_space_env%eri%eri(1)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_aa, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., comm_exchange=active_space_env%eri%comm_exchange)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_aa, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., comm_exchange=active_space_env%eri%comm_exchange)
+         ELSE
+            eri_aa => active_space_env%eri%eri(1)%csr_mat
+            eri_ab => active_space_env%eri%eri(2)%csr_mat
+            eri_bb => active_space_env%eri%eri(3)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., comm_exchange=active_space_env%eri%comm_exchange)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., comm_exchange=active_space_env%eri%comm_exchange)
+         END IF
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -3004,6 +3031,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -3012,7 +3040,7 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)
 
-      CALL get_qs_env(qs_env, para_env=para_env)
+      CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control)
       ionode = para_env%is_source()
 
       ! get info from the input
@@ -3101,7 +3129,7 @@ CONTAINS
          CALL calculate_operators(mos_active, qs_env, active_space_env)
 
          ! calculate the new inactive energy and embedding potential
-         CALL subspace_fock_matrix(active_space_env)
+         CALL subspace_fock_matrix(active_space_env, dft_control%roks)
 
          ! check if it is a one-shot correction
          IF (.NOT. active_space_env%do_scf_embedding) THEN

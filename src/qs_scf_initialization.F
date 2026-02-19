@@ -863,7 +863,7 @@ CONTAINS
             IF (do_kpoints) &
                CPABORT("No subspace diagonlization with kpoint calculation")
          END IF
-         ! OT: check if OT is used instead of diagonlization. Not possible with added MOS at the moment
+         ! OT: check if OT is used instead of diagonalization. Not possible with added MOS at the moment
       ELSEIF (scf_control%use_ot) THEN
          scf_env%method = ot_method_nr
          need_coeff_b = .TRUE.

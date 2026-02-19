@@ -21,4 +21,7 @@
 
 "h2_gpw_ht_nostore_group.inp"           = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
                                            {matcher="M092", tol=1e-8, ref=4.08599253}]
+
+"h2_gpw_ht_roks.inp"                    = [{matcher="E_total", tol=1e-12, ref=-0.54761910555768},
+                                           {matcher="M092", tol=1e-8, ref=4.386293}]
 #EOF
