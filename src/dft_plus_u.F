@@ -313,6 +313,7 @@ CONTAINS
 
       nspin = dft_control%nspins
       nimg = dft_control%nimages
+
       IF (nimg /= 1) THEN
          CPABORT("Lowdin option with k-points NYA in DFT+U")
       END IF
