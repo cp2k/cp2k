@@ -454,6 +454,7 @@ CONTAINS
 
 #if defined(__TBLITE)
 
+      REAL(KIND=dp)                                      :: docc
       CHARACTER(LEN=default_string_length)               :: sng
       INTEGER                                            :: ang, i_type, id_atom, ind_ao, ipgf, iSH, &
                                                             ishell, ityp, maxl, mprim, natorb, &
@@ -529,10 +530,14 @@ CONTAINS
 
       !getting occupation
       occ = 0
-      DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
-         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ityp))
+      docc = 0.0_dp
+      IF (tb%calc%bas%nsh_at(id_atom) > 5) CPABORT("too many shells in tblite")
+      DO iSh = 1, tb%calc%bas%nsh_at(id_atom)
+         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ityp) + docc)
+         docc = docc + tb%calc%h0%refocc(iSh, ityp) - REAL(occ(iSh))
          param%occupation(iSh) = occ(iSh)
       END DO
+      IF (ABS(docc) > 0.1_dp) CPABORT("Getting occupation numbers from tblite fails")
       param%zeff = SUM(occ) !effective core charge
 
       !set normalization process
