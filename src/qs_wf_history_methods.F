@@ -65,8 +65,6 @@ MODULE qs_wf_history_methods
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
         cp_fm_set_all, &
-                                              !cmn: debug
-                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1194,18 +1192,7 @@ CONTAINS
             CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
 
-            !cmn: debug save the matrices to file
-            CALL cp_fm_struct_create(matrix_struct_new, &
-                                     template_fmstruct=matrix_struct, &
-                                     nrow_global=n, &
-                                     ncol_global=n)
-            CALL cp_fm_create(tmp_square, matrix_struct_new)
-            CALL cp_fm_struct_release(matrix_struct_new)
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            CALL save_matrix(mo_coeff%local_data,n,k,"matrices/C", wf_history%snapshot_count)
-            CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
-            CALL save_matrix(tmp_square%local_data,n,n,"matrices/S", wf_history%snapshot_count)
-            CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
             CALL cp_fm_set_all(mo_coeff, 0.0_dp)
@@ -1274,18 +1261,7 @@ CONTAINS
             CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
 
-            !cmn: debug save the matrices to file
-            CALL cp_fm_struct_create(matrix_struct_new, &
-                                     template_fmstruct=matrix_struct, &
-                                     nrow_global=n, &
-                                     ncol_global=n)
-            CALL cp_fm_create(tmp_square, matrix_struct_new)
-            CALL cp_fm_struct_release(matrix_struct_new)
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            CALL save_matrix(mo_coeff%local_data,n,k,"matrices/C", wf_history%snapshot_count)
-            CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
-            CALL save_matrix(tmp_square%local_data,n,n,"matrices/S", wf_history%snapshot_count)
-            CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
             CALL cp_fm_set_all(mo_coeff, 0.0_dp)
