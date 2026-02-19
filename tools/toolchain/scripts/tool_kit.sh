@@ -1,10 +1,10 @@
 # A set of tools used in the toolchain installer, intended to be used
+# by sourcing this file inside other scripts.
 
 # TODO: Review and if possible fix shellcheck errors.
 # shellcheck disable=all
 # shellcheck shell=bash
 
-# by sourcing this file inside other scripts.
 
 SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-"/usr/local/include:/usr/include"}
 SYS_LIB_PATH=${SYS_LIB_PATH:-"/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch-linux-gnu:/lib64:/lib"}
@@ -15,7 +15,7 @@ time_start=$(date +%s)
 # report timing
 report_timing() {
   time_stop=$(date +%s)
-  printf "Step %s took %0.2f seconds.\n" $1 $((time_stop - time_start))
+  printf "Step %s took %0.2f seconds.\n" "$1" $((time_stop - time_start))
 }
 
 # report a warning message with script name and line number
@@ -44,8 +44,7 @@ report_error() {
 
 # error handler for line trap from set -e
 error_handler() {
-  local __lineno="$1"
-  report_error $1 "Non-zero exit code detected."
+  report_error "$1" "Non-zero exit code detected."
   exit 1
 }
 
@@ -56,10 +55,25 @@ load() {
   fi
 }
 
+# Take excerpt of ${LOG_LINES} lines from tail of a file, always reporting
+# its absolute path at the top
+tail_excerpt() {
+  local __filename=$(real_path "$1")
+  if [ -n "${LOG_LINES}" ]; then
+    local __lines="${LOG_LINES}"
+  elif [ $# -gt 1 ]; then
+    local __lines="$2"
+  fi
+  tail -v -n "${__lines}" "${__filename}"
+}
+
 # A more portable command that will give the full path, removing
 # symlinks, of a given path. This is more portable than readlink -f
 # which does not work on Mac OS X
-realpath() {
+# Former name is "realpath", renamed to avoid accidentally overriding
+# the native GNU coreutils command when this script is sourced
+# https://www.gnu.org/software/coreutils/manual/html_node/realpath-invocation.html
+real_path() {
   local __path="$1"
   if [ "x$__path" = x ]; then
     return 0
@@ -217,7 +231,7 @@ find_in_paths() {
       IFS="${IFS%x}"
       for __file in $__dir/$__target; do
         if [ -e "$__file" ]; then
-          echo $(realpath "$__file")
+          echo $(real_path "$__file")
           # must remember to change IFS back when exiting
           IFS="$__ifs"
           return 0
@@ -340,7 +354,7 @@ check_command() {
     local __package=${2}
   fi
   if $(command -v ${__command} > /dev/null 2>&1); then
-    echo "path to ${__command} is $(realpath $(command -v ${__command}))"
+    echo "path to ${__command} is $(real_path $(command -v ${__command}))"
   else
     report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
     return 1

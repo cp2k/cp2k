@@ -119,9 +119,9 @@ case "${with_elpa}" in
           CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags} -fno-lto" \
           LDFLAGS="${gnu_ldflags} ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags} -lstdc++" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
-          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > configure.log 2>&1 || tail_excerpt configure.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       done
       cd ..

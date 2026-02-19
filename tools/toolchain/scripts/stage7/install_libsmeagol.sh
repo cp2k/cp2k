@@ -53,7 +53,7 @@ case "${with_libsmeagol}" in
         FCFLAGS="-DMPI -fallow-argument-mismatch ${FCFLAGS}" \
         FCFLAGS_FIXEDFORM="${FCFLAGS_FIX}" \
         FCFLAGS_FREEFORM="${FCFLAGS_FREE}" \
-        > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        > make.log 2>&1 || tail_excerpt make.log
       # The libsmeagol makefile does not provide an install target
       [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}
       mkdir ${pkg_install_dir} && cp -a lib ${pkg_install_dir}

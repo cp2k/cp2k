@@ -93,9 +93,9 @@ EOF
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         "${CMAKE_MPI_COMPILERS[@]}" \
-        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail -n ${LOG_LINES} build.log
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        .. > cmake.log 2>&1 || tail_excerpt cmake.log
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail_excerpt build.log
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail_excerpt install.log
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename "${SCRIPT_NAME}")"
     fi

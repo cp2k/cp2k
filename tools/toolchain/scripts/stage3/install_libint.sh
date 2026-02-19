@@ -81,7 +81,7 @@ case "$with_libint" in
         --enable-fma \
         --with-pic \
         --libdir="${pkg_install_dir}/lib" \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+        > configure.log 2>&1 || tail_excerpt configure.log
 
       if [ "${with_intel}" != "__DONTUSE__" ]; then
         # Fix bug in makefile for Fortran module
@@ -90,8 +90,8 @@ case "$with_libint" in
         sed -i -e "s/-loopopt //g" MakeVars
       fi
 
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
 
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"

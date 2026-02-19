@@ -55,9 +55,9 @@ case "${with_cmake}" in
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
       if [ "${cmake_arch}" = "macos-universal" ]; then
-        tar --strip-components=3 -xvf cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} -C ${pkg_install_dir} > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        tar --strip-components=3 -xvf cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} -C ${pkg_install_dir} > install.log 2>&1 || tail_excerpt install.log
       else
-        /bin/sh cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} --prefix=${pkg_install_dir} --skip-license > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        /bin/sh cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} --prefix=${pkg_install_dir} --skip-license > install.log 2>&1 || tail_excerpt install.log
       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"
     fi

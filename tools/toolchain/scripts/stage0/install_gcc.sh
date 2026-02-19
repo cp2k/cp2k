@@ -43,7 +43,7 @@ case "${with_gcc}" in
 
       # Download prerequisites from cp2k.org because gcc.gnu.org returns 403 when queried from GCP.
       sed -i 's|http://gcc.gnu.org/pub/gcc/infrastructure/|https://cp2k.org/static/downloads/|' ./contrib/download_prerequisites
-      ./contrib/download_prerequisites > prereq.log 2>&1 || tail -n ${LOG_LINES} prereq.log
+      ./contrib/download_prerequisites > prereq.log 2>&1 || tail_excerpt prereq.log
       GCCROOT=${PWD}
       mkdir obj
       cd obj
@@ -66,13 +66,13 @@ case "${with_gcc}" in
         --disable-multilib --disable-bootstrap \
         --enable-lto \
         --enable-plugins \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+        > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) \
         CFLAGS="${CFLAGS}" \
         CXXFLAGS="${CXXFLAGS}" \
         FCFLAGS="${FCFLAGS}" \
-        > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       # thread sanitizer
       if [ ${ENABLE_TSAN} = "__TRUE__" ]; then
         # now the tricky bit... we need to recompile in particular
@@ -83,7 +83,7 @@ case "${with_gcc}" in
         # gcc, tested with 5.1.0 based on
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
         cd x86_64*/libgfortran
-        make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
+        make clean > clean.log 2>&1 || tail_excerpt clean.log
         CFLAGS="${CFLAGS} -fsanitize=thread"
         CXXFLAGS="${CXXFLAGS} -fsanitize=thread"
         FCFLAGS="${FCFLAGS} -fsanitize=thread"
@@ -92,17 +92,17 @@ case "${with_gcc}" in
           CXXFLAGS="${CXXFLAGS}" \
           FCFLAGS="${FCFLAGS}" \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
-          > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
         cd ../libgomp
-        make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
+        make clean > clean.log 2>&1 || tail_excerpt clean.log
         make -j $(get_nprocs) \
           CFLAGS="${CFLAGS}" \
           CXXFLAGS="${CXXFLAGS}" \
           FCFLAGS="${FCFLAGS}" \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
-          > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
         cd ${GCCROOT}/obj/
       fi
       cd ../..

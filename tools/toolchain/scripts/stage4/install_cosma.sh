@@ -75,9 +75,9 @@ case "$with_cosma" in
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DBUILD_SHARED_LIBS=NO \
         -DCOSTA_SCALAPACK=${cosma_sl} \
-        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        .. > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make -j install > install.log 2>&1 || tail_excerpt install.log
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
@@ -89,9 +89,9 @@ case "$with_cosma" in
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DBUILD_SHARED_LIBS=NO \
           -DCOSTA_SCALAPACK=${cosma_sl} \
-          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          .. > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
 
@@ -105,9 +105,9 @@ case "$with_cosma" in
           -DBUILD_SHARED_LIBS=NO \
           -DCOSTA_BLAS=${cosma_blas} \
           -DCOSTA_SCALAPACK=${cosma_sl} \
-          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          .. > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
       cd ..
@@ -123,9 +123,9 @@ case "$with_cosma" in
           -DTILEDMM_GPU_BACKEND=CUDA \
           -DTILEDMM_WITH_EXAMPLES=OFF \
           -DTILEDMM_WITH_TESTS=OFF \
-          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          .. > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
 
@@ -139,9 +139,9 @@ case "$with_cosma" in
           -DTILEDMM_GPU_BACKEND=ROCM \
           -DTILEDMM_WITH_EXAMPLES=OFF \
           -DTILEDMM_WITH_TESTS=OFF \
-          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          .. > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
       cd ..
@@ -158,9 +158,9 @@ case "$with_cosma" in
         -DCOSMA_WITH_TESTS=NO \
         -DCOSMA_WITH_APPS=NO \
         -DCOSMA_WITH_BENCHMARKS=NO .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
 
       # Build CUDA version.
@@ -179,9 +179,9 @@ case "$with_cosma" in
           -DCOSMA_WITH_TESTS=NO \
           -DCOSMA_WITH_APPS=NO \
           -DCOSMA_WITH_BENCHMARKS=NO .. \
-          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
 
@@ -201,9 +201,9 @@ case "$with_cosma" in
           -DCOSMA_WITH_TESTS=NO \
           -DCOSMA_WITH_APPS=NO \
           -DCOSMA_WITH_BENCHMARKS=NO .. \
-          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
 

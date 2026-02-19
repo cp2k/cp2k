@@ -60,7 +60,7 @@ case "$with_libvdwxc" in
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
-          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+          > configure.log 2>&1 || tail_excerpt configure.log
       else
         ./configure \
           CC="${MPICC}" CFLAGS="${CFLAGS} -fpermissive" \
@@ -70,10 +70,10 @@ case "$with_libvdwxc" in
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
-          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+          > configure.log 2>&1 || tail_excerpt configure.log
       fi
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
     LIBVDWXC_CFLAGS="-I${pkg_install_dir}/include"

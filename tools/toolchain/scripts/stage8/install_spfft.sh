@@ -57,9 +57,9 @@ case "${with_spfft}" in
         -DSPFFT_FORTRAN=ON \
         -DSPFFT_INSTALL=ON \
         ${EXTRA_CMAKE_FLAGS} .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
 
       cd ..
 
@@ -81,8 +81,8 @@ case "${with_spfft}" in
           -DSPFFT_FORTRAN=ON \
           -DSPFFT_INSTALL=ON \
           -DSPFFT_GPU_BACKEND=CUDA \
-          ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+          ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
@@ -108,8 +108,8 @@ case "${with_spfft}" in
               -DSPFFT_FORTRAN=ON \
               -DSPFFT_INSTALL=ON \
               -DSPFFT_GPU_BACKEND=CUDA \
-              ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+              ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail_excerpt cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
             install -d ${pkg_install_dir}/lib/cuda
             [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
@@ -129,8 +129,8 @@ case "${with_spfft}" in
               -DSPLA_STATIC=ON \
               -DSPLA_GPU_BACKEND=ROCM \
               ${EXTRA_CMAKE_FLAGS} .. \
-              > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+              > cmake.log 2>&1 || tail_excerpt cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
             install -d ${pkg_install_dir}/lib/rocm
             [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/rocm >> install.log 2>&1
             [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/rocm >> install.log 2>&1

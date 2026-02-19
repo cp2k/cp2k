@@ -25,12 +25,12 @@ case "${with_intel}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel compiler from system paths ===================="
-    check_command icx "intel" && CC="$(realpath $(command -v icx))" || exit 1
-    check_command icpx "intel" && CXX="$(realpath $(command -v icpx))" || exit 1
+    check_command icx "intel" && CC="$(real_path $(command -v icx))" || exit 1
+    check_command icpx "intel" && CXX="$(real_path $(command -v icpx))" || exit 1
     if [ "${with_ifx}" = "yes" ]; then
-      check_command ifx "intel" && FC="$(realpath $(command -v ifx))" || exit 1
+      check_command ifx "intel" && FC="$(real_path $(command -v ifx))" || exit 1
     else
-      check_command ifort "intel" && FC="$(realpath $(command -v ifort))" || exit 1
+      check_command ifort "intel" && FC="$(real_path $(command -v ifort))" || exit 1
     fi
     F90="${FC}"
     F77="${FC}"

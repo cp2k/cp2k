@@ -49,9 +49,9 @@ case "${with_spla}" in
         -DSPLA_INSTALL=ON \
         -DSPLA_STATIC=ON \
         .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
@@ -69,9 +69,9 @@ case "${with_spla}" in
           -DSPLA_STATIC=ON \
           -DSPLA_GPU_BACKEND=CUDA \
           .. \
-          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -92,9 +92,9 @@ case "${with_spla}" in
               -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DSPLA_GPU_BACKEND=CUDA \
               .. \
-              > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-            make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+              > cmake.log 2>&1 || tail_excerpt cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+            make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
             ;;
           Mi50 | Mi100 | Mi200 | Mi250)
             [ -d build-hip ] && rm -rf "build-hip"
@@ -111,9 +111,9 @@ case "${with_spla}" in
               -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
               -DSPLA_GPU_BACKEND=ROCM \
               .. \
-              > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-            make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+              > cmake.log 2>&1 || tail_excerpt cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+            make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
             ;;
           *) ;;
         esac

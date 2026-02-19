@@ -54,8 +54,8 @@ case "$with_dftd4" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make install -j $(get_nprocs) >> make.log 2>&1 || tail -n ${LOG_LINES} build.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make install -j $(get_nprocs) >> make.log 2>&1 || tail_excerpt build.log
 
       cd ..
     fi
