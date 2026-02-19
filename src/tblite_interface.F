@@ -531,7 +531,8 @@ CONTAINS
       !getting occupation
       occ = 0
       docc = 0.0_dp
-      DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
+      IF (tb%calc%bas%nsh_at(id_atom) > 5) CPABORT("too many shells in tblite")
+      DO iSh = 1, tb%calc%bas%nsh_at(id_atom)
          occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ityp) + docc)
          docc = docc + tb%calc%h0%refocc(iSh, ityp) - REAL(occ(iSh))
          param%occupation(iSh) = occ(iSh)
