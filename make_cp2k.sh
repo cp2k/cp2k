@@ -266,8 +266,6 @@ while [[ $# -gt 0 ]]; do
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"mimic-mcl@/ ${SUBST}"
                 ;;
               openpmd | adios2)
-                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_ADIOS2=${ON_OFF}"
-                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_OPENPMD=${ON_OFF}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"adios2@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"openpmd-api@/ ${SUBST}"
                 ;;
@@ -815,11 +813,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   # Apply Cray specific adaptation of the spack configuration if requested
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E \
-      -e '0,/\s*-\s+mpich/ s/mpich/cray-mpich/' \
-      -e '/\s*-\s+"mpich@/ s/^ /#/' \
-      -e '/\s*#\s*-\s+"cray-mpich@/ s/#/ /' \
-      -i "${CP2K_CONFIG_FILE}"
+    sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply feature selection to spack configuration file
@@ -1160,7 +1154,7 @@ export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 search_paths="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
 
 # Retrieve paths to all libraries needed by the CP2k binary
-for library in $(readelf -d "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | awk '/NEEDED/{print $5}' | tr -d '[]'); do
+for library in $(readelf -d "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" "${INSTALL_PREFIX}"/lib/libcp2k.* | awk '/NEEDED/{print $5}' | tr -d '[]' | sort | uniq); do
   # Search for missing library path
   if ! ldconfig -p | grep -qE "/${library}$"; then
     # shellcheck disable=SC2086
