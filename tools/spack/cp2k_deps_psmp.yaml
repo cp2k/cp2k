@@ -44,6 +44,14 @@ spack:
       require:
         - mpich
 
+    mpich:
+      require:
+        - "~xpmem"
+
+    xpmem:
+      require:
+        - "xpmem@master ~kernel-module"
+
     # ScaLAPACK, LAPACK, BLAS
     blas:
       require:
@@ -105,6 +113,7 @@ spack:
     libfabric:
       require:
         - "~cuda"
+#       - "+gdrcopy"
 #       - "fabrics=cxi"
 
     libint:
@@ -164,7 +173,6 @@ spack:
   specs:
     # Build tools
     - "cmake@3.27:"
-#   - "cray-mpich@8.1.30"
     - "gcc@10:"
     - "gmake@4.2:"
     - "mpich@4.3.2"
