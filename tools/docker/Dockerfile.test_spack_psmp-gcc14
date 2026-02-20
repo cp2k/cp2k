@@ -5,9 +5,9 @@
 
 ARG BASE_IMAGE="ubuntu:24.04"
 
-###### Stage 1: Build CP2K ######
+###### Stage 1: Build CP2K dependencies ######
 
-FROM "${BASE_IMAGE}" AS build_cp2k
+FROM "${BASE_IMAGE}" AS build_deps
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
@@ -45,10 +45,13 @@ COPY . cp2k/
 WORKDIR /opt/cp2k
 RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue -ef openpmd
 
-# Build and install CP2K
+###### Stage 2: Build CP2K ######
+
+FROM build_deps AS build_cp2k
+
 RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich -ef openpmd
 
-###### Stage 2: Install CP2K ######
+###### Stage 3: Install CP2K ######
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 

@@ -5,9 +5,9 @@
 
 ARG BASE_IMAGE="fedora:rawhide"
 
-###### Stage 1: Build CP2K ######
+###### Stage 1: Build CP2K dependencies ######
 
-FROM "${BASE_IMAGE}" AS build_cp2k
+FROM "${BASE_IMAGE}" AS build_deps
 
 RUN dnf -qy install \
     cmake \
@@ -36,10 +36,13 @@ COPY . cp2k/
 WORKDIR /opt/cp2k
 RUN ./make_cp2k.sh -bd_only -cv ssmp -gpu none -gv 16 -mpi no -ue 
 
-# Build and install CP2K
+###### Stage 2: Build CP2K ######
+
+FROM build_deps AS build_cp2k
+
 RUN ./make_cp2k.sh -cv ssmp -gv 16 -gpu none -mpi no 
 
-###### Stage 2: Install CP2K ######
+###### Stage 3: Install CP2K ######
 
 FROM "${BASE_IMAGE}" AS install_cp2k
 
