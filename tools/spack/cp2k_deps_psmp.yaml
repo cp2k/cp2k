@@ -168,7 +168,7 @@ spack:
     - "gcc@10:"
     - "gmake@4.2:"
     - "mpich@4.3.2"
-    - "ninja@1.10:"
+    - "ninja@1.13"
 #   - "openmpi@5.0.9"
     - "python@3.11:"
     # CP2K

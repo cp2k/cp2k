@@ -121,8 +121,8 @@ def main() -> None:
             install_cp2k_spack(
                 "psmp",
                 mpi_mode="mpich",
-                base_image="rockylinux:9.3",
-                gcc_version=11,
+                base_image="docker.io/rockylinux/rockylinux:10",
+                gcc_version=14,
                 feature_flags="-df libxsmm -ef openpmd",
             )
         )
@@ -673,7 +673,6 @@ def install_cp2k_spack(
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
     elif "rockylinux" in base_image:
-        # Rockylinux provides only GCC 11
         gcc_compilers = f"gcc gcc-c++ gcc-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
@@ -726,6 +725,10 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
 
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts}
@@ -810,17 +813,15 @@ RUN dnf -y install dnf-plugins-core && \
     libtool \
     openssl-devel \
     patch \
-    python3.11 \
-    python3.11-devel \
-    python3.11-pip \
+    python3 \
+    python3-devel \
+    python3-pip \
     unzip \
     wget \
     xz \
     zlib-devel \
     zlib-static \
     && dnf clean -q all
-
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 """
         elif "ubuntu" in base_image:
             output += rf"""
@@ -890,11 +891,9 @@ RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
 RUN dnf -y install dnf-plugins-core && \
     dnf --enablerepo=crb -qy install \
     {gcc_compilers} \
-    python3.11 \
-    python3.11-pip \
+    python3 \
+    python3-pip \
     && dnf clean -q all
-
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 """
         elif "ubuntu" in base_image:
             output += rf"""
