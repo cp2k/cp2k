@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-rockylinux ../../
 #
 
-ARG BASE_IMAGE="rockylinux:9.3"
+ARG BASE_IMAGE="docker.io/rockylinux/rockylinux:10"
 
 ###### Stage 1: Build CP2K ######
 
@@ -18,17 +18,15 @@ RUN dnf -y install dnf-plugins-core && \
     libtool \
     openssl-devel \
     patch \
-    python3.11 \
-    python3.11-devel \
-    python3.11-pip \
+    python3 \
+    python3-devel \
+    python3-pip \
     unzip \
     wget \
     xz \
     zlib-devel \
     zlib-static \
     && dnf clean -q all
-
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
@@ -38,10 +36,10 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 11 -mpi mpich -ue -df libxsmm -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue -df libxsmm -ef openpmd
 
 # Build and install CP2K
-RUN ./make_cp2k.sh -cv psmp -gv 11 -gpu none -mpi mpich -df libxsmm -ef openpmd
+RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich -df libxsmm -ef openpmd
 
 ###### Stage 2: Install CP2K ######
 
@@ -50,11 +48,9 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 RUN dnf -y install dnf-plugins-core && \
     dnf --enablerepo=crb -qy install \
     gcc gcc-c++ gcc-fortran \
-    python3.11 \
-    python3.11-pip \
+    python3 \
+    python3-pip \
     && dnf clean -q all
-
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 
 WORKDIR /opt/cp2k
 
@@ -70,6 +66,10 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
 
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests 

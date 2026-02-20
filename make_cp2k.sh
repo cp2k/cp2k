@@ -144,8 +144,8 @@ HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 MPI_MODE="mpich"
-if command -v lscpu &> /dev/null; then
-  MAX_PROCS="$(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l)"
+if command -v nproc &> /dev/null; then
+  MAX_PROCS=$(nproc)
   NUM_PROCS=${NUM_PROCS:-${MAX_PROCS}}
 else
   MAX_PROCS=-1
@@ -242,6 +242,8 @@ while [[ $# -gt 0 ]]; do
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd | libtorch)
+                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DEEPMD=${ON_OFF}"
+                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}kit@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
                 ;;
@@ -264,6 +266,8 @@ while [[ $# -gt 0 ]]; do
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"mimic-mcl@/ ${SUBST}"
                 ;;
               openpmd | adios2)
+                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_ADIOS2=${ON_OFF}"
+                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_OPENPMD=${ON_OFF}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"adios2@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"openpmd-api@/ ${SUBST}"
                 ;;
@@ -273,8 +277,8 @@ while [[ $# -gt 0 ]]; do
             esac
             ;;
           libvdwxc | spfft | spla | sirius)
-            echo "WARNING: You've enabled or disabled one of libvdwxc/spfft/spla/sirius, so"
-            echo "         the rest packages of them will also be enabled or disabled!"
+            echo "WARNING: You have enabled or disabled one of the packages libvdwxc, spfft, spla, sirius"
+            echo "         which means that the other packages will also be enabled or disabled"
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBVDWXC=${ON_OFF} -DCP2K_USE_SpFFT=${ON_OFF}"
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SPLA=${ON_OFF} -DCP2K_USE_SIRIUS=${ON_OFF}"
             SED_PATTERN_LIST+=" -e '/\s*-\s+\"libvdwxc@/ ${SUBST}"
@@ -775,14 +779,14 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   if [[ "${DISABLE_LOCAL_CACHE}" == "no" ]]; then
     export SPACK_CACHE=${SPACK_CACHE:-"s3://spack-cache --s3-endpoint-url=http://localhost:9000"}
     echo "SPACK_CACHE = \"${SPACK_CACHE}\""
-  fi
-  spack mirror list
-  if ! spack mirror list | grep -q "local-cache"; then
-    echo "Setting up local spack cache"
-    if ((VERBOSE > 0)); then
-      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
-    else
-      "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh &> /dev/null
+    spack mirror list
+    if ! spack mirror list | grep -q "local-cache"; then
+      echo "Setting up local spack cache"
+      if ((VERBOSE > 0)); then
+        "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
+      else
+        "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh &> /dev/null
+      fi
     fi
   else
     echo "INFO: A local Spack cache is NOT used"
@@ -824,10 +828,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Find all compilers
+  echo "Searching for GCC compilers"
   if ! spack compiler find &> /dev/null; then
     echo "ERROR: The compiler detection of spack failed"
     ${EXIT_CMD} 1
   fi
+  spack compiler list
 
   # Retrieve the newest compiler version found by spack
   GCC_VERSION_NEWEST="$(spack compilers | awk '/gcc/ {print $2}' | sort -V | tail -n 1)"
@@ -1133,10 +1139,6 @@ if ((EXIT_CODE != 0)); then
   ${EXIT_CMD} "${EXIT_CODE}"
 fi
 
-# Clean cached files in build directory after installation
-echo -e '\n*** Cleaning cached files in build directory after installation ***\n'
-cmake --build "${CMAKE_BUILD_PATH}" --target clean > /dev/null 2>&1
-
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
   if ! cat "${CMAKE_BUILD_PATH}"/cmake.log \
@@ -1151,43 +1153,51 @@ fi
 # Cut extension from the CP2K version (e.g. ssmp-static -> ssmp)
 export VERSION=${CP2K_VERSION%%-*}
 
-# Add CP2K lib folder to library search path
-LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+# Add CP2K lib folder to the LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
 
-# Retrieve paths to "hidden" libraries
-echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
-if ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
-  echo -e "\n*** Some libraries referenced by the CP2K binary are NOT found:"
-  ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | sort | uniq
-  echo -e "\n*** Trying to update the LD_LIBRARY_PATH\n"
-  # Assemble all search paths for libraries
-  SEARCH_PATHS="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
-  # Search for missing libraries
-  for libname in $(ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | awk '{print $1}' | sort | uniq); do
+# Assemble search paths for libraries
+search_paths="${SPACK_ROOT}/opt/spack/view ${INSTALL_PREFIX}/lib"
+
+# Retrieve paths to all libraries needed by the CP2k binary
+for library in $(readelf -d "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" | awk '/NEEDED/{print $5}' | tr -d '[]'); do
+  # Search for missing library path
+  if ! ldconfig -p | grep -qE "/${library}$"; then
     # shellcheck disable=SC2086
-    library=$(find -L ${SEARCH_PATHS} -name "${libname}" | tail -n 1)
-    library_path="$(dirname "${library}")"
-    if [[ -n "${library_path}" ]]; then
+    library_with_path=$(find -L ${search_paths} -name "${library}" | tail -n 1)
+    if [[ -n "${library_with_path}" ]]; then
+      library_path="$(dirname "${library_with_path}")"
       case ":${LD_LIBRARY_PATH}:" in
         *":${library_path}:"*)
-          echo "The library path ${library_path} is already present ... skipping"
+          ((VERBOSE > 1)) && echo "The library path ${library_path} is already present ... skipping"
           ;;
         *)
           LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}${library_path}"
-          echo "The library path ${library_path} was appended to LD_LIBRARY_PATH"
+          ((VERBOSE > 0)) && echo "The library path ${library_path} was appended to LD_LIBRARY_PATH"
           ;;
       esac
     fi
-  done
-  if ! ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -qE '\s=>\snot found'; then
-    echo -e "\n*** The update of the LD_LIBRARY_PATH was successful"
-    echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
-  else
-    echo -e "\n*** WARNING: The update of the LD_LIBRARY_PATH was NOT successful"
-    echo -e "\n*** The following libraries were NOT found:"
-    ldd -- "${INSTALL_PREFIX}/bin/cp2k.${VERSION}" 2>&1 | grep -E '\s=>\snot found' | sort | uniq
   fi
+done
+export LD_LIBRARY_PATH
+echo -e "\nLD_LIBRARY_PATH = \"${LD_LIBRARY_PATH}\""
+
+# Create an ld configuration file for CP2K because LD_LIBRARY_PATH is fragile
+if [[ "${IN_CONTAINER}" == "yes" ]]; then
+  CP2K_LD_CONF_FILE="/etc/ld.so.conf.d/cp2k.conf"
+else
+  CP2K_LD_CONF_FILE="${INSTALL_PREFIX}/bin/cp2k.conf"
 fi
+
+# Either read LD_LIBRARY_PATH from an existing configuration file or write a new one
+if [[ -f "${CP2K_LD_CONF_FILE}" ]]; then
+  # Load LD_LIBRARY_PATH from an existing configuration file
+  LD_LIBRARY_PATH="$(grep -E '^/' "${CP2K_LD_CONF_FILE}" | paste -sd ':' -)"
+else
+  # Write LD_LIBRARY_PATH to a new configuration file
+  echo "${LD_LIBRARY_PATH}" | tr ':' '\n' | grep '^/' > "${CP2K_LD_CONF_FILE}"
+fi
+
 export LD_LIBRARY_PATH
 
 # Create links to CP2K binaries
@@ -1231,7 +1241,7 @@ ulimit -c 0 -s unlimited
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-8}
-export OMP_STACKSIZE=64M
+export OMP_STACKSIZE=256M
 ${OMPI_VARS}
 exec "\$@"
 ***
@@ -1255,16 +1265,21 @@ if [[ "${RUN_TEST}" == "yes" ]]; then
   fi
 else
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    if ((CUDA_ARCH > 0)); then
+      DEVICE_FLAG=" --device nvidia.com/gpu=all"
+    else
+      DEVICE_FLAG=""
+    fi
     echo ""
     echo "*** A regression test run can be launched with"
-    echo "    podman run -it --rm <IMAGE ID> run_tests"
+    echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> run_tests"
     echo ""
     if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
-      echo "    podman run -it --rm <IMAGE ID> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-      echo "    podman run -it --rm <IMAGE ID> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
     echo ""
   else

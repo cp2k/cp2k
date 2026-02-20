@@ -95,7 +95,7 @@ spack:
     - "cmake@3.27:"
     - "gcc@10:"
     - "gmake@4.2:"
-    - "ninja@1.10:"
+    - "ninja@1.13"
     - "python@3.11:"
     # CP2K
     - "dbcsr@2.9.1"
