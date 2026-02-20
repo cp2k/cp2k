@@ -265,6 +265,8 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
+      ! TODO: Use gauxc_molecule_new to somehow initialize data from qs_env o algo
+
       nimages = dft_control%nimages
       nspins = dft_control%nspins
 
