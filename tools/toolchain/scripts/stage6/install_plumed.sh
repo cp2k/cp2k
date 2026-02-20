@@ -74,9 +74,9 @@ case "$with_plumed" in
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
         --enable-modules=all \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      make VERBOSE=1 -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > configure.log 2>&1 || tail_excerpt configure.log
+      make VERBOSE=1 -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
     PLUMED_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"

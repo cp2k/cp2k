@@ -70,7 +70,7 @@ case "${with_openblas}" in
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
           > make.${OPENBLAS_LIBCORE}.log 2>&1; then
-          tail -n ${LOG_LINES} make.${OPENBLAS_LIBCORE}.log
+          tail_excerpt make.${OPENBLAS_LIBCORE}.log
           BUILD_DYNAMIC=1
         fi
       fi
@@ -85,9 +85,9 @@ case "${with_openblas}" in
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
-          > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+          > make.log 2>&1 || tail_excerpt make.log
       fi
-      make MAKE_NB_JOBS=0 PREFIX="${pkg_install_dir}" install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make MAKE_NB_JOBS=0 PREFIX="${pkg_install_dir}" install > install.log 2>&1 || tail_excerpt install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
     fi

@@ -56,9 +56,9 @@ case "${with_dbcsr}" in
       cmake \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         ${CMAKE_OPTIONS} .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
       if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
         mkdir build-cuda
@@ -67,9 +67,9 @@ case "${with_dbcsr}" in
         cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
           ${CMAKE_OPTIONS} .. \
-          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
       if [ "${ENABLE_HIP}" == "__TRUE__" ]; then
@@ -79,9 +79,9 @@ case "${with_dbcsr}" in
         cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-hip \
           ${CMAKE_OPTIONS} .. \
-          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+          > cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage9/$(basename ${SCRIPT_NAME})"

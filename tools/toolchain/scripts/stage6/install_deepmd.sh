@@ -51,9 +51,9 @@ case "$with_deepmd" in
         -DCMAKE_CXX_STANDARD=11 \
         -DCMAKE_CXX_STANDARD_REQUIRED=TRUE \
         -DENABLE_PYTORCH=TRUE \
-        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make -j deepmd_c > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        .. > cmake.log 2>&1 || tail_excerpt cmake.log
+      make -j deepmd_c > make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
     DEEPMD_DFLAGS="-D__DEEPMD"

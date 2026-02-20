@@ -42,9 +42,9 @@ case "${with_ninja}" in
         -Bbuild-ninja \
         -DBUILD_TESTING=OFF \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      cmake --build build-ninja -j $(get_nprocs) > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      cmake --install build-ninja > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        > configure.log 2>&1 || tail_excerpt configure.log
+      cmake --build build-ninja -j $(get_nprocs) > cmake.log 2>&1 || tail_excerpt cmake.log
+      cmake --install build-ninja > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"
     fi
     ;;

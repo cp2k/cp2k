@@ -46,10 +46,10 @@ case "$with_trexio" in
       tar -xzf trexio-${trexio_ver}.tar.gz
       cd trexio-${trexio_ver}
 
-      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1 || tail_excerpt configure.log
 
-      make -j $(get_nprocs) >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+      make -j $(get_nprocs) >> make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi

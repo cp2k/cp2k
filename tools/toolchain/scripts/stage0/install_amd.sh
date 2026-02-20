@@ -25,9 +25,9 @@ case "${with_amd}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding AMD compiler from system paths ===================="
-    check_command clang "amd" && CC="$(realpath $(command -v clang))" || exit 1
-    check_command clang++ "amd" && CXX="$(realpath $(command -v clang++))" || exit 1
-    check_command flang "amd" && FC="$(realpath $(command -v flang))" || exit 1
+    check_command clang "amd" && CC="$(real_path $(command -v clang))" || exit 1
+    check_command clang++ "amd" && CXX="$(real_path $(command -v clang++))" || exit 1
+    check_command flang "amd" && FC="$(real_path $(command -v flang))" || exit 1
     F90="${FC}"
     F77="${FC}"
     ;;
@@ -51,11 +51,11 @@ case "${with_amd}" in
 esac
 if [ "${with_amd}" != "__DONTUSE__" ]; then
   echo "CC  is ${CC}"
-  [ $(realpath $(command -v clang) | grep -e aocc-compiler) ] || echo "Check the AMD C compiler path"
+  [ $(real_path $(command -v clang) | grep -e aocc-compiler) ] || echo "Check the AMD C compiler path"
   echo "CXX is ${CXX}"
-  [ $(realpath $(command -v clang++) | grep -e aocc-compiler) ] || echo "Check the AMD C++ compiler path"
+  [ $(real_path $(command -v clang++) | grep -e aocc-compiler) ] || echo "Check the AMD C++ compiler path"
   echo "FC  is ${FC}"
-  [ $(realpath $(command -v flang) | grep -e aocc-compiler) ] || echo "Check the AMD Fortran compiler path"
+  [ $(real_path $(command -v flang) | grep -e aocc-compiler) ] || echo "Check the AMD Fortran compiler path"
   cat << EOF > "${BUILDDIR}/setup_amd"
 export CC="${CC}"
 export CXX="${CXX}"

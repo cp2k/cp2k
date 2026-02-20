@@ -45,9 +45,9 @@ case "$with_hdf5" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DHDF5_BUILD_FORTRAN=ON \
         -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-        .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
+        .. > configure.log 2>&1 || tail_excerpt configure.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      make install > install.log 2>&1 || tail_excerpt install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi

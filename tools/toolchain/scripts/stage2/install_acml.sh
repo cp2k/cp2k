@@ -20,7 +20,7 @@ cd "${BUILDDIR}"
 case "$with_acml" in
   __INSTALL__)
     echo "==================== Installing ACML ===================="
-    report_error $LINENO "To install ACML you should either contact your system administrator or go to https://developer.amd.com/tools-and-sdks/archive/amd-core-math-library-acml/acml-downloads-resources/ and download the correct version for your system."
+    report_error $LINENO "__INSTALL__ is not supported; please manually install ACML"
     exit 1
     ;;
   __SYSTEM__)

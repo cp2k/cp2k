@@ -248,7 +248,9 @@ Specific options:
                           This package requires CMake, BLAS and LAPACK.
                           Default = no
   --with-cosma            Enable COSMA as a replacement for ScaLAPACK in matrix
-                          multiplication. COSTA is bundled with COSMA.
+                          multiplication. If set to "install", COSTA and TileMM
+                          will also be installed; if CUDA and/or HIP support is
+                          enabled too, respective versions will all be built.
                           Default = install
   --with-libxsmm          Enable libxsmm as a small matrix multiplication
                           library. Installing is only supported on arch
@@ -653,7 +655,15 @@ Otherwise use option no."
       ;;
     --log-lines=*)
       user_input="${1#*=}"
-      export LOG_LINES="${user_input}"
+      case "${user_input}" in
+        [0-9]*)
+          export LOG_LINES="${user_input}"
+          ;;
+        *)
+          report_error ${LINENO} "Non-integer ${user_input} for --log-lines."
+          exit 1
+          ;;
+      esac
       ;;
     --libint-lmax=*)
       user_input="${1#*=}"

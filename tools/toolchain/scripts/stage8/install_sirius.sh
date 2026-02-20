@@ -155,10 +155,10 @@ case "$with_sirius" in
         -DSIRIUS_USE_MEMORY_POOL=OFF \
         -DSIRIUS_USE_ELPA=OFF \
         ${EXTRA_CMAKE_FLAGS} .. \
-        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        > cmake.log 2>&1 || tail_excerpt cmake.log
 
-      make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) -C src >> make.log 2>&1 || tail_excerpt make.log
+      make install >> make.log 2>&1 || tail_excerpt make.log
       cd ..
 
       # now do we have cuda as well
@@ -184,9 +184,9 @@ case "$with_sirius" in
           -DCMAKE_C_COMPILER="${MPICC}" \
           -DCMAKE_Fortran_COMPILER="${MPIFC}" \
           ${EXTRA_CMAKE_FLAGS} .. \
-          >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-        make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
+          >> cmake.log 2>&1 || tail_excerpt cmake.log
+        make -j $(get_nprocs) -C src >> make.log 2>&1 || tail_excerpt make.log
+        make install >> make.log 2>&1 || tail_excerpt make.log
         SIRIUS_CUDA_LDFLAGS="-L'${pkg_install_dir}/cuda/lib' -Wl,-rpath,'${pkg_install_dir}/cuda/lib'"
         cd ..
       fi

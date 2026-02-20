@@ -61,11 +61,11 @@ case "$with_ace" in
       cmake -S . -B build \
         -DCMAKE_CXX_STANDARD=17 \
         -DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp=TRUE \
-        > build/cmake.log 2>&1 || tail -n ${LOG_LINES} build/cmake.log
+        > build/cmake.log 2>&1 || tail_excerpt build/cmake.log
 
       # build (uses the generator CMake picked: make/ninja)
       cmake --build build -j ${NPROCS:-16} \
-        > build/make.log 2>&1 || tail -n ${LOG_LINES} build/make.log
+        > build/make.log 2>&1 || tail_excerpt build/make.log
 
       cd build
       # no make install.
