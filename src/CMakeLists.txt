@@ -1359,6 +1359,7 @@ list(
   xc/xc.F
   xc/xc_functionals_utilities.F
   xc/xc_fxc_kernel.F
+  xc/xc_gauxc.F
   xc/xc_hcth.F
   xc/xc_input_constants.F
   xc/xc_ke_gga.F

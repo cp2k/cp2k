@@ -148,6 +148,8 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
+   USE xc_gauxc,                        ONLY: gauxc_finalize,&
+                                              gauxc_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -300,6 +302,7 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
+         CALL gauxc_init(default_para_env%get_handle())
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -344,6 +347,7 @@ CONTAINS
          CALL pw_gpu_finalize()
          CALL pw_fpga_finalize()
          IF (cp_sirius_is_initialized()) CALL cp_sirius_finalize()
+         CALL gauxc_finalize()
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
 
