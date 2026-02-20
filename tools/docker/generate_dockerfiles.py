@@ -702,7 +702,10 @@ COPY . cp2k/
 WORKDIR /opt/cp2k
 RUN ./make_cp2k.sh -bd_only -cv {version} -gpu {gpu_model} -gv {gcc_version} -mpi {mpi_mode} {use_externals} {feature_flags}
 
-# Build and install CP2K
+###### Stage 2: Build CP2K ######
+
+FROM build_deps AS build_cp2k
+
 RUN ./make_cp2k.sh -cv {version} -gv {gcc_version} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
@@ -752,9 +755,9 @@ def install_base_image(
         output = rf"""
 ARG BASE_IMAGE="{base_image}"
 
-###### Stage 1: Build CP2K ######
+###### Stage 1: Build CP2K dependencies ######
 
-FROM "${{BASE_IMAGE}}" AS build_cp2k
+FROM "${{BASE_IMAGE}}" AS build_deps
 """
         if "fedora" in base_image:
             output += rf"""
@@ -864,7 +867,7 @@ ENV CUDA_CACHE_DISABLE 1
 """
     elif stage == "install":
         output = rf"""
-###### Stage 2: Install CP2K ######
+###### Stage 3: Install CP2K ######
 
 FROM "${{BASE_IMAGE}}" AS install_cp2k
 """
