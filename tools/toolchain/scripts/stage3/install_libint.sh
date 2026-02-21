@@ -67,7 +67,8 @@ case "$with_libint" in
 
       mkdir build
       cd build
-      CXXFLAGS="$LIBINT_CXXFLAGS" cmake .. \
+      CXXFLAGS="$LIBINT_CXXFLAGS" \
+        FCFLAGS="$LIBINT_FCFLAGS" cmake .. \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         -DCMAKE_CXX_COMPILER="$CXX" \
         -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
@@ -109,7 +110,6 @@ EOF
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
