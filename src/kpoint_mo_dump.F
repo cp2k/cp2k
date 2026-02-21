@@ -98,6 +98,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_set, l_set, last_sgf_set
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: ionode, use_real_wfn
+      REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval_buf, occ_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Cim_buf, Cre_buf, Sim_buf, Sre_buf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
@@ -257,11 +258,15 @@ CONTAINS
          WRITE (iw, '(A,L2)') "# USE_REAL_WFN =", use_real_wfn
 
          ! Atom table
-         WRITE (iw, '(A)') "# ATOM_LIST: iatom  element  first_ao  last_ao  (1-based, inclusive)"
+         WRITE (iw, '(A)') &
+            "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Ang]  Y [Ang]  Z [Ang]  First_AO  Last_AO  (1-based, inclusive)"
          DO iatom = 1, natom
+            ikind = particle_set(iatom)%atomic_kind%kind_number
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                  element_symbol=element_symbol)
-            WRITE (iw, '(I6,2X,A2,2I8)') iatom, element_symbol, first_sgf(iatom), last_sgf(iatom)
+            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+            WRITE (iw, '(I6,2X,A2,I6,3F15.8,2I10)') &
+               iatom, element_symbol, NINT(zeff), particle_set(iatom)%r(:)*angstrom, first_sgf(iatom), last_sgf(iatom)
          END DO
 
          ! AO angular momentum map
