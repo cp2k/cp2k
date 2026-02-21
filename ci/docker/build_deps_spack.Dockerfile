@@ -25,7 +25,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     libtool-bin \
     lsb-release \
     make \
-    ninja-build \
     patch \
     pkgconf \
     python3 \
@@ -52,4 +51,4 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN /bin/bash -o pipefail -c "source ./make_cp2k.sh -bd_only -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS}"
+RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} -ef openpmd

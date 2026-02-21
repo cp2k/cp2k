@@ -84,8 +84,13 @@ else
   EXIT_CMD="exit"
 fi
 
+# Help finding ldconfig
+if ! command -v ldconfig &> /dev/null; then
+  PATH="${PATH}:/sbin"
+fi
+
 # Check if all mandatory packages are installed in the environment
-for package in awk bzip2 find g++ gcc gfortran git make gzip patch python3 tar wget xz; do
+for package in awk bzip2 find g++ gcc gfortran git gzip ldconfig make patch python3 tar wget xz; do
   if ! command -v "${package}" &> /dev/null; then
     echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
     echo "       Install the missing package and re-run the script"
