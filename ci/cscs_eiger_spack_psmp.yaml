@@ -104,7 +104,7 @@ benchmark cp2k 1 eiger node:
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 1
@@ -126,7 +126,7 @@ benchmark cp2k 2 eiger nodes:
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 1
