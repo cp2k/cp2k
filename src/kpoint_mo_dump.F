@@ -240,15 +240,15 @@ CONTAINS
 
          ! Cell vectors: hmat(:,i) = i-th lattice vector, written as rows
          WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
-         WRITE (iw, '(3ES24.15)') &
+         WRITE (iw, '(3ES18.08)') &
             cell%hmat(1, 1)*angstrom, &
             cell%hmat(2, 1)*angstrom, &
             cell%hmat(3, 1)*angstrom
-         WRITE (iw, '(3ES24.15)') &
+         WRITE (iw, '(3ES18.08)') &
             cell%hmat(1, 2)*angstrom, &
             cell%hmat(2, 2)*angstrom, &
             cell%hmat(3, 2)*angstrom
-         WRITE (iw, '(3ES24.15)') &
+         WRITE (iw, '(3ES18.08)') &
             cell%hmat(1, 3)*angstrom, &
             cell%hmat(2, 3)*angstrom, &
             cell%hmat(3, 3)*angstrom
@@ -278,7 +278,7 @@ CONTAINS
          ! K-point list
          WRITE (iw, '(A)') "# KPOINT_LIST: ikp  kx  ky  kz  weight"
          DO ikp = 1, nkp
-            WRITE (iw, '(I6,4ES20.12)') ikp, xkp(1:3, ikp), wkp(ikp)
+            WRITE (iw, '(I6,4ES18.8)') ikp, xkp(1:3, ikp), wkp(ikp)
          END DO
       END IF
 
@@ -335,20 +335,28 @@ CONTAINS
                WRITE (iw, '(A,2I6)') "# BEGIN_KPOINT_SPIN ikp ispin =", ikp, ispin
 
                WRITE (iw, '(A)') "# EIGENVALUES"
-               WRITE (iw, '(5ES25.15E3)') (eval_buf(n), n=1, nmo)
+               WRITE (iw, '(5ES18.8)') (eval_buf(n), n=1, nmo)
 
                WRITE (iw, '(A)') "# OCCUPATIONS"
-               WRITE (iw, '(5ES25.15E3)') (occ_buf(n), n=1, nmo)
+               WRITE (iw, '(5ES18.8)') (occ_buf(n), n=1, nmo)
 
-               WRITE (iw, '(A)') "# MO_COEFF_RE"
+               WRITE (iw, '(A)') "# MO_COEFF_RE (Sparse: i_ao j_mo value)"
                DO i = 1, nao
-                  WRITE (iw, '(5ES25.15E3)') (Cre_buf(i, j), j=1, nmo)
+                  DO j = 1, nmo
+                     IF (ABS(Cre_buf(i, j)) > 1.0E-12_dp) THEN
+                        WRITE (iw, '(2I6, ES22.12)') i, j, Cre_buf(i, j)
+                     END IF
+                  END DO
                END DO
 
                IF (.NOT. use_real_wfn) THEN
                   WRITE (iw, '(A)') "# MO_COEFF_IM"
                   DO i = 1, nao
-                     WRITE (iw, '(5ES25.15E3)') (Cim_buf(i, j), j=1, nmo)
+                     DO j = 1, nmo
+                        IF (ABS(Cim_buf(i, j)) > 1.0E-12_dp) THEN
+                           WRITE (iw, '(2I6, ES22.12)') i, j, Cim_buf(i, j)
+                        END IF
+                     END DO
                   END DO
                END IF
                WRITE (iw, '(A,2I6)') "# END_KPOINT_SPIN ikp ispin =", ikp, ispin
@@ -394,14 +402,23 @@ CONTAINS
          ! Write S(k) to file
          IF (iw > 0) THEN
             WRITE (iw, '(A,I6)') "# BEGIN_OVERLAP ikp =", ikp
+
             WRITE (iw, '(A)') "# OVERLAP_RE"
             DO i = 1, nao
-               WRITE (iw, '(5ES25.15E3)') (Sre_buf(i, j), j=1, nao)
+               DO j = 1, nao
+                  IF (ABS(Sre_buf(i, j)) > 1.0E-12_dp) THEN
+                     WRITE (iw, '(2I6, ES22.12)') i, j, Sre_buf(i, j)
+                  END IF
+               END DO
             END DO
             IF (.NOT. use_real_wfn) THEN
                WRITE (iw, '(A)') "# OVERLAP_IM"
                DO i = 1, nao
-                  WRITE (iw, '(5ES25.15E3)') (Sim_buf(i, j), j=1, nao)
+                  DO j = 1, nao
+                     IF (ABS(Sim_buf(i, j)) > 1.0E-12_dp) THEN
+                        WRITE (iw, '(2I6, ES22.12)') i, j, Sim_buf(i, j)
+                     END IF
+                  END DO
                END DO
             END IF
             WRITE (iw, '(A,I6)') "# END_OVERLAP ikp =", ikp
