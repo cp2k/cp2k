@@ -36,7 +36,7 @@ build deps daint:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    FEATURE_FLAGS: "-ef openpmd"
+    FEATURE_FLAGS: ""
 
 build cp2k daint:
   extends: .container-builder-cscs-gh200
@@ -57,7 +57,7 @@ build cp2k daint:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
-    FEATURE_FLAGS: "-ef openpmd"
+    FEATURE_FLAGS: ""
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k daint:
