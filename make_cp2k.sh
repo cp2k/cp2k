@@ -816,9 +816,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
-  # Apply Cray specific adaptation of the spack configuration if requested
+  # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
+    sed -E \
+      -e 's/~xpmem/+xpmem/' \
+      -e 's/"libfabric@[.0-9]*"/"libfabric@1.22.0"/' \
+      -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply feature selection to spack configuration file
