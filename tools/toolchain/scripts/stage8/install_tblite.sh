@@ -44,6 +44,15 @@ case "$with_tblite" in
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
+      # Interim fix for tblite-0.5.0.tar.xz: the subprojects are found in order
+      # specified by tblite-0.5.0/CMakeLists.txt as
+      # mctc-lib, mstore, toml-f (, test-drive), dft-d4 (, multicharge), s-dftd3.
+      # Despite all subprojects already included in the package, test-drive and
+      # multicharge cannot be located, necessitating separate downloads from
+      # github repositories. Two soft links are created to resolve this issue.
+      ln -s ${PWD}/subprojects/test-drive ${PWD}/subprojects/toml-f/subprojects/test-drive
+      ln -s ${PWD}/subprojects/multicharge ${PWD}/subprojects/dftd4/subprojects/multicharge
+      # See https://github.com/tblite/tblite/issues/313 for the full story.
 
       rm -Rf build
       mkdir build
@@ -114,6 +123,7 @@ EOF
     TBLITE_LDFLAGS="-L'${TBLITE_LINK_LIBRARIES}' -Wl,-rpath,'${TBLITE_LINK_LIBRARIES}'"
 
     cat << EOF >> "${BUILDDIR}/setup_tblite"
+prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${TBLITE_LINK_LIBRARIES}"
 prepend_path LD_RUN_PATH "${TBLITE_LINK_LIBRARIES}"
 prepend_path LIBRARY_PATH "${TBLITE_LINK_LIBRARIES}"
