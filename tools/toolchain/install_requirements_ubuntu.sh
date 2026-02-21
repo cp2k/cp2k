@@ -23,6 +23,8 @@ apt-get install -qq --no-install-recommends \
   gfortran \
   git \
   less \
+  libboost-dev \
+  libeigen3-dev \
   libtool \
   libtool-bin \
   make \
