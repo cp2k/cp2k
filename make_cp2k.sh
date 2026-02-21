@@ -1242,7 +1242,7 @@ cat << *** > "${LAUNCH_SCRIPT}"
 ulimit -c 0 -s unlimited
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
-export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-8}
+export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
 ${OMPI_VARS}
 exec "\$@"
