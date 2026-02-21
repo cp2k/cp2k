@@ -295,13 +295,15 @@ Specific options:
   --with-spglib           Enable the spg library for symmetry groups detection.
                           This package depends on CMake.
                           Default = install
-  --with-dftd4            Enable the DFTD4 package by Grimme for the DFT-D4
-                          dispersion correction method.
+  --with-dftd4            Enable the standalone DFTD4 package by Grimme for the
+                          DFT-D4 dispersion correction method.
                           This package requires CMake.
-                          Default = install
+                          Default = no
   --with-tblite           Enable the tblite package by Grimme for GFN-xtb and
-                          DFT-D4 methods. If tblite is used then standalone
-                          DFTD4 is not used.
+                          DFT-D4 methods, bundled with multicharge, mctc-lib,
+                          mstore, s-dftd3, and toml-f libraries as backends.
+                          If tblite is used, standalone DFTD4 package specified
+                          by --with-dftd4 will not be used.
                           This package requires CMake.
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
@@ -1005,8 +1007,11 @@ fi
 
 # Since tblite includes dftd4, a separate dftd4 is not needed.
 if [ "${with_tblite}" != "__DONTUSE__" ]; then
-  report_warning ${LINENO} "When using tblite, do not use standalone dft-d4."
-  with_dftd4="__DONTUSE__"
+  if [ "${with_dftd4}" != "__DONTUSE__" ]; then
+    report_warning ${LINENO} "Since tblite includes dft-d4, a standalone dft-d4
+package will not be used separately."
+    with_dftd4="__DONTUSE__"
+  fi
 fi
 
 # Several packages require cmake.
