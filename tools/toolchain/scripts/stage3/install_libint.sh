@@ -67,14 +67,11 @@ case "$with_libint" in
 
       mkdir build
       cd build
-      # Avoid requiring system-installed boost and eigen3
       CXXFLAGS="$LIBINT_CXXFLAGS" cmake .. \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         -DCMAKE_CXX_COMPILER="$CXX" \
         -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
         -DLIBINT2_ENABLE_FORTRAN=ON \
-        -DCMAKE_DISABLE_FIND_PACKAGE_Boost=ON \
-        -DLIBINT2_REQUIRE_CXX_API=OFF \
         > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
 
