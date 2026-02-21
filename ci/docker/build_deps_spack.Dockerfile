@@ -45,10 +45,13 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 
+ARG FEATURE_FLAGS
+ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
+
 # Copy CP2K repository into container
 WORKDIR /opt
 COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} ${FEATURE_FLAGS}

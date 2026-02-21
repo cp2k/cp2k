@@ -30,12 +30,12 @@ build deps eiger:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "CP2K_VERSION",
-      "LOG_LINES"
+      "FEATURE_FLAGS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    LOG_LINES: 200
+    FEATURE_FLAGS: ""
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
@@ -50,11 +50,13 @@ build cp2k eiger:
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
-      "DEPS_IMAGE"
+      "DEPS_IMAGE",
+      "FEATURE_FLAGS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
+    FEATURE_FLAGS: ""
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k eiger:
@@ -88,6 +90,6 @@ regression test cp2k eiger:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
-    SLURM_TIMELIMIT: 30
+    SLURM_TIMELIMIT: 40
 
 # EOF

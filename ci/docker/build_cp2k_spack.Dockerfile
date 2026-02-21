@@ -17,9 +17,12 @@ FROM "${DEPS_IMAGE}" AS build_cp2k
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
 
+ARG FEATURE_FLAGS
+ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
+
 # Build CP2K
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} -ef openpmd
+RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} ${FEATURE_FLAGS}
 
 ###### Stage 3: Install CP2K ######
 
