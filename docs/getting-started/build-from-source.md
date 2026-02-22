@@ -1,8 +1,13 @@
 # Build from Source
 
 CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
-compilation process. The dependencies have to be installed in advance, either manually or through a
-package manager like [Spack](https://spack.readthedocs.io).
+compilation process. The dependencies have to be installed in advance.
+
+Currently, CP2K offers two convenient methods for installing CP2K and its dependencies. One is to
+use the classic toolchain scripts to customize and install the required dependencies in a single
+step, thereby preparing the environment for compiling CP2K. A more modern and automated approach
+is via `make_cp2k.sh`, which leverages [Spack](https://spack.readthedocs.io) to install the
+dependencies and subsequently build CP2K.
 
 ## Dependencies
 
@@ -37,7 +42,7 @@ cmake -S . -B build \
 cmake --build build -j 32
 ```
 
-## Others Build Options
+### Explanation of Above Build Options
 
 - `-GNinja` Generates [Ninja](https://ninja-build.org/) build files instead of GNU Makefiles.
 - `-DCMAKE_BUILD_TYPE=Debug` Enables debug settings, recommended for development.
@@ -49,3 +54,11 @@ cmake --build build -j 32
 - `-DCP2K_USE_CRAY_PM_ENERGY` Enables power monitoring on Cray systems.
 - `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` Enables power monitoring of accelerators on Cray systems.
 - `-DCP2K_USE_DBCSR_CONFIG` Make dbcsr cmake options (`DBCSR_USE_BLA`) available.
+
+## Cleaning build cache
+
+If you want to clean your build cache after installing in order to save space, simply run:
+
+```
+cmake --build build --target clean
+```
