@@ -4,6 +4,7 @@ include:
 stages:
   - deps
   - cp2k
+  - test
 
 variables:
   REPOSITORY: cp2k_daint
