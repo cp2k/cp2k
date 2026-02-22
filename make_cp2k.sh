@@ -831,6 +831,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
   if [[ "${CRAY}" == "yes" ]]; then
     sed -E \
+      -e '/\s*#\s*-\s+"netmod=ofi"/ s/#/ /' \
       -e 's/~xpmem/+xpmem/' \
       -e 's/"libfabric@[.0-9]*"/"libfabric@1.22.0"/' \
       -i "${CP2K_CONFIG_FILE}"
