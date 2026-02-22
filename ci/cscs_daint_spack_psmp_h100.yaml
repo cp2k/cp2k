@@ -1,0 +1,59 @@
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
+
+stages:
+  - deps
+  - cp2k
+
+variables:
+  REPOSITORY: cp2k_daint
+  BUILDER: spack
+  VERSION: psmp
+  TAG: "${BUILDER}_${VERSION}"
+  UBUNTU_IMAGE_NAME: "nvidia/cuda:12.4.1-devel-ubuntu22.04"
+  CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
+  DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
+
+build deps daint:
+  extends: .container-builder-cscs-gh200
+  stage: deps
+  timeout: 1h
+  before_script:
+    - DEPS_IMAGE_TAG=`cat ci/cscs_daint_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile $(find tools/spack -type f) $(find cmake -type f) | sha256sum - | head -c 16`
+    - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
+    - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  variables:
+    DOCKER_BUILD_ARGS: '[
+      "BASE_IMAGE",
+      "CP2K_VERSION",
+      "FEATURE_FLAGS"
+    ]'
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
+    BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
+    CP2K_VERSION: ${VERSION}
+    FEATURE_FLAGS: "-gpu H100 -df all""
+
+build cp2k daint:
+  extends: .container-builder-cscs-gh200
+  stage: cp2k
+  needs: ["build deps daint"]
+  timeout: 1h
+  before_script:
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+  after_script:
+    - podman images
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+  variables:
+    DOCKER_BUILD_ARGS: '[
+      "BASE_IMAGE",
+      "DEPS_IMAGE",
+      "FEATURE_FLAGS"
+    ]'
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
+    BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
+    DEPS_IMAGE: ${DEPS_IMAGE_NAME}
+    FEATURE_FLAGS: "-gpu H100 -df all"
+    PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}

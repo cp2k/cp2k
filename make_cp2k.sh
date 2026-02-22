@@ -569,6 +569,7 @@ echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
+echo "Physical cores      = $(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l) (host view)"
 echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
 echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
@@ -636,7 +637,8 @@ if ((CUDA_ARCH > 0)); then
   # Check if the selected CUDA arch is valid when the nvidia-smi command is available
   if command -v nvidia-smi &> /dev/null; then
     nvidia-smi
-    HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | awk '{print 10*$1}')
+    CUDA_VERSION=$(nvidia-smi | grep "CUDA Version:" | awk '{print $9}')
+    HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | tail -n 1 | awk '{print 10*$1}')
     if ((CUDA_ARCH > HOST_CUDA_ARCH)); then
       echo "ERROR: The requested CUDA arch (${CUDA_ARCH}) is larger than the maximum"
       echo "       CUDA arch (${HOST_CUDA_ARCH}) supported by the host system"
@@ -657,6 +659,7 @@ if ((CUDA_ARCH > 0)); then
   CMAKE_CUDA_FLAGS="$(printf '%s\n' "${out[*]}")"
   echo "CMAKE_CUDA_FLAGS    = ${CMAKE_CUDA_FLAGS}"
   [[ -n "${CUDA_VERSION:-}" ]] && echo "CUDA_VERSION        = ${CUDA_VERSION}"
+  [[ -n "${CUDA_HOME:-}" ]] && echo "CUDA_HOME           = ${CUDA_HOME}"
   echo ""
 else
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=OFF"
@@ -814,6 +817,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Activate CUDA in the spack configuration file if requested
   if ((CUDA_ARCH > 0)); then
     sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" -i "${CP2K_CONFIG_FILE}"
+    if [[ -n "${CUDA_VERSION:-}" ]]; then
+      sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
+    fi
+    if [[ -n "${CUDA_HOME:-}" ]]; then
+      sed -E -e "s|prefix: /usr/local/cuda|prefix: ${CUDA_HOME}|" -i "${CP2K_CONFIG_FILE}"
+    fi
   fi
 
   # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
