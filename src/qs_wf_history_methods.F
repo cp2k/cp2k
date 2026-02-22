@@ -16,7 +16,6 @@
 !>      02.2003 created [fawzi]
 !>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
 !>      02.2005 modified for KG_GPW [MI]
-!>      2026    k-point ASPC wavefunction extrapolation
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_wf_history_methods
@@ -24,12 +23,13 @@ MODULE qs_wf_history_methods
                                               Kuhne2007,&
                                               VandeVondele2005a,&
                                               cite_reference
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -157,7 +157,7 @@ CONTAINS
 
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
-               snapshot%overlap, snapshot%wf_kp, snapshot%overlap_kp, &
+               snapshot%overlap, snapshot%wf_kp, snapshot%overlap_cfm_kp, &
                snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
    END SUBROUTINE wfs_create
@@ -171,7 +171,6 @@ CONTAINS
 !> \par History
 !>      02.2003 created [fawzi]
 !>      02.2005 added kg_fm_mol_set for KG_GPW [MI]
-!>      2026    k-point WFN snapshot storage
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfs_update(snapshot, wf_history, qs_env, dt)
@@ -182,27 +181,44 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_update'
 
-      INTEGER                                            :: handle, ic, ikp, img, ispin, &
-                                                            kplocal, nc, nimg, nspins, nspin_kp
+      INTEGER                                            :: handle, ic, ik, igroup, ikp, img, &
+                                                            indx_ft, ispin, &
+                                                            kplocal, nc, nimg, nkp_all, &
+                                                            nkp_grps, nspins, nspin_kp
       INTEGER, DIMENSION(2)                              :: kp_range
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_pools
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: my_kpgrp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info_ft
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, ao_mo_pools
+      TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct_ft
+      TYPE(cp_fm_type)                                   :: fmlocal_ft, fmdummy_ft
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
+      TYPE(dbcsr_type), POINTER                          :: rmat_ft, cmat_ft, tmpmat_ft
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env_ft
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff, &
-               rho, rho_r, rho_g, rho_ao, matrix_s, matrix_s_kp, kpoints, kp)
+      NULLIFY (pw_env, auxbas_pw_pool, ao_mo_pools, ao_ao_fm_pools, dft_control, mos, mo_coeff, &
+               rho, rho_r, rho_g, rho_ao, matrix_s, matrix_s_kp, kpoints, kp, &
+               kp_dist, cell_to_index, xkp, sab_nl, scf_env, mpools_kp, para_env_ft, &
+               rmat_ft, cmat_ft, tmpmat_ft, ao_ao_struct_ft)
       CALL get_qs_env(qs_env, pw_env=pw_env, &
                       dft_control=dft_control, rho=rho)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools)
@@ -352,21 +368,110 @@ CONTAINS
          END DO
       END IF
 
-      ! --- k-point overlap snapshot: store real-space S(R) images ---
+      ! --- k-point overlap snapshot: Fourier-transform S(R)→S(k) NOW and store as cfm ---
+      ! This is critical: we MUST transform at snapshot time using the CURRENT neighbor
+      ! list. Storing S(R) and re-transforming later would use a stale neighbor list,
+      ! producing wrong S(k) when the neighbor list changes during MD.
       IF (wf_history%store_overlap_kp) THEN
-         CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp)
-         nimg = dft_control%nimages
+         CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
+         CALL get_kpoint_info(kpoints, nkp=nkp_all, xkp=xkp, kp_range=kp_range, &
+                              nkp_groups=nkp_grps, kp_dist=kp_dist, &
+                              sab_nl=sab_nl, cell_to_index=cell_to_index)
+         kplocal = kp_range(2) - kp_range(1) + 1
+         para_env_ft => kpoints%blacs_env_all%para_env
 
-         IF (ASSOCIATED(snapshot%overlap_kp)) THEN
-            CALL dbcsr_deallocate_matrix_set(snapshot%overlap_kp)
+         ! Allocate dbcsr work matrices for FT (same pattern as do_general_diag_kp)
+         ALLOCATE (rmat_ft, cmat_ft, tmpmat_ft)
+         CALL dbcsr_create(rmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(cmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL dbcsr_create(tmpmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmat_ft, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(cmat_ft, sab_nl)
+
+         ! Get kp-subgroup FM from pool
+         CALL get_kpoint_info(kpoints, mpools=mpools_kp)
+         CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools)
+         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
+
+         ! Release old snapshot if present
+         IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
+            DO ikp = 1, SIZE(snapshot%overlap_cfm_kp)
+               CALL cp_cfm_release(snapshot%overlap_cfm_kp(ikp))
+            END DO
+            DEALLOCATE (snapshot%overlap_cfm_kp)
          END IF
+         ALLOCATE (snapshot%overlap_cfm_kp(kplocal))
 
-         CALL dbcsr_allocate_matrix_set(snapshot%overlap_kp, 1, nimg)
-         DO img = 1, nimg
-            ALLOCATE (snapshot%overlap_kp(1, img)%matrix)
-            CALL dbcsr_copy(snapshot%overlap_kp(1, img)%matrix, &
-                            matrix_s_kp(1, img)%matrix)
+         CALL cp_fm_get_info(fmlocal_ft, matrix_struct=ao_ao_struct_ft)
+
+         ! Communication info array
+         ALLOCATE (info_ft(kplocal*nkp_grps, 2))
+
+         ! Phase A: Start async FT + redistribute for each k-point
+         indx_ft = 0
+         DO ikp = 1, kplocal
+            DO igroup = 1, nkp_grps
+               ik = kp_dist(1, igroup) + ikp - 1
+               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+               indx_ft = indx_ft + 1
+
+               CALL dbcsr_set(rmat_ft, 0.0_dp)
+               CALL dbcsr_set(cmat_ft, 0.0_dp)
+               CALL rskp_transform(rmatrix=rmat_ft, cmatrix=cmat_ft, rsmat=matrix_s_kp, &
+                                   ispin=1, xkp=xkp(1:3, ik), &
+                                   cell_to_index=cell_to_index, sab_nl=sab_nl)
+               CALL dbcsr_desymmetrize(rmat_ft, tmpmat_ft)
+               CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(1))
+               CALL dbcsr_desymmetrize(cmat_ft, tmpmat_ft)
+               CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(2))
+
+               IF (my_kpgrp) THEN
+                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal_ft, &
+                                                para_env_ft, info_ft(indx_ft, 1))
+                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal_ft, &
+                                                para_env_ft, info_ft(indx_ft, 2))
+               ELSE
+                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy_ft, &
+                                                para_env_ft, info_ft(indx_ft, 1))
+                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy_ft, &
+                                                para_env_ft, info_ft(indx_ft, 2))
+               END IF
+            END DO
          END DO
+
+         ! Phase B: Finish communication and assemble S(k) as cfm
+         indx_ft = 0
+         DO ikp = 1, kplocal
+            CALL cp_cfm_create(snapshot%overlap_cfm_kp(ikp), ao_ao_struct_ft)
+            CALL cp_cfm_set_all(snapshot%overlap_cfm_kp(ikp), z_zero)
+            DO igroup = 1, nkp_grps
+               ik = kp_dist(1, igroup) + ikp - 1
+               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+               indx_ft = indx_ft + 1
+               IF (my_kpgrp) THEN
+                  CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 1))
+                  CALL cp_cfm_scale_and_add_fm(z_zero, snapshot%overlap_cfm_kp(ikp), &
+                                               z_one, fmlocal_ft)
+                  CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 2))
+                  CALL cp_cfm_scale_and_add_fm(z_one, snapshot%overlap_cfm_kp(ikp), &
+                                               gaussi, fmlocal_ft)
+               END IF
+            END DO
+         END DO
+
+         ! Cleanup
+         DO indx_ft = 1, kplocal*nkp_grps
+            CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 1))
+            CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 2))
+         END DO
+         DEALLOCATE (info_ft)
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
+         CALL dbcsr_deallocate_matrix(rmat_ft)
+         CALL dbcsr_deallocate_matrix(cmat_ft)
+         CALL dbcsr_deallocate_matrix(tmpmat_ft)
       END IF
 
       IF (wf_history%store_frozen_density) THEN
@@ -495,7 +600,7 @@ CONTAINS
       IF (wf_history%store_wf_kp) THEN
          wf_history%store_wf = .FALSE.
          wf_history%store_overlap = .FALSE.
-         ! store_wf_kp and store_overlap_kp remain TRUE
+         ! store_wf_kp and store_overlap_cfm_kp remain TRUE
       ELSE
          ! Non-ASPC methods that use store_wf are still blocked
          IF (wf_history%store_wf) THEN
@@ -564,7 +669,6 @@ CONTAINS
 !> \par History
 !>      02.2003 created [fawzi]
 !>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
-!>      2026    k-point ASPC dispatch
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
@@ -1071,19 +1175,21 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_aspc_kp'
-      CHARACTER(len=512)                                 :: msg
 
       INTEGER :: handle, ik, ikp, igroup, indx, ispin, nao, nmo, &
-                 nkp, nkp_groups, kplocal, nspin, i, chol_info
+                 nkp, nkp_groups, kplocal, nspin, i, j, chol_info
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, use_real_wfn
-      REAL(KIND=dp)                                      :: alpha_coeff
+      REAL(KIND=dp)                                      :: alpha_coeff, eval_thresh
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvalues
+      COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: col_scaling
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: csmat_work, cmos_new, cmos_i, cmos_1, &
-                                                            csc_cfm, cfm_nao_nmo_work
+      TYPE(cp_cfm_type)                                  :: cmos_new, cmos_i, cmos_1, &
+                                                            csc_cfm, cfm_nao_nmo_work, &
+                                                            cfm_evecs, cfm_mhalf
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
@@ -1153,7 +1259,6 @@ CONTAINS
       CALL cp_fm_get_info(fmlocal, matrix_struct=ao_ao_struct)
 
       ! --- Allocate kp-subgroup CFM work matrices ---
-      CALL cp_cfm_create(csmat_work, ao_ao_struct)   ! S(k) nao x nao
       CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_ao_struct)
       ! ao_ao_struct above is nao x nao; for nao x nmo we need mo_coeff's struct
       CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)  ! nao x nmo
@@ -1259,14 +1364,10 @@ CONTAINS
 
       ! =======================================================================
       ! Phase 2: For each historical snapshot i=2..nvec, project and accumulate
+      !          S_i(k) is read directly from the snapshot (already FT'd at store time)
       ! =======================================================================
       DO i = 2, nvec
          t0_state => wfi_get_snapshot(wf_history, wf_index=i)
-
-         ! Check for nimages mismatch (cell changes during MD)
-         IF (SIZE(t0_state%overlap_kp, 2) /= dft_control%nimages) THEN
-            CPWARN("ASPC k-point: nimages changed; extrapolation quality may degrade")
-         END IF
 
          alpha_coeff = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
                        binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
@@ -1274,51 +1375,8 @@ CONTAINS
             WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") "B(", i, ") = ", alpha_coeff
          END IF
 
-         ! Phase 2a: FT historical S_i(R) for all k-points (collective)
-         indx = 0
+         ! For each local k-point, do projection using stored S_i(k) and MO snapshots
          DO ikp = 1, kplocal
-            DO igroup = 1, nkp_groups
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-               indx = indx + 1
-
-               CALL dbcsr_set(rmatrix, 0.0_dp)
-               CALL dbcsr_set(cmatrix_db, 0.0_dp)
-               CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix_db, &
-                                   rsmat=t0_state%overlap_kp, ispin=1, &
-                                   xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-               CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-               CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(1))
-               CALL dbcsr_desymmetrize(cmatrix_db, tmpmat)
-               CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(2))
-
-               IF (my_kpgrp) THEN
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal, para_env, info(indx, 1))
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal, para_env, info(indx, 2))
-               ELSE
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy, para_env, info(indx, 1))
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy, para_env, info(indx, 2))
-               END IF
-            END DO
-         END DO
-
-         ! Phase 2b: Finish communication and do projection for each local k-point
-         indx = 0
-         DO ikp = 1, kplocal
-            ! Receive S_i(k) for this local k-point
-            DO igroup = 1, nkp_groups
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-               indx = indx + 1
-               IF (my_kpgrp) THEN
-                  CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                  CALL cp_cfm_scale_and_add_fm(z_zero, csmat_work, z_one, fmlocal)
-                  CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                  CALL cp_cfm_scale_and_add_fm(z_one, csmat_work, gaussi, fmlocal)
-               END IF
-            END DO
-
-            ! csmat_work now contains S_i(k) for this kp group's ikp-th k-point
             kp => kpoints%kp_env(ikp)%kpoint_env
 
             DO ispin = 1, nspin
@@ -1331,9 +1389,10 @@ CONTAINS
                                  t0_state%wf_kp(ikp, 2, ispin), cmos_i)
 
                ! Projection: csc = C_i(k)^dag S_i(k) C_1(k)
+               ! S_i(k) was stored as cfm at snapshot time — no FT needed
                ! Step 1: cfm_work = S_i(k) * C_1(k)  [nao x nmo]
                CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                csmat_work, cmos_1, z_zero, cfm_nao_nmo_work)
+                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
                ! Step 2: csc = C_i(k)^dag * cfm_work  [nmo x nmo]
                CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
                                 cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
@@ -1342,29 +1401,23 @@ CONTAINS
                                 cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
 
                ! Accumulate: C_new(k) += B(i) * C_proj(k)
-               ! C_new is stored in kp%mos as Re/Im FM pairs
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
                CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-               ! Load current C_new into cmos_new
                CALL cp_fm_to_cfm(rmos, imos, cmos_new)
-               ! C_new += alpha * C_proj
                CALL cp_cfm_scale_and_add(z_one, cmos_new, &
                                          CMPLX(alpha_coeff, 0.0_dp, KIND=dp), cfm_nao_nmo_work)
-               ! Store back to Re/Im FMs
                CALL cp_cfm_to_fm(cmos_new, rmos, imos)
             END DO ! ispin
          END DO ! ikp
-
-         ! Phase 2c: Cleanup communication for this snapshot
-         DO indx = 1, kplocal*nkp_groups
-            CALL cp_fm_cleanup_copy_general(info(indx, 1))
-            CALL cp_fm_cleanup_copy_general(info(indx, 2))
-         END DO
       END DO ! i (snapshots)
 
       ! =======================================================================
-      ! Phase 3: Orthogonalize C_new(k) w.r.t. current S(k) via Cholesky
+      ! Phase 3: Orthogonalize C_new(k) w.r.t. current S(k)
+      !          Primary: Cholesky (fast). Fallback: Löwdin (robust).
       ! =======================================================================
+      ALLOCATE (eigenvalues(nmo))
+      eval_thresh = 1.0E-12_dp
+
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
          DO ispin = 1, nspin
@@ -1378,25 +1431,56 @@ CONTAINS
             CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
                              cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
 
-            ! Cholesky: M = U^dag U (upper triangular)
+            ! Try Cholesky first: M = U^dag U
             CALL cp_cfm_cholesky_decompose(csc_cfm, info_out=chol_info)
 
-            IF (chol_info /= 0) THEN
-               ! Cholesky failed: MOs are linearly dependent; skip orthogonalization
-               ! SCF diagonalization will produce valid MOs from the initial guess
-               WRITE (UNIT=msg, FMT="(A)") &
-                  "ASPC k-point: Cholesky orthogonalization failed; using unorthogonalized MOs"
-               CPWARN(msg)
-            ELSE
-               ! C_orth = C_new * U^{-1}  via triangular solve
+            IF (chol_info == 0) THEN
+               ! Cholesky succeeded: C_orth = C_new * U^{-1}
                CALL cp_cfm_triangular_multiply(csc_cfm, cmos_new, side='R', &
-                                               invert_tr=.TRUE., uplo_tr='U')
+                                                invert_tr=.TRUE., uplo_tr='U')
+            ELSE
+               ! Cholesky failed — fall back to Löwdin: M^{-1/2} via eigendecomposition
+               ! Recompute M (Cholesky overwrote csc_cfm)
+               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
+
+               CALL cp_cfm_create(cfm_evecs, csc_cfm%matrix_struct)
+               CALL cp_cfm_create(cfm_mhalf, csc_cfm%matrix_struct)
+
+               ! Diagonalize M = U Lambda U^dag
+               CALL cp_cfm_heevd(csc_cfm, cfm_evecs, eigenvalues)
+
+               ! Build M^{-1/2} = U diag(1/sqrt(lambda)) U^dag
+               ! Scale columns of U by 1/sqrt(lambda), with threshold for small eigenvalues
+               CALL cp_cfm_to_cfm(cfm_evecs, cfm_mhalf)
+               ALLOCATE (col_scaling(nmo))
+               DO j = 1, nmo
+                  IF (eigenvalues(j) > eval_thresh) THEN
+                     col_scaling(j) = CMPLX(1.0_dp/SQRT(eigenvalues(j)), 0.0_dp, KIND=dp)
+                  ELSE
+                     col_scaling(j) = z_zero
+                  END IF
+               END DO
+               CALL cp_cfm_column_scale(cfm_mhalf, col_scaling)
+               DEALLOCATE (col_scaling)
+               ! cfm_mhalf now holds U * diag(1/sqrt(lambda))
+               ! M^{-1/2} = cfm_mhalf * U^dag  →  store in csc_cfm
+               CALL cp_cfm_gemm('N', 'C', nmo, nmo, nmo, z_one, &
+                                cfm_mhalf, cfm_evecs, z_zero, csc_cfm)
+               ! C_orth = C_new * M^{-1/2}
+               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                cmos_new, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL cp_cfm_to_cfm(cfm_nao_nmo_work, cmos_new)
+
+               CALL cp_cfm_release(cfm_evecs)
+               CALL cp_cfm_release(cfm_mhalf)
             END IF
 
             ! Store orthogonalized MOs back
             CALL cp_cfm_to_fm(cmos_new, rmos, imos)
          END DO
       END DO
+      DEALLOCATE (eigenvalues)
 
       ! =======================================================================
       ! Phase 4: Rebuild density matrices P(k) and transform to real space P(R)
@@ -1418,7 +1502,6 @@ CONTAINS
       DEALLOCATE (csmat_cur)
       DEALLOCATE (info)
 
-      CALL cp_cfm_release(csmat_work)
       CALL cp_cfm_release(cmos_new)
       CALL cp_cfm_release(cmos_1)
       CALL cp_cfm_release(cmos_i)

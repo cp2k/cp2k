@@ -14,6 +14,8 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_wf_history_types
+   USE cp_cfm_types,                    ONLY: cp_cfm_type, &
+                                              cp_cfm_release
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -63,7 +65,7 @@ MODULE qs_wf_history_types
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp => NULL()
       TYPE(dbcsr_type), POINTER :: overlap => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER :: wf_kp => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: overlap_kp => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER :: overlap_cfm_kp => NULL()
       TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
       REAL(KIND=dp) :: dt = 0.0_dp
    END TYPE qs_wf_snapshot_type
@@ -128,7 +130,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wfs_release(snapshot)
       TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
-      INTEGER                                            :: ikp, ic, ispin
+      INTEGER                                            :: i, ikp, ic, ispin
 
       CALL cp_fm_release(snapshot%wf)
       ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
@@ -152,8 +154,11 @@ CONTAINS
          END DO
          DEALLOCATE(snapshot%wf_kp)
       END IF
-      IF (ASSOCIATED(snapshot%overlap_kp)) THEN
-         CALL dbcsr_deallocate_matrix_set(snapshot%overlap_kp)
+      IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
+         DO i = 1, SIZE(snapshot%overlap_cfm_kp)
+            CALL cp_cfm_release(snapshot%overlap_cfm_kp(i))
+         END DO
+         DEALLOCATE(snapshot%overlap_cfm_kp)
       END IF
       IF (ASSOCIATED(snapshot%rho_frozen)) THEN
          CALL qs_rho_release(snapshot%rho_frozen)
