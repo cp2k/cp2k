@@ -10,7 +10,7 @@ variables:
   REPOSITORY: cp2k_daint
   BUILDER: spack
   VERSION: psmp
-  TAG: "${BUILDER}_${VERSION}"
+  TAG: "${BUILDER}_${VERSION}_h100"
   UBUNTU_IMAGE_NAME: "docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
@@ -21,7 +21,7 @@ build deps daint:
   timeout: 1h
   before_script:
     - DEPS_IMAGE_TAG=`cat ci/cscs_daint_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile $(find tools/spack -type f) $(find cmake -type f) | sha256sum - | head -c 16`
-    - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_h100_${DEPS_IMAGE_TAG}
+    - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
     - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
   artifacts:
     reports:
@@ -65,7 +65,7 @@ test cp2k daint:
   needs: ["build cp2k daint"]
   timeout: 1h
   script:
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
+    - podman run --device nvidia.com/gpu=0 --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
     SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
@@ -83,7 +83,7 @@ regression test cp2k daint:
   timeout: 1h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
