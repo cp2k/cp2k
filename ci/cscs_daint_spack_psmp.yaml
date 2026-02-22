@@ -114,5 +114,3 @@ benchmark cp2k 1 daint node:
     SLURM_NTASKS_PER_NODE: 288
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
-
-# EOF
