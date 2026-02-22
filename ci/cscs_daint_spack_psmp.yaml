@@ -31,12 +31,12 @@ build deps daint:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "CP2K_VERSION",
-      "LOG_LINES"
+      "FEATURE_FLAGS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    LOG_LINES: 200
+    FEATURE_FLAGS: ""
 
 build cp2k daint:
   extends: .container-builder-cscs-gh200
@@ -51,11 +51,13 @@ build cp2k daint:
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
-      "DEPS_IMAGE"
+      "DEPS_IMAGE",
+      "FEATURE_FLAGS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
+    FEATURE_FLAGS: ""
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k daint:
@@ -88,7 +90,7 @@ regression test cp2k daint:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 288
-    SLURM_TIMELIMIT: 20
+    SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
 benchmark cp2k 1 daint node:
@@ -100,7 +102,7 @@ benchmark cp2k 1 daint node:
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 1

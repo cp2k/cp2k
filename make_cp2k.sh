@@ -84,8 +84,13 @@ else
   EXIT_CMD="exit"
 fi
 
+# Help finding ldconfig
+if ! command -v ldconfig &> /dev/null; then
+  PATH="${PATH}:/sbin"
+fi
+
 # Check if all mandatory packages are installed in the environment
-for package in awk bzip2 find g++ gcc gfortran git make gzip patch python3 tar wget xz; do
+for package in awk bzip2 find g++ gcc gfortran git gzip ldconfig make patch python3 tar wget xz; do
   if ! command -v "${package}" &> /dev/null; then
     echo "ERROR: The package \"${package}\" is mandatory to build CP2K with Spack/CMake"
     echo "       Install the missing package and re-run the script"
@@ -811,9 +816,12 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" -i "${CP2K_CONFIG_FILE}"
   fi
 
-  # Apply Cray specific adaptation of the spack configuration if requested
+  # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
   if [[ "${CRAY}" == "yes" ]]; then
-    sed -E -e 's/~xpmem/+xpmem/' -i "${CP2K_CONFIG_FILE}"
+    sed -E \
+      -e 's/~xpmem/+xpmem/' \
+      -e 's/"libfabric@[.0-9]*"/"libfabric@1.22.0"/' \
+      -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply feature selection to spack configuration file
@@ -1234,7 +1242,7 @@ cat << *** > "${LAUNCH_SCRIPT}"
 ulimit -c 0 -s unlimited
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
-export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-8}
+export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
 ${OMPI_VARS}
 exec "\$@"
