@@ -62,6 +62,8 @@ MODULE qs_wf_history_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp => NULL()
       TYPE(dbcsr_type), POINTER :: overlap => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER :: wf_kp => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: overlap_kp => NULL()
       TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
       REAL(KIND=dp) :: dt = 0.0_dp
    END TYPE qs_wf_snapshot_type
@@ -100,7 +102,8 @@ MODULE qs_wf_history_types
                  interpolation_method_nr = -1, snapshot_count = -1
       LOGICAL :: store_wf = .FALSE., store_rho_r = .FALSE., store_rho_g = .FALSE., &
                  store_rho_ao = .FALSE., store_rho_ao_kp = .FALSE., &
-                 store_overlap = .FALSE., store_frozen_density = .FALSE.
+                 store_overlap = .FALSE., store_wf_kp = .FALSE., store_overlap_kp = .FALSE., &
+                 store_frozen_density = .FALSE.
       TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states => NULL()
    END TYPE qs_wf_history_type
 
@@ -125,6 +128,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wfs_release(snapshot)
       TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
+      INTEGER                                            :: ikp, ic, ispin
 
       CALL cp_fm_release(snapshot%wf)
       ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
@@ -137,6 +141,19 @@ CONTAINS
       END IF
       IF (ASSOCIATED(snapshot%overlap)) THEN
          CALL dbcsr_deallocate_matrix(snapshot%overlap)
+      END IF
+      IF (ASSOCIATED(snapshot%wf_kp)) THEN
+         DO ikp = 1, SIZE(snapshot%wf_kp, 1)
+            DO ic = 1, SIZE(snapshot%wf_kp, 2)
+               DO ispin = 1, SIZE(snapshot%wf_kp, 3)
+                  CALL cp_fm_release(snapshot%wf_kp(ikp, ic, ispin))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE(snapshot%wf_kp)
+      END IF
+      IF (ASSOCIATED(snapshot%overlap_kp)) THEN
+         CALL dbcsr_deallocate_matrix_set(snapshot%overlap_kp)
       END IF
       IF (ASSOCIATED(snapshot%rho_frozen)) THEN
          CALL qs_rho_release(snapshot%rho_frozen)

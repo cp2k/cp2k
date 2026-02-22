@@ -731,7 +731,7 @@ CONTAINS
       IF (do_kpoints) THEN
          ! reset some of the settings for wfn extrapolation for kpoints
          SELECT CASE (dft_control%qs_control%wf_interpolation_method_nr)
-         CASE (wfi_linear_wf_method_nr, wfi_linear_ps_method_nr, wfi_ps_method_nr, wfi_aspc_nr)
+         CASE (wfi_linear_wf_method_nr, wfi_linear_ps_method_nr, wfi_ps_method_nr)
             dft_control%qs_control%wf_interpolation_method_nr = wfi_use_guess_method_nr
          END SELECT
       END IF
