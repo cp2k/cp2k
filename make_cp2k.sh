@@ -233,6 +233,9 @@ while [[ $# -gt 0 ]]; do
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
+            if [[ "${ON_OFF}" == "OFF" ]]; then
+              SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
+            fi
             ;;
           ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 | \
             libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | \
