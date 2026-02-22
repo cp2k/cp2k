@@ -2116,7 +2116,8 @@ CONTAINS
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_KP"), &
                    cp_p_file)) THEN
             IF (do_kpoints) THEN
-               CALL write_kpoint_mo_data(qs_env)
+               CALL write_kpoint_mo_data(qs_env, &
+                  section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
                mokp_already_written = .TRUE.
             ELSE
                CPWARN("MO_KP is only available for k-point calculations, ignored for Gamma-only")
@@ -2144,7 +2145,8 @@ CONTAINS
                   "prints *.mokp that can be used for generating PDOS."
                CPWARN(msg)
                IF (.NOT. mokp_already_written) THEN
-                  CALL write_kpoint_mo_data(qs_env)
+                  CALL write_kpoint_mo_data(qs_env, &
+                     section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
                END IF
             ELSE
                CALL get_qs_env(qs_env, &

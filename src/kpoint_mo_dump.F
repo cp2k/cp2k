@@ -24,8 +24,6 @@ MODULE kpoint_mo_dump
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -36,8 +34,11 @@ MODULE kpoint_mo_dump
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
@@ -79,26 +80,28 @@ CONTAINS
 !>                      then para_env_inter_kp%sum to collect across groups.
 !>    S(k):             Built on global communicator using rskp_transform,
 !>                      then copy_dbcsr_to_fm + cp_fm_get_submatrix.
-!>    File write:       Only on ionode (para_env_global%is_source()).
+!>    File write:       Only on ionode (cp_print_key_unit_nr returns -1 elsewhere).
 !>
 !> \param qs_env  the QS environment (after converged SCF with k-points)
+!> \param print_section  the &MO_KP print key section (contains NDIGITS)
 ! **************************************************************************************************
-   SUBROUTINE write_kpoint_mo_data(qs_env)
+   SUBROUTINE write_kpoint_mo_data(qs_env, print_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: print_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_kpoint_mo_data'
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_string_length)               :: filename, project_name
+      CHARACTER(LEN=20)                                  :: fmtstr_sparse, fmtstr_vec
       INTEGER :: handle, i, iatom, ikind, ikp, ikp_loc, iset, isgf_global, ishell, ispin, iw, j, &
-         lshell, n, nao, natom, nkp, nmo, nset_atom, nspins, output_unit
+         lshell, n, nao, natom, ndigits, nkp, nmo, nset_atom, nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_l, first_sgf, last_sgf
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: nshell_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_set, l_set, last_sgf_set
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: ionode, use_real_wfn
-      REAL(KIND=dp)                                      :: zeff
+      LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp)                                      :: thresh, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval_buf, occ_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Cim_buf, Cre_buf, Sim_buf, Sre_buf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
@@ -145,7 +148,6 @@ CONTAINS
 
       nspins = dft_control%nspins
       natom = SIZE(particle_set)
-      ionode = para_env_global%is_source()
 
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, wkp=wkp, &
                            use_real_wfn=use_real_wfn, kp_range=kp_range, &
@@ -220,16 +222,21 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_S)
 
       ! ================================================================
-      ! Open output file (ionode only)
+      ! Read NDIGITS and build format strings
       ! ================================================================
-      iw = -1
-      project_name = logger%iter_info%project_name
-      IF (ionode) THEN
-         filename = TRIM(project_name)//"-1.mokp"
-         CALL open_file(file_name=TRIM(filename), file_status="REPLACE", &
-                        file_action="WRITE", file_form="FORMATTED", &
-                        unit_number=iw)
-      END IF
+      CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
+      ndigits = MIN(MAX(3, ndigits), 30)
+      ! Sparse: "2I6,1X,ES{ndigits+7}.{ndigits}"  e.g. ndigits=9 → ES16.9
+      WRITE (UNIT=fmtstr_sparse, FMT='("(2I6,1X,ES",I0,".",I0,")")') ndigits + 10, ndigits
+      ! Vector: "5ES{ndigits+8}.{ndigits}"  e.g. ndigits=9 → 5ES17.9
+      WRITE (UNIT=fmtstr_vec, FMT='("(5ES",I0,".",I0,")")') ndigits + 10, ndigits
+      thresh = 10.0_dp**(-ndigits)
+
+      ! ================================================================
+      ! Open output file via print key (handles filename automatically)
+      ! ================================================================
+      iw = cp_print_key_unit_nr(logger, print_section, "", &
+                                extension=".mokp", file_status="REPLACE")
 
       ! ================================================================
       ! WRITE HEADER
@@ -240,15 +247,15 @@ CONTAINS
 
          ! Cell vectors: hmat(:,i) = i-th lattice vector, written as rows
          WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
-         WRITE (iw, '(3ES18.08)') &
+         WRITE (iw, '(3ES16.06)') &
             cell%hmat(1, 1)*angstrom, &
             cell%hmat(2, 1)*angstrom, &
             cell%hmat(3, 1)*angstrom
-         WRITE (iw, '(3ES18.08)') &
+         WRITE (iw, '(3ES16.06)') &
             cell%hmat(1, 2)*angstrom, &
             cell%hmat(2, 2)*angstrom, &
             cell%hmat(3, 2)*angstrom
-         WRITE (iw, '(3ES18.08)') &
+         WRITE (iw, '(3ES16.06)') &
             cell%hmat(1, 3)*angstrom, &
             cell%hmat(2, 3)*angstrom, &
             cell%hmat(3, 3)*angstrom
@@ -265,7 +272,7 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                  element_symbol=element_symbol)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
-            WRITE (iw, '(I6,2X,A2,I6,3F15.8,2I10)') &
+            WRITE (iw, '(I6,2X,A2,I6,3F15.6,2I10)') &
                iatom, element_symbol, NINT(zeff), particle_set(iatom)%r(:)*angstrom, first_sgf(iatom), last_sgf(iatom)
          END DO
 
@@ -335,16 +342,16 @@ CONTAINS
                WRITE (iw, '(A,2I6)') "# BEGIN_KPOINT_SPIN ikp ispin =", ikp, ispin
 
                WRITE (iw, '(A)') "# EIGENVALUES"
-               WRITE (iw, '(5ES18.8)') (eval_buf(n), n=1, nmo)
+               WRITE (iw, fmtstr_vec) (eval_buf(n), n=1, nmo)
 
                WRITE (iw, '(A)') "# OCCUPATIONS"
-               WRITE (iw, '(5ES18.8)') (occ_buf(n), n=1, nmo)
+               WRITE (iw, fmtstr_vec) (occ_buf(n), n=1, nmo)
 
                WRITE (iw, '(A)') "# MO_COEFF_RE (Sparse: i_ao j_mo value)"
                DO i = 1, nao
                   DO j = 1, nmo
-                     IF (ABS(Cre_buf(i, j)) > 1.0E-12_dp) THEN
-                        WRITE (iw, '(2I6, ES22.12)') i, j, Cre_buf(i, j)
+                     IF (ABS(Cre_buf(i, j)) >= thresh) THEN
+                        WRITE (iw, fmtstr_sparse) i, j, Cre_buf(i, j)
                      END IF
                   END DO
                END DO
@@ -353,8 +360,8 @@ CONTAINS
                   WRITE (iw, '(A)') "# MO_COEFF_IM"
                   DO i = 1, nao
                      DO j = 1, nmo
-                        IF (ABS(Cim_buf(i, j)) > 1.0E-12_dp) THEN
-                           WRITE (iw, '(2I6, ES22.12)') i, j, Cim_buf(i, j)
+                        IF (ABS(Cim_buf(i, j)) >= thresh) THEN
+                           WRITE (iw, fmtstr_sparse) i, j, Cim_buf(i, j)
                         END IF
                      END DO
                   END DO
@@ -406,8 +413,8 @@ CONTAINS
             WRITE (iw, '(A)') "# OVERLAP_RE"
             DO i = 1, nao
                DO j = 1, nao
-                  IF (ABS(Sre_buf(i, j)) > 1.0E-12_dp) THEN
-                     WRITE (iw, '(2I6, ES22.12)') i, j, Sre_buf(i, j)
+                  IF (ABS(Sre_buf(i, j)) >= thresh) THEN
+                     WRITE (iw, fmtstr_sparse) i, j, Sre_buf(i, j)
                   END IF
                END DO
             END DO
@@ -415,8 +422,8 @@ CONTAINS
                WRITE (iw, '(A)') "# OVERLAP_IM"
                DO i = 1, nao
                   DO j = 1, nao
-                     IF (ABS(Sim_buf(i, j)) > 1.0E-12_dp) THEN
-                        WRITE (iw, '(2I6, ES22.12)') i, j, Sim_buf(i, j)
+                     IF (ABS(Sim_buf(i, j)) >= thresh) THEN
+                        WRITE (iw, fmtstr_sparse) i, j, Sim_buf(i, j)
                      END IF
                   END DO
                END DO
@@ -431,12 +438,13 @@ CONTAINS
       ! ================================================================
       IF (iw > 0) THEN
          WRITE (iw, '(A)') "# END_OF_FILE"
-         CALL close_file(unit_number=iw)
       END IF
 
+      CALL cp_print_key_finished_output(iw, logger, print_section, "")
+
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(T3,A,A)') &
-            "KPOINT_MO_DUMP| Data written to ", TRIM(project_name)//"-1.mokp"
+         WRITE (output_unit, '(T3,A)') &
+            "KPOINT_MO_DUMP| Data written to .mokp file"
       END IF
 
       ! Release work arrays

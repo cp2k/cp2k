@@ -618,6 +618,19 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_KP", &
+                                       description="Write k-point MO coefficients and overlap matrices to .mokp file.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Number of significant digits for MO coefficients and overlap matrix. "// &
+                          "Values with magnitude below 10^(-NDIGITS) are omitted.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=9)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "write_cube")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
@@ -1038,17 +1051,6 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL create_dos_section(print_key)
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-      ! K-point MO wavefunction dump for post-processing
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_KP", &
-                                       description="Write k-point resolved MO coefficients, "// &
-                                       "overlap matrices, eigenvalues and occupations to a "// &
-                                       "text file (.mokp) for post-processing (PDOS, etc.). "// &
-                                       "Only effective for k-point calculations.", &
-                                       print_level=debug_print_level + 1, &
-                                       add_last=add_last_numeric, filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
