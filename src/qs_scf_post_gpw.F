@@ -2025,7 +2025,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
-      CHARACTER(len=512)                                 :: msg
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
       LOGICAL                                            :: all_equal, do_kpoints, explicit, &
                                                             mokp_already_written
@@ -2117,7 +2116,7 @@ CONTAINS
                    cp_p_file)) THEN
             IF (do_kpoints) THEN
                CALL write_kpoint_mo_data(qs_env, &
-                  section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
+                                         section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
                mokp_already_written = .TRUE.
             ELSE
                CPWARN("MO_KP is only available for k-point calculations, ignored for Gamma-only")
@@ -2139,15 +2138,7 @@ CONTAINS
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS"), &
                    cp_p_file)) THEN
             IF (do_kpoints) THEN
-               WRITE (UNIT=msg, FMT="(A)") &
-                  "Projected density of states (PDOS) has not been directly implemented "// &
-                  "for k-points currently. Switching to DFT%PRINT%MO_KP instead, which "// &
-                  "prints *.mokp that can be used for generating PDOS."
-               CPWARN(msg)
-               IF (.NOT. mokp_already_written) THEN
-                  CALL write_kpoint_mo_data(qs_env, &
-                     section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
-               END IF
+               CPWARN("Projected density of states (pDOS) is not implemented for k points")
             ELSE
                CALL get_qs_env(qs_env, &
                                mos=mos, &
