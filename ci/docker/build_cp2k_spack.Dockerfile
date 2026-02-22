@@ -6,8 +6,8 @@
 # Author: Matthias Krack (MK)
 #
 
-ARG BASE_IMAGE="ubuntu:24.04"
-ARG DEPS_IMAGE=""
+ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:24.04}
+ARG DEPS_IMAGE=${DEPS_IMAGE:-}
 
 ###### Stage 2: Build CP2K ######
 
