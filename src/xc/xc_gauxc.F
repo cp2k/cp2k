@@ -19,15 +19,14 @@ MODULE xc_gauxc
    USE gauxc_molgrid, ONLY: gauxc_molgrid_type, gauxc_molgrid_new_default, &
      & gauxc_delete
    USE gauxc_load_balancer, ONLY: gauxc_load_balancer_type, gauxc_load_balancer_factory_type, &
-     & gauxc_load_balancer_factory_new, gauxc_get_shared_instance, gauxc_delete
+     & gauxc_load_balancer_factory_new, gauxc_delete
    USE gauxc_molecular_weights, ONLY: gauxc_molecular_weights_type, &
      & gauxc_molecular_weights_factory_type, gauxc_molecular_weights_factory_new, &
      & gauxc_molecular_weights_modify_weights, gauxc_get_instance, gauxc_delete, &
      & gauxc_molecular_weights_settings
    USE gauxc_xc_functional, ONLY: gauxc_functional_type, gauxc_functional_from_string, gauxc_delete
-   USE gauxc_integrator, ONLY: gauxc_integrator_type, gauxc_integrator_factory_type, &
-     & gauxc_integrator_factory_new, gauxc_get_instance, gauxc_eval_exc_vxc, gauxc_delete
-   USE gauxc_matrix, ONLY: gauxc_matrix_type, gauxc_matrix_empty, gauxc_matrix_data, gauxc_delete
+   USE gauxc_integrator, ONLY: gauxc_integrator_type, &
+     & gauxc_eval_exc_vxc, gauxc_delete
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
 #ifdef GAUXC_HAS_MPI
    USE mpi
@@ -49,9 +48,7 @@ MODULE xc_gauxc
    TYPE(gauxc_molecular_weights_factory_type) :: mwf
    TYPE(gauxc_molecular_weights_type) :: mw
    TYPE(gauxc_functional_type) :: func
-   TYPE(gauxc_integrator_factory_type) :: intf
    TYPE(gauxc_integrator_type) :: integrator
-   TYPE(gauxc_matrix_type) :: p_s, p_z, vxc_s, vxc_z
 
    ! Copy paste from docu, move these wherever adequate
    CHARACTER(len=:), ALLOCATABLE :: input_file, model, grid_spec, rad_quad_spec, prune_spec, &
@@ -67,6 +64,10 @@ MODULE xc_gauxc
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param mpi_comm ...
+! **************************************************************************************************
    SUBROUTINE gauxc_init(mpi_comm)
       INTEGER:: mpi_comm
 
@@ -105,11 +106,20 @@ CONTAINS
 
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
    SUBROUTINE gauxc_finalize()
       CALL gauxc_delete(status, rt)
       CPASSERT(status%code == 0)
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief ...
+!> \param particle_set ...
+!> \param natoms ...
+!> \param molecule ...
+! **************************************************************************************************
    SUBROUTINE gauxc_create_molecule(particle_set, natoms, molecule)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
