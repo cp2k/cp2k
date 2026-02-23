@@ -2,15 +2,19 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool
-   ! use flap, only : command_line_interface
+   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t
+   USE kinds, ONLY: dp
+   USE particle_types, ONLY: particle_type
+   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind
+   USE periodic_table, ONLY: get_ptable_info
    USE gauxc_status, ONLY: gauxc_status_type, gauxc_status_message
    USE gauxc_enums, ONLY: gauxc_executionspace, gauxc_radialquad, &
      & gauxc_atomicgridsizedefault, gauxc_pruningscheme
    USE gauxc_runtime_environment, ONLY: gauxc_runtime_environment_type, &
      & gauxc_runtime_environment_comm_rank, gauxc_runtime_environment_comm_size, &
      & gauxc_runtime_environment_new, gauxc_delete
-   USE gauxc_molecule, ONLY: gauxc_molecule_type, gauxc_molecule_new, gauxc_delete
+   USE gauxc_molecule, ONLY: gauxc_molecule_type, gauxc_molecule_new_from_atoms, gauxc_delete
+   USE gauxc_atom, ONLY: gauxc_atom_type
    USE gauxc_basisset, ONLY: gauxc_basisset_type, gauxc_basisset_new, gauxc_delete
    USE gauxc_molgrid, ONLY: gauxc_molgrid_type, gauxc_molgrid_new_default, &
      & gauxc_delete
@@ -59,7 +63,7 @@ MODULE xc_gauxc
    REAL(c_double) :: exc, t_exc, t_start, t_end
    INTEGER :: error
 
-   PUBLIC :: gauxc_init, gauxc_finalize
+   PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule
 
 CONTAINS
 
@@ -105,5 +109,34 @@ CONTAINS
       CALL gauxc_delete(status, rt)
       CPASSERT(status%code == 0)
    END SUBROUTINE
+
+   SUBROUTINE gauxc_create_molecule(particle_set, natoms, molecule)
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER, INTENT(IN)                                :: natoms
+      TYPE(gauxc_molecule_type), INTENT(OUT)             :: molecule
+
+      CHARACTER(LEN=2)                                   :: element_symbol
+      INTEGER                                            :: atomic_number, i
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(gauxc_atom_type), ALLOCATABLE, DIMENSION(:)   :: atoms
+
+      ALLOCATE (atoms(natoms))
+
+      DO i = 1, natoms
+         atomic_kind => particle_set(i)%atomic_kind
+         CALL get_atomic_kind(atomic_kind, element_symbol=element_symbol)
+         CALL get_ptable_info(element_symbol, number=atomic_number)
+         atoms(i)%atomic_number = INT(atomic_number, c_int64_t)
+         atoms(i)%x = REAL(particle_set(i)%r(1), c_double)
+         atoms(i)%y = REAL(particle_set(i)%r(2), c_double)
+         atoms(i)%z = REAL(particle_set(i)%r(3), c_double)
+      END DO
+
+      molecule = gauxc_molecule_new_from_atoms(status, atoms, INT(natoms, c_size_t))
+      CPASSERT(status%code == 0)
+
+      DEALLOCATE (atoms)
+
+   END SUBROUTINE gauxc_create_molecule
 
 END MODULE
