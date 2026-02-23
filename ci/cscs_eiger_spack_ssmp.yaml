@@ -91,5 +91,3 @@ regression test cp2k eiger:
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
     SLURM_TIMELIMIT: 40
-
-# EOF

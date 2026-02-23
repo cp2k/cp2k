@@ -4,13 +4,14 @@ include:
 stages:
   - deps
   - cp2k
+  - test
 
 variables:
   REPOSITORY: cp2k_daint
   BUILDER: spack
   VERSION: psmp
-  TAG: "${BUILDER}_${VERSION}"
-  UBUNTU_IMAGE_NAME: "nvidia/cuda:12.4.1-devel-ubuntu22.04"
+  TAG: "${BUILDER}_${VERSION}_h100"
+  UBUNTU_IMAGE_NAME: "docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
 
@@ -34,7 +35,7 @@ build deps daint:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    FEATURE_FLAGS: "-gpu H100 -df all""
+    FEATURE_FLAGS: "-gpu H100 -df all"
 
 build cp2k daint:
   extends: .container-builder-cscs-gh200
@@ -57,3 +58,36 @@ build cp2k daint:
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     FEATURE_FLAGS: "-gpu H100 -df all"
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
+
+test cp2k daint:
+  extends: .baremetal-runner-daint-gh200
+  stage: test
+  needs: ["build cp2k daint"]
+  timeout: 1h
+  script:
+    - podman run --device nvidia.com/gpu=0 --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
+  variables:
+    SLURM_CPUS_PER_TASK: 4
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 8
+    SLURM_NTASKS_PER_NODE: 8
+    SLURM_TIMELIMIT: 10
+    USE_MPI: YES
+
+regression test cp2k daint:
+  extends: .baremetal-runner-daint-gh200
+  stage: test
+  needs: ["build cp2k daint","test cp2k daint"]
+  timeout: 1h
+  script:
+    - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
+    - podman run --device nvidia.com/gpu=all --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+  variables:
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 228
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES

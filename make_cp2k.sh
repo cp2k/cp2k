@@ -233,6 +233,9 @@ while [[ $# -gt 0 ]]; do
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
+            if [[ "${ON_OFF}" == "OFF" ]]; then
+              SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
+            fi
             ;;
           ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 | \
             libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | \
@@ -828,6 +831,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
   if [[ "${CRAY}" == "yes" ]]; then
     sed -E \
+      -e '/\s*#\s*-\s+"netmod=ofi"/ s/#/ /' \
       -e 's/~xpmem/+xpmem/' \
       -e 's/"libfabric@[.0-9]*"/"libfabric@1.22.0"/' \
       -i "${CP2K_CONFIG_FILE}"
