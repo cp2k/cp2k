@@ -348,7 +348,6 @@ CONTAINS
       ! See sTDA forces (get_lowdin_mo_coefficients in qs_tddfpt2_stda_utils
       ! A. Hehn et al JCTC 2022, 18, 4186
       IF (PRESENT(matrix_w)) THEN
-         sm_s => matrix_s(1, 1)%matrix
          CALL cp_fm_create(matrix=fm_sev, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=slambda, matrix_struct=fmstruct)
          ALLOCATE (eigval(nsgf), slam(nsgf, 1))
@@ -380,6 +379,7 @@ CONTAINS
       END IF
 
       ! Create local block diagonal matrices
+      sm_s => matrix_s(1, 1)%matrix
       CALL dbcsr_get_block_diag(sm_s, sm_q)
       CALL dbcsr_get_block_diag(sm_s, sm_v)
 
@@ -749,7 +749,6 @@ CONTAINS
          ! w.r.t. the nuclear positions
          IF (PRESENT(matrix_w)) THEN
 
-            sm_s => matrix_s(1, 1)%matrix
             sm_p => matrix_p(ispin, 1)%matrix
             sm_w => matrix_w(ispin, 1)%matrix
 
@@ -764,12 +763,14 @@ CONTAINS
             CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -2.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
             CALL cp_dbcsr_plus_fm_fm_t(sm_w, fm_work1, fm_sev, nsgf)
 
-            CALL cp_fm_release(matrix=fm_sev)
-            CALL cp_fm_release(matrix=slambda)
-
          END IF ! W matrix update requested
 
       END DO ! next spin "ispin"
+
+      IF (PRESENT(matrix_w)) THEN
+         CALL cp_fm_release(matrix=fm_sev)
+         CALL cp_fm_release(matrix=slambda)
+      END IF
 
       ! Collect the energy contributions from all processes
 
