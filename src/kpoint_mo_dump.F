@@ -262,7 +262,12 @@ CONTAINS
       ! WRITE HEADER
       ! ================================================================
       IF (iw > 0) THEN
-         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP"
+         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP, Version 1.0"
+         IF (write_overlap) THEN
+            WRITE (iw, '(A)') "# EXPORT_MODE: Coefficients + Overlap matrices"
+         ELSE
+            WRITE (iw, '(A)') "# EXPORT_MODE: GTO + Coefficients"
+         END IF
          WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional coords"
 
          WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"

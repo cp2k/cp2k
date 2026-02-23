@@ -2026,8 +2026,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
-      LOGICAL                                            :: all_equal, do_kpoints, explicit, &
-                                                            mokp_already_written
+      LOGICAL                                            :: all_equal, do_kpoints, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -2057,8 +2056,6 @@ CONTAINS
                                                             trexio_section
 
 ! TYPE(kpoint_type), POINTER                         :: kpoints
-
-      mokp_already_written = .FALSE.
 
       CALL timeset(routineN, handle)
 
@@ -2117,7 +2114,6 @@ CONTAINS
             IF (do_kpoints) THEN
                CALL write_kpoint_mo_data(qs_env, &
                                          section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
-               mokp_already_written = .TRUE.
             ELSE
                CPWARN("MO_KP is only available for k-point calculations, ignored for Gamma-only")
             END IF
