@@ -96,7 +96,7 @@ regression test cp2k daint:
 benchmark cp2k 1 daint node:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint","regression test cp2k daint"]
+  needs: ["build cp2k daint","test cp2k daint"]
   timeout: 1h
   image: ${CSCS_IMAGE_NAME}
   before_script:
