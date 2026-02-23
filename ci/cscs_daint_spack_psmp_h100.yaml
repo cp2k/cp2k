@@ -101,8 +101,9 @@ benchmark cp2k 1 daint node:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export OMP_NUM_THREADS=3
   script:
-    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 3
