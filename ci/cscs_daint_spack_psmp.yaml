@@ -96,21 +96,22 @@ regression test cp2k daint:
 benchmark cp2k 1 daint node:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint","regression test cp2k daint"]
+  needs: ["build cp2k daint","test cp2k daint"]
   timeout: 1h
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export OMP_NUM_THREADS=3
   script:
-    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 1
+    SLURM_CPUS_PER_TASK: 3
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 288
-    SLURM_NTASKS_PER_NODE: 288
+    SLURM_NTASKS: 72
+    SLURM_NTASKS_PER_NODE: 72
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
