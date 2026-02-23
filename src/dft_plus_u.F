@@ -24,24 +24,27 @@ MODULE dft_plus_u
    USE bibliography,                    ONLY: Dudarev1997,&
                                               Dudarev1998,&
                                               cite_reference
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_get_block_diag
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                               write_fm_with_basis_info
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_schur_product,&
+                                              cp_fm_transpose
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -73,7 +76,6 @@ MODULE dft_plus_u
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
-   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -220,23 +222,24 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
-      LOGICAL                                            :: debug, dft_plus_u_atom, &
-                                                            fm_work1_local_alloc, &
-                                                            fm_work2_local_alloc, found, &
+      LOGICAL                                            :: debug, dft_plus_u_atom, found, &
                                                             just_energy, smear
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_occ
-      REAL(KIND=dp)                                      :: eps_scf, eps_u_ramping, fspin, occ, trq, &
-                                                            trq2, u_minus_j, u_minus_j_target, &
-                                                            u_ramping
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q_eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_eigvec, q_matrix, q_work
+      REAL(KIND=dp)                                      :: eps_scf, eps_u_ramping, fspin, occ, sij, &
+                                                            trq, trq2, u_minus_j, &
+                                                            u_minus_j_target, u_ramping
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval, q_eigval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_eigvec, q_matrix, q_work, slam
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: q_block, v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
+      TYPE(cp_fm_type)                                   :: fm_sev, fm_work1, fm_work2, slambda
+      TYPE(cp_fm_type), POINTER                          :: fm_s_half
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
+      TYPE(dbcsr_type)                                   :: sm_q, sm_v
+      TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -245,7 +248,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -258,9 +260,6 @@ CONTAINS
       NULLIFY (energy)
       NULLIFY (first_sgf)
       NULLIFY (fm_s_half)
-      NULLIFY (fm_work1)
-      NULLIFY (fm_work2)
-      NULLIFY (fmstruct)
       NULLIFY (matrix_p)
       NULLIFY (matrix_s)
       NULLIFY (l)
@@ -274,13 +273,10 @@ CONTAINS
       NULLIFY (scf_env)
       NULLIFY (sm_h)
       NULLIFY (sm_p)
-      NULLIFY (sm_q)
       NULLIFY (sm_s)
-      NULLIFY (sm_v)
       NULLIFY (sm_w)
       NULLIFY (v_block)
       NULLIFY (para_env)
-      NULLIFY (blacs_env)
 
       smear = .FALSE.
       max_scf = -1
@@ -295,9 +291,7 @@ CONTAINS
                       particle_set=particle_set, &
                       rho=rho, &
                       scf_env=scf_env, &
-                      virial=virial, &
-                      para_env=para_env, &
-                      blacs_env=blacs_env)
+                      para_env=para_env)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
       CPASSERT(ASSOCIATED(dft_control))
@@ -313,10 +307,6 @@ CONTAINS
 
       nspin = dft_control%nspins
       nimg = dft_control%nimages
-
-      IF (nimg /= 1) THEN
-         CPABORT("Lowdin option with k-points NYA in DFT+U")
-      END IF
 
       IF (nspin == 2) THEN
          fspin = 1.0_dp
@@ -345,73 +335,56 @@ CONTAINS
       END IF
 
       ! Retrieve S^(1/2) from the SCF environment
-
       fm_s_half => scf_env%s_half
       CPASSERT(ASSOCIATED(fm_s_half))
+      ! work matrices
+      CALL cp_fm_get_info(fm_s_half, matrix_struct=fmstruct)
+      CALL cp_fm_create(matrix=fm_work1, matrix_struct=fmstruct, &
+                        name="FULL WORK MATRIX 1")
+      CALL cp_fm_create(matrix=fm_work2, matrix_struct=fmstruct, &
+                        name="FULL WORK MATRIX 2")
 
-      ! Try to retrieve (full) work matrices from the SCF environment and reuse
-      ! them, if available
-
-      fm_work1_local_alloc = .FALSE.
-      fm_work2_local_alloc = .FALSE.
-
-      IF (ASSOCIATED(scf_env%scf_work1)) THEN
-         IF (ASSOCIATED(scf_env%scf_work1(1)%matrix_struct)) THEN
-            fm_work1 => scf_env%scf_work1(1)
-         END IF
-      END IF
-
-      fm_work2 => scf_env%scf_work2
-
-      IF ((.NOT. ASSOCIATED(fm_work1)) .OR. &
-          (.NOT. ASSOCIATED(fm_work2))) THEN
-         CALL cp_fm_struct_create(fmstruct=fmstruct, &
-                                  para_env=para_env, &
-                                  context=blacs_env, &
-                                  nrow_global=nsgf, &
-                                  ncol_global=nsgf)
-         IF (.NOT. ASSOCIATED(fm_work1)) THEN
-            ALLOCATE (fm_work1)
-            CALL cp_fm_create(matrix=fm_work1, &
-                              matrix_struct=fmstruct, &
-                              name="FULL WORK MATRIX 1")
-            fm_work1_local_alloc = .TRUE.
-         END IF
-         IF (.NOT. ASSOCIATED(fm_work2)) THEN
-            ALLOCATE (fm_work2)
-            CALL cp_fm_create(matrix=fm_work2, &
-                              matrix_struct=fmstruct, &
-                              name="FULL WORK MATRIX 2")
-            fm_work2_local_alloc = .TRUE.
-         END IF
-         CALL cp_fm_struct_release(fmstruct=fmstruct)
+      ! Calculate S eigenvectors and Lambda matrix for forces
+      ! See sTDA forces (get_lowdin_mo_coefficients in qs_tddfpt2_stda_utils
+      ! A. Hehn et al JCTC 2022, 18, 4186
+      IF (PRESENT(matrix_w)) THEN
+         sm_s => matrix_s(1, 1)%matrix
+         CALL cp_fm_create(matrix=fm_sev, matrix_struct=fmstruct)
+         CALL cp_fm_create(matrix=slambda, matrix_struct=fmstruct)
+         ALLOCATE (eigval(nsgf), slam(nsgf, 1))
+         CALL copy_dbcsr_to_fm(sm_s, fm_work1)
+         CALL choose_eigv_solver(fm_work1, fm_sev, eigval)
+         !
+         DO i = 1, nsgf
+            IF (eigval(i) > 0._dp) THEN
+               slam(i, 1) = SQRT(eigval(i))
+            ELSE
+               CPABORT("S matrix not positive definit")
+            END IF
+         END DO
+         DO i = 1, nsgf
+            CALL cp_fm_set_submatrix(slambda, slam, 1, i, nsgf, 1, 1.0_dp, 0.0_dp)
+         END DO
+         DO i = 1, nsgf
+            CALL cp_fm_set_submatrix(slambda, slam, i, 1, 1, nsgf, 1.0_dp, 1.0_dp, .TRUE.)
+         END DO
+         CALL cp_fm_get_info(slambda, local_data=local_data)
+         DO i = 1, SIZE(local_data, 2)
+            DO j = 1, SIZE(local_data, 1)
+               sij = local_data(j, i)
+               IF (sij > 0.0_dp) sij = 1.0_dp/sij
+               local_data(j, i) = sij
+            END DO
+         END DO
+         DEALLOCATE (eigval, slam)
       END IF
 
       ! Create local block diagonal matrices
-
-      ALLOCATE (sm_q)
       CALL dbcsr_get_block_diag(sm_s, sm_q)
-
-      ALLOCATE (sm_v)
       CALL dbcsr_get_block_diag(sm_s, sm_v)
 
       ! Loop over all spins
-
       DO ispin = 1, nspin
-
-         IF (PRESENT(matrix_h)) THEN
-            ! Hamiltonian matrix for spin ispin in sparse format
-            sm_h => matrix_h(ispin, 1)%matrix
-         ELSE
-            NULLIFY (sm_h)
-         END IF
-
-         IF (PRESENT(matrix_w)) THEN
-            ! Energy weighted density matrix for spin ispin in sparse format
-            sm_w => matrix_w(ispin, 1)%matrix
-         ELSE
-            NULLIFY (sm_w)
-         END IF
 
          sm_p => matrix_p(ispin, 1)%matrix ! Density matrix for spin ispin in sparse format
 
@@ -420,30 +393,33 @@ CONTAINS
 
          ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
-         CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
-         CALL parallel_gemm(transa="N", &
-                            transb="N", &
-                            m=nsgf, &
-                            n=nsgf, &
-                            k=nsgf, &
-                            alpha=1.0_dp, &
-                            matrix_a=fm_s_half, &
-                            matrix_b=fm_work1, &
-                            beta=0.0_dp, &
-                            matrix_c=fm_work2)
-         IF (debug) THEN
-            CALL cp_dbcsr_write_sparse_matrix(sm_p, 4, 6, qs_env, para_env, &
-                                              output_unit=output_unit)
-            CALL write_fm_with_basis_info(fm_s_half, 4, 6, qs_env, para_env, &
-                                          output_unit=output_unit)
-            CALL write_fm_with_basis_info(fm_work2, 4, 6, qs_env, para_env, &
-                                          output_unit=output_unit)
-         END IF ! debug
+         IF (nimg == 1) THEN
+            CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
+            CALL parallel_gemm(transa="N", &
+                               transb="N", &
+                               m=nsgf, &
+                               n=nsgf, &
+                               k=nsgf, &
+                               alpha=1.0_dp, &
+                               matrix_a=fm_s_half, &
+                               matrix_b=fm_work1, &
+                               beta=0.0_dp, &
+                               matrix_c=fm_work2)
+            IF (debug) THEN
+               CALL cp_dbcsr_write_sparse_matrix(sm_p, 4, 6, qs_env, para_env, &
+                                                 output_unit=output_unit)
+               CALL write_fm_with_basis_info(fm_s_half, 4, 6, qs_env, para_env, &
+                                             output_unit=output_unit)
+               CALL write_fm_with_basis_info(fm_work2, 4, 6, qs_env, para_env, &
+                                             output_unit=output_unit)
+            END IF ! debug
+         ELSE
+            CPABORT("Lowdin option with k-points NYA in DFT+U")
+         END IF
 
          ! Copy occupation matrix to sparse matrix format, finally we are only
          ! interested in the diagonal (atomic) blocks, i.e. the previous full
          ! matrix product is not the most efficient choice, anyway.
-
          CALL copy_fm_to_dbcsr(fm_work2, sm_q, keep_sparsity=.TRUE.)
 
          ! E[DFT+U] = E[DFT] + E[U]
@@ -454,11 +430,9 @@ CONTAINS
          !               = dE[DFT]/dP(i,j) + (dE(U)/dq)*(dq/dP(i,j))
 
          ! Loop over all atomic kinds
-
          DO ikind = 1, nkind
 
             ! Load the required atomic kind data
-
             CALL get_atomic_kind(atomic_kind_set(ikind), &
                                  atom_list=atom_list, &
                                  name=atomic_kind_name, &
@@ -479,13 +453,11 @@ CONTAINS
                              smear=smear)
 
             ! Check, if the atoms of this atomic kind need a DFT+U correction
-
             IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
             IF (.NOT. dft_plus_u_atom) CYCLE
             IF (lu < 0) CYCLE
 
             ! Apply U ramping if requested
-
             IF ((ispin == 1) .AND. (u_ramping > 0.0_dp)) THEN
                IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
                   u_minus_j = MIN(u_minus_j + u_ramping, u_minus_j_target)
@@ -501,7 +473,6 @@ CONTAINS
             IF (u_minus_j == 0.0_dp) CYCLE
 
             ! Load the required Gaussian basis set data
-
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                    first_sgf=first_sgf, &
                                    l=l, &
@@ -510,7 +481,6 @@ CONTAINS
                                    nshell=nshell)
 
             ! Count the relevant shell blocks of this atomic kind
-
             nsb = 0
             DO iset = 1, nset
                DO ishell = 1, nshell(iset)
@@ -525,7 +495,6 @@ CONTAINS
             q_matrix(:, :) = 0.0_dp
 
             ! Print headline if requested
-
             IF (should_output .AND. (print_level > low_print_level)) THEN
                IF (output_unit > 0) THEN
                   ALLOCATE (symbol(nsbsize))
@@ -546,15 +515,11 @@ CONTAINS
             END IF
 
             ! Loop over all atoms of the current atomic kind
-
             DO iatom = 1, natom_of_kind
-
                atom_a = atom_list(iatom)
-
                q_matrix(:, :) = 0.0_dp
 
                ! Get diagonal block
-
                CALL dbcsr_get_block_p(matrix=sm_q, &
                                       row=atom_a, &
                                       col=atom_a, &
@@ -562,9 +527,7 @@ CONTAINS
                                       found=found)
 
                IF (ASSOCIATED(q_block)) THEN
-
                   ! Calculate energy contribution to E(U)
-
                   i = 0
                   DO iset = 1, nset
                      DO ishell = 1, nshell(iset)
@@ -586,7 +549,6 @@ CONTAINS
                   END DO ! next shell set "iset"
 
                   ! Perform the requested manipulations of the (initial) orbital occupations
-
                   IF (ASSOCIATED(orbitals)) THEN
                      IF ((qs_env%scf_env%iter_delta >= eps_scf) .OR. &
                          ((qs_env%scf_env%outer_scf%iter_count == 0) .AND. &
@@ -644,25 +606,20 @@ CONTAINS
 
                   trq = 0.0_dp
                   trq2 = 0.0_dp
-
                   DO i = 1, n
                      trq = trq + q_matrix(i, i)
                      DO j = 1, n
                         trq2 = trq2 + q_matrix(i, j)*q_matrix(j, i)
                      END DO
                   END DO
-
                   trq = fspin*trq
                   trq2 = fspin*fspin*trq2
 
                   ! Calculate energy contribution to E(U)
-
                   energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
 
                   ! Calculate potential V(U) = dE(U)/dq
-
                   IF (.NOT. just_energy) THEN
-
                      CALL dbcsr_get_block_p(matrix=sm_v, &
                                             row=atom_a, &
                                             col=atom_a, &
@@ -694,13 +651,11 @@ CONTAINS
                            END DO ! next contracted spherical Gaussian function "isgf"
                         END DO ! next shell "ishell"
                      END DO ! next shell set "iset"
-
                   END IF ! not just energy
 
                END IF ! q_block associated
 
                ! Consider print requests
-
                IF (should_output .AND. (print_level > low_print_level)) THEN
                   CALL para_env%sum(q_matrix)
                   IF (output_unit > 0) THEN
@@ -781,9 +736,9 @@ CONTAINS
          END DO ! next atomic kind "ikind"
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
+         IF (PRESENT(matrix_h)) THEN
 
-         IF (ASSOCIATED(sm_h)) THEN
-
+            sm_h => matrix_h(ispin, 1)%matrix
             CALL cp_dbcsr_sm_fm_multiply(sm_v, fm_s_half, fm_work1, nsgf)
             CALL cp_fm_transpose(fm_work1, fm_work2)
             CALL cp_dbcsr_plus_fm_fm_t(sm_h, fm_s_half, fm_work2, nsgf)
@@ -792,13 +747,25 @@ CONTAINS
 
          ! Calculate the contribution (non-Pulay part) to the derivatives
          ! w.r.t. the nuclear positions
+         IF (PRESENT(matrix_w)) THEN
 
-         IF (ASSOCIATED(sm_w)) THEN
+            sm_s => matrix_s(1, 1)%matrix
+            sm_p => matrix_p(ispin, 1)%matrix
+            sm_w => matrix_w(ispin, 1)%matrix
 
-            CPWARN("This is an experimental version of the forces calculation for the DFT+U method LOWDIN")
-            IF (virial%pv_calculate) THEN
-               CPABORT("The stress tensor is not implemented for the DFT+U method LOWDIN")
-            END IF
+            CALL cp_dbcsr_sm_fm_multiply(sm_v, fm_s_half, fm_work1, nsgf)
+            CALL cp_fm_transpose(fm_work1, fm_work2)
+            CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_work2, fm_work1, nsgf)
+            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, 1.0_dp, fm_work1, fm_sev, 0.0_dp, fm_work2)
+            CALL parallel_gemm('T', 'N', nsgf, nsgf, nsgf, 1.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
+            CALL cp_fm_schur_product(fm_work1, slambda, fm_work2)
+            CALL cp_fm_transpose(fm_work2, fm_work1)
+            CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_work1, matrix_b=fm_work2)
+            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -2.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
+            CALL cp_dbcsr_plus_fm_fm_t(sm_w, fm_work1, fm_sev, nsgf)
+
+            CALL cp_fm_release(matrix=fm_sev)
+            CALL cp_fm_release(matrix=slambda)
 
          END IF ! W matrix update requested
 
@@ -814,21 +781,13 @@ CONTAINS
                       "to unphysical Lowdin charges!")
 
       ! Release (local) full matrices
-
       NULLIFY (fm_s_half)
-      IF (fm_work1_local_alloc) THEN
-         CALL cp_fm_release(matrix=fm_work1)
-         DEALLOCATE (fm_work1)
-      END IF
-      IF (fm_work2_local_alloc) THEN
-         CALL cp_fm_release(matrix=fm_work2)
-         DEALLOCATE (fm_work2)
-      END IF
+      CALL cp_fm_release(matrix=fm_work1)
+      CALL cp_fm_release(matrix=fm_work2)
 
       ! Release (local) sparse matrices
-
-      CALL dbcsr_deallocate_matrix(sm_q)
-      CALL dbcsr_deallocate_matrix(sm_v)
+      CALL dbcsr_release(sm_q)
+      CALL dbcsr_release(sm_v)
 
       CALL timestop(handle)
 
