@@ -89,7 +89,7 @@ regression test cp2k daint:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 288
+    SLURM_NTASKS: 224
     SLURM_TIMELIMIT: 40
     USE_MPI: YES
 
