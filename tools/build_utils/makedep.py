@@ -123,9 +123,7 @@ $(LIBDIR)/{archive}{ext} : {objs}
 # Public modules for package {pkg}
 install: PUBLICFILES += {pubfiles}
 
-""".format(
-                pkg=pkg, pubfiles=" ".join(mod for mod in packages[pkg]["public"])
-            )
+""".format(pkg=pkg, pubfiles=" ".join(mod for mod in packages[pkg]["public"]))
 
     # write rules for executables
     archive_postfix = archive_ext.rsplit(".", 1)[0]

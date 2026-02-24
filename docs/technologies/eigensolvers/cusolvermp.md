@@ -5,7 +5,7 @@ tools for the solution of dense linear systems and eigenvalue problems.
 
 ## Dependencies
 
-[cuSOLVERmp] \< 0.7
+[cuSOLVERmp] < 0.7
 
 - [CAL]: requires `libcal.\*` in the `$PATH`
 - [UCC]: requires `libucc.\*` and `libucs.\*` in the `$PATH`

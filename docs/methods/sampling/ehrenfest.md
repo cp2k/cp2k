@@ -89,7 +89,7 @@ the matrix in the exponential of the propagator becomes fully complex.
 ## Running real time time dependend DFT in CP2K
 
 To run RTP or Ehrenfest MD with CP2K, the corresponding [RUN_TYPE](#CP2K_INPUT.GLOBAL.RUN_TYPE) in
-the \[GLOBAL\] (#CP2K_INPUT.GLOBAL) section has to be selected, and the [MD](#CP2K_INPUT.MOTION.MD)
+the [GLOBAL](#CP2K_INPUT.GLOBAL) section has to be selected, and the [MD](#CP2K_INPUT.MOTION.MD)
 section has to be present to specify the time step length `TIMESTEP` and the desired number of steps
 (`STEPS`). It is crucial to set an appropriate time step to propagate the electronic degrees of
 freedom, i.e., in the order of atto-seconds. All other input parameters related to the RT-TDDFT run
@@ -188,13 +188,12 @@ This equation is propagated for each $i$ electron with a time step $\delta t$: t
 collectively over time in a **continuous manner**. Especially, the energy evolution is continuous:
 the electrons cannot absorb exactly one photon at a given frequency to instantaneously go from one
 electronic state to another.\
-If one applies a field resonant with a given electronic transition,
-the MOs involved in this transition will gradually be transformed from their initial state to the
-corresponding excited state. This will happen in real-time without defining any specific electronic
-transition before starting the simulation. Some preliminary calculations to determine the spectral
-features of the system under study are in general useful to better define the desired properties of
-the perturbing field. For core state excitations these information can be obtained by XAS
-simulations.
+If one applies a field resonant with a given electronic transition, the MOs involved in this
+transition will gradually be transformed from their initial state to the corresponding excited
+state. This will happen in real-time without defining any specific electronic transition before
+starting the simulation. Some preliminary calculations to determine the spectral features of the
+system under study are in general useful to better define the desired properties of the perturbing
+field. For core state excitations these information can be obtained by XAS simulations.
 
 Once the RTP has started, the evolution of the electronic structure can be monitored by means of
 several descriptors, like the time dependent dipole moment, current density, total electronic

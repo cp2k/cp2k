@@ -92,10 +92,9 @@ efficiency the propagation parameters are set to focus only on one specific part
 ### Absorption spectrum
 
 Under the assumption of linear response to the perturbation,\
-the real and imaginary part of the
-calculated frequency-dependent polarizability define the nature of the response. If the frequency is
-at an electronic resonance, then the polarizability has an imaginary part. The polarizability is
-pure real off resonances.
+the real and imaginary part of the calculated frequency-dependent polarizability define the nature
+of the response. If the frequency is at an electronic resonance, then the polarizability has an
+imaginary part. The polarizability is pure real off resonances.
 
 From one Real-Time propagation, one can obtain three components of the polarizability tensor. For
 instance, applying a $\delta$-kick along $x$ provides the components $\alpha_{xx}$, $\alpha_{yx}$

@@ -28,9 +28,9 @@ the additional files [`t_c_g.dat`](../../../data/t_c_g.dat) and
 
 ### Results on Piz Dora, CSCS
 
-| Input File |             Configuration | Total Number of Cores | Runtime \[s\] |
-| ---------- | ------------------------: | --------------------: | ------------: |
-| RI-MP2.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |           392 |
-| RI-RPA.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |           221 |
+| Input File |             Configuration | Total Number of Cores | Runtime [s] |
+| ---------- | ------------------------: | --------------------: | ----------: |
+| RI-MP2.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |         392 |
+| RI-RPA.inp | 16 nodes x 16 MPI x 1 OMP |                   256 |         221 |
 
 \*) The timings have been obtained on CRAY-XC40 (PizDora@CSCS)

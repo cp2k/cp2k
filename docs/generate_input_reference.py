@@ -11,7 +11,6 @@ from datetime import datetime
 from collections import defaultdict
 from functools import cache
 
-
 SectionPath = Tuple[str, ...]
 
 

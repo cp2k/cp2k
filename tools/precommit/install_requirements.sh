@@ -26,8 +26,10 @@ rm -rf /var/lib/apt/lists/*
 python3 -m venv /opt/venv
 export PATH="/opt/venv/bin:$PATH"
 
+# TODO Add a pylock.toml file (https://peps.python.org/pep-0751/)
 # Install Python packages. Upgrade via:
-#   pip3 install black flask gunicorn mdformat-gfm cmake-format
+#   pip3 install black flask gunicorn cmake-format fortitude-lint \
+#      mdformat mdformat-gfm mdformat_frontmatter mdformat_myst mdformat_tables
 #   pip3 freeze > requirements.txt
 pip3 install --quiet -r requirements.txt
 

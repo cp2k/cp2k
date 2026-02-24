@@ -8,7 +8,6 @@ import collections
 from os import path
 from typing import Dict, TextIO, List
 
-
 USE_EXCEPTIONS = ("omp_lib", "omp_lib_kinds", "lapack")
 
 # precompile regex

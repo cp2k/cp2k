@@ -38,7 +38,7 @@ To build a local version of the manual perform the following steps:
 
 1. Browse the HTML output in the `_build/html` directory.
 
-> \[!TIP\]
+> [!TIP]
 >
 > While the first invocation of Sphinx can be quite slow, subsequent builds are significantly faster
 > thanks to its doctree cache. Nevertheless, a build with the full input reference can take several

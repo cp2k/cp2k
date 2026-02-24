@@ -74,10 +74,8 @@ $$ \varepsilon_{n\mathbf{k}}^{G_0W_0} = \varepsilon_{n\mathbf{k}}^\text{DFT} + \
 
 We might interpret that we remove the spurious xc contribution from DFT,
 $\braket{\psi_{n\mathbf{k}}|
-v_\text{xc}|\psi_{n\mathbf{k}}}$, from the DFT eigenvalue
-$\varepsilon_{n\mathbf{k}}^\text{DFT}$ and we add the xc contribution from
-*G*<sub>0</sub>*W*<sub>0</sub>,
-$\braket{\psi_{n\mathbf{k}}|
+v_\text{xc}|\psi_{n\mathbf{k}}}$, from the DFT eigenvalue $\varepsilon_{n\mathbf{k}}^\text{DFT}$ and
+we add the xc contribution from *G*<sub>0</sub>*W*<sub>0</sub>, $\braket{\psi_{n\mathbf{k}}|
 \Sigma^{G_0W_0}(\varepsilon_{n\mathbf{k}}^{G_0W_0}) |\psi_{n\mathbf{k}}}$.
 
 CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>) and

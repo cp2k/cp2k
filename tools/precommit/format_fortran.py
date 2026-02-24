@@ -18,7 +18,6 @@ from prettify_cp2k import replacer
 sys.path.insert(0, path.join(path.dirname(path.abspath(__file__)), "fprettify"))
 from fprettify import reformat_ffile, fparse_utils, log_exception
 
-
 TO_UPCASE_RE = re.compile(
     r"""
 (?P<toUpcase>
