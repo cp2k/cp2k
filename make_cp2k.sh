@@ -635,6 +635,18 @@ case "${MPI_MODE}" in
     ;;
 esac
 
+# Check if CP2K_VERSION and the selected features are compatible
+case "${CP2K_VERSION}" in
+  ssmp | ssmp-static)
+    for package in cosma dlaf elpa libfabric libsmeagol mimic openpmd pexsi plumed sirius spla; do
+      if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_${package^^}=ON"* ]]; then
+        echo -e "ERROR: The feature ${package^^} is not available for building serial CP2K binaries (${CP2K_VERSION})\n"
+        ${EXIT_CMD} 1
+      fi
+    done
+    ;;
+esac
+
 # Perform CUDA GPU related settings
 if ((CUDA_ARCH > 0)); then
   if command -v nvcc &> /dev/null; then
@@ -830,6 +842,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E \
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" \
       -e '/\s*#\s*-\s+"\+cuda\s+\+gpu_direct"/ s/#/ /' \
+      -e '/\s*#\s*-\s+"\+cuda\s+\+gdrcopy"/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
