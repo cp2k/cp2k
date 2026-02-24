@@ -72,7 +72,7 @@ run_test mypy --strict ./tools/vibronic_spec/
 #     /workspace/artifacts/dashboard/
 # done
 
-run_test cmake -DCP2K_ENABLE_CONSISTENCY_CHECKS=ON .
+run_test cmake -S . -B build -DCP2K_ENABLE_CONSISTENCY_CHECKS=ON
 
 echo ""
 echo "Summary: Miscellaneous tests passed"
