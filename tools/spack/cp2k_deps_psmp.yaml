@@ -182,7 +182,7 @@ spack:
     - "python@3.11:"
     # CP2K
     - "adios2@2.11.0"
-    - "cosma@2.7.0"
+    - "cosma@2.7.1"
     - "dbcsr@2.9.1"
     - "deepmdkit@3.1.2"
     - "dftd4@3.7.0"
