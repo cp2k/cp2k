@@ -94,7 +94,7 @@ specific heat and are inversely proportional with sqrt(N) where N is the system 
 
 A faster way to equilibrate the system is to use `LANGEVIN` as
 [ENSEMBLE](#CP2K_INPUT.MOTION.MD.ENSEMBLE), and use a [GAMMA](#CP2K_INPUT.MOTION.MD.LANGEVIN.GAMMA)
-of 0.001 \[1/fs\] (or larger if you want to equilibrate faster). Langevin introduces a viscous
+of 0.001 [1/fs] (or larger if you want to equilibrate faster). Langevin introduces a viscous
 dissipative force and a random forces that are in equilibrioum at the given temperature. For
 equilibration purposes (and not to simulate removed degrees of freedom, like a solvent), the smaller
 gamma the longer it takes to equilibrate, and the closer the trajectory is to an NVE trajectory, the

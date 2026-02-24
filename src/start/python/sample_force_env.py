@@ -6,7 +6,6 @@ import numpy as np
 
 import cp2k
 
-
 TEST_FILE_CONTENT = """
 &FORCE_EVAL
   METHOD Quickstep

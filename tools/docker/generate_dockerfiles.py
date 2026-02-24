@@ -233,9 +233,7 @@ def main() -> None:
 
 # ======================================================================================
 def regtest(profile: str, version: str, testopts: str = "") -> str:
-    return (
-        install_cp2k(profile=profile, version=version)
-        + rf"""
+    return install_cp2k(profile=profile, version=version) + rf"""
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
 COPY ./tests ./tests
@@ -244,29 +242,21 @@ RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
     ./test_regtest.sh {profile} {version} |& tee report.log && \
     rm -rf regtesting"
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
 def test_build(profile: str, version: str) -> str:
-    return (
-        install_cp2k(profile=profile, version=version)
-        + rf"""
+    return install_cp2k(profile=profile, version=version) + rf"""
 # Run build test.
 COPY ./tools/docker/scripts/test_build.sh .
 RUN ./test_build.sh "{profile}" "{version}" 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
 def performance(profile: str) -> str:
-    return (
-        install_cp2k(profile=profile, version="psmp")
-        + rf"""
+    return install_cp2k(profile=profile, version="psmp") + rf"""
 # Run performance test for {profile}.
 COPY ./benchmarks ./benchmarks
 COPY ./tools/regtesting ./tools/regtesting
@@ -274,9 +264,7 @@ COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
 RUN ./test_performance.sh "{profile}" 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
@@ -311,24 +299,19 @@ RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
 
 # ======================================================================================
 def manual() -> str:
-    return (
-        install_cp2k(profile="toolchain", version="psmp", revision=True)
-        + rf"""
+    return install_cp2k(profile="toolchain", version="psmp", revision=True) + rf"""
 # Generate manual.
 COPY ./docs ./docs
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
 ARG ADD_EDIT_LINKS=yes
 RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
 def precommit() -> str:
-    return (
-        rf"""
+    return rf"""
 FROM ubuntu:24.04
 
 # Install dependencies.
@@ -343,29 +326,22 @@ COPY ./ ./
 
 # Run precommit test.
 RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
-    return (
-        install_cp2k(profile="toolchain", version="ssmp")
-        + rf"""
+    return install_cp2k(profile="toolchain", version="ssmp") + rf"""
 # Run test for {name}.
 COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================
 def test_without_build(name: str) -> str:
-    return (
-        rf"""
+    return rf"""
 FROM ubuntu:24.04
 
 # Install dependencies.
@@ -390,9 +366,7 @@ RUN bash -c "if [ -n "${{GIT_COMMIT_SHA}}" ] ; then echo "git:\${{GIT_COMMIT_SHA
 # Run test for {name}.
 COPY ./tools/docker/scripts/test_{name}.sh .
 RUN ./test_{name}.sh 2>&1 | tee report.log
-"""
-        + print_cached_report()
-    )
+""" + print_cached_report()
 
 
 # ======================================================================================

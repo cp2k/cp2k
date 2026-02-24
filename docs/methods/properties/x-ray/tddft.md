@@ -543,7 +543,7 @@ for 2px, 2py and 2pz. To avoid cancelling contributions, the sum of the absolute
 Hybrid functionals with high fraction of Hartree-Fock exchange are know to perform well for core
 spectroscopy. PBEh($\alpha=0.45$) and BHandHLYP have had success with this particular
 implementation. In periodic boundary conditions, the truncated Coulomb operator should be used (with
-truncation radius \< half cell parameter).
+truncation radius < half cell parameter).
 
 For appropriate description of core states, all-electron basis sets should be used for the excited
 atom(s). MOLOPT basis sets and pseudopotentials can be used on all other atoms. There exist core

@@ -4,6 +4,7 @@
 """
 Make a plot of CP2K benchmark data.
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker

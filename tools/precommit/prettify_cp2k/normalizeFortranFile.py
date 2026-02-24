@@ -305,7 +305,7 @@ def parseRoutine(inFile, logger):
     }
     stream = InputStream(inFile)
     while True:
-        (jline, _, lines) = stream.nextFortranLine()
+        jline, _, lines = stream.nextFortranLine()
         if len(lines) == 0:
             break
         if FCT_RE.match(jline) or SUBR_RE.match(jline):
@@ -317,7 +317,7 @@ def parseRoutine(inFile, logger):
                 subF = open(m.group("file"), "r", encoding="utf8")
                 subStream = InputStream(subF)
                 while True:
-                    (subjline, _, sublines) = subStream.nextFortranLine()
+                    subjline, _, sublines = subStream.nextFortranLine()
                     if not sublines:
                         break
                     routine["strippedCore"].append(subjline)
@@ -351,7 +351,7 @@ def parseRoutine(inFile, logger):
             routine["result"] = routine["name"]
 
     while True:
-        (jline, comment_list, lines) = stream.nextFortranLine()
+        jline, comment_list, lines = stream.nextFortranLine()
         comments = "\n".join(_ for _ in comment_list)
         if len(lines) == 0:
             break
@@ -422,7 +422,7 @@ def parseRoutine(inFile, logger):
                 istart = lines
                 interfaceDeclFile = StringIO()
                 while True:
-                    (jline, _, lines) = stream.nextFortranLine()
+                    jline, _, lines = stream.nextFortranLine()
                     if INTERFACE_END_RE.match(jline):
                         iend = lines
                         break
@@ -481,7 +481,7 @@ def parseRoutine(inFile, logger):
                 subF = open(m.group("file"), "r", encoding="utf8")
                 subStream = InputStream(subF)
                 while True:
-                    (subjline, _, sublines) = subStream.nextFortranLine()
+                    subjline, _, sublines = subStream.nextFortranLine()
                     if not sublines:
                         break
                     routine["strippedCore"].append(subjline)
@@ -498,7 +498,7 @@ def parseRoutine(inFile, logger):
                 if logger.isEnabledFor(logging.DEBUG):
                     traceback.print_exc()
 
-        (jline, _, lines) = stream.nextFortranLine()
+        jline, _, lines = stream.nextFortranLine()
     return routine
 
 
@@ -1021,7 +1021,7 @@ def parseUse(inFile):
     commonUses = ""
     stream = InputStream(inFile)
     while True:
-        (jline, comment_list, lines) = stream.nextFortranLine()
+        jline, comment_list, lines = stream.nextFortranLine()
         comments = "\n".join(_ for _ in comment_list if _)
         lineNr = lineNr + len(lines)
         if not lines:

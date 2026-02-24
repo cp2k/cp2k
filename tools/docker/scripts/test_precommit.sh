@@ -5,7 +5,7 @@
 echo -e "\n========== Starting Precommit Server =========="
 cd ./tools/precommit/ || exit 1
 export REVISION="unknown revision"
-gunicorn --bind=:8080 --workers=1 --threads=8 --timeout=0 precommit_server:app &> /var/tmp/precommit_server.logs &
+gunicorn --bind=:8080 --workers=1 --threads=8 --timeout=0 --no-control-socket precommit_server:app &> /var/tmp/precommit_server.logs &
 sleep 3
 cat /var/tmp/precommit_server.logs
 

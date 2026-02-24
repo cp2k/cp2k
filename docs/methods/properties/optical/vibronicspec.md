@@ -156,8 +156,8 @@ basis set, and convergence settings, across all calculations. The optimized geom
 the chosen computational setup, so using different parameters in vibrational analysis and spectrum
 calculation could mean the geometry is no longer at the true minimum for those new settings. The
 geometry in this tutorial is optimized using `PBE0` functional and `TZVP-MOLOPT-PBE0-GTH` basis
-sets. [ADMM](#CP2K_INPUT.FORCE_EVAL.DFT.AUXILIARY_DENSITY_MATRIX_METHOD)[](#Guidon2010)
-approximation is also used with `admm-dzp` basis to reduce the cost of exchange integrals.
+sets. The [ADMM](#CP2K_INPUT.FORCE_EVAL.DFT.AUXILIARY_DENSITY_MATRIX_METHOD) approximation
+([](#Guidon2010)) is also used with `admm-dzp` basis to reduce the cost of exchange integrals.
 
 ### 1. Vibrational modes and frequencies
 
@@ -327,8 +327,8 @@ than the default, to ensure more accurate excitation energies. We also ask to pr
 we set a [THRESHOLD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.THRESHOLD) of 0.001. This
 means forces are only calculated for states whose oscillator strength is above that value. Filtering
 out weak states helps keep the calculation efficient. You can also list specific states explicitly
-with the [LIST](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.LIST) keyword (\[Strand2019\],
-[](#Iannuzzi2005), \[Hehn2022\]).
+with the [LIST](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.FORCES.LIST) keyword
+([Strand2019](https://doi.org/10.1063/1.5078682), [](#Iannuzzi2005), [](#Hehn2022)).
 
 The output file we need is `so2-TDFORCE-1_0.tdfrc` file, which contains the spectrum data and the
 forces in this format:
@@ -425,7 +425,7 @@ calculation parameters are:
 - Spectrum type (absorption or fluorescence)
 - States to include, it can take different arguments:
   - "all", includes all states that have forces in TDFORCE file
-  - a list like \[1, 2, 5\] to explicitly give state numbers
+  - a list like [1, 2, 5] to explicitly give state numbers
   - "threshold:0.001", this option works like the THRESHOLD filter we used in the TDDFT force
     calculation, including only states with oscillator strength above 0.001.
 

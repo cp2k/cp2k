@@ -92,11 +92,9 @@ def run_benchmark(cp2k_exe_dir, input_file, mpi_wrapper="mpiexec -np {mpi_ranks}
 
     allok = True
 
-    print(
-        """
+    print("""
 CP2K | # Threads | # Ranks | Energy
------+-----------+---------+------------------------"""
-    )
+-----+-----------+---------+------------------------""")
 
     for (omp_num_threads, mpi_ranks), energy in zip(TEST_COMBINATIONS, energies):
         version = cp2k_version(omp_num_threads, mpi_ranks)
@@ -109,11 +107,9 @@ CP2K | # Threads | # Ranks | Energy
             f"{version} | {omp_num_threads:9d} | {mpi_ranks:7d} | {energy:20.14f} {mark}"
         )
 
-    print(
-        f"""\
+    print(f"""\
 ----------------------------------------------------
-mean: {mean:20.14f} +/- {var:16.12e}"""
-    )
+mean: {mean:20.14f} +/- {var:16.12e}""")
 
     return allok
 
