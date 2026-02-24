@@ -842,8 +842,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     sed -E \
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" \
       -e '/\s*#\s*-\s+"\+cuda\s+\+gpu_direct"/ s/#/ /' \
-      -e '/\s*#\s*-\s+"\+cuda\s+\+gdrcopy"/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
+#     -e '/\s*#\s*-\s+"\+cuda\s+\+gdrcopy"/ s/#/ /' \
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
     fi
