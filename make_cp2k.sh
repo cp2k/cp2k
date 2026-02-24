@@ -336,7 +336,7 @@ while [[ $# -gt 0 ]]; do
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
-          P100 | V100 | A100 | H100)
+          P100 | V100 | T100 | A100 | H100)
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
@@ -344,6 +344,9 @@ while [[ $# -gt 0 ]]; do
                 ;;
               V100)
                 CUDA_ARCH=70
+                ;;
+              T100)
+                CUDA_ARCH=75
                 ;;
               A100)
                 CUDA_ARCH=80
@@ -360,12 +363,12 @@ while [[ $# -gt 0 ]]; do
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo "ERROR: Unknown GPU model \"${2}\" specified (choose P100, V100, A100, H100 or none)"
+            echo "ERROR: Unknown GPU model \"${2}\" specified (choose P100, V100, T100, A100, H100 or none)"
             ${EXIT_CMD} 1
             ;;
         esac
       else
-        echo "ERROR: No argument found for flag \"${1}\" (choose P100, V100, A100, H100 or none)"
+        echo "ERROR: No argument found for flag \"${1}\" (choose P100, V100, T100, A100, H100 or none)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -504,7 +507,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-gm | -gpu  | --gpu_model (P100 | V100 | A100 | H100 | none)]"
+  echo "                    [-gm | -gpu  | --gpu_model (P100 | V100 | T100 | A100 | H100 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
@@ -661,8 +664,10 @@ if ((CUDA_ARCH > 0)); then
     nvidia-smi
     HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | tail -n 1 | awk '{print 10*$1}')
     if ((CUDA_ARCH > HOST_CUDA_ARCH)); then
+      echo ""
       echo "ERROR: The requested CUDA arch (${CUDA_ARCH}) is larger than the maximum"
       echo "       CUDA arch (${HOST_CUDA_ARCH}) supported by the host system"
+      echo ""
       ${EXIT_CMD} 1
     fi
   else
