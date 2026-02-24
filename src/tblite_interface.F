@@ -1710,27 +1710,27 @@ CONTAINS
                         ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
                         ij = indb + nsgfb(jset)*(inda - 1)
 
-                        dip_ket1(ib, ia) = dtmp(1, ij)
-                        dip_ket2(ib, ia) = dtmp(2, ij)
-                        dip_ket3(ib, ia) = dtmp(3, ij)
+                        dip_ket1(ib, ia) = dip_ket1(ib, ia) + dtmp(1, ij)
+                        dip_ket2(ib, ia) = dip_ket2(ib, ia) + dtmp(2, ij)
+                        dip_ket3(ib, ia) = dip_ket3(ib, ia) + dtmp(3, ij)
 
-                        quad_ket1(ib, ia) = qtmp(1, ij)
-                        quad_ket2(ib, ia) = qtmp(2, ij)
-                        quad_ket3(ib, ia) = qtmp(3, ij)
-                        quad_ket4(ib, ia) = qtmp(4, ij)
-                        quad_ket5(ib, ia) = qtmp(5, ij)
-                        quad_ket6(ib, ia) = qtmp(6, ij)
+                        quad_ket1(ib, ia) = quad_ket1(ib, ia) + qtmp(1, ij)
+                        quad_ket2(ib, ia) = quad_ket2(ib, ia) + qtmp(2, ij)
+                        quad_ket3(ib, ia) = quad_ket3(ib, ia) + qtmp(3, ij)
+                        quad_ket4(ib, ia) = quad_ket4(ib, ia) + qtmp(4, ij)
+                        quad_ket5(ib, ia) = quad_ket5(ib, ia) + qtmp(5, ij)
+                        quad_ket6(ib, ia) = quad_ket6(ib, ia) + qtmp(6, ij)
 
-                        dip_bra1(ib, ia) = dtmp(1, ij)
-                        dip_bra2(ib, ia) = dtmp(2, ij)
-                        dip_bra3(ib, ia) = dtmp(3, ij)
+                        dip_bra1(ib, ia) = dip_bra1(ib, ia) + dtmp(1, ij)
+                        dip_bra2(ib, ia) = dip_bra2(ib, ia) + dtmp(2, ij)
+                        dip_bra3(ib, ia) = dip_bra3(ib, ia) + dtmp(3, ij)
 
-                        quad_bra1(ib, ia) = qtmp(1, ij)
-                        quad_bra2(ib, ia) = qtmp(2, ij)
-                        quad_bra3(ib, ia) = qtmp(3, ij)
-                        quad_bra4(ib, ia) = qtmp(4, ij)
-                        quad_bra5(ib, ia) = qtmp(5, ij)
-                        quad_bra6(ib, ia) = qtmp(6, ij)
+                        quad_bra1(ib, ia) = quad_bra1(ib, ia) + qtmp(1, ij)
+                        quad_bra2(ib, ia) = quad_bra2(ib, ia) + qtmp(2, ij)
+                        quad_bra3(ib, ia) = quad_bra3(ib, ia) + qtmp(3, ij)
+                        quad_bra4(ib, ia) = quad_bra4(ib, ia) + qtmp(4, ij)
+                        quad_bra5(ib, ia) = quad_bra5(ib, ia) + qtmp(5, ij)
+                        quad_bra6(ib, ia) = quad_bra6(ib, ia) + qtmp(6, ij)
                      END DO
                   END DO
                END DO
@@ -1750,29 +1750,29 @@ CONTAINS
 
                         ij = indb + nsgfb(jset)*(inda - 1)
 
-                        dip_bra1(ib, ia) = dtmp(1, ij)
-                        dip_bra2(ib, ia) = dtmp(2, ij)
-                        dip_bra3(ib, ia) = dtmp(3, ij)
+                        dip_bra1(ib, ia) = dip_bra1(ib, ia) + dtmp(1, ij)
+                        dip_bra2(ib, ia) = dip_bra2(ib, ia) + dtmp(2, ij)
+                        dip_bra3(ib, ia) = dip_bra3(ib, ia) + dtmp(3, ij)
 
-                        quad_bra1(ib, ia) = qtmp(1, ij)
-                        quad_bra2(ib, ia) = qtmp(2, ij)
-                        quad_bra3(ib, ia) = qtmp(3, ij)
-                        quad_bra4(ib, ia) = qtmp(4, ij)
-                        quad_bra5(ib, ia) = qtmp(5, ij)
-                        quad_bra6(ib, ia) = qtmp(6, ij)
+                        quad_bra1(ib, ia) = quad_bra1(ib, ia) + qtmp(1, ij)
+                        quad_bra2(ib, ia) = quad_bra2(ib, ia) + qtmp(2, ij)
+                        quad_bra3(ib, ia) = quad_bra3(ib, ia) + qtmp(3, ij)
+                        quad_bra4(ib, ia) = quad_bra4(ib, ia) + qtmp(4, ij)
+                        quad_bra5(ib, ia) = quad_bra5(ib, ia) + qtmp(5, ij)
+                        quad_bra6(ib, ia) = quad_bra6(ib, ia) + qtmp(6, ij)
 
                         ij = inda + nsgfa(iset)*(indb - 1)
 
-                        dip_ket1(ib, ia) = dtmpj(1, ij)
-                        dip_ket2(ib, ia) = dtmpj(2, ij)
-                        dip_ket3(ib, ia) = dtmpj(3, ij)
+                        dip_ket1(ib, ia) = dip_ket1(ib, ia) + dtmpj(1, ij)
+                        dip_ket2(ib, ia) = dip_ket2(ib, ia) + dtmpj(2, ij)
+                        dip_ket3(ib, ia) = dip_ket3(ib, ia) + dtmpj(3, ij)
 
-                        quad_ket1(ib, ia) = qtmpj(1, ij)
-                        quad_ket2(ib, ia) = qtmpj(2, ij)
-                        quad_ket3(ib, ia) = qtmpj(3, ij)
-                        quad_ket4(ib, ia) = qtmpj(4, ij)
-                        quad_ket5(ib, ia) = qtmpj(5, ij)
-                        quad_ket6(ib, ia) = qtmpj(6, ij)
+                        quad_ket1(ib, ia) = quad_ket1(ib, ia) + qtmpj(1, ij)
+                        quad_ket2(ib, ia) = quad_ket2(ib, ia) + qtmpj(2, ij)
+                        quad_ket3(ib, ia) = quad_ket3(ib, ia) + qtmpj(3, ij)
+                        quad_ket4(ib, ia) = quad_ket4(ib, ia) + qtmpj(4, ij)
+                        quad_ket5(ib, ia) = quad_ket5(ib, ia) + qtmpj(5, ij)
+                        quad_ket6(ib, ia) = quad_ket6(ib, ia) + qtmpj(6, ij)
                      END DO
                   END DO
                END DO
