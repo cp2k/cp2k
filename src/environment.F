@@ -545,6 +545,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "BLACS_GRID", i_val=globenv%blacs_grid_layout)
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
+      CALL section_vals_val_get(global_section, "CUSOLVER_GENERALIZED", l_val=globenv%cusolver_generalized)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
@@ -1117,7 +1118,8 @@ CONTAINS
                      elpa_print=globenv%elpa_print, &
                      elpa_one_stage=globenv%elpa_one_stage, &
                      dlaf_neigvec_min_input=globenv%dlaf_neigvec_min, &
-                     eps_check_diag_input=globenv%eps_check_diag)
+                     eps_check_diag_input=globenv%eps_check_diag, &
+                     cusolver_generalized_input=globenv%cusolver_generalized)
 
       IF (fallback_applied) THEN
          message = "Diagonalization library "//TRIM(globenv%diag_library)// &

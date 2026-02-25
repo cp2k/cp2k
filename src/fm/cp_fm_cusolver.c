@@ -11,8 +11,10 @@
 #include <assert.h>
 #include <cuda_runtime.h>
 #include <cusolverMp.h>
+#include <math.h>
 #include <mpi.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(__CUSOLVERMP_NCCL)
 #include <nccl.h>
@@ -438,7 +440,7 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   const int csrc_b = b_matrix_desc[7];
   const int ldB = b_matrix_desc[8];
 
-  // Ensure consistency in block sizes and sources
+  // Ensure consistency in block sizes, sources, and leading dimensions
   assert(mb_a == mb_b && nb_a == nb_b);
   assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
   (void)ldB; // Suppress unused variable warning
@@ -456,12 +458,14 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   cusolverMpMatrixDescriptor_t descrB = NULL;
   cusolverMpMatrixDescriptor_t descrZ = NULL;
 
+  // Create matrix descriptors using ldA as local leading dimension (LLD)
+  // Note: We use ldA for all matrices. The assertion above verifies ldA == ldB.
   CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrA, grid, data_type, n, n,
-                                            mb_a, nb_a, rsrc_a, csrc_a, np_a));
+                                            mb_a, nb_a, rsrc_a, csrc_a, ldA));
   CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrB, grid, data_type, n, n,
-                                            mb_b, nb_b, rsrc_b, csrc_b, np_a));
+                                            mb_b, nb_b, rsrc_b, csrc_b, ldA));
   CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrZ, grid, data_type, n, n,
-                                            mb_a, nb_a, rsrc_a, csrc_a, np_a));
+                                            mb_a, nb_a, rsrc_a, csrc_a, ldA));
 
   // Allocate device memory for matrices
   double *dev_A = NULL, *dev_B = NULL;
@@ -480,28 +484,45 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   CUDA_CHECK(cudaMalloc((void **)&dev_Z, matrix_local_size));
   CUDA_CHECK(cudaMalloc((void **)&eigenvalues_dev, n * sizeof(double)));
 
-  // Allocate workspace
+  // Query workspace size
   size_t work_dev_size = 0, work_host_size = 0;
-  CUSOLVER_CHECK(cusolverMpSygvd_bufferSize(
-      cusolvermp_handle, itype, jobz, uplo, n, 1, 1, descrA, 1, 1, descrB, 1, 1,
-      descrZ, data_type, &work_dev_size, &work_host_size));
+  const int64_t ia = 1, ja = 1, ib = 1, jb = 1, iz = 1, jz = 1;
+  const int64_t m = (int64_t)n;
+
+  cusolverStatus_t status_bufsize = cusolverMpSygvd_bufferSize(
+      cusolvermp_handle, itype, jobz, uplo, m, ia, ja, descrA, ib, jb, descrB,
+      iz, jz, descrZ, data_type, &work_dev_size, &work_host_size);
+  if (status_bufsize != CUSOLVER_STATUS_SUCCESS) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd_bufferSize failed with status=%d\n",
+            (int)status_bufsize);
+    abort();
+  }
 
   void *work_dev = NULL, *work_host = NULL;
   CUDA_CHECK(cudaMalloc(&work_dev, work_dev_size));
   CUDA_CHECK(cudaMallocHost(&work_host, work_host_size));
 
-  // Allocate device memory for info
+  // Allocate and initialize device memory for info
   int *info_dev = NULL;
   CUDA_CHECK(cudaMalloc((void **)&info_dev, sizeof(int)));
+  CUDA_CHECK(cudaMemset(info_dev, 0, sizeof(int)));
 
   // Call cusolverMpSygvd
-  CUSOLVER_CHECK(cusolverMpSygvd(
-      cusolvermp_handle, itype, jobz, uplo, n, dev_A, 1, 1, descrA, dev_B, 1, 1,
-      descrB, eigenvalues_dev, dev_Z, 1, 1, descrZ, data_type, work_dev,
-      work_dev_size, work_host, work_host_size, info_dev));
+  cusolverStatus_t status_sygvd = cusolverMpSygvd(
+      cusolvermp_handle, itype, jobz, uplo, m, dev_A, ia, ja, descrA, dev_B, ib,
+      jb, descrB, eigenvalues_dev, dev_Z, iz, jz, descrZ, data_type, work_dev,
+      work_dev_size, work_host, work_host_size, info_dev);
+  if (status_sygvd != CUSOLVER_STATUS_SUCCESS) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd failed with status=%d\n",
+            (int)status_sygvd);
+    abort();
+  }
 
   // Wait for computation to finish
   CUDA_CHECK(cudaStreamSynchronize(stream));
+#if !defined(__CUSOLVERMP_NCCL)
+  CAL_CHECK(cal_stream_sync(cal_comm, stream));
+#endif
 
   // Check info
   int info;

@@ -93,6 +93,7 @@ MODULE cp_fm_diag
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
 #endif
+   LOGICAL, SAVE, PUBLIC :: cusolver_generalized = .TRUE.
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
@@ -138,18 +139,21 @@ CONTAINS
 !> \param elpa_one_stage logical that enables the one-stage solver
 !> \param dlaf_neigvec_min_input ...
 !> \param eps_check_diag_input ...
+!> \param cusolver_generalized_input ...
 !> \par History
 !>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
 ! **************************************************************************************************
    SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_neigvec_min_input, elpa_qr, &
-                        elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input)
+                        elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
+                        cusolver_generalized_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
       INTEGER, INTENT(IN)                                :: elpa_kernel, elpa_neigvec_min_input
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_one_stage
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cusolver_generalized_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
@@ -196,6 +200,11 @@ CONTAINS
 
       elpa_neigvec_min = elpa_neigvec_min_input
       eps_check_diag = eps_check_diag_input
+      IF (PRESENT(cusolver_generalized_input)) THEN
+         cusolver_generalized = cusolver_generalized_input
+      ELSE
+         cusolver_generalized = .TRUE.
+      END IF
 
    END SUBROUTINE diag_init
 
@@ -1362,9 +1371,11 @@ CONTAINS
       CALL cp_fm_get_info(amatrix, nrow_global=nao)
       nmo = SIZE(eigenvalues)
 
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. nao >= 64) THEN
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. cusolver_generalized .AND. nao >= 64) THEN
          ! Use cuSolverMP generalized eigenvalue solver for large matrices
-         CALL cp_fm_general_cusolver(amatrix, bmatrix, eigenvectors, eigenvalues)
+         ! Use work as intermediate buffer since eigenvectors may be smaller (nao x nmo)
+         CALL cp_fm_general_cusolver(amatrix, bmatrix, work, eigenvalues)
+         CALL cp_fm_to_fm(work, eigenvectors, nmo)
 #if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Use DLA-Future generalized eigenvalue solver for large matrices
