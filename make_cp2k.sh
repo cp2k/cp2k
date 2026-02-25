@@ -1228,10 +1228,8 @@ ln -sf cp2k."${VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
 # Allow to run as root within a container with OpenMPI
-if [[ "${MPI_MODE}" == "openmpi" ]] && [[ "${IN_CONTAINER}" == "yes" ]]; then
+if [[ "${MPI_MODE}" == "openmpi" ]]; then
   OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
-else
-  OMPI_VARS="export OMPI_MCA_plm_rsh_agent=/bin/false"
 fi
 export OMPI_VARS
 
