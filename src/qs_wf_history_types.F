@@ -14,8 +14,8 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_wf_history_types
-   USE cp_cfm_types,                    ONLY: cp_cfm_type, &
-                                              cp_cfm_release
+   USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -130,7 +130,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wfs_release(snapshot)
       TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
-      INTEGER                                            :: i, ikp, ic, ispin
+
+      INTEGER                                            :: i, ic, ikp, ispin
 
       CALL cp_fm_release(snapshot%wf)
       ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
@@ -152,13 +153,13 @@ CONTAINS
                END DO
             END DO
          END DO
-         DEALLOCATE(snapshot%wf_kp)
+         DEALLOCATE (snapshot%wf_kp)
       END IF
       IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
          DO i = 1, SIZE(snapshot%overlap_cfm_kp)
             CALL cp_cfm_release(snapshot%overlap_cfm_kp(i))
          END DO
-         DEALLOCATE(snapshot%overlap_cfm_kp)
+         DEALLOCATE (snapshot%overlap_cfm_kp)
       END IF
       IF (ASSOCIATED(snapshot%rho_frozen)) THEN
          CALL qs_rho_release(snapshot%rho_frozen)

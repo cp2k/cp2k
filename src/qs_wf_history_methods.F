@@ -31,7 +31,6 @@ MODULE qs_wf_history_methods
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
@@ -39,17 +38,10 @@ MODULE qs_wf_history_methods
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_desymmetrize,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_antisymmetric,&
-                                              dbcsr_type_no_symmetry,&
-                                              dbcsr_type_symmetric
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -66,15 +58,9 @@ MODULE qs_wf_history_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: copy_info_type,&
-                                              cp_fm_cleanup_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_finish_copy_general,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_start_copy_general,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
+        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -181,10 +167,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_update'
 
-      INTEGER                                            :: handle, ic, ik, igroup, ikp, img, &
-                                                            indx_ft, ispin, &
-                                                            kplocal, nc, nimg, nkp_all, &
-                                                            nkp_grps, nspins, nspin_kp
+      INTEGER                                            :: handle, ic, igroup, ik, ikp, img, &
+                                                            indx_ft, ispin, kplocal, nc, nimg, &
+                                                            nkp_all, nkp_grps, nspin_kp, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -193,11 +178,11 @@ CONTAINS
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info_ft
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, ao_mo_pools
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct_ft
-      TYPE(cp_fm_type)                                   :: fmlocal_ft, fmdummy_ft
+      TYPE(cp_fm_type)                                   :: fmdummy_ft, fmlocal_ft
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: rmat_ft, cmat_ft, tmpmat_ft
+      TYPE(dbcsr_type), POINTER                          :: cmat_ft, rmat_ft, tmpmat_ft
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1174,29 +1159,30 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
+
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_aspc_kp'
 
-      INTEGER :: handle, ik, ikp, igroup, indx, ispin, nao, nmo, &
-                 nkp, nkp_groups, kplocal, nspin, i, j, chol_info
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: col_scaling
+      INTEGER                                            :: chol_info, handle, i, igroup, ik, ikp, &
+                                                            indx, ispin, j, kplocal, nao, nkp, &
+                                                            nkp_groups, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, use_real_wfn
       REAL(KIND=dp)                                      :: alpha_coeff, eval_thresh
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvalues
-      COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: col_scaling
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: cmos_new, cmos_i, cmos_1, &
-                                                            csc_cfm, cfm_nao_nmo_work, &
-                                                            cfm_evecs, cfm_mhalf
+      TYPE(cp_cfm_type)                                  :: cfm_evecs, cfm_mhalf, cfm_nao_nmo_work, &
+                                                            cmos_1, cmos_i, cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
-      TYPE(cp_fm_type)                                   :: fmlocal, fmdummy
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, rmos, imos
+      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal
+      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: rmatrix, cmatrix_db, tmpmat
+      TYPE(dbcsr_type), POINTER                          :: cmatrix_db, rmatrix, tmpmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1437,7 +1423,7 @@ CONTAINS
             IF (chol_info == 0) THEN
                ! Cholesky succeeded: C_orth = C_new * U^{-1}
                CALL cp_cfm_triangular_multiply(csc_cfm, cmos_new, side='R', &
-                                                invert_tr=.TRUE., uplo_tr='U')
+                                               invert_tr=.TRUE., uplo_tr='U')
             ELSE
                ! Cholesky failed — fall back to Löwdin: M^{-1/2} via eigendecomposition
                ! Recompute M (Cholesky overwrote csc_cfm)
