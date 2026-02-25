@@ -114,9 +114,8 @@ spack:
 
     libfabric:
       require:
-        - "~cuda"
-#       - "+cuda +gdrcopy"
-#       - "fabrics=cxi"
+        - "~cuda ~gdrcopy"
+#       - "fabrics=efa,ucx"
 
     libint:
       require:
