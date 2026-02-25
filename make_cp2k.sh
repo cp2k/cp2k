@@ -256,7 +256,7 @@ while [[ $# -gt 0 ]]; do
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
                 ;;
               dlaf)
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future*@/ ${SUBST}"
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ ${SUBST}"
                 ;;
               fftw3)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"fftw@/ ${SUBST}"
