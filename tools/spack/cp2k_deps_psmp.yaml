@@ -83,7 +83,7 @@ spack:
 
     cosma:
       require:
-#       - "+cuda +gpu_direct"
+        - "~cuda ~gpu_direct"
         - "+scalapack"
 
     dbcsr:

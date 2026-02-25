@@ -864,7 +864,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   if ((CUDA_ARCH > 0)); then
     sed -E \
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" \
-      -e '/\s*#\s*-\s+"\+cuda\s+\+gpu_direct"/ s/#/ /' \
+      -e 's/"~cuda\s+~gpu_direct"/"\+cuda \+gpu_direct"/' \
       -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
@@ -874,6 +874,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     if [[ -n "${CUDA_HOME:-}" ]]; then
       sed -E -e "s|prefix: /usr/local/cuda|prefix: ${CUDA_HOME}|" -i "${CP2K_CONFIG_FILE}"
     fi
+  else
+    sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
   fi
 
   # Apply Cray specific adaptation of the spack configuration if requested (CSCS)
