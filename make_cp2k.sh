@@ -210,6 +210,15 @@ while [[ $# -gt 0 ]]; do
         MPI_MODE="no"
         CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
       fi
+      if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
+        CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
+        for package in dftd4 libint2 libxc libxsmm spglib vori tblite; do
+          CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
+        done
+        for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
+          CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
+        done
+      fi
       shift 2
       ;;
     -df | --disable | --disable_feature | -ef | --enable | --enable_feature)
@@ -647,6 +656,15 @@ case "${CP2K_VERSION}" in
         ${EXIT_CMD} 1
       fi
     done
+    # Further exclusions are needed for statically linked serial CP2K binaries
+    if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
+      for package in ace deepmd greenx hdf5 libtorch trexio; do
+        if [[ "${CMAKE_FEATURE_FLAGS}" == *" -DCP2K_USE_${package^^}=ON"* ]]; then
+          echo -e "ERROR: The feature ${package^^} is not available for building statically linked serial CP2K binaries (${CP2K_VERSION})\n"
+          ${EXIT_CMD} 1
+        fi
+      done
+    fi
     ;;
 esac
 
@@ -1116,6 +1134,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       # Find some static libraries in advance
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
+      # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DBUILD_SHARED_LIBS=OFF \
@@ -1129,22 +1148,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
-        -DCP2K_USE_EVERYTHING=ON \
-        -DCP2K_USE_ACE=OFF \
-        -DCP2K_USE_DEEPMD=OFF \
-        -DCP2K_USE_DFTD4=ON \
-        -DCP2K_USE_GREENX=OFF \
-        -DCP2K_USE_HDF5=OFF \
-        -DCP2K_USE_LIBINT2=ON \
-        -DCP2K_USE_LIBTORCH=OFF \
-        -DCP2K_USE_LIBXC=ON \
-        -DCP2K_USE_LIBXSMM=ON \
-        -DCP2K_USE_MPI=OFF \
-        -DCP2K_USE_PEXSI=OFF \
-        -DCP2K_USE_SPGLIB=ON \
-        -DCP2K_USE_VORI=ON \
-        -DCP2K_USE_TBLITE=ON \
-        -DCP2K_USE_TREXIO=OFF \
+        ${CMAKE_FEATURE_FLAGS} \
         -Werror=dev |&
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
