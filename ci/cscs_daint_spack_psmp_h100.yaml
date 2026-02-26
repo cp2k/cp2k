@@ -104,7 +104,6 @@ benchmark cp2k 1 daint node:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
     - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
