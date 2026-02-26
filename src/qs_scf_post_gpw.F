@@ -87,6 +87,7 @@ MODULE qs_scf_post_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_mo_dump,                  ONLY: write_kpoint_mo_data
    USE kpoint_types,                    ONLY: kpoint_type
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
@@ -2104,6 +2105,17 @@ CONTAINS
                                                  dft_section, "PRINT%CHARGEMOL"), &
                       cp_p_file)) THEN
                CALL write_wfx(qs_env, dft_section)
+            END IF
+         END IF
+
+         ! K-point MO wavefunction dump
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_KP"), &
+                   cp_p_file)) THEN
+            IF (do_kpoints) THEN
+               CALL write_kpoint_mo_data(qs_env, &
+                                         section_vals_get_subs_vals(input, "DFT%PRINT%MO_KP"))
+            ELSE
+               CPWARN("MO_KP is only available for k-point calculations, ignored for Gamma-only")
             END IF
          END IF
 

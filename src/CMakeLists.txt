@@ -322,6 +322,7 @@ list(
   kpoint_io.F
   kpoint_k_r_trafo_simple.F
   kpoint_methods.F
+  kpoint_mo_dump.F
   kpoint_transitional.F
   kpoint_types.F
   kpsym.F
