@@ -65,7 +65,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ATOM", &
-                          description="Section handling input for atomic calculations.", &
+                          description="Section handling input for atomic calculations (requires &GLOBAL%PROGRAM_NAME ATOM).", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
