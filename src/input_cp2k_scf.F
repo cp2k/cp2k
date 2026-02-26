@@ -209,7 +209,7 @@ CONTAINS
          usage="SCF_GUESS RESTART", default_i_val=atomic_guess, &
          enum_c_vals=s2a("ATOMIC", "RESTART", "RANDOM", "CORE", &
                          "HISTORY_RESTART", "MOPAC", "EHT", "SPARSE", "NONE"), &
-         enum_desc=s2a("Generate an atomic density using the atomic code", &
+         enum_desc=s2a("Generate an atomic density using the atomic code and internal default values", &
                        "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
                        "Use random wavefunction coefficients.", &
                        "Diagonalize the core hamiltonian for an initial guess.", &
