@@ -229,7 +229,7 @@ CONTAINS
       END IF
 
       IF (use_mod_hes) THEN
-         CALL cp_fm_set_all(hess_mat, alpha=zero, beta=0.00_dp)
+         CALL cp_fm_set_all(hess_mat, alpha=zero)
          CALL construct_initial_hess(gopt_env%force_env, hess_mat)
          CALL cp_fm_to_fm(hess_mat, hess_tmp)
          CALL choose_eigv_solver(hess_tmp, eigvec_mat, eigval, info=info)
@@ -790,13 +790,14 @@ CONTAINS
       CALL cp_fm_column_scale(hess_tmp, eigval)
       CALL cp_fm_get_info(eigvec_mat, matrix_struct=matrix_struct)
       CALL cp_fm_create(tmp, matrix_struct, name="tmp")
+      CALL cp_fm_set_all(tmp, alpha=zero)
 
       CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
 
       CALL cp_fm_transpose(tmp, hess_tmp)
       CALL cp_fm_release(tmp)
 
-!    ** New step **
+      ! New step
 
       CALL cp_fm_get_info(hess_tmp, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
