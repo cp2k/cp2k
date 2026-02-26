@@ -1346,7 +1346,7 @@ else
       echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-      echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpirun -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
     echo ""
   fi
