@@ -12,6 +12,8 @@
 #
 #          > ./make_cp2k.sh
 #
+#          The latter, running in a subshell, is recommended.
+#
 #          The flags -h or --help print the available options.
 #
 #          The first run will take longer as it will build all CP2K dependencies
@@ -41,7 +43,7 @@
 #          A CP2K regression run can be launched automatically by adding the flag
 #          -t "" (or --test ""). This flag expects a string with the TESTOPTS, e.g.
 #
-#          > source ./make_cp2k.sh -t "--restrictdir QS/regtest-gpw-1"
+#          > ./make_cp2k.sh -t "--maxtasks 8 --restrictdir QS/regtest-gpw-1"
 #
 #          Alternatively, the script cp2k/install/run_tests can be launched after
 #          a successful CP2K build.
@@ -364,18 +366,23 @@ while [[ $# -gt 0 ]]; do
                 CUDA_ARCH=90
                 ;;
             esac
-            # Currently needed
-            USE_EXTERNALS="yes"
-            echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
+            ;;
+          35 | 50 | 60 | 70 | 75 | 80 | 90 | 120 | 121)
+            CUDA_ARCH=${2}
             ;;
           NONE)
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo "ERROR: Unknown GPU model \"${2}\" specified (choose P100, V100, T100, A100, H100 or none)"
+            echo "ERROR: Unknown GPU model \"${2}\" specified (choose <arch_num>, P100, V100, T100, A100, H100 or none)"
             ${EXIT_CMD} 1
             ;;
         esac
+        if ((CUDA_ARCH > 0)); then
+          # Currently needed
+          USE_EXTERNALS="yes"
+          echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
+        fi
       else
         echo "ERROR: No argument found for flag \"${1}\" (choose P100, V100, T100, A100, H100 or none)"
         ${EXIT_CMD} 1
@@ -516,7 +523,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-gm | -gpu  | --gpu_model (P100 | V100 | T100 | A100 | H100 | none)]"
+  echo "                    [-gm | -gpu  | --gpu_model (<arch_num> | P100 | V100 | T100 | A100 | H100 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
@@ -1016,8 +1023,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   if ! make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
-      echo "HINT:  Try to re-run the build with the --no_externals flag which avoids errors"
-      echo "       or conflicts caused by externals from the host system"
+      echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
+      echo "       errors or conflicts caused by externals from the host system"
     fi
     ${EXIT_CMD} 1
   fi
