@@ -38,6 +38,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup CUDA environment
+ENV CUDA_HOME=/usr/local/cuda
+ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
+
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}

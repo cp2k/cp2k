@@ -13,6 +13,10 @@ ARG DEPS_IMAGE=${DEPS_IMAGE:-}
 
 FROM "${DEPS_IMAGE}" AS build_cp2k
 
+# Setup CUDA environment
+ENV CUDA_HOME=/usr/local/cuda
+ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
+
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
