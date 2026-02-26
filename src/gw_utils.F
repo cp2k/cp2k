@@ -3025,6 +3025,8 @@ CONTAINS
       END DO ! ikp
 
       CALL bs_env%para_env%max(cond_nr_max)
+      CALL bs_env%para_env%min(min_ev)
+      CALL bs_env%para_env%max(max_ev)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
