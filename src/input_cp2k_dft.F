@@ -1605,7 +1605,7 @@ CONTAINS
                           description="Parameters needed to set up the real time propagation"// &
                           " for the electron dynamics. This currently works only in the NVE ensemble.", &
                           n_keywords=4, n_subsections=4, repeats=.FALSE., &
-                          citations=[Kunert2003, Andermatt2016])
+                          citations=[Kunert2003, Andermatt2016, Mattiat2022])
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximal number of iterations for the self consistent propagator loop.", &
