@@ -4,11 +4,15 @@ This is a short tutorial on how to run linear-response time-dependent density fu
 (LR-TDDFT) computations for absorption and emission spectroscopy. The TDDFT module enables a
 description of excitation energies and excited-state computations within the Tamm-Dancoff
 approximation (TDA) featuring GGA and hybrid functionals as well as semi-empirical simplified TDA
-kernels. The details of the implementation can be found in [Strand2019] and in [Hehn2022] for
-corresponding excited-state gradients. Note that the current module is based on an earlier TDDFT
-implementation [](#Iannuzzi2005). Please cite these papers if you were to use the TDDFT module for
-the computation of excitation energies ([Strand2019], [](#Iannuzzi2005)) or excited-state gradients
-([Hehn2022]).
+kernels and noncollinear kernels for spin-flip excitations. The details of the implementation can 
+be found in [Strand2019] and in [Hehn2022] for corresponding excited-state gradients of spin-conserving
+excitations and in [Hernandez2025](https://doi.org/10.1021/acs.jpca.5c02969) for excited-states energies 
+and gradients of spin-flip excitations. 
+Note that the current module is based on an earlier TDDFT implementation [](#Iannuzzi2005). 
+Please cite these papers if you were to use the TDDFT module for the computation of excitation 
+energies ([Strand2019], [](#Iannuzzi2005)) or excited-state gradients ([Hehn2022]) of spin-conserving
+excitations and [Hernandez2025](https://doi.org/10.1021/acs.jpca.5c02969) for spin-flip excited-state 
+energies and gradients.
 
 ## Brief theory recap
 
