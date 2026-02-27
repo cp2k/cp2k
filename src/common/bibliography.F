@@ -2000,7 +2000,7 @@ CONTAINS
                          authors=s2a("K. Hanasaki", "T. Futaii de Jong", "K. Komarov", "R. Kumar", "M. Malis", &
                                      "J. Mattiat", "L. I. Hernandez-Segura", "L. Schreder", "A. Sinyavskiy", "S. Luber"), &
                          title="Exploring Excited-State Electronic Structure, Spectroscopy, "// &
-                               "and Nonadiabatic Dynamics with CP2K’s Multifaceted Approach", &
+                         "and Nonadiabatic Dynamics with CP2K’s Multifaceted Approach", &
                          source="J. Phys. Chem. A", volume="129", pages="7313-7344", &
                          year=2025, doi="10.1021/acs.jpca.5c02969")
 

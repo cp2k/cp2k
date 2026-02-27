@@ -1606,7 +1606,7 @@ CONTAINS
                           enum_i_vals=[no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol], &
                           enum_desc=s2a("Only molecular orbital energy differences are considered", &
                                         "MO energy diferences and Fock exchange contributions are "// &
-                                        " considered", &
+                                        "considered", &
                                         "MO energy differences, Fock exchange and "// &
                                         "Noncollinear local exchange-correlation "// &
                                         "kernel are considered"), &
