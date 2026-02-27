@@ -49,6 +49,7 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
+   USE gauxc_basisset,                  ONLY: gauxc_basisset_type
    USE gauxc_molecule,                  ONLY: gauxc_molecule_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
@@ -136,7 +137,8 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc,                        ONLY: gauxc_create_molecule
+   USE xc_gauxc,                        ONLY: gauxc_create_basisset,&
+                                              gauxc_create_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -205,6 +207,7 @@ CONTAINS
                                                             matrix_h_im, matrix_s, my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(gauxc_basisset_type)                          :: gauxc_basis
       TYPE(gauxc_molecule_type)                          :: gauxc_mol
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
@@ -239,7 +242,7 @@ CONTAINS
                auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
                v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
                ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core, &
-               particle_set)
+               particle_set, qs_kind_set)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -269,11 +272,13 @@ CONTAINS
                       rho_xc=rho_xc, &
                       energy=energy, &
                       particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
                       natom=natom)
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
       CALL gauxc_create_molecule(particle_set, natom, gauxc_mol)
+      CALL gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_basis)
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
