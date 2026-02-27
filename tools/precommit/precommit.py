@@ -59,13 +59,22 @@ def main() -> None:
         default=1,
         help="number seconds in between progressbar updates",
     )
+    parser.add_argument(
+        "-t",
+        "--timeout",
+        type=int,
+        default=10,
+        help="Server wait timeout in seconds",
+    )
     parser.add_argument("files", metavar="FILE", nargs="*", help="files to process")
     args = parser.parse_args()
 
     print(  # Say hello to the server.
-        f"Running precommit checks using {args.num_workers} workers and server: {SERVER}"
+        f"Running precommit checks using {args.num_workers} workers and server: {SERVER} (server wait timeout: {args.timeout} seconds)"
     )
-    server_hello = urlopen(Request(SERVER + "/"), timeout=10).read().decode("utf8")
+    server_hello = (
+        urlopen(Request(SERVER + "/"), timeout=args.timeout).read().decode("utf8")
+    )
     assert server_hello.startswith("cp2k precommit server")
 
     # Store candidate before changing base directory and creating scratch dir.
