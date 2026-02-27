@@ -90,7 +90,8 @@ MODULE bibliography
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
-                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025
+                            VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
+                            Hanasaki2025
 
 CONTAINS
 
@@ -1994,6 +1995,14 @@ CONTAINS
                          "to atomically thin transition-metal dichalcogenides", &
                          source="Phys. Rev. B", volume="112", pages="205130", &
                          year=2025, doi="10.1103/v4zv-1pf9")
+
+      CALL add_reference(key=Hanasaki2025, &
+                         authors=s2a("K. Hanasaki", "T. Futaii de Jong", "K. Komarov", "R. Kumar", "M. Malis", &
+                                     "J. Mattiat", "L. I. Hernandez-Segura", "L. Schreder", "A. Sinyavskiy", "S. Luber"), &
+                         title="Exploring Excited-State Electronic Structure, Spectroscopy, "// &
+                               "and Nonadiabatic Dynamics with CP2K’s Multifaceted Approach", &
+                         source="J. Phys. Chem. A", volume="129", pages="7313-7344", &
+                         year=2025, doi="10.1021/acs.jpca.5c02969")
 
    END SUBROUTINE add_all_references
 
