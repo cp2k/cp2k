@@ -319,144 +319,148 @@ CONTAINS
          CALL dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix)
       END IF
 
-      ! --- k-point WFN snapshot: store complex MO coefficients per local k-point ---
-      IF (wf_history%store_wf_kp) THEN
-         CALL get_qs_env(qs_env, kpoints=kpoints)
-         CALL get_kpoint_info(kpoints, kp_range=kp_range)
-         kplocal = kp_range(2) - kp_range(1) + 1
-         nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 2)
-         nc = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 1) ! 2=complex, 1=real
+      CALL get_qs_env(qs_env, kpoints=kpoints)
+      IF (ASSOCIATED(kpoints)) THEN
+         IF (ASSOCIATED(kpoints%kp_env)) THEN
+            ! --- k-point WFN snapshot: store complex MO coefficients per local k-point ---
+            IF (wf_history%store_wf_kp) THEN
+               CALL get_kpoint_info(kpoints, kp_range=kp_range)
+               kplocal = kp_range(2) - kp_range(1) + 1
+               nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 2)
+               nc = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 1) ! 2=complex, 1=real
 
-         IF (ASSOCIATED(snapshot%wf_kp)) THEN
-            DO ikp = 1, SIZE(snapshot%wf_kp, 1)
-               DO ic = 1, SIZE(snapshot%wf_kp, 2)
-                  DO ispin = 1, SIZE(snapshot%wf_kp, 3)
-                     CALL cp_fm_release(snapshot%wf_kp(ikp, ic, ispin))
+               IF (ASSOCIATED(snapshot%wf_kp)) THEN
+                  DO ikp = 1, SIZE(snapshot%wf_kp, 1)
+                     DO ic = 1, SIZE(snapshot%wf_kp, 2)
+                        DO ispin = 1, SIZE(snapshot%wf_kp, 3)
+                           CALL cp_fm_release(snapshot%wf_kp(ikp, ic, ispin))
+                        END DO
+                     END DO
+                  END DO
+                  DEALLOCATE (snapshot%wf_kp)
+               END IF
+
+               ALLOCATE (snapshot%wf_kp(kplocal, nc, nspin_kp))
+               DO ikp = 1, kplocal
+                  kp => kpoints%kp_env(ikp)%kpoint_env
+                  DO ispin = 1, nspin_kp
+                     DO ic = 1, nc
+                        CALL get_mo_set(kp%mos(ic, ispin), mo_coeff=mo_coeff)
+                        CALL cp_fm_create(snapshot%wf_kp(ikp, ic, ispin), &
+                                          mo_coeff%matrix_struct, &
+                                          name="wfkp_snap")
+                        CALL cp_fm_to_fm(mo_coeff, snapshot%wf_kp(ikp, ic, ispin))
+                     END DO
                   END DO
                END DO
-            END DO
-            DEALLOCATE (snapshot%wf_kp)
-         END IF
+            END IF
 
-         ALLOCATE (snapshot%wf_kp(kplocal, nc, nspin_kp))
-         DO ikp = 1, kplocal
-            kp => kpoints%kp_env(ikp)%kpoint_env
-            DO ispin = 1, nspin_kp
-               DO ic = 1, nc
-                  CALL get_mo_set(kp%mos(ic, ispin), mo_coeff=mo_coeff)
-                  CALL cp_fm_create(snapshot%wf_kp(ikp, ic, ispin), &
-                                    mo_coeff%matrix_struct, &
-                                    name="wfkp_snap")
-                  CALL cp_fm_to_fm(mo_coeff, snapshot%wf_kp(ikp, ic, ispin))
+            ! --- k-point overlap snapshot: Fourier-transform S(R)→S(k) NOW and store as cfm ---
+            ! This is critical: we MUST transform at snapshot time using the CURRENT neighbor
+            ! list. Storing S(R) and re-transforming later would use a stale neighbor list,
+            ! producing wrong S(k) when the neighbor list changes during MD.
+            IF (wf_history%store_overlap_kp) THEN
+               CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
+               CALL get_kpoint_info(kpoints, nkp=nkp_all, xkp=xkp, kp_range=kp_range, &
+                                    nkp_groups=nkp_grps, kp_dist=kp_dist, &
+                                    sab_nl=sab_nl, cell_to_index=cell_to_index)
+               kplocal = kp_range(2) - kp_range(1) + 1
+               para_env_ft => kpoints%blacs_env_all%para_env
+
+               ! Allocate dbcsr work matrices for FT (same pattern as do_general_diag_kp)
+               ALLOCATE (rmat_ft, cmat_ft, tmpmat_ft)
+               CALL dbcsr_create(rmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_symmetric)
+               CALL dbcsr_create(cmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL dbcsr_create(tmpmat_ft, template=matrix_s_kp(1, 1)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL cp_dbcsr_alloc_block_from_nbl(rmat_ft, sab_nl)
+               CALL cp_dbcsr_alloc_block_from_nbl(cmat_ft, sab_nl)
+
+               ! Get kp-subgroup FM from pool
+               CALL get_kpoint_info(kpoints, mpools=mpools_kp)
+               CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools)
+               CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
+
+               ! Release old snapshot if present
+               IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
+                  DO ikp = 1, SIZE(snapshot%overlap_cfm_kp)
+                     CALL cp_cfm_release(snapshot%overlap_cfm_kp(ikp))
+                  END DO
+                  DEALLOCATE (snapshot%overlap_cfm_kp)
+               END IF
+               ALLOCATE (snapshot%overlap_cfm_kp(kplocal))
+
+               CALL cp_fm_get_info(fmlocal_ft, matrix_struct=ao_ao_struct_ft)
+
+               ! Communication info array
+               ALLOCATE (info_ft(kplocal*nkp_grps, 2))
+
+               ! Phase A: Start async FT + redistribute for each k-point
+               indx_ft = 0
+               DO ikp = 1, kplocal
+                  DO igroup = 1, nkp_grps
+                     ik = kp_dist(1, igroup) + ikp - 1
+                     my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+                     indx_ft = indx_ft + 1
+
+                     CALL dbcsr_set(rmat_ft, 0.0_dp)
+                     CALL dbcsr_set(cmat_ft, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmat_ft, cmatrix=cmat_ft, rsmat=matrix_s_kp, &
+                                         ispin=1, xkp=xkp(1:3, ik), &
+                                         cell_to_index=cell_to_index, sab_nl=sab_nl)
+                     CALL dbcsr_desymmetrize(rmat_ft, tmpmat_ft)
+                     CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(1))
+                     CALL dbcsr_desymmetrize(cmat_ft, tmpmat_ft)
+                     CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(2))
+
+                     IF (my_kpgrp) THEN
+                        CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal_ft, &
+                                                      para_env_ft, info_ft(indx_ft, 1))
+                        CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal_ft, &
+                                                      para_env_ft, info_ft(indx_ft, 2))
+                     ELSE
+                        CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy_ft, &
+                                                      para_env_ft, info_ft(indx_ft, 1))
+                        CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy_ft, &
+                                                      para_env_ft, info_ft(indx_ft, 2))
+                     END IF
+                  END DO
                END DO
-            END DO
-         END DO
-      END IF
 
-      ! --- k-point overlap snapshot: Fourier-transform S(R)→S(k) NOW and store as cfm ---
-      ! This is critical: we MUST transform at snapshot time using the CURRENT neighbor
-      ! list. Storing S(R) and re-transforming later would use a stale neighbor list,
-      ! producing wrong S(k) when the neighbor list changes during MD.
-      IF (wf_history%store_overlap_kp) THEN
-         CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
-         CALL get_kpoint_info(kpoints, nkp=nkp_all, xkp=xkp, kp_range=kp_range, &
-                              nkp_groups=nkp_grps, kp_dist=kp_dist, &
-                              sab_nl=sab_nl, cell_to_index=cell_to_index)
-         kplocal = kp_range(2) - kp_range(1) + 1
-         para_env_ft => kpoints%blacs_env_all%para_env
+               ! Phase B: Finish communication and assemble S(k) as cfm
+               indx_ft = 0
+               DO ikp = 1, kplocal
+                  CALL cp_cfm_create(snapshot%overlap_cfm_kp(ikp), ao_ao_struct_ft)
+                  CALL cp_cfm_set_all(snapshot%overlap_cfm_kp(ikp), z_zero)
+                  DO igroup = 1, nkp_grps
+                     ik = kp_dist(1, igroup) + ikp - 1
+                     my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+                     indx_ft = indx_ft + 1
+                     IF (my_kpgrp) THEN
+                        CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 1))
+                        CALL cp_cfm_scale_and_add_fm(z_zero, snapshot%overlap_cfm_kp(ikp), &
+                                                     z_one, fmlocal_ft)
+                        CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 2))
+                        CALL cp_cfm_scale_and_add_fm(z_one, snapshot%overlap_cfm_kp(ikp), &
+                                                     gaussi, fmlocal_ft)
+                     END IF
+                  END DO
+               END DO
 
-         ! Allocate dbcsr work matrices for FT (same pattern as do_general_diag_kp)
-         ALLOCATE (rmat_ft, cmat_ft, tmpmat_ft)
-         CALL dbcsr_create(rmat_ft, template=matrix_s_kp(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_create(cmat_ft, template=matrix_s_kp(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-         CALL dbcsr_create(tmpmat_ft, template=matrix_s_kp(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_alloc_block_from_nbl(rmat_ft, sab_nl)
-         CALL cp_dbcsr_alloc_block_from_nbl(cmat_ft, sab_nl)
-
-         ! Get kp-subgroup FM from pool
-         CALL get_kpoint_info(kpoints, mpools=mpools_kp)
-         CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools)
-         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
-
-         ! Release old snapshot if present
-         IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
-            DO ikp = 1, SIZE(snapshot%overlap_cfm_kp)
-               CALL cp_cfm_release(snapshot%overlap_cfm_kp(ikp))
-            END DO
-            DEALLOCATE (snapshot%overlap_cfm_kp)
+               ! Cleanup
+               DO indx_ft = 1, kplocal*nkp_grps
+                  CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 1))
+                  CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 2))
+               END DO
+               DEALLOCATE (info_ft)
+               CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
+               CALL dbcsr_deallocate_matrix(rmat_ft)
+               CALL dbcsr_deallocate_matrix(cmat_ft)
+               CALL dbcsr_deallocate_matrix(tmpmat_ft)
+            END IF
          END IF
-         ALLOCATE (snapshot%overlap_cfm_kp(kplocal))
-
-         CALL cp_fm_get_info(fmlocal_ft, matrix_struct=ao_ao_struct_ft)
-
-         ! Communication info array
-         ALLOCATE (info_ft(kplocal*nkp_grps, 2))
-
-         ! Phase A: Start async FT + redistribute for each k-point
-         indx_ft = 0
-         DO ikp = 1, kplocal
-            DO igroup = 1, nkp_grps
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-               indx_ft = indx_ft + 1
-
-               CALL dbcsr_set(rmat_ft, 0.0_dp)
-               CALL dbcsr_set(cmat_ft, 0.0_dp)
-               CALL rskp_transform(rmatrix=rmat_ft, cmatrix=cmat_ft, rsmat=matrix_s_kp, &
-                                   ispin=1, xkp=xkp(1:3, ik), &
-                                   cell_to_index=cell_to_index, sab_nl=sab_nl)
-               CALL dbcsr_desymmetrize(rmat_ft, tmpmat_ft)
-               CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(1))
-               CALL dbcsr_desymmetrize(cmat_ft, tmpmat_ft)
-               CALL copy_dbcsr_to_fm(tmpmat_ft, scf_env%scf_work1(2))
-
-               IF (my_kpgrp) THEN
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal_ft, &
-                                                para_env_ft, info_ft(indx_ft, 1))
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal_ft, &
-                                                para_env_ft, info_ft(indx_ft, 2))
-               ELSE
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy_ft, &
-                                                para_env_ft, info_ft(indx_ft, 1))
-                  CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy_ft, &
-                                                para_env_ft, info_ft(indx_ft, 2))
-               END IF
-            END DO
-         END DO
-
-         ! Phase B: Finish communication and assemble S(k) as cfm
-         indx_ft = 0
-         DO ikp = 1, kplocal
-            CALL cp_cfm_create(snapshot%overlap_cfm_kp(ikp), ao_ao_struct_ft)
-            CALL cp_cfm_set_all(snapshot%overlap_cfm_kp(ikp), z_zero)
-            DO igroup = 1, nkp_grps
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-               indx_ft = indx_ft + 1
-               IF (my_kpgrp) THEN
-                  CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 1))
-                  CALL cp_cfm_scale_and_add_fm(z_zero, snapshot%overlap_cfm_kp(ikp), &
-                                               z_one, fmlocal_ft)
-                  CALL cp_fm_finish_copy_general(fmlocal_ft, info_ft(indx_ft, 2))
-                  CALL cp_cfm_scale_and_add_fm(z_one, snapshot%overlap_cfm_kp(ikp), &
-                                               gaussi, fmlocal_ft)
-               END IF
-            END DO
-         END DO
-
-         ! Cleanup
-         DO indx_ft = 1, kplocal*nkp_grps
-            CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 1))
-            CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 2))
-         END DO
-         DEALLOCATE (info_ft)
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal_ft)
-         CALL dbcsr_deallocate_matrix(rmat_ft)
-         CALL dbcsr_deallocate_matrix(cmat_ft)
-         CALL dbcsr_deallocate_matrix(tmpmat_ft)
       END IF
 
       IF (wf_history%store_frozen_density) THEN
@@ -570,7 +574,6 @@ CONTAINS
 !> \param wf_history ...
 !> \par History
 !>      06.2015 created [jhu]
-!>      2026    allow ASPC via k-point WFN path
 !> \author jhu
 ! **************************************************************************************************
    SUBROUTINE wfi_create_for_kp(wf_history)
@@ -585,7 +588,7 @@ CONTAINS
       IF (wf_history%store_wf_kp) THEN
          wf_history%store_wf = .FALSE.
          wf_history%store_overlap = .FALSE.
-         ! store_wf_kp and store_overlap_cfm_kp remain TRUE
+         ! store_wf_kp and store_overlap_kp remain TRUE
       ELSE
          ! Non-ASPC methods are still temporarily blocked
          IF (wf_history%store_wf) THEN
@@ -715,10 +718,6 @@ CONTAINS
             actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
          END IF
       CASE (wfi_linear_ps_method_nr)
-         IF (wf_history%snapshot_count < 2) THEN
-            actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
-         END IF
-      CASE (wfi_aspc_nr)
          IF (wf_history%snapshot_count < 2) THEN
             actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
          END IF
