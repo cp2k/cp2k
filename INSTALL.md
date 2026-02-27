@@ -12,8 +12,8 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 ### Method 1: make_cp2k.sh
 
-The easiest way to build CP2K with its dependencies is via the `make_cp2k.sh` script, which
-builds CP2K using Spack and CMake locally within the CP2K_ROOT folder.
+The easiest way to build CP2K with its dependencies is via the `make_cp2k.sh` script, which builds
+CP2K using Spack and CMake locally within the CP2K_ROOT folder.
 
 The script can either be sourced with:
 

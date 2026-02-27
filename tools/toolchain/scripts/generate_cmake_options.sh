@@ -78,7 +78,7 @@ Suggested cmake command if toolchain is built with your options:
 EOF
 else
   echo
-  cat << EOF | tee ${ROOTDIR}/installation_guide.txt
+  cat << EOF | tee ${INSTALLDIR}/cp2k_installation_guide.txt
 ========================== usage =========================
 Done! The "build" directory can now be removed.
 
@@ -94,7 +94,7 @@ It's recommended for you to build CP2K like this after executing above command:
 When completed, you can run "make clean" or delete this build directory to free up some space.
 
 For more information about available build options, see: https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
-This message is saved to "installation_guide.txt".
+This message is saved to "${INSTALLDIR}/cp2k_installation_guide.txt".
 EOF
 fi
 
