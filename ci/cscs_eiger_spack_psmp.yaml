@@ -105,6 +105,28 @@ benchmark cp2k 1 eiger node:
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
   script:
+    - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+  variables:
+    SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS: 128
+    SLURM_NTASKS_PER_NODE: 128
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 1 eiger node elpa:
+  extends: .container-runner-eiger-zen2
+  stage: benchmark
+  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger","benchmark cp2k 1 eiger node"]
+  timeout: 1h
+  image: ${CSCS_IMAGE_NAME}
+  before_script:
+    - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+  script:
     - cp2k.popt /opt/cp2k/benchmarks/CI/H2O-128_md_elpa.inp
   variables:
     SLURM_CONSTRAINT: mc
@@ -122,6 +144,29 @@ benchmark cp2k 2 eiger nodes:
   extends: .container-runner-eiger-zen2
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  timeout: 1h
+  image: ${CSCS_IMAGE_NAME}
+  before_script:
+    - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+  script:
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+  variables:
+    SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS: 256
+    SLURM_NTASKS_PER_NODE: 128
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 2 eiger nodes elpa:
+  extends: .container-runner-eiger-zen2
+  stage: benchmark
+  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger","benchmark cp2k 2 eiger nodes"]
   timeout: 1h
   image: ${CSCS_IMAGE_NAME}
   before_script:
