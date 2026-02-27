@@ -59,6 +59,8 @@ MODULE dft_plus_u
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: lowdin_kp_trans
+   USE kpoint_types,                    ONLY: kpoint_type
    USE mathlib,                         ONLY: jacobi
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_symbols,                 ONLY: sgf_symbol
@@ -222,8 +224,8 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
-      LOGICAL                                            :: debug, dft_plus_u_atom, found, &
-                                                            just_energy, smear
+      LOGICAL                                            :: debug, dft_plus_u_atom, do_kpoints, &
+                                                            found, just_energy, smear
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_occ
       REAL(KIND=dp)                                      :: eps_scf, eps_u_ramping, fspin, occ, sij, &
                                                             trq, trq2, u_minus_j, &
@@ -236,12 +238,14 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: fm_sev, fm_work1, fm_work2, slambda
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fm_wmat
       TYPE(cp_fm_type), POINTER                          :: fm_s_half
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dbcsr_type)                                   :: sm_q, sm_v
       TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -286,6 +290,8 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
+                      kpoints=kpoints, &
                       energy=energy, &
                       matrix_s_kp=matrix_s, &
                       particle_set=particle_set, &
@@ -300,7 +306,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(particle_set))
       CPASSERT(ASSOCIATED(rho))
 
-      sm_s => matrix_s(1, 1)%matrix ! Overlap matrix in sparse format
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
 
       energy%dft_plus_u = 0.0_dp
@@ -334,11 +339,16 @@ CONTAINS
          just_energy = .TRUE.
       END IF
 
-      ! Retrieve S^(1/2) from the SCF environment
-      fm_s_half => scf_env%s_half
-      CPASSERT(ASSOCIATED(fm_s_half))
-      ! work matrices
-      CALL cp_fm_get_info(fm_s_half, matrix_struct=fmstruct)
+      IF (do_kpoints) THEN
+         fm_wmat => scf_env%scf_work1
+         fmstruct => fm_wmat(1)%matrix_struct
+      ELSE
+         ! Retrieve S^(1/2) from the SCF environment
+         fm_s_half => scf_env%s_half
+         CPASSERT(ASSOCIATED(fm_s_half))
+         ! work matrices
+         CALL cp_fm_get_info(fm_s_half, matrix_struct=fmstruct)
+      END IF
       CALL cp_fm_create(matrix=fm_work1, matrix_struct=fmstruct, &
                         name="FULL WORK MATRIX 1")
       CALL cp_fm_create(matrix=fm_work2, matrix_struct=fmstruct, &
@@ -351,6 +361,7 @@ CONTAINS
          CALL cp_fm_create(matrix=fm_sev, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=slambda, matrix_struct=fmstruct)
          ALLOCATE (eigval(nsgf), slam(nsgf, 1))
+         sm_s => matrix_s(1, 1)%matrix
          CALL copy_dbcsr_to_fm(sm_s, fm_work1)
          CALL choose_eigv_solver(fm_work1, fm_sev, eigval)
          !
@@ -378,6 +389,14 @@ CONTAINS
          DEALLOCATE (eigval, slam)
       END IF
 
+      ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
+      IF (do_kpoints) THEN
+         ! stored in kp%pmat
+         DO ispin = 1, nspin
+            CALL lowdin_kp_trans(matrix_p, kpoints, ispin, fm_wmat)
+         END DO
+      END IF
+
       ! Create local block diagonal matrices
       sm_s => matrix_s(1, 1)%matrix
       CALL dbcsr_get_block_diag(sm_s, sm_q)
@@ -386,14 +405,15 @@ CONTAINS
       ! Loop over all spins
       DO ispin = 1, nspin
 
-         sm_p => matrix_p(ispin, 1)%matrix ! Density matrix for spin ispin in sparse format
-
          CALL dbcsr_set(sm_q, 0.0_dp)
          CALL dbcsr_set(sm_v, 0.0_dp)
 
          ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
-
-         IF (nimg == 1) THEN
+         IF (do_kpoints) THEN
+            ! assemble results in sm_q from kp%pmat
+            CPABORT("Lowdin option with k-points NYA in DFT+U")
+         ELSE
+            sm_p => matrix_p(ispin, 1)%matrix
             CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
             CALL parallel_gemm(transa="N", &
                                transb="N", &
@@ -413,14 +433,11 @@ CONTAINS
                CALL write_fm_with_basis_info(fm_work2, 4, 6, qs_env, para_env, &
                                              output_unit=output_unit)
             END IF ! debug
-         ELSE
-            CPABORT("Lowdin option with k-points NYA in DFT+U")
+            ! Copy occupation matrix to sparse matrix format, finally we are only
+            ! interested in the diagonal (atomic) blocks, i.e. the previous full
+            ! matrix product is not the most efficient choice, anyway.
+            CALL copy_fm_to_dbcsr(fm_work2, sm_q, keep_sparsity=.TRUE.)
          END IF
-
-         ! Copy occupation matrix to sparse matrix format, finally we are only
-         ! interested in the diagonal (atomic) blocks, i.e. the previous full
-         ! matrix product is not the most efficient choice, anyway.
-         CALL copy_fm_to_dbcsr(fm_work2, sm_q, keep_sparsity=.TRUE.)
 
          ! E[DFT+U] = E[DFT] + E[U]
          !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
@@ -737,12 +754,14 @@ CONTAINS
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
          IF (PRESENT(matrix_h)) THEN
-
-            sm_h => matrix_h(ispin, 1)%matrix
-            CALL cp_dbcsr_sm_fm_multiply(sm_v, fm_s_half, fm_work1, nsgf)
-            CALL cp_fm_transpose(fm_work1, fm_work2)
-            CALL cp_dbcsr_plus_fm_fm_t(sm_h, fm_s_half, fm_work2, nsgf)
-
+            IF (do_kpoints) THEN
+               CPABORT("Lowdin option with k-points NYA in DFT+U")
+            ELSE
+               sm_h => matrix_h(ispin, 1)%matrix
+               CALL cp_dbcsr_sm_fm_multiply(sm_v, fm_s_half, fm_work1, nsgf)
+               CALL cp_fm_transpose(fm_work1, fm_work2)
+               CALL cp_dbcsr_plus_fm_fm_t(sm_h, fm_s_half, fm_work2, nsgf)
+            END IF
          END IF ! An update of the Hamiltonian matrix is requested
 
          ! Calculate the contribution (non-Pulay part) to the derivatives
