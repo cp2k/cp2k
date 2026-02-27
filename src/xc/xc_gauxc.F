@@ -67,7 +67,7 @@ MODULE xc_gauxc
    INTEGER :: error
 
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
-      & gauxc_create_basisset
+      & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset
 
 CONTAINS
 
@@ -236,5 +236,27 @@ CONTAINS
       DEALLOCATE (basis_set_list)
 
    END SUBROUTINE gauxc_create_basisset
+
+   ! **************************************************************************************************
+   !> \brief ...
+   !> \param molecule ...
+   ! **************************************************************************************************
+   SUBROUTINE gauxc_destroy_molecule(molecule)
+      TYPE(gauxc_molecule_type), INTENT(INOUT)           :: molecule
+
+      CALL gauxc_delete(status, molecule)
+      CPASSERT(status%code == 0)
+   END SUBROUTINE gauxc_destroy_molecule
+
+   ! **************************************************************************************************
+   !> \brief ...
+   !> \param basis ...
+   ! **************************************************************************************************
+   SUBROUTINE gauxc_destroy_basisset(basis)
+      TYPE(gauxc_basisset_type), INTENT(INOUT)           :: basis
+
+      CALL gauxc_delete(status, basis)
+      CPASSERT(status%code == 0)
+   END SUBROUTINE gauxc_destroy_basisset
 
 END MODULE

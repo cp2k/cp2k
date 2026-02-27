@@ -108,6 +108,7 @@ MODULE qs_ks_methods
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_apply_restraints,          ONLY: qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
                                               qs_ks_s2_restraint
@@ -138,7 +139,9 @@ MODULE qs_ks_methods
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: gauxc_create_basisset,&
-                                              gauxc_create_molecule
+                                              gauxc_create_molecule,&
+                                              gauxc_destroy_basisset,&
+                                              gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -227,6 +230,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER :: rho0_s_rs, rho_nlcc, rhoz_cneo_s_rs, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
@@ -972,6 +976,9 @@ CONTAINS
       IF (my_print) THEN
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
       END IF
+
+      CALL gauxc_destroy_molecule(gauxc_mol)
+      CALL gauxc_destroy_basisset(gauxc_basis)
 
       CALL timestop(handle)
 
