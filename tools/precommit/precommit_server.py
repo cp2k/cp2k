@@ -45,7 +45,7 @@ def shfmt():
 # ======================================================================================
 @app.route("/shellcheck", methods=["POST"])
 def shellcheck():
-    return run_tool(["shellcheck"], timeout=10)
+    return run_tool(["shellcheck"], timeout=30)
 
 
 # ======================================================================================
@@ -98,8 +98,9 @@ def run_tool(cmd, timeout=3):
             cmd + [fn], cwd=workdir.name, timeout=timeout, stdout=PIPE, stderr=STDOUT
         )
     except subprocess.TimeoutExpired:
+        # Note that GCP Cloud Run returns status 504 when its timeout is reached.
         app.logger.info(f"Timeout of {cmd[0]} on {data_kb:.1f}KB after {timeout}s.")
-        return f"Timeout while running {cmd[0]} - please try again.", 504
+        return f"Timeout while running {cmd[0]} - please try again.", 408  # Req Timeout
     t2 = time()
     app.logger.info(f"Ran {cmd[0]} on {data_kb:.1f}KB in {t2-t1:.1f}s.")
     if p.returncode != 0:
