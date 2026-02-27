@@ -1851,8 +1851,8 @@ CONTAINS
                                                             czero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ceig
-      INTEGER                                            :: handle, igroup, ik, ikp, indx, ispin, &
-                                                            kplocal, nao, nkp, nkp_groups
+      INTEGER                                            :: handle, igroup, ik, ikp, indx, kplocal, &
+                                                            nao, nkp, nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
