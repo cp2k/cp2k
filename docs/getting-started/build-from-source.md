@@ -3,11 +3,13 @@
 CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
 compilation process. The dependencies have to be installed in advance.
 
-Currently, CP2K offers two convenient methods for building CP2K from source with its dependencies.
+Currently, CP2K offers three convenient methods for building CP2K from source with its dependencies.
 One is to use the classic toolchain scripts to customize and install the required dependencies in a
 single step, thereby preparing the environment for compiling CP2K. A more modern and automated
 approach is via `make_cp2k.sh`, which leverages [Spack](https://spack.readthedocs.io) to install the
-dependencies and subsequently build CP2K.
+dependencies and subsequently build CP2K. Alternatively, one can use Spack directly to install all
+the dependencies and setup the build environment, as described in
+[Building with Spack: Developer Workflow](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html#developer-workflow).
 
 ## Dependencies and build options
 
