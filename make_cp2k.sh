@@ -143,7 +143,7 @@ CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DLAF=OFF"       # DLAF is deactivated by defau
 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by default
 CMAKE_FEATURE_FLAGS_GPU="-DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
 CRAY="no"
-CUDA_ARCH=0
+CUDA_SM_CODE=0
 DISABLE_LOCAL_CACHE="no"
 GCC_VERSION="auto"
 GPU_MODEL="none"
@@ -158,6 +158,7 @@ else
   MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
+NVCC_VERSION=0
 REBUILD_CP2K="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
@@ -347,44 +348,47 @@ while [[ $# -gt 0 ]]; do
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
-          P100 | V100 | T100 | A100 | H100)
+          P100 | V100 | T100 | A100 | A40 | H100 | H200 | GH200)
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
-                CUDA_ARCH=60
+                CUDA_SM_CODE=60
                 ;;
               V100)
-                CUDA_ARCH=70
+                CUDA_SM_CODE=70
                 ;;
               T100)
-                CUDA_ARCH=75
+                CUDA_SM_CODE=75
                 ;;
               A100)
-                CUDA_ARCH=80
+                CUDA_SM_CODE=80
                 ;;
-              H100)
-                CUDA_ARCH=90
+              A40)
+                CUDA_SM_CODE=86
+                ;;
+              H100 | H200 | GH200)
+                CUDA_SM_CODE=90
                 ;;
             esac
             ;;
-          35 | 50 | 60 | 70 | 75 | 80 | 90 | 120 | 121)
-            CUDA_ARCH=${2}
+          60 | 70 | 75 | 80 | 86 | 87 | 89 | 90 | 120 | 121)
+            CUDA_SM_CODE=${2}
             ;;
           NONE)
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo "ERROR: Unknown GPU model \"${2}\" specified (choose <arch_num>, P100, V100, T100, A100, H100 or none)"
+            echo -e "\nERROR: Unknown GPU model \"${2}\" specified (choose <CUDA SM code>, P100, V100, T100, A100, A40, H100, H200, GH200 or none)\n"
             ${EXIT_CMD} 1
             ;;
         esac
-        if ((CUDA_ARCH > 0)); then
+        if ((CUDA_SM_CODE > 0)); then
           # Currently needed
           USE_EXTERNALS="yes"
           echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
         fi
       else
-        echo "ERROR: No argument found for flag \"${1}\" (choose P100, V100, T100, A100, H100 or none)"
+        echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T100, A100, A40, H100, H200, GH200 or none)\n"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -508,7 +512,7 @@ for flag in ${CMAKE_FEATURE_FLAGS}; do
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CRAY CUDA_ARCH \
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CRAY CUDA_SM_CODE \
   DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS \
   REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
@@ -523,7 +527,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-gm | -gpu  | --gpu_model (<arch_num> | P100 | V100 | T100 | A100 | H100 | none)]"
+  echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T100 | A100 | H100 | H200 | GH200 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
@@ -581,8 +585,8 @@ echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
-if ((CUDA_ARCH > 0)); then
-  echo "GPU                 = ${GPU_MODEL} (CUDA arch: ${CUDA_ARCH})"
+if ((CUDA_SM_CODE > 0)); then
+  echo "GPU                 = ${GPU_MODEL} (CUDA SM code: ${CUDA_SM_CODE})"
 else
   echo "GPU                 = ${GPU_MODEL}"
 fi
@@ -676,31 +680,47 @@ case "${CP2K_VERSION}" in
 esac
 
 # Perform CUDA GPU related settings
-if ((CUDA_ARCH > 0)); then
+if ((CUDA_SM_CODE > 0)); then
   if command -v nvcc &> /dev/null; then
     CUDA_VERSION=$(nvcc -V | sed -n 's/.*release \([0-9.]*\).*/\1/p')
+    NVCC_VERSION=$(awk -v x="${CUDA_VERSION}" 'BEGIN{print 10*x}')
   else
     echo -e "\nERROR: No CUDA toolkit installation found (nvcc compiler not found)\n"
     ${EXIT_CMD} 1
   fi
-  # Check if the selected CUDA arch is valid when the nvidia-smi command is available
+  # Check if the selected CUDA SM code is valid when the nvidia-smi command is available
   if command -v nvidia-smi &> /dev/null; then
     echo -e "NVIDIA driver installation found:\n"
     nvidia-smi
-    HOST_CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | tail -n 1 | awk '{print 10*$1}')
-    if ((CUDA_ARCH > HOST_CUDA_ARCH)); then
+    HOST_CUDA_SM_CODE=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | tail -n 1 | awk '{print 10*$1}')
+    if ((CUDA_SM_CODE > HOST_CUDA_SM_CODE)); then
       echo ""
-      echo "ERROR: The requested CUDA arch (${CUDA_ARCH}) is larger than the maximum"
-      echo "       CUDA arch (${HOST_CUDA_ARCH}) supported by the host system"
+      echo "ERROR: The requested CUDA SM code (${CUDA_SM_CODE}) is larger than the maximum"
+      echo "       CUDA SM code (${HOST_CUDA_SM_CODE}) supported by the host system"
       echo ""
       ${EXIT_CMD} 1
     fi
   else
     echo "INFO: No NVIDIA driver installation found (nvidia-smi not found)"
   fi
+  # Check GPU support by the CUDA SDK
+  if ((NVCC_VERSION < 128)) && ((CUDA_SM_CODE > 90)); then
+    echo ""
+    echo "ERROR: The CUDA SDK version ${NVCC_VERSION} does not support GPUs with a"
+    echo "       CUDA SM code larger than 90 (found ${CUDA_SM_CODE})"
+    echo ""
+    ${EXIT_CMD} 1
+  fi
+  if ((NVCC_VERSION > 129)) && ((CUDA_SM_CODE < 75)); then
+    echo ""
+    echo "ERROR: The CUDA SDK version ${NVCC_VERSION} does not support GPUs with a"
+    echo "       CUDA SM code smaller than 75 (found ${CUDA_SM_CODE})"
+    echo ""
+    ${EXIT_CMD} 1
+  fi
   CMAKE_CUDA_FLAGS="-DCP2K_USE_ACCEL=CUDA"
   CMAKE_CUDA_FLAGS+=" -DCP2K_WITH_GPU=${GPU_MODEL}"
-  CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH}"
+  CMAKE_CUDA_FLAGS+=" -DCMAKE_CUDA_ARCHITECTURES=${CUDA_SM_CODE}"
   CMAKE_CUDA_FLAGS+=" ${CMAKE_FEATURE_FLAGS_GPU}"
   out=()
   for flag in ${CMAKE_CUDA_FLAGS}; do
@@ -868,14 +888,16 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Activate CUDA in the spack configuration file if requested
-  if ((CUDA_ARCH > 0)); then
+  if ((CUDA_SM_CODE > 0)); then
     sed -E \
-      -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_ARCH}/" \
+      -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
       -e 's/"~cuda\s+~gpu_direct"/"\+cuda \+gpu_direct"/' \
-      -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
       -i "${CP2K_CONFIG_FILE}"
+    # Building libfabric with CUDA causes problems
+    # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
+      # Set CUDA SM code
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
     fi
     if [[ -n "${CUDA_HOME:-}" ]]; then
@@ -929,7 +951,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Disable PEXSI because of an issue with SuperLU using recent GCC versions
-  if ((CUDA_ARCH > 0)) || ((GCC_VERSION_NEWEST > 14)); then
+  if ((CUDA_SM_CODE > 0)) || ((GCC_VERSION_NEWEST > 14)); then
     sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
     echo "INFO: PEXSI has been disabled because CUDA or GCC 15 is used"
   fi
@@ -1036,7 +1058,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Fix Libs list in elpa pkg-config file when CUDA is used
-  if ((CUDA_ARCH > 0)); then
+  if ((CUDA_SM_CODE > 0)); then
     ELPA_PKG_CONFIG_FILE="$(find -L "${SPACK_ROOT}/opt/spack/view" -name "elpa*.pc")"
     if [[ -f "${ELPA_PKG_CONFIG_FILE}" ]]; then
       sed -E -e 's|Libs: |Libs: -L/usr/local/cuda/lib64 |' -i "${ELPA_PKG_CONFIG_FILE}"
@@ -1323,7 +1345,7 @@ if [[ "${RUN_TEST}" == "yes" ]]; then
   fi
 else
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
-    if ((CUDA_ARCH > 0)); then
+    if ((CUDA_SM_CODE > 0)); then
       DEVICE_FLAG=" --device nvidia.com/gpu=all"
     else
       DEVICE_FLAG=""
