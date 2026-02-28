@@ -16,4 +16,7 @@
 # U ramping with reset
 "H2O-rks-u_ramping_reset.inp"           = [{matcher="M024", tol=1e-06, ref=0.04016218151147}]
 "H2O-uks-u_ramping_reset.inp"           = [{matcher="M024", tol=3e-07, ref=0.04016674741074}]
+# Lowdin forces
+"H2O-rks-diag_kpforce.inp"              = []
+"H2O-rks-diag-lowdin_force.inp"         = []
 #EOF

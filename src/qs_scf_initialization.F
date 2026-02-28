@@ -110,7 +110,8 @@ MODULE qs_scf_initialization
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_diagonalization,          ONLY: diag_subspace_allocate
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat,&
+                                              diag_subspace_allocate
    USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
    USE qs_scf_output,                   ONLY: qs_scf_initial_info
    USE qs_scf_types,                    ONLY: &
@@ -528,12 +529,6 @@ CONTAINS
 
       IF (dft_control%dft_plus_u) THEN
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
-            IF (.NOT. ASSOCIATED(scf_env%scf_work2)) THEN
-               ALLOCATE (scf_env%scf_work2)
-               CALL cp_fm_create(scf_env%scf_work2, &
-                                 matrix_struct=ao_ao_fmstruct, &
-                                 name="SCF-WORK_MATRIX-2")
-            END IF
             IF (.NOT. ASSOCIATED(scf_env%s_half)) THEN
                ALLOCATE (scf_env%s_half)
                CALL cp_fm_create(scf_env%s_half, &
@@ -921,11 +916,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: evecs
+      TYPE(cp_fm_type)                                   :: evecs, fm_w
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1102,15 +1099,21 @@ CONTAINS
 
       ! DFT+U methods based on Lowdin charges need S^(1/2)
       IF (dft_control%dft_plus_u) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
-            IF (s_minus_half_available) THEN
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, scf_env%ortho, scf_env%s_half, &
-                                            nao)
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
+               CALL diag_kp_smat(matrix_s_kp, kpoints, scf_env%scf_work1)
             ELSE
-               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%s_half)
-               CALL cp_fm_power(scf_env%s_half, scf_env%scf_work2, 0.5_dp, &
-                                scf_control%eps_eigval, ndep)
+               CALL get_qs_env(qs_env, matrix_s=matrix_s)
+               IF (s_minus_half_available) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, scf_env%ortho, &
+                                               scf_env%s_half, nao)
+               ELSE
+                  CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%s_half)
+                  CALL cp_fm_create(fm_w, scf_env%s_half%matrix_struct)
+                  CALL cp_fm_power(scf_env%s_half, fm_w, 0.5_dp, scf_control%eps_eigval, ndep)
+                  CALL cp_fm_release(fm_w)
+               END IF
             END IF
          END IF
          DO ikind = 1, SIZE(qs_kind_set)
