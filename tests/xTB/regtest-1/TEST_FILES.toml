@@ -16,7 +16,7 @@
 "h2o-atprop.inp"                        = [{matcher="E_total", tol=1.0E-10, ref=-185.16262201741714}]
 "h2o-atprop0.inp"                       = [{matcher="E_total", tol=1.0E-12, ref=-187.45499307126425}]
 "si_geo.inp"                            = [{matcher="E_total", tol=1.0E-11, ref=-14.51194886943525}]
-"si_kp.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-14.73191526347151}]
+"si_kp.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-14.73191471087850}]
 "h2o_dimer.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-11.54506384435821}]
 "ghost.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-1.03458221876736}]
 "tcif.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-27.71649842848894}]

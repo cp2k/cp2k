@@ -30,6 +30,7 @@
       REL_CUTOFF 30
     &END MGRID
     &QS
+      EXTRAPOLATION USE_GUESS
       METHOD GPW
     &END QS
     &SCF
