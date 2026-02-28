@@ -413,14 +413,13 @@ CONTAINS
          "Use the method specified with SCF_GUESS, i.e. no extrapolation", &
          "Use the previous density matrix", &
          "Use the previous density in real space", &
-         "Linear extrapolation of the wavefunction (not available for K-points)", &
+         "Linear extrapolation of the wavefunction (not available for k-points)", &
          "Linear extrapolation of the density matrix", &
-         "Linear extrapolation of the density matrix times the overlap matrix (not available for K-points)", &
-         "Use the previous wavefunction (not available for K-points)", &
-         "Higher order extrapolation of the density matrix times the overlap matrix (not available for K-points)", &
+         "Linear extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
+         "Use the previous wavefunction", &
+         "Higher order extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
          "Frozen ...", &
-         "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy. "// &
-         "(not available for K-points)"), &
+         "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy. ", &
          enum_i_vals=[ &
          wfi_use_guess_method_nr, &
          wfi_use_prev_p_method_nr, &
