@@ -6,7 +6,7 @@
 "AdeThyvdW.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-58.89501835809043}]
 "ice.inp"                               = [{matcher="E_total", tol=1.0E-10, ref=-46.30708081122568}]
 "ice2.inp"                              = [{matcher="E_total", tol=1.0E-10, ref=-46.30708081091197}]
-"Ru_geo.inp"                            = [{matcher="E_total", tol=1.0E-10, ref=-7.01272555945159}]
+"Ru_geo.inp"                            = [{matcher="E_total", tol=1.0E-10, ref=-7.01272555836003}]
 "ef_stress1.inp"                        = []
 "ef_stress2.inp"                        = []
 "ef_stress3.inp"                        = []

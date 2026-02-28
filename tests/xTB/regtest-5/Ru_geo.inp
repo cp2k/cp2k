@@ -43,8 +43,9 @@
         EPS_ADAPT 0.01
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.1
+        ALPHA 0.4
         METHOD BROYDEN_MIXING
+        NBROYDEN 8
       &END MIXING
       &SMEAR ON
         ELECTRONIC_TEMPERATURE [K] 300

@@ -37,10 +37,9 @@
       MAX_SCF 100
       SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.20
-        BETA 0.50
-        #METHOD DIRECT_P_MIXING
+        ALPHA 0.15
         METHOD BROYDEN_MIXING
+        NBROYDEN 12
       &END MIXING
       &PRINT
         &RESTART off
@@ -49,7 +48,7 @@
         &END RESTART_HISTORY
       &END PRINT
       &SMEAR
-        ELECTRONIC_TEMPERATURE 1000
+        ELECTRONIC_TEMPERATURE 500
         METHOD FERMI_DIRAC
       &END SMEAR
     &END SCF
