@@ -1,4 +1,4 @@
-# CP2K
+ # CP2K
 
 [![Release Status][release-badge]][release-link] [![Debian Status][debian-badge]][debian-link]
 [![Fedora Status][fedora-badge]][fedora-link] [![Ubuntu Status][ubuntu-badge]][ubuntu-link]
