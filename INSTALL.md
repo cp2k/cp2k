@@ -10,10 +10,10 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 ## 2. Install prerequisites
 
-### Method 1: Spack
+### Method 1: make_cp2k.sh
 
-The easiest way to build CP2K with all its dependencies is via the `make_cp2k.sh` script, which
-builds CP2K using Spack and CMake locally within the CP2K_ROOT folder.
+The easiest way to build CP2K with its dependencies is via the `make_cp2k.sh` script, which builds
+CP2K using Spack and CMake locally within the CP2K_ROOT folder.
 
 The script can either be sourced with:
 
@@ -25,6 +25,12 @@ or run in a subshell with:
 
 ```shell
 ./make_cp2k.sh
+```
+
+You can run the following command to get information about how to use this script:
+
+```shell
+./make_cp2k.sh --help
 ```
 
 Note: it is recommended to install podman to take advantage of a spack cache. This will accelerate

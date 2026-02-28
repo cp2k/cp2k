@@ -1,17 +1,15 @@
 # base directory structure
+/bin/
+/build*/
+/doxygen/
 /exe/
+/install*/
 /lib/
 /obj/
-/bin/
-/doxygen/
 /regtesting/
-/install/
 
 # ignore former git submodules
 /tools/prettify/fprettify
-
-# ignore local arch files not meant to be shared
-/arch/local*
 
 # ensure people are not accidentally committing an old .svnignore when copying their stuff
 .svnignore
