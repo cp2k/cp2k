@@ -27,7 +27,7 @@ or run in a subshell with:
 ./make_cp2k.sh
 ```
 
-You can run with following command to get information about how to use this script:
+You can run the following command to get information about how to use this script:
 
 ```shell
 ./make_cp2k.sh --help

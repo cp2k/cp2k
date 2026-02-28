@@ -94,8 +94,9 @@ OPTIONS:
                             alternatively, this script can be rerun with this
                             option in command line.
                             Security wise this should still be okay as sha256
-                            checksums are checked after every tarball download.
-                            Nevertheless, use this option at your own risk.
+                            checksums are validated after every tarball
+                            download. Nevertheless, use this option at your own
+                            risk.
   --install-all             Set value of all --with-PKG options to "install"
                             (except --with-intel, --with-intelmpi, --with-amd).
                             By default, GNU compiler and MPICH are installed.
@@ -387,7 +388,7 @@ supercomputer clusters for oneself:
 
 As this is a complicated process, it is strongly advised to contact local
 system administrators or managers for timely, specific assistance. Here are
-some hints and observations may be useful:
+some hints and observations that may be useful:
 
 (1) Please don't forget to use "-h" or "--help" option to see detailed usage of
     the toolchain script!
@@ -420,10 +421,10 @@ some hints and observations may be useful:
     must be taken especially for the latter case; for instance, running
     toolchain scripts on login node with "--target-cpu=native" (which is
     default too if omitted) and executing CP2K on compute node afterwards may
-    result in unknown behaviors due to discrepancies in CPU architectures and
-    supported instruction sets, In this case, the option with best portability
-    for compiling programs at the cost of reduced (non-optimal) performance is
-    "--target-cpu=generic".
+    result in poor performance or illegal instruction errors due to
+    discrepancies in CPU architectures and supported instruction sets, In this
+    case, the option with best portability for compiling programs at the cost
+    of reduced (non-optimal) performance is "--target-cpu=generic".
 
 (6) Again, be careful about the environment if CP2K is to be executed with job
     submission scripts to the job queue system handling resource allocation.

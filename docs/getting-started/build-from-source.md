@@ -9,7 +9,7 @@ single step, thereby preparing the environment for compiling CP2K. A more modern
 approach is via `make_cp2k.sh`, which leverages [Spack](https://spack.readthedocs.io) to install the
 dependencies and subsequently build CP2K. Alternatively, one can use Spack directly to install all
 the dependencies and setup the build environment, as described in
-[Building with Spack: Developer Workflow](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html#developer-workflow).
+[](./build-with-spack.md#developer-workflow).
 
 ## Dependencies and build options
 
@@ -28,10 +28,10 @@ Detailed descriptions of most build options can be found in the technologies sec
 There are some other important general options you may want to know:
 
 - `-G <Generator>` Specifies which type of build files would be generated. Default is
-  `Unix Makefiles`, which generates a GNU Makefile and allow you to build with running `make` in the
-  build directory. For GPU-accelerated builds, it is strongly advised to use `Ninja` as generator,
-  which is also used by `make_cp2k.sh`; in this case, please ensure that Ninja is installed on your
-  host system.
+  `Unix Makefiles`, which generates a GNU Makefile and allows you to build with running `make` in
+  the build directory. For GPU-accelerated builds, it is strongly advised to use `Ninja` as
+  generator, which is also used by `make_cp2k.sh`; in this case, please ensure that Ninja is
+  installed on your host system.
 - `-DCMAKE_BUILD_TYPE` Valid vaules are `Release` (default) and `Debug` (enables debug settings and
   generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development).
 - `-DCMAKE_INSTALL_PREFIX` Specifies the installation path of CP2K. Assuming it is set to
@@ -54,8 +54,7 @@ Along with some options with CP2K:
 - `-DCP2K_USE_DBCSR_CONFIG` Make dbcsr cmake options (`DBCSR_USE_BLA`) available.
 
 Note that CMake is typically run *out-of-tree* in a seperate `build/` directory. We don't allow
-in-source build; if you run CMake with `-B .` (default) in the root directory with `CMakeList.txt`,
-it will give error.
+in-source builds; if you run CMake in the root directory, it will give error.
 
 ### Example
 
