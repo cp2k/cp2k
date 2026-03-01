@@ -81,7 +81,7 @@ test cp2k daint:
 regression test cp2k daint:
   extends: .baremetal-runner-daint-gh200
   stage: test
-  needs: ["build cp2k daint","test cp2k daint"]
+  needs: ["build cp2k daint"]
   timeout: 1h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"

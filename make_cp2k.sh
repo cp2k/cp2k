@@ -348,7 +348,7 @@ while [[ $# -gt 0 ]]; do
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
-          P100 | V100 | T100 | A100 | A40 | H100 | H200 | GH200)
+          P100 | V100 | T400 | A100 | A40 | H100 | H200 | GH200)
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
@@ -357,7 +357,7 @@ while [[ $# -gt 0 ]]; do
               V100)
                 CUDA_SM_CODE=70
                 ;;
-              T100)
+              T400)
                 CUDA_SM_CODE=75
                 ;;
               A100)
@@ -378,7 +378,7 @@ while [[ $# -gt 0 ]]; do
             GPU_MODEL="${2,,}"
             ;;
           *)
-            echo -e "\nERROR: Unknown GPU model \"${2}\" specified (choose <CUDA SM code>, P100, V100, T100, A100, A40, H100, H200, GH200 or none)\n"
+            echo -e "\nERROR: Unknown GPU model \"${2}\" specified (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
             ${EXIT_CMD} 1
             ;;
         esac
@@ -388,7 +388,7 @@ while [[ $# -gt 0 ]]; do
           echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
         fi
       else
-        echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T100, A100, A40, H100, H200, GH200 or none)\n"
+        echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -527,7 +527,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T100 | A100 | H100 | H200 | GH200 | none)]"
+  echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
