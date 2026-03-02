@@ -211,6 +211,11 @@ void torch_c_dict_release(torch_c_dict_t *dict) { delete (dict); }
  ******************************************************************************/
 void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   assert(*model_out == NULL);
+  // JIT Fusion strategy optimization, hardcode dynamic 10, see also
+  // https://github.com/mir-group/pair_nequip_allegro.git
+  torch::jit::FusionStrategy strategy = {
+      {torch::jit::FusionBehavior::DYNAMIC, 10}};
+  torch::jit::setFusionStrategy(strategy);
   torch::jit::Module *model = new torch::jit::Module();
   *model = torch::jit::load(filename, get_device());
   model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.

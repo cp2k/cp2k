@@ -1,4 +1,5 @@
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT water
   RUN_TYPE MD
 &END GLOBAL
@@ -25,10 +26,11 @@
       &NONBONDED
         &NEQUIP
           ATOMS H O
-          PARM_FILE_NAME NequIP/water-deployed-neq060dp.pth
-          UNIT_COORDS angstrom
+          MODEL_TYPE ALLEGRO
+          POT_FILE_NAME Allegro/waterscan-allegro0.8.0.nequip.pth
           UNIT_ENERGY eV
           UNIT_FORCES eV*angstrom^-1
+          UNIT_LENGTH angstrom
         &END NEQUIP
       &END NONBONDED
     &END FORCEFIELD
@@ -49,12 +51,13 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 9.8528 9.8528 9.8528
+      A 9.8528 0.0 0.0
+      B 0.0 9.8528 0.0
+      C 0.0 0.0 9.8528
     &END CELL
     &TOPOLOGY
       COORD_FILE_FORMAT XYZ
-      #     coordinates must be ordered by atomic number
-      COORD_FILE_NAME ./water-bulk.xyz
+      COORD_FILE_NAME ../regtest-nequip/water-bulk.xyz
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

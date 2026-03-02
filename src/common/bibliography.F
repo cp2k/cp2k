@@ -91,7 +91,7 @@ MODULE bibliography
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
-                            Hanasaki2025
+                            Hanasaki2025, Tan2025
 
 CONTAINS
 
@@ -671,6 +671,14 @@ CONTAINS
                          title="Fast semi-empirical calculations", &
                          source="J. Comput. Chem.", volume="3", pages="227-228", &
                          year=1982, doi="10.1002/jcc.540030214")
+
+      CALL add_reference(key=Tan2025, &
+                         authors=s2a("C. W. Tan", "M. L. Descoteaux", "M. Kotak", "G. de Miranda Nascimento", &
+                                     "S. R. Kavanagh", "L. Zichi", "M. Wang", "A. Saluja", "Y. R. Hu", &
+                                     "T. Smidt", "A. Johansson", "W. C. Witt", "B. Kozinsky", "A. Musaelian"), &
+                         title="High-performance training and inference for deep equivariant interatomic potentials", &
+                         source="arXiv", pages="2504.16068", &
+                         year=2025, doi="10.48550/arXiv.2504.16068")
 
       CALL add_reference(key=Tao2003, &
                          authors=s2a("J. M. Tao", "J. P. Perdew", "V. N. Staroverov", "G. E. Scuseria"), &
