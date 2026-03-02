@@ -31,7 +31,7 @@ case "$with_fftw" in
     if verify_checksums "${install_lock_file}"; then
       echo "fftw-${fftw_ver} is already installed, skipping it."
     else
-      if [ -f ${fftw_pkg} ]; then
+      if [ -f ${fftw_pkg} ] && checksum "${fftw_sha256}" "${fftw_pkg}"; then
         echo "${fftw_pkg} is found"
       else
         download_pkg_from_cp2k_org "${fftw_sha256}" "${fftw_pkg}"

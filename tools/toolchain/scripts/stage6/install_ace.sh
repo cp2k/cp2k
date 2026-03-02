@@ -35,7 +35,7 @@ case "$with_ace" in
     if verify_checksums "${install_lock_file}"; then
       echo "${ace_dir} aka Ace is already installed, skipping it."
     else
-      if [ -f ${ace_pkg} ]; then
+      if [ -f ${ace_pkg} ] && checksum "${ace_sha256}" "${ace_pkg}"; then
         echo "${ace_pkg} is found"
       else
         download_pkg_from_cp2k_org "${ace_sha256}" "${ace_pkg}"

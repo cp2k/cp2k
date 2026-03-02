@@ -27,7 +27,7 @@ case "${with_spfft}" in
     if verify_checksums "${install_lock_file}"; then
       echo "SpFFT-${spfft_ver} is already installed, skipping it."
     else
-      if [ -f SpFFT-${spfft_ver}.tar.gz ]; then
+      if [ -f SpFFT-${spfft_ver}.tar.gz ] && checksum "${spfft_sha256}" "SpFFT-${spfft_ver}.tar.gz"; then
         echo "SpFFT-${spfft_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${spfft_sha256}" "SpFFT-${spfft_ver}.tar.gz"

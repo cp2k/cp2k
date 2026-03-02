@@ -30,7 +30,7 @@ case "${with_openmpi}" in
     if verify_checksums "${install_lock_file}"; then
       echo "openmpi-${openmpi_ver} is already installed, skipping it."
     else
-      if [ -f ${openmpi_pkg} ]; then
+      if [ -f ${openmpi_pkg} ] && checksum "${openmpi_sha256}" "${openmpi_pkg}"; then
         echo "${openmpi_pkg} is found"
       else
         download_pkg_from_cp2k_org "${openmpi_sha256}" "${openmpi_pkg}"

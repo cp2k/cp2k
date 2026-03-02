@@ -28,7 +28,7 @@ case "$with_hdf5" in
     if verify_checksums "${install_lock_file}"; then
       echo "hdf5-${hdf5_ver} is already installed, skipping it."
     else
-      if [ -f hdf5-${hdf5_ver}.tar.gz ]; then
+      if [ -f hdf5-${hdf5_ver}.tar.gz ] && checksum "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.gz"; then
         echo "hdf5-${hdf5_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.gz"

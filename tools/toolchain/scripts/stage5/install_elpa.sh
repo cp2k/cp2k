@@ -49,7 +49,7 @@ case "${with_elpa}" in
       echo "elpa-${elpa_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      if [ -f elpa-${elpa_ver}.tar.gz ]; then
+      if [ -f elpa-${elpa_ver}.tar.gz ] && checksum "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"; then
         echo "elpa-${elpa_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"

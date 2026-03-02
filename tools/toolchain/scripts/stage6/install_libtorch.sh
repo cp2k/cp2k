@@ -33,7 +33,7 @@ case "${with_libtorch}" in
     if verify_checksums "${install_lock_file}"; then
       echo "libtorch-${libtorch_ver} is already installed, skipping it."
     else
-      if [ -f ${archive_file} ]; then
+      if [ -f ${archive_file} ] && checksum "${libtorch_sha256}" "${archive_file}"; then
         echo "${archive_file} is found"
       else
         download_pkg_from_cp2k_org "${libtorch_sha256}" "${archive_file}"

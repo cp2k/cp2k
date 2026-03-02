@@ -34,7 +34,7 @@ case "$with_dftd4" in
     if verify_checksums "${install_lock_file}"; then
       echo "dftd4_dist-${dftd4_ver} is already installed, skipping it."
     else
-      if [ -f dftd4-${dftd4_ver}.tar.gz ]; then
+      if [ -f dftd4-${dftd4_ver}.tar.gz ] && checksum "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"; then
         echo " dftd4-${dftd4_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"

@@ -34,7 +34,7 @@ EOF
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else
-      if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
+      if [ -f libxsmm-${libxsmm_ver}.tar.gz ] && checksum "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"; then
         echo "libxsmm-${libxsmm_ver}.tar.gz is found"
       else
         if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"; then

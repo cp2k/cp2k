@@ -615,25 +615,25 @@ read_with() {
   esac
 }
 
-# helper routine to check integrity of downloaded files
-checksum() {
-  local __filename=$1
-  local __sha256=$2
+# check if we have sha256sum command, Mac OS X does not have
+# sha256sum, but has an equivalent with shasum -a 256
+get_checksum_cmd() {
   local __shasum_command='sha256sum'
-  # check if we have sha256sum command, Mac OS X does not have
-  # sha256sum, but has an equivalent with shasum -a 256
   if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
     __shasum_command='sha256sum'
   else
     __shasum_command="shasum -a 256"
   fi
-  if echo "$__sha256  $__filename" | ${__shasum_command} --check; then
-    echo "Checksum of $__filename Ok"
-  else
-    rm -v ${__filename}
-    report_error "Checksum of $__filename could not be verified, abort."
-    return 1
-  fi
+  echo "$__shasum_command"
+}
+
+# helper routine to check integrity of files
+# usage: checksum sha256 filename
+checksum() {
+  local __sha256="$1"
+  local __filename="$2"
+  local __shasum_command=$(get_checksum_cmd)
+  echo "$__sha256  $__filename" | ${__shasum_command} --check
 }
 
 # downloader for the package tars, includes checksum
@@ -651,7 +651,12 @@ download_pkg_from_urlpath() {
     return 1
   fi
   # checksum
-  checksum "${__outfile}" "${__sha256}"
+  if checksum "${__sha256}" "${__outfile}"; then
+    echo "Checksum of $__filename Ok"
+  else
+    report_error "Checksum of $__filename could not be verified, abort."
+    return 1
+  fi
 }
 
 # download from CP2K.org
@@ -663,15 +668,7 @@ download_pkg_from_cp2k_org() {
 # verify the checksums inside the given checksum file
 verify_checksums() {
   local __checksum_file=$1
-  local __shasum_command='sha256sum'
-
-  # check if we have sha256sum command, Mac OS X does not have
-  # sha256sum, but has an equivalent with shasum -a 256
-  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
-    __shasum_command='sha256sum'
-  else
-    __shasum_command="shasum -a 256"
-  fi
+  local __shasum_command=$(get_checksum_cmd)
 
   ${__shasum_command} --check "${__checksum_file}" > /dev/null 2>&1
 }
@@ -680,15 +677,7 @@ verify_checksums() {
 write_checksums() {
   local __checksum_file=$1
   shift # remove output file from arguments to be able to pass them along properly quoted
-  local __shasum_command='sha256sum'
-
-  # check if we have sha256sum command, Mac OS X does not have
-  # sha256sum, but has an equivalent with shasum -a 256
-  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
-    __shasum_command='sha256sum'
-  else
-    __shasum_command="shasum -a 256"
-  fi
+  local __shasum_command=$(get_checksum_cmd)
 
   ${__shasum_command} "${VERSION_FILE}" "$@" > "${__checksum_file}"
 }

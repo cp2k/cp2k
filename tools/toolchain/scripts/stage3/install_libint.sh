@@ -47,7 +47,7 @@ case "$with_libint" in
     if verify_checksums "${install_lock_file}"; then
       echo "libint-${libint_ver} is already installed, skipping it."
     else
-      if [ -f ${libint_pkg} ]; then
+      if [ -f ${libint_pkg} ] && checksum "${libint_sha256}" "${libint_pkg}"; then
         echo "${libint_pkg} is found"
       else
         download_pkg_from_cp2k_org "${libint_sha256}" "${libint_pkg}"

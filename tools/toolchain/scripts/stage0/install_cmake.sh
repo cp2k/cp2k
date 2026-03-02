@@ -47,7 +47,7 @@ case "${with_cmake}" in
     if verify_checksums "${install_lock_file}"; then
       echo "cmake-${cmake_ver} is already installed, skipping it."
     else
-      if [ -f cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} ]; then
+      if [ -f cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} ] && checksum "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}"; then
         echo "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} is found"
       else
         download_pkg_from_cp2k_org "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}"

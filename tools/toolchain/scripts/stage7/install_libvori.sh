@@ -30,7 +30,7 @@ case "${with_libvori:=__INSTALL__}" in
     if verify_checksums "${install_lock_file}"; then
       echo "libvori-${libvori_ver} is already installed, skipping it."
     else
-      if [ -f libvori-${libvori_ver}.tar.gz ]; then
+      if [ -f libvori-${libvori_ver}.tar.gz ] && checksum "${libvori_sha256}" "libvori-${libvori_ver}.tar.gz"; then
         echo "libvori-${libvori_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${libvori_sha256}" "libvori-${libvori_ver}.tar.gz"

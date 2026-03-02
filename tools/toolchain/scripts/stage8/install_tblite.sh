@@ -34,7 +34,7 @@ case "$with_tblite" in
     if verify_checksums "${install_lock_file}"; then
       echo "tblite-${tblite_ver} is already installed, skipping it."
     else
-      if [ -f tblite-${tblite_ver}.tar.xz ]; then
+      if [ -f tblite-${tblite_ver}.tar.xz ] && checksum "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"; then
         echo "tblite-${tblite_ver}.tar.xz is found"
       else
         download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"

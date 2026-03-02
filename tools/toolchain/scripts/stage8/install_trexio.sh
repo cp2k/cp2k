@@ -37,7 +37,7 @@ case "$with_trexio" in
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d trexio-${trexio_ver} ] && rm -rf trexio-${trexio_ver}
 
-      if [ -f trexio-${trexio_ver}.tar.gz ]; then
+      if [ -f trexio-${trexio_ver}.tar.gz ] && checksum "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"; then
         echo "trexio_${trexio_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"

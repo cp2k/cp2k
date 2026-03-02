@@ -31,7 +31,7 @@ case "$with_greenx" in
     if verify_checksums "${install_lock_file}"; then
       echo "greenX-${greenx_ver} is already installed, skipping it."
     else
-      if [ -f greenX-${greenx_ver}.tar.gz ]; then
+      if [ -f greenX-${greenx_ver}.tar.gz ] && checksum "${greenx_sha256}" "greenX-${greenx_ver}.tar.gz"; then
         echo "greenX-${greenx_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${greenx_sha256}" "greenX-${greenx_ver}.tar.gz"

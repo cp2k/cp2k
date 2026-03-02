@@ -32,7 +32,7 @@ case "${with_libsmeagol}" in
     if verify_checksums "${install_lock_file}"; then
       echo "libsmeagol-${libsmeagol_ver} is already installed, skipping it."
     else
-      if [ -f libsmeagol-${libsmeagol_ver}.tar.gz ]; then
+      if [ -f libsmeagol-${libsmeagol_ver}.tar.gz ] && checksum "${libsmeagol_sha256}" "libsmeagol-${libsmeagol_ver}.tar.gz"; then
         echo "libsmeagol-${libsmeagol_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${libsmeagol_sha256}" "libsmeagol-${libsmeagol_ver}.tar.gz"

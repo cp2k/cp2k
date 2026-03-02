@@ -34,7 +34,7 @@ case "$with_deepmd" in
     if verify_checksums "${install_lock_file}"; then
       echo "libdeepmd_c-${deepmd_ver} is already installed, skipping it."
     else
-      if [ -f ${deepmd_pkg} ]; then
+      if [ -f ${deepmd_pkg} ] && checksum "${deepmd_sha256}" "${deepmd_pkg}"; then
         echo "${deepmd_pkg} is found"
       else
         download_pkg_from_cp2k_org "${deepmd_sha256}" "${deepmd_pkg}"

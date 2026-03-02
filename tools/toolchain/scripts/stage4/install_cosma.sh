@@ -36,11 +36,19 @@ case "$with_cosma" in
     if verify_checksums "${install_lock_file}"; then
       echo "COSMA-${cosma_ver} is already installed, skipping it."
     else
-      if [ -f COSMA-v${cosma_ver}.tar.gz ]; then
+      if [ -f COSMA-v${cosma_ver}.tar.gz ] && checksum "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"; then
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
+      fi
+      if [ -f COSTA-v${costa_ver}.tar.gz ] && checksum "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"; then
+        echo "COSTA-v${costa_ver}.tar.gz is found"
+      else
         download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
+      fi
+      if [ -f Tiled-MM-v${tiled_mm_ver}.tar.gz ] && checksum "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"; then
+        echo "Tiled-MM-v${tiled_mm_ver}.tar.gz is found"
+      else
         download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"

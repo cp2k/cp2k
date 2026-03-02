@@ -358,9 +358,6 @@ It should be safe to terminate running of this script in the middle of a build
 process. The script will know if a package has been successfully installed and
 will just carry on and recompile and install the last package it is working on.
 This is true even if you lose the content of the entire ./build directory.
-However, if you terminate when downloading packages, you will have to delete the
-incomplete tarball as toolchain don't check existing ones and will give error
-due to failing to uncompress an incomplete tarball.
 
 Some packages are sensitive to the environment variables of their dependencies.
 Therefore, if you use --with-PKG_A=system but encounter an error indicating that
@@ -402,29 +399,34 @@ some hints and observations that may be useful:
     LMod and Environment Modules. Users can load or unload modules to control
     active environment variables and paths in runtime without conflicts. It is
     recommended to check for available modules (with "module avail", "module
-    show" or similar commands) beforehand, and activate desired compatible 
-    packages when running the toolchain script with "--with-PKG=system" options
-    to avoid repeated labour.
+    show" or similar commands) beforehand, and activate desired packages when
+    running the toolchain script with "--with-PKG=system" options so as to
+    avoid repeated labour. However, actual compatibility between modules and
+    CP2K to be built may still take rounds of trial-and-error to confirm, and
+    resorting to "--with-PKG=install" can sometimes resolve problems if modules
+    turn out to be outdated, or compiled inconsistently, or not registering
+    complete variables and paths, or not built with GPU support on GPU machine,
+    etc. Please forward these complaints to whoever responsible for the server.
 
 (4) If no internet connection is available for downloading packages from public
     resources on the server, an offline installation of toolchain and CP2K may
     be carried out by downloading all packages elsewhere, transferring them to
     server and placing them under the ./build directory. The toolchain script
     will not attempt to download packages if they are already present in the
-    build directory with filenames reflecting the correct versions.
+    build directory, with filenames and sha256sum strings matching the records.
 
 (5) An important common feature of clusters is the distinction of node types:
     "login node", where users log in and perform tasks with low workload; and
     "compute node", where resource-intensive computation jobs are carried out.
     They may be hosted on separate machines, and their hardware specifications
     (CPU, RAM, disk space, etc.) may be similar or different. Therefore, care
-    must be taken especially for the latter case; for instance, running
-    toolchain scripts on login node with "--target-cpu=native" (which is
-    default too if omitted) and executing CP2K on compute node afterwards may
-    result in poor performance or illegal instruction errors due to
-    discrepancies in CPU architectures and supported instruction sets, In this
-    case, the option with best portability for compiling programs at the cost
-    of reduced (non-optimal) performance is "--target-cpu=generic".
+    must be taken especially for the latter case. For instance, discrepancies
+    in CPU architectures and supported instruction sets may cause poor program
+    performance or illegal instruction errors if toolchain script is executed
+    on login node with "--target-cpu=native" (which is default too if omitted)
+    but CP2K is executed on compute node afterwards. In this case, the option
+    "--target-cpu=generic" with best portability for compiling programs at the
+    cost of reduced (non-optimized) performance may be necessary.
 
 (6) Again, be careful about the environment if CP2K is to be executed with job
     submission scripts to the job queue system handling resource allocation.

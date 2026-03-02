@@ -27,7 +27,7 @@ case "$with_gsl" in
     if verify_checksums "${install_lock_file}"; then
       echo "gsl-${gsl_ver} is already installed, skipping it."
     else
-      if [ -f gsl-${gsl_ver}.tar.gz ]; then
+      if [ -f gsl-${gsl_ver}.tar.gz ] && checksum "${gls_sha256}" "gsl-${gsl_ver}.tar.gz"; then
         echo "gsl-${gsl_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${gls_sha256}" "gsl-${gsl_ver}.tar.gz"

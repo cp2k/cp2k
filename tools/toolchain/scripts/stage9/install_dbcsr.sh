@@ -27,7 +27,7 @@ case "${with_dbcsr}" in
     if verify_checksums "${install_lock_file}"; then
       echo "dbcsr-${dbcsr_ver} is already installed, skipping it."
     else
-      if [ -f dbcsr-${dbcsr_ver}.tar.gz ]; then
+      if [ -f dbcsr-${dbcsr_ver}.tar.gz ] && checksum "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"; then
         echo "dbcsr-${dbcsr_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${dbcsr_sha256}" "dbcsr-${dbcsr_ver}.tar.gz"

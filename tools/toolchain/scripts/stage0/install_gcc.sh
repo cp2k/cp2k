@@ -30,7 +30,7 @@ case "${with_gcc}" in
     if verify_checksums "${install_lock_file}"; then
       echo "gcc-${gcc_ver} is already installed, skipping it."
     else
-      if [ -f gcc-${gcc_ver}.tar.gz ]; then
+      if [ -f gcc-${gcc_ver}.tar.gz ] && checksum "${gcc_sha256}" "gcc-${gcc_ver}.tar.gz"; then
         echo "gcc-${gcc_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${gcc_sha256}" "gcc-${gcc_ver}.tar.gz"

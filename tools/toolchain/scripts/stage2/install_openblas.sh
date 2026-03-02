@@ -29,7 +29,7 @@ case "${with_openblas}" in
     if verify_checksums "${install_lock_file}"; then
       echo "openblas-${openblas_ver} is already installed, skipping it."
     else
-      if [ -f ${openblas_pkg} ]; then
+      if [ -f ${openblas_pkg} ] && checksum "${openblas_sha256}" "${openblas_pkg}"; then
         echo "${openblas_pkg} is found"
       else
         download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"

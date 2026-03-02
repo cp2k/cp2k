@@ -30,7 +30,7 @@ case "${with_mpich}" in
     if verify_checksums "${install_lock_file}"; then
       echo "mpich-${mpich_ver} is already installed, skipping it."
     else
-      if [ -f ${mpich_pkg} ]; then
+      if [ -f ${mpich_pkg} ] && checksum "${mpich_sha256}" "${mpich_pkg}"; then
         echo "${mpich_pkg} is found"
       else
         download_pkg_from_cp2k_org "${mpich_sha256}" "${mpich_pkg}"

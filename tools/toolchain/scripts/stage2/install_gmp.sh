@@ -29,7 +29,7 @@ case "$with_gmp" in
     if verify_checksums "${install_lock_file}"; then
       echo "gmp-${gmp_ver} is already installed, skipping it."
     else
-      if [ -f gmp-${gmp_ver}.tar.gz ]; then
+      if [ -f gmp-${gmp_ver}.tar.gz ] && checksum "${gmp_sha256}" "gmp-${gmp_ver}.tar.gz"; then
         echo "gmp-${gmp_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${gmp_sha256}" "gmp-${gmp_ver}.tar.gz"

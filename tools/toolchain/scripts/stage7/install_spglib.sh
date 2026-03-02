@@ -27,7 +27,7 @@ case "$with_spglib" in
     if verify_checksums "${install_lock_file}"; then
       echo "spglib-${spglib_ver} is already installed, skipping it."
     else
-      if [ -f spglib-${spglib_ver}.tar.gz ]; then
+      if [ -f spglib-${spglib_ver}.tar.gz ] && checksum "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"; then
         echo "spglib-${spglib_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"
