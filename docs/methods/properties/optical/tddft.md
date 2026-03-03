@@ -5,13 +5,13 @@ This is a short tutorial on how to run linear-response time-dependent density fu
 description of excitation energies and excited-state computations within the Tamm-Dancoff
 approximation (TDA) featuring GGA and hybrid functionals as well as semi-empirical simplified TDA
 kernels and noncollinear kernels for spin-flip excitations. The details of the implementation can be
-found in [Strand2019] and in [Hehn2022] for corresponding excited-state gradients of spin-conserving
-excitations and in [](#Hernandez2025) for excited-states energies and gradients of spin-flip
-excitations. Note that the current module is based on an earlier TDDFT implementation
-[](#Iannuzzi2005). Please cite these papers if you were to use the TDDFT module for the computation
-of excitation energies ([Strand2019], [](#Iannuzzi2005)) or excited-state gradients ([Hehn2022]) of
-spin-conserving excitations and [](#Hernandez2025) for spin-flip excited-state energies and
-gradients.
+found in [Strand2019] and in [](#Hehn2022) for corresponding excited-state gradients of
+spin-conserving excitations and in [](#HernandezSegura2025) for excited-states energies and
+gradients of spin-flip excitations. Note that the current module is based on an earlier TDDFT
+implementation [](#Iannuzzi2005). Please cite these papers if you were to use the TDDFT module for
+the computation of excitation energies ([Strand2019], [](#Iannuzzi2005)) or excited-state gradients
+([](#Hehn2022)) of spin-conserving excitations and [](#HernandezSegura2025) for spin-flip
+excited-state energies and gradients.
 
 ## Brief theory recap
 
@@ -511,5 +511,4 @@ orbitals. It is possible to print the NTOs as `CUBE_FILES` or in Molden format, 
 being activated with the keyword
 [MOS_MOLDEN](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.TDDFPT.PRINT.MOS_MOLDEN).
 
-[hehn2022]: #Hehn2022
 [strand2019]: https://doi.org/10.1063/1.5078682
