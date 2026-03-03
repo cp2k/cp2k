@@ -1,0 +1,8 @@
+# Leak suppressions
+leak:MPIR_Find_local
+leak:MPIR_Find_external
+leak:MPIR_Csel_prune
+leak:MPIDIU_avt_init
+leak:MPIR_Group_create
+leak:MPIDIU_alloc_lut
+leak:MPL_malloc

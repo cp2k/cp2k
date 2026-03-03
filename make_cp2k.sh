@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.5
+# Version: 1.6
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -68,6 +68,7 @@
 #          - Version 1.3: Add CUDA GPU support (10.02.2026, MK)
 #          - Version 1.4: Drop download of spack-packages (12.02.2026, MK)
 #          - Version 1.5: Add flags to enable/disable features selectively (15.02.2026, MK)
+#          - Version 1.6: Enable dbg and smp builds (01.03.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -135,7 +136,8 @@ fi
 # Default values
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
-BUILD_TYPE="${BUILD_TYPE:-Release}"
+CP2K_BUILD_TYPE="${CP2K_BUILD_TYPE:-Release}"
+DEPS_BUILD_TYPE="${DEPS_BUILD_TYPE:-Release}"
 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
 CMAKE_FEATURE_FLAGS="-DCP2K_BLAS_VENDOR=OpenBLAS" # LAPACK/BLAS from OpenBLAS by default
 CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_FFTW3=ON"       # FFTW3 is always activated unless explicitly disabled
@@ -186,7 +188,15 @@ while [[ $# -gt 0 ]]; do
       shift 1
       ;;
     -bt | --build_type)
-      BUILD_TYPE="${2}"
+      CP2K_BUILD_TYPE="${2}"
+      case "${CP2K_BUILD_TYPE}" in
+        Debug)
+          CP2K_VERSION="${CP2K_VERSION/smp/dbg}"
+          ;;
+        Release | RelWithDebInfo)
+          CP2K_VERSION="${CP2K_VERSION/dbg/smp}"
+          ;;
+      esac
       shift 2
       ;;
     -cray)
@@ -196,31 +206,47 @@ while [[ $# -gt 0 ]]; do
     -cv | --cp2k_version)
       if (($# > 1)); then
         case "${2,,}" in
-          psmp | ssmp | ssmp-static)
+          pdbg | psmp | sdbg | ssmp | ssmp-static)
             CP2K_VERSION="${2,,}"
+            # Set build type
+            case "${CP2K_VERSION}" in
+              pdbg | sdbg)
+                CP2K_BUILD_TYPE="Debug"
+                DEPS_BUILD_TYPE="RelWithDebInfo"
+                ;;
+              psmp | ssmp | ssmp-static)
+                CP2K_BUILD_TYPE="Release"
+                DEPS_BUILD_TYPE="Release"
+                ;;
+            esac
+            # Disable MPI for a serial CP2K binary
+            case "${CP2K_VERSION}" in
+              sdbg | ssmp | ssmp-static)
+                MPI_MODE="no"
+                CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
+                ;;
+            esac
+            # Apply specific packages selection for statically linked binaries
+            case "${CP2K_VERSION}" in
+              ssmp-static)
+                CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
+                for package in dftd4 libint2 libxc libxsmm spglib vori tblite; do
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
+                done
+                for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
+                done
+                ;;
+            esac
             ;;
           *)
-            echo "ERROR: Invalid CP2K version \"${2}\" specified (choose psmp, ssmp, or ssmp-static)"
+            echo "ERROR: Invalid CP2K version \"${2}\" specified (choose pdbg, psmp, sdbg, ssmp, or ssmp-static)"
             ${EXIT_CMD} 1
             ;;
         esac
       else
         echo "ERROR: No argument found for flag \"${1}\" (choose psmp, ssmp, or ssmp-static)"
         ${EXIT_CMD} 1
-      fi
-      # Disable MPI for a serial CP2K binary
-      if [[ "${CP2K_VERSION}" == "ssmp"* ]]; then
-        MPI_MODE="no"
-        CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
-      fi
-      if [[ "${CP2K_VERSION}" == "ssmp-static" ]]; then
-        CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
-        for package in dftd4 libint2 libxc libxsmm spglib vori tblite; do
-          CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
-        done
-        for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
-          CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
-        done
       fi
       shift 2
       ;;
@@ -512,9 +538,9 @@ for flag in ${CMAKE_FEATURE_FLAGS}; do
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
-export BUILD_DEPS BUILD_DEPS_ONLY BUILD_TYPE CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CRAY CUDA_SM_CODE \
-  DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PROCS \
-  REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+export BUILD_DEPS BUILD_DEPS_ONLY CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE \
+  DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
+  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -541,7 +567,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "Flags:"
   echo " --build_deps         : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_deps_only    : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
-  echo " --build_type         : Set preferred CMake build type (default: \"Release\")"
+  echo " --build_type         : Set preferred CMake build type for CP2K (default: \"Release\")"
   echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
   echo " -cray                : Use Cray specific spack configuration"
   echo " --disable_local_cache: Don't add local Spack cache"
@@ -580,9 +606,10 @@ fi
 echo ""
 echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
-echo "CMAKE_BUILD_TYPE    = ${BUILD_TYPE}"
+echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
+echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
 echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
 if ((CUDA_SM_CODE > 0)); then
@@ -626,13 +653,28 @@ elif ((MAX_PROCS > 0)) && ((NUM_PROCS > MAX_PROCS)); then
   echo "WARNING: The requested number of processes (${NUM_PROCS}) is larger than the detected number of CPU cores (${MAX_PROCS})"
 fi
 
-# Check if a valid CMake build type is selected
-case "${BUILD_TYPE}" in
+# Check if a valid CMake build type is selected for the dependencies
+case "${DEPS_BUILD_TYPE^}" in
+  Release | RelWithDebInfo)
+    true
+    ;;
+  Debug)
+    echo "ERROR: The CMake build type \"${DEPS_BUILD_TYPE}\" is not supported for building the dependencies"
+    ${EXIT_CMD} 1
+    ;;
+  *)
+    echo "ERROR: Invalid CMake build type \"${DEPS_BUILD_TYPE}\" selected for building the dependencies"
+    ${EXIT_CMD} 1
+    ;;
+esac
+
+# Check if a valid CMake build type is selected for CP2K
+case "${CP2K_BUILD_TYPE^}" in
   Debug | Release | RelWithDebInfo)
     true
     ;;
   *)
-    echo "ERROR: Invalid CMake build type \"${BUILD_TYPE}\" selected"
+    echo "ERROR: Invalid CMake build type \"${CP2K_BUILD_TYPE}\" selected for building CP2K"
     ${EXIT_CMD} 1
     ;;
 esac
@@ -739,6 +781,8 @@ else
 fi
 export CMAKE_CUDA_FLAGS
 
+((VERBOSE > 0)) && ulimit -a
+
 ### Build CP2K dependencies with Spack if needed or requested ###
 
 # Spack version
@@ -747,11 +791,11 @@ export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
 
 # Define the CP2K spack configuration file
-export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION}.yaml"
+export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION:0:1}${CP2K_VERSION:4}.yaml"
 
 # If requested, remove the spack folder for (re)building all CP2K dependencies
 if [[ "${BUILD_DEPS}" == "always" ]]; then
-  for folder in ${SPACK_BUILD_PATH} ${CP2K_ROOT}/build; do
+  for folder in ${SPACK_BUILD_PATH} ${CP2K_ROOT}/build ${CP2K_ROOT}/install; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
@@ -761,7 +805,7 @@ fi
 
 # If requested, remove the build folder for (re)building CP2K
 if [[ "${REBUILD_CP2K}" == "yes" ]]; then
-  for folder in ${CP2K_ROOT}/build; do
+  for folder in ${CP2K_ROOT}/build ${CP2K_ROOT}/install; do
     if [[ -d "${folder}" ]]; then
       echo "Removing folder \"${folder}\""
       rm -rf "${folder}"
@@ -872,10 +916,16 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Prepare the CP2K spack configuration file
-  sed -E \
-    -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
-    -e "/\"build_type=/s|build_type=[^\"]*|build_type=${BUILD_TYPE}|" \
-    "${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION}.yaml" > "${CP2K_CONFIG_FILE}"
+  CP2K_DEPS_FILE="${CP2K_ROOT}/tools/spack/cp2k_deps_${CP2K_VERSION:0:1}${CP2K_VERSION:4}.yaml"
+  if [[ -f "${CP2K_DEPS_FILE}" ]]; then
+    sed -E \
+      -e "s|root: /opt/spack|root: ${SPACK_ROOT}/opt/spack|" \
+      -e "/\"build_type=/s|build_type=[^\"]*|build_type=${DEPS_BUILD_TYPE}|" \
+      "${CP2K_DEPS_FILE}" > "${CP2K_CONFIG_FILE}"
+  else
+    echo -e "\nERROR: The spack configuration file ${CP2K_DEPS_FILE} was not found\n"
+    ${EXIT_CMD} 1
+  fi
 
   # Apply selected MPI type if needed
   # MPICH is selected by default for psmp and no change needed for ssmp
@@ -1120,7 +1170,7 @@ export Torch_DIR
 
 # Check if PEXSI was built
 if [[ "${MPI_MODE}" != "no" ]]; then
-  CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' spack/cp2k_deps_psmp.yaml && echo OFF || echo ON)"
+  CP2K_USE_PEXSI="$(grep -Eq '\s*#\s*-\s+"pexsi@' "${CP2K_CONFIG_FILE}" && echo OFF || echo ON)"
 else
   CP2K_USE_PEXSI="ON"
 fi
@@ -1129,11 +1179,11 @@ export CP2K_USE_PEXSI
 if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
   mkdir -p "${CMAKE_BUILD_PATH}"
   case "${CP2K_VERSION}" in
-    "psmp")
+    pdbg | psmp)
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
-        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -1146,11 +1196,11 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
-    "ssmp")
+    sdbg | ssmp)
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
-        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
@@ -1162,7 +1212,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
-    "ssmp-static")
+    sdbg-static | ssmp-static)
       # Find some static libraries in advance
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
@@ -1170,7 +1220,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
         -DBUILD_SHARED_LIBS=OFF \
-        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_EXE_LINKER_FLAGS="-static" \
         -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -1289,7 +1339,6 @@ for binary in *."${VERSION}"; do
     ${EXIT_CMD}
   fi
 done
-ln -sf cp2k."${VERSION}" cp2k."${VERSION/smp/opt}"
 ln -sf cp2k."${VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
@@ -1309,6 +1358,9 @@ else
 fi
 export ENV_VAR_FLAG
 
+# Install LSAN suppressions (only needed for dbg binaries)
+cp "${CP2K_ROOT}"/tools/spack/lsan.supp "${INSTALL_PREFIX}"/bin
+
 # Assemble flags for running the regression tests
 TESTOPTS="--cp2kdatadir ${INSTALL_PREFIX}/share/cp2k/data  --maxtasks ${NUM_PROCS} --workbasedir ${INSTALL_PREFIX}/regtesting ${TESTOPTS}"
 export TESTOPTS
@@ -1319,6 +1371,7 @@ export LAUNCH_SCRIPT
 cat << *** > "${LAUNCH_SCRIPT}"
 #!/bin/bash
 ulimit -c 0 -s unlimited
+export LSAN_OPTIONS=suppressions=${INSTALL_PREFIX}/bin/lsan.supp
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
