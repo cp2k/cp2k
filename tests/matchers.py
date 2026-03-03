@@ -221,10 +221,10 @@ registry["E_SCF_SOC_gap"] = GenericMatcher(r"SCF+SOC direct band gap", col=6)
 registry["E_G0W0_SOC_gap"] = GenericMatcher(r"G0W0+SOC direct band gap", col=6)
 
 # Lowest BSE excitation energy in Tamm-Dancoff approximation (TDA)
-registry["BSE_1st_excit_ener_TDA"] = GenericMatcher(r"BSE|  1  Singlet  -TDA-", col=5)
+registry["BSE_1st_excit_ener_TDA"] = GenericMatcher(r"BSE|                1       Singlet          -TDA-", col=5)
 
 # Lowest BSE excitation energy
-registry["BSE_1st_excit_ener"] = GenericMatcher(r"BSE|  1  Singlet  -ABBA-", col=5)
+registry["BSE_1st_excit_ener"] = GenericMatcher(r"BSE|                1       Singlet         -ABBA-", col=5)
 
 # evGW0 HOMO-LUMO gap of molecule
 registry["E_evGW0_gap"] = GenericMatcher(
@@ -236,16 +236,16 @@ registry["E_evGW_gap"] = GenericMatcher(
     r"HOMO-LUMO gap in evGW iteration  3 (eV)", col=8
 )
 
-registry["M113"] = GenericMatcher(r"BSE|  1  -TDA-", col=7)
-registry["M114"] = GenericMatcher(r"BSE|  1  -ABBA-", col=7)
+registry["M113"] = GenericMatcher(r"BSE|             1     -TDA-", col=7)
+registry["M114"] = GenericMatcher(r"BSE|             1    -ABBA-", col=7)
 registry["M115"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.10000000E+000", col=3)
 registry["M116"] = GenericMatcher(r"MOMENTS_TRACE_IM|     0.10000000E+000", col=3)
 registry["M117"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.20000000E+000", col=3)
 registry["M118"] = GenericMatcher(r"POLARIZABILITY|     0.28949671E+002", col=4)
 registry["M119"] = GenericMatcher(r"DEBUG:: Total Force", col=6)
 registry["M120"] = GenericMatcher(r"SMEAGOL| Number of electrons:", col=5)
-registry["M121"] = GenericMatcher(r"BSE|  3  -TDA-  2", col=5)
-registry["M122"] = GenericMatcher(r"BSE|  3  -ABBA-  2", col=5)
+registry["M121"] = GenericMatcher(r"BSE|             3     -TDA-                2", col=5)
+registry["M122"] = GenericMatcher(r"BSE|             3    -ABBA-                2", col=5)
 registry["M123"] = GenericMatcher(r"Checksum exciton descriptors", col=4)
 registry["M124"] = GenericMatcher(
     r"BSE|DEBUG| Averaged dynamical dipole polarizability at 8.2 eV:", col=9
