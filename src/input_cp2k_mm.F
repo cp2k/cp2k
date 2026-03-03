@@ -16,8 +16,8 @@
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
         Batzner2022, Bochkarev2024, Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Drautz2019, &
-        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, Tersoff1988, &
-        Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
+        Foiles1986, Lysogorskiy2021, Mitchell1993, Musaelian2023, Siepmann1995, Tan2025, &
+        Tersoff1988, Tosi1964a, Tosi1964b, Wang2018, Yamada2000, Zeng2023
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1181,10 +1181,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_ALLEGRO_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL create_ACE_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1428,11 +1424,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="NEQUIP", &
                           description="This section specifies the input parameters for NEQUIP potential type "// &
-                          "based on equivariant neural networks with message passing. Starting from the NequIP 0.6.0, "// &
-                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
-                          "regardless of whether the model has been trained on the stress. "// &
+                          "based on equivariant neural networks, and for ALLEGRO, a local large-scale variant. "// &
+                          "Note: To enable the prediction of stress, along with energies and forces, the keyword "// &
+                          "StressForceOutput must be included in the nequip config *.yaml file used to train the "// &
+                          "model, regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
-                          citations=[Batzner2022], n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          citations=[Batzner2022, Musaelian2023, Tan2025], n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1446,18 +1443,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=["PARMFILE"], &
-                          description="Specifies the filename that contains the NEQUIP model.", &
-                          usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
+      CALL keyword_create(keyword, __LOCATION__, name="MODEL_TYPE", &
+                          variants=["MODEL"], &
+                          description="Specifies the type of model used. Allowed values are NEQUIP or ALLEGRO.", &
+                          usage="MODEL_TYPE {NEQUIP}", default_lc_val=" ")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the NEQUIP model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
+      CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
+                          variants=["MODEL_FILE_NAME"], &
+                          description="Specifies the filename that contains the NEQUIP model.", &
+                          usage="POT_FILE_NAME {FILENAME}", default_lc_val=" ")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT_LENGTH", &
+                          description="Units of length in the NEQUIP model.pth file. "// &
+                          "The units of positions, cell, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_COORDS angstrom", default_c_val="angstrom")
+                          usage="UNIT_LENGTH angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1477,87 +1481,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the NEQUIP model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_CELL angstrom", default_c_val="angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
    END SUBROUTINE create_NEQUIP_section
-
-! **************************************************************************************************
-!> \brief This section specifies the input parameters for ALLEGRO  potential type
-!> \param section the section to create
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_ALLEGRO_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="ALLEGRO", &
-                          description="This section specifies the input parameters for ALLEGRO potential type "// &
-                          "based on equivariant neural network potentials. Starting from the NequIP 0.6.0, "// &
-                          "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
-                          "regardless of whether the model has been trained on the stress. "// &
-                          "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
-                          citations=[Musaelian2023], n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          description="Defines the atomic kinds involved in the ALLEGRO potential. "// &
-                          "Provide a list of each element, making sure that the mapping from the ATOMS list "// &
-                          "to NequIP atom types is correct. This mapping should also be consistent for the "// &
-                          "atomic coordinates as specified in the sections COORDS or TOPOLOGY.", &
-                          usage="ATOMS {KIND 1} {KIND 2} .. {KIND N}", type_of_var=char_t, &
-                          n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=["PARMFILE"], &
-                          description="Specifies the filename that contains the ALLEGRO model.", &
-                          usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_COORDS", &
-                          description="Units of coordinates in the ALLEGRO model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_COORDS angstrom", default_c_val="angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_ENERGY", &
-                          description="Units of energy in the ALLEGRO model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_ENERGY hartree", default_c_val="eV")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_FORCES", &
-                          description="Units of the forces in the ALLEGRO model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_FORCES hartree/bohr", default_c_val="eV/Angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNIT_CELL", &
-                          description="Units of the cell vectors in the ALLEGRO model.pth file. "// &
-                          "The units of positions, energies and forces must be self-consistent: "// &
-                          "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT_CELL angstrom", default_c_val="angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_ALLEGRO_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for ACE potential type

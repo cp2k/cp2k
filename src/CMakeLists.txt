@@ -346,7 +346,6 @@ list(
   manybody_deepmd.F
   manybody_gal21.F
   manybody_gal.F
-  manybody_allegro.F
   manybody_nequip.F
   manybody_potential.F
   manybody_siepmann.F

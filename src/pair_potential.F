@@ -188,7 +188,7 @@ CONTAINS
             DO k = 1, SIZE(pot%type)
                SELECT CASE (pot%type(k))
                CASE (lj_type, lj_charmm_type, wl_type, gw_type, ft_type, ftd_type, ip_type, &
-                     b4_type, bm_type, gp_type, ea_type, nequip_type, allegro_type, tab_type, deepmd_type, ace_type)
+                     b4_type, bm_type, gp_type, ea_type, allegro_type, nequip_type, tab_type, deepmd_type, ace_type)
                   pot%no_pp = .FALSE.
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
@@ -688,12 +688,9 @@ CONTAINS
                         pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%eam%drhoar
                         pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%eam%acutal
                         pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%eam%npoints
-                     CASE (nequip_type)
+                     CASE (nequip_type, allegro_type)
                         pot_par(nk, 1) = str2id( &
-                                         TRIM(potparm%pot(i, j)%pot%set(1)%nequip%nequip_file_name))
-                     CASE (allegro_type)
-                        pot_par(nk, 1) = str2id( &
-                                         TRIM(potparm%pot(i, j)%pot%set(1)%allegro%allegro_file_name))
+                                         TRIM(potparm%pot(i, j)%pot%set(1)%nequip%pot_file_name))
                      CASE (ace_type)
                         pot_par(nk, 1) = str2id( &
                                          TRIM(potparm%pot(i, j)%pot%set(1)%ace%ace_file_name))

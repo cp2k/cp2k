@@ -230,10 +230,10 @@ CONTAINS
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == gal21_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
-                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == nequip_type)) THEN
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == allegro_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
-                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == allegro_type)) THEN
+                  IF (ANY(potparm%pot(ikind, jkind)%pot%type == nequip_type)) THEN
                      full_nl(ikind, jkind) = .TRUE.
                   END IF
                   IF (ANY(potparm%pot(ikind, jkind)%pot%type == ace_type)) THEN
