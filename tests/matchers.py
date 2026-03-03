@@ -39,7 +39,6 @@ class GenericMatcher(Matcher):
         self.pattern = pattern
         for c in r"[]()|+*?":
             pattern = pattern.replace(c, f"\\{c}")  # escape special chars
-        pattern = pattern.replace("  ", r"\s\s+")
         self.regex = re.compile(pattern)
         self.col = col
 
@@ -158,7 +157,7 @@ registry["M064"] = GenericMatcher(r"^  C", col=3)
 registry["M065"] = GenericMatcher(r"^  C", col=4)
 registry["M066"] = GenericMatcher(r"HF Etotal", col=3)
 registry["M067"] = GenericMatcher(r"Energy Level:", col=9)
-registry["TDDFPT_excit_ener"] = GenericMatcher(r"TDDFPT|  1", col=3)
+registry["TDDFPT_excit_ener"] = GenericMatcher(r"TDDFPT|      1", col=3)
 registry["M069"] = GenericMatcher(r"Log(1-CN):", col=10)
 registry["M070"] = GenericMatcher(r"MD| Temperature [K]", col=4)
 registry["M071"] = GenericMatcher(r"Current value of constraint", col=6)
