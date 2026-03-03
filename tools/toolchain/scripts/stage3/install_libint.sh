@@ -17,16 +17,16 @@ libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tar.xz"
 
 case "$LIBINT_LMAX" in
   4)
-    libint_sha256="97bcc62de2c33dda9e96fc52ca47a7ab17fdfa200d15417354165d5579d6932a"
+    libint_sha256="8ff388fbf171635420fdfdbafc7dc949e9cf4c0b6a62f23dac3af8b1c942d407"
     ;;
   5)
-    libint_sha256="988e35e2cad5a3e28974d33185135c57fa9800a336e33052c0579f5ebb5cf354"
+    libint_sha256="527000f915bea9879391273b96689a8c2b98beeec37cb64637e3c11dd421a5e8"
     ;;
   6)
-    libint_sha256="eae01c15a0cf56940ba21751c09aa5be4d35eeed454cd54b629babcce243aa71"
+    libint_sha256="a7990c4862d549e6328596f20b8a7ece40ded396b953d5d5d7c3200f13e37429"
     ;;
   7)
-    libint_sha256="1f43901e9528efa06f3ab7d1b68a219d06ece2bca0d4083750f174b70fdaf64a"
+    libint_sha256="ba19571deefa5c3063e620210c87cf706ef8d75b47f3b0d66547f889f906b3dd"
     ;;
   *)
     report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
@@ -50,8 +50,7 @@ case "$with_libint" in
       if [ -f ${libint_pkg} ]; then
         echo "${libint_pkg} is found"
       else
-        #download_pkg_from_cp2k_org "${libint_sha256}" "${libint_pkg}"
-        download_pkg_from_urlpath "${libint_sha256}" "${libint_pkg}" https://github.com/Growl1234/RTDProject/releases/download/libint-cp2k
+        download_pkg_from_cp2k_org "${libint_sha256}" "${libint_pkg}"
       fi
 
       [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
