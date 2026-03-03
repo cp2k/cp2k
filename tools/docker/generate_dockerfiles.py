@@ -56,7 +56,7 @@ def main() -> None:
     # Spack/CMake based testers
 
     with OutputFile(f"Dockerfile.test_spack_pdbg", args.check) as f:
-        f.write(install_cp2k_spack("pdbg", mpi_mode="mpich", feature_flags=""))
+        f.write(install_cp2k_spack("pdbg", mpi_mode="mpich", feature_flags="-df pexsi"))
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(
