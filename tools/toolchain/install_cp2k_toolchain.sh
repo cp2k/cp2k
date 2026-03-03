@@ -401,12 +401,13 @@ some hints and observations that may be useful:
     recommended to check for available modules (with "module avail", "module
     show" or similar commands) beforehand, and activate desired packages when
     running the toolchain script with "--with-PKG=system" options so as to
-    avoid repeated labour. However, actual compatibility between modules and
+    avoid repeated labour. That said, actual compatibility between modules and
     CP2K to be built may still take rounds of trial-and-error to confirm, and
     resorting to "--with-PKG=install" can sometimes resolve problems if modules
     turn out to be outdated, or compiled inconsistently, or not registering
     complete variables and paths, or not built with GPU support on GPU machine,
-    etc. Please forward these complaints to whoever responsible for the server.
+    etc. Please forward complaints about faulty modules to whoever responsible
+    for the server first before submitting any bug report to program developer.
 
 (4) If no internet connection is available for downloading packages from public
     resources on the server, an offline installation of toolchain and CP2K may
@@ -430,10 +431,16 @@ some hints and observations that may be useful:
 
 (6) Again, be careful about the environment if CP2K is to be executed with job
     submission scripts to the job queue system handling resource allocation.
-    Active environment variables and paths on the login node (by loading
-    modules, sourcing scripts, editing ~/.bashrc or /etc/profile files, etc.)
-    may NOT be active on the compute node where CP2K actually runs, unless all
-    appropriate commands are explicitly written in the job submission script.
+    Active environment variables and paths on the login node seen by user (by
+    loading modules, sourcing scripts, editing ~/.bashrc or /etc/profile files,
+    or entering commands interactively in general) may NOT be effective on the
+    compute node where CP2K actually runs, unless all appropriate commands are
+    written explicitly in the batch job submission script. For example, a
+    frequently encountered scenario with corrupted, interleaved output messages
+    stems from incorrect MPI library configuration launching multiple instances
+    of CP2K simultaneously instead of multi-process parallel execution of one
+    single instance; it is likely that the ./install/setup file is not sourced
+    or the wrong module for MPI library is loaded at runtime.
 
 EOF
 }
