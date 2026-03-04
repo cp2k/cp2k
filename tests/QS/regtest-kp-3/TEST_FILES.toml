@@ -3,11 +3,12 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"cc1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-45.38964266770495}]
 "bn1.inp"                               = [{matcher="M094", tol=1.0E-14, ref=27}]
 "ch1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973}]
-#cc2.inp                   1 1.0E-12 -45.38989062944852
-#cc3.inp                   1 1.0E-12 -45.38990176407365
-#cc4.inp                   1 1.0E-12 -45.38975726647867
-#cc5.inp                   1 1.0E-12 -45.38975726647867
+"cc1.inp"                               = [{matcher="M011", tol=5.0E-12, ref=-45.389916661093118}]
+"cc2.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916932525530}]
+"cc3.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916567363336}]
+"cc4.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916932898110}]
+"cc5.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916933232620}]
+#cc6.inp                   1 1.0E-12 -45.38975726647867
 #EOF
