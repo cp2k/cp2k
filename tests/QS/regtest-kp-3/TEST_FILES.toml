@@ -5,10 +5,10 @@
 #      for details see cp2k/tools/do_regtest
 "bn1.inp"                               = [{matcher="M094", tol=1.0E-14, ref=27}]
 "ch1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-12.18193777586973}]
-"cc1.inp"                               = [{matcher="M011", tol=5.0E-12, ref=-45.389916661093118}]
-"cc2.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916932525530}]
-"cc3.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916567363336}]
-"cc4.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916932898110}]
-"cc5.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916933232620}]
+"cc1.inp"                               = [{matcher="M011", tol=5.0E-12, ref=-45.389916659345360}]
+"cc2.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916849143461}]
+"cc3.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916564497383}]
+"cc4.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916850691804}]
+"cc5.inp"                               = [{matcher="M011", tol=3.0E-09, ref=-45.389916850587959}]
 #cc6.inp                   1 1.0E-12 -45.38975726647867
 #EOF

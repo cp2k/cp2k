@@ -22,7 +22,7 @@
       REL_CUTOFF 50
     &END MGRID
     &QS
-      EPS_DEFAULT 1.0E-14
+      EPS_DEFAULT 1.0E-12
       METHOD GPW
     &END QS
     &SCF
