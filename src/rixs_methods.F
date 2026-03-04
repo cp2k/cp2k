@@ -405,12 +405,15 @@ CONTAINS
                      "to valence-excited state ", td_state, " with energy ", w_if(td_state)
                END IF
 
-               ! 1) build S*X (aoxactive)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, valence_evects(ispin, td_state), overlap_X(ispin), &
-                                             ncol=nactive(ispin))
-               ! 2) build Y^T*S*X (c_statexactive)
-               CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
-                                    overlap_X(ispin), 0.0_dp, Y_overlap_X(ispin))
+               
+               DO ispin = 1, nspins
+                  ! 1) build S*X (aoxactive)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, valence_evects(ispin, td_state), overlap_X(ispin), &
+                                                ncol=nactive(ispin))
+                  ! 2) build Y^T*S*X (c_statexactive)
+                  CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
+                                       overlap_X(ispin), 0.0_dp, Y_overlap_X(ispin))
+               END DO
 
                DO ax = 1, 3
 
