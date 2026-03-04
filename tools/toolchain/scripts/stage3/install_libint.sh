@@ -12,21 +12,21 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-libint_ver="2.6.0"
-libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
+libint_ver="2.13.1"
+libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tar.xz"
 
 case "$LIBINT_LMAX" in
   4)
-    libint_sha256="7c8d28bfb03920936231228b79686ba0fd87ea922c267199789bc131cf21ac08"
+    libint_sha256="8ff388fbf171635420fdfdbafc7dc949e9cf4c0b6a62f23dac3af8b1c942d407"
     ;;
   5)
-    libint_sha256="1cd72206afddb232bcf2179c6229fbf6e42e4ba8440e701e6aa57ff1e871e9db"
+    libint_sha256="527000f915bea9879391273b96689a8c2b98beeec37cb64637e3c11dd421a5e8"
     ;;
   6)
-    libint_sha256="bea76a433cd32bde280879f73b5fc8228c78b62e3ea57ace4c6d74b65910b8af"
+    libint_sha256="a7990c4862d549e6328596f20b8a7ece40ded396b953d5d5d7c3200f13e37429"
     ;;
   7)
-    libint_sha256="3bcdcc55e1dbafe38a785d4af171df8e300bb8b7775894b57186cdf35807c334"
+    libint_sha256="ba19571deefa5c3063e620210c87cf706ef8d75b47f3b0d66547f889f906b3dd"
     ;;
   *)
     report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
@@ -54,7 +54,7 @@ case "$with_libint" in
       fi
 
       [ -d libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX} ] && rm -rf libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
-      tar -xzf ${libint_pkg}
+      tar -xJf ${libint_pkg}
 
       echo "Installing from scratch into ${pkg_install_dir}"
       cd libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}
@@ -64,41 +64,23 @@ case "$with_libint" in
       LIBINT_CXXFLAGS="$CXXFLAGS -g1"
       LIBINT_FCFLAGS="$FCFLAGS -g1"
 
-      # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
-      #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-      #        -DCMAKE_CXX_COMPILER="$CXX" \
-      #        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
-      #        -DENABLE_FORTRAN=ON \
-      #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
-      #cmake --build . > cmake.log 2>&1
-      #cmake --build . --target install > install.log 2>&1
-      ./configure --prefix=${pkg_install_dir} \
-        --with-cxx="$CXX $LIBINT_CXXFLAGS" \
-        --with-cxx-optflags="$LIBINT_CXXFLAGS" \
-        --with-fc="$FC $LIBINT_FCFLAGS" \
-        --disable-unrolling \
-        --enable-fortran \
-        --enable-fma \
-        --with-pic \
-        --libdir="${pkg_install_dir}/lib" \
+      mkdir build
+      cd build
+      CXXFLAGS="$LIBINT_CXXFLAGS" \
+        FCFLAGS="$LIBINT_FCFLAGS" cmake .. \
+        -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+        -DCMAKE_CXX_COMPILER="$CXX" \
+        -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
+        -DLIBINT2_ENABLE_FORTRAN=ON \
         > configure.log 2>&1 || tail_excerpt configure.log
-
-      if [ "${with_intel}" != "__DONTUSE__" ]; then
-        # Fix bug in makefile for Fortran module
-        sed -i -e "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" -e "s/\$(FCLIBS) -o/\$(FCLIBS) -lstdc++ -o/" fortran/Makefile
-        # Fix bug about autoconf spilling -loopopt option into link list
-        sed -i -e "s/-loopopt //g" MakeVars
-      fi
-
-      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      make install > install.log 2>&1 || tail_excerpt install.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
 
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
 
-    LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
+    LIBINT_CFLAGS="-I${pkg_install_dir}/include"
+    LIBINT_LDFLAGS="-L${pkg_install_dir}/lib"
     ;;
   __SYSTEM__)
     echo "==================== Finding LIBINT from system paths ===================="
@@ -113,8 +95,8 @@ case "$with_libint" in
     pkg_install_dir="$with_libint"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    LIBINT_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBINT_LDFLAGS="-L'${pkg_install_dir}/lib'"
+    LIBINT_CFLAGS="-I${pkg_install_dir}/include"
+    LIBINT_LDFLAGS="-L${pkg_install_dir}/lib"
     ;;
 esac
 if [ "$with_libint" != "__DONTUSE__" ]; then
@@ -127,7 +109,6 @@ EOF
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBINT2_ROOT="${pkg_install_dir}"
 EOF
