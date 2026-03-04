@@ -61,7 +61,7 @@ CONTAINS
    SUBROUTINE set_mo_occupation_3(mo_array, smear)
 
       TYPE(mo_set_type), DIMENSION(2), INTENT(INOUT)     :: mo_array
-      TYPE(smear_type), POINTER                          :: smear
+      TYPE(smear_type)                                   :: smear
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_3'
 
@@ -197,7 +197,7 @@ CONTAINS
    SUBROUTINE set_mo_occupation_2(mo_array, smear, eval_deriv, tot_zeff_corr, probe)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
-      TYPE(smear_type), POINTER                          :: smear
+      TYPE(smear_type)                                   :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
@@ -406,7 +406,7 @@ CONTAINS
    SUBROUTINE set_mo_occupation_1(mo_set, smear, eval_deriv, xas_env, tot_zeff_corr, probe)
 
       TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
-      TYPE(smear_type), OPTIONAL, POINTER                :: smear
+      TYPE(smear_type), OPTIONAL                         :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr

@@ -34,7 +34,7 @@ MODULE ec_environment
         kg_cholesky, ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
         ls_s_inversion_none, ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
         ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, &
-        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        smear_fermi_dirac, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
@@ -118,7 +118,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikind, maxlgto, nkind, unit_nr
       LOGICAL                                            :: explicit, gpw, paw_atom
-      REAL(KIND=dp)                                      :: eps_pgf_orb, rc
+      REAL(KIND=dp)                                      :: eps_pgf_orb, etemp, rc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -183,6 +183,8 @@ CONTAINS
                                    r_val=ec_env%eps_default)
          CALL section_vals_val_get(ec_section, "HARRIS_BASIS", &
                                    c_val=ec_env%basis)
+         CALL section_vals_val_get(ec_section, "ELECTRONIC_TEMPERATURE", &
+                                   r_val=etemp)
          CALL section_vals_val_get(ec_section, "MAO", &
                                    l_val=ec_env%mao)
          CALL section_vals_val_get(ec_section, "MAO_MAX_ITER", &
@@ -223,6 +225,18 @@ CONTAINS
                                    i_val=ec_env%error_subspace)
 
          ec_env%do_skip = .FALSE.
+
+         ! smearing
+         IF (etemp > 0.0_dp) THEN
+            ec_env%smear%do_smear = .TRUE.
+            ec_env%smear%method = smear_fermi_dirac
+            ec_env%smear%electronic_temperature = etemp
+            ec_env%smear%eps_fermi_dirac = 1.0E-5_dp
+            ec_env%smear%fixed_mag_mom = -100.0_dp
+         ELSE
+            ec_env%smear%do_smear = .FALSE.
+            ec_env%smear%electronic_temperature = 0.0_dp
+         END IF
 
          ! set basis
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, nkind=nkind)
@@ -389,6 +403,13 @@ CONTAINS
 
          IF (ec_env%use_ls_solver) THEN
             CALL ec_ls_create(qs_env, ec_env)
+         END IF
+
+         ! check that Harris functional with electronic temperature uses diagonalization
+         IF (ec_env%energy_functional == ec_functional_harris) THEN
+            IF (ec_env%smear%do_smear .AND. ec_env%ks_solver /= ec_diagonalization) THEN
+               CPABORT("Harris functional with Fermi-Dirac smearing needs diagonalization solver.")
+            END IF
          END IF
 
       END IF
