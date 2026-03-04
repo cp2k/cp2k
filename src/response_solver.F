@@ -581,7 +581,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation_new'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nocc, nspins
-      LOGICAL                                            :: should_stop
+      LOGICAL                                            :: should_stop, uniform_occupation
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: psi0, psi1
@@ -603,7 +604,12 @@ CONTAINS
       ! psi1 : The "perturbed" linear response orbitals
       ALLOCATE (psi0(nspins), psi1(nspins))
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+         CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, homo=nocc, &
+                         uniform_occupation=uniform_occupation)
+         IF (.NOT. uniform_occupation) THEN
+            CALL get_mo_set(mos(ispin), occupation_numbers=occupation)
+            CPASSERT(ALL(occupation(1:nocc) == occupation(1)))
+         END IF
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
                                   template_fmstruct=mo_coeff%matrix_struct)
