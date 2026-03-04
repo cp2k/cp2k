@@ -32,7 +32,8 @@ for lmax in 4 5 6 7; do
     -DLIBINT2_ENABLE_FORTRAN=ON \
     -DLIBINT2_ENABLE_UNROLLING=0 &> cmake.log
   make export -j 32 &> build.log
-  cp -v ./libint-2.13.1-post999.tgz "/opt/libint-bundles/libint-v${libint_ver}-cp2k-lmax-${lmax}.tgz"
+  mv -f ./libint-2.13.1-post999 ./libint-v${libint_ver}-cp2k-lmax-${lmax}
+  tar -cJf "/opt/libint-bundles/libint-v${libint_ver}-cp2k-lmax-${lmax}.tar.xz" ./libint-v${libint_ver}-cp2k-lmax-${lmax}
   cd ..
 done
 

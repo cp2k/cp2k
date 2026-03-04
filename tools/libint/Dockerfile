@@ -9,7 +9,8 @@ RUN apt-get install -qq --no-install-recommends \
     libgmp-dev \
     libboost-dev \
     make \
-    wget
+    wget \
+    xz-utils
 
 WORKDIR /opt
 COPY ./build_bundles.sh .
