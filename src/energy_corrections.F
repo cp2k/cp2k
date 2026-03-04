@@ -2949,7 +2949,6 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nmo(2), nsize, nspins
       REAL(KIND=dp)                                      :: eps_filter, flexible_electron_count, &
                                                             focc(2), n_el_f
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigvals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
