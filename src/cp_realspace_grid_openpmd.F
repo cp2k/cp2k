@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 MODULE cp_realspace_grid_openpmd
    USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE realspace_grid_openpmd,          ONLY: pw_to_openpmd
@@ -58,6 +59,7 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
+      CHARACTER(LEN=default_string_length)               :: my_title
       INTEGER                                            :: i, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: particles_z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: particles_r
@@ -65,6 +67,10 @@ CONTAINS
 
       NULLIFY (my_particles)
       my_particles => particles
+
+      my_title = ""
+      IF (PRESENT(title)) my_title = TRIM(title)
+
       IF (ASSOCIATED(my_particles)) THEN
          n = my_particles%n_els
          ALLOCATE (particles_z(n))
