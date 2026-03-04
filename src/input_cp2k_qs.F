@@ -419,7 +419,7 @@ CONTAINS
          "Use the previous wavefunction", &
          "Higher order extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
          "Frozen ...", &
-         "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy. ", &
+         "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy."), &
          enum_i_vals=[ &
          wfi_use_guess_method_nr, &
          wfi_use_prev_p_method_nr, &
