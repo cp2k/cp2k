@@ -42,7 +42,7 @@ case "$with_hdf5" in
       cd build
       # Add "-DHDF5_ENABLE_ZLIB_SUPPORT=ON" because HDF5 2.x doesn't enable ZLIB support by default
       CMAKE_OPTIONS="-DBUILD_TESTING=OFF -DHDF5_BUILD_FORTRAN=ON -DHDF5_ENABLE_ZLIB_SUPPORT=ON"
-      if [ "$(find_in_paths "libsz.*" $LIB_PATHS)" != "__FALSE__"  ]; then
+      if [ "$(find_in_paths "libsz.*" $LIB_PATHS)" != "__FALSE__" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DHDF5_ENABLE_SZIP_SUPPORT=ON"
       fi
       if [ "${MPI_MODE}" != "no" ]; then
@@ -113,10 +113,11 @@ EOF
     else
       HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz"
     fi
-    if [ -n "$(grep "lsz" ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ] || \
+    if [ -n "$(grep "lsz" ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ] ||
       [ -n "$(grep "lsz" ${pkg_install_dir}/lib/libhdf5.settings)" ]; then
       HDF5_LIBS="${HDF5_LIBS} -lsz"
     fi
+  fi
   cat << EOF >> "${BUILDDIR}/setup_hdf5"
 export HDF5_VER="${hdf5_ver}"
 export HDF5_CFLAGS="${HDF5_CFLAGS}"
@@ -130,7 +131,7 @@ export HDF5_LIBRARIES="${HDF5_LIBS}"
 export HDF5_HL_LIBRARIES="${HDF5_LIBS}"
 export HDF5_INCLUDE_DIRS="${pkg_install_dir}/include"
 EOF
-  filter_setup "${BUILDDIR}/setup_hdf5" ${SETUPFILE}
+  filter_setup "${BUILDDIR}/setup_hdf5" "${SETUPFILE}"
 fi
 
 load "${BUILDDIR}/setup_hdf5"
