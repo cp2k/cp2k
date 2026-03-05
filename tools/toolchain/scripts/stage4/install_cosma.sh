@@ -6,12 +6,12 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.7.0"
-cosma_sha256="f4775d18379539d7bb5053bff8acb4e13d6ed31a9677f498d9099a7500488789"
-costa_ver="2.2.2"
-costa_sha256="e87bc37aad14ac0c5922237be5d5390145c9ac6aef0350ed17d86cb2d994e67c"
-tiled_mm_ver="2.3.1"
-tiled_mm_sha256="68914a483e62f796b790ea428210b1d5ef5943d6289e53d1aa62f56a20fbccc8"
+cosma_ver="2.8.1"
+cosma_sha256="563bb0785dca32ede780a05ad424db9b6d7f473a909ca423931b96204e2b5d9c"
+costa_ver="2.3.0"
+costa_sha256="0413311a2821d4cd1f3f026672a75a5b5a2956f61305c07d7fc14565a126b517"
+tiled_mm_ver="2.3.2"
+tiled_mm_sha256="1f91ca02f6ee8e400835fa90630618baf86a7b425b4bbbb4151068f72658b858"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh

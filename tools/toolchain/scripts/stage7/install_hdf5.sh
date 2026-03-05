@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-hdf5_ver="1.14.6"
-hdf5_sha256="e4defbac30f50d64e1556374aa49e574417c9e72c6b1de7a4ff88c4b1bea6e9b"
+hdf5_ver="2.1.0"
+hdf5_sha256="ce7f5515a95d588b8606c3fb50643f8b88ac52ffbbde9c63bb1edca6a256e964"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -39,15 +39,19 @@ case "$with_hdf5" in
       cd hdf5-${hdf5_ver}
       mkdir build
       cd build
-      cmake \
+      # Add "-DHDF5_ENABLE_ZLIB_SUPPORT=ON" because HDF5 2.x doesn't enable ZLIB support by default
+      CMAKE_OPTIONS="-DBUILD_TESTING=OFF -DHDF5_BUILD_FORTRAN=ON -DHDF5_ENABLE_ZLIB_SUPPORT=ON"
+      if [ "$(find_in_paths "libsz.*" $LIB_PATHS)" != "__FALSE__" ]; then
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DHDF5_ENABLE_SZIP_SUPPORT=ON"
+      fi
+      if [ "${MPI_MODE}" != "no" ]; then
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DHDF5_ENABLE_PARALLEL=ON"
+      fi
+      cmake .. \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DHDF5_BUILD_FORTRAN=ON \
-        -DHDF5_ENABLE_Z_LIB_SUPPORT=ON \
-        .. > configure.log 2>&1 || tail_excerpt configure.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      make install > install.log 2>&1 || tail_excerpt install.log
+        ${CMAKE_OPTIONS} > configure.log 2>&1 || tail_excerpt configure.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
@@ -91,10 +95,8 @@ if [ "${with_hdf5}" != "__DONTUSE__" ]; then
     else
       HDF5_LIBS="-lhdf5_fortran -lhdf5_f90cstub -lhdf5 -lz"
     fi
-    if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
-      if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
-        HDF5_LIBS="${HDF5_LIBS} -lsz"
-      fi
+    if [ -n "$(grep "lsz" ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
+      HDF5_LIBS="${HDF5_LIBS} -lsz"
     fi
     cat << EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
@@ -110,11 +112,8 @@ EOF
     else
       HDF5_LIBS="-lhdf5_fortran -lhdf5_hl -lhdf5 -lz"
     fi
-    if [ -f "${pkg_install_dir}/lib/pkgconfig/hdf5.pc" ]; then
-      if [ -n "$(grep libsz ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ]; then
-        HDF5_LIBS="${HDF5_LIBS} -lsz"
-      fi
-    elif [ -n "$(grep -- "-lsz" ${pkg_install_dir}/lib/libhdf5.settings)" ]; then
+    if [ -n "$(grep "lsz" ${pkg_install_dir}/lib/pkgconfig/hdf5.pc)" ] ||
+      [ -n "$(grep "lsz" ${pkg_install_dir}/lib/libhdf5.settings)" ]; then
       HDF5_LIBS="${HDF5_LIBS} -lsz"
     fi
   fi

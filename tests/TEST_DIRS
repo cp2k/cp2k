@@ -361,6 +361,7 @@ QS/regtest-tddfpt-prop
 QS/regtest-pao-3
 QS/regtest-double-hybrid-stress-numer-laplace               libxc !ifx
 QS/regtest-as                                               libint !ifx
+QS/regtest-as-qcschema                                      hdf5 libint !ifx
 QS/regtest-double-hybrid-2                                  libint !ifx
 QS/regtest-sccs-2
 FE/regtest-3
