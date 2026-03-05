@@ -656,6 +656,7 @@ download_pkg_from_urlpath() {
   if checksum "${__sha256}" "${__outfile}"; then
     echo "Checksum of $__filename Ok"
   else
+    rm -vf "${__outfile}"
     report_error "Checksum of $__filename could not be verified, abort."
     return 1
   fi
