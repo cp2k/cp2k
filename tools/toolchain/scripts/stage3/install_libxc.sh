@@ -38,8 +38,26 @@ case "$with_libxc" in
       cd libxc-${libxc_ver}
       mkdir build
       cd build
+
+      # Lower the optimization level of KXC functionals for GCC to reduce time cost
+      # LXC functionals are not used so ignore them
+      if [ "${with_gcc}" != "__DONTUSE__" ]; then
+        if [ "${with_intel}" = "__DONTUSE__" ] && [ "${with_amd}" = "__DONTUSE__" ]; then
+          MAPLE2C_DIR="../src/maple2c"
+          for f in "$MAPLE2C_DIR"/gga_exc/*.c "$MAPLE2C_DIR"/mgga_exc/*.c "$MAPLE2C_DIR"/lda_exc/*.c; do
+            [ -f "$f" ] || continue
+            if grep -q "^func_kxc_" "$f" && ! grep -q "__attribute__((optimize" "$f"; then
+              sed -i 's/^func_kxc_/__attribute__((optimize("O1"))) func_kxc_/' "$f"
+            fi
+          done
+          LIBXC_CFLAGS="${CFLAGS} -fno-var-tracking"
+        else
+          LIBXC_CFLAGS="${CFLAGS}"
+        fi
+      fi
+
       # CP2K does not make use of fourth derivatives, so skip their compilation with -DDISABLE_KXC=OFF
-      cmake \
+      CFLAGS="${LIBXC_CFLAGS}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
