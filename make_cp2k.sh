@@ -408,11 +408,6 @@ while [[ $# -gt 0 ]]; do
             ${EXIT_CMD} 1
             ;;
         esac
-        if ((CUDA_SM_CODE > 0)); then
-          # Currently needed
-          USE_EXTERNALS="yes"
-          echo "INFO: The use of externals (-ue flag) is currently enforced with CUDA"
-        fi
       else
         echo -e "\nERROR: No argument found for flag \"${1}\" (choose <CUDA SM code>, P100, V100, T400, A100, A40, H100, H200, GH200 or none)\n"
         ${EXIT_CMD} 1
