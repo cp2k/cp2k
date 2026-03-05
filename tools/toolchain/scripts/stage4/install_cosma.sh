@@ -39,12 +39,9 @@ case "$with_cosma" in
       if [ -f COSMA-v${cosma_ver}.tar.gz ]; then
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
-        #download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
-        #download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
-        #download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
-        download_pkg_from_urlpath "${cosma_sha256}" "v${cosma_ver}.tar.gz" https://github.com/eth-cscs/COSMA/archive/refs/tags "COSMA-v${cosma_ver}.tar.gz"
-        download_pkg_from_urlpath "${costa_sha256}" "v${costa_ver}.tar.gz" https://github.com/eth-cscs/COSTA/archive/refs/tags "COSTA-v${costa_ver}.tar.gz"
-        download_pkg_from_urlpath "${tiled_mm_sha256}" "v${tiled_mm_ver}.tar.gz" https://github.com/eth-cscs/Tiled-MM/archive/refs/tags "Tiled-MM-v${tiled_mm_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
