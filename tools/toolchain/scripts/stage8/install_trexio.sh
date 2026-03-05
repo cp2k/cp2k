@@ -34,15 +34,9 @@ case "$with_trexio" in
     if verify_checksums "${install_lock_file}"; then
       echo "trexio-${trexio_ver} is already installed, skipping it."
     else
+      retrieve_package "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d trexio-${trexio_ver} ] && rm -rf trexio-${trexio_ver}
-
-      if [ -f trexio-${trexio_ver}.tar.gz ]; then
-        echo "trexio_${trexio_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
-      fi
-
       tar -xzf trexio-${trexio_ver}.tar.gz
       cd trexio-${trexio_ver}
 

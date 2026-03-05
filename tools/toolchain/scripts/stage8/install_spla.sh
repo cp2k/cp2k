@@ -27,12 +27,7 @@ case "${with_spla}" in
     if verify_checksums "${install_lock_file}"; then
       echo "SpLA-${spla_ver} is already installed, skipping it."
     else
-      if [ -f SpLA-${spla_ver}.tar.gz ]; then
-        echo "SpLA-${spla_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${spla_sha256}" "SpLA-${spla_ver}.tar.gz"
-
-      fi
+      retrieve_package "${spla_sha256}" "SpLA-${spla_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d SpLA-${spla_ver} ] && rm -rf SpLA-${spla_ver}
       tar -xzf SpLA-${spla_ver}.tar.gz

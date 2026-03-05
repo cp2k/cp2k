@@ -38,16 +38,10 @@ case "$with_plumed" in
     if verify_checksums "${install_lock_file}"; then
       echo "plumed-${plumed_ver} is already installed, skipping it."
     else
-      if [ -f ${plumed_pkg} ]; then
-        echo "${plumed_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${plumed_sha256}" "${plumed_pkg}"
-      fi
-
+      retrieve_package "${plumed_sha256}" "${plumed_pkg}"
+      echo "Installing from scratch into ${pkg_install_dir}"
       [ -d plumed-${plumed_ver} ] && rm -rf plumed-${plumed_ver}
       tar -xzf ${plumed_pkg}
-
-      echo "Installing from scratch into ${pkg_install_dir}"
       cd plumed-${plumed_ver}
       # disable generating debugging infos for now to work around an issue in gcc-10.2:
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96354

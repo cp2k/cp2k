@@ -27,18 +27,14 @@ case "${with_spfft}" in
     if verify_checksums "${install_lock_file}"; then
       echo "SpFFT-${spfft_ver} is already installed, skipping it."
     else
-      if [ -f SpFFT-${spfft_ver}.tar.gz ]; then
-        echo "SpFFT-${spfft_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${spfft_sha256}" "SpFFT-${spfft_ver}.tar.gz"
-
-      fi
+      retrieve_package "${spfft_sha256}" "SpFFT-${spfft_ver}.tar.gz"
+      echo "Installing from scratch into ${pkg_install_dir}"
       if [ "${MATH_MODE}" = "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
       else
         EXTRA_CMAKE_FLAGS=""
       fi
-      echo "Installing from scratch into ${pkg_install_dir}"
+      
       [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
       tar -xzf SpFFT-${spfft_ver}.tar.gz
       cd SpFFT-${spfft_ver}

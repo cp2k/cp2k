@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gsl_ver="2.8"
-gls_sha256="6a99eeed15632c6354895b1dd542ed5a855c0f15d9ad1326c6fe2b2c9e423190"
+gsl_sha256="6a99eeed15632c6354895b1dd542ed5a855c0f15d9ad1326c6fe2b2c9e423190"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,11 +27,7 @@ case "$with_gsl" in
     if verify_checksums "${install_lock_file}"; then
       echo "gsl-${gsl_ver} is already installed, skipping it."
     else
-      if [ -f gsl-${gsl_ver}.tar.gz ]; then
-        echo "gsl-${gsl_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${gls_sha256}" "gsl-${gsl_ver}.tar.gz"
-      fi
+      retrieve_package "${gsl_sha256}" "gsl-${gsl_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d gsl-${gsl_ver} ] && rm -rf gsl-${gsl_ver}
       tar -xzf gsl-${gsl_ver}.tar.gz

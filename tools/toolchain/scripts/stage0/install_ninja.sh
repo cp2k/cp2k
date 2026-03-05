@@ -29,11 +29,7 @@ case "${with_ninja}" in
     if verify_checksums "${install_lock_file}"; then
       echo "ninja-v${ninja_ver} is already installed, skipping it."
     else
-      if [ -f ninja-v${ninja_ver}.tar.gz ]; then
-        echo "ninja-v${ninja_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${ninja_sha256}" "ninja-v${ninja_ver}.tar.gz"
-      fi
+      retrieve_package "${ninja_sha256}" "ninja-v${ninja_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
       tar -xzf ninja-v${ninja_ver}.tar.gz

@@ -27,12 +27,7 @@ case "${with_pugixml}" in
     if verify_checksums "${install_lock_file}"; then
       echo "pugixml-${pugixml_ver} is already installed, skipping it."
     else
-      if [ -f pugixml-${pugixml_ver}.tar.gz ]; then
-        echo "pugixml-${pugixml_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${pugixml_sha256}" "pugixml-${pugixml_ver}.tar.gz"
-
-      fi
+      retrieve_package "${pugixml_sha256}" "pugixml-${pugixml_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d pugixml-${pugixml_ver} ] && rm -rf pugixml-${pugixml_ver}
       tar -xzf pugixml-${pugixml_ver}.tar.gz
