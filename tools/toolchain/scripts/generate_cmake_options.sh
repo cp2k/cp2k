@@ -73,7 +73,7 @@ fi
 # -------------------------
 if [ "${dry_run}" = "__TRUE__" ]; then
   cat << EOF
-Suggested cmake command if toolchain is built with your options: 
+Suggested cmake command if toolchain is built with your options:
   cmake .. ${CMAKE_OPTIONS}
 EOF
 else

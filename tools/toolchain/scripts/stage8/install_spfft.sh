@@ -34,7 +34,7 @@ case "${with_spfft}" in
       else
         EXTRA_CMAKE_FLAGS=""
       fi
-      
+
       [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
       tar -xzf SpFFT-${spfft_ver}.tar.gz
       cd SpFFT-${spfft_ver}
