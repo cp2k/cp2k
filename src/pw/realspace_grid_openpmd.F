@@ -305,7 +305,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
-      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER                                            :: count1, count2, count3, handle, i, I1, &
                                                             I2, I3, iat, L1, L2, L3, my_rank, &
@@ -324,6 +323,9 @@ CONTAINS
       TYPE(openpmd_record_component_type)                :: scalar_mesh
 
       CALL timeset(routineN, handle)
+
+      ! The optional argument title is not used yet
+      MARK_USED(title)
 
       my_zero_tails = .FALSE.
       be_silent = .FALSE.
@@ -417,7 +419,7 @@ CONTAINS
       L1 = offset(1)*my_stride(1)
       L2 = pw%pw_grid%bounds_local(1, 2)
       L3 = pw%pw_grid%bounds_local(1, 3)
-      ! U1 = pw%pw_grid%bounds_local(2, 1)
+      U1 = pw%pw_grid%bounds_local(2, 1)
       ! offset + local_extent is the start index for the next rank already
       ! since the indexes are inclusive, subtract 1 from the boundary index
       U1 = (offset(1) + local_extent(1) - 1)*my_stride(1)

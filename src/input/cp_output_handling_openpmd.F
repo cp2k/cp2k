@@ -314,8 +314,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: openpmd_basename, extension
       CHARACTER(len=default_path_length)                 :: filename
 
-      CHARACTER(len=default_path_length)                 :: outPath, root
-      CHARACTER(len=default_string_length)               :: outName
+      CHARACTER(len=default_path_length)                 :: outName, outPath, root
       INTEGER                                            :: my_ind1, my_ind2
       LOGICAL                                            :: has_root
 
@@ -601,7 +600,7 @@ CONTAINS
          IF (LEN_TRIM(openpmd_config) == 0) THEN
             CALL section_vals_val_get(print_key, "OPENPMD_CFG", c_val=openpmd_config)
          ELSE
-            openpmd_config = "@"//openpmd_config
+            openpmd_config = "@"//TRIM(openpmd_config)
          END IF
          filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, file_extension)
 
