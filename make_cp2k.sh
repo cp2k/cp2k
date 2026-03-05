@@ -160,6 +160,7 @@ else
   MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
+NUM_PACKAGES=4
 NVCC_VERSION=0
 REBUILD_CP2K="no"
 RUN_TEST="no"
@@ -473,6 +474,29 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -np)
+      if (($# > 1)); then
+        case "${2}" in
+          -*)
+            shift 1
+            ;;
+          [0-9]*)
+            NUM_PACKAGES="${2}"
+            shift 2
+            ;;
+          *)
+            echo "ERROR: The -np flag can only be followed by an integer number, found \"${2}\""
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        shift 1
+      fi
+      ;;
+    -np[0-9]*)
+      NUM_PACKAGES="${1#-np}"
+      shift 1
+      ;;
     -rc | --rebuild_cp2k)
       REBUILD_CP2K="yes"
       shift 1
@@ -513,7 +537,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Remove leading zeros from NUM_PROCS
+# Remove leading zeros from NUM_PACKAGES and NUM_PROCS
+NUM_PACKAGES=$(awk '{print $1+0}' <<< "${NUM_PACKAGES}")
 NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 
 # Check if we are working within a docker or podman container
@@ -535,7 +560,7 @@ CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
 export BUILD_DEPS BUILD_DEPS_ONLY CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE \
   DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
-  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -554,6 +579,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
+  echo "                    [-np #PACKAGES]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | -test \"TESTOPTS\"]"
   echo "                    [-ue | --use_externals]"
@@ -572,8 +598,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model          : Select GPU model (default: none)"
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
-  echo " -j                   : Number of processes used in parallel"
+  echo " -j                   : Maximum number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
+  echo " -np                  : Maximum number of packages built by spack in parallel (default: 4)"
   echo " --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test               : Perform a regression test run after a successful build"
   echo " --use_externals      : Use external packages installed on the host system. This results in much"
@@ -616,6 +643,7 @@ echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
+echo "NUM_PACKAGES        = ${NUM_PACKAGES} (packages are built by spack concurrently)"
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
 echo "Physical cores      = $(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l) (host view)"
 echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
@@ -639,6 +667,12 @@ echo "CMAKE_FEATURE_FLAGS = ${CMAKE_FEATURE_FLAGS}"
 echo ""
 
 ((VERBOSE > 0)) && echo "SED_PATTERN_LIST    = ${SED_PATTERN_LIST}"
+
+# Check if a valid number for the packages to be built by spack in parallel is given
+if ((NUM_PACKAGES < 1)); then
+  echo "ERROR: The requested number of packages to be built by spack in parallel should be larger than 0, found \"${NUM_PACKAGES}\""
+  ${EXIT_CMD} 1
+fi
 
 # Check if a valid number of processes is requested
 if ((NUM_PROCS < 1)); then
@@ -1088,7 +1122,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Install CP2K dependencies via Spack
-  if ! make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse; then
+  if ! make -j"${NUM_PACKAGES}" --file=spack_makefile --output-sync=recurse; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
