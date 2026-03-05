@@ -160,6 +160,7 @@ else
   MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
+NUM_PACKAGES=1
 NVCC_VERSION=0
 REBUILD_CP2K="no"
 RUN_TEST="no"
@@ -473,6 +474,25 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -np | --num_packages)
+      if (($# > 1)); then
+        case "${2}" in
+          -*)
+            shift 1
+            ;;
+          [0-9]*)
+            NUM_PACKAGES="${2}"
+            shift 2
+            ;;
+          *)
+            echo "ERROR: The -nt flag can only be followed by an integer number, found \"${2}\""
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        shift 1
+      fi
+      ;;
     -rc | --rebuild_cp2k)
       REBUILD_CP2K="yes"
       shift 1
@@ -554,6 +574,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
+  echo "                    [-np | --num_packages #NUM_PACKAGES]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | -test \"TESTOPTS\"]"
   echo "                    [-ue | --use_externals]"
@@ -574,6 +595,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
   echo " -j                   : Number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
+  echo " --num_packages       : Number of dependency packages to be installed via Spack at the same time"
   echo " --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test               : Perform a regression test run after a successful build"
   echo " --use_externals      : Use external packages installed on the host system. This results in much"
@@ -616,6 +638,7 @@ echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
 echo "MPI_MODE            = ${MPI_MODE}"
+echo "NUM_PACKAGES        = ${NUM_PACKAGES}"
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
 echo "Physical cores      = $(lscpu -p=Core,Socket | grep -v '#' | sort -u | wc -l) (host view)"
 echo "REBUILD_CP2K        = ${REBUILD_CP2K}"
@@ -646,6 +669,19 @@ if ((NUM_PROCS < 1)); then
   ${EXIT_CMD} 1
 elif ((MAX_PROCS > 0)) && ((NUM_PROCS > MAX_PROCS)); then
   echo "WARNING: The requested number of processes (${NUM_PROCS}) is larger than the detected number of CPU cores (${MAX_PROCS})"
+fi
+
+# Check if a valid number of Spack tasks is requested
+if ((NUM_PACKAGES < 1)); then
+  echo "ERROR: The requested number of Spack tasks should be larger than 0, found \"${NUM_PACKAGES}\""
+  ${EXIT_CMD} 1
+elif ((NUM_PROCS > 0)) && ((NUM_PACKAGES > NUM_PROCS)); then
+  echo "ERROR: The requested number of Spack tasks (${NUM_PACKAGES}) is larger than the requested number of processes (${NUM_PROCS})"
+  ${EXIT_CMD} 1
+elif ((NUM_PROCS % NUM_PACKAGES != 0)); then
+  echo "ERROR: The requested number of processes (${NUM_PROCS}) should be a multiple of the number of Spack tasks (${NUM_PACKAGES})"
+  echo "       This ensures an even distribution of CPU cores across all concurrent tasks."
+  ${EXIT_CMD} 1
 fi
 
 # Check if a valid CMake build type is selected for the dependencies
@@ -1081,14 +1117,9 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Create spack makefile for all dependencies
-  if ! spack -e "${CP2K_ENV}" env depfile -o spack_makefile; then
-    echo "ERROR: The creation of the spack makefile failed"
-    ${EXIT_CMD} 1
-  fi
-
   # Install CP2K dependencies via Spack
-  if ! make -j"${NUM_PROCS}" --file=spack_makefile SPACK_COLOR=never --output-sync=recurse; then
+  spack -e "${CP2K_ENV}" config add "config:concurrent_packages:${NUM_PACKAGES}" "config:build_jobs:$((NUM_PROCS / NUM_PACKAGES))"
+  if ! spack -e "${CP2K_ENV}" install; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
