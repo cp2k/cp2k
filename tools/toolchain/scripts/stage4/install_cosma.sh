@@ -6,12 +6,12 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.7.0"
-cosma_sha256="f4775d18379539d7bb5053bff8acb4e13d6ed31a9677f498d9099a7500488789"
-costa_ver="2.2.2"
-costa_sha256="e87bc37aad14ac0c5922237be5d5390145c9ac6aef0350ed17d86cb2d994e67c"
-tiled_mm_ver="2.3.1"
-tiled_mm_sha256="68914a483e62f796b790ea428210b1d5ef5943d6289e53d1aa62f56a20fbccc8"
+cosma_ver="2.8.1"
+cosma_sha256="563bb0785dca32ede780a05ad424db9b6d7f473a909ca423931b96204e2b5d9c"
+costa_ver="2.3.0"
+costa_sha256="0413311a2821d4cd1f3f026672a75a5b5a2956f61305c07d7fc14565a126b517"
+tiled_mm_ver="2.3.2"
+tiled_mm_sha256="1f91ca02f6ee8e400835fa90630618baf86a7b425b4bbbb4151068f72658b858"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -39,9 +39,12 @@ case "$with_cosma" in
       if [ -f COSMA-v${cosma_ver}.tar.gz ]; then
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
-        download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
-        download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
-        download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
+        #download_pkg_from_cp2k_org "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
+        #download_pkg_from_cp2k_org "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
+        #download_pkg_from_cp2k_org "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
+        download_pkg_from_urlpath "${cosma_sha256}" "v${cosma_ver}.tar.gz" https://github.com/eth-cscs/COSMA/archive/refs/tags "COSMA-v${cosma_ver}.tar.gz"
+        download_pkg_from_urlpath "${costa_sha256}" "v${costa_ver}.tar.gz" https://github.com/eth-cscs/COSTA/archive/refs/tags "COSTA-v${costa_ver}.tar.gz"
+        download_pkg_from_urlpath "${tiled_mm_sha256}" "v${tiled_mm_ver}.tar.gz" https://github.com/eth-cscs/Tiled-MM/archive/refs/tags "Tiled-MM-v${tiled_mm_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
