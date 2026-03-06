@@ -21,8 +21,10 @@ MODULE hdf5_wrapper
       h5open_f, h5s_scalar_f, h5sclose_f, h5screate_f, h5screate_simple_f, &
       h5sget_simple_extent_npoints_f, h5t_c_s1, h5t_cset_utf8_f, h5t_enum_f, h5t_native_double, &
       h5t_native_integer, h5t_str_nullpad_f, h5t_string, h5tclose_f, h5tcopy_f, h5tcreate_f, &
-      h5pcreate_f, h5pclose_f, h5pset_fapl_mpio_f, h5p_file_access_f, h5p_default_f, &
       h5tenum_insert_f, h5tset_cset_f, h5tset_size_f, h5tset_strpad_f, hid_t, hsize_t, size_t
+#if defined(__parallel)
+   USE hdf5, ONLY: h5pcreate_f, h5pclose_f, h5p_file_access_f, h5p_default_f, h5pset_fapl_mpio_f
+#endif
 #endif
    USE iso_c_binding, ONLY: C_LOC, &
                             c_ptr
@@ -73,12 +75,19 @@ CONTAINS
       INTEGER(KIND=hid_t), INTENT(OUT)                   :: file_id
 
       INTEGER                                            :: error
+#if defined(__parallel)
       INTEGER(KIND=hid_t)                                :: plist_id
+#endif
 
+#if defined(__parallel)
       CALL h5pcreate_f(h5p_file_access_f, plist_id, error)
       CALL h5pset_fapl_mpio_f(plist_id, mp_comm_world%get_handle(), mp_info_null%get_handle(), error)
       CALL h5fcreate_f(filename, h5f_acc_trunc_f, file_id, error, access_prp=plist_id)
       CALL h5pclose_f(plist_id, error)
+#else
+      CALL h5fcreate_f(filename, h5f_acc_trunc_f, file_id, error)
+#endif
+
       IF (error < 0) CPABORT('ERROR: failed to create HDF5 file')
 
    END SUBROUTINE h5fcreate
@@ -93,12 +102,19 @@ CONTAINS
       INTEGER(KIND=hid_t), INTENT(OUT)                   :: file_id
 
       INTEGER                                            :: error
+#if defined(__parallel)
       INTEGER(KIND=hid_t)                                :: plist_id
+#endif
 
+#if defined(__parallel)
       CALL h5pcreate_f(h5p_file_access_f, plist_id, error)
       CALL h5pset_fapl_mpio_f(plist_id, mp_comm_world%get_handle(), mp_info_null%get_handle(), error)
       CALL h5fopen_f(filename, h5f_acc_rdwr_f, file_id, error, access_prp=plist_id)
       CALL h5pclose_f(plist_id, error)
+#else
+      CALL h5fopen_f(filename, h5f_acc_rdwr_f, file_id, error)
+#endif
+
       IF (error < 0) CPABORT('ERROR: failed to open HDF5 file')
 
    END SUBROUTINE h5fopen
