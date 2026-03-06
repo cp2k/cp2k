@@ -19,8 +19,7 @@ MODULE rixs_methods
                                               rixs_control_type
    USE cp_control_utils,                ONLY: read_rixs_control
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
-                                              copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -28,7 +27,6 @@ MODULE rixs_methods
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -37,9 +35,11 @@ MODULE rixs_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE header,                          ONLY: rixs_header
+   USE input_constants,                 ONLY: xas_1s_type,&
+                                              xas_2p_type,&
+                                              xas_2s_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE input_constants,                 ONLY: xas_1s_type, xas_2p_type, xas_2s_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -122,9 +122,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-      INTEGER :: ax, c_nstates, current_state_index, handle, iatom, ispin, istate, &
-         nactive_max, nao, nex_atoms, nspins, output_unit, td_state, v_nstates, k, &
-         n_states_donor
+      INTEGER :: ax, c_nstates, current_state_index, handle, iatom, ispin, istate, k, &
+         n_states_donor, nactive_max, nao, nex_atoms, nspins, output_unit, td_state, v_nstates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive, nocc
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
@@ -132,12 +131,11 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, cRc_struct, dip_0_struct, &
-         gs_coeff_struct, i_dip_0_struct, Rc_struct, matrix_struct, &
-         overlap_struct
+         gs_coeff_struct, i_dip_0_struct, matrix_struct, overlap_struct, Rc_struct
       TYPE(cp_fm_type)                                   :: dip_0
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, i_dip_0, &
-                                                            Rc, state_gs_coeffs, overlap_X, &
-                                                            Y_overlap_X, mat_product
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, i_dip_0, mat_product, &
+                                                            overlap_X, Rc, state_gs_coeffs, &
+                                                            Y_overlap_X
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_active
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
       TYPE(cp_fm_type), POINTER                          :: target_ex_coeffs
@@ -205,6 +203,8 @@ CONTAINS
             ELSE IF (dft_control%roks) THEN
                roks = .TRUE.
                WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Closed-Shell Kohn-Sham"
             END IF
          END IF
 
@@ -224,17 +224,15 @@ CONTAINS
             CALL cp_fm_get_info(matrix=local_gs_coeffs(ispin), ncol_global=nocc(ispin))
             CALL cp_fm_get_info(matrix=mo_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
             ! res tddft
-            IF (.NOT. roks) THEN
-               IF (nocc(ispin) /= nactive(ispin)) THEN
-                  WRITE(*,*) "RES TDDFT requested"
-                  ! CPABORT("RIXS with restricted space excitations NYI")
+            IF (nocc(ispin) /= nactive(ispin)) THEN
+               IF (.NOT. roks) THEN
+                  IF (output_unit > 0) THEN
+                     WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Reduced Excitation Space TDDFPT requested."
+                  END IF
                END IF
             END IF
          END DO
          nactive_max = MAXVAL(nactive)
-
-         WRITE(*,*) "number of active orbitals:", SIZE(valence_state%index_mos_active)
-         WRITE(*,*) "active orbital index:", valence_state%index_mos_active
 
          nex_atoms = core_state%nex_atoms
          v_nstates = valence_state%nstates
@@ -330,7 +328,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
             END DO
-            
+
             DO ispin = 1, nspins
                ! initialise cRc (nocc x nactive)
                CALL cp_fm_struct_create(Rc_struct, para_env=para_env, context=blacs_env, &
@@ -392,25 +390,24 @@ CONTAINS
                      "to valence-excited state ", td_state, " with energy ", w_if(td_state)
                END IF
 
-               
                DO ispin = 1, nspins
-                  ! 1) build S*X (aoxactive)
+                  ! 1) build S*X (nao x nactive)
                   CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, valence_evects(ispin, td_state), overlap_X(ispin), &
-                                                ncol=nactive(ispin))
-                  ! 2) build Y^T*S*X (c_statexactive)
+                                               ncol=nactive(ispin))
+                  ! 2) build Y^T*S*X (c_states x nactive)
                   CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
-                                       overlap_X(ispin), 0.0_dp, Y_overlap_X(ispin))
+                                     overlap_X(ispin), 0.0_dp, Y_overlap_X(ispin))
                END DO
 
                DO ax = 1, 3
 
                   DO ispin = 1, nspins
-                     ! 3) build c_i^T*R*c
-                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_active(ispin), Rc(ispin), ncol=nactive(ispin)) ! nao x nactive
-                     CALL parallel_gemm('T', 'N', n_states_donor, nactive(ispin), nao, 1.0_dp, state_gs_coeffs(ispin), & 
-                                        Rc(ispin), 0.0_dp, cRc(ispin)) ! k x nactive
+                     ! 3) build c_i^T*R*c (k x nactive)
+                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_active(ispin), Rc(ispin), ncol=nactive(ispin))
+                     CALL parallel_gemm('T', 'N', n_states_donor, nactive(ispin), nao, 1.0_dp, state_gs_coeffs(ispin), &
+                                        Rc(ispin), 0.0_dp, cRc(ispin))
 
-                     ! 4) build mat_product (Y^T*S*X*c_i^T*R*c)
+                     ! 4) build mat_product (Y^T*S*X*c_i^T*R*c) (c_nstates x k)
                      CALL parallel_gemm('N', 'T', c_nstates, n_states_donor, nactive(ispin), 1.0_dp, Y_overlap_X(ispin), &
                                         cRc(ispin), 0.0_dp, mat_product(ispin))
                   END DO
@@ -420,7 +417,7 @@ CONTAINS
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
                            CALL cp_fm_get_submatrix(fm=mat_product(ispin), target_m=dip_block, start_row=istate, &
-                                                      start_col=k, n_rows=1, n_cols=1)
+                                                    start_col=k, n_rows=1, n_cols=1)
                            mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
                         END DO ! ispin
                      END DO ! k

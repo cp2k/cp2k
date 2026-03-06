@@ -547,7 +547,7 @@ CONTAINS
          ALLOCATE (valence_state%mos_active(nspins))
          DO ispin = 1, nspins
             ! copy active indexes
-            valence_state%index_mos_active(ispin,:) = gs_mos(ispin)%index_active(:)
+            valence_state%index_mos_active(ispin, :) = gs_mos(ispin)%index_active(:)
             ! copy evects
             DO istate = 1, nstates
                CALL cp_fm_get_info(matrix=evects(ispin, istate), &

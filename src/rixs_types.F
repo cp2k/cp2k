@@ -48,7 +48,7 @@ MODULE rixs_types
       TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                                       :: mos_active => NULL()
       ! index of active orbitals
-      INTEGER, ALLOCATABLE, DIMENSION(:,:)               :: index_mos_active
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)               :: index_mos_active
 
    END TYPE tddfpt2_valence_type
 
