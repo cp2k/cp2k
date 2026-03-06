@@ -219,8 +219,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      iunit = cp_logger_get_default_unit_nr()
-
       CALL get_qs_env(qs_env, &
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, &
@@ -230,6 +228,12 @@ CONTAINS
                       cell=cell, &
                       dft_control=dft_control)
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+
+      IF (para_env%is_source()) THEN
+         iunit = cp_logger_get_default_unit_nr()
+      ELSE
+         iunit = -1
+      END IF
 
       totalcharge = dft_control%charge
 
@@ -388,8 +392,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      iunit = cp_logger_get_default_unit_nr()
-
       CALL get_qs_env(qs_env, &
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, &
@@ -401,6 +403,13 @@ CONTAINS
                       virial=virial, &
                       atprop=atprop, &
                       dft_control=dft_control)
+
+      IF (para_env%is_source()) THEN
+         iunit = cp_logger_get_default_unit_nr()
+      ELSE
+         iunit = -1
+      END IF
+
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
