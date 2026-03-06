@@ -359,13 +359,15 @@ CONTAINS
       beta = 0.0_dp
       IF (op == "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
-            CALL strsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), a_sp(1, 1), n, REAL(beta, sp), outm_sp(1, 1), n)
+            CALL strsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), &
+                           a_sp(1, 1), n, REAL(beta, sp), outm_sp(1, 1), n)
          ELSE
             CALL dtrsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), a(1, 1), n, beta, outm(1, 1), n)
          END IF
       ELSE
          IF (fm_matrix%use_sp) THEN
-            CALL strmm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), a_sp(1, 1), n, REAL(beta, sp), outm_sp(1, 1), n)
+            CALL strmm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), &
+                           a_sp(1, 1), n, REAL(beta, sp), outm_sp(1, 1), n)
          ELSE
             CALL dtrmm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, mdim), a(1, 1), n, beta, outm(1, 1), n)
          END IF
