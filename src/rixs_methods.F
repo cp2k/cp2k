@@ -132,11 +132,11 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, cRc_struct, dip_0_struct, &
-         dip_f_struct, gs_coeff_struct, i_dip_0_struct, i_dip_f_struct, Rc_struct, matrix_struct, &
+         gs_coeff_struct, i_dip_0_struct, Rc_struct, matrix_struct, &
          overlap_struct
       TYPE(cp_fm_type)                                   :: dip_0
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, dip_f, i_dip_0, &
-                                                            i_dip_f, Rc, state_gs_coeffs, overlap_X, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, i_dip_0, &
+                                                            Rc, state_gs_coeffs, overlap_X, &
                                                             Y_overlap_X, mat_product
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_active
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
@@ -154,7 +154,7 @@ CONTAINS
       NULLIFY (valence_state, core_state)
       NULLIFY (para_env, blacs_env)
       NULLIFY (local_gs_coeffs, mo_active, valence_evects)
-      NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, dip_f_struct, i_dip_f_struct, &
+      NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, &
                core_evect_struct, gs_coeff_struct)
 
       output_unit = cp_logger_get_default_io_unit()
@@ -267,7 +267,6 @@ CONTAINS
          ALLOCATE (dip_block(1, nspins), mu_i0(4, c_nstates), mu_if(4, c_nstates, v_nstates), w_i0(c_nstates), w_if(v_nstates))
          w_if(:) = valence_state%evals(1:v_nstates)*evolt
          ALLOCATE (i_dip_0(nspins))
-         ALLOCATE (dip_f(nspins), i_dip_f(nspins))
          ALLOCATE (Rc(nspins), cRc(nspins))
          ALLOCATE (overlap_X(nspins), Y_overlap_X(nspins), mat_product(nspins))
 
@@ -330,18 +329,6 @@ CONTAINS
                                      nrow_global=c_nstates, ncol_global=1)
             DO ispin = 1, nspins
                CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
-            END DO
-
-            ! initialise matrices for i->f
-            DO ispin = 1, nspins
-               CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nao, ncol_global=nactive(ispin))
-               CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=c_nstates, ncol_global=nactive(ispin))
-               CALL cp_fm_create(dip_f(ispin), dip_f_struct)
-               CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
-               CALL cp_fm_struct_release(i_dip_f_struct)
-               CALL cp_fm_struct_release(dip_f_struct)
             END DO
             
             DO ispin = 1, nspins
@@ -456,8 +443,6 @@ CONTAINS
                CALL cp_fm_release(core_evects(ispin))
                CALL cp_fm_release(state_gs_coeffs(ispin))
                CALL cp_fm_release(i_dip_0(ispin))
-               CALL cp_fm_release(i_dip_f(ispin))
-               CALL cp_fm_release(dip_f(ispin))
                CALL cp_fm_release(Rc(ispin))
                CALL cp_fm_release(cRc(ispin))
                CALL cp_fm_release(overlap_X(ispin))
