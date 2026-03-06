@@ -170,6 +170,7 @@ USE_EXTERNALS="no"
 VERBOSE=0
 VERBOSE_FLAG="--quiet"
 VERBOSE_MAKEFILE="OFF"
+VERBOSE_SPACK=""
 
 export CP2K_ENV="cp2k_env"
 export CP2K_ROOT=${CP2K_ROOT:-${PWD}}
@@ -474,7 +475,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    -np)
+    -np | --num_packages)
       if (($# > 1)); then
         case "${2}" in
           -*)
@@ -492,10 +493,6 @@ while [[ $# -gt 0 ]]; do
       else
         shift 1
       fi
-      ;;
-    -np[0-9]*)
-      NUM_PACKAGES="${1#-np}"
-      shift 1
       ;;
     -rc | --rebuild_cp2k)
       REBUILD_CP2K="yes"
@@ -521,6 +518,7 @@ while [[ $# -gt 0 ]]; do
       INSTALL_MESSAGE="LAZY"
       VERBOSE_FLAG="--verbose"
       VERBOSE_MAKEFILE="ON"
+      VERBOSE_SPACK="--verbose"
       shift 1
       ;;
     --)
@@ -560,7 +558,7 @@ CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
 export BUILD_DEPS BUILD_DEPS_ONLY CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE \
   DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
-  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE
+  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -579,7 +577,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
-  echo "                    [-np #PACKAGES]"
+  echo "                    [-np | --num_packages #PACKAGES]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | -test \"TESTOPTS\"]"
   echo "                    [-ue | --use_externals]"
@@ -600,7 +598,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --install_path       : Define the CP2K installation path (default: ./install)"
   echo " -j                   : Maximum number of processes used in parallel"
   echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
-  echo " -np                  : Maximum number of packages built by spack in parallel (default: 4)"
+  echo " --num_packages       : Maximum number of packages built by spack in parallel (default: 4)"
   echo " --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test               : Perform a regression test run after a successful build"
   echo " --use_externals      : Use external packages installed on the host system. This results in much"
@@ -670,7 +668,10 @@ echo ""
 
 # Check if a valid number for the packages to be built by spack in parallel is given
 if ((NUM_PACKAGES < 1)); then
-  echo "ERROR: The requested number of packages to be built by spack in parallel should be larger than 0, found \"${NUM_PACKAGES}\""
+  echo -e "\nERROR: The requested number of packages to be built by spack in parallel should be larger than 0, found \"${NUM_PACKAGES}\""
+  ${EXIT_CMD} 1
+elif ((NUM_PROCS > 0)) && ((NUM_PACKAGES > NUM_PROCS)); then
+  echo -e "\nERROR: The requested number of packages to be built in parallel by spack (${NUM_PACKAGES}) is larger than the requested number of processes (${NUM_PROCS})"
   ${EXIT_CMD} 1
 fi
 
@@ -1083,7 +1084,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       ${EXIT_CMD} 1
     fi
     # Concretize CP2K dependencies
-    if ! spack -e "${CP2K_ENV}" concretize --fresh; then
+    if ! spack -e "${CP2K_ENV}" concretize --fresh --jobs $((NUM_PROCS)); then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       echo ""
       echo "HINT: The (-ue | --use_externals) flags can cause conflicts with outdated"
@@ -1107,7 +1108,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
         fi
       fi
     fi
-    if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh; then
+    if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh --jobs $((NUM_PROCS)); then
       echo -e "\nERROR: The spack concretize for environment \"${CP2K_ENV}\" failed"
       ${EXIT_CMD} 1
     fi
@@ -1115,14 +1116,8 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
 
   ((VERBOSE > 0)) && spack find -c
 
-  # Create spack makefile for all dependencies
-  if ! spack -e "${CP2K_ENV}" env depfile -o spack_makefile; then
-    echo "ERROR: The creation of the spack makefile failed"
-    ${EXIT_CMD} 1
-  fi
-
   # Install CP2K dependencies via Spack
-  if ! make -j"${NUM_PACKAGES}" --file=spack_makefile --output-sync=recurse; then
+  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS / NUM_PACKAGES))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
