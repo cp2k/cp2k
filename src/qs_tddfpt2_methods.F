@@ -537,11 +537,6 @@ CONTAINS
          ALLOCATE (valence_state%evals(SIZE(evals)))
          valence_state%evals(:) = evals(:)
 
-         ! ALLOCATE nmo(npsins)
-         ! DO ispin = 1,nspins
-         !    nmo(ispin) = SIZE(gs_mos(ispin)%index_active)
-         ! END DO
-         ! WRITE(*,*) "nactive all:", nactive(:)
          ALLOCATE (valence_state%index_mos_active(nspins, MAXVAL(tddfpt_control%nactive)))
          ALLOCATE (valence_state%evects(nspins, nstates))
          ALLOCATE (valence_state%mos_active(nspins))
