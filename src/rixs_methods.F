@@ -226,8 +226,8 @@ CONTAINS
             ! res tddft
             IF (.NOT. roks) THEN
                IF (nocc(ispin) /= nactive(ispin)) THEN
-                  ! WRITE(*,*) "RES TDDFT requested"
-                  CPABORT("RIXS with restricted space excitations NYI")
+                  WRITE(*,*) "RES TDDFT requested"
+                  ! CPABORT("RIXS with restricted space excitations NYI")
                END IF
             END IF
          END DO
