@@ -1421,9 +1421,12 @@ CONTAINS
       CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
       CALL cp_fm_struct_release(nmo_nmo_struct)
 
-      ! =======================================================================
-      ! Phase 1: Initialize C_new(k) = B(1) * C_1(k)
-      ! =======================================================================
+      ! Phase 1: Delegate Orthogonalization and Density Building
+      ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
+      ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
+      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)
+
+      ! Phase 2: Initialize C_new(k) = B(1) * C_1(k)
       t1_state => wfi_get_snapshot(wf_history, wf_index=1)
       alpha_coeff = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
 
@@ -1443,9 +1446,7 @@ CONTAINS
          END DO
       END DO
 
-      ! =======================================================================
-      ! Phase 2: Accumulate historical snapshots C_new += B(i) * C_proj(k)
-      ! =======================================================================
+      ! Phase 3: Accumulate historical snapshots C_new += B(i) * C_proj(k)
       DO i = 2, nvec
          t0_state => wfi_get_snapshot(wf_history, wf_index=i)
          alpha_coeff = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
@@ -1483,13 +1484,6 @@ CONTAINS
       CALL cp_cfm_release(cmos_i)
       CALL cp_cfm_release(cfm_nao_nmo_work)
       CALL cp_cfm_release(csc_cfm)
-
-      ! =======================================================================
-      ! Phase 3: Delegate Orthogonalization and Density Building
-      ! =======================================================================
-      ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
-      ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
-      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)
 
       CALL timestop(handle)
 
