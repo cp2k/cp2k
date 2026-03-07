@@ -864,23 +864,23 @@ CONTAINS
          to = MIN(from + 2, nvib)
          WRITE (UNIT=iw, FMT="(T2,'VIB|',13X,3(8X,I5,8X))") &
             (icol, icol=from, to)
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,ES18.6E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,ES18.10E3,2X))") &
             (freq(icol), icol=from, to)
          IF (ASSOCIATED(intensities_d)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,ES18.6E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,ES18.10E3,2X))") &
                (fint*intensities_d(icol)**2, icol=from, to)
          END IF
          IF (ASSOCIATED(intensities_p)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^4/amu)  ',3(1X,ES18.6E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^4/amu)  ',3(1X,ES18.10E3,2X))") &
                (pint*intensities_p(icol), icol=from, to)
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (P)  ',3(1X,ES18.6E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (P)  ',3(1X,ES18.10E3,2X))") &
                (depol_p(icol), icol=from, to)
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (U)  ',3(1X,ES18.6E3,2X))") &
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Depol Ratio (U)  ',3(1X,ES18.10E3,2X))") &
                (depol_u(icol), icol=from, to)
          END IF
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,ES18.6E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,ES18.10E3,2X))") &
             (m(icol), icol=from, to)
-         WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,ES18.6E3,2X))") &
+         WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,ES18.10E3,2X))") &
             (k(icol), icol=from, to)
          WRITE (UNIT=iw, FMT="(T2,' ATOM',2X,'EL',7X,3(4X,'  X  ',1X,'  Y  ',1X,'  Z  '))")
          DO iatom = 1, natom, 3
