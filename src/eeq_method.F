@@ -31,7 +31,10 @@ MODULE eeq_method
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: medium_print_level
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE eeq_data,                        ONLY: get_eeq_data
@@ -207,6 +210,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -229,7 +233,8 @@ CONTAINS
                       dft_control=dft_control)
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
 
-      IF (para_env%is_source()) THEN
+      logger => cp_get_default_logger()
+      IF (para_env%is_source() .AND. logger%iter_info%print_level >= medium_print_level) THEN
          iunit = cp_logger_get_default_unit_nr()
       ELSE
          iunit = -1
@@ -370,6 +375,7 @@ CONTAINS
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: distribution_1d, local_particles
@@ -404,7 +410,8 @@ CONTAINS
                       atprop=atprop, &
                       dft_control=dft_control)
 
-      IF (para_env%is_source()) THEN
+      logger => cp_get_default_logger()
+      IF (para_env%is_source() .AND. logger%iter_info%print_level >= medium_print_level) THEN
          iunit = cp_logger_get_default_unit_nr()
       ELSE
          iunit = -1
