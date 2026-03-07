@@ -537,9 +537,12 @@ CONTAINS
          ALLOCATE (valence_state%evals(SIZE(evals)))
          valence_state%evals(:) = evals(:)
 
+         ALLOCATE (valence_state%index_mos_active(nspins, MAXVAL(tddfpt_control%nactive)))
          ALLOCATE (valence_state%evects(nspins, nstates))
          ALLOCATE (valence_state%mos_active(nspins))
          DO ispin = 1, nspins
+            ! copy active indexes
+            valence_state%index_mos_active(ispin, :) = gs_mos(ispin)%index_active(:)
             ! copy evects
             DO istate = 1, nstates
                CALL cp_fm_get_info(matrix=evects(ispin, istate), &

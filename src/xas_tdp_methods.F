@@ -2488,7 +2488,7 @@ CONTAINS
       CALL dgemm('T', 'N', ndo_so, ndo_so, nsgf, 1.0_dp, donor_state%contract_coeffs, nsgf, &
                  work_array, nsgf, 0.0_dp, pop_mat, ndo_so)
 
-!  The Mullikan population for the MOs in on the diagonal.
+!  The Mulliken population for the MOs in on the diagonal.
       DO ispin = 1, nspins
          DO i = 1, ndo_mo
             mul_pop(i, ispin) = pop_mat((ispin - 1)*ndo_mo + i, (ispin - 1)*ndo_mo + i)

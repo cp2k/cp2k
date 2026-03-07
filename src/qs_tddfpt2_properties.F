@@ -603,7 +603,7 @@ CONTAINS
                   CALL cp_fm_trace(evects(ispin, :), dipole_op_mos_occ(ideriv, ispin), &
                                    trans_dipoles(:, ideriv, ispin))
                END DO
-            ELSE
+            ELSE ! res
                CALL cp_fm_get_info(evects(ispin, 1), matrix_struct=matrix_struct)
                CALL cp_fm_create(dipact, matrix_struct)
                DO ideriv = 1, nderivs

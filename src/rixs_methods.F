@@ -18,8 +18,7 @@ MODULE rixs_methods
                                               rixs_control_release,&
                                               rixs_control_type
    USE cp_control_utils,                ONLY: read_rixs_control
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -28,7 +27,6 @@ MODULE rixs_methods
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -37,6 +35,9 @@ MODULE rixs_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE header,                          ONLY: rixs_header
+   USE input_constants,                 ONLY: xas_1s_type,&
+                                              xas_2p_type,&
+                                              xas_2s_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -60,7 +61,7 @@ MODULE rixs_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rixs_methods'
 
-   PUBLIC :: rixs, rixs_core
+   PUBLIC :: rixs
 
 CONTAINS
 
@@ -121,20 +122,21 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-      INTEGER :: ax, c_nstates, current_state_index, fstate, handle, iatom, ispin, istate, &
-         nactive_max, nao, ncol, nex_atoms, nocc, nspins, output_unit, td_state, v_nstates
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive
+      INTEGER :: ax, c_nstates, current_state_index, handle, iatom, ispin, istate, k, &
+         n_states_donor, nactive_max, nao, nex_atoms, nspins, output_unit, td_state, v_nstates
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nactive, nocc
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, cRc_struct, dip_0_struct, &
-         dip_f_struct, gs_coeff_struct, i_dip_0_struct, i_dip_f_struct, Rc_struct
+         gs_coeff_struct, i_dip_0_struct, matrix_struct, overlap_struct, Rc_struct
       TYPE(cp_fm_type)                                   :: dip_0
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, dip_f, i_dip_0, &
-                                                            i_dip_f, Rc, state_gs_coeffs
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_coeffs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, cRc, i_dip_0, mat_product, &
+                                                            overlap_X, Rc, state_gs_coeffs, &
+                                                            Y_overlap_X
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_active
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
       TYPE(cp_fm_type), POINTER                          :: target_ex_coeffs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
@@ -149,8 +151,8 @@ CONTAINS
       NULLIFY (rixs_control, dft_control, rixs_env)
       NULLIFY (valence_state, core_state)
       NULLIFY (para_env, blacs_env)
-      NULLIFY (local_gs_coeffs, mo_coeffs, valence_evects)
-      NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, dip_f_struct, i_dip_f_struct, &
+      NULLIFY (local_gs_coeffs, mo_active, valence_evects)
+      NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, &
                core_evect_struct, gs_coeff_struct)
 
       output_unit = cp_logger_get_default_io_unit()
@@ -201,6 +203,8 @@ CONTAINS
             ELSE IF (dft_control%roks) THEN
                roks = .TRUE.
                WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Closed-Shell Kohn-Sham"
             END IF
          END IF
 
@@ -208,34 +212,25 @@ CONTAINS
          valence_state => rixs_env%valence_state
 
          ! gs coefficients from tddfpt
-         mo_coeffs => valence_state%mos_active
+         mo_active => valence_state%mos_active
          ! localised gs coefficients from xas_tdp
          local_gs_coeffs => core_state%mo_coeff
          valence_evects => valence_state%evects
 
-         ! res tddft
-         IF (.NOT. roks) THEN
-            CALL cp_fm_get_info(matrix=local_gs_coeffs(1), ncol_global=nocc)
-            CALL cp_fm_get_info(matrix=mo_coeffs(1), ncol_global=ncol)
-            IF (ncol /= nocc) THEN
-               CPABORT("RIXS with restricted space excitations NYI")
-            END IF
-         END IF
-
-         IF (rixs_control%xas_tdp_control%do_loc) THEN
-            IF (output_unit > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                  "RIXS| Found localised XAS_TDP orbitals"
-               WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                  "RIXS| Rotating TDDFPT vectors..."
-            END IF
-            CALL rotate_vectors(valence_state%evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
-         END IF
-
          ! find max nactive for open-shell cases
          ALLOCATE (nactive(nspins))
+         ALLOCATE (nocc(nspins))
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=mo_coeffs(ispin), nrow_global=nao, ncol_global=nactive(ispin))
+            CALL cp_fm_get_info(matrix=local_gs_coeffs(ispin), ncol_global=nocc(ispin))
+            CALL cp_fm_get_info(matrix=mo_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
+            ! res tddft
+            IF (nocc(ispin) /= nactive(ispin)) THEN
+               IF (.NOT. roks) THEN
+                  IF (output_unit > 0) THEN
+                     WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Reduced Excitation Space TDDFPT requested."
+                  END IF
+               END IF
+            END IF
          END DO
          nactive_max = MAXVAL(nactive)
 
@@ -270,8 +265,8 @@ CONTAINS
          ALLOCATE (dip_block(1, nspins), mu_i0(4, c_nstates), mu_if(4, c_nstates, v_nstates), w_i0(c_nstates), w_if(v_nstates))
          w_if(:) = valence_state%evals(1:v_nstates)*evolt
          ALLOCATE (i_dip_0(nspins))
-         ALLOCATE (dip_f(nspins), i_dip_f(nspins))
          ALLOCATE (Rc(nspins), cRc(nspins))
+         ALLOCATE (overlap_X(nspins), Y_overlap_X(nspins), mat_product(nspins))
 
          CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=c_nstates)
@@ -282,15 +277,21 @@ CONTAINS
          current_state_index = 1
          DO iatom = 1, nex_atoms
             current_state => core_state%donor_states(current_state_index)
+
+            IF (current_state%state_type == xas_1s_type) THEN
+               n_states_donor = 1
+            ELSE IF (current_state%state_type == xas_2s_type) THEN
+               n_states_donor = 1
+            ELSE IF (current_state%state_type == xas_2p_type) THEN
+               n_states_donor = 3
+            END IF
+
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,A,A,I3,A,A)") &
                   "RIXS| Calculating dipole moment from core-excited state ", &
                   core_state%state_type_char(current_state%state_type), " for atom ", &
                   current_state%at_index, " of kind ", TRIM(current_state%at_symbol)
             END IF
-
-            mu_i0 = 0.0_dp
-            mu_if = 0.0_dp
 
             IF (do_sg) THEN ! singlet
                target_ex_coeffs => current_state%sg_coeffs
@@ -328,30 +329,38 @@ CONTAINS
                CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
             END DO
 
-            ! initialise matrices for i->f
             DO ispin = 1, nspins
-               CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nao, ncol_global=nactive(ispin))
-               CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=c_nstates, ncol_global=nactive(ispin))
-               CALL cp_fm_create(dip_f(ispin), dip_f_struct)
-               CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
-               CALL cp_fm_struct_release(i_dip_f_struct)
-               CALL cp_fm_struct_release(dip_f_struct)
-            END DO
-
-            ! initialise cRc
-            DO ispin = 1, nspins
+               ! initialise cRc (nocc x nactive)
                CALL cp_fm_struct_create(Rc_struct, para_env=para_env, context=blacs_env, &
                                         nrow_global=nao, ncol_global=nactive(ispin))
                CALL cp_fm_struct_create(cRc_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=nactive(ispin), ncol_global=nactive(ispin))
+                                        nrow_global=n_states_donor, ncol_global=nactive(ispin))
                CALL cp_fm_create(Rc(ispin), Rc_struct)
                CALL cp_fm_create(cRc(ispin), cRc_struct)
+
+               CALL cp_fm_struct_create(overlap_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=c_nstates, ncol_global=nactive(ispin))
+
+               CALL cp_fm_struct_create(matrix_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=c_nstates, ncol_global=nocc(ispin))
+
+               ! initialise overlap_X
+               CALL cp_fm_create(overlap_X(ispin), Rc_struct) ! nao x nactive
+
+               ! initialise Y_overlap_X
+               CALL cp_fm_create(Y_overlap_X(ispin), overlap_struct) ! c_nstates x nactive
+
+               ! initialise mat_product = Y_overlap_X * cRc
+               CALL cp_fm_create(mat_product(ispin), matrix_struct) ! c_nstates x nocc
+
                CALL cp_fm_struct_release(cRc_struct)
                CALL cp_fm_struct_release(Rc_struct)
+               CALL cp_fm_struct_release(overlap_struct)
+               CALL cp_fm_struct_release(matrix_struct)
             END DO
 
+            mu_i0 = 0.0_dp
+            mu_if = 0.0_dp
             ! 0 -> i
             DO ax = 1, 3
 
@@ -381,36 +390,37 @@ CONTAINS
                      "to valence-excited state ", td_state, " with energy ", w_if(td_state)
                END IF
 
+               DO ispin = 1, nspins
+                  ! 1) build S*X (nao x nactive)
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, valence_evects(ispin, td_state), overlap_X(ispin), &
+                                               ncol=nactive(ispin))
+                  ! 2) build Y^T*S*X (c_states x nactive)
+                  CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
+                                     overlap_X(ispin), 0.0_dp, Y_overlap_X(ispin))
+               END DO
+
                DO ax = 1, 3
 
                   DO ispin = 1, nspins
-
-                     ! 1) build c^T*R*c
-                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_coeffs(ispin), Rc(ispin), ncol=nactive(ispin))
-                     CALL parallel_gemm('T', 'N', nactive(ispin), nactive(ispin), nao, 1.0_dp, mo_coeffs(ispin), &
+                     ! 3) build c_i^T*R*c (k x nactive)
+                     CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, mo_active(ispin), Rc(ispin), ncol=nactive(ispin))
+                     CALL parallel_gemm('T', 'N', n_states_donor, nactive(ispin), nao, 1.0_dp, state_gs_coeffs(ispin), &
                                         Rc(ispin), 0.0_dp, cRc(ispin))
 
-                     ! 2) build dip_f (X*dip = X*c^T*R*c)
-                     CALL parallel_gemm('N', 'N', nao, nactive(ispin), nactive(ispin), 1.0_dp, valence_evects(ispin, td_state), &
-                                        cRc(ispin), 0.0_dp, dip_f(ispin))
-
-                     ! 3) build i_dip_f (Y*dip_f = Y^T*X*c^T*R*c)
-                     CALL parallel_gemm('T', 'N', c_nstates, nactive(ispin), nao, 1.0_dp, core_evects(ispin), &
-                                        dip_f(ispin), 0.0_dp, i_dip_f(ispin))
-
+                     ! 4) build mat_product (Y^T*S*X*c_i^T*R*c) (c_nstates x k)
+                     CALL parallel_gemm('N', 'T', c_nstates, n_states_donor, nactive(ispin), 1.0_dp, Y_overlap_X(ispin), &
+                                        cRc(ispin), 0.0_dp, mat_product(ispin))
                   END DO
 
                   DO istate = 1, c_nstates
-                     DO fstate = 1, nactive_max
+                     DO k = 1, n_states_donor
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
-                           IF (fstate <= nactive(ispin)) THEN
-                              CALL cp_fm_get_submatrix(fm=i_dip_f(ispin), target_m=dip_block, start_row=istate, &
-                                                       start_col=fstate, n_rows=1, n_cols=1)
-                              mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
-                           END IF
+                           CALL cp_fm_get_submatrix(fm=mat_product(ispin), target_m=dip_block, start_row=istate, &
+                                                    start_col=k, n_rows=1, n_cols=1)
+                           mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
                         END DO ! ispin
-                     END DO ! fstate (tddft)
+                     END DO ! k
                      mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_if(ax, istate, td_state)**2
                   END DO ! istate (core)
 
@@ -430,10 +440,11 @@ CONTAINS
                CALL cp_fm_release(core_evects(ispin))
                CALL cp_fm_release(state_gs_coeffs(ispin))
                CALL cp_fm_release(i_dip_0(ispin))
-               CALL cp_fm_release(i_dip_f(ispin))
-               CALL cp_fm_release(dip_f(ispin))
                CALL cp_fm_release(Rc(ispin))
                CALL cp_fm_release(cRc(ispin))
+               CALL cp_fm_release(overlap_X(ispin))
+               CALL cp_fm_release(Y_overlap_X(ispin))
+               CALL cp_fm_release(mat_product(ispin))
             END DO
             CALL cp_fm_struct_release(i_dip_0_struct)
             CALL cp_fm_struct_release(dip_0_struct)
@@ -457,75 +468,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rixs_core
-
-! **************************************************************************************************
-!> \brief Rotate vectors. Returns rotated mo_occ and evects.
-!> \param evects ...
-!> \param mo_ref ...
-!> \param mo_occ ...
-!> \param overlap_matrix ...
-!> \param unit_nr ...
-! **************************************************************************************************
-
-   SUBROUTINE rotate_vectors(evects, mo_ref, mo_occ, overlap_matrix, unit_nr)
-      TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
-      TYPE(cp_fm_type), DIMENSION(:)                     :: mo_ref, mo_occ
-      TYPE(dbcsr_type), POINTER                          :: overlap_matrix
-      INTEGER                                            :: unit_nr
-
-      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
-                                                            nstates
-      REAL(kind=dp)                                      :: diff
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
-      TYPE(cp_fm_type)                                   :: emat, rotated_mo_coeffs, smo
-      TYPE(cp_fm_type), POINTER                          :: current_evect
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      NULLIFY (emat_struct, para_env, blacs_env, current_evect)
-
-      nspins = SIZE(evects, DIM=1)
-      DO ispin = 1, nspins
-
-         CALL cp_fm_get_info(matrix=mo_occ(ispin), nrow_global=nrow, ncol_global=ncol, &
-                             para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(smo, mo_occ(ispin)%matrix_struct)
-
-         ! rotate mo_occ
-         ! smo = matrix_s x mo_occ
-         CALL cp_dbcsr_sm_fm_multiply(overlap_matrix, mo_occ(ispin), smo, ncol, alpha=1.0_dp, beta=0.0_dp)
-         CALL cp_fm_struct_create(emat_struct, nrow_global=ncol, ncol_global=ncol, &
-                                  para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(emat, emat_struct)
-         ! emat = mo_ref^T x smo
-         CALL parallel_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, mo_ref(ispin), smo, 0.0_dp, emat)
-         CALL cp_fm_create(rotated_mo_coeffs, mo_occ(ispin)%matrix_struct)
-         ! rotated_mo_coeffs = cpmos x emat
-         CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, mo_occ(ispin), emat, 0.0_dp, rotated_mo_coeffs)
-
-         diff = MAXVAL(ABS(rotated_mo_coeffs%local_data - mo_occ(ispin)%local_data))
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, FMT="(T9,A,I2,A,F10.6,/)") "For spin ", ispin, ": Max difference between orbitals = ", diff
-         END IF
-
-         CALL cp_fm_to_fm(rotated_mo_coeffs, mo_occ(ispin))
-
-         nstates = SIZE(evects, DIM=2)
-         DO istate = 1, nstates
-            ASSOCIATE (current_evect => evects(ispin, istate))
-               CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, current_evect, emat, 0.0_dp, smo)
-               CALL cp_fm_to_fm(smo, current_evect)
-            END ASSOCIATE
-         END DO
-
-         CALL cp_fm_struct_release(emat_struct)
-         CALL cp_fm_release(smo)
-         CALL cp_fm_release(emat)
-         CALL cp_fm_release(rotated_mo_coeffs)
-
-      END DO ! ispin
-
-   END SUBROUTINE rotate_vectors
 
 !**************************************************************************************************
 !> \brief Print RIXS spectrum.
