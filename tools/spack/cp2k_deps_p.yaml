@@ -120,7 +120,6 @@ spack:
     libint:
       require:
         - "+fortran"
-        - "tune=cp2k-lmax-5"
 
     libxc:
       require:
@@ -192,7 +191,7 @@ spack:
     - "greenx@2.2"
     - "hdf5@1.14.6"
     - "libfabric@2.4.0"
-    - "libint@2.11.2"
+    - "libint@2.13.1-cp2k-lmax-5"
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
     - "libvori@220621"
