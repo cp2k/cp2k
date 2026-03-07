@@ -31,11 +31,7 @@ case "$with_fftw" in
     if verify_checksums "${install_lock_file}"; then
       echo "fftw-${fftw_ver} is already installed, skipping it."
     else
-      if [ -f ${fftw_pkg} ]; then
-        echo "${fftw_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${fftw_sha256}" "${fftw_pkg}"
-      fi
+      retrieve_package "${fftw_sha256}" "${fftw_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
       tar -xzf ${fftw_pkg}

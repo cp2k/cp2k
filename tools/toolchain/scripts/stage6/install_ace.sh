@@ -35,13 +35,9 @@ case "$with_ace" in
     if verify_checksums "${install_lock_file}"; then
       echo "${ace_dir} aka Ace is already installed, skipping it."
     else
-      if [ -f ${ace_pkg} ]; then
-        echo "${ace_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${ace_sha256}" "${ace_pkg}"
-      fi
-      [ -d ${ace_dir} ] && rm -rf ${ace_dir}
+      retrieve_package "${ace_sha256}" "${ace_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
+      [ -d ${ace_dir} ] && rm -rf ${ace_dir}
       tar -xzf ${ace_pkg}
       cd ${ace_dir}
 

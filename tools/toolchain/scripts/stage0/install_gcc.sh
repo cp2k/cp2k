@@ -30,15 +30,10 @@ case "${with_gcc}" in
     if verify_checksums "${install_lock_file}"; then
       echo "gcc-${gcc_ver} is already installed, skipping it."
     else
-      if [ -f gcc-${gcc_ver}.tar.gz ]; then
-        echo "gcc-${gcc_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${gcc_sha256}" "gcc-${gcc_ver}.tar.gz"
-      fi
+      retrieve_package "${gcc_sha256}" "gcc-${gcc_ver}.tar.gz"
+      echo "Installing GCC from scratch into ${pkg_install_dir}"
       [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
       tar -xzf gcc-${gcc_ver}.tar.gz
-
-      echo "Installing GCC from scratch into ${pkg_install_dir}"
       cd gcc-${gcc_ver}
 
       # Download prerequisites from cp2k.org because gcc.gnu.org returns 403 when queried from GCP.

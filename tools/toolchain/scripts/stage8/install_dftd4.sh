@@ -34,12 +34,7 @@ case "$with_dftd4" in
     if verify_checksums "${install_lock_file}"; then
       echo "dftd4_dist-${dftd4_ver} is already installed, skipping it."
     else
-      if [ -f dftd4-${dftd4_ver}.tar.gz ]; then
-        echo " dftd4-${dftd4_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"
-      fi
-
+      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xzf dftd4-${dftd4_ver}.tar.gz
@@ -125,7 +120,7 @@ export DFTD4="${DFTD4}"
 export DFTD4_INCLUDE_DIRS="${DFTD4_INCLUDE_DIRS}"
 export DFTD4_LINK_LIBRARIES="${DFTD4_LINK_LIBRARIES}"
 export DFTD4_ROOT="${pkg_install_dir}"
-export DFTD4_DFLAGS="${DFTD4_DFLAGS}" 
+export DFTD4_DFLAGS="${DFTD4_DFLAGS}"
 export DFTD4_CFLAGS="${DFTD4_CFLAGS}"
 export DFTD4_LDFLAGS="${DFTD4_LDFLAGS}"
 export DFTD4_LIBS="${DFTD4_LIBS}"

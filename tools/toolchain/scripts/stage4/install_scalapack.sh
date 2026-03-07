@@ -30,11 +30,7 @@ case "$with_scalapack" in
       echo "scalapack-${scalapack_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      if [ -f ${scalapack_pkg} ]; then
-        echo "${scalapack_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${scalapack_sha256}" "${scalapack_pkg}"
-      fi
+      retrieve_package "${scalapack_sha256}" "${scalapack_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
       tar -xzf ${scalapack_pkg}

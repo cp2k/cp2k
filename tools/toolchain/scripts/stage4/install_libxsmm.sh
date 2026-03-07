@@ -34,19 +34,10 @@ EOF
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else
-      if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
-        echo "libxsmm-${libxsmm_ver}.tar.gz is found"
-      else
-        if ! download_pkg_from_cp2k_org "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"; then
-          download_pkg_from_urlpath "${libxsmm_sha256}" "${libxsmm_ver}.tar.gz" \
-            https://github.com/libxsmm/libxsmm/archive \
-            "libxsmm-${libxsmm_ver}.tar.gz"
-        fi
-      fi
+      retrieve_package "${libxsmm_sha256}" "libxsmm-${libxsmm_ver}.tar.gz"
+      echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
       tar -xzf libxsmm-${libxsmm_ver}.tar.gz
-
-      echo "Installing from scratch into ${pkg_install_dir}"
       # note that we do not have to set -L flags to ld for the
       # linked math libraries for the libxsmm build, as for a
       # library this is not required, you just have to provide
