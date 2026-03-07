@@ -1117,7 +1117,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   ((VERBOSE > 0)) && spack find -c
 
   # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS / NUM_PACKAGES))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
