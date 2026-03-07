@@ -160,7 +160,7 @@ else
   MAX_PROCS=-1
   NUM_PROCS=${NUM_PROCS:-8}
 fi
-NUM_PACKAGES=4
+NUM_PACKAGES=2
 NVCC_VERSION=0
 REBUILD_CP2K="no"
 RUN_TEST="no"
@@ -1032,7 +1032,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
 
   # Disable PEXSI because of an issue with SuperLU using recent GCC versions
-  if ((CUDA_SM_CODE > 0)) || ((GCC_VERSION_NEWEST > 14)); then
+  if ((CUDA_SM_CODE > 0)) || ([[ "${GCC_VERSION}" == "auto" ]] && ((GCC_VERSION_NEWEST > 14))); then
     sed -E -e '/\s*-\s+"pexsi@/ s/^ /#/' -i "${CP2K_CONFIG_FILE}"
     echo "INFO: PEXSI has been disabled because CUDA or GCC 15 is used"
   fi
@@ -1117,7 +1117,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   ((VERBOSE > 0)) && spack find -c
 
   # Install CP2K dependencies via Spack
-  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
+  if ! spack -e "${CP2K_ENV}" install --jobs "$((NUM_PROCS / NUM_PACKAGES))" --concurrent-packages "${NUM_PACKAGES}" "${VERBOSE_SPACK}"; then
     echo "ERROR: Building the CP2K dependencies with spack failed"
     if [[ "${USE_EXTERNALS}" == "yes" ]]; then
       echo "HINT:  Try to re-run the build without the (-ue | --use_externals) flag which avoids"
