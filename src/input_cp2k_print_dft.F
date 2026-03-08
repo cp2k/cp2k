@@ -618,10 +618,11 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="OT_NLUMO", &
                           description="Number of unoccupied orbitals to include in the Molden file. "// &
-                          "Only effective when using the OT method. "// &
-                          "Triggers a post-SCF eigensolver to obtain virtual orbital "// &
-                          "energies and coefficients. 0 means no virtual orbitals, "// &
-                          "-1 means all available.", &
+                          "Triggers a post-SCF eigensolver to obtain virtual orbital energies and "// &
+                          "coefficients. Only available with OT method, since diagonalization "// &
+                          "can already compute unoccupied orbitals via `ADDED_MOS` during "// &
+                          "SCF and output them to the Molden file after convergence. "// &
+                          "0 means no virtual orbitals, -1 means all available.", &
                           usage="OT_NLUMO {int}", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)

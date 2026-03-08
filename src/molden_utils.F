@@ -354,7 +354,7 @@ CONTAINS
             IF (ALLOCATED(smatrix)) DEALLOCATE (smatrix)
          END DO
 
-         ! Write unoccupied (virtual) orbitals if provided
+         ! Write unoccupied (virtual) orbitals if provided; only used with OT
          IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
             DO ispin = 1, SIZE(unoccupied_orbs)
                CALL cp_fm_get_info(unoccupied_orbs(ispin), &
