@@ -67,6 +67,7 @@ class Libint(CMakePackage):
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
             self.define_from_variant("LIBINT2_BUILD_SHARED_AND_STATIC_LIBS", "static"),
             self.define_from_variant("LIBINT2_ENABLE_FORTRAN", "fortran"),
+            self.define("LIBINT2_REQUIRE_CXX_API", "OFF"),
         ]
         return args
 
