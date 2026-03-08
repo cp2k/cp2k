@@ -12,7 +12,7 @@ from spack.package import *
 class Libint(CMakePackage):
     """Libint is a high-performance library for computing Gaussian integrals in quantum mechanics.
     This recipe is tailored for CP2K and requires a pre-built libint archive with the source code
-    generated for a specific l value.
+    generated for a specific maximum l value.
     """
 
     homepage = "https://github.com/evaleev/libint"
@@ -42,32 +42,23 @@ class Libint(CMakePackage):
     variant("fortran", default=True, description="Build Fortran interface")
     variant("pic", default=True, description="Build position independent code")
     variant("shared", default=False, description="Build shared library")
-    variant(
-        "static", default=False, description="Build both shared and static libraries in one shot"
-    )
 
     # Build dependencies
     depends_on("c", type="build")
     depends_on("cxx", type="build")
     depends_on("fortran", type="build", when="+fortran")
 
-    depends_on("cmake@3.19:", when="@2.6.0:", type="build")
-    depends_on("libtool", type="build")
-    depends_on("python", type="build")
-
-    conflicts("%gcc@:9", when="@2.9.0:", msg="libint@2.9.0: requires at least gcc 10")
+    depends_on("boost", type="build")
+    depends_on("eigen", type="build")
 
     def setup_build_environment(self, env):
         env.append_flags("CXXFLAGS", "-g1")
-        env.append_flags("FCFLAGS", "-g1")
 
     def cmake_args(self):
         args = [
             self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
-            self.define_from_variant("LIBINT2_BUILD_SHARED_AND_STATIC_LIBS", "static"),
             self.define_from_variant("LIBINT2_ENABLE_FORTRAN", "fortran"),
-            self.define("LIBINT2_REQUIRE_CXX_API", "OFF"),
         ]
         return args
 
