@@ -616,6 +616,16 @@ CONTAINS
                           enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="OT_NLUMO", &
+                          description="Number of unoccupied orbitals to include in the Molden file. "// &
+                          "Only effective when using the OT method. "// &
+                          "Triggers a post-SCF eigensolver to obtain virtual orbital "// &
+                          "energies and coefficients. 0 means no virtual orbitals, "// &
+                          "-1 means all available.", &
+                          usage="OT_NLUMO {int}", &
+                          default_i_val=0)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

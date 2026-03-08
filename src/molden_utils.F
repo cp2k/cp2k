@@ -13,9 +13,11 @@ MODULE molden_utils
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_get_submatrix
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -59,13 +61,20 @@ CONTAINS
 !> \param qs_kind_set for basis set info
 !> \param particle_set particles data structure, for positions and kinds
 !> \param print_section input section containing relevant print key
+!> \param unoccupied_orbs optional: unoccupied orbital coefficients from make_lumo_gpw
+!> \param unoccupied_evals optional: unoccupied orbital eigenvalues
 !> \author MattW, IainB
 ! **************************************************************************************************
-   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section)
+   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section, &
+                               unoccupied_orbs, unoccupied_evals)
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: unoccupied_orbs
+      TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: unoccupied_evals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mos_molden'
       CHARACTER(LEN=molden_lmax+1), PARAMETER            :: angmom = "spdfg"
@@ -73,7 +82,7 @@ CONTAINS
       CHARACTER(LEN=15)                                  :: fmtstr1, fmtstr2
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER :: gto_kind, handle, i, iatom, icgf, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
-         ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, z
+         ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, numos, z
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
@@ -344,6 +353,103 @@ CONTAINS
             IF (ALLOCATED(cmatrix)) DEALLOCATE (cmatrix)
             IF (ALLOCATED(smatrix)) DEALLOCATE (smatrix)
          END DO
+
+         ! Write unoccupied (virtual) orbitals if provided
+         IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
+            DO ispin = 1, SIZE(unoccupied_orbs)
+               CALL cp_fm_get_info(unoccupied_orbs(ispin), &
+                                   nrow_global=nrow_global, &
+                                   ncol_global=numos)
+               ALLOCATE (smatrix(nrow_global, numos))
+               CALL cp_fm_get_submatrix(unoccupied_orbs(ispin), smatrix)
+
+               IF (iw > 0) THEN
+                  IF (gto_kind == gto_cartesian) THEN
+                     CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+                     ALLOCATE (cmatrix(ncgf, numos))
+                     cmatrix = 0.0_dp
+
+                     icgf = 1
+                     isgf = 1
+                     DO iatom = 1, SIZE(particle_set)
+                        NULLIFY (orb_basis_set)
+                        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                        IF (ASSOCIATED(orb_basis_set)) THEN
+                           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                                  nset=nset, nshell=nshell, l=l)
+                           DO iset = 1, nset
+                              DO ishell = 1, nshell(iset)
+                                 lshell = l(ishell, iset)
+                                 CALL dgemm("T", "N", nco(lshell), numos, nso(lshell), 1.0_dp, &
+                                            orbtramat(lshell)%c2s, nso(lshell), &
+                                            smatrix(isgf, 1), nsgf, 0.0_dp, &
+                                            cmatrix(icgf, 1), ncgf)
+                                 icgf = icgf + nco(lshell)
+                                 isgf = isgf + nso(lshell)
+                              END DO
+                           END DO
+                        END IF
+                     END DO
+                  END IF
+
+                  DO icol = 1, numos
+                     irow = 1
+                     irow_in = 1
+
+                     WRITE (iw, '(A,ES20.10)') 'Ene=', unoccupied_evals(ispin)%array(icol)
+                     IF (ispin < 2) THEN
+                        WRITE (iw, '(A)') 'Spin= Alpha'
+                     ELSE
+                        WRITE (iw, '(A)') 'Spin= Beta'
+                     END IF
+                     WRITE (iw, '(A,F12.7)') 'Occup=', 0.0_dp
+
+                     DO iatom = 1, SIZE(particle_set)
+                        NULLIFY (orb_basis_set)
+                        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
+                                             element_symbol=element_symbol, kind_number=ikind)
+                        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+                        IF (ASSOCIATED(orb_basis_set)) THEN
+                           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                                  nset=nset, nshell=nshell, l=l)
+
+                           IF (gto_kind == gto_cartesian) THEN
+                              icgf = 1
+                              DO iset = 1, nset
+                                 DO ishell = 1, nshell(iset)
+                                    lshell = l(ishell, iset)
+                                    IF (lshell <= molden_lmax) THEN
+                                       CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
+                                                         cmatrix(irow:irow + nco(lshell) - 1, icol))
+                                       irow_in = irow_in + nco(lshell)
+                                    END IF
+                                    irow = irow + nco(lshell)
+                                 END DO
+                              END DO
+                           ELSE IF (gto_kind == gto_spherical) THEN
+                              DO iset = 1, nset
+                                 DO ishell = 1, nshell(iset)
+                                    lshell = l(ishell, iset)
+                                    IF (lshell <= molden_lmax) THEN
+                                       CALL print_coeffs(iw, fmtstr1, ndigits, irow_in, orbmap(:, lshell), &
+                                                         smatrix(irow:irow + nso(lshell) - 1, icol))
+                                       irow_in = irow_in + nso(lshell)
+                                    END IF
+                                    irow = irow + nso(lshell)
+                                 END DO
+                              END DO
+                           END IF
+
+                        END IF
+                     END DO ! iatom
+                  END DO ! icol
+               END IF
+
+               IF (ALLOCATED(cmatrix)) DEALLOCATE (cmatrix)
+               IF (ALLOCATED(smatrix)) DEALLOCATE (smatrix)
+            END DO ! ispin
+         END IF
 
          CALL cp_print_key_finished_output(iw, logger, print_section, "")
 
