@@ -117,6 +117,7 @@ CONTAINS
                                                             trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: border, fnorm, mcharge, prmao
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c
       TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4
@@ -364,8 +365,9 @@ CONTAINS
             CALL post_minbas_cubes(qs_env, input_section, fm_mos, ispin)
          END DO
          ! Print basis functions: molden format
+         CALL get_qs_env(qs_env, cell=cell)
          molden_section => section_vals_get_subs_vals(input_section, "MINBAS_MOLDEN")
-         CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section)
+         CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section, cell=cell)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mbas(ispin))
          END DO

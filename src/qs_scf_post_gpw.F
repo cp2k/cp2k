@@ -559,6 +559,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mixed_evals, occupied_evals, &
                                                             unoccupied_evals, unoccupied_evals_stm
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mixed_orbs, occupied_orbs
@@ -1103,7 +1104,7 @@ CONTAINS
          CALL section_vals_val_get(sprint_section, "OT_NLUMO", i_val=nlumo_molden)
          IF (nlumo_molden /= 0 .AND. scf_env%method == ot_method_nr) THEN
             CALL get_qs_env(qs_env, mos=mos, qs_kind_set=qs_kind_set, &
-                            particle_set=particle_set)
+                            particle_set=particle_set, cell=cell)
             ALLOCATE (unoccupied_orbs(dft_control%nspins))
             ALLOCATE (unoccupied_evals(dft_control%nspins))
             CALL make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, &
@@ -1112,7 +1113,7 @@ CONTAINS
                WRITE (output_unit, '(/,T2,A,I6,A)') &
                   "MO_MOLDEN| Writing ", nlumos, " unoccupied orbitals to molden file"
             END IF
-            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, &
+            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
                                   unoccupied_orbs=unoccupied_orbs, &
                                   unoccupied_evals=unoccupied_evals)
             DO ispin = 1, dft_control%nspins
@@ -2124,7 +2125,7 @@ CONTAINS
          END IF
          sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
          IF (.NOT. do_kpoints) THEN
-            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
+            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv, cell=cell)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
             ! Check if molden write should be deferred for OT unoccupied orbitals
             defer_molden = .FALSE.
@@ -2133,7 +2134,7 @@ CONTAINS
                IF (scf_env%method == ot_method_nr) defer_molden = .TRUE.
             END IF
             IF (.NOT. defer_molden) THEN
-               CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
+               CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell)
             END IF
             ! Write Chargemol .wfx
             IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%CHARGEMOL"), &

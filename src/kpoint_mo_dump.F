@@ -271,11 +271,11 @@ CONTAINS
          WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional coords"
 
          WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
-         WRITE (iw, '(3ES16.6)') &
+         WRITE (iw, '(3(F12.6,3X))') &
             cell%hmat(1, 1)*angstrom, cell%hmat(2, 1)*angstrom, cell%hmat(3, 1)*angstrom
-         WRITE (iw, '(3ES16.6)') &
+         WRITE (iw, '(3(F12.6,3X))') &
             cell%hmat(1, 2)*angstrom, cell%hmat(2, 2)*angstrom, cell%hmat(3, 2)*angstrom
-         WRITE (iw, '(3ES16.6)') &
+         WRITE (iw, '(3(F12.6,3X))') &
             cell%hmat(1, 3)*angstrom, cell%hmat(2, 3)*angstrom, cell%hmat(3, 3)*angstrom
 
          WRITE (iw, '(A,4I8)') "# DIMENSIONS: natom nspins nao nkp =", natom, nspins, nao, nkp

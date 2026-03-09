@@ -13,6 +13,7 @@ MODULE molden_utils
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -61,16 +62,18 @@ CONTAINS
 !> \param qs_kind_set for basis set info
 !> \param particle_set particles data structure, for positions and kinds
 !> \param print_section input section containing relevant print key
+!> \param cell ...
 !> \param unoccupied_orbs optional: unoccupied orbital coefficients from make_lumo_gpw
 !> \param unoccupied_evals optional: unoccupied orbital eigenvalues
 !> \author MattW, IainB
 ! **************************************************************************************************
-   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section, &
+   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section, cell, &
                                unoccupied_orbs, unoccupied_evals)
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN), &
@@ -87,7 +90,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
       LOGICAL                                            :: print_warn
-      REAL(KIND=dp)                                      :: expzet, prefac
+      REAL(KIND=dp)                                      :: expzet, prefac, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
@@ -125,14 +128,27 @@ CONTAINS
 
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"
+            WRITE (iw, '(T2,A)') "[Cell] AU"
+            WRITE (iw, '(T2,3(F12.6,3X))') &
+               cell%hmat(1, 1), cell%hmat(2, 1), cell%hmat(3, 1)
+            WRITE (iw, '(T2,3(F12.6,3X))') &
+               cell%hmat(1, 2), cell%hmat(2, 2), cell%hmat(3, 2)
+            WRITE (iw, '(T2,3(F12.6,3X))') &
+               cell%hmat(1, 3), cell%hmat(2, 3), cell%hmat(3, 3)
             WRITE (iw, '(T2,A)') "[Atoms] AU"
             DO i = 1, SIZE(particle_set)
                CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, &
                                     element_symbol=element_symbol)
                CALL get_ptable_info(element_symbol, number=z)
 
-               WRITE (iw, '(T2,A2,I8,I8,3X,3(F12.6,3X))') &
+               WRITE (iw, '(T2,A2,I6,I6,3X,3(F12.6,3X))') &
                   element_symbol, i, z, particle_set(i)%r(:)
+            END DO
+            WRITE (iw, '(T2,A)') "[Nval]"
+            DO i = 1, SIZE(qs_kind_set)
+               CALL get_qs_kind(qs_kind_set(i), zeff=zeff)
+               WRITE (iw, '(T2,A,1X,I6)') &
+                  TRIM(ADJUSTL(qs_kind_set(i)%element_symbol)), NINT(zeff)
             END DO
 
             WRITE (iw, '(T2,A)') "[GTO]"

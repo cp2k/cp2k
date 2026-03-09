@@ -979,6 +979,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(ntomax)                   :: ia_eval
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_mo_struct, fm_struct
       TYPE(cp_fm_type)                                   :: Sev, smat, tmat, wmat, work, wvec
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: teig
@@ -1181,9 +1182,9 @@ CONTAINS
             IF (cube_file) THEN
                CALL print_nto_cubes(qs_env, nto_set, istate, stride, append_cube, nto_section)
             END IF
-            CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set)
+            CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
             molden_section => section_vals_get_subs_vals(print_section, "MOS_MOLDEN")
-            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section)
+            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section, cell=cell)
             !
             DEALLOCATE (eigenvalues)
             CALL cp_fm_release(teig)
