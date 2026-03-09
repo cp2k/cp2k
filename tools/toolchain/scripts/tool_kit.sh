@@ -615,20 +615,21 @@ read_with() {
   esac
 }
 
-# get checksum command based on OS type, inspired by gcc source code
+# get checksum command based on OS type, inspired by part of gcc package
 # (gcc-14.3.0/contrib/download_prerequisites)
 get_checksum_cmd() {
   local __os=$(uname)
+  local __chksum="sha256sum"
   case $__os in
-    "Darwin"|"FreeBSD"|"DragonFly"|"AIX")
+    "Darwin" | "FreeBSD" | "DragonFly" | "AIX")
       __chksum='shasum -a 256'
-    ;;
+      ;;
     "OpenBSD")
       __chksum='sha256'
-    ;;
+      ;;
     *)
       __chksum='sha256sum'
-    ;;
+      ;;
   esac
   echo "$__chksum"
 }
