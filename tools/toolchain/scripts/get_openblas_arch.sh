@@ -35,11 +35,7 @@ echo "==================== Getting proc arch info using OpenBLAS tools =========
 openblas_dir="$(find_openblas_dir)"
 # if cannot find openblas source dir, try download one
 if ! [ "$openblas_dir" ]; then
-  if [ -f ${openblas_pkg} ]; then
-    echo "${openblas_pkg} is found"
-  else
-    download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"
-  fi
+  retrieve_package "${openblas_sha256}" "${openblas_pkg}"
   tar -xzf ${openblas_pkg}
   openblas_dir="$(find_openblas_dir)"
 fi

@@ -34,12 +34,7 @@ case "$with_tblite" in
     if verify_checksums "${install_lock_file}"; then
       echo "tblite-${tblite_ver} is already installed, skipping it."
     else
-      if [ -f tblite-${tblite_ver}.tar.xz ]; then
-        echo "tblite-${tblite_ver}.tar.xz is found"
-      else
-        download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
-      fi
-
+      retrieve_package "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
@@ -144,7 +139,7 @@ export TBLITE="${TBLITE}"
 export TBLITE_INCLUDE_DIRS="${TBLITE_INCLUDE_DIRS}"
 export TBLITE_LINK_LIBRARIES="${TBLITE_LINK_LIBRARIES}"
 export TBLITE_ROOT="${pkg_install_dir}"
-export TBLITE_DFLAGS="${TBLITE_DFLAGS}" 
+export TBLITE_DFLAGS="${TBLITE_DFLAGS}"
 export TBLITE_CFLAGS="${TBLITE_CFLAGS}"
 export TBLITE_LDFLAGS="${TBLITE_LDFLAGS}"
 export TBLITE_LIBS="${TBLITE_LIBS}"

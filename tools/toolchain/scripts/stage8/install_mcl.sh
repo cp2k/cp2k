@@ -30,12 +30,7 @@ case "${with_mcl:=__INSTALL__}" in
     if verify_checksums "${install_lock_file}"; then
       echo "libmcl-${mcl_ver} is already installed, skipping it."
     else
-      if [ -f mcl-${mcl_ver}.tar.gz ]; then
-        echo "mcl-${mcl_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${mcl_sha256}" mcl-${mcl_ver}.tar.gz
-      fi
-
+      retrieve_package "${mcl_sha256}" mcl-${mcl_ver}.tar.gz
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d mcl-${mcl_ver} ] && rm -rf mcl-${mcl_ver}
       tar -xzf mcl-${mcl_ver}.tar.gz

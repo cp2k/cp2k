@@ -27,11 +27,7 @@ case "$with_libxc" in
     if verify_checksums "${install_lock_file}"; then
       echo "libxc-${libxc_ver} is already installed, skipping it."
     else
-      if [ -f libxc-${libxc_ver}.tar.bz2 ]; then
-        echo "libxc-${libxc_ver}.tar.bz2 is found"
-      else
-        download_pkg_from_cp2k_org "${libxc_sha256}" "libxc-${libxc_ver}.tar.bz2"
-      fi
+      retrieve_package "${libxc_sha256}" "libxc-${libxc_ver}.tar.bz2"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
       tar -xjf libxc-${libxc_ver}.tar.bz2

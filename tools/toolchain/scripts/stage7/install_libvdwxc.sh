@@ -35,12 +35,7 @@ case "$with_libvdwxc" in
     if verify_checksums "${install_lock_file}"; then
       echo "libvdwxc-${libvdwxc_ver} is already installed, skipping it."
     else
-      if [ -f libvdwxc-${libvdwxc_ver}.tar.gz ]; then
-        echo "libvdwxc-${libvdwxc_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
-      fi
-
+      retrieve_package "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz

@@ -34,13 +34,9 @@ case "$with_deepmd" in
     if verify_checksums "${install_lock_file}"; then
       echo "libdeepmd_c-${deepmd_ver} is already installed, skipping it."
     else
-      if [ -f ${deepmd_pkg} ]; then
-        echo "${deepmd_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${deepmd_sha256}" "${deepmd_pkg}"
-      fi
-      [ -d deepmd-kit-${deepmd_ver} ] && rm -rf deepmd-kit-${deepmd_ver}
+      retrieve_package "${deepmd_sha256}" "${deepmd_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
+      [ -d deepmd-kit-${deepmd_ver} ] && rm -rf deepmd-kit-${deepmd_ver}
       tar -xzf ${deepmd_pkg}
       cd deepmd-kit-${deepmd_ver}/source
 

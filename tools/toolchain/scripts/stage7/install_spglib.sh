@@ -27,12 +27,7 @@ case "$with_spglib" in
     if verify_checksums "${install_lock_file}"; then
       echo "spglib-${spglib_ver} is already installed, skipping it."
     else
-      if [ -f spglib-${spglib_ver}.tar.gz ]; then
-        echo "spglib-${spglib_ver}.tar.gz is found"
-      else
-        download_pkg_from_cp2k_org "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"
-      fi
-
+      retrieve_package "${spglib_sha256}" "spglib-${spglib_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       rm -rf spglib-${spglib_ver} "${pkg_install_dir}"
       tar -xzf spglib-${spglib_ver}.tar.gz

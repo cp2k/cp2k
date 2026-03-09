@@ -29,12 +29,7 @@ case "${with_openblas}" in
     if verify_checksums "${install_lock_file}"; then
       echo "openblas-${openblas_ver} is already installed, skipping it."
     else
-      if [ -f ${openblas_pkg} ]; then
-        echo "${openblas_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"
-      fi
-
+      retrieve_package "${openblas_sha256}" "${openblas_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
       tar -zxf ${openblas_pkg}
