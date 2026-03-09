@@ -2113,6 +2113,29 @@ CONTAINS
       ! k points
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
 
+      ! For OT method, ensure MO eigenvalues are correctly loaded
+      IF (.NOT. do_kpoints .AND. PRESENT(scf_env)) THEN
+         IF (scf_env%method == ot_method_nr) THEN
+            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
+            IF (ASSOCIATED(mos) .AND. ASSOCIATED(ks_rmpv)) THEN
+               DO ispin = 1, dft_control%nspins
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues)
+                  IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                     mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
+                  ELSE
+                     mo_coeff_deriv => NULL()
+                  END IF
+                  CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                      ks_matrix=ks_rmpv(ispin)%matrix, &
+                                                      evals_arg=mo_eigenvalues, &
+                                                      do_rotation=.TRUE., &
+                                                      co_rotate_dbcsr=mo_coeff_deriv)
+                  CALL set_mo_occupation(mo_set=mos(ispin))
+               END DO
+            END IF
+         END IF
+      END IF
+
       ! Write last MO information to output file if requested
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (.NOT. qs_env%run_rtp) THEN
@@ -2178,9 +2201,7 @@ CONTAINS
             IF (do_kpoints) THEN
                CPWARN("Projected density of states (pDOS) is not implemented for k points")
             ELSE
-               CALL get_qs_env(qs_env, &
-                               mos=mos, &
-                               matrix_ks=ks_rmpv)
+               CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
                DO ispin = 1, dft_control%nspins
                   ! With ADMM, we have to modify the Kohn-Sham matrix
                   IF (dft_control%do_admm) THEN
