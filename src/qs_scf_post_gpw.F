@@ -2125,7 +2125,7 @@ CONTAINS
          END IF
          sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
          IF (.NOT. do_kpoints) THEN
-            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv, cell=cell)
+            CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
             ! Check if molden write should be deferred for OT unoccupied orbitals
             defer_molden = .FALSE.

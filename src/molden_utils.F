@@ -36,7 +36,8 @@ MODULE molden_utils
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
-   USE physcon,                         ONLY: massunit
+   USE physcon,                         ONLY: angstrom,&
+                                              massunit
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -85,12 +86,13 @@ CONTAINS
       CHARACTER(LEN=15)                                  :: fmtstr1, fmtstr2
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER :: gto_kind, handle, i, iatom, icgf, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
-         ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, numos, z
+         ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, numos, &
+         unit_choice, z
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
       LOGICAL                                            :: print_warn
-      REAL(KIND=dp)                                      :: expzet, prefac, zeff
+      REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
@@ -106,6 +108,13 @@ CONTAINS
                                    extension=".molden", file_status='REPLACE')
 
          print_warn = .TRUE.
+
+         CALL section_vals_val_get(print_section, "UNIT", i_val=unit_choice)
+         IF (unit_choice == 2) THEN
+            scale_factor = angstrom
+         ELSE
+            scale_factor = 1.0_dp
+         END IF
 
          CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
          ndigits = MIN(MAX(3, ndigits), 30)
@@ -128,21 +137,29 @@ CONTAINS
 
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"
-            WRITE (iw, '(T2,A)') "[Cell] AU"
+            IF (unit_choice == 2) THEN
+               WRITE (iw, '(T2,A)') "[Cell] Angs"
+            ELSE
+               WRITE (iw, '(T2,A)') "[Cell] AU"
+            END IF
             WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 1), cell%hmat(2, 1), cell%hmat(3, 1)
+               cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
             WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 2), cell%hmat(2, 2), cell%hmat(3, 2)
+               cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
             WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 3), cell%hmat(2, 3), cell%hmat(3, 3)
-            WRITE (iw, '(T2,A)') "[Atoms] AU"
+               cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
+            IF (unit_choice == 2) THEN
+               WRITE (iw, '(T2,A)') "[Atoms] Angs"
+            ELSE
+               WRITE (iw, '(T2,A)') "[Atoms] AU"
+            END IF
             DO i = 1, SIZE(particle_set)
                CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, &
                                     element_symbol=element_symbol)
                CALL get_ptable_info(element_symbol, number=z)
 
                WRITE (iw, '(T2,A2,I6,I6,3X,3(F12.6,3X))') &
-                  element_symbol, i, z, particle_set(i)%r(:)
+                  element_symbol, i, z, particle_set(i)%r(:)*scale_factor
             END DO
             WRITE (iw, '(T2,A)') "[Nval]"
             DO i = 1, SIZE(qs_kind_set)
