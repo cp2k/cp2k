@@ -615,16 +615,22 @@ read_with() {
   esac
 }
 
-# check if we have sha256sum command, Mac OS X does not have
-# sha256sum, but has an equivalent with shasum -a 256
+# get checksum command based on OS type, inspired by gcc source code
+# (gcc-14.3.0/contrib/download_prerequisites)
 get_checksum_cmd() {
-  local __shasum_command='sha256sum'
-  if command -v "$__shasum_command" > /dev/null 2>&1 && ! ${__shasum_command} --version 2>&1 | grep -q 'Darwin'; then
-    __shasum_command='sha256sum'
-  else
-    __shasum_command="shasum -a 256"
-  fi
-  echo "$__shasum_command"
+  OS=$(uname)
+  case $OS in
+    "Darwin"|"FreeBSD"|"DragonFly"|"AIX")
+      __chksum='shasum -a 256'
+    ;;
+    "OpenBSD")
+      __chksum='sha256'
+    ;;
+    *)
+      __chksum='sha256sum'
+    ;;
+  esac
+  echo "$__chksum"
 }
 
 # helper routine to check integrity of files
