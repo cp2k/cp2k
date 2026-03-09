@@ -170,10 +170,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_basisset_type), INTENT(OUT)             :: basis
 
-      INTEGER                                            :: iatom, ikind, iprim, iset, &
-                                                            istart, lval, nkind, npgf, nset, &
-                                                            nshell, nshell_total, shell_index, &
-                                                            local_ishell
+      INTEGER                                            :: iatom, ikind, iprim, iset, istart, &
+                                                            local_ishell, lval, nkind, npgf, nset, &
+                                                            nshell, nshell_total, shell_index
       REAL(c_double), DIMENSION(3)                       :: shell_origin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_shell_type), ALLOCATABLE, DIMENSION(:)  :: shells
@@ -185,15 +184,15 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
-       nshell_total = 0
-       DO iatom = 1, natoms
-          atomic_kind => particle_set(iatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-          gto_basis => basis_set_list(ikind)%gto_basis_set
-          IF (ASSOCIATED(gto_basis)) THEN
-             nshell_total = nshell_total + SUM(gto_basis%nshell)
-          END IF
-       END DO
+      nshell_total = 0
+      DO iatom = 1, natoms
+         atomic_kind => particle_set(iatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+         gto_basis => basis_set_list(ikind)%gto_basis_set
+         IF (ASSOCIATED(gto_basis)) THEN
+            nshell_total = nshell_total + SUM(gto_basis%nshell)
+         END IF
+      END DO
 
       ALLOCATE (shells(nshell_total))
 
@@ -245,6 +244,10 @@ CONTAINS
    !> \brief ...
    !> \param molecule ...
    ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param molecule ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_molecule(molecule)
       TYPE(gauxc_molecule_type), INTENT(INOUT)           :: molecule
 
@@ -256,6 +259,10 @@ CONTAINS
    !> \brief ...
    !> \param basis ...
    ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_basisset(basis)
       TYPE(gauxc_basisset_type), INTENT(INOUT)           :: basis
 
