@@ -2114,6 +2114,35 @@ CONTAINS
       ! k points
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
 
+      IF (.NOT. do_kpoints .AND. .NOT. qs_env%run_rtp) THEN
+         CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
+         IF (PRESENT(scf_env)) THEN
+            IF (scf_env%method == ot_method_nr) THEN
+               ! Ensure eigenvalues are computed for OT, regardless of which
+               ! print keys are active. Multiple post-SCF routines depend on
+               ! valid eigenvalues (MO_MOLDEN, PDOS, MO print, etc.)
+               DO ispin = 1, dft_control%nspins
+                  IF (dft_control%do_admm) THEN
+                     CALL get_qs_env(qs_env, admm_env=admm_env)
+                     CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+                  END IF
+
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
+                                  eigenvalues=mo_eigenvalues)
+                  CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                      ks_matrix=ks_rmpv(ispin)%matrix, &
+                                                      evals_arg=mo_eigenvalues, &
+                                                      do_rotation=.TRUE.)
+                  CALL set_mo_occupation(mo_set=mos(ispin))
+
+                  IF (dft_control%do_admm) THEN
+                     CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+                  END IF
+               END DO
+            END IF
+         END IF
+      END IF
+
       ! Write last MO information to output file if requested
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (.NOT. qs_env%run_rtp) THEN
