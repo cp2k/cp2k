@@ -79,8 +79,6 @@ CONTAINS
       INTEGER:: mpi_comm
 
       grid_spec = "fine"
-      input_file = ""
-      model = ""
       rad_quad_spec = "muraknowles"
       prune_spec = "robust"
       lb_exec_space_str = "host"
@@ -172,9 +170,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_basisset_type), INTENT(OUT)             :: basis
 
-      INTEGER                                            :: iatom, ikind, iprim, iset, ish_local, &
-                                                            ishell, istart, lval, nkind, npgf, &
-                                                            nset, nshell, nshell_total
+      INTEGER                                            :: iatom, ikind, iprim, iset, ishell, &
+                                                            istart, lval, nkind, npgf, nset, &
+                                                            nshell, nshell_total
       REAL(c_double), DIMENSION(3)                       :: shell_origin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_shell_type), ALLOCATABLE, DIMENSION(:)  :: shells
@@ -187,11 +185,11 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       nshell_total = 0
-      DO iatom = 1, natoms
-         atomic_kind => particle_set(iatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+      DO ikind = 1, nkind
          gto_basis => basis_set_list(ikind)%gto_basis_set
-         IF (ASSOCIATED(gto_basis)) nshell_total = nshell_total + SUM(gto_basis%nshell)
+         IF (ASSOCIATED(gto_basis)) THEN
+            nshell_total = nshell_total + SUM(gto_basis%nshell)
+         END IF
       END DO
 
       ALLOCATE (shells(nshell_total))
@@ -214,17 +212,16 @@ CONTAINS
             nshell = gto_basis%nshell(iset)
             npgf = gto_basis%npgf(iset)
 
-            DO ish_local = 0, nshell - 1
-               ishell = ishell + 1
-               lval = gto_basis%l(1, istart + ish_local)
+            DO ishell = istart, istart + nshell - 1
+               lval = gto_basis%l(1, ishell)
                shells(ishell)%l = INT(lval, c_int32_t)
                shells(ishell)%pure = .TRUE._c_bool
                shells(ishell)%nprim = INT(npgf, c_int32_t)
                shells(ishell)%origin = shell_origin
 
                DO iprim = 1, npgf
-                  shells(ishell)%exponents(iprim) = REAL(gto_basis%zet(iprim, istart + ish_local), c_double)
-                  shells(ishell)%coefficients(iprim) = REAL(gto_basis%gcc(iprim, istart + ish_local, 1), c_double)
+                  shells(ishell)%exponents(iprim) = REAL(gto_basis%zet(iprim, ishell), c_double)
+                  shells(ishell)%coefficients(iprim) = REAL(gto_basis%gcc(iprim, ishell, 1), c_double)
                END DO
             END DO
 
