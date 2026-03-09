@@ -618,8 +618,8 @@ read_with() {
 # get checksum command based on OS type, inspired by gcc source code
 # (gcc-14.3.0/contrib/download_prerequisites)
 get_checksum_cmd() {
-  OS=$(uname)
-  case $OS in
+  local __os=$(uname)
+  case $__os in
     "Darwin"|"FreeBSD"|"DragonFly"|"AIX")
       __chksum='shasum -a 256'
     ;;
