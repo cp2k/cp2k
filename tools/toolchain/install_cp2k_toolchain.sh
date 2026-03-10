@@ -1292,17 +1292,17 @@ else
   echo "Options have been parsed successfully."
   echo "Compiling with ${NPROCS_OVERWRITE} processes for target ${TARGET_CPU}."
   echo "# Leak suppressions" > "${INSTALLDIR}"/lsan.supp
-  ./scripts/stage0/install_stage0.sh
-  ./scripts/stage1/install_stage1.sh
-  ./scripts/stage2/install_stage2.sh
-  ./scripts/stage3/install_stage3.sh
-  ./scripts/stage4/install_stage4.sh
-  ./scripts/stage5/install_stage5.sh
-  ./scripts/stage6/install_stage6.sh
-  ./scripts/stage7/install_stage7.sh
-  ./scripts/stage8/install_stage8.sh
-  ./scripts/stage9/install_stage9.sh
+  "${SCRIPTDIR}"/stage0/install_stage0.sh
+  "${SCRIPTDIR}"/stage1/install_stage1.sh
+  "${SCRIPTDIR}"/stage2/install_stage2.sh
+  "${SCRIPTDIR}"/stage3/install_stage3.sh
+  "${SCRIPTDIR}"/stage4/install_stage4.sh
+  "${SCRIPTDIR}"/stage5/install_stage5.sh
+  "${SCRIPTDIR}"/stage6/install_stage6.sh
+  "${SCRIPTDIR}"/stage7/install_stage7.sh
+  "${SCRIPTDIR}"/stage8/install_stage8.sh
+  "${SCRIPTDIR}"/stage9/install_stage9.sh
 fi
 
 # Generate CMake options
-./scripts/generate_cmake_options.sh
+"${SCRIPTDIR}"/generate_cmake_options.sh
