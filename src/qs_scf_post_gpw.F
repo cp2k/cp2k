@@ -2610,9 +2610,19 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The total electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                  TRIM(filename)
+               IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                     "The total electron density is written in " &
+                     //e_density_section%format_name &
+                     //" file format to the file / file pattern:", &
+                     TRIM(filename)
+               ELSE
+                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                     "The total electron density is written in " &
+                     //e_density_section%format_name &
+                     //" file format to the file:", &
+                     TRIM(filename)
+               END IF
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "q(max) [1/Angstrom]              :", q_max/angstrom, &
                   "Soft electronic charge (G-space) :", rho_soft, &
@@ -2656,9 +2666,19 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The total spin density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                        "The total spin density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file / file pattern:", &
+                        TRIM(filename)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                        "The total spin density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file:", &
+                        TRIM(filename)
+                  END IF
                   WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                      "q(max) [1/Angstrom]                    :", q_max/angstrom, &
                      "Soft part of the spin density (G-space):", rho_soft, &
@@ -2697,9 +2717,19 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                   "The sum of alpha and beta density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                        "The sum of alpha and beta density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file / file pattern:", &
+                        TRIM(filename)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                        "The sum of alpha and beta density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file:", &
+                        TRIM(filename)
+                  END IF
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
         particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
@@ -2720,9 +2750,19 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                        "The spin density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file / file pattern:", &
+                        TRIM(filename)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                        "The spin density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file:", &
+                        TRIM(filename)
+                  END IF
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                                particles=particles, zeff=zcharge, &
@@ -2743,9 +2783,19 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                        "The electron density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file / file pattern:", &
+                        TRIM(filename)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                        "The electron density is written in " &
+                        //e_density_section%format_name &
+                        //" file format to the file:", &
+                        TRIM(filename)
+                  END IF
                END IF
                CALL e_density_section%write_pw(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                                                particles=particles, zeff=zcharge, &
@@ -2795,9 +2845,19 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                  TRIM(filename)
+               IF (e_density_section%grid_output == grid_output_openpmd) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                     "The electron density is written in " &
+                     //e_density_section%format_name &
+                     //" file format to the file / file pattern:", &
+                     TRIM(filename)
+               ELSE
+                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+                     "The electron density is written in " &
+                     //e_density_section%format_name &
+                     //" file format to the file:", &
+                     TRIM(filename)
+               END IF
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft electronic charge (R-space) :", rho_soft, &
                   "Hard electronic charge (R-space) :", rho_hard, &
@@ -2838,7 +2898,9 @@ CONTAINS
                   filename = mpi_filename
                END IF
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
+                  "The spin density is written in " &
+                  //e_density_section%format_name &
+                  //" file format to the file:", &
                   TRIM(filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft part of the spin density          :", rho_soft, &
