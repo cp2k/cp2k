@@ -719,7 +719,7 @@ Otherwise use option no."
     --dry-run)
       dry_run="__TRUE__"
       ;;
-    --list-cmake-options=*)
+    --list-cmake-options*)
       list_cmake_options=$(read_enable "${1}")
       if [ "${list_cmake_options}" = "__INVALID__" ]; then
         report_error "invalid value for --list-cmake-options, please use yes or no"
