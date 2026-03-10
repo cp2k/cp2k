@@ -394,8 +394,9 @@ CONTAINS
 
       DO iat = 1, 3
          global_extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
-         ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
+         ! '- 1' for upper gaussian bracket
          offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+         ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
          ! refer local_extent to the global offset first in order to have consistent rounding
          local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
       END DO
@@ -414,13 +415,12 @@ CONTAINS
       ! (when working with a stride, we might have to skip the first n values)
       ! so keep this consistent with the offset and local_extent computed above
       ! L1 = pw%pw_grid%bounds_local(1, 1)
-      L1 = offset(1)*my_stride(1)
+      L1 = pw%pw_grid%bounds(1, 1) + offset(1)*my_stride(1)
       L2 = pw%pw_grid%bounds_local(1, 2)
       L3 = pw%pw_grid%bounds_local(1, 3)
-      ! U1 = pw%pw_grid%bounds_local(2, 1)
       ! offset + local_extent is the start index for the next rank already
       ! since the indexes are inclusive, subtract 1 from the boundary index
-      U1 = (offset(1) + local_extent(1) - 1)*my_stride(1)
+      U1 = pw%pw_grid%bounds(1, 1) + (offset(1) + local_extent(1) - 1)*my_stride(1)
       U2 = pw%pw_grid%bounds_local(2, 2)
       U3 = pw%pw_grid%bounds_local(2, 3)
 
