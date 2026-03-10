@@ -196,12 +196,19 @@ CONTAINS
             CPABORT("RIXS only implemented for singlet and spin-conserving excitations")
          END IF
 
+         roks = .FALSE.
+         uks = .FALSE.
+
+         IF (dft_control%uks) THEN
+            uks = .TRUE.
+         ELSE IF (dft_control%roks) THEN
+            roks = .TRUE.
+         END IF
+
          IF (output_unit > 0) THEN
-            IF (dft_control%uks) THEN
-               uks = .TRUE.
+            IF (uks) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Unrestricted Open-Shell Kohn-Sham"
-            ELSE IF (dft_control%roks) THEN
-               roks = .TRUE.
+            ELSE IF (roks) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
             ELSE
                WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Closed-Shell Kohn-Sham"
@@ -221,16 +228,12 @@ CONTAINS
          ALLOCATE (nactive(nspins))
          ALLOCATE (nocc(nspins))
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=local_gs_coeffs(ispin), ncol_global=nocc(ispin))
-            CALL cp_fm_get_info(matrix=mo_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
-            ! res tddft
-            IF (nocc(ispin) /= nactive(ispin)) THEN
-               IF (.NOT. roks) THEN
-                  IF (output_unit > 0) THEN
-                     WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Reduced Excitation Space TDDFPT requested."
-                  END IF
-               END IF
+            IF (roks) THEN
+               CALL cp_fm_get_info(matrix=local_gs_coeffs(1), ncol_global=nocc(ispin))
+            ELSE
+               CALL cp_fm_get_info(matrix=local_gs_coeffs(ispin), ncol_global=nocc(ispin))
             END IF
+            CALL cp_fm_get_info(matrix=mo_active(ispin), nrow_global=nao, ncol_global=nactive(ispin))
          END DO
          nactive_max = MAXVAL(nactive)
 
@@ -284,6 +287,8 @@ CONTAINS
                n_states_donor = 1
             ELSE IF (current_state%state_type == xas_2p_type) THEN
                n_states_donor = 3
+            ELSE
+               CPABORT("Unsupported core state type")
             END IF
 
             IF (output_unit > 0) THEN
@@ -312,10 +317,10 @@ CONTAINS
                IF (roks) THEN
                   ! store same coeffs for both spins, easier later on
                   CALL cp_fm_to_fm_submat(msource=current_state%gs_coeffs, mtarget=state_gs_coeffs(ispin), s_firstrow=1, &
-                                          s_firstcol=1, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
+                                          s_firstcol=1, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=n_states_donor)
                ELSE
                   CALL cp_fm_to_fm_submat(msource=current_state%gs_coeffs, mtarget=state_gs_coeffs(ispin), s_firstrow=1, &
-                                          s_firstcol=ispin, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
+                                          s_firstcol=ispin, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=n_states_donor)
                END IF
             END DO
 
@@ -342,7 +347,7 @@ CONTAINS
                                         nrow_global=c_nstates, ncol_global=nactive(ispin))
 
                CALL cp_fm_struct_create(matrix_struct, para_env=para_env, context=blacs_env, &
-                                        nrow_global=c_nstates, ncol_global=nocc(ispin))
+                                        nrow_global=c_nstates, ncol_global=n_states_donor)
 
                ! initialise overlap_X
                CALL cp_fm_create(overlap_X(ispin), Rc_struct) ! nao x nactive
