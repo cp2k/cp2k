@@ -79,83 +79,87 @@ $(basename "$SCRIPT_NAME") [options]
 
 OPTIONS:
 
-  -h, --help                Show this message and exit.
-  --help-hpc                Show additional hints for HPC users and exit.
-  -j <n>                    Number of processors for parallel compiling.
-                            If omitted, the script will automatically try to
-                            determine the number of available processors and use
-                            all of them by default.
-  --no-check-certificate    Bypass verification of server's certificate while
-                            downloading anything from internet via wget command.
-                            In case wget errors about "certificate verification"
-                            or "common name doesn't match requested host name"
-                            occur while downloading tarballs, the recommended
-                            solution is to install the latest wget release;
-                            alternatively, this script can be rerun with this
-                            option in command line.
-                            Security wise this should still be okay as sha256
-                            checksums are validated after every tarball
-                            download. Nevertheless, use this option at your own
-                            risk.
-  --install-all             Set value of all --with-PKG options to "install"
-                            (except --with-intel, --with-intelmpi, --with-amd).
-                            By default, GNU compiler and MPICH are installed.
-                            AFTER this option on the command line, you can set
-                            specific --with-PKG options to another value again
-                            for selective fine controls (see below).
-  --mpi-mode                Select which MPI flavour to use. Available options
-                            are: mpich, openmpi, intelmpi, and no.
-                            If omitted, the script will automatically try to
-                            determine the flavour based on the MPI library
-                            available in system path; alternatively, if any of
-                            --with-mpich, --with-openmpi or --with-intelmpi
-                            options (see below) is explicitly set to values
-                            other than no, the script will follow.
-                            For CRAY (CLE) systems and the case that you use
-                            "--with-mpi" but no MPI installation is detected,
-                            the default flavour is mpich.
-                            By selecting "no", MPI is unsupported and disabled.
-  --math-mode               Select which core math library to use. Available
-                            options are: acml, cray, mkl, and openblas.
-                            If omitted, for non-CRAY systems, mkl is the default
-                            when environment variable \$MKLROOT exists, otherwise
-                            openblas is the drefault; for CRAY (CLE) systems,
-                            cray is the default, corresponding to cray libsci.
-                            Alternatively, if any of --with-acml, --with-mkl,
-                            or --with-openblas options (see below) is explicitly
-                            set to values other than no, the script will follow.
-  --target-cpu              Select the target CPU architecture for compiling.
-                            This option determines the value of -mtune flag in
-                            CFLAGS for compilers. If omitted or set to "native",
-                            compiling will be tuned/optimized for the native
-                            host system, and some instruction sets will be
-                            detected including AVX, AVX2, AVX512,etc.
-                            Alternatively this option can be set depending on
-                            actual target CPU microarchitecture, e.g. "haswell",
-                            "skylake", or just "generic".
-                            Default = native
-  --gpu-ver                 Select the target GPU architecture for compiling.
-                            Available options are: K20X, K40, K80, P100, V100,
-                            A100, H100, A40, Mi50, Mi100, Mi250, and no.
-                            This option determines the value of nvcc -arch flag.
-                            Default = no
-  --libint-lmax             Maximum supported angular momentum by libint if the
-                            "--with-libint" option is set to "install".
-                            Available options are: 4, 5, 6, 7. Higher value will
-                            result in more build time and larger library size.
-                            Default = 5
-  --log-lines               The number of final lines from the log file in the
-                            corresponding directory that will be dumped to the
-                            command line in case a package build returns a non-
-                            zero exit code. Due to limited length, this snippet
-                            may not contain the very first warning or error
-                            message.
-                            Default = 200
-  --dry-run                 After writing toolchain config and env files to the
-                            install directory, just print a list of effective
-                            settings after resolving known conflicts, then exit
-                            without actually downloading tarballs or building
-                            packages.
+  -h, --help              Show this message and exit.
+  --help-hpc              Show additional hints for HPC users and exit.
+  -j <n>                  Number of processors for parallel compiling.
+                          If omitted, the script will automatically try to
+                          determine the number of available processors and use
+                          all of them by default.
+  --no-check-certificate  Bypass verification of server's certificate while
+                          downloading anything from internet via wget command.
+                          In case wget errors about "certificate verification"
+                          or "common name doesn't match requested host name"
+                          occur while downloading tarballs, the recommended
+                          solution is to install the latest wget release;
+                          alternatively, this script can be rerun with this
+                          option in command line.
+                          Security wise this should still be okay as sha256
+                          checksums are validated after every tarball
+                          download. Nevertheless, use this option at your own
+                          risk.
+  --install-all           Set value of all --with-PKG options to "install"
+                          (except --with-intel, --with-intelmpi, --with-amd).
+                          By default, GNU compiler and MPICH are installed.
+                          AFTER this option on the command line, you can set
+                          specific --with-PKG options to another value again
+                          for selective fine controls (see below).
+  --mpi-mode              Select which MPI flavour to use. Available options
+                          are: mpich, openmpi, intelmpi, and no.
+                          If omitted, the script will automatically try to
+                          determine the flavour based on the MPI library
+                          available in system path; alternatively, if any of
+                          --with-mpich, --with-openmpi or --with-intelmpi
+                          options (see below) is explicitly set to values
+                          other than no, the script will follow.
+                          For CRAY (CLE) systems and the case that you use
+                          "--with-mpi" but no MPI installation is detected,
+                          the default flavour is mpich.
+                          By selecting "no", MPI is unsupported and disabled.
+  --math-mode             Select which core math library to use. Available
+                          options are: acml, cray, mkl, and openblas.
+                          If omitted, for non-CRAY systems, mkl is the default
+                          when environment variable \$MKLROOT exists, otherwise
+                          openblas is the drefault; for CRAY (CLE) systems,
+                          cray is the default, corresponding to cray libsci.
+                          Alternatively, if any of --with-acml, --with-mkl,
+                          or --with-openblas options (see below) is explicitly
+                          set to values other than no, the script will follow.
+  --target-cpu            Select the target CPU architecture for compiling.
+                          This option determines the value of -mtune flag in
+                          CFLAGS for compilers. If omitted or set to "native",
+                          compiling will be tuned/optimized for the native
+                          host system, and some instruction sets will be
+                          detected including AVX, AVX2, AVX512,etc.
+                          Alternatively this option can be set depending on
+                          actual target CPU microarchitecture, e.g. "haswell",
+                          "skylake", or just "generic".
+                          Default = native
+  --gpu-ver               Select the target GPU architecture for compiling.
+                          Available options are: K20X, K40, K80, P100, V100,
+                          A100, H100, A40, Mi50, Mi100, Mi250, and no.
+                          This option determines the value of nvcc -arch flag.
+                          Default = no
+  --libint-lmax           Maximum supported angular momentum by libint if the
+                          "--with-libint" option is set to "install".
+                          Available options are: 4, 5, 6, 7. Higher value will
+                          result in more build time and larger library size.
+                          Default = 5
+  --log-lines             The number of final lines from the log file in the
+                          corresponding directory that will be dumped to the
+                          command line in case a package build returns a non-
+                          zero exit code. Due to limited length, this snippet
+                          may not contain the very first warning or error
+                          message.
+                          Default = 200
+  --dry-run               After writing toolchain config and env files to the
+                          install directory, just print a list of effective
+                          settings after resolving known conflicts, then exit
+                          without actually downloading tarballs or building
+                          packages.
+  --list-cmake-options    If yes, generate a list of CMake options for building
+                          CP2K with the toolchain configuration as well as some
+                          further instructions at the end of toolchain.
+                          Default = yes
 
 The --enable-FEATURE options follow the rules:
   --enable-FEATURE=yes    Enable this particular feature.
@@ -549,6 +553,7 @@ else
 fi
 
 # default enable options
+list_cmake_options="__TRUE__"
 dry_run="__FALSE__"
 enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
@@ -713,6 +718,13 @@ Otherwise use option no."
       ;;
     --dry-run)
       dry_run="__TRUE__"
+      ;;
+    --list-cmake-options)
+      list_cmake_options=$(read_enable "${1}")
+      if [ "${list_cmake_options}" = "__INVALID__" ]; then
+        report_error "invalid value for --list-cmake-options, please use yes or no"
+        exit 1
+      fi
       ;;
     --enable-tsan*)
       enable_tsan=$(read_enable "${1}")
@@ -1305,4 +1317,6 @@ else
 fi
 
 # Generate CMake options
-"${SCRIPTDIR}"/generate_cmake_options.sh
+if [ "${list_cmake_options}" = "__TRUE__" ]; then
+  "${SCRIPTDIR}"/generate_cmake_options.sh
+fi
