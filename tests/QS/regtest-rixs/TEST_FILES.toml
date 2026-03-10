@@ -2,6 +2,9 @@
 "CO-PBE0.inp"                                  = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017},
                                                   {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.59403}]
 
+"CO-PBE0-res.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017},
+                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.64185}]
+
 "CH3-PBE-roks.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.06592},
                                                   {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=3.09939}]
 
