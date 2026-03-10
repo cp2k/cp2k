@@ -33,15 +33,15 @@ source "${INSTALLDIR}"/toolchain.env
 #
 # First, validate existence of relevant upper-level directory and file
 printf "\n========================== %s =========================\n" \
-"Generating CMake options for building CP2K"
-export CP2K_ROOT=$(real_path "${ROOTDIR}/../..")
+  "Generating CMake options for building CP2K"
+export CP2K_ROOT=$(cd "${ROOTDIR}/../.." && pwd)
 cat << EOF
 Root directory of CP2K is assumed to be ${CP2K_ROOT} (variable \${CP2K_ROOT}).
 Build directory will be ${CP2K_ROOT}/build for executing CMake.
 Install directory will be ${CP2K_ROOT}/install for CP2K binaries, libraries etc.
 EOF
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
-if [ -d "${CP2K_ROOT}/data" ] ; then
+if [ -d "${CP2K_ROOT}/data" ]; then
   echo "Data directory ${CP2K_ROOT}/data is found and set as -DCP2K_DATA_DIR."
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 else
@@ -111,8 +111,12 @@ fi
 
 # Export variable for CMake options to setup file
 echo "export CP2K_CMAKE_OPTIONS=\"${CMAKE_OPTIONS}\"" >> "${SETUPFILE}"
-echo "CMake options from parsing files are now collected in the variable
-\${CP2K_CMAKE_OPTIONS} that is exported at the end of ${SETUPFILE}."
+cat << EOF
+
+CMake options from parsing files are now collected in the variable
+\${CP2K_CMAKE_OPTIONS}, which is exported at the end of setup file:
+${SETUPFILE}
+EOF
 
 # -------------------------
 # print out user instructions
