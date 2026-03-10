@@ -5,4 +5,5 @@ leak:MPIR_Csel_prune
 leak:MPIDIU_avt_init
 leak:MPIR_Group_create
 leak:MPIDIU_alloc_lut
-leak:MPL_malloc
+leak:malloc
+leak:operator new(unsigned long)
