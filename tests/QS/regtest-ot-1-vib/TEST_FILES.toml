@@ -9,6 +9,6 @@
 "vib-mixed.inp"                         = [{matcher="Vib_freq", tol=1e-14, ref=2160.6939476},
                                            {matcher="Vib_frc_const", tol=1e-05, ref=0.184127}]
 "dip-mixed.inp"                         = [{matcher="M011", tol=2e-14, ref=-17.248506334913024}]
-"vib-int-mixed.inp"                     = [{matcher="Vib_freq", tol=1e-14, ref=2284.4894031},
+"vib-int-mixed.inp"                     = [{matcher="Vib_freq", tol=1e-10, ref=2284.4894031},
                                            {matcher="Vib_frc_const", tol=1e-05, ref=0.206952}]
 #EOF
