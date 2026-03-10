@@ -125,7 +125,7 @@ CONTAINS
    SUBROUTINE lib_pexsi_init(pexsi_env, mp_group, nspin)
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
 
-      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
+      CLASS(mp_comm_type), INTENT(IN)                    :: mp_group
       INTEGER, INTENT(IN)                                :: nspin
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'lib_pexsi_init'
@@ -147,7 +147,7 @@ CONTAINS
       CALL cite_reference(Lin2013)
 
       pexsi_env%mp_group = mp_group
-      ASSOCIATE (numnodes => pexsi_env%mp_group%num_pe, mynode => pexsi_env%mp_group%mepos)
+      ASSOCIATE (numnodes => pexsi_env%mp_group%num_pe)
 
          ! Use all nodes available per pole by default or if the user tries to use
          ! more nodes than MPI size
@@ -185,7 +185,7 @@ CONTAINS
 
          ! Initialize PEXSI
          pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group, pexsi_env%mp_dims(1), &
-                                                   pexsi_env%mp_dims(2), mynode)
+                                                   pexsi_env%mp_dims(2), -1)
       END ASSOCIATE
 
       pexsi_env%do_adaptive_tol_nel = .FALSE.
