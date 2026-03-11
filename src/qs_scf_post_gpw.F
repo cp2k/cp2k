@@ -521,7 +521,37 @@ CONTAINS
    END FUNCTION section_key_do_write
 
 ! **************************************************************************************************
-!> \brief collects possible post - scf calculations and prints info / computes properties.
+!> \brief Prints the output message for density file writing
+!> \param output_unit Unit number for output
+!> \param prefix The message prefix (e.g., "The total electron density")
+!> \param e_density_section Section key containing grid_output and format_name
+!> \param filename The actual filename or pattern used
+! **************************************************************************************************
+   SUBROUTINE print_density_output_message(output_unit, prefix, e_density_section, filename)
+      INTEGER, INTENT(IN)                                :: output_unit
+      CHARACTER(len=*), INTENT(IN)                       :: prefix
+      TYPE(cp_section_key), INTENT(IN)                   :: e_density_section
+      CHARACTER(len=*), INTENT(IN)                       :: filename
+
+      IF (e_density_section%grid_output == grid_output_openpmd) THEN
+         WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+            TRIM(prefix)//" is written in " &
+            //e_density_section%format_name &
+            //" file format to the file / file pattern:", &
+            TRIM(filename)
+      ELSE
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
+            TRIM(prefix)//" is written in " &
+            //e_density_section%format_name &
+            //" file format to the file:", &
+            TRIM(filename)
+      END IF
+   END SUBROUTINE print_density_output_message
+
+   ! **************************************************************************************************
+   !> \brief collects possible post - scf calculations and prints info / computes properties.
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param wf_type ...
 !> \param do_mp2 ...
@@ -2611,9 +2641,8 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The total electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                  TRIM(filename)
+               CALL print_density_output_message(output_unit, "The total electron density", &
+                                                 e_density_section, filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "q(max) [1/Angstrom]              :", q_max/angstrom, &
                   "Soft electronic charge (G-space) :", rho_soft, &
@@ -2657,9 +2686,8 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The total spin density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  CALL print_density_output_message(output_unit, "The total spin density", &
+                                                    e_density_section, filename)
                   WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                      "q(max) [1/Angstrom]                    :", q_max/angstrom, &
                      "Soft part of the spin density (G-space):", rho_soft, &
@@ -2698,9 +2726,8 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                   "The sum of alpha and beta density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  CALL print_density_output_message(output_unit, "The sum of alpha and beta density", &
+                                                    e_density_section, filename)
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
         particles=particles, zeff=zcharge, stride=section_get_ivals(dft_section, e_density_section%concat_to_relative("%STRIDE")), &
@@ -2721,9 +2748,8 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  CALL print_density_output_message(output_unit, "The spin density", &
+                                                    e_density_section, filename)
                END IF
                CALL e_density_section%write_pw(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                                particles=particles, zeff=zcharge, &
@@ -2744,9 +2770,8 @@ CONTAINS
                   ELSE
                      filename = mpi_filename
                   END IF
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                     "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                     TRIM(filename)
+                  CALL print_density_output_message(output_unit, "The electron density", &
+                                                    e_density_section, filename)
                END IF
                CALL e_density_section%write_pw(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                                                particles=particles, zeff=zcharge, &
@@ -2796,9 +2821,8 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The electron density is written in "//e_density_section%format_name//" file format to the file:", &
-                  TRIM(filename)
+               CALL print_density_output_message(output_unit, "The electron density", &
+                                                 e_density_section, filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft electronic charge (R-space) :", rho_soft, &
                   "Hard electronic charge (R-space) :", rho_hard, &
@@ -2838,9 +2862,8 @@ CONTAINS
                ELSE
                   filename = mpi_filename
                END IF
-               WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
-                  "The spin density is written in "//e_density_section%format_name//" file format to the file:", &
-                  TRIM(filename)
+               CALL print_density_output_message(output_unit, "The spin density", &
+                                                 e_density_section, filename)
                WRITE (UNIT=output_unit, FMT="(/,(T2,A,F20.10))") &
                   "Soft part of the spin density          :", rho_soft, &
                   "Hard part of the spin density          :", rho_hard, &
