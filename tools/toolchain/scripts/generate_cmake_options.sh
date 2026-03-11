@@ -40,7 +40,10 @@ Root directory of CP2K is assumed to be ${CP2K_ROOT} (variable \${CP2K_ROOT}).
 Build directory will be ${CP2K_ROOT}/build for executing CMake.
 Install directory will be ${CP2K_ROOT}/install for CP2K binaries, libraries etc.
 EOF
-CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
+CMAKE_OPTIONS="-S ${CP2K_ROOT} -B ${CP2K_ROOT}/build"
+CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
+CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_LIBDIR=lib"
+CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_SKIP_RPATH=ON"
 if [ -d "${CP2K_ROOT}/data" ]; then
   echo "Data directory ${CP2K_ROOT}/data is found and set as -DCP2K_DATA_DIR."
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
@@ -110,7 +113,7 @@ else
 fi
 
 # Export variable for CMake options to setup file
-echo "export CP2K_CMAKE_OPTIONS=\"${CMAKE_OPTIONS}\"" >> "${SETUPFILE}"
+printf 'export CP2K_CMAKE_OPTIONS="%s"\n' "${CMAKE_OPTIONS}" >> "${SETUPFILE}"
 cat << EOF
 
 CMake options from parsing files are now collected in the variable
@@ -124,7 +127,7 @@ EOF
 if [ "${dry_run}" = "__TRUE__" ]; then
   cat << EOF
 Suggested cmake command if toolchain is built with your options:
-  cmake .. ${CMAKE_OPTIONS}
+  cmake ${CMAKE_OPTIONS}
 EOF
 else
   echo
@@ -145,13 +148,15 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
 (3) Recommended - go to root directory of CP2K and build executable:
       cd ${CP2K_ROOT}
       mkdir build && cd build
-      cmake .. ${CMAKE_OPTIONS}
+      cmake ${CMAKE_OPTIONS}
       make install -j $(get_nprocs)
+    The CMake command shows the options from generate_cmake_options.sh. For more
+    CMake options, see ${CP2K_ROOT}/CMakeLists.txt.
     Alternatively the CMake command may take the same options from a variable as
     exported in the setup file, no need to copy-paste long lines in terminal:
-      cmake .. "\${CP2K_CMAKE_OPTIONS}"
+      cmake "\${CP2K_CMAKE_OPTIONS}"
     It may be helpful to also save a copy of command line messages to log files:
-      cmake .. "\${CP2K_CMAKE_OPTIONS}" 2>&1 | tee make.log
+      cmake "\${CP2K_CMAKE_OPTIONS}" 2>&1 | tee make.log
       make install -j $(get_nprocs) 2>&1 | tee install.log
 
 (4) Optional - once build is completed, remove ./build directory like in (1):
