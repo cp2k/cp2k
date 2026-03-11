@@ -228,7 +228,7 @@ while [[ $# -gt 0 ]]; do
                 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
                 ;;
             esac
-            # Apply specific packages selection for statically linked binaries
+            # Apply specific package selection for statically linked binaries
             case "${CP2K_VERSION}" in
               ssmp-static)
                 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
@@ -247,7 +247,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         esac
       else
-        echo "ERROR: No argument found for flag \"${1}\" (choose psmp, ssmp, or ssmp-static)"
+        echo "ERROR: No argument found for flag \"${1}\" (choose pdbg, psmp, sdbg, ssmp, or ssmp-static)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -567,7 +567,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-bd_only | --build_deps_only]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
-  echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
+  echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
@@ -1236,7 +1236,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
-    sdbg-static | ssmp-static)
+    ssmp-static)
       # Find some static libraries in advance
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
