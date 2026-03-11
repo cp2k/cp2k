@@ -30,7 +30,7 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-12
-      EXTRAPOLATION ASPC
+      EXTRAPOLATION PS
       METHOD GPW
     &END QS
     &SCF

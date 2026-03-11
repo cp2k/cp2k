@@ -540,7 +540,11 @@ CONTAINS
          CALL cite_reference(VandeVondele2005a)
          wf_history%memory_depth = extrapolation_order + 1
          wf_history%store_wf = .TRUE.
-         IF (.NOT. has_unit_metric) wf_history%store_overlap = .TRUE.
+         wf_history%store_wf_kp = .TRUE.
+         IF (.NOT. has_unit_metric) THEN
+            wf_history%store_overlap = .TRUE.
+            wf_history%store_overlap_kp = .TRUE.
+         END IF
       CASE (wfi_frozen_method_nr)
          wf_history%memory_depth = 1
          wf_history%store_frozen_density = .TRUE.
@@ -584,13 +588,13 @@ CONTAINS
          wf_history%store_rho_ao_kp = .TRUE.
          wf_history%store_rho_ao = .FALSE.
       END IF
-      ! KP-compatible ASPC: switch from Gamma WFN storage to KP WFN storage
+      ! KP-compatible PS and ASPC: switch from Gamma WFN storage to KP WFN storage
       IF (wf_history%store_wf_kp) THEN
          wf_history%store_wf = .FALSE.
          wf_history%store_overlap = .FALSE.
          ! store_wf_kp and store_overlap_kp remain TRUE
       ELSE
-         ! Non-ASPC methods are still temporarily blocked
+         ! Linear methods (except LINEAR_P) are still blocked
          IF (wf_history%store_wf) THEN
             CPABORT("WFN based interpolation method not implemented for kpoints.")
          END IF
@@ -981,7 +985,6 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
       CASE (wfi_ps_method_nr)
-         CPASSERT(.NOT. do_kpoints)
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CPASSERT(nvec > 0)
@@ -998,47 +1001,52 @@ CONTAINS
             END IF
          END IF
 
-         my_orthogonal_wf = .TRUE.
-         DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
-            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
-            CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
-                                matrix_struct=matrix_struct)
-            CALL cp_fm_create(fm_tmp, matrix_struct)
-            CALL cp_fm_struct_create(matrix_struct_new, template_fmstruct=matrix_struct, &
-                                     nrow_global=k, ncol_global=k)
-            CALL cp_fm_create(csc, matrix_struct_new)
-            CALL cp_fm_struct_release(matrix_struct_new)
-            ! first the most recent
-            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-            CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
-            alpha = nvec
-            CALL cp_fm_scale(alpha, mo_coeff)
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-            DO i = 2, nvec
-               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
-               IF (use_overlap) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
-               ELSE
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
-                                     t1_state%wf(ispin), 0.0_dp, csc)
-               END IF
-               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
-               alpha = -1.0_dp*alpha*REAL(nvec - i + 1, dp)/REAL(i, dp)
-               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
-            END DO
+         IF (do_kpoints) THEN
+            CALL wfi_extrapolate_ps_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            my_orthogonal_wf = .TRUE.
+         ELSE
+            my_orthogonal_wf = .TRUE.
+            DO ispin = 1, SIZE(mos)
+               NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+               CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
+                                   matrix_struct=matrix_struct)
+               CALL cp_fm_create(fm_tmp, matrix_struct)
+               CALL cp_fm_struct_create(matrix_struct_new, template_fmstruct=matrix_struct, &
+                                        nrow_global=k, ncol_global=k)
+               CALL cp_fm_create(csc, matrix_struct_new)
+               CALL cp_fm_struct_release(matrix_struct_new)
+               ! first the most recent
+               t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+               CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
+               alpha = nvec
+               CALL cp_fm_scale(alpha, mo_coeff)
+               CALL qs_rho_get(rho, rho_ao=rho_ao)
+               DO i = 2, nvec
+                  t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+                  IF (use_overlap) THEN
+                     CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+                     CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
+                  ELSE
+                     CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
+                                        t1_state%wf(ispin), 0.0_dp, csc)
+                  END IF
+                  CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
+                  alpha = -1.0_dp*alpha*REAL(nvec - i + 1, dp)/REAL(i, dp)
+                  CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
+               END DO
 
-            CALL cp_fm_release(csc)
-            CALL cp_fm_release(fm_tmp)
-            CALL reorthogonalize_vectors(qs_env, &
-                                         v_matrix=mo_coeff, &
-                                         n_col=k)
-            CALL calculate_density_matrix(mo_set=mos(ispin), &
-                                          density_matrix=rho_ao(ispin)%matrix)
-         END DO
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+               CALL cp_fm_release(csc)
+               CALL cp_fm_release(fm_tmp)
+               CALL reorthogonalize_vectors(qs_env, &
+                                            v_matrix=mo_coeff, &
+                                            n_col=k)
+               CALL calculate_density_matrix(mo_set=mos(ispin), &
+                                             density_matrix=rho_ao(ispin)%matrix)
+            END DO
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+            CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+         END IF
 
       CASE (wfi_aspc_nr)
          CALL cite_reference(Kolafa2004)
@@ -1061,11 +1069,9 @@ CONTAINS
          END IF
 
          IF (do_kpoints) THEN
-            ! ---------- k-point ASPC: complex WFN extrapolation ----------
             CALL wfi_extrapolate_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
             my_orthogonal_wf = .TRUE.
          ELSE
-            ! ---------- Gamma-point ASPC: original real WFN extrapolation ----------
             my_orthogonal_wf = .TRUE.
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(mos)
@@ -1358,6 +1364,123 @@ CONTAINS
    END SUBROUTINE wfi_use_prev_wf_kp
 
 ! **************************************************************************************************
+!> \brief Performs PS wavefunction extrapolation for k-point calculations.
+!>        Applies PS coefficients to complex MO coefficients at each k-point.
+!>        Delegates final orthogonalization and density building to wfi_use_prev_wf_kp.
+!> \param wf_history  wavefunction history buffer
+!> \param qs_env      QS environment
+!> \param nvec        number of history snapshots to use
+!> \param io_unit     output unit for logging
+!> \param print_level current print level
+! **************************************************************************************************
+   SUBROUTINE wfi_extrapolate_ps_kp(wf_history, qs_env, nvec, io_unit, print_level)
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_ps_kp'
+
+      INTEGER                                            :: handle, i, ikp, ispin, kplocal, nao, &
+                                                            nmo, nspin
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp)                                      :: alpha_coeff
+      TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
+                                                            cmos_new, csc_cfm
+      TYPE(cp_fm_struct_type), POINTER                   :: nmo_nmo_struct
+      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
+
+      CALL timeset(routineN, handle)
+      NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct)
+
+      CALL get_qs_env(qs_env, kpoints=kpoints)
+      CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range)
+      kplocal = kp_range(2) - kp_range(1) + 1
+
+      IF (use_real_wfn) THEN
+         CPWARN("PS with k-points requires complex wavefunctions; falling back to PREV_WF.")
+         CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      kp => kpoints%kp_env(1)%kpoint_env
+      nspin = SIZE(kp%mos, 2)
+      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
+
+      CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
+      CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
+      CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct)
+      CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
+
+      CALL cp_fm_struct_create(nmo_nmo_struct, template_fmstruct=mo_coeff%matrix_struct, &
+                               nrow_global=nmo, ncol_global=nmo)
+      CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
+      CALL cp_fm_struct_release(nmo_nmo_struct)
+
+      ! Phase 1: Initialize C_new(k) = B(1) * C_1(k)
+      t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+      alpha_coeff = nvec
+
+      DO ikp = 1, kplocal
+         kp => kpoints%kp_env(ikp)%kpoint_env
+         DO ispin = 1, nspin
+            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
+            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
+            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
+            CALL cp_fm_scale(alpha_coeff, rmos)
+            CALL cp_fm_scale(alpha_coeff, imos)
+         END DO
+      END DO
+
+      ! Phase 2: Accumulate historical snapshots C_new += B(i) * C_proj(k)
+      DO i = 2, nvec
+         t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+         alpha_coeff = -1.0_dp*alpha_coeff*REAL(nvec - i + 1, dp)/REAL(i, dp)
+
+         DO ikp = 1, kplocal
+            kp => kpoints%kp_env(ikp)%kpoint_env
+            DO ispin = 1, nspin
+               CALL cp_fm_to_cfm(t1_state%wf_kp(ikp, 1, ispin), t1_state%wf_kp(ikp, 2, ispin), cmos_1)
+               CALL cp_fm_to_cfm(t0_state%wf_kp(ikp, 1, ispin), t0_state%wf_kp(ikp, 2, ispin), cmos_i)
+
+               ! Subspace projection: C_proj = C_i * (C_i^dag S_i C_1)
+               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
+                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
+               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+
+               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
+               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+               CALL cp_fm_to_cfm(rmos, imos, cmos_new)
+               CALL cp_cfm_scale_and_add(z_one, cmos_new, CMPLX(alpha_coeff, 0.0_dp, KIND=dp), cfm_nao_nmo_work)
+               CALL cp_cfm_to_fm(cmos_new, rmos, imos)
+            END DO
+         END DO
+      END DO
+
+      CALL cp_cfm_release(cmos_new)
+      CALL cp_cfm_release(cmos_1)
+      CALL cp_cfm_release(cmos_i)
+      CALL cp_cfm_release(cfm_nao_nmo_work)
+      CALL cp_cfm_release(csc_cfm)
+
+      ! Phase 3: Delegate Orthogonalization and Density Building
+      ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
+      ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
+      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE wfi_extrapolate_ps_kp
+
+! **************************************************************************************************
 !> \brief Performs ASPC wavefunction extrapolation for k-point calculations.
 !>        Applies ASPC coefficients to complex MO coefficients at each k-point,
 !>        with subspace alignment via historical overlap matrices.
@@ -1396,7 +1519,8 @@ CONTAINS
       kplocal = kp_range(2) - kp_range(1) + 1
 
       IF (use_real_wfn) THEN
-         CPWARN("ASPC with k-points requires complex wavefunctions; falling back.")
+         CPWARN("ASPC with k-points requires complex wavefunctions; falling back to PREV_WF.")
+         CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
          CALL timestop(handle)
          RETURN
       END IF
@@ -1411,19 +1535,17 @@ CONTAINS
             "ASPC order: ", MAX(nvec - 2, 0)
       END IF
 
-      CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
+      CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct, set_zero=.TRUE.)
 
       CALL cp_fm_struct_create(nmo_nmo_struct, template_fmstruct=mo_coeff%matrix_struct, &
                                nrow_global=nmo, ncol_global=nmo)
-      CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
+      CALL cp_cfm_create(csc_cfm, nmo_nmo_struct, set_zero=.TRUE.)
       CALL cp_fm_struct_release(nmo_nmo_struct)
 
-      ! =======================================================================
       ! Phase 1: Initialize C_new(k) = B(1) * C_1(k)
-      ! =======================================================================
       t1_state => wfi_get_snapshot(wf_history, wf_index=1)
       alpha_coeff = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
 
@@ -1443,9 +1565,7 @@ CONTAINS
          END DO
       END DO
 
-      ! =======================================================================
       ! Phase 2: Accumulate historical snapshots C_new += B(i) * C_proj(k)
-      ! =======================================================================
       DO i = 2, nvec
          t0_state => wfi_get_snapshot(wf_history, wf_index=i)
          alpha_coeff = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
@@ -1484,9 +1604,7 @@ CONTAINS
       CALL cp_cfm_release(cfm_nao_nmo_work)
       CALL cp_cfm_release(csc_cfm)
 
-      ! =======================================================================
       ! Phase 3: Delegate Orthogonalization and Density Building
-      ! =======================================================================
       ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
       ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
       CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)

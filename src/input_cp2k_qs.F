@@ -417,8 +417,8 @@ CONTAINS
          "Linear extrapolation of the density matrix", &
          "Linear extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
          "Use the previous wavefunction", &
-         "Higher order extrapolation of the density matrix times the overlap matrix (not available for k-points)", &
-         "Frozen ...", &
+         "Higher order extrapolation of the density matrix times the overlap matrix", &
+         "Frozen ... (not available for k-points)", &
          "Always stable predictor corrector, similar to PS, but going for MD stability instead of initial guess accuracy."), &
          enum_i_vals=[ &
          wfi_use_guess_method_nr, &
