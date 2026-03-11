@@ -2,17 +2,17 @@
 
 # Purpose: Build CP2K using Spack and CMake locally within the folder CP2K_ROOT
 #          which defaults to the current working directory. This should be a
-#          "cp2k/" folder containing the CP2K source tree.
+#          "cp2k/" folder containing the CP2K source tree which can be download with
 #
-#          The script can either be sourced with
+#          > git clone https://github.com/cp2k/cp2k.git cp2k
 #
-#          > source ./make_cp2k.sh
+#          and after
 #
-#          or run in a subshell with
+#          > cd cp2k
+#
+#          this script can be run in subshell using the default options with
 #
 #          > ./make_cp2k.sh
-#
-#          The latter, running in a subshell, is recommended.
 #
 #          The flags -h or --help print the available options.
 #
@@ -45,8 +45,8 @@
 #
 #          > ./make_cp2k.sh -t "--maxtasks 8 --restrictdir QS/regtest-gpw-1"
 #
-#          Alternatively, the script cp2k/install/run_tests can be launched after
-#          a successful CP2K build.
+#          Alternatively, the script cp2k/install/bin/run_tests can be launched
+#          after a successful CP2K build. Usage examples are printed at the end.
 
 # Authors: Matthias Krack (MK)
 
@@ -228,7 +228,7 @@ while [[ $# -gt 0 ]]; do
                 CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=OFF"
                 ;;
             esac
-            # Apply specific packages selection for statically linked binaries
+            # Apply specific package selection for statically linked binaries
             case "${CP2K_VERSION}" in
               ssmp-static)
                 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
@@ -247,7 +247,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         esac
       else
-        echo "ERROR: No argument found for flag \"${1}\" (choose psmp, ssmp, or ssmp-static)"
+        echo "ERROR: No argument found for flag \"${1}\" (choose pdbg, psmp, sdbg, ssmp, or ssmp-static)"
         ${EXIT_CMD} 1
       fi
       shift 2
@@ -567,7 +567,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-bd_only | --build_deps_only]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
-  echo "                    [-cv | --cp2k_version (psmp | ssmp | ssmp-static)]"
+  echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
@@ -1236,7 +1236,7 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
         tee "${CMAKE_BUILD_PATH}/cmake.log"
       EXIT_CODE=$?
       ;;
-    sdbg-static | ssmp-static)
+    ssmp-static)
       # Find some static libraries in advance
       LIBOPENBLAS=$(find -L "${SPACK_ROOT}"/opt/spack/view -name libopenblas.a)
       LIBM="$(find /usr -name libm.a 2> /dev/null)"
