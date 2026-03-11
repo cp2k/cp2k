@@ -121,10 +121,13 @@ else
 fi
 
 # Export variable for CMake options to setup file
+printf "# ==================== Setup for CP2K ==================== #" >> "${SETUPFILE}"
 printf 'export CP2K_CMAKE_OPTIONS="%s"\n' "${CMAKE_OPTIONS}" >> "${SETUPFILE}"
 cat << EOF
 Suggested cmake command if toolchain is built with your options:
+
   cmake ${CMAKE_OPTIONS}
+
 These options are also collected in the variable \${CP2K_CMAKE_OPTIONS} that is
 exported at the end of setup file ${SETUPFILE}.
 EOF
@@ -154,21 +157,27 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
       cmake ${CMAKE_OPTIONS}
     Other commands from ${CP2K_ROOT}/CMakeLists.txt can also be added.
     Alternative to copy-paste long lines in terminal is to use a variable from
-    setup file for CMake options:
-      cmake "\${CP2K_CMAKE_OPTIONS}"
+    setup file for CMake options, which is not to be quoted so that whitespace
+    delimiters allow it to expand to command options in shell:
+      cmake \${CP2K_CMAKE_OPTIONS}
 
 (4) Build CP2K with command:
       cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs)
     It may be helpful to also save a copy of command line messages to log files:
       cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs) 2>&1 | tee install.log
 
-(4) Optional - once build is completed, remove ./build directory like in (1):
+(5) Optional - once build is completed, remove ./build directory like in (1):
       cmake --build ${CP2K_ROOT}/build --target clean
     Again, do not move the ./install directory from now on.
 
-(5) Recommended - edit ${SETUPFILE} and append paths:
+(6) Recommended - perform regtest as is suggested at the end of (3).
+
+(7) Recommended - append CP2K directory to paths:
       export PATH="${CP2K_ROOT}/install/bin:\$PATH"
       export LD_LIBRARY_PATH="${CP2K_ROOT}/install/lib:\${LD_LIBRARY_PATH}"
+      export LD_RUN_PATH="${CP2K_ROOT}/install/lib:\${LD_RUN_PATH}"
+      export LIBRARY_PATH="${CP2K_ROOT}/install/lib:\${LIBRARY_PATH}"
+      export CMAKE_PREFIX_PATH="${CP2K_ROOT}:\${CMAKE_PREFIX_PATH}"
 
 For more information about available build options, see:
 https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
