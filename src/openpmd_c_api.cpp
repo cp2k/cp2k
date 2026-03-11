@@ -171,6 +171,10 @@ int openPMD_Iteration_get_particle_species(
     // out
     openPMD_ParticleSpecies *particle_species);
 
+int openPMD_Iteration_open(
+    // in
+    openPMD_Iteration iteration);
+
 int openPMD_Iteration_close(
     // in
     openPMD_Iteration iteration);
@@ -713,6 +717,13 @@ int openPMD_Iteration_get_particle_species(
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
   auto &res = iteration->particles[name];
   *reinterpret_cast<openPMD::ParticleSpecies **>(particle_species) = &res;
+  return 0;
+}
+
+int openPMD_Iteration_open(openPMD_Iteration iteration_param) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  std::cout << "OPENING ITERATION" << std::endl;
+  iteration->open();
   return 0;
 }
 

@@ -105,6 +105,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: get_mesh => openpmd_iteration_get_mesh
       PROCEDURE, PUBLIC :: get_particle_species => openpmd_iteration_get_particle_species
       PROCEDURE, PUBLIC :: close => openpmd_iteration_close
+      PROCEDURE, PUBLIC :: open => openpmd_iteration_open
       PROCEDURE, PUBLIC :: closed => openpmd_iteration_closed
    END TYPE openpmd_iteration_type
 
@@ -689,6 +690,25 @@ MODULE openpmd_api
 !> \brief ...
 !> \param iteration ...
 ! **************************************************************************************************
+      SUBROUTINE openpmd_iteration_open(iteration)
+         CLASS(openpmd_iteration_type), INTENT(INOUT)           :: iteration
+
+         INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+! **************************************************************************************************
+            SUBROUTINE openpmd_c_iteration_open(iteration) &
+               BIND(C, name="openPMD_Iteration_open")
+               IMPORT :: C_PTR
+               TYPE(C_PTR), VALUE :: iteration
+            END SUBROUTINE openpmd_c_iteration_open
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(iteration%c_ptr))
+         CALL openpmd_c_iteration_open(iteration=iteration%c_ptr)
+      END SUBROUTINE openpmd_iteration_open
+
       SUBROUTINE openpmd_iteration_close(iteration)
          CLASS(openpmd_iteration_type), INTENT(INOUT)           :: iteration
 

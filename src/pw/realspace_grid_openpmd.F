@@ -167,6 +167,7 @@ CONTAINS
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
 
+      CALL openpmd_data%iteration%open()
       species = openpmd_data%iteration%get_particle_species(TRIM(species_name))
 
       position_offset = species%get_record("positionOffset")
