@@ -120,7 +120,7 @@ else
 fi
 
 # Export variable for CMake options to setup file
-cat << EOF  >> "${SETUPFILE}"
+cat << EOF >> "${SETUPFILE}"
 # ==================== Setup for CP2K ==================== #
 export CP2K_ROOT="${CP2K_ROOT}"
 export CP2K_CMAKE_OPTIONS="${CMAKE_OPTIONS}"
@@ -159,7 +159,7 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
     is executed. If modules have been used to estabilish environment variables
     and paths, remember to load these modules prior to sourcing setup file.
 
-(3) Recommended - go to root directory of CP2K and configure CMake with options
+(3) Required - go to root directory of CP2K and configure CMake with options
     suggested above:
       cd ${CP2K_ROOT}
       cmake ${CMAKE_OPTIONS}
@@ -171,7 +171,7 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
     delimiters allow it to expand to command options in shell:
       cmake \${CP2K_CMAKE_OPTIONS}
 
-(4) Build CP2K with command:
+(4) Required - build CP2K with command:
       cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs)
     It may be helpful to also save a copy of command line messages to log files:
       cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs) 2>&1 | tee install.log
