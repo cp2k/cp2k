@@ -142,12 +142,19 @@ cmake_common_args=(
   "-DCP2K_USE_LIBINT2:BOOL=OFF" # Package has no Fortran interface
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
+  %if %{with libxsmm}
+  "-DCP2K_USE_LIBXSMM:BOOL=ON"
+  %else
+  "-DCP2K_USE_LIBXSMM:BOOL=OFF"
+  %endif
 )
 for mpi in '' mpich openmpi; do
   if [ -n "$mpi" ]; then
     module load mpi/${mpi}-%{_arch}
     cmake_mpi_args=(
       "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
+      "-DCMAKE_PREFIX_PATH:PATH=${MPI_HOME};%{_prefix}"
       "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
       "-DCP2K_USE_MPI:BOOL=ON"
@@ -178,7 +185,6 @@ done
 rm -f %{_buildrootdir}/**/%{_bindir}/*_unittest.*
 rm -f %{_buildrootdir}/**/%{_libdir}/openmpi/bin/*_unittest.*
 rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
-
 
 %check
 export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
@@ -246,14 +252,14 @@ done
 %{_libdir}/openmpi/bin/graph.psmp
 %{_libdir}/openmpi/bin/grid_miniapp.psmp
 %{_libdir}/openmpi/bin/xyz2dcd.psmp
-%{_libdir}/openmpi/%{_lib}/libcp2k.so*
+%{_libdir}/openmpi/lib/libcp2k.so*
 
 %files openmpi-devel
 %{_fmoddir}/openmpi/cp2k/
 %{_libdir}/openmpi/include/cp2k/
-%{_libdir}/openmpi/%{_lib}/cmake/cp2k/
-%{_libdir}/openmpi/%{_lib}/libcp2k.so
-%{_libdir}/openmpi/%{_lib}/pkgconfig/libcp2k.pc
+%{_libdir}/openmpi/lib/cmake/cp2k/
+%{_libdir}/openmpi/lib/libcp2k.so
+%{_libdir}/openmpi/lib/pkgconfig/libcp2k.pc
 
 %files mpich
 %{_libdir}/mpich/bin/cp2k.psmp
@@ -262,14 +268,14 @@ done
 %{_libdir}/mpich/bin/graph.psmp
 %{_libdir}/mpich/bin/grid_miniapp.psmp
 %{_libdir}/mpich/bin/xyz2dcd.psmp
-%{_libdir}/mpich/%{_lib}/libcp2k.so*
+%{_libdir}/mpich/lib/libcp2k.so*
 
 %files mpich-devel
 %{_fmoddir}/mpich/cp2k/
 %{_libdir}/mpich/include/cp2k/
-%{_libdir}/mpich/%{_lib}/cmake/cp2k/
-%{_libdir}/mpich/%{_lib}/libcp2k.so
-%{_libdir}/mpich/%{_lib}/pkgconfig/libcp2k.pc
+%{_libdir}/mpich/lib/cmake/cp2k/
+%{_libdir}/mpich/lib/libcp2k.so
+%{_libdir}/mpich/lib/pkgconfig/libcp2k.pc
 
 %changelog
 %autochangelog
