@@ -46,7 +46,6 @@ EOF
   CMAKE_OPTIONS="-S ${CP2K_ROOT} -B ${CP2K_ROOT}/build"
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_LIBDIR=lib"
-  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_SKIP_RPATH=ON"
 else
   report_error ${LINENO} "\${CP2K_ROOT} does not have subdirectory src, so it
 cannot be set as source path for CMake options."
@@ -121,8 +120,17 @@ else
 fi
 
 # Export variable for CMake options to setup file
-printf "# ==================== Setup for CP2K ==================== #" >> "${SETUPFILE}"
-printf 'export CP2K_CMAKE_OPTIONS="%s"\n' "${CMAKE_OPTIONS}" >> "${SETUPFILE}"
+cat << EOF  >> "${SETUPFILE}"
+# ==================== Setup for CP2K ==================== #
+export CP2K_ROOT="${CP2K_ROOT}"
+export CP2K_CMAKE_OPTIONS="${CMAKE_OPTIONS}"
+prepend_path PATH "${CP2K_ROOT}/install/bin"
+prepend_path LD_LIBRARY_PATH "${CP2K_ROOT}/install/lib"
+prepend_path LD_RUN_PATH "${CP2K_ROOT}/install/lib"
+prepend_path LIBRARY_PATH "${CP2K_ROOT}/install/lib"
+prepend_path PKG_CONFIG_PATH "${CP2K_ROOT}/install/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${CP2K_ROOT}"
+EOF
 cat << EOF
 Suggested cmake command if toolchain is built with your options:
 
@@ -155,7 +163,9 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
     suggested above:
       cd ${CP2K_ROOT}
       cmake ${CMAKE_OPTIONS}
-    Other commands from ${CP2K_ROOT}/CMakeLists.txt can also be added.
+    Other commands from ${CP2K_ROOT}/CMakeLists.txt can also be added. For more
+    information about available build options, see documentation:
+    https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
     Alternative to copy-paste long lines in terminal is to use a variable from
     setup file for CMake options, which is not to be quoted so that whitespace
     delimiters allow it to expand to command options in shell:
@@ -172,15 +182,6 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
 
 (6) Recommended - perform regtest as is suggested at the end of (3).
 
-(7) Recommended - append CP2K directory to paths:
-      export PATH="${CP2K_ROOT}/install/bin:\$PATH"
-      export LD_LIBRARY_PATH="${CP2K_ROOT}/install/lib:\${LD_LIBRARY_PATH}"
-      export LD_RUN_PATH="${CP2K_ROOT}/install/lib:\${LD_RUN_PATH}"
-      export LIBRARY_PATH="${CP2K_ROOT}/install/lib:\${LIBRARY_PATH}"
-      export CMAKE_PREFIX_PATH="${CP2K_ROOT}:\${CMAKE_PREFIX_PATH}"
-
-For more information about available build options, see:
-https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
 This message is saved to "${INSTALLDIR}/cp2k_installation_guide.txt".
 EOF
 fi
