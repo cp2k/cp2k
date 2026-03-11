@@ -176,31 +176,27 @@ CONTAINS
          CALL position_offset_component%make_constant_zero(openpmd_type_int, global_extent)
          position_component = position%get_component(dims(k))
          CALL position_component%reset_dataset(openpmd_type_double, global_extent)
-         IF (do_write_data) THEN
-            unresolved_write_buffers(k) = &
-               position_component%store_chunk_span_1d_double(global_offset, local_extent)
-            write_buffers(k)%buffer => unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.FALSE.)
-         END IF
+         unresolved_write_buffers(k) = &
+            position_component%store_chunk_span_1d_double(global_offset, local_extent)
+         write_buffers(k)%buffer => unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.FALSE.)
       END DO
 
       IF (PRESENT(particles_zeff)) THEN
          charge = species%get_record("charge")
          charge_component = charge%as_record_component()
          CALL charge_component%reset_dataset(openpmd_type_double, global_extent)
-         IF (do_write_data) THEN
-            unresolved_charge_write_buffer = charge_component%store_chunk_span_1d_double(global_offset, local_extent)
-            charge_write_buffer%buffer => unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.FALSE.)
-         END IF
+         unresolved_charge_write_buffer = charge_component%store_chunk_span_1d_double(global_offset, local_extent)
+         charge_write_buffer%buffer => unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.FALSE.)
       END IF
 
+      ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
+      DO k = 1, SIZE(dims)
+         write_buffers(k)%buffer = unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.TRUE.)
+      END DO
+      IF (PRESENT(particles_zeff)) THEN
+         charge_write_buffer%buffer = unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.TRUE.)
+      END IF
       IF (do_write_data) THEN
-         ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
-         DO k = 1, SIZE(dims)
-            write_buffers(k)%buffer = unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.TRUE.)
-         END DO
-         IF (PRESENT(particles_zeff)) THEN
-            charge_write_buffer%buffer = unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.TRUE.)
-         END IF
          j = 1
          DO i = 1, SIZE(particles_z)
             IF (particles_z(i) == atom_type) THEN
