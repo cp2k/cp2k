@@ -91,7 +91,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
-      LOGICAL                                            :: print_warn
+      LOGICAL                                            :: print_warn, write_cell, write_nval
       REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
@@ -122,6 +122,8 @@ CONTAINS
          WRITE (UNIT=fmtstr2, FMT='("((T51,2F",I0,".",I0,"))")') ndigits + 10, ndigits
 
          CALL section_vals_val_get(print_section, "GTO_KIND", i_val=gto_kind)
+         CALL section_vals_val_get(print_section, "WRITE_CELL", l_val=write_cell)
+         CALL section_vals_val_get(print_section, "WRITE_NVAL", l_val=write_nval)
 
          IF (mos(1)%use_mo_coeff_b) THEN
             ! we are using the dbcsr mo_coeff
@@ -137,17 +139,19 @@ CONTAINS
 
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"
-            IF (unit_choice == 2) THEN
-               WRITE (iw, '(T2,A)') "[Cell] Angs"
-            ELSE
-               WRITE (iw, '(T2,A)') "[Cell] AU"
+            IF (write_cell) THEN
+               IF (unit_choice == 2) THEN
+                  WRITE (iw, '(T2,A)') "[Cell] Angs"
+               ELSE
+                  WRITE (iw, '(T2,A)') "[Cell] AU"
+               END IF
+               WRITE (iw, '(T2,3(F12.6,3X))') &
+                  cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
+               WRITE (iw, '(T2,3(F12.6,3X))') &
+                  cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
+               WRITE (iw, '(T2,3(F12.6,3X))') &
+                  cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
             END IF
-            WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
-            WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
-            WRITE (iw, '(T2,3(F12.6,3X))') &
-               cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
             IF (unit_choice == 2) THEN
                WRITE (iw, '(T2,A)') "[Atoms] Angs"
             ELSE
@@ -161,12 +165,14 @@ CONTAINS
                WRITE (iw, '(T2,A2,I6,I6,3X,3(F12.6,3X))') &
                   element_symbol, i, z, particle_set(i)%r(:)*scale_factor
             END DO
-            WRITE (iw, '(T2,A)') "[Nval]"
-            DO i = 1, SIZE(qs_kind_set)
-               CALL get_qs_kind(qs_kind_set(i), zeff=zeff)
-               WRITE (iw, '(T2,A,1X,I6)') &
-                  TRIM(ADJUSTL(qs_kind_set(i)%element_symbol)), NINT(zeff)
-            END DO
+            IF (write_nval) THEN
+               WRITE (iw, '(T2,A)') "[Nval]"
+               DO i = 1, SIZE(qs_kind_set)
+                  CALL get_qs_kind(qs_kind_set(i), zeff=zeff)
+                  WRITE (iw, '(T2,A,1X,I6)') &
+                     TRIM(ADJUSTL(qs_kind_set(i)%element_symbol)), NINT(zeff)
+               END DO
+            END IF
 
             WRITE (iw, '(T2,A)') "[GTO]"
 
