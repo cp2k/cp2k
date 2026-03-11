@@ -168,6 +168,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: moments
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: smat_kind
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:, :) :: oce_atom
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -472,6 +473,7 @@ CONTAINS
       IF (molden_iao) THEN
          ! Print basis functions: molden file
          CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+         CALL get_qs_env(qs_env, cell=cell)
          CALL get_ks_env(ks_env=ks_env, particle_set=particle_set)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') '  Write IAO in MOLDEN Format'
@@ -486,7 +488,7 @@ CONTAINS
             mo_iao(ispin)%occupation_numbers = 1.0_dp
          END DO
          ! Print IAO basis functions: molden format
-         CALL write_mos_molden(mo_iao, qs_kind_set, particle_set, iao_molden_section)
+         CALL write_mos_molden(mo_iao, qs_kind_set, particle_set, iao_molden_section, cell=cell)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mo_iao(ispin))
          END DO
@@ -660,7 +662,7 @@ CONTAINS
                mo_loc(ispin)%occupation_numbers = 1.0_dp
             END DO
             ! Print IBO functions: molden format
-            CALL write_mos_molden(mo_loc, qs_kind_set, particle_set, ibo_molden_section)
+            CALL write_mos_molden(mo_loc, qs_kind_set, particle_set, ibo_molden_section, cell=cell)
             DO ispin = 1, nspin
                CALL deallocate_mo_set(mo_loc(ispin))
             END DO

@@ -186,6 +186,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: echarge, mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -424,8 +425,8 @@ CONTAINS
                CASE ("DFTB")
                CASE ("xTB")
                   sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
-                  CALL get_qs_env(qs_env, mos=mos)
-                  CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
+                  CALL get_qs_env(qs_env, mos=mos, cell=cell)
+                  CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell)
                CASE DEFAULT
                   CPABORT("Unknown TB type")
                END SELECT

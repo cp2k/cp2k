@@ -1958,6 +1958,27 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOS_MOLDEN", &
                                        description="Write the NTO in Molden file format, for visualisation.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, filename="MOS")
+      CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
+                          description="Unit for coordinates and cell in the MOLDEN file.", &
+                          usage="UNIT ANGSTROM", &
+                          enum_c_vals=s2a("BOHR", "ANGSTROM"), &
+                          enum_desc=s2a("Write in Bohr (AU)", "Write in Angstrom"), &
+                          enum_i_vals=[1, 2], &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_CELL", &
+                          description="Controls whether the [Cell] block is written to the MOLDEN file.", &
+                          usage="WRITE_CELL TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_NVAL", &
+                          description="Controls whether the [Nval] block is written to the MOLDEN file.", &
+                          usage="WRITE_NVAL TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &

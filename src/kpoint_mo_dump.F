@@ -102,14 +102,15 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: fmtstr_gto, fmtstr_sparse, fmtstr_vec
       INTEGER :: handle, i, iatom, ikind, ikp, ikp_loc, ipgf, iset, isgf_global, ishell, ispin, &
          iw, j, lshell, n, nao, natom, ndigits, nkp, nmo, nset_atom, nspins, output_unit, &
-         overlap_data
+         overlap_data, unit_choice
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_l, first_sgf, last_sgf
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: npgf_set, nshell_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_set, l_set, last_sgf_set
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: use_real_wfn, write_overlap
-      REAL(KIND=dp)                                      :: expzet, prefac, thresh, zeff
+      REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, thresh, &
+                                                            zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eval_buf, occ_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Cim_buf, Cre_buf, Sim_buf, Sre_buf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
@@ -183,6 +184,12 @@ CONTAINS
       ! ================================================================
       ! Read keywords
       ! ================================================================
+      CALL section_vals_val_get(print_section, "UNIT", i_val=unit_choice)
+      IF (unit_choice == 2) THEN
+         scale_factor = angstrom
+      ELSE
+         scale_factor = 1.0_dp
+      END IF
       CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
       ndigits = MIN(MAX(3, ndigits), 30)
       CALL section_vals_val_get(print_section, "OVERLAP_EXPORT_TYPE", i_val=overlap_data)
@@ -262,21 +269,25 @@ CONTAINS
       ! WRITE HEADER
       ! ================================================================
       IF (iw > 0) THEN
-         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP, Version 1.0"
+         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP, Version 1.1"
          IF (write_overlap) THEN
             WRITE (iw, '(A)') "# EXPORT_MODE: Coefficients + Overlap matrices"
          ELSE
             WRITE (iw, '(A)') "# EXPORT_MODE: GTO + Coefficients"
          END IF
-         WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional coords"
-
-         WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
-         WRITE (iw, '(3ES16.6)') &
-            cell%hmat(1, 1)*angstrom, cell%hmat(2, 1)*angstrom, cell%hmat(3, 1)*angstrom
-         WRITE (iw, '(3ES16.6)') &
-            cell%hmat(1, 2)*angstrom, cell%hmat(2, 2)*angstrom, cell%hmat(3, 2)*angstrom
-         WRITE (iw, '(3ES16.6)') &
-            cell%hmat(1, 3)*angstrom, cell%hmat(2, 3)*angstrom, cell%hmat(3, 3)*angstrom
+         IF (unit_choice == 2) THEN
+            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional coords"
+            WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
+         ELSE
+            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Bohr, k-points in fractional coords"
+            WRITE (iw, '(A)') "# CELL_VECTORS [Bohr]"
+         END IF
+         WRITE (iw, '(3(F12.6,3X))') &
+            cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
+         WRITE (iw, '(3(F12.6,3X))') &
+            cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
+         WRITE (iw, '(3(F12.6,3X))') &
+            cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
 
          WRITE (iw, '(A,4I8)') "# DIMENSIONS: natom nspins nao nkp =", natom, nspins, nao, nkp
          WRITE (iw, '(A,I8)') "# NMO =", nmo
@@ -288,15 +299,20 @@ CONTAINS
          END IF
 
          ! Atom table
-         WRITE (iw, '(A)') &
-            "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Ang]  Y [Ang]  Z [Ang]  First_AO  Last_AO"
+         IF (unit_choice == 2) THEN
+            WRITE (iw, '(A)') &
+               "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Ang]  Y [Ang]  Z [Ang]  First_AO  Last_AO"
+         ELSE
+            WRITE (iw, '(A)') &
+               "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Bohr]  Y [Bohr]  Z [Bohr]  First_AO  Last_AO"
+         END IF
          DO iatom = 1, natom
             ikind = particle_set(iatom)%atomic_kind%kind_number
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                  element_symbol=element_symbol)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
             WRITE (iw, '(I6,2X,A2,I6,3F15.6,2I10)') &
-               iatom, element_symbol, NINT(zeff), particle_set(iatom)%r(:)*angstrom, &
+               iatom, element_symbol, NINT(zeff), particle_set(iatom)%r(:)*scale_factor, &
                first_sgf(iatom), last_sgf(iatom)
          END DO
 
