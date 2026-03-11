@@ -167,7 +167,7 @@ Toolchain is now ready for building CP2K! Instructions for next steps:
     Again, do not move the ./install directory from now on.
 
 (5) Recommended - edit ${SETUPFILE} and append paths:
-      export PATH="${CP2K_ROOT}/install:\$PATH"
+      export PATH="${CP2K_ROOT}/install/bin:\$PATH"
       export LD_LIBRARY_PATH="${CP2K_ROOT}/install/lib:\${LD_LIBRARY_PATH}"
 
 For more information about available build options, see:
