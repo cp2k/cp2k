@@ -58,7 +58,7 @@ MODULE space_groups_types
       TYPE(cell_type), POINTER                    :: cell_ref => NULL()
    END TYPE spgr_type
 
-   PUBLIC :: spgr_type, release_spgr_type
+   PUBLIC :: spgr_type, release_spgr_type, cleanup_spgr_type
 
 CONTAINS
 
@@ -74,34 +74,47 @@ CONTAINS
       TYPE(spgr_type), POINTER                           :: spgr
 
       IF (ASSOCIATED(spgr)) THEN
-
-         IF (ALLOCATED(spgr%rotations)) THEN
-            DEALLOCATE (spgr%rotations)
-         END IF
-         IF (ALLOCATED(spgr%rotations_subset)) THEN
-            DEALLOCATE (spgr%rotations_subset)
-         END IF
-         IF (ALLOCATED(spgr%translations)) THEN
-            DEALLOCATE (spgr%translations)
-         END IF
-         IF (ALLOCATED(spgr%atype)) THEN
-            DEALLOCATE (spgr%atype)
-         END IF
-         IF (ALLOCATED(spgr%eqatom)) THEN
-            DEALLOCATE (spgr%eqatom)
-         END IF
-         IF (ALLOCATED(spgr%lop)) THEN
-            DEALLOCATE (spgr%lop)
-         END IF
-         IF (ALLOCATED(spgr%lat)) THEN
-            DEALLOCATE (spgr%lat)
-         END IF
-
-         CALL cell_release(spgr%cell_ref)
-
+         CALL cleanup_spgr_type(spgr)
          DEALLOCATE (spgr)
       END IF
 
    END SUBROUTINE release_spgr_type
+
+! **************************************************************************************************
+!> \brief Cleanup all buffers the SPGR type
+!> \param spgr  The SPGR type
+!> \par History
+!>      01.2020 created [pcazade]
+!> \author Pierre-André Cazade (first version)
+! **************************************************************************************************
+   SUBROUTINE cleanup_spgr_type(spgr)
+
+      TYPE(spgr_type), INTENT(INOUT)                     :: spgr
+
+      IF (ALLOCATED(spgr%rotations)) THEN
+         DEALLOCATE (spgr%rotations)
+      END IF
+      IF (ALLOCATED(spgr%rotations_subset)) THEN
+         DEALLOCATE (spgr%rotations_subset)
+      END IF
+      IF (ALLOCATED(spgr%translations)) THEN
+         DEALLOCATE (spgr%translations)
+      END IF
+      IF (ALLOCATED(spgr%atype)) THEN
+         DEALLOCATE (spgr%atype)
+      END IF
+      IF (ALLOCATED(spgr%eqatom)) THEN
+         DEALLOCATE (spgr%eqatom)
+      END IF
+      IF (ALLOCATED(spgr%lop)) THEN
+         DEALLOCATE (spgr%lop)
+      END IF
+      IF (ALLOCATED(spgr%lat)) THEN
+         DEALLOCATE (spgr%lat)
+      END IF
+
+      CALL cell_release(spgr%cell_ref)
+
+   END SUBROUTINE cleanup_spgr_type
 
 END MODULE space_groups_types
