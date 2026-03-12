@@ -38,7 +38,8 @@ MODULE space_groups
                                               jacobi
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: pascal
-   USE space_groups_types,              ONLY: spgr_type
+   USE space_groups_types,              ONLY: cleanup_spgr_type,&
+                                              spgr_type
    USE spglib_f08,                      ONLY: spg_get_international,&
                                               spg_get_multiplicity,&
                                               spg_get_pointgroup,&
@@ -107,6 +108,8 @@ CONTAINS
 
       spgr => gopt_env%spgr
       CPASSERT(ASSOCIATED(spgr))
+
+      CALL cleanup_spgr_type(spgr)
 
       !..total number of particles (atoms plus shells)
       IF (PRESENT(nparticle)) THEN
