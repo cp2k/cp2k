@@ -1502,17 +1502,21 @@ CONTAINS
       ALLOCATE (mo_coeff_as(nspins), fm_mo_coeff_as(nspins))
       DO ispin = 1, nspins
          BLOCK
-            REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C
+            REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C, C_active
             INTEGER :: nmo
             TYPE(group_dist_d1_type) :: gd_array
             TYPE(cp_fm_type), POINTER :: mo_coeff
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
             CALL grep_rows_in_subgroups(para_env, eri_env%para_env_sub, mo_coeff, gd_array, C)
 
+            ALLOCATE (C_active(SIZE(C, 1), SIZE(orbitals, 1)))
+            DO i1 = 1, SIZE(orbitals, 1)
+               C_active(:, i1) = C(:, orbitals(i1, ispin))
+            END DO
             CALL build_dbcsr_from_rows(eri_env%para_env_sub, mo_coeff_as(ispin), &
-                                       C(:, :nmo), mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
+                                       C_active, mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
             CALL release_group_dist(gd_array)
-            DEALLOCATE (C)
+            DEALLOCATE (C, C_active)
          END BLOCK
 
          CALL dbcsr_get_info(mo_coeff_as(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
@@ -1687,18 +1691,19 @@ CONTAINS
 
                      icount2 = 0
                      DO col_local = 1, ncol_local
-                        iwb2 = orbitals(col_indices(col_local), isp2)
+                        iwb1 = orbitals(col_indices(col_local), isp2)
+                        IF (isp1 == isp2 .AND. iwb1 < iwa1) CYCLE
                         DO row_local = 1, nrow_local
-                           iwb1 = orbitals(row_indices(row_local), isp2)
+                           iwb2 = orbitals(row_indices(row_local), isp2)
+                           IF (iwb2 < iwb1) CYCLE
+                           IF (isp1 == isp2 .AND. iwa1 == iwb1 .AND. iwb2 < iwa2) CYCLE
 
-                           IF (iwb1 <= iwb2) THEN
-                              iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
-                              erint = fm_matrix_pq_rs(isp2)%local_data(row_local, col_local)
-                              IF (ABS(erint) > eri_env%eps_integral .AND. (irange(1) - 1 + iwa12 <= iwb12 .OR. isp1 /= isp2)) THEN
-                                 icount2 = icount2 + 1
-                                 eri(icount2) = erint
-                                 eri_index(icount2) = iwb12
-                              END IF
+                           iwb12 = csr_idx_to_combined(iwb1, iwb2, nmo2)
+                           erint = fm_matrix_pq_rs(isp2)%local_data(row_local, col_local)
+                           IF (ABS(erint) > eri_env%eps_integral) THEN
+                              icount2 = icount2 + 1
+                              eri(icount2) = erint
+                              eri_index(icount2) = iwb12
                            END IF
                         END DO
                      END DO

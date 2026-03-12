@@ -12,7 +12,6 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_types
-
    USE cp_dbcsr_api,                    ONLY: dbcsr_csr_destroy,&
                                               dbcsr_csr_p_type,&
                                               dbcsr_p_type
