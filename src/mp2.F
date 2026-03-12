@@ -235,15 +235,17 @@ CONTAINS
       END IF
 
       ! IF DO_BSE In TDDFT, SAVE ks_matrix to ex_env
-      NULLIFY (ex_env)
-      CALL get_qs_env(qs_env, exstate_env=ex_env)
-      nspins = 1 ! for now only open-shell
-      CALL dbcsr_allocate_matrix_set(ex_env%matrix_ks, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (ex_env%matrix_ks(ispin)%matrix)
-         CALL dbcsr_create(ex_env%matrix_ks(ispin)%matrix, template=matrix_s(1)%matrix)
-         CALL dbcsr_copy(ex_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix)
-      END DO
+      IF (dft_control%tddfpt2_control%do_bse .OR. dft_control%tddfpt2_control%do_bse_w_only) THEN
+         NULLIFY (ex_env)
+         CALL get_qs_env(qs_env, exstate_env=ex_env)
+         nspins = 1 ! for now only open-shell
+         CALL dbcsr_allocate_matrix_set(ex_env%matrix_ks, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (ex_env%matrix_ks(ispin)%matrix)
+            CALL dbcsr_create(ex_env%matrix_ks(ispin)%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(ex_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix)
+         END DO
+      END IF
 
       unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%PRINT", &
                                      extension=".mp2Log")

@@ -1707,6 +1707,7 @@ CONTAINS
       CALL section_vals_val_get(t_section, "DO_LRIGPW", l_val=t_control%do_lrigpw)
       CALL section_vals_val_get(t_section, "DO_SMEARING", l_val=t_control%do_smearing)
       CALL section_vals_val_get(t_section, "DO_BSE", l_val=t_control%do_bse)
+      CALL section_vals_val_get(t_section, "DO_BSE_W_ONLY", l_val=t_control%do_bse_w_only)
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_CORRECTION_SYMMETRIC", l_val=t_control%admm_symm)
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_XC_CORRECTION", l_val=t_control%admm_xc_correction)
       CALL section_vals_val_get(t_section, "EXCITON_DESCRIPTORS", l_val=t_control%do_exciton_descriptors)

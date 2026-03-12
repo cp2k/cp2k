@@ -375,7 +375,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
-      LOGICAL                                            :: do_admm, do_bse, do_hfx, &
+      LOGICAL                                            :: do_admm, do_bse, do_bse_w_only, do_hfx, &
                                                             do_lri_response, is_rks_triplets, &
                                                             re_int
       REAL(KIND=dp)                                      :: rcut, scale
@@ -397,7 +397,9 @@ CONTAINS
       is_rks_triplets = tddfpt_control%rks_triplets
       do_lri_response = tddfpt_control%do_lrigpw
       do_bse = tddfpt_control%do_bse
+      do_bse_w_only = tddfpt_control%do_bse_w_only
       IF (do_bse) do_hfx = .FALSE.
+      IF (do_bse_w_only) do_hfx = .FALSE.
 
       IF (debug_this_module) THEN
          CPASSERT(nspins > 0)
@@ -477,7 +479,7 @@ CONTAINS
          END IF
 
          ! orbital energy difference term
-         IF (.NOT. do_bse) THEN
+         IF ((.NOT. do_bse) .AND. (.NOT. do_bse_w_only)) THEN
             CALL tddfpt_apply_energy_diff(Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
                                           gs_mos=gs_mos, matrix_ks=matrix_ks, tddfpt_control=tddfpt_control)
          ELSE
@@ -557,9 +559,11 @@ CONTAINS
                END DO
             END IF
          END IF
-         IF (do_bse) THEN
+         IF ((do_bse) .OR. (do_bse_w_only)) THEN
             ! add dynamical screening
-            CALL tddfpt_apply_bse(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env)
+            ! CALL tddfpt_apply_bse_debug(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env)
+            CALL tddfpt_apply_bse(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env, &
+                                  S_evects=S_evects)
          END IF
 
       END IF
