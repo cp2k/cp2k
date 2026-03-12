@@ -274,8 +274,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r potential. "// &
-                          "Only valid when doing truncated calculation", &
+                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r "// &
+                          "potential or the shortrange erfc(omega*r)/r potential. Default value "// &
+                          "for shortrange potential is solved from erfc(omega*r)/r = EPS_SCHWARZ "// &
+                          "by Newton-Raphson method with SCREENING/EPS_SCHWARZ", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, & ! default_r_val=10.0_dp,&
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)

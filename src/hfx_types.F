@@ -730,6 +730,25 @@ CONTAINS
                CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz, &
                                 actual_x_data%potential_parameter%omega, &
                                 actual_x_data%potential_parameter%cutoff_radius)
+               CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", explicit=explicit)
+               IF (explicit) then
+                  CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val)
+                  IF (real_val < actual_x_data%potential_parameter%cutoff_radius .AND. &
+                     i_thread == 1 .AND. irep == 1) THEN
+                     WRITE (error_msg, '(A,F6.3,A,ES8.1,A,F6.3,A,F6.3,A)') &
+                        "Periodic Hartree Fock calculation requested with the use "// &
+                        "of a shortrange potential erfc(omega*r)/r. Given omega = ", &
+                        actual_x_data%potential_parameter%omega, " and EPS_SCHWARZ = ", &
+                        actual_x_data%screening_parameter%eps_schwarz, ", the requested "// &
+                        "cutoff radius ", real_val*a_bohr*1e+10_dp, " A is smaller than "// &
+                        "what is necessary to satisfy erfc(omega*r)/r = EPS_SCHWARZ at r = ", &
+                        actual_x_data%potential_parameter%cutoff_radius*a_bohr*1e+10_dp, &
+                        " A. Increase input value (or omit keyword to use program default) "// &
+                        "to ensure accuracy."
+                     CPWARN(error_msg)
+                  END IF
+                  actual_x_data%potential_parameter%cutoff_radius = real_val
+               END IF
             END IF
             IF (actual_x_data%potential_parameter%potential_type == do_potential_id) THEN
                actual_x_data%potential_parameter%cutoff_radius = 0.0_dp
@@ -2097,18 +2116,18 @@ CONTAINS
                   WRITE (error_msg, "(A,F6.3,A,F6.3,A)") &
                      "Periodic Hartree Fock calculation requested with the use "// &
                      "of a truncated or shortrange potential. "// &
-                     "The cutoff radius (", x_data%potential_parameter%cutoff_radius/a_bohr*1e-10_dp, &
+                     "The cutoff radius (", x_data%potential_parameter%cutoff_radius*a_bohr*1e+10_dp, &
                      " A) is larger than half the minimal cell dimension (", &
-                     l_min/a_bohr*1e-10_dp, " A). This may lead to unphysical "// &
+                     l_min*a_bohr*1e+10_dp, " A). This may lead to unphysical "// &
                      "total energies. Reduce the cutoff radius in order to avoid "// &
                      "possible problems."
                ELSE
                   WRITE (error_msg, "(A,F6.3,A,F6.3,A)") &
                      "K-point Hartree-Fock calculation requested with the use of a "// &
                      "truncated or shortrange potential. The cutoff radius (", &
-                     x_data%potential_parameter%cutoff_radius/a_bohr*1e-10_dp, &
+                     x_data%potential_parameter%cutoff_radius*a_bohr*1e+10_dp, &
                      " A) is larger than half the minimal Born-von Karman supercell dimension (", &
-                     l_min/a_bohr*1e-10_dp, " A). This may lead "// &
+                     l_min*a_bohr*1e+10_dp, " A). This may lead "// &
                      "to unphysical total energies. Reduce the cutoff radius or increase "// &
                      "the number of K-points in order to avoid possible problems."
                END IF
