@@ -731,10 +731,10 @@ CONTAINS
                                 actual_x_data%potential_parameter%omega, &
                                 actual_x_data%potential_parameter%cutoff_radius)
                CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", explicit=explicit)
-               IF (explicit) then
+               IF (explicit) THEN
                   CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val)
                   IF (real_val < actual_x_data%potential_parameter%cutoff_radius .AND. &
-                     i_thread == 1 .AND. irep == 1) THEN
+                      i_thread == 1 .AND. irep == 1) THEN
                      WRITE (error_msg, '(A,F6.3,A,ES8.1,A,F6.3,A,F6.3,A)') &
                         "Periodic Hartree Fock calculation requested with the use "// &
                         "of a shortrange potential erfc(omega*r)/r. Given omega = ", &
