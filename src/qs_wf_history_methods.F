@@ -595,11 +595,8 @@ CONTAINS
          ! store_wf_kp and store_overlap_kp remain TRUE
       ELSE
          ! Linear methods (except LINEAR_P) are still blocked
-         IF (wf_history%store_wf) THEN
-            CPABORT("WFN based interpolation method not implemented for kpoints.")
-         END IF
-         IF (wf_history%store_overlap) THEN
-            CPABORT("Inconsistent interpolation method for kpoints.")
+         IF (wf_history%store_wf .OR. wf_history%store_overlap) THEN
+            CPABORT("Linear WFN-based extrapolation methods not implemented for k-points.")
          END IF
       END IF
       IF (wf_history%store_frozen_density) THEN
@@ -1002,7 +999,7 @@ CONTAINS
          END IF
 
          IF (do_kpoints) THEN
-            CALL wfi_extrapolate_ps_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            CALL wfi_extrapolate_ps_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
             my_orthogonal_wf = .TRUE.
          ELSE
             my_orthogonal_wf = .TRUE.
@@ -1069,7 +1066,7 @@ CONTAINS
          END IF
 
          IF (do_kpoints) THEN
-            CALL wfi_extrapolate_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            CALL wfi_extrapolate_ps_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
             my_orthogonal_wf = .TRUE.
          ELSE
             my_orthogonal_wf = .TRUE.
@@ -1364,125 +1361,8 @@ CONTAINS
    END SUBROUTINE wfi_use_prev_wf_kp
 
 ! **************************************************************************************************
-!> \brief Performs PS wavefunction extrapolation for k-point calculations.
-!>        Applies PS coefficients to complex MO coefficients at each k-point.
-!>        Delegates final orthogonalization and density building to wfi_use_prev_wf_kp.
-!> \param wf_history  wavefunction history buffer
-!> \param qs_env      QS environment
-!> \param nvec        number of history snapshots to use
-!> \param io_unit     output unit for logging
-!> \param print_level current print level
-! **************************************************************************************************
-   SUBROUTINE wfi_extrapolate_ps_kp(wf_history, qs_env, nvec, io_unit, print_level)
-      TYPE(qs_wf_history_type), POINTER                  :: wf_history
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_ps_kp'
-
-      INTEGER                                            :: handle, i, ikp, ispin, kplocal, nao, &
-                                                            nmo, nspin
-      INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: use_real_wfn
-      REAL(KIND=dp)                                      :: alpha_coeff
-      TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
-                                                            cmos_new, csc_cfm
-      TYPE(cp_fm_struct_type), POINTER                   :: nmo_nmo_struct
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
-      TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
-
-      CALL timeset(routineN, handle)
-      NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct)
-
-      CALL get_qs_env(qs_env, kpoints=kpoints)
-      CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range)
-      kplocal = kp_range(2) - kp_range(1) + 1
-
-      IF (use_real_wfn) THEN
-         CPWARN("PS with k-points requires complex wavefunctions; falling back to PREV_WF.")
-         CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      kp => kpoints%kp_env(1)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
-      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
-
-      CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
-
-      CALL cp_fm_struct_create(nmo_nmo_struct, template_fmstruct=mo_coeff%matrix_struct, &
-                               nrow_global=nmo, ncol_global=nmo)
-      CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
-      CALL cp_fm_struct_release(nmo_nmo_struct)
-
-      ! Phase 1: Initialize C_new(k) = B(1) * C_1(k)
-      t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-      alpha_coeff = nvec
-
-      DO ikp = 1, kplocal
-         kp => kpoints%kp_env(ikp)%kpoint_env
-         DO ispin = 1, nspin
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
-            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
-            CALL cp_fm_scale(alpha_coeff, rmos)
-            CALL cp_fm_scale(alpha_coeff, imos)
-         END DO
-      END DO
-
-      ! Phase 2: Accumulate historical snapshots C_new += B(i) * C_proj(k)
-      DO i = 2, nvec
-         t0_state => wfi_get_snapshot(wf_history, wf_index=i)
-         alpha_coeff = -1.0_dp*alpha_coeff*REAL(nvec - i + 1, dp)/REAL(i, dp)
-
-         DO ikp = 1, kplocal
-            kp => kpoints%kp_env(ikp)%kpoint_env
-            DO ispin = 1, nspin
-               CALL cp_fm_to_cfm(t1_state%wf_kp(ikp, 1, ispin), t1_state%wf_kp(ikp, 2, ispin), cmos_1)
-               CALL cp_fm_to_cfm(t0_state%wf_kp(ikp, 1, ispin), t0_state%wf_kp(ikp, 2, ispin), cmos_i)
-
-               ! Subspace projection: C_proj = C_i * (C_i^dag S_i C_1)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
-                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
-
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-               CALL cp_fm_to_cfm(rmos, imos, cmos_new)
-               CALL cp_cfm_scale_and_add(z_one, cmos_new, CMPLX(alpha_coeff, 0.0_dp, KIND=dp), cfm_nao_nmo_work)
-               CALL cp_cfm_to_fm(cmos_new, rmos, imos)
-            END DO
-         END DO
-      END DO
-
-      CALL cp_cfm_release(cmos_new)
-      CALL cp_cfm_release(cmos_1)
-      CALL cp_cfm_release(cmos_i)
-      CALL cp_cfm_release(cfm_nao_nmo_work)
-      CALL cp_cfm_release(csc_cfm)
-
-      ! Phase 3: Delegate Orthogonalization and Density Building
-      ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
-      ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
-      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE wfi_extrapolate_ps_kp
-
-! **************************************************************************************************
-!> \brief Performs ASPC wavefunction extrapolation for k-point calculations.
-!>        Applies ASPC coefficients to complex MO coefficients at each k-point,
+!> \brief Performs PS/ASPC wavefunction extrapolation for k-point calculations.
+!>        Applies PS/ASPC coefficients to complex MO coefficients at each k-point,
 !>        with subspace alignment via historical overlap matrices.
 !>        Delegates final orthogonalization and density building to wfi_use_prev_wf_kp.
 !> \param wf_history  wavefunction history buffer
@@ -1491,15 +1371,15 @@ CONTAINS
 !> \param io_unit     output unit for logging
 !> \param print_level current print level
 ! **************************************************************************************************
-   SUBROUTINE wfi_extrapolate_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
+   SUBROUTINE wfi_extrapolate_ps_aspc_kp(wf_history, qs_env, nvec, io_unit, print_level)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_aspc_kp'
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_ps_aspc_kp'
 
-      INTEGER                                            :: handle, i, ikp, ispin, kplocal, nao, &
-                                                            nmo, nspin
+      INTEGER                                            :: handle, i, ikp, ispin, kplocal, &
+                                                            method_nr, nao, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp)                                      :: alpha_coeff
@@ -1511,6 +1391,8 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
 
+      method_nr = wf_history%interpolation_method_nr
+
       CALL timeset(routineN, handle)
       NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct)
 
@@ -1519,7 +1401,13 @@ CONTAINS
       kplocal = kp_range(2) - kp_range(1) + 1
 
       IF (use_real_wfn) THEN
-         CPWARN("ASPC with k-points requires complex wavefunctions; falling back to PREV_WF.")
+         IF (method_nr == wfi_aspc_nr) THEN
+            CALL cp_warn(__LOCATION__, "ASPC with k-points requires complex wavefunctions; "// &
+                         "falling back to USE_PREV_WF.")
+         ELSE
+            CALL cp_warn(__LOCATION__, "PS with k-points requires complex wavefunctions; "// &
+                         "falling back to USE_PREV_WF.")
+         END IF
          CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
          CALL timestop(handle)
          RETURN
@@ -1529,28 +1417,44 @@ CONTAINS
       nspin = SIZE(kp%mos, 2)
       CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
 
-      IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
-         WRITE (UNIT=io_unit, FMT="(/,T2,A,/,T3,A,I0)") &
-            "ASPC wavefunction extrapolation for k-points", &
-            "ASPC order: ", MAX(nvec - 2, 0)
+      IF (method_nr == wfi_aspc_nr) THEN
+         IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+            WRITE (UNIT=io_unit, FMT="(/,T2,A,/,T3,A,I0)") &
+               "Parameters for the always stable predictor-corrector (ASPC) method:", &
+               "ASPC order: ", MAX(nvec - 2, 0)
+         END IF
       END IF
 
-      CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct, set_zero=.TRUE.)
+      IF (method_nr == wfi_aspc_nr) THEN
+         CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct, set_zero=.TRUE.)
+      ELSE
+         CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
+         CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
+         CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct)
+         CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
+      END IF
 
       CALL cp_fm_struct_create(nmo_nmo_struct, template_fmstruct=mo_coeff%matrix_struct, &
                                nrow_global=nmo, ncol_global=nmo)
-      CALL cp_cfm_create(csc_cfm, nmo_nmo_struct, set_zero=.TRUE.)
+      IF (method_nr == wfi_aspc_nr) THEN
+         CALL cp_cfm_create(csc_cfm, nmo_nmo_struct, set_zero=.TRUE.)
+      ELSE
+         CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
+      END IF
       CALL cp_fm_struct_release(nmo_nmo_struct)
 
       ! Phase 1: Initialize C_new(k) = B(1) * C_1(k)
       t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-      alpha_coeff = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
-
-      IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
-         WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") "B(", 1, ") = ", alpha_coeff
+      IF (method_nr == wfi_aspc_nr) THEN
+         alpha_coeff = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
+         IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+            WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") "B(", 1, ") = ", alpha_coeff
+         END IF
+      ELSE
+         alpha_coeff = nvec
       END IF
 
       DO ikp = 1, kplocal
@@ -1568,11 +1472,14 @@ CONTAINS
       ! Phase 2: Accumulate historical snapshots C_new += B(i) * C_proj(k)
       DO i = 2, nvec
          t0_state => wfi_get_snapshot(wf_history, wf_index=i)
-         alpha_coeff = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
-                       binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
-
-         IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
-            WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") "B(", i, ") = ", alpha_coeff
+         IF (method_nr == wfi_aspc_nr) THEN
+            alpha_coeff = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
+                          binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
+            IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+               WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") "B(", i, ") = ", alpha_coeff
+            END IF
+         ELSE
+            alpha_coeff = -1.0_dp*alpha_coeff*REAL(nvec - i + 1, dp)/REAL(i, dp)
          END IF
 
          DO ikp = 1, kplocal
@@ -1611,7 +1518,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE wfi_extrapolate_aspc_kp
+   END SUBROUTINE wfi_extrapolate_ps_aspc_kp
 
 ! **************************************************************************************************
 !> \brief Decides if scf control variables has to changed due
