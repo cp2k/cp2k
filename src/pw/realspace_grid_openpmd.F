@@ -302,8 +302,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
-      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
+      CHARACTER(LEN=default_string_length)               :: my_title
       INTEGER                                            :: count1, count2, count3, handle, i, I1, &
                                                             I2, I3, iat, L1, L2, L3, my_rank, &
                                                             my_stride(3), np, num_atom_types, &
@@ -326,6 +326,7 @@ CONTAINS
       be_silent = .FALSE.
       parallel_write = .FALSE.
       gid = pw%pw_grid%para%group
+      IF (PRESENT(title)) my_title = TRIM(title)
       IF (PRESENT(zero_tails)) my_zero_tails = zero_tails
       IF (PRESENT(silent)) be_silent = silent
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
