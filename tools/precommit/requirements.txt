@@ -1,4 +1,4 @@
-black==26.1.0
+black==26.3.1
 blinker==1.9.0
 click==8.3.1
 cmake-format==0.6.13
