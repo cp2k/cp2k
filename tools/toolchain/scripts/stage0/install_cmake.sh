@@ -20,23 +20,23 @@ cd "${BUILDDIR}"
 case "${with_cmake}" in
   __INSTALL__)
     echo "==================== Installing CMake ===================="
-    cmake_ver="3.31.7"
+    cmake_ver="4.2.3"
     cmake_ext="sh"
     if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
       if [ "$(uname -s)" = "Darwin" ]; then
         cmake_arch="macos-universal"
-        cmake_sha256="1cb11aa2edae8551bb0f22807c6f5246bd0eb60ae9fa1474781eb4095d299aca"
+        cmake_sha256="c2302d3e9c48daabee5ea7c4db4b2b93b989bcc89dae8b760880e00120641b5b"
         cmake_ext="tar.gz"
       elif [ "$(uname -s)" = "Linux" ]; then
         cmake_arch="linux-aarch64"
-        cmake_sha256="ce8e32b2c1c497dd7f619124c043ac5c28a88677e390c58748dd62fe460c62a2"
+        cmake_sha256="8e65cb924c41e3f6c5c98d1900aeeab3cfe3494f18ed8e5e63b91022df710401"
       else
         report_error ${LINENO} \
           "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
       fi
     elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
       cmake_arch="linux-x86_64"
-      cmake_sha256="b7a5c909cdafc36042c8c9bd5765e92ff1f2528cf01720aa6dc4df294ec7e1a0"
+      cmake_sha256="b760514fde7fc510fcd16e51a81a4d2687b1f051b263d40b6806789d3d9fd62c"
     else
       report_error ${LINENO} \
         "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
@@ -47,7 +47,12 @@ case "${with_cmake}" in
     if verify_checksums "${install_lock_file}"; then
       echo "cmake-${cmake_ver} is already installed, skipping it."
     else
-      retrieve_package "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}"
+      # retrieve_package "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}"
+      if [ -f cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} ]; then
+        echo "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} is found"
+      else
+        download_pkg_from_urlpath "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}" https://github.com/Kitware/CMake/releases/download/v4.2.3
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
       if [ "${cmake_arch}" = "macos-universal" ]; then
