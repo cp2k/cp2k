@@ -328,7 +328,7 @@ CONTAINS
       CALL kpoint_initialize_mo_set(kpoint)
 
       CALL get_qs_env(qs_env, sab_kp=sab_nl, dft_control=dft_control)
-      CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
+      CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control%nimages)
 
       CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
                       scf_env=scf_env, scf_control=scf_control)

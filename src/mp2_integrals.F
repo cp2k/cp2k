@@ -749,7 +749,7 @@ CONTAINS
          IF (do_kpoints_cubic_RPA) THEN
             ! set up new kpoint type with periodic images according to eps_grid from MP2 section
             ! instead of eps_pgf_orb from QS section
-            CALL kpoint_init_cell_index(kpoints, nl_3c%jk_list, para_env, dft_control)
+            CALL kpoint_init_cell_index(kpoints, nl_3c%jk_list, para_env, dft_control%nimages)
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "3C_OVERLAP_INTEGRALS_INFO| Number of periodic images considered:", dft_control%nimages
 
@@ -1365,7 +1365,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
+      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control%nimages)
 
       CALL set_qs_env(qs_env, kpoints=kpoints)
 

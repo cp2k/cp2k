@@ -22,10 +22,10 @@ MODULE ec_environment
    USE bibliography,                    ONLY: Niklasson2003,&
                                               Niklasson2014,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: &
@@ -42,6 +42,11 @@ MODULE ec_environment
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
+                                              kpoint_initialize
+   USE kpoint_types,                    ONLY: kpoint_create,&
+                                              read_kpoint_section,&
+                                              write_kpoint_info
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
@@ -117,21 +122,23 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_ec_env'
 
       INTEGER                                            :: handle, ikind, maxlgto, nkind, unit_nr
-      LOGICAL                                            :: explicit, gpw, paw_atom
+      LOGICAL                                            :: explicit, gpw, gs_kpoints, paw_atom
       REAL(KIND=dp)                                      :: eps_pgf_orb, etemp, rc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis, &
                                                             harris_soft_basis
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: ec_hfx_section, nl_section, pp_section, &
-                                                            section1, section2, xc_fun_section, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: ec_hfx_section, kp_section, nl_section, &
+                                                            pp_section, section1, section2, &
+                                                            xc_fun_section, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -157,19 +164,16 @@ CONTAINS
       ec_env%should_update = .TRUE.
       ec_env%mao = .FALSE.
       ec_env%do_ec_admm = .FALSE.
+      ec_env%do_kpoints = .FALSE.
       ec_env%do_ec_hfx = .FALSE.
       ec_env%reuse_hfx = .FALSE.
 
       IF (qs_env%energy_correction) THEN
 
          CPASSERT(PRESENT(ec_section))
+
          ! get a useful output_unit
-         logger => cp_get_default_logger()
-         IF (logger%para_env%is_source()) THEN
-            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-         ELSE
-            unit_nr = -1
-         END IF
+         unit_nr = cp_logger_get_default_unit_nr(local=.FALSE.)
 
          CALL section_vals_val_get(ec_section, "ALGORITHM", &
                                    i_val=ec_env%ks_solver)
@@ -236,6 +240,30 @@ CONTAINS
          ELSE
             ec_env%smear%do_smear = .FALSE.
             ec_env%smear%electronic_temperature = 0.0_dp
+         END IF
+
+         ! kpoints
+         ! Options:    gs       ec
+         !            gamma    gamma
+         !            gamma     KPec
+         !             KPgs     KPgs
+         !             KPgs     KPec
+         CALL get_qs_env(qs_env, do_kpoints=gs_kpoints)
+         kp_section => section_vals_get_subs_vals(ec_section, "KPOINTS")
+         CALL section_vals_get(kp_section, explicit=explicit)
+         ec_env%do_kpoints = gs_kpoints .OR. explicit
+         IF (ec_env%do_kpoints) THEN
+            IF (.NOT. explicit) THEN
+               kp_section => section_vals_get_subs_vals(dft_section, "KPOINTS")
+            END IF
+            CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
+            CALL kpoint_create(ec_env%kpoints)
+            CALL read_kpoint_section(ec_env%kpoints, kp_section, cell%hmat)
+            CALL kpoint_initialize(ec_env%kpoints, particle_set, cell)
+            CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+            CALL kpoint_env_initialize(ec_env%kpoints, para_env, blacs_env)
+         ELSE
+            NULLIFY (ec_env%kpoints)
          END IF
 
          ! set basis
@@ -547,17 +575,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_write_input'
 
       INTEGER                                            :: handle, unit_nr
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(ls_scf_env_type), POINTER                     :: ls_env
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      END IF
+      unit_nr = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       IF (unit_nr > 0) THEN
 
@@ -596,6 +618,10 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T61,L20)') "DC-DFT HFX with ADMM", ec_env%do_ec_admm
 
          END IF ! ec_env%do_ec_hfx
+
+         IF (ec_env%do_kpoints) THEN
+            CALL write_kpoint_info(ec_env%kpoints, iounit=unit_nr)
+         END IF
 
          ! Parameters for Harris functional solver
          IF (ec_env%energy_functional == ec_functional_harris) THEN

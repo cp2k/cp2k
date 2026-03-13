@@ -29,6 +29,7 @@ MODULE input_cp2k_ec
         ls_scf_sign_ns, ls_scf_sign_proot, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, precond_mlp
+   USE input_cp2k_kpoints,              ONLY: create_kpoints_section
    USE input_cp2k_mm,                   ONLY: create_dipoles_section
    USE input_cp2k_voronoi,              ONLY: create_print_voronoi_section
    USE input_cp2k_xc,                   ONLY: create_xc_section
@@ -85,6 +86,12 @@ CONTAINS
       ! add a special XC section
       NULLIFY (subsection)
       CALL create_xc_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! add a special kpoint section
+      NULLIFY (subsection)
+      CALL create_kpoints_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

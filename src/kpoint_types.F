@@ -20,6 +20,7 @@ MODULE kpoint_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
@@ -645,12 +646,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Write information on the kpoints to output
 !> \param kpoint  The kpoint environment
-!> \param dft_section  DFT section information
+!> \param iounit  output unit
+!> \param dft_section  DFT section information for output unit
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE write_kpoint_info(kpoint, dft_section)
+   SUBROUTINE write_kpoint_info(kpoint, iounit, dft_section)
       TYPE(kpoint_type), INTENT(IN)                      :: kpoint
-      TYPE(section_vals_type), INTENT(IN)                :: dft_section
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
+      TYPE(section_vals_type), INTENT(IN), OPTIONAL      :: dft_section
 
       INTEGER                                            :: i, punit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -658,7 +661,14 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      punit = cp_print_key_unit_nr(logger, dft_section, "PRINT%KPOINTS", extension=".Log")
+      IF (PRESENT(dft_section)) THEN
+         punit = cp_print_key_unit_nr(logger, dft_section, "PRINT%KPOINTS", extension=".Log")
+      ELSE IF (PRESENT(iounit)) THEN
+         punit = iounit
+      ELSE
+         punit = cp_logger_get_default_unit_nr(logger)
+      END IF
+
       IF (punit > 0) THEN
 
          IF (kpoint%kp_scheme /= "NONE") THEN
@@ -710,7 +720,10 @@ CONTAINS
          END IF
 
       END IF
-      CALL cp_print_key_finished_output(punit, logger, dft_section, "PRINT%KPOINTS")
+
+      IF (PRESENT(dft_section)) THEN
+         CALL cp_print_key_finished_output(punit, logger, dft_section, "PRINT%KPOINTS")
+      END IF
 
    END SUBROUTINE write_kpoint_info
 

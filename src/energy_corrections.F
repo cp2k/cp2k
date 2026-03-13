@@ -117,6 +117,7 @@ MODULE energy_corrections
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE mao_basis,                       ONLY: mao_generate_basis
    USE mathlib,                         ONLY: det_3x3,&
                                               invmat_symm
@@ -264,7 +265,6 @@ CONTAINS
 
       INTEGER                                            :: handle, unit_nr
       LOGICAL                                            :: my_calc_forces
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force
@@ -272,12 +272,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      END IF
+      unit_nr = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       CALL cite_reference(Belleflamme2023)
 
@@ -379,10 +374,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      INTEGER                                            :: ispin, nkind, nspins
+      INTEGER                                            :: ispin, nimages, nkind, nspins
       LOGICAL                                            :: debug_f, gapw, gapw_xc
       REAL(KIND=dp)                                      :: eps_fit, exc
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -401,8 +397,12 @@ CONTAINS
                                ec_env%vtau_rspace, &
                                ec_env%vadmm_rspace, &
                                ec_env%ehartree, exc)
-         CALL ks_ref_potential_atom(qs_env, ec_env%local_rho_set, ec_env%local_rho_set_admm, &
-                                    ec_env%vh_rspace)
+         CALL ks_ref_potential_atom(qs_env, ec_env%local_rho_set, &
+                                    ec_env%local_rho_set_admm, ec_env%vh_rspace)
+         IF (ec_env%do_kpoints) THEN
+            CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+            CALL kpoint_init_cell_index(ec_env%kpoints, ec_env%sab_kp, para_env, nimages)
+         END IF
 
          SELECT CASE (ec_env%energy_functional)
          CASE (ec_functional_harris)
@@ -411,6 +411,7 @@ CONTAINS
             CALL ec_build_ks_matrix(qs_env, ec_env)
 
             IF (ec_env%mao) THEN
+               CPASSERT(.NOT. ec_env%do_kpoints)
                ! MAO basis
                IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
                NULLIFY (ec_env%mao_coef)
@@ -424,6 +425,7 @@ CONTAINS
             CALL evaluate_ec_core_matrix_traces(qs_env, ec_env)
 
          CASE (ec_functional_dc)
+            CPASSERT(.NOT. ec_env%do_kpoints)
 
             ! Prepare Density-corrected DFT (DC-DFT) calculation
             CALL ec_dc_energy(qs_env, ec_env, calculate_forces=.FALSE.)
@@ -434,6 +436,7 @@ CONTAINS
             CALL ec_build_ks_matrix(qs_env, ec_env)
 
          CASE (ec_functional_ext)
+            CPASSERT(.NOT. ec_env%do_kpoints)
 
             CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.FALSE.)
 
@@ -450,6 +453,7 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
+         CPASSERT(.NOT. ec_env%do_kpoints)
 
          debug_f = ec_env%debug_forces .OR. ec_env%debug_stress
 
@@ -866,7 +870,6 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -897,12 +900,7 @@ CONTAINS
       debug_forces = ec_env%debug_forces
       debug_stress = ec_env%debug_stress
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
+      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
                matrix_p, matrix_s, para_env, pw_env, rho, sab_orb, virial)
@@ -1560,6 +1558,7 @@ CONTAINS
       IF (nimages /= 1) THEN
          CPABORT("K-points for Harris functional not implemented")
       END IF
+      CPASSERT(.NOT. ec_env%do_kpoints)
 
       ! check for GAPW/GAPW_XC
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -1637,7 +1636,6 @@ CONTAINS
                                                             evhxc, exc1, t3
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_mat, ps_mat
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1659,12 +1657,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
+      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       ! get all information on the electronic density
       NULLIFY (auxbas_pw_pool, dft_control, energy, ks_env, rho, rho_r, tau_r)
@@ -1929,7 +1922,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb, sttot
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: scrm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1944,12 +1936,7 @@ CONTAINS
       debug_forces = ec_env%debug_forces
       debug_stress = ec_env%debug_stress
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
+      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       calculate_forces = .TRUE.
 
@@ -2081,7 +2068,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -2110,12 +2096,7 @@ CONTAINS
       debug_forces = ec_env%debug_forces
       debug_stress = ec_env%debug_stress
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
+      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
@@ -3237,6 +3218,16 @@ CONTAINS
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
       CALL build_neighbor_lists(ec_env%sab_orb, particle_set, atom2d, cell, pair_radius, &
                                 subcells=subcells, nlname="sab_orb")
+      ! kpoints
+      IF (ec_env%do_kpoints) THEN
+         ! pair_radius maybe needs adjustment for HFX?
+         CALL build_neighbor_lists(ec_env%sab_kp, particle_set, atom2d, cell, pair_radius, &
+                                   subcells=subcells, nlname="sab_kp")
+         IF (ec_env%do_ec_hfx) THEN
+            CALL build_neighbor_lists(ec_env%sab_kp_nosym, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, nlname="sab_kp_nosym", symmetric=.FALSE.)
+         END IF
+      END IF
       ! pseudopotential/AE
       IF (all_potential_present .OR. sgp_potential_present) THEN
          IF (ANY(all_present)) THEN
@@ -3387,11 +3378,7 @@ CONTAINS
       rlab(3) = "Z"
 
       logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iounit = -1
-      END IF
+      iounit = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
 
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -3856,7 +3843,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type)                                   :: sv
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -3871,8 +3857,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(ec_env))

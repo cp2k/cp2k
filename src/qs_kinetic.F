@@ -83,6 +83,7 @@ CONTAINS
 !> \param   calculate_forces (optional) ...
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with kpoints (optional)
+!> \param ext_kpoints ...
 !> \param   eps_filter Filter final matrix (optional)
 !> \param   nderivative The number of calculated derivatives
 !> \date    11.10.2010
@@ -97,7 +98,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix(ks_env, matrix_t, matrixkp_t, matrix_name, &
                                    basis_type, sab_nl, calculate_forces, matrix_p, matrixkp_p, &
-                                   eps_filter, nderivative)
+                                   ext_kpoints, eps_filter, nderivative)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -112,6 +113,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
 
@@ -120,8 +122,8 @@ CONTAINS
       CALL get_ks_env(ks_env, natom=natom)
 
       CALL build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
-                                    sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom, &
-                                    nderivative)
+                                    sab_nl, calculate_forces, matrix_p, matrixkp_p, &
+                                    ext_kpoints, eps_filter, natom, nderivative)
 
    END SUBROUTINE build_kinetic_matrix
 
@@ -137,13 +139,14 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param matrix_p ...
 !> \param matrixkp_p ...
+!> \param ext_kpoints ...
 !> \param eps_filter ...
 !> \param natom ...
 !> \param nderivative ...
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
-                                       sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom, &
-                                       nderivative)
+                                       sab_nl, calculate_forces, matrix_p, matrixkp_p, &
+                                       ext_kpoints, eps_filter, natom, nderivative)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -158,6 +161,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
       INTEGER, INTENT(IN)                                :: natom
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
@@ -205,26 +209,38 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! test for matrices (kpoints or standard gamma point)
-      IF (PRESENT(matrix_t)) THEN
-         dokp = .FALSE.
-         use_cell_mapping = .FALSE.
-      ELSEIF (PRESENT(matrixkp_t)) THEN
-         dokp = .TRUE.
-         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-         use_cell_mapping = (SIZE(cell_to_index) > 1)
-      ELSE
-         CPABORT("")
-      END IF
-
       NULLIFY (atomic_kind_set, qs_kind_set, p_block, dft_control)
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
 
-      nimg = dft_control%nimages
+      ! test for matrices (kpoints or standard gamma point)
+      IF (PRESENT(matrix_t)) THEN
+         dokp = .FALSE.
+         use_cell_mapping = .FALSE.
+         nimg = dft_control%nimages
+      ELSEIF (PRESENT(matrixkp_t)) THEN
+         dokp = .TRUE.
+         IF (PRESENT(ext_kpoints)) THEN
+            IF (ASSOCIATED(ext_kpoints)) THEN
+               CALL get_kpoint_info(kpoint=ext_kpoints, cell_to_index=cell_to_index)
+               use_cell_mapping = (SIZE(cell_to_index) > 1)
+               nimg = SIZE(ext_kpoints%index_to_cell, 2)
+            ELSE
+               use_cell_mapping = .FALSE.
+               nimg = 1
+            END IF
+         ELSE
+            CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+            CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+            use_cell_mapping = (SIZE(cell_to_index) > 1)
+            nimg = dft_control%nimages
+         END IF
+      ELSE
+         CPABORT("")
+      END IF
+
       nkind = SIZE(atomic_kind_set)
 
       do_forces = .FALSE.
