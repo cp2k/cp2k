@@ -598,7 +598,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_scf_summary'
 
       INTEGER                                            :: bc, handle, ispin, psolver
-      REAL(kind=dp)                                      :: exc1_energy, exc_energy, &
+      REAL(kind=dp)                                      :: e_extrapolated, exc1_energy, exc_energy, &
                                                             implicit_ps_ehartree, tot1_h, tot1_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -843,6 +843,11 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Total energy:                                  ", energy%total
+            IF (dft_control%smear) THEN
+               e_extrapolated = energy%total - 0.5_dp*energy%kTS
+               WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                  "Total energy (extrapolated to T->0):           ", e_extrapolated
+            END IF
          END IF
          IF (qmmm) THEN
             IF (qs_env%qmmm_env_qm%image_charge) THEN
