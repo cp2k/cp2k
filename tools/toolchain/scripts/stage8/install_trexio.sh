@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-trexio_ver="2.6.0"
-trexio_sha256="02b692c7792b4c8d041b1eeacdf144dca333a6ea699f66e911489768586de335"
+trexio_ver="2.6.1"
+trexio_sha256="c3694ec1528632a386a2af89199c75d70ecd45bfcc2ca1d4ccccbfa1308ad5fa"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -34,14 +34,29 @@ case "$with_trexio" in
     if verify_checksums "${install_lock_file}"; then
       echo "trexio-${trexio_ver} is already installed, skipping it."
     else
-      retrieve_package "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
+      # retrieve_package "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz"
+      if [ -f trexio-${trexio_ver}.tar.gz ]; then
+        echo "trexio_${trexio_ver}.tar.gz is found"
+      else
+        download_pkg_from_urlpath "${trexio_sha256}" "trexio-${trexio_ver}.tar.gz" https://github.com/TREX-CoE/trexio/releases/download/v2.6.1
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d trexio-${trexio_ver} ] && rm -rf trexio-${trexio_ver}
+
       tar -xzf trexio-${trexio_ver}.tar.gz
       cd trexio-${trexio_ver}
 
-      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1 || tail_excerpt configure.log
+      CMAKE_OPTIONS="-DCMAKE_VERBOSE_MAKEFILE=ON"
+      if [ "${MPI_MODE}" != "no" ]; then
+        CMAKE_OPTIONS="-DCMAKE_C_COMPILER=${MPICC}"
+      fi
 
+      mkdir build && cd build
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDOR="lib" \
+        ${CMAKE_OPTIONS} \
+        .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) >> make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
       cd ..
