@@ -652,7 +652,7 @@ CONTAINS
       IF (do_kpoints) THEN
          CPASSERT(PRESENT(kpoints))
          IF (my_do_build_cell_index) THEN
-            CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control)
+            CALL kpoint_init_cell_index(kpoints, sab_RI, para_env, dft_control%nimages)
          END IF
          CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
                               cell_to_index=cell_to_index)

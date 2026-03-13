@@ -2327,7 +2327,7 @@ CONTAINS
 
       DEALLOCATE (kpoints_Sigma%cell_to_index)
       NULLIFY (kpoints_Sigma%cell_to_index)
-      CALL kpoint_init_cell_index(kpoints_Sigma, sab_orb, para_env, dft_control)
+      CALL kpoint_init_cell_index(kpoints_Sigma, sab_orb, para_env, dft_control%nimages)
 
       nimg = MAXVAL(kpoints_Sigma%cell_to_index)
 

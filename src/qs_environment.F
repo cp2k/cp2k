@@ -376,7 +376,7 @@ CONTAINS
          CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
          dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-         CALL write_kpoint_info(kpoints, dft_section)
+         CALL write_kpoint_info(kpoints, dft_section=dft_section)
       END IF
 
       CALL qs_init_subsys(qs_env, para_env, subsys, my_cell, my_cell_ref, use_ref_cell, &
@@ -515,6 +515,13 @@ CONTAINS
          CALL section_vals_get(ec_hfx_section, explicit=do_ec_hfx)
 
          IF (ec_env%do_ec_hfx) THEN
+
+            ! kpoints and HFX not yet compatible
+            IF (ec_env%do_kpoints) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Energy correction methods with hybrid functionals "// &
+                             "and kpoints is not yet available.")
+            END IF
 
             ! Hybrid functionals require same basis
             IF (ec_env%basis_inconsistent) THEN

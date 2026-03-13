@@ -3491,11 +3491,9 @@ CONTAINS
                       para_env=para_env, &
                       sab_all=sab_all)
 
-      nimg = dft_control%nimages
       NULLIFY (kpoints_all)
       CALL kpoint_create(kpoints_all)
-      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, dft_control)!changes nimages
-      dft_control%nimages = nimg
+      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, nimg)
 
       nkind = SIZE(qs_kind_set)
       ALLOCATE (basis_set_list(nkind))
@@ -3688,13 +3686,12 @@ CONTAINS
 
       ! create kpoint environment kpoints_all which contains all neighbor cells R
       ! without considering any lattice symmetry
-      n_img_scf = dft_control%nimages
       NULLIFY (kpoints_all)
       CALL kpoint_create(kpoints_all)
-      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, dft_control)!changes nimages
-      dft_control%nimages = n_img_scf
+      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, n_img_scf)
 
-      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, index_to_cell=index_to_cell_all)
+      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, &
+                           index_to_cell=index_to_cell_all)
       n_img_all = SIZE(index_to_cell_all, 2)
 
       NULLIFY (moments_rs_img)
