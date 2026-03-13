@@ -121,7 +121,8 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="A", &
                           description="Specify the Cartesian components for the cell vector A. "// &
-                          "This defines the first column of the h matrix.", &
+                          "This defines the first column of the h matrix. "// &
+                          "Ignored if the keywords ABC or CELL_FILE_NAME are used.", &
                           usage="A  10.000  0.000  0.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -129,7 +130,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="B", &
                           description="Specify the Cartesian components for the cell vector B. "// &
-                          "This defines the second column of the h matrix.", &
+                          "This defines the second column of the h matrix. "// &
+                          "Ignored if the keywords ABC or CELL_FILE_NAME are used.", &
                           usage="B   0.000 10.000  0.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -137,7 +139,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="C", &
                           description="Specify the Cartesian components for the cell vector C. "// &
-                          "This defines the third column of the h matrix.", &
+                          "This defines the third column of the h matrix. "// &
+                          "Ignored if the keywords ABC or CELL_FILE_NAME are used.", &
                           usage="C   0.000  0.000 10.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -148,7 +151,8 @@ CONTAINS
                           " defines the diagonal elements of h matrix for an orthorhombic cell."// &
                           " For non-orthorhombic cells it is possible either to specify the angles "// &
                           "ALPHA, BETA, GAMMA via ALPHA_BETA_GAMMA keyword or alternatively use the keywords "// &
-                          "A, B, and C. The convention is that A lies along the X-axis, B is in the XY plane.", &
+                          "A, B, and C. The convention is that A lies along the X-axis, B is in the XY plane. "// &
+                          "Ignored if CELL_FILE_NAME is used.", &
                           usage="ABC 10.000 10.000 10.000", unit_str="angstrom", &
                           n_var=3, type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
