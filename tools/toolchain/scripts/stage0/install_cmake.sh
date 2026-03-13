@@ -21,22 +21,20 @@ case "${with_cmake}" in
   __INSTALL__)
     echo "==================== Installing CMake ===================="
     cmake_ver="4.2.3"
-    cmake_ext="sh"
     if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
       if [ "$(uname -s)" = "Darwin" ]; then
         cmake_arch="macos-universal"
         cmake_sha256="c2302d3e9c48daabee5ea7c4db4b2b93b989bcc89dae8b760880e00120641b5b"
-        cmake_ext="tar.gz"
       elif [ "$(uname -s)" = "Linux" ]; then
         cmake_arch="linux-aarch64"
-        cmake_sha256="8e65cb924c41e3f6c5c98d1900aeeab3cfe3494f18ed8e5e63b91022df710401"
+        cmake_sha256="e529c75f18f27ba27c52b329efe7b1f98dc32ccc0c6d193c7ab343f888962672"
       else
         report_error ${LINENO} \
           "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
       fi
     elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
       cmake_arch="linux-x86_64"
-      cmake_sha256="b760514fde7fc510fcd16e51a81a4d2687b1f051b263d40b6806789d3d9fd62c"
+      cmake_sha256="5bb505d5e0cca0480a330f7f27ccf52c2b8b5214c5bba97df08899f5ef650c23"
     else
       report_error ${LINENO} \
         "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
@@ -47,19 +45,15 @@ case "${with_cmake}" in
     if verify_checksums "${install_lock_file}"; then
       echo "cmake-${cmake_ver} is already installed, skipping it."
     else
-      # retrieve_package "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}"
-      if [ -f cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} ]; then
-        echo "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} is found"
-      else
-        download_pkg_from_urlpath "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.${cmake_ext}" https://github.com/Kitware/CMake/releases/download/v4.2.3
-      fi
+      retrieve_package "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
       if [ "${cmake_arch}" = "macos-universal" ]; then
-        tar --strip-components=3 -xvf cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} -C ${pkg_install_dir} > install.log 2>&1 || tail_excerpt install.log
+        strip_components=3
       else
-        /bin/sh cmake-${cmake_ver}-${cmake_arch}.${cmake_ext} --prefix=${pkg_install_dir} --skip-license > install.log 2>&1 || tail_excerpt install.log
+        strip_components=1
       fi
+      tar --strip-components=${strip_components} -xvf cmake-${cmake_ver}-${cmake_arch}.tar.gz -C ${pkg_install_dir} > install.log 2>&1 || tail_excerpt install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"
     fi
     ;;
