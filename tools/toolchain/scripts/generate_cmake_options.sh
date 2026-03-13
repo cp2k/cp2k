@@ -12,13 +12,64 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-export CP2K_ROOT=$(cd ${ROOTDIR}/../.. && pwd)
+# This script assumes a working environment as follows:
+# cp2k                                  <- variable ${CP2K_ROOT}; CMake option -S
+# ├── CMakeLists.txt                    <- * file to be parsed in this script
+# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR
+# ├── build                             <- to-be-created; CMake option -B
+# ├── install                           <- to-be-created; CMake option -DCMAKE_INSTALL_PREFIX
+# ├── src                               <- CP2K source code directory
+# └── tools
+#     └── toolchain                     <- working directory; variable ${ROOTDIR}
+#         ├── install_cp2k_toolchain.sh <- script being executed calling this script
+#         ├── scripts                   <- variable ${SCRIPT_DIR}
+#         │   ├── common_vars.sh
+#         │   ├── tool_kit.sh
+#         │   └── generate_cmake_options.sh <- this script
+#         └── install                   <- variable ${INSTALLDIR}
+#             ├── setup                 <- * file to be parsed in this script
+#             ├── toolchain.conf        <- * file to be parsed in this script
+#             └── toolchain.env         <- * file to be parsed in this script
+#
+# First, validate existence of relevant upper-level directory and file
+printf "\n========================== %s =========================\n" \
+  "Generating CMake options for building CP2K"
+CP2K_ROOT=$(cd "${ROOTDIR}/../.." && pwd)
+if [ -d "${CP2K_ROOT}/src" ]; then
+  cat << EOF
+Root directory of CP2K with source code is found as ${CP2K_ROOT}
+(path is exported to variable \${CP2K_ROOT}).
+Build directory will be \${CP2K_ROOT}/build.
+Install directory will be \${CP2K_ROOT}/install.
+EOF
+  export CP2K_ROOT
+  CMAKE_OPTIONS="-S ${CP2K_ROOT} -B ${CP2K_ROOT}/build"
+  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
+  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_LIBDIR=lib"
+else
+  report_error ${LINENO} "\${CP2K_ROOT} does not have subdirectory src, so it
+cannot be set as source path for CMake options."
+  return 1
+fi
+if [ -f "${CP2K_ROOT}/CMakeLists.txt" ] && [ -r "${CP2K_ROOT}/CMakeLists.txt" ]; then
+  echo "${CP2K_ROOT}/CMakeLists.txt exists; will be parsed for CMake options."
+else
+  report_error ${LINENO} "${CP2K_ROOT}/CMakeLists.txt cannot be found or read;
+suggested CMake option will be incomplete and/or incorrect."
+  return 1
+fi
+if [ -d "${CP2K_ROOT}/data" ]; then
+  echo "Data directory ${CP2K_ROOT}/data is found and set as -DCP2K_DATA_DIR."
+  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
+else
+  report_warning ${LINENO} "Data directory ${CP2K_ROOT}/data cannot be found;
+please set -DCP2K_DATA_DIR to actual path manually."
+fi
 
 # ------------------------------------------------------------------------
 # generate cmake options for compiling cp2k
 # ------------------------------------------------------------------------
 # Build the program in source tree for convenience
-CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=../install -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 if [ -n "$(grep -- "--install-all" ${INSTALLDIR}/setup)" ]; then
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
   # Since "--install-all" can be used together with "--with-PKG=no", an extra safeguard is added here
@@ -68,32 +119,69 @@ else
   done
 fi
 
+# Export variable for CMake options to setup file
+cat << EOF >> "${SETUPFILE}"
+# ==================== Setup for CP2K ==================== #
+export CP2K_ROOT="${CP2K_ROOT}"
+export CP2K_CMAKE_OPTIONS="${CMAKE_OPTIONS}"
+prepend_path PATH "${CP2K_ROOT}/install/bin"
+prepend_path LD_LIBRARY_PATH "${CP2K_ROOT}/install/lib"
+prepend_path LD_RUN_PATH "${CP2K_ROOT}/install/lib"
+prepend_path LIBRARY_PATH "${CP2K_ROOT}/install/lib"
+prepend_path PKG_CONFIG_PATH "${CP2K_ROOT}/install/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${CP2K_ROOT}"
+EOF
+cat << EOF
+Suggested cmake command if toolchain is built with your options:
+
+  cmake ${CMAKE_OPTIONS}
+
+These options are also collected in the variable \${CP2K_CMAKE_OPTIONS} that is
+exported at the end of setup file ${SETUPFILE}.
+EOF
+
 # -------------------------
 # print out user instructions
 # -------------------------
-if [ "${dry_run}" = "__TRUE__" ]; then
-  cat << EOF
-Suggested cmake command if toolchain is built with your options:
-  cmake .. ${CMAKE_OPTIONS}
-EOF
-else
+if [ ! "${dry_run}" = "__TRUE__" ]; then
   echo
   cat << EOF | tee ${INSTALLDIR}/cp2k_installation_guide.txt
-========================== usage =========================
-Done! The "build" directory can now be removed.
+========================== Epilogue =========================
+Toolchain is now ready for building CP2K! Instructions for next steps:
 
-To use the installed tools and libraries and cp2k version compiled with it you will first need to execute at the prompt:
-  source ${SETUPFILE}
+(1) Optional - remove packages in ./build directory to free up disk space:
+      rm -rf ${BUILDDIR}
+    However, do NOT delete or move the ./install directory from now on.
 
-It's recommended for you to build CP2K like this after executing above command:
-  cd ${CP2K_ROOT}
-  mkdir build && cd build
-  cmake .. ${CMAKE_OPTIONS}
-  make install -j $(get_nprocs)
+(2) Required - source setup file to activate toolchain-configured dependencies:
+      source ${SETUPFILE}
+    This setup file MUST also be sourced whenever CP2K built with this toolchain
+    is executed. If modules have been used to estabilish environment variables
+    and paths, remember to load these modules prior to sourcing setup file.
 
-When completed, you can run "make clean" or delete this build directory to free up some space.
+(3) Required - go to root directory of CP2K and configure CMake with options
+    suggested above:
+      cd ${CP2K_ROOT}
+      cmake ${CMAKE_OPTIONS}
+    Other commands from ${CP2K_ROOT}/CMakeLists.txt can also be added. For more
+    information about available build options, see documentation:
+    https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
+    Alternative to copy-paste long lines in terminal is to use a variable from
+    setup file for CMake options, which is not to be quoted so that whitespace
+    delimiters allow it to expand to command options in shell:
+      cmake \${CP2K_CMAKE_OPTIONS}
 
-For more information about available build options, see: https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
+(4) Required - build CP2K with command:
+      cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs)
+    It may be helpful to also save a copy of command line messages to log files:
+      cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs) 2>&1 | tee install.log
+
+(5) Optional - once build is completed, remove ./build directory like in (1):
+      cmake --build ${CP2K_ROOT}/build --target clean
+    Again, do not move the ./install directory from now on.
+
+(6) Recommended - perform regtest as is suggested at the end of (3).
+
 This message is saved to "${INSTALLDIR}/cp2k_installation_guide.txt".
 EOF
 fi

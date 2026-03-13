@@ -92,7 +92,7 @@ find_package(PkgConfig)
 # Define the paths for static libraries and executables
 # ##############################################################################
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
-    ${cp2k_BINARY_DIR}/lib
+    ${PROJECT_BINARY_DIR}/lib
     CACHE PATH "Single output directory for building all libraries.")
 
 # Search for rocm in common locations
@@ -356,7 +356,7 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
-    ${cp2k_BINARY_DIR}/bin
+    ${PROJECT_BINARY_DIR}/bin
     CACHE PATH "Single output directory for building all executables.")
 
 # Python
@@ -1241,7 +1241,7 @@ endif()
 message(
   "\n\n" # let below line separate
   "After building CP2K the regtests can be run with the following command:\n"
-  "   ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
+  "   ./tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${__cp2k_ext}\n\n")
 
 # files needed for cmake
 
