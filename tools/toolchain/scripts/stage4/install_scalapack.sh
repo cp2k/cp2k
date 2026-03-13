@@ -35,6 +35,9 @@ case "$with_scalapack" in
       [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
       tar -xzf ${scalapack_pkg}
 
+      # Change the CMake policy requirement to keep legacy compatibility for CMake version 4.x
+      sed -e 's/2.8/3.5/g' -i scalapack-${scalapack_ver}/BLACS/INSTALL/CMakeLists.txt
+
       mkdir -p "scalapack-${scalapack_ver}/build"
       pushd "scalapack-${scalapack_ver}/build" > /dev/null
 
