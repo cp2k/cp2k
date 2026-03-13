@@ -279,9 +279,8 @@ CONTAINS
 
       INTEGER                                            :: my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
-      LOGICAL                                            :: cell_read_a, cell_read_abc, cell_read_b, &
-                                                            cell_read_c, cell_read_file, check, &
-                                                            my_check
+      LOGICAL :: cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, cell_read_b, cell_read_c, &
+         cell_read_file, check_read_abc, my_check
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_angles, cell_par
       TYPE(section_vals_type), POINTER                   :: cell_ref_section
 
@@ -302,45 +301,43 @@ CONTAINS
       cell_read_b = .FALSE.
       cell_read_c = .FALSE.
       ! Trying to read cell info from file
+      ! It resets the respective keywords
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
-      IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env)
+      IF (cell_read_file) &
+         CALL read_cell_from_external_file(cell_section, para_env)
 
-      ! Trying to read cell info from the separate A, B, C vectors
-      ! If cell information is provided through file A,B,C contain the file information..
-      ! a print warning is shown on screen..
       CALL section_vals_val_get(cell_section, "A", explicit=cell_read_a)
-      IF (cell_read_a) THEN
-         CALL section_vals_val_get(cell_section, "A", r_vals=cell_par)
-         cell%hmat(:, 1) = cell_par(:)
-      END IF
       CALL section_vals_val_get(cell_section, "B", explicit=cell_read_b)
-      IF (cell_read_b) THEN
-         CALL section_vals_val_get(cell_section, "B", r_vals=cell_par)
-         cell%hmat(:, 2) = cell_par(:)
-      END IF
       CALL section_vals_val_get(cell_section, "C", explicit=cell_read_c)
-      IF (cell_read_c) THEN
-         CALL section_vals_val_get(cell_section, "C", r_vals=cell_par)
-         cell%hmat(:, 3) = cell_par(:)
-      END IF
-      check = ((cell_read_a .EQV. cell_read_b) .AND. (cell_read_b .EQV. cell_read_c))
-      IF (.NOT. check) &
-         CALL cp_warn(__LOCATION__, &
-                      "Cell Information provided through vectors A, B and C. Not all three "// &
-                      "vectors were provided! Cell setup may be incomplete!")
-
-      ! Very last option.. Trying to read cell info from ABC keyword
       CALL section_vals_val_get(cell_section, "ABC", explicit=cell_read_abc)
-      IF (cell_read_abc) THEN
-         check = (cell_read_a .OR. cell_read_b .OR. cell_read_c)
-         IF (check) &
+      CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", explicit=cell_read_alpha_beta_gamma)
+
+      IF (cell_read_abc) THEN ! Presence of ABC overrides A, B, C
+         IF (cell_read_a .OR. cell_read_b .OR. cell_read_c) &
             CALL cp_warn(__LOCATION__, &
-                         "Cell Information provided through vectors A, B and C in conjunction with ABC."// &
-                         " The definition of the ABC keyword will override the one provided by A,B and C.")
-         cell%hmat = 0.0_dp
+                         "Cell Information provided through vectors A, B or C in conjunction with ABC."// &
+                         " The definition of the ABC keyword will override the one provided by A, B and C.")
          CALL section_vals_val_get(cell_section, "ABC", r_vals=cell_par)
          CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", r_vals=cell_angles)
          CALL set_cell_param(cell, cell_par, cell_angles, do_init_cell=.FALSE.)
+      ELSE ! With no ABC, try to read A, B, C
+         check_read_abc = ((cell_read_a .EQV. cell_read_b) .AND. (cell_read_b .EQV. cell_read_c))
+         IF (check_read_abc) THEN
+            CALL section_vals_val_get(cell_section, "A", r_vals=cell_par)
+            cell%hmat(:, 1) = cell_par(:)
+            CALL section_vals_val_get(cell_section, "B", r_vals=cell_par)
+            cell%hmat(:, 2) = cell_par(:)
+            CALL section_vals_val_get(cell_section, "C", r_vals=cell_par)
+            cell%hmat(:, 3) = cell_par(:)
+            IF (cell_read_alpha_beta_gamma) &
+               CALL cp_warn(__LOCATION__, &
+                            "The keyword ALPHA_BETA_GAMMA is ignored because it was used without the "// &
+                            "keyword ABC.")
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "Cell Information provided through vectors A, B and C. Not all three "// &
+                          "vectors were provided! Cell setup may be incomplete!")
+         END IF
       END IF
 
       ! Multiple unit cell
