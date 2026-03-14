@@ -28,7 +28,7 @@ MODULE scf_control_types
         outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
         outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
         outer_scf_optimizer_secant, outer_scf_s2_constraint, smear_energy_window, &
-        smear_fermi_dirac, smear_gaussian, smear_list
+        smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv
    USE input_cp2k_scf,                  ONLY: create_scf_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -521,7 +521,9 @@ CONTAINS
                                    r_val=smear%eps_fermi_dirac)
          CALL section_vals_val_get(smear_section, "WINDOW_SIZE", &
                                    r_val=smear%window_size)
-         IF (smear%method == smear_gaussian) THEN
+         IF (smear%method == smear_gaussian .OR. &
+             smear%method == smear_mp .OR. &
+             smear%method == smear_mv) THEN
             CALL section_vals_val_get(smear_section, "SIGMA", &
                                       r_val=smear%smearing_width)
          END IF
@@ -638,7 +640,7 @@ CONTAINS
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
                   IF (scf_control%smear%fixed_mag_mom > 0.0_dp) WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") &
                      "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
-               CASE (smear_gaussian)
+               CASE (smear_gaussian, smear_mp, smear_mv)
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,ES10.2)") &
                      "Smearing width (sigma) [a.u.]:", scf_control%smear%smearing_width, &
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac

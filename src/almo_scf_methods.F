@@ -42,11 +42,10 @@ MODULE almo_scf_methods
                                               domain_submatrix_type,&
                                               select_row,&
                                               select_row_col
-   USE fermi_utils,                     ONLY: FermiFixed
-!! for smearing
    USE input_constants,                 ONLY: almo_domain_layout_molecular,&
                                               almo_mat_distr_atomic,&
                                               almo_scf_diag,&
+                                              smear_fermi_dirac,&
                                               spd_inversion_dense_cholesky,&
                                               spd_inversion_ls_hotelling,&
                                               spd_inversion_ls_taylor
@@ -58,6 +57,7 @@ MODULE almo_scf_methods
                                               invmat_symm
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
+   USE smearing_utils,                  ONLY: SmearFixed
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -1319,13 +1319,11 @@ CONTAINS
 
       !! Apply Fermi-Dirac smearing for each domain and store associated occupations for the whole system
       DO idomain = 1, ndomains
-         CALL FermiFixed(occupation_numbers(1 + neigenval_used:nocc_of_domain(idomain) + neigenval_used), &
-                         mu_of_domain(idomain), &
-                         kTS, &
+         !! Warning, maxocc is set to 1 since we don't want to interfere with the spin_factor rescaling
+         CALL SmearFixed(occupation_numbers(1 + neigenval_used:nocc_of_domain(idomain) + neigenval_used), &
+                         mu_of_domain(idomain), kTS, &
                          mo_energies(1 + neigenval_used:nocc_of_domain(idomain) + neigenval_used), &
-                         real_ne_of_domain(idomain), &
-                         smear_e_temp, &
-                         1.0_dp) !! Warning, maxocc is set to 1 since we don't want to interfere with the spin_factor rescaling
+                         real_ne_of_domain(idomain), smear_e_temp, 1.0_dp, smear_fermi_dirac)
          spin_kTS = spin_kTS + kTS !! Add up electronic entropy contributions
          neigenval_used = neigenval_used + nocc_of_domain(idomain) !! Update eigenvalues index offset
       END DO

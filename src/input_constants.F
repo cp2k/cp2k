@@ -903,7 +903,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: smear_energy_window = 1, &
                                                smear_fermi_dirac = 2, &
                                                smear_list = 3, &
-                                               smear_gaussian = 4
+                                               smear_gaussian = 4, &
+                                               smear_mp = 5, &
+                                               smear_mv = 6
 
    ! Define identifier codes for mixing method
 

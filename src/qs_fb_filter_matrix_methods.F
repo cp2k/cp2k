@@ -17,8 +17,7 @@ MODULE qs_fb_filter_matrix_methods
                                               dbcsr_put_block,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
-   USE fermi_utils,                     ONLY: Fermi,&
-                                              FermiFixed
+   USE input_constants,                 ONLY: smear_fermi_dirac
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -52,6 +51,8 @@ MODULE qs_fb_filter_matrix_methods
                                               fb_matrix_data_release
    USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
                                               fb_trial_fns_obj
+   USE smearing_utils,                  ONLY: SmearFixed,&
+                                              SmearOcc
    USE string_utilities,                ONLY: compress,&
                                               uppercase
 #include "./base/base_uses.f90"
@@ -1400,7 +1401,7 @@ CONTAINS
 
 ! we want fermi function max at 1, so maxocc = 1 here
 
-      CALL Fermi(f, ne, kTS, eigenvals, mu, T, 1.0_dp)
+      CALL SmearOcc(f, ne, kTS, eigenvals, mu, T, 1.0_dp, smear_fermi_dirac)
    END SUBROUTINE fb_fltrmat_fermi_dirac_mu
 
 ! **************************************************************************************************
@@ -1424,7 +1425,7 @@ CONTAINS
 ! kTS is the calculated entropic contribution to the energy i.e. -TS
 ! kTS = kT*[f ln f + (1-f) ln (1-f)]
 
-      CALL FermiFixed(f, mu, kTS, eigenvals, ne, T, maxocc)
+      CALL SmearFixed(f, mu, kTS, eigenvals, ne, T, maxocc, smear_fermi_dirac)
    END SUBROUTINE fb_fltrmat_fermi_dirac_ne
 
 END MODULE qs_fb_filter_matrix_methods

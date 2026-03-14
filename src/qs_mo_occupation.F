@@ -16,15 +16,13 @@ MODULE qs_mo_occupation
 
    USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE fermi_utils,                     ONLY: FermiFixed,&
-                                              FermiFixedDeriv
-   USE gaussian_smear,                  ONLY: GaussianFixed,&
-                                              GaussianFixedDerivMV
    USE hairy_probes,                    ONLY: probe_occupancy
    USE input_constants,                 ONLY: smear_energy_window,&
                                               smear_fermi_dirac,&
                                               smear_gaussian,&
-                                              smear_list
+                                              smear_list,&
+                                              smear_mp,&
+                                              smear_mv
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -32,6 +30,8 @@ MODULE qs_mo_occupation
                                               mo_set_type,&
                                               set_mo_set
    USE scf_control_types,               ONLY: smear_type
+   USE smearing_utils,                  ONLY: SmearFixed,&
+                                              SmearFixedDerivMV
    USE util,                            ONLY: sort
    USE xas_env_types,                   ONLY: get_xas_env,&
                                               xas_environment_type
@@ -113,8 +113,8 @@ CONTAINS
          END IF
       END DO
 
-      CALL FermiFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
-                      smear%electronic_temperature, 1._dp, xas_estate, occ_estate)
+      CALL SmearFixed(all_occ, mu, kTS, all_eigval, all_nelec, &
+                      smear%electronic_temperature, 1._dp, smear%method, xas_estate, occ_estate)
 
       is_large = ABS(MAXVAL(all_occ) - 1.0_dp) > smear%eps_fermi_dirac
       ! this is not a real problem, but the temperature might be a bit large
@@ -422,10 +422,8 @@ CONTAINS
                                                             nomo, xas_estate
       LOGICAL                                            :: equal_size, is_large
       REAL(KIND=dp)                                      :: delectron, e1, e2, edelta, edist, &
-                                                            el_count, lengthscale, nelec, &
-                                                            occ_estate, total_zeff_corr, &
-                                                            xas_nelectron
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfde
+                                                            el_count, nelec, occ_estate, &
+                                                            total_zeff_corr, xas_nelectron
 
       CALL timeset(routineN, handle)
 
@@ -618,26 +616,16 @@ CONTAINS
          SELECT CASE (smear%method)
          CASE (smear_fermi_dirac)
             IF (.NOT. PRESENT(eval_deriv)) THEN
-               CALL FermiFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
+               CALL SmearFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
                                mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
-                               smear%electronic_temperature, mo_set%maxocc, xas_estate, occ_estate)
+                               smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac, &
+                               xas_estate, occ_estate)
             ELSE
-               ! could be a relatively large matrix, but one could get rid of it by never storing it
-               ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
-               ALLOCATE (dfde(nmo, nmo))
-               ! lengthscale could become a parameter, but this is pretty good
-               lengthscale = 10*smear%electronic_temperature
-
-               CALL FermiFixedDeriv(dfde, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
-                                    mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
-                                    smear%electronic_temperature, mo_set%maxocc, lengthscale, xas_estate, occ_estate)
-
-               ! deriv of E_{KS}-kT*S wrt to f_i
                eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
-               ! correspondingly the deriv of  E_{KS}-kT*S wrt to e_i
-               eval_deriv = MATMUL(TRANSPOSE(dfde), eval_deriv)
-
-               DEALLOCATE (dfde)
+               CALL SmearFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
+                                      mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
+                                      smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac, &
+                                      eval_deriv, xas_estate, occ_estate)
             END IF
 
             ! Find the lowest fractional occupied MO (LFOMO)
@@ -668,21 +656,18 @@ CONTAINS
             is_large = (ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
             CPWARN_IF(is_large, "Total number of electrons is not accurate")
 
-         CASE (smear_gaussian)
+         CASE (smear_gaussian, smear_mp, smear_mv)
             IF (.NOT. PRESENT(eval_deriv)) THEN
-               CALL GaussianFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
-                                  mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
-                                  smear%smearing_width, mo_set%maxocc, xas_estate, occ_estate)
+               CALL SmearFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
+                               mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
+                               smear%smearing_width, mo_set%maxocc, smear%method, &
+                               xas_estate, occ_estate)
             ELSE
-               ! Analytical O(N) matvec exploiting rank-1 Jacobian structure.
-               ! No N×N dfde matrix needed (cf. Fermi-Dirac branch: dfde(nmo,nmo) + MATMUL).
-               ! Currently dead code: the sole caller passing eval_deriv is qs_ot_scf.F do_ener,
-               ! blocked by CPASSERT(.NOT. do_ener) in qs_ot_types.F:906. Ready for when enabled.
                eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
-               CALL GaussianFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
-                                         mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
-                                         smear%smearing_width, mo_set%maxocc, eval_deriv, &
-                                         xas_estate, occ_estate)
+               CALL SmearFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
+                                      mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
+                                      smear%smearing_width, mo_set%maxocc, smear%method, &
+                                      eval_deriv, xas_estate, occ_estate)
             END IF
 
             ! Find the lowest fractional occupied MO (LFOMO)

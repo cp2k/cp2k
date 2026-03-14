@@ -48,7 +48,8 @@ MODULE input_cp2k_scf
         outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
         outer_scf_s2_constraint, radius_covalent, radius_default, radius_single, radius_user, &
         radius_vdw, random_guess, restart_guess, shape_function_density, shape_function_gaussian, &
-        smear_energy_window, smear_fermi_dirac, smear_gaussian, smear_list, sparse_guess
+        smear_energy_window, smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
+        sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -1283,12 +1284,18 @@ CONTAINS
                           description="Smearing method to be applied", &
                           usage="METHOD Fermi_Dirac", &
                           default_i_val=smear_energy_window, &
-                          enum_c_vals=s2a("FERMI_DIRAC", "GAUSSIAN", "ENERGY_WINDOW", "LIST"), &
-                          enum_i_vals=[smear_fermi_dirac, smear_gaussian, smear_energy_window, smear_list], &
+                          enum_c_vals=s2a("FERMI_DIRAC", "ENERGY_WINDOW", "LIST", "GAUSSIAN", &
+                                          "METHFESSEL_PAXTON", "MARZARI_VANDERBILT"), &
+                          enum_i_vals=[smear_fermi_dirac, smear_energy_window, smear_list, &
+                                       smear_gaussian, smear_mp, smear_mv], &
                           enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE", &
-                                        "Gaussian broadening with width defined by SIGMA", &
                                         "Energy window defined by the keyword WINDOW_SIZE", &
-                                        "Use a fixed list of occupations"))
+                                        "Use a fixed list of occupations", &
+                                        "Gaussian broadening with width SIGMA", &
+                                        "First-order Methfessel-Paxton distribution with width "// &
+                                        "SIGMA. Don't use it for semiconductors and insulators "// &
+                                        "because the partial occupancies can be unphysical", &
+                                        "Marzari-Vanderbilt cold smearing with width SIGMA"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -50,13 +50,11 @@ MODULE kpoint_methods
                                               print_crys_symmetry,&
                                               print_kp_symmetry,&
                                               release_csym_type
-   USE fermi_utils,                     ONLY: fermikp,&
-                                              fermikp2
-   USE gaussian_smear,                  ONLY: Gaussiankp,&
-                                              Gaussiankp2
    USE hairy_probes,                    ONLY: probe_occupancy_kp
    USE input_constants,                 ONLY: smear_fermi_dirac,&
-                                              smear_gaussian
+                                              smear_gaussian,&
+                                              smear_mp,&
+                                              smear_mv
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -90,6 +88,8 @@ MODULE kpoint_methods
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE scf_control_types,               ONLY: smear_type
+   USE smearing_utils,                  ONLY: Smearkp,&
+                                              Smearkp2
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -1072,43 +1072,43 @@ CONTAINS
 
       IF (PRESENT(probe) .EQV. .FALSE.) THEN
          IF (smear%do_smear) THEN
-            ! finite electronic temperature
             SELECT CASE (smear%method)
             CASE (smear_fermi_dirac)
+               ! finite electronic temperature
                IF (nspin == 1) THEN
                   nel = REAL(nelectron, KIND=dp)
-                  CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                               smear%electronic_temperature, 2.0_dp)
+                  CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%electronic_temperature, 2.0_dp, smear_fermi_dirac)
                ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
                   nel = REAL(ne_a, KIND=dp)
-                  CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                               smear%electronic_temperature, 1.0_dp)
+                  CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
                   nel = REAL(ne_b, KIND=dp)
-                  CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
-                               smear%electronic_temperature, 1.0_dp)
+                  CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
+                               smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
                ELSE
                   nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
-                  CALL Fermikp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
-                                smear%electronic_temperature)
+                  CALL Smearkp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
+                                smear%electronic_temperature, smear_fermi_dirac)
                   kTS = kTS/2._dp
                   mus(1:2) = mu
                END IF
-            CASE (smear_gaussian)
+            CASE (smear_gaussian, smear_mp, smear_mv)
                IF (nspin == 1) THEN
                   nel = REAL(nelectron, KIND=dp)
-                  CALL Gaussiankp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                                  smear%smearing_width, 2.0_dp)
+                  CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%smearing_width, 2.0_dp, smear%method)
                ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
                   nel = REAL(ne_a, KIND=dp)
-                  CALL Gaussiankp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                                  smear%smearing_width, 1.0_dp)
+                  CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%smearing_width, 1.0_dp, smear%method)
                   nel = REAL(ne_b, KIND=dp)
-                  CALL Gaussiankp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
-                                  smear%smearing_width, 1.0_dp)
+                  CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
+                               smear%smearing_width, 1.0_dp, smear%method)
                ELSE
                   nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
-                  CALL Gaussiankp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
-                                   smear%smearing_width)
+                  CALL Smearkp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
+                                smear%smearing_width, smear%method)
                   kTS = kTS/2._dp
                   mus(1:2) = mu
                END IF
@@ -1119,12 +1119,15 @@ CONTAINS
             ! fixed occupations (2/1)
             IF (nspin == 1) THEN
                nel = REAL(nelectron, KIND=dp)
-               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 2.0_dp)
+               CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                            0.0_dp, 2.0_dp, smear_gaussian)
             ELSE
                nel = REAL(ne_a, KIND=dp)
-               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 1.0_dp)
+               CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                            0.0_dp, 1.0_dp, smear_gaussian)
                nel = REAL(ne_b, KIND=dp)
-               CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, 0.0_dp, 1.0_dp)
+               CALL Smearkp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
+                            0.0_dp, 1.0_dp, smear_gaussian)
             END IF
          END IF
          DO ikpgr = 1, kplocal
