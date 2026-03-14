@@ -210,6 +210,7 @@ list(
   fp_methods.F
   fp_types.F
   free_energy_types.F
+  gaussian_smear.F
   generic_os_integrals.F
   gle_system_types.F
   global_types.F

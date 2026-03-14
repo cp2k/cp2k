@@ -18,9 +18,12 @@ MODULE qs_mo_occupation
    USE cp_log_handling,                 ONLY: cp_to_string
    USE fermi_utils,                     ONLY: FermiFixed,&
                                               FermiFixedDeriv
+   USE gaussian_smear,                  ONLY: GaussianFixed,&
+                                              GaussianFixedDerivMV
    USE hairy_probes,                    ONLY: probe_occupancy
    USE input_constants,                 ONLY: smear_energy_window,&
                                               smear_fermi_dirac,&
+                                              smear_gaussian,&
                                               smear_list
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
@@ -662,6 +665,50 @@ CONTAINS
                             "Add more MOs for proper smearing.")
 
             ! check that the total electron count is accurate
+            is_large = (ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
+            CPWARN_IF(is_large, "Total number of electrons is not accurate")
+
+         CASE (smear_gaussian)
+            IF (.NOT. PRESENT(eval_deriv)) THEN
+               CALL GaussianFixed(mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, mo_set%kTS, &
+                                  mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
+                                  smear%smearing_width, mo_set%maxocc, xas_estate, occ_estate)
+            ELSE
+               ! Analytical O(N) matvec exploiting rank-1 Jacobian structure.
+               ! No N×N dfde matrix needed (cf. Fermi-Dirac branch: dfde(nmo,nmo) + MATMUL).
+               ! Currently dead code: the sole caller passing eval_deriv is qs_ot_scf.F do_ener,
+               ! blocked by CPASSERT(.NOT. do_ener) in qs_ot_types.F:906. Ready for when enabled.
+               eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
+               CALL GaussianFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
+                                         mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
+                                         smear%smearing_width, mo_set%maxocc, eval_deriv, &
+                                         xas_estate, occ_estate)
+            END IF
+
+            ! Find the lowest fractional occupied MO (LFOMO)
+            DO imo = i_first, nmo
+               IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
+                  mo_set%lfomo = imo
+                  EXIT
+               END IF
+            END DO
+            is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
+            CPWARN_IF(is_large, "Gaussian smearing includes the first MO")
+
+            ! Find the highest (fractional) occupied MO which will be now the HOMO
+            DO imo = nmo, mo_set%lfomo, -1
+               IF (mo_set%occupation_numbers(imo) > smear%eps_fermi_dirac) THEN
+                  mo_set%homo = imo
+                  EXIT
+               END IF
+            END DO
+            is_large = ABS(MINVAL(mo_set%occupation_numbers)) > smear%eps_fermi_dirac
+            IF (is_large) &
+               CALL cp_warn(__LOCATION__, &
+                            "Gaussian smearing includes the last MO => "// &
+                            "Add more MOs for proper smearing.")
+
+            ! Check that the total electron count is accurate
             is_large = (ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
             CPWARN_IF(is_large, "Total number of electrons is not accurate")
 
