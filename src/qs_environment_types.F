@@ -171,11 +171,11 @@ MODULE qs_environment_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_types'
 
-! *** Public data types ***
+   ! Public data types
 
    PUBLIC :: qs_environment_type
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: get_qs_env, &
              qs_env_create, &

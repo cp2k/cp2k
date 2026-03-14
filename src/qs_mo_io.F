@@ -1293,14 +1293,24 @@ CONTAINS
          END IF
 
          ! Check if only a subset of the MOs has to be printed
-         IF ((mo_index_range(1) > 0) .AND. &
-             (mo_index_range(2) > 0) .AND. &
-             (mo_index_range(2) >= mo_index_range(1))) THEN
-            first_mo = MAX(1, mo_index_range(1))
-            last_mo = MIN(nmo, mo_index_range(2))
-            IF (first_mo > nmo) THEN
-               CPWARN("The first MO index is larger than the number of MOs.")
+         IF (ALL(mo_index_range > 0)) THEN
+            IF (mo_index_range(2) > nmo) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "The last orbital index is larger than the number of orbitals.")
             END IF
+            IF (mo_index_range(1) > mo_index_range(2)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "The first orbital index is larger than the last orbital index.")
+            END IF
+            first_mo = MIN(MAX(1, mo_index_range(1)), nmo)
+            last_mo = MIN(MAX(first_mo, mo_index_range(2)), nmo)
+         ELSE IF (mo_index_range(2) < 0) THEN
+            IF (mo_index_range(1) > nmo) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "The first orbital index is larger than the number of orbitals.")
+            END IF
+            first_mo = MIN(MAX(1, mo_index_range(1)), nmo)
+            last_mo = nmo
          ELSE
             first_mo = 1
             last_mo = nmo

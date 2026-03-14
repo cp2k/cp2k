@@ -741,7 +741,7 @@ CONTAINS
       SELECT CASE (scf_env%method)
       CASE DEFAULT
 
-         CPABORT("unknown scf method method:"//cp_to_string(scf_env%method))
+         CPABORT("Unknown SCF method <"//TRIM(cp_to_string(scf_env%method))//"> found. Check the code!")
 
       CASE (filter_matrix_diag_method_nr)
 

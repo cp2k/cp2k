@@ -48,7 +48,8 @@ MODULE qs_environment
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_to_string
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
@@ -98,7 +99,8 @@ MODULE qs_environment
         vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
         wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
         xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
-   USE input_section_types,             ONLY: section_vals_get,&
+   USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -604,6 +606,7 @@ CONTAINS
          nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: occ
+      INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
       LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
          do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, &
          has_unit_metric, lribas, mp2_present, orb_gradient, paw_atom
@@ -691,16 +694,16 @@ CONTAINS
                          molecule_set=molecule_set, &
                          molecule_kind_set=molecule_kind_set)
 
-      !   *** Read the input section with the DFT control parameters ***
+      ! Read the input section with the DFT control parameters
       CALL read_dft_control(dft_control, dft_section)
 
-      ! set periodicity flag
+      ! Set periodicity flag
       dft_control%qs_control%periodicity = SUM(cell%perd)
 
-      !  Read the input section with the Quickstep control parameters
+      ! Read the input section with the Quickstep control parameters
       CALL read_qs_section(dft_control%qs_control, qs_section)
 
-      !   *** Print the Quickstep program banner (copyright and version number) ***
+      ! Print the Quickstep program banner (copyright and version number)
       IF (.NOT. be_silent) THEN
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PROGRAM_BANNER", extension=".Log")
          CALL section_vals_val_get(qs_section, "METHOD", i_val=method_id)
@@ -738,7 +741,7 @@ CONTAINS
          END SELECT
       END IF
 
-      !   *******  check if any kind of electron transfer calculation has to be performed
+      ! Check if any kind of electron transfer calculation has to be performed
       CALL section_vals_val_get(et_coupling_section, "TYPE_OF_CONSTRAINT", i_val=my_ival)
       dft_control%qs_control%et_coupling_calc = .FALSE.
       IF (my_ival == do_et_ddapc) THEN
@@ -750,16 +753,16 @@ CONTAINS
 
       CALL read_mgrid_section(dft_control%qs_control, dft_section)
 
-      ! reimplemented TDDFPT
+      ! Reimplemented TDDFPT
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
 
-      ! rixs
+      ! RIXS
       CALL section_vals_get(rixs_section, explicit=qs_env%do_rixs)
       IF (qs_env%do_rixs) THEN
          CALL read_rixs_control(dft_control%rixs_control, rixs_section, dft_control%qs_control)
       END IF
 
-      !   Create relativistic control section
+      ! Create relativistic control section
       BLOCK
          TYPE(rel_control_type), POINTER :: rel_control
          ALLOCATE (rel_control)
@@ -768,7 +771,7 @@ CONTAINS
          CALL set_qs_env(qs_env, rel_control=rel_control)
       END BLOCK
 
-      !   *** Read DFTB parameter files ***
+      ! Read DFTB parameter files
       IF (dft_control%qs_control%method_id == do_method_dftb) THEN
          NULLIFY (ewald_env, ewald_pw, dftb_potential)
          dftb_control => dft_control%qs_control%dftb_control
@@ -790,7 +793,7 @@ CONTAINS
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
          END IF
       ELSEIF (dft_control%qs_control%method_id == do_method_xtb) THEN
-         !   *** Read xTB parameter file ***
+         ! Read xTB parameter file
          xtb_control => dft_control%qs_control%xtb_control
          CALL get_qs_env(qs_env, nkind=nkind)
          IF (xtb_control%do_tblite) THEN
@@ -898,10 +901,10 @@ CONTAINS
          CALL set_qs_env(qs_env, lri_env=lri_env)
       END IF
 
-      !   *** Check basis and fill in missing parts ***
+      ! Check basis and fill in missing parts
       CALL check_qs_kind_set(qs_kind_set, dft_control, subsys_section=subsys_section)
 
-      !   *** Check that no all-electron potential is present if GPW or GAPW_XC
+      ! Check that no all-electron potential is present if GPW or GAPW_XC
       CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
       IF ((dft_control%qs_control%method_id == do_method_gpw) .OR. &
           (dft_control%qs_control%method_id == do_method_gapw_xc) .OR. &
@@ -911,7 +914,7 @@ CONTAINS
          END IF
       END IF
 
-      !   *** Check that no cneo potential is present if not GAPW
+      ! Check that no cneo potential is present if not GAPW
       CALL get_qs_kind_set(qs_kind_set, cneo_potential_present=cneo_potential_present)
       IF (cneo_potential_present .AND. &
           dft_control%qs_control%method_id /= do_method_gapw) THEN
@@ -1088,8 +1091,7 @@ CONTAINS
          END DO
       END IF
 
-      !   *** Initialize the spherical harmonics and ***
-      !   *** the orbital transformation matrices    ***
+      ! Initialize the spherical harmonics and the orbital transformation matrices
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
 
       ! CNEO nuclear basis contributes to GAPW rho0
@@ -1121,28 +1123,28 @@ CONTAINS
 
       CALL init_spherical_harmonics(maxl, 0)
 
-      !   *** Initialise the qs_kind_set ***
+      !  Initialise the qs_kind_set
       CALL init_qs_kind_set(qs_kind_set)
 
-      !   *** Initialise GAPW soft basis and projectors
+      ! Initialise GAPW soft basis and projectors
       IF (dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc) THEN
          qs_control => dft_control%qs_control
          CALL init_gapw_basis_set(qs_kind_set, qs_control, qs_env%input)
       END IF
 
-      !   *** Initialise CNEO nuclear soft basis
+      ! Initialise CNEO nuclear soft basis
       IF (cneo_potential_present) THEN
          CALL init_cneo_basis_set(qs_kind_set, qs_control)
       END IF
 
-      !   *** Initialize the pretabulation for the calculation of the   ***
-      !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
+      ! Initialize the pretabulation for the calculation of the
+      ! incomplete Gamma function F_n(t) after McMurchie-Davidson
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
       maxl = MAX(3*maxlgto + 1, 0)
       CALL init_md_ftable(maxl)
 
-      !   *** Initialize the atomic interaction radii ***
+      ! Initialize the atomic interaction radii
       CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
       !
       IF (dft_control%qs_control%method_id == do_method_xtb) THEN
@@ -1176,7 +1178,7 @@ CONTAINS
          CALL write_paw_radii(atomic_kind_set, qs_kind_set, subsys_section)
       END IF
 
-      !   *** Distribute molecules and atoms using the new data structures ***
+      ! Distribute molecules and atoms using the new data structures
       CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set, &
                                    particle_set=particle_set, &
                                    local_particles=local_particles, &
@@ -1185,7 +1187,7 @@ CONTAINS
                                    local_molecules=local_molecules, &
                                    force_env_section=qs_env%input)
 
-      !   *** SCF parameters ***
+      ! SCF parameters
       ALLOCATE (scf_control)
       ! set (non)-self consistency
       IF (dft_control%qs_control%dftb) THEN
@@ -1203,10 +1205,11 @@ CONTAINS
       END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
-      !   *** Allocate the data structure for Quickstep energies ***
+
+      ! Allocate the data structure for Quickstep energies
       CALL allocate_qs_energy(energy)
 
-      ! check for orthogonal basis
+      ! Check for orthogonal basis
       has_unit_metric = .FALSE.
       IF (dft_control%qs_control%semi_empirical) THEN
          IF (dft_control%qs_control%se_control%orthogonal_basis) has_unit_metric = .TRUE.
@@ -1216,14 +1219,14 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, has_unit_metric=has_unit_metric)
 
-      !   *** Activate the interpolation ***
+      !  Activate the interpolation
       CALL wfi_create(wf_history, &
                       interpolation_method_nr= &
                       dft_control%qs_control%wf_interpolation_method_nr, &
                       extrapolation_order=dft_control%qs_control%wf_extrapolation_order, &
                       has_unit_metric=has_unit_metric)
 
-      !   *** Set the current Quickstep environment ***
+      ! Set the current Quickstep environment
       CALL set_qs_env(qs_env=qs_env, &
                       scf_control=scf_control, &
                       wf_history=wf_history)
@@ -1249,7 +1252,7 @@ CONTAINS
                       dft_control=dft_control, &
                       scf_control=scf_control)
 
-      ! decide what conditions need mo_derivs
+      ! Decide what conditions need mo_derivs
       ! right now, this only appears to be OT
       IF (dft_control%qs_control%do_ls_scf .OR. &
           dft_control%qs_control%do_almo_scf) THEN
@@ -1289,19 +1292,19 @@ CONTAINS
          END IF
       END IF
 
-      !   Initialize the GAPW local densities and potentials
+      ! Initialize the GAPW local densities and potentials
       IF (dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc) THEN
-         !     *** Allocate and initialize the set of atomic densities ***
+         ! Allocate and initialize the set of atomic densities
          NULLIFY (rho_atom_set)
          gapw_control => dft_control%qs_control%gapw_control
          CALL init_rho_atom(rho_atom_set, atomic_kind_set, qs_kind_set, dft_control, para_env)
          CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, local_rho_set=local_rho_set, natom=natom)
-            !       *** Allocate and initialize the compensation density rho0 ***
+            ! Allocate and initialize the compensation density rho0
             CALL init_rho0(local_rho_set, qs_env, gapw_control)
-            !       *** Allocate and Initialize the local coulomb term ***
+            ! Allocate and Initialize the local coulomb term
             CALL init_coulomb_local(qs_env%hartree_local, natom)
          END IF
          ! NLCC
@@ -1395,7 +1398,7 @@ CONTAINS
          CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env)
       END IF
 
-      !   Initialize possible dispersion parameters
+      ! Initialize possible dispersion parameters
       IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
           dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
@@ -1571,10 +1574,10 @@ CONTAINS
          CALL set_qs_env(qs_env, gcp_env=gcp_env)
       END IF
 
-      !   *** Allocate the MO data types ***
+      ! Allocate the MO data types
       CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
 
-      ! the total number of electrons
+      ! The total number of electrons
       nelectron = nelectron - dft_control%charge
 
       IF (dft_control%multiplicity == 0) THEN
@@ -1604,13 +1607,12 @@ CONTAINS
          END IF
       END IF
 
-      !   assigning the number of states per spin initial version, not yet very
-      !   general. Should work for an even number of electrons and a single
-      !   additional electron this set of options that requires full matrices,
-      !   however, makes things a bit ugly right now.... we try to make a
-      !   distinction between the number of electrons per spin and the number of
-      !   MOs per spin this should allow the use of fractional occupations later
-      !   on
+      ! assigning the number of states per spin initial version, not yet very
+      ! general. Should work for an even number of electrons and a single
+      ! additional electron this set of options that requires full matrices,
+      ! however, makes things a bit ugly right now.... we try to make a
+      ! distinction between the number of electrons per spin and the number of
+      ! MOs per spin this should allow the use of fractional occupations later on
       IF (dft_control%qs_control%ofgpw) THEN
 
          IF (dft_control%nspins == 1) THEN
@@ -1673,16 +1675,52 @@ CONTAINS
       ! store it in qs_env
       qs_env%total_zeff_corr = total_zeff_corr
 
-      ! store the number of electrons once an for all
+      ! Store the number of electrons once and for all
       CALL qs_subsys_set(subsys, &
                          nelectron_total=nelectron, &
                          nelectron_spin=nelectron_spin)
 
-      ! Check and set number of added (unoccupied) MOs
+      ! Ensure that all orbitals requested for printout are added even
+      ! if the keyword ADDED_MOS was not specified or set properly
+      mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
+      CPASSERT(ASSOCIATED(mo_index_range))
+      IF (ALL(mo_index_range > 0)) THEN
+         IF (mo_index_range(1) > mo_index_range(2)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The upper orbital index ("// &
+                          TRIM(ADJUSTL(cp_to_string(mo_index_range(2))))// &
+                          ") of the MO_INDEX_RANGE should be equal or larger "// &
+                          "than the lower orbital index ("// &
+                          TRIM(ADJUSTL(cp_to_string(mo_index_range(1))))// &
+                          ") for printout.")
+         END IF
+         ! Adapt ADDED_MOS automatically if needed for printout
+         IF (.NOT. scf_control%use_ot) THEN
+            scf_control%added_mos(1) = MIN(MAX(scf_control%added_mos(1), &
+                                               mo_index_range(2) - n_mo(1)), &
+                                           n_ao - n_mo(1))
+            IF (dft_control%nspins == 2) THEN
+               scf_control%added_mos(2) = MIN(MAX(scf_control%added_mos(2), &
+                                                  mo_index_range(2) - n_mo(2)), &
+                                              n_ao - n_mo(2))
+            END IF
+         END IF
+      ELSE IF (mo_index_range(2) < 0) THEN
+         IF (.NOT. scf_control%use_ot) THEN
+            ! Add all available orbitals
+            scf_control%added_mos(1) = n_ao - n_mo(1)
+            IF (dft_control%nspins == 2) THEN
+               ! Ensure the same number for the spin-down (beta) orbitals
+               scf_control%added_mos(2) = n_ao - n_mo(2)
+            END IF
+         END IF
+      END IF
+
       IF (dft_control%nspins == 2) THEN
+         ! Check and set number of added (unoccupied) orbitals for beta spin
          IF (scf_control%added_mos(2) < 0) THEN
             n_mo_add = n_ao - n_mo(2)  ! use all available MOs
-         ELSEIF (scf_control%added_mos(2) > 0) THEN
+         ELSE IF (scf_control%added_mos(2) > 0) THEN
             n_mo_add = scf_control%added_mos(2)
          ELSE
             n_mo_add = scf_control%added_mos(1)
@@ -1704,9 +1742,9 @@ CONTAINS
       !   IF (scf_control%added_mos(2) > 0) THEN ... ELSE; n_mo_add = scf_control%added_mos(1); END IF
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
          scf_control%added_mos(1) = n_ao - n_mo(1)  ! tblite needs all MO's
-      ELSEIF (scf_control%added_mos(1) < 0) THEN
+      ELSE IF (scf_control%added_mos(1) < 0) THEN
          scf_control%added_mos(1) = n_ao - n_mo(1)  ! use all available MOs
-      ELSEIF (scf_control%added_mos(1) > n_ao - n_mo(1)) THEN
+      ELSE IF (scf_control%added_mos(1) > n_ao - n_mo(1)) THEN
          CALL cp_warn(__LOCATION__, &
                       "More added MOs requested than available. "// &
                       "The full set of unoccupied MOs will be used. "// &
@@ -1746,7 +1784,7 @@ CONTAINS
          END IF
       END IF
 
-      !   *** Some options require that all MOs are computed ... ***
+      ! Some options require that all MOs are computed ...
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
                                            "PRINT%MO/CARTESIAN"), &
                 cp_p_file) .OR. &

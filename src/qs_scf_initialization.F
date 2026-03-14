@@ -165,8 +165,11 @@ CONTAINS
 
       !Initialize Hairy Probe calculation
       IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
-         CALL get_qs_env(qs_env, mos=mos, &
-                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set)
+         CALL get_qs_env(qs_env, &
+                         mos=mos, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set, &
+                         particle_set=particle_set)
          np = SIZE(dft_control%probe)
          DO ip = 1, np
             CALL AO_boundaries(probe=dft_control%probe(ip), atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
