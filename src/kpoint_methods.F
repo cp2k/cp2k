@@ -52,8 +52,11 @@ MODULE kpoint_methods
                                               release_csym_type
    USE fermi_utils,                     ONLY: fermikp,&
                                               fermikp2
+   USE gaussian_smear,                  ONLY: Gaussiankp,&
+                                              Gaussiankp2
    USE hairy_probes,                    ONLY: probe_occupancy_kp
-   USE input_constants,                 ONLY: smear_fermi_dirac
+   USE input_constants,                 ONLY: smear_fermi_dirac,&
+                                              smear_gaussian
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -1087,6 +1090,25 @@ CONTAINS
                   nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
                   CALL Fermikp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
                                 smear%electronic_temperature)
+                  kTS = kTS/2._dp
+                  mus(1:2) = mu
+               END IF
+            CASE (smear_gaussian)
+               IF (nspin == 1) THEN
+                  nel = REAL(nelectron, KIND=dp)
+                  CALL Gaussiankp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                                  smear%smearing_width, 2.0_dp)
+               ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+                  nel = REAL(ne_a, KIND=dp)
+                  CALL Gaussiankp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                                  smear%smearing_width, 1.0_dp)
+                  nel = REAL(ne_b, KIND=dp)
+                  CALL Gaussiankp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
+                                  smear%smearing_width, 1.0_dp)
+               ELSE
+                  nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
+                  CALL Gaussiankp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
+                                   smear%smearing_width)
                   kTS = kTS/2._dp
                   mus(1:2) = mu
                END IF

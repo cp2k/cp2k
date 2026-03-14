@@ -28,7 +28,7 @@ MODULE scf_control_types
         outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
         outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
         outer_scf_optimizer_secant, outer_scf_s2_constraint, smear_energy_window, &
-        smear_fermi_dirac, smear_list
+        smear_fermi_dirac, smear_gaussian, smear_list
    USE input_cp2k_scf,                  ONLY: create_scf_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -95,7 +95,8 @@ MODULE scf_control_types
       REAL(KIND=dp)                         :: electronic_temperature = -1.0_dp, &
                                                fixed_mag_mom = -1.0_dp, &
                                                eps_fermi_dirac = -1.0_dp, &
-                                               window_size = -1.0_dp
+                                               window_size = -1.0_dp, &
+                                               smearing_width = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER  :: list => NULL()
    END TYPE smear_type
 
@@ -492,6 +493,7 @@ CONTAINS
       smear%eps_fermi_dirac = 1.0E-5_dp
       smear%fixed_mag_mom = -100.0_dp
       smear%window_size = 0.0_dp
+      smear%smearing_width = 0.0_dp
       NULLIFY (smear%list)
    END SUBROUTINE init_smear
 
@@ -519,6 +521,10 @@ CONTAINS
                                    r_val=smear%eps_fermi_dirac)
          CALL section_vals_val_get(smear_section, "WINDOW_SIZE", &
                                    r_val=smear%window_size)
+         IF (smear%method == smear_gaussian) THEN
+            CALL section_vals_val_get(smear_section, "SIGMA", &
+                                      r_val=smear%smearing_width)
+         END IF
          IF (smear%method == smear_list) THEN
             CALL section_vals_val_get(smear_section, "LIST", &
                                       r_vals=r_vals)
@@ -631,6 +637,13 @@ CONTAINS
                      "Electronic temperature [a.u.]:", scf_control%smear%electronic_temperature, &
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
                   IF (scf_control%smear%fixed_mag_mom > 0.0_dp) WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") &
+                     "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
+               CASE (smear_gaussian)
+                  WRITE (UNIT=output_unit, FMT="(T25,A,T71,ES10.2)") &
+                     "Smearing width (sigma) [a.u.]:", scf_control%smear%smearing_width, &
+                     "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
+                  IF (scf_control%smear%fixed_mag_mom > 0.0_dp) &
+                     WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") &
                      "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
                CASE (smear_energy_window)
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,F10.6)") &
