@@ -211,7 +211,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks, s
-      TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s, mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -265,6 +265,7 @@ CONTAINS
 
       NULLIFY (fm_struct_tmp)
       NULLIFY (mo_coeff)
+      NULLIFY (mo_coeff_deriv)
       NULLIFY (mo_eigenvalues)
       NULLIFY (mo_set)
       NULLIFY (umo_coeff)
@@ -332,10 +333,23 @@ CONTAINS
                                   nmo=nmo, &
                                   flexible_electron_count=flexible_electron_count)
 
+                  IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                     mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
+                  ELSE
+                     mo_coeff_deriv => NULL()
+                  END IF
+
+                  ! Update the eigenvalues of the occupied orbitals
+                  CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                      ks_matrix=matrix_ks, &
+                                                      evals_arg=mo_eigenvalues, &
+                                                      co_rotate_dbcsr=mo_coeff_deriv)
+                  CALL set_mo_occupation(mo_set=mo_set)
+
                   ! Retrieve the index of the last MO for which a printout is requested
                   mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                   CPASSERT(ASSOCIATED(mo_index_range))
-                  IF (mo_index_range(2) == -1) THEN
+                  IF (mo_index_range(2) < 0) THEN
                      numo = nao - homo
                   ELSE
                      numo = MIN(mo_index_range(2) - homo, nao - homo)
@@ -390,16 +404,15 @@ CONTAINS
 
                      CALL calculate_subspace_eigenvalues(orbitals=umo_coeff, &
                                                          ks_matrix=matrix_ks, &
-                                                         evals_arg=umo_eigenvalues, &
-                                                         do_rotation=.TRUE.)
+                                                         evals_arg=umo_eigenvalues)
                      CALL set_mo_occupation(mo_set=umo_set)
 
-                     ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
-                     IF (dft_control%do_admm) THEN
-                        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks)
-                     END IF
-
                   END IF ! numo > 0
+
+                  ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
+                  IF (dft_control%do_admm) THEN
+                     CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks)
+                  END IF
 
                ELSE
 
