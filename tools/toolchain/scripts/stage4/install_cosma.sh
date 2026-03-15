@@ -142,7 +142,15 @@ case "$with_cosma" in
       fi
       cd ..
 
-      cd COSMA-${cosma_ver} && mkdir build-cpu && cd build-cpu
+      cd COSMA-${cosma_ver}
+      # Fix two bugs in src/cosma/CMakeLists.txt:
+      # 1) COSMA_GPU_VENDOR is undefined, should be COSMA_GPU_BACKEND; remove quotes around OFF
+      # 2) IN_LIST generator expression: quotes break list parsing, and BLISi is a typo for BLIS
+      sed -i 's|\$<\$<STREQUAL:\${COSMA_GPU_VENDOR},"OFF">:cosma::BLAS::blas>|$<$<STREQUAL:${COSMA_GPU_BACKEND},OFF>:cosma::BLAS::blas>|' \
+        "src/cosma/CMakeLists.txt"
+      sed -i 's|\$<\$<NOT:\$<IN_LIST:\${COSMA_BLAS_VENDOR},"MKL;BLISi;OFF">>:COSMA_WITH_BLAS>|$<$<NOT:$<IN_LIST:${COSMA_BLAS_VENDOR},MKL;BLIS;OFF>>:COSMA_WITH_BLAS>|' \
+        "src/cosma/CMakeLists.txt"
+      mkdir build-cpu && cd build-cpu
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
