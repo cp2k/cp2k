@@ -38,13 +38,12 @@
       EPS_DIIS 1.0e-7
       EPS_SCF 1.0e-7
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 5
+      MAX_SCF 60
       SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.6
-        BETA 1.0
+        ALPHA 0.4
         METHOD BROYDEN_MIXING
-        NBROYDEN 15
+        NBROYDEN 8
       &END MIXING
       &OT OFF
         ENERGY_GAP 0.001
@@ -54,10 +53,6 @@
         EPS_SCF 1.0E-6
         MAX_SCF 1
       &END OUTER_SCF
-      &SMEAR
-        ELECTRONIC_TEMPERATURE 5000.
-        METHOD FERMI_DIRAC
-      &END SMEAR
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

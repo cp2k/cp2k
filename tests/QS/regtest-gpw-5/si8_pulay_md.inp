@@ -23,11 +23,11 @@
     RESTART_FILE_NAME si8_pulay-RESTART.wfn
     &MGRID
       CUTOFF 40
-      NGRIDS 4
+      NGRIDS 5
     &END MGRID
     &QS
-      EXTRAPOLATION PS
-      EXTRAPOLATION_ORDER 2
+      EPS_DEFAULT 1.0E-12
+      EXTRAPOLATION ASPC
       METHOD GPW
     &END QS
     &SCF
@@ -36,8 +36,7 @@
       EPS_DIIS 1.0e-7
       EPS_SCF 1.0e-7
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 5
-      SCF_GUESS MOPAC
+      MAX_SCF 60
       &MIXING
         ALPHA 0.4
         BETA 1.0
@@ -50,8 +49,8 @@
         MAX_SCF 1
       &END OUTER_SCF
       &SMEAR
-        ELECTRONIC_TEMPERATURE 5000.
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.1
       &END SMEAR
     &END SCF
     &XC

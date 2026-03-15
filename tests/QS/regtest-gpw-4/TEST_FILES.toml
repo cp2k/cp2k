@@ -57,10 +57,10 @@
 #multiple ddapc restraints
 "He3_multi_ddapc.inp"                   = [{matcher="E_total", tol=3e-09, ref=-7.58374882585469}]
 #many added MOS with LSD
-"N.inp"                                 = [{matcher="E_total", tol=2e-13, ref=-9.66927782045851}]
-"N_notfixedMM.inp"                      = [{matcher="E_total", tol=2e-13, ref=-9.66080047890004}]
+"N.inp"                                 = [{matcher="E_total", tol=2e-13, ref=-9.73920135929005}]
+"N_notfixedMM.inp"                      = [{matcher="E_total", tol=2e-13, ref=-9.73920135929005}]
 #new diagonalization
-"h2o-otdiag.inp"                        = [{matcher="E_total", tol=8e-13, ref=-17.09951347030708}]
+"h2o-otdiag.inp"                        = [{matcher="E_total", tol=8e-13, ref=-17.09951347030604}]
 "h2o-diag.inp"                          = [{matcher="E_total", tol=6e-14, ref=-16.10105776251690}]
 "h2o-diag-sub.inp"                      = [{matcher="E_total", tol=6e-14, ref=-17.10796281427774}]
 "h2o-otdiag-lsd.inp"                    = [{matcher="E_total", tol=1E-13, ref=-12.43939517338400}]

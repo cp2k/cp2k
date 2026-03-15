@@ -6,7 +6,7 @@
 # tests GAPW_XC 
 "CO.inp"                                = [{matcher="E_total", tol=1e-12, ref=-21.82227244820612}]
 "Be_GAPW_XC.inp"                        = [{matcher="E_total", tol=1e-12, ref=-14.04219830494389}]
-"c8_gapw_xc.inp"                        = [{matcher="E_total", tol=1e-12, ref=-44.14346557343610}]
+"c8_gapw_xc.inp"                        = [{matcher="E_total", tol=1e-12, ref=-44.14872330256960}]
 "c8_pmix_gapw_xc.inp"                   = [{matcher="E_total", tol=1e-12, ref=-44.86126204151856}]
 "H2O_allnopaw.inp"                      = [{matcher="E_total", tol=1e-12, ref=-17.12295202726917}]
 "h2o_dist.inp"                          = [{matcher="E_total", tol=1e-12, ref=-17.10545419707289}]

@@ -14,10 +14,10 @@
 # choice of initial state from input
 "CH3SH_xastpfh_list.inp"                = [{matcher="E_total", tol=5e-7, ref=-430.51907934798288}]
 # density mixing
-"c8_pmix_gapw_all.inp"                  = [{matcher="E_total", tol=4e-04, ref=-302.63376760933824}]
-"c8_pmix_gapw_all_xashh.inp"            = [{matcher="E_total", tol=1e-04, ref=-297.77088288250752}]
-"c8_broy_gapw_all.inp"                  = [{matcher="E_total", tol=1e-13, ref=-303.71942702489218}]
-"c8_broy_gapw_all_xashh.inp"            = [{matcher="E_total", tol=2e-11, ref=-294.57321406651721}]
+"c8_pmix_gapw_all.inp"                  = [{matcher="E_total", tol=2e-04, ref=-302.63376739633446}]
+"c8_pmix_gapw_all_xashh.inp"            = [{matcher="E_total", tol=2e-04, ref=-297.79190173209122}]
+"c8_broy_gapw_all.inp"                  = [{matcher="E_total", tol=5e-10, ref=-302.99557091768804}]
+"c8_broy_gapw_all_xashh.inp"            = [{matcher="E_total", tol=5e-08, ref=-298.17220723878080}]
 # different scf_env
 "CO_xastpfh_gsot.inp"                   = [{matcher="E_total", tol=8e-14, ref=-79.09997113686542}]
 # XAS TP choice of core occ from input

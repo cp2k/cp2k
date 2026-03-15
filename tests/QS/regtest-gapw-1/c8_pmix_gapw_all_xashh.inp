@@ -81,8 +81,6 @@
           METHOD DIRECT_P_MIXING
         &END MIXING
         &SMEAR OFF
-          ELECTRONIC_TEMPERATURE [K] 800
-          METHOD FERMI_DIRAC
         &END SMEAR
       &END SCF
     &END XAS

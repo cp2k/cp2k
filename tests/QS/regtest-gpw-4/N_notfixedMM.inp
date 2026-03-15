@@ -43,15 +43,16 @@
       EPS_DIIS 1.0E-12
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 3
+      MAX_SCF 60
       SCF_GUESS ATOMIC
       &MIXING
-        ALPHA 0.2
-        METHOD DIRECT_P_MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
+        NBROYDEN 8
       &END MIXING
       &SMEAR
-        ELECTRONIC_TEMPERATURE [au_temp] 0.010
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.05
       &END SMEAR
     &END SCF
     &XC

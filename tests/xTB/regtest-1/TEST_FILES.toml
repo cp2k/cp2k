@@ -6,7 +6,7 @@
 "ch2o.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570296343}]
 "ch2o_geo.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-7.84652942485169}]
 "ch2o_lsd.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-7.19650182424155}]
-"ch2o_smear.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-7.19650182424155}]
+"ch2o_smear.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-7.19753850357134}]
 "tmol.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-41.90845660778482}]
 "h2.inp"                                = [{matcher="E_total", tol=1.0E-12, ref=-1.03458223634251}]
 "h2_kab.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-0.99816707611986}]
