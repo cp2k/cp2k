@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="3.7.0"
-dftd4_sha256="2e0d3504038358b8a82fdd21912b7765d416a58ebedbdd44f2ca8d2e88339ad7"
+dftd4_ver="4.0.2"
+dftd4_sha256="ed4a6a3ba0a89b8d6825bf11724dee647fd8ee6272e7822e0cbd9847994eb872"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -32,18 +32,15 @@ case "$with_dftd4" in
     install_lock_file="${pkg_install_dir}/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
-      echo "dftd4_dist-${dftd4_ver} is already installed, skipping it."
+      echo "dftd4-${dftd4_ver} is already installed, skipping it."
     else
-      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"
+      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}-source.tar.xz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
-      tar -xzf dftd4-${dftd4_ver}.tar.gz
-      cd dftd4-${dftd4_ver}/subprojects/dftd4
+      tar -xJf dftd4-${dftd4_ver}-source.tar.xz
+      cd dftd4-${dftd4_ver}
 
-      rm -Rf build
-      mkdir build
-      cd build
-
+      mkdir build && cd build
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \

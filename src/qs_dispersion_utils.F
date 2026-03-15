@@ -311,7 +311,11 @@ CONTAINS
                   END DO
                END IF
             ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D4(Version 3.6.0)')")
+#if defined(__DFTD4_V3)
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D4(Version 3.7)')")
+#else
+               WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'DFT-D4(Version 4.0)')")
+#endif
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'see https://github.com/dftd4/dftd4')")
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'E. Caldeweyher et al, PCCP 22: 8499 (2020)')")
                WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'E. Caldeweyher et al, JCP 150: 154122 (2019)')")

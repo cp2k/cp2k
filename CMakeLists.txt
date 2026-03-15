@@ -784,6 +784,13 @@ endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
+  # Detect dftd4_VERSION from dftd4-config-version.cmake
+  if(dftd4_VERSION VERSION_LESS "4.0.0")
+    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v3.x API")
+    set(CP2K_USE_DFTD4_V3 ON)
+  else()
+    set(CP2K_USE_DFTD4_V3 OFF)
+  endif()
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -809,12 +816,20 @@ endif()
 if(CP2K_USE_TBLITE)
   find_package(mctc-lib REQUIRED)
   find_package(toml-f REQUIRED)
+  find_package(dftd4 REQUIRED)
   find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
     cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
                            toml-f::toml-f s-dftd3::s-dftd3)
+  # Detect dftd4_VERSION from dftd4-config-version.cmake
+  if(dftd4_VERSION VERSION_LESS "4.0.0")
+    message(STATUS "DFTD4: found version ${dftd4_VERSION}, using v3.x API")
+    set(CP2K_USE_DFTD4_V3 ON)
+  else()
+    set(CP2K_USE_DFTD4_V3 OFF)
+  endif()
 endif()
 
 # SIRIUS

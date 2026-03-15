@@ -55,7 +55,12 @@ MODULE qs_dispersion_d4
                                               rational_damping_param, &
                                               get_coordination_number, &
                                               get_lattice_points
+#if defined(__DFTD4_V3)
    USE dftd4_charge,                    ONLY: get_charges
+#else
+   USE multicharge,                     ONLY: get_charges
+   USE mctc_env,                        ONLY: error_type
+#endif
 !&>
 #endif
 #include "./base/base_uses.f90"
@@ -93,8 +98,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
-      INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom, &
-                                                            ikind, mref, natom, nghost
+      INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom
+#if defined(__DFTD4_V3)
+      INTEGER                                            :: ikind, mref, natom, nghost
+#else
+      INTEGER                                            :: ikind, mref, natom, ncoup, nghost
+#endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of, &
                                                             t_atomtype
       INTEGER, DIMENSION(3)                              :: periodic
@@ -106,9 +115,14 @@ CONTAINS
                                                             ta, tb, tc, td, te, ts
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cnd, dEdcn, dEdq, edcn, edq, enerd2, &
                                                             enerd3, energies, energies3, q, qd
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, t_xyz, &
-                                                            tvec, xyz
+#if defined(__DFTD4_V3)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, &
+                                                            t_xyz, tvec, xyz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb
+#else
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, t_xyz, tvec, xyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb, gwdcn, gwdq, gwvec
+#endif
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma, stress
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: sdeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -124,6 +138,10 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+
+#if !defined(__DFTD4_V3)
+      TYPE(error_type), ALLOCATABLE                      :: error
+#endif
 
       CALL timeset(routineN, handle)
 
@@ -170,7 +188,17 @@ CONTAINS
 
       !prepare for the call to the dispersion function
       CALL new(mol, atomtype, xyz, lattice=cell%hmat, periodic=lperiod)
+#if defined(__DFTD4_V3)
       CALL new_d4_model(disp, mol)
+#else
+      CALL new_d4_model(error, disp, mol)
+      IF (ALLOCATED(error)) THEN
+         CPABORT(error%message)
+      END IF
+
+      ! Number of coupling
+      ncoup = disp%ncoup
+#endif
 
       IF (dispersion_env%ref_functional == "none") THEN
          CALL get_rational_damping("pbe", param, s9=0.0_dp)
@@ -295,8 +323,13 @@ CONTAINS
             WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (ave)", SUM(ABS(q - qd))/natom
          END IF
          ! Weights for C6 calculation
+#if defined(__DFTD4_V3)
          ALLOCATE (gwvec(mref, natom))
          IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
+#else
+         ALLOCATE (gwvec(mref, natom, ncoup))
+         IF (grad) ALLOCATE (gwdcn(mref, natom, ncoup), gwdq(mref, natom, ncoup))
+#endif
          CALL disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
 
          ALLOCATE (energies(natom))
@@ -504,19 +537,32 @@ CONTAINS
       TYPE(d4_model)                                     :: disp
       TYPE(structure_type)                               :: mol
       TYPE(realspace_cutoff)                             :: cutoff
+#if !defined(__DFTD4_V3)
+      TYPE(error_type), ALLOCATABLE                      :: error
+#endif
       LOGICAL, INTENT(IN)                                :: grad, doabc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: enerd2, enerd3, cnd, qd, dEdcn, dEdq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gradient
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: stress
 
+#if defined(__DFTD4_V3)
       INTEGER                                            :: mref, natom, i
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, gwdcn, gwdq, gwvec, &
                                                             c6, dc6dcn, dc6dq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL
+#else
+      INTEGER                                            :: mref, natom, i, ncoup
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: q, qq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: lattr, c6, dc6dcn, dc6dq
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cndr, cndL, qdr, qdL, gwdcn, gwdq, gwvec
+#endif
 
       mref = MAXVAL(disp%ref)
       natom = mol%nat
+#if !defined(__DFTD4_V3)
+      ncoup = disp%ncoup
+#endif
 
       ! Coordination numbers
       ALLOCATE (cnd(natom))
@@ -527,10 +573,22 @@ CONTAINS
       ! EEQ charges
       ALLOCATE (qd(natom))
       IF (grad) ALLOCATE (qdr(3, natom, natom), qdL(3, 3, natom))
+#if defined(__DFTD4_V3)
       CALL get_charges(mol, qd, qdr, qdL)
+#else
+      CALL get_charges(disp%mchrg, mol, error, qd, qdr, qdL)
+      IF (ALLOCATED(error)) THEN
+         CPABORT(error%message)
+      END IF
+#endif
       ! C6 interpolation
+#if defined(__DFTD4_V3)
       ALLOCATE (gwvec(mref, natom))
       IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
+#else
+      ALLOCATE (gwvec(mref, natom, ncoup))
+      IF (grad) ALLOCATE (gwdcn(mref, natom, ncoup), gwdq(mref, natom, ncoup))
+#endif
       CALL disp%weight_references(mol, cnd, qd, gwvec, gwdcn, gwdq)
       ALLOCATE (c6(natom, natom))
       IF (grad) ALLOCATE (dc6dcn(natom, natom), dc6dq(natom, natom))
@@ -636,7 +694,11 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
+#if defined(__DFTD4_V3)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
+#else
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
+#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
@@ -740,7 +802,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: tvec
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
+#if defined(__DFTD4_V3)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
+#else
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
+#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
@@ -1008,7 +1074,11 @@ CONTAINS
    SUBROUTINE get_c6value(c6ij, ia, ja, ik, jk, gwvec, c6ref, mrefs)
       REAL(KIND=dp), INTENT(OUT)                         :: c6ij
       INTEGER, INTENT(IN)                                :: ia, ja, ik, jk
+#if defined(__DFTD4_V3)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec
+#else
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec
+#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
 
@@ -1019,7 +1089,11 @@ CONTAINS
       DO jref = 1, mrefs(jk)
          DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
+#if defined(__DFTD4_V3)
             c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
+#else
+            c6ij = c6ij + gwvec(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
+#endif
          END DO
       END DO
 
@@ -1045,7 +1119,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: c6ij
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dc6dcn, dc6dq
       INTEGER, INTENT(IN)                                :: ia, ja, ik, jk
+#if defined(__DFTD4_V3)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gwvec, gwdcn, gwdq
+#else
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: gwvec, gwdcn, gwdq
+#endif
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: c6ref
       INTEGER, DIMENSION(:), INTENT(IN)                  :: mrefs
 
@@ -1058,11 +1136,19 @@ CONTAINS
       DO jref = 1, mrefs(jk)
          DO iref = 1, mrefs(ik)
             refc6 = c6ref(iref, jref, ik, jk)
+#if defined(__DFTD4_V3)
             c6ij = c6ij + gwvec(iref, ia)*gwvec(jref, ja)*refc6
             dc6dcn(1) = dc6dcn(1) + gwdcn(iref, ia)*gwvec(jref, ja)*refc6
             dc6dcn(2) = dc6dcn(2) + gwvec(iref, ia)*gwdcn(jref, ja)*refc6
             dc6dq(1) = dc6dq(1) + gwdq(iref, ia)*gwvec(jref, ja)*refc6
             dc6dq(2) = dc6dq(2) + gwvec(iref, ia)*gwdq(jref, ja)*refc6
+#else
+            c6ij = c6ij + gwvec(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
+            dc6dcn(1) = dc6dcn(1) + gwdcn(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
+            dc6dcn(2) = dc6dcn(2) + gwvec(iref, ia, 1)*gwdcn(jref, ja, 1)*refc6
+            dc6dq(1) = dc6dq(1) + gwdq(iref, ia, 1)*gwvec(jref, ja, 1)*refc6
+            dc6dq(2) = dc6dq(2) + gwvec(iref, ia, 1)*gwdq(jref, ja, 1)*refc6
+#endif
          END DO
       END DO
 
