@@ -92,7 +92,7 @@ CONTAINS
          error_str(i:i) = error_f_ptr(i)
       END DO
       CALL DeleteChar(error_c_ptr)
-      IF (LEN_TRIM(error_str) > 0) CPABORT(TRIM(error_str))
+      IF (LEN_TRIM(error_str) > 0) CPWARN(TRIM(error_str))
 #else
       CPABORT("CP2K was compiled without libdeepmd_c library.")
       MARK_USED(filename)
