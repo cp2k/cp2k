@@ -29,6 +29,9 @@ MODULE smearing_utils
                                               smear_mv
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: rootpi,&
+                                              sqrt2,&
+                                              sqrthalf
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,9 +44,6 @@ MODULE smearing_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
    INTEGER, PARAMETER, PRIVATE                           :: BISECT_MAX_ITER = 400
-   REAL(KIND=dp), PARAMETER, PRIVATE                     :: sqrtpi = 1.7724538509055159_dp
-   REAL(KIND=dp), PARAMETER, PRIVATE                     :: invsqrt2 = 0.70710678118654752_dp
-   REAL(KIND=dp), PARAMETER, PRIVATE                     :: sqrt2 = 1.4142135623730951_dp
 
 CONTAINS
 
@@ -126,20 +126,20 @@ CONTAINS
             x = (e(i) - mu)/sigma
             expx2 = EXP(-x*x)
             f(i) = occupation*0.5_dp*ERFC(x)
-            kTS = kTS - (sigma/(2.0_dp*sqrtpi))*occupation*expx2
+            kTS = kTS - (sigma/(2.0_dp*rootpi))*occupation*expx2
 
          CASE (smear_mp)
             x = (e(i) - mu)/sigma
             expx2 = EXP(-x*x)
-            f(i) = occupation*(0.5_dp*ERFC(x) - x/(2.0_dp*sqrtpi)*expx2)
-            kTS = kTS + (sigma/(4.0_dp*sqrtpi))*occupation*(2.0_dp*x*x - 1.0_dp)*expx2
+            f(i) = occupation*(0.5_dp*ERFC(x) - x/(2.0_dp*rootpi)*expx2)
+            kTS = kTS + (sigma/(4.0_dp*rootpi))*occupation*(2.0_dp*x*x - 1.0_dp)*expx2
 
          CASE (smear_mv)
             x = (e(i) - mu)/sigma
-            u = x + invsqrt2
+            u = x + sqrthalf
             expu2 = EXP(-u*u)
-            f(i) = occupation*(0.5_dp*ERFC(u) + expu2/(sqrt2*sqrtpi))
-            kTS = kTS - (sigma/(sqrt2*sqrtpi))*occupation*u*expu2
+            f(i) = occupation*(0.5_dp*ERFC(u) + expu2/(sqrt2*rootpi))
+            kTS = kTS - (sigma/(sqrt2*rootpi))*occupation*u*expu2
 
          CASE DEFAULT
             CPABORT("SmearOcc: unknown smearing method")
@@ -215,20 +215,20 @@ CONTAINS
                   x = (e(is, ik) - mu)/sigma
                   expx2 = EXP(-x*x)
                   f(is, ik) = maxocc*0.5_dp*ERFC(x)
-                  kTS = kTS - (sigma/(2.0_dp*sqrtpi))*maxocc*expx2*wk(ik)
+                  kTS = kTS - (sigma/(2.0_dp*rootpi))*maxocc*expx2*wk(ik)
 
                CASE (smear_mp)
                   x = (e(is, ik) - mu)/sigma
                   expx2 = EXP(-x*x)
-                  f(is, ik) = maxocc*(0.5_dp*ERFC(x) - x/(2.0_dp*sqrtpi)*expx2)
-                  kTS = kTS + (sigma/(4.0_dp*sqrtpi))*maxocc*(2.0_dp*x*x - 1.0_dp)*expx2*wk(ik)
+                  f(is, ik) = maxocc*(0.5_dp*ERFC(x) - x/(2.0_dp*rootpi)*expx2)
+                  kTS = kTS + (sigma/(4.0_dp*rootpi))*maxocc*(2.0_dp*x*x - 1.0_dp)*expx2*wk(ik)
 
                CASE (smear_mv)
                   x = (e(is, ik) - mu)/sigma
-                  u = x + invsqrt2
+                  u = x + sqrthalf
                   expu2 = EXP(-u*u)
-                  f(is, ik) = maxocc*(0.5_dp*ERFC(u) + expu2/(sqrt2*sqrtpi))
-                  kTS = kTS - (sigma/(sqrt2*sqrtpi))*maxocc*u*expu2*wk(ik)
+                  f(is, ik) = maxocc*(0.5_dp*ERFC(u) + expu2/(sqrt2*rootpi))
+                  kTS = kTS - (sigma/(sqrt2*rootpi))*maxocc*u*expu2*wk(ik)
 
                CASE DEFAULT
                   CPABORT("Smear2: unknown smearing method")
@@ -544,16 +544,16 @@ CONTAINS
 
          CASE (smear_gaussian)
             expx2 = EXP(-x*x)
-            gvec(i) = occ_i/(sigma*sqrtpi)*expx2
+            gvec(i) = occ_i/(sigma*rootpi)*expx2
 
          CASE (smear_mp)
             expx2 = EXP(-x*x)
-            gvec(i) = occ_i*(3.0_dp - 2.0_dp*x*x)/(2.0_dp*sigma*sqrtpi)*expx2
+            gvec(i) = occ_i*(3.0_dp - 2.0_dp*x*x)/(2.0_dp*sigma*rootpi)*expx2
 
          CASE (smear_mv)
-            u = x + invsqrt2
+            u = x + sqrthalf
             expu2 = EXP(-u*u)
-            gvec(i) = occ_i*(2.0_dp + sqrt2*x)/(sigma*sqrtpi)*expu2
+            gvec(i) = occ_i*(2.0_dp + sqrt2*x)/(sigma*rootpi)*expu2
 
          END SELECT
       END DO

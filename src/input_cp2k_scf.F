@@ -1346,8 +1346,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="SIGMA", &
-                          description="Smearing width sigma for Gaussian broadening (in energy units). "// &
-                          "Only used when METHOD is GAUSSIAN.", &
+                          description="Smearing width sigma (in energy units) in the case of "// &
+                          "Gaussian, Methfessel-Paxton or Marzari-Vanderbilt smearing.", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
