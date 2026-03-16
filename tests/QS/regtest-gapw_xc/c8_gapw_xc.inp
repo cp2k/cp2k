@@ -24,8 +24,8 @@
         GMIX_P
       &END MIXING
       &SMEAR
-        ELECTRONIC_TEMPERATURE 500.
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.2
       &END SMEAR
     &END SCF
     &XC

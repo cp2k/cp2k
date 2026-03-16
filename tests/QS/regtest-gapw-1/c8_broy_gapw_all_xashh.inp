@@ -30,26 +30,25 @@
       ##      &END
     &END PRINT
     &QS
+      EPS_DEFAULT 1.0E-11
       EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
       METHOD GAPW
     &END QS
     &SCF
       ADDED_MOS 20 20
-      EPS_SCF 5.0e-3
+      EPS_SCF 5.0e-6
       MAX_SCF 50
       SCF_GUESS ATOMIC
       &MIXING
-        ALPHA 0.2
-        BETA 1.0
+        ALPHA 0.4
         GMIX_P
         METHOD BROYDEN_MIXING
-        NBUFFER 8
+        NBROYDEN 8
       &END MIXING
       &SMEAR
-        ELECTRONIC_TEMPERATURE 500.
-        FIXED_MAGNETIC_MOMENT 0.
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.05
       &END SMEAR
     &END SCF
     &XAS
@@ -81,18 +80,17 @@
         &END XES_SPECTRUM
       &END PRINT
       &SCF
-        EPS_SCF 1.0E-1
-        MAX_SCF 500
+        EPS_SCF 5.0E-2
+        MAX_SCF 60
         &MIXING
-          ALPHA 0.1
-          BETA 1.5
+          ALPHA 0.4
           GMIX_P
           METHOD BROYDEN_MIXING
-          NBUFFER 8
+          NBROYDEN 8
         &END MIXING
         &SMEAR ON
-          ELECTRONIC_TEMPERATURE [K] 300
-          METHOD FERMI_DIRAC
+          METHOD GAUSSIAN
+          SIGMA [eV] 0.05
         &END SMEAR
       &END SCF
     &END XAS

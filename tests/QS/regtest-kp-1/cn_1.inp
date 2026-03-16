@@ -34,23 +34,23 @@
       METHOD GPW
     &END QS
     &SCF
-      ADDED_MOS 200 200
-      EPS_SCF 1.0E-6
+      ADDED_MOS 10 10
+      EPS_SCF 5.0E-6
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 5
+      MAX_SCF 60
       SCF_GUESS ATOMIC
       &MIXING
-        ALPHA 0.70
-        METHOD DIRECT_P_MIXING
+        ALPHA 0.3
+        METHOD BROYDEN_MIXING
+        NBROYDEN 12
       &END MIXING
       &PRINT
         &RESTART off
         &END RESTART
       &END PRINT
       &SMEAR
-        ELECTRONIC_TEMPERATURE 1000
-        EPS_FERMI_DIRAC 1.e-10
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.1
       &END SMEAR
     &END SCF
     &XC

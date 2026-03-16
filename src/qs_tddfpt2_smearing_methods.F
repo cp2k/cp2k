@@ -28,7 +28,6 @@ MODULE qs_tddfpt2_smearing_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE fermi_utils,                     ONLY: Fermi
    USE input_constants,                 ONLY: smear_fermi_dirac
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -40,6 +39,7 @@ MODULE qs_tddfpt2_smearing_methods
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
+   USE smearing_utils,                  ONLY: SmearOcc
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -323,8 +323,8 @@ CONTAINS
          DO iocc = 1, nactive
             IF (smear%method == smear_fermi_dirac) THEN
                ! Different prefactor in comparison to Octopus !
-               CALL Fermi(occuptmp, nelec, dummykTS, mos(ispin)%eigenvalues, mos(ispin)%eigenvalues(iocc), &
-                          smear%electronic_temperature, mos(ispin)%maxocc)
+               CALL SmearOcc(occuptmp, nelec, dummykTS, mos(ispin)%eigenvalues, mos(ispin)%eigenvalues(iocc), &
+                             smear%electronic_temperature, mos(ispin)%maxocc, smear_fermi_dirac)
             ELSE
                CPABORT("TDDFT with smearing only works with Fermi-Dirac distribution.")
             END IF

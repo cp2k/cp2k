@@ -11,7 +11,7 @@
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 40
+      CUTOFF 50
       NGRIDS 4
     &END MGRID
     &PRINT
@@ -36,13 +36,13 @@
     &SCF
       ADDED_MOS 20 20
       EPS_DIIS 1.0e-7
-      EPS_SCF 1.0e-7
+      EPS_SCF 5.0e-6
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 5
+      MAX_SCF 50
       SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.6
-        BETA 1.0
+        ALPHA 0.4
+        BETA 1.2
         METHOD KERKER_MIXING
       &END MIXING
       &OT OFF
@@ -54,8 +54,8 @@
         MAX_SCF 1
       &END OUTER_SCF
       &SMEAR
-        ELECTRONIC_TEMPERATURE 5000.
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.05
       &END SMEAR
     &END SCF
     &XC

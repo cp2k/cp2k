@@ -33,6 +33,8 @@
         METHOD DIRECT_P_MIXING
       &END MIXING
       &SMEAR
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.05
       &END SMEAR
     &END SCF
   &END DFT

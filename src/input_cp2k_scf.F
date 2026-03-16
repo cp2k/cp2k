@@ -48,7 +48,8 @@ MODULE input_cp2k_scf
         outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
         outer_scf_s2_constraint, radius_covalent, radius_default, radius_single, radius_user, &
         radius_vdw, random_guess, restart_guess, shape_function_density, shape_function_gaussian, &
-        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess
+        smear_energy_window, smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
+        sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -1282,12 +1283,29 @@ CONTAINS
                           name="METHOD", &
                           description="Smearing method to be applied", &
                           usage="METHOD Fermi_Dirac", &
-                          default_i_val=smear_energy_window, &
-                          enum_c_vals=s2a("FERMI_DIRAC", "ENERGY_WINDOW", "LIST"), &
-                          enum_i_vals=[smear_fermi_dirac, smear_energy_window, smear_list], &
-                          enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE", &
-                                        "Energy window defined by the keyword WINDOW_SIZE", &
-                                        "Use a fixed list of occupations"))
+                          default_i_val=smear_gaussian, &
+                          enum_c_vals=s2a("FERMI_DIRAC", "ENERGY_WINDOW", "LIST", "GAUSSIAN", &
+                                          "METHFESSEL_PAXTON", "MARZARI_VANDERBILT"), &
+                          enum_i_vals=[smear_fermi_dirac, smear_energy_window, smear_list, &
+                                       smear_gaussian, smear_mp, smear_mv], &
+                          enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE. "// &
+                                        "Use this method if the temperature equivalence is important for you, "// &
+                                        "e.g. if you want to compute some properties based on the occupations. "// &
+                                        "If you use this method without interest in electronic temperature, "// &
+                                        "it's suggested use extrapolated result from finite ELECTRONIC_TEMPERATURE "// &
+                                        "to ELECTRONIC_TEMPERATURE = 0. Note the forces and stress are consistent "// &
+                                        "with the free energy and not with the extrapolated energy.", &
+                                        "Energy window defined by the keyword WINDOW_SIZE.", &
+                                        "Use a fixed list of occupations.", &
+                                        "Gaussian broadening with width SIGMA; should work well in most cases. "// &
+                                        "With this method you have to use extrapolated results from finite "// &
+                                        "SIGMA results to SIGMA = 0, but usually this value will not be accurate "// &
+                                        "without systematically reducing SIGMA. Note the forces and stress are "// &
+                                        "consistent with the free energy and not with the extrapolated energy.", &
+                                        "First-order Methfessel-Paxton distribution with width SIGMA. Don't "// &
+                                        "use it for semiconductors and insulators because the partial "// &
+                                        "occupancies can be unphysical and thus lead to wrong results.", &
+                                        "Marzari-Vanderbilt cold smearing with width SIGMA."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1323,6 +1341,19 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=1.0E-10_dp, &
                           usage="EPS_FERMI_DIRAC 1.0E-6")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SIGMA", &
+                          description="Smearing width sigma (in energy units) in the case of "// &
+                          "Gaussian, Methfessel-Paxton or Marzari-Vanderbilt smearing.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.002_dp, &
+                          unit_str="au_e", &
+                          usage="SIGMA [eV] 0.2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

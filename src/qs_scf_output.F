@@ -33,7 +33,8 @@ MODULE qs_scf_output
         outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
         outer_scf_optimizer_newton_ls, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
         radius_covalent, radius_default, radius_single, radius_user, radius_vdw, &
-        shape_function_density, shape_function_gaussian
+        shape_function_density, shape_function_gaussian, smear_fermi_dirac, smear_gaussian, &
+        smear_mp, smear_mv
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -615,11 +616,12 @@ CONTAINS
                                                             implicit_ps_ehartree, tot1_h, tot1_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       NULLIFY (tot_rho_r, pw_env)
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, scf_control=scf_control)
       psolver = pw_env%poisson_env%parameters%solver
 
       IF (output_unit > 0) THEN
@@ -821,8 +823,15 @@ CONTAINS
                "Fermi energy:", energy%efermi
          END IF
          IF (dft_control%smear) THEN
-            WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
-               "Electronic entropic energy:", energy%kTS
+            SELECT CASE (scf_control%smear%method)
+            CASE (smear_gaussian, smear_mp, smear_mv)
+               ! kTS does not have physical meaning in these smearing methods
+               WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                  "Smearing free energy correction:", energy%kTS
+            CASE DEFAULT
+               WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                  "Electronic entropic energy:", energy%kTS
+            END SELECT
             WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
                "Fermi energy:", energy%efermi
          END IF
@@ -857,9 +866,18 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                "Total energy:                                  ", energy%total
             IF (dft_control%smear) THEN
-               e_extrapolated = energy%total - 0.5_dp*energy%kTS
-               WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
-                  "Total energy (extrapolated to T->0):           ", e_extrapolated
+               SELECT CASE (scf_control%smear%method)
+               CASE (smear_fermi_dirac)
+                  e_extrapolated = energy%total - 0.5_dp*energy%kTS
+                  WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                     "Total energy (extrapolated to T->0):           ", e_extrapolated
+               CASE (smear_gaussian)
+                  e_extrapolated = energy%total - 0.5_dp*energy%kTS
+                  WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+                     "Total energy (extrapolated to sigma->0):       ", e_extrapolated
+               CASE (smear_mp, smear_mv)
+                  ! Sigma->0 extrapolation does not apply to MP or MV method.
+               END SELECT
             END IF
          END IF
          IF (qmmm) THEN

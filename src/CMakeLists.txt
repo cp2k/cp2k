@@ -183,7 +183,6 @@ list(
   f77_interface.F
   farming_methods.F
   farming_types.F
-  fermi_utils.F
   fist_efield_methods.F
   fist_efield_types.F
   fist_energy_types.F
@@ -802,6 +801,7 @@ list(
   smeagol_emtoptions.F
   smeagol_interface.F
   smeagol_matrix_utils.F
+  smearing_utils.F
   spglib_f08.F
   splines_methods.F
   splines_types.F

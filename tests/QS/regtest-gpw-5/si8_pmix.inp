@@ -36,9 +36,9 @@
     &SCF
       ADDED_MOS 20 20
       EPS_DIIS 1.0e-7
-      EPS_SCF 1.0e-7
+      EPS_SCF 1.0e-5
       IGNORE_CONVERGENCE_FAILURE
-      MAX_SCF 5
+      MAX_SCF 60
       SCF_GUESS MOPAC
       &MIXING
         ALPHA 0.4
@@ -53,8 +53,8 @@
         MAX_SCF 1
       &END OUTER_SCF
       &SMEAR
-        ELECTRONIC_TEMPERATURE 5000.
-        METHOD FERMI_DIRAC
+        METHOD GAUSSIAN
+        SIGMA [eV] 0.05
       &END SMEAR
     &END SCF
     &XC
