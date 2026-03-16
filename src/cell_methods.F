@@ -34,7 +34,10 @@ MODULE cell_methods
                                               cp_unit_to_cp2k
    USE input_constants,                 ONLY: do_cell_cif,&
                                               do_cell_cp2k,&
-                                              do_cell_xsc
+                                              do_cell_xsc,&
+                                              do_cell_extxyz,&
+                                              do_cell_pdb
+   USE string_utilities,                ONLY: uppercase
    USE input_cp2k_subsys,               ONLY: create_cell_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -300,17 +303,20 @@ CONTAINS
       cell_read_a = .FALSE.
       cell_read_b = .FALSE.
       cell_read_c = .FALSE.
-      ! Trying to read cell info from file
-      ! It resets the respective keywords
-      CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
-      IF (cell_read_file) &
-         CALL read_cell_from_external_file(cell_section, para_env)
+      cell_read_abc = .FALSE.
+      cell_read_alpha_beta_gamma = .FALSE.
 
+      CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
       CALL section_vals_val_get(cell_section, "A", explicit=cell_read_a)
       CALL section_vals_val_get(cell_section, "B", explicit=cell_read_b)
       CALL section_vals_val_get(cell_section, "C", explicit=cell_read_c)
       CALL section_vals_val_get(cell_section, "ABC", explicit=cell_read_abc)
       CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", explicit=cell_read_alpha_beta_gamma)
+
+      ! Trying to read cell info from file
+      ! It resets the respective keywords
+      IF (cell_read_file) &
+         CALL read_cell_from_external_file(cell_section, para_env)
 
       IF (cell_read_abc) THEN ! Presence of ABC overrides A, B, C
          IF (cell_read_a .OR. cell_read_b .OR. cell_read_c) &
@@ -554,10 +560,22 @@ CONTAINS
                hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
             END DO
          END DO
+      CASE (do_cell_extxyz)
+         NULLIFY (cell)
+         CALL cell_create(cell)
+         CALL read_cell_extxyz(cell_file_name, cell, para_env)
+         hmat = cell%hmat
+         CALL cell_release(cell)
       CASE (do_cell_cif)
          NULLIFY (cell)
          CALL cell_create(cell)
          CALL read_cell_cif(cell_file_name, cell, para_env)
+         hmat = cell%hmat
+         CALL cell_release(cell)
+      CASE (do_cell_pdb)
+         NULLIFY (cell)
+         CALL cell_create(cell)
+         CALL read_cell_pdb(cell_file_name, cell, para_env)
          hmat = cell%hmat
          CALL cell_release(cell)
       END SELECT
@@ -713,6 +731,116 @@ CONTAINS
       READ (s_tag(1:iln), *) r
 
    END SUBROUTINE cif_get_real
+
+! **************************************************************************************************
+!> \brief  Reads cell information from comment line of extended xyz file
+!> \param extxyz_file_name ...
+!> \param cell ...
+!> \param para_env ...
+!> \par    Extended xyz format has comment on the second line in the form as
+!>               Lattice="Ax Ay Az Bx By Bz Cx Cy Cz"
+!>         where Ax, Ay, Az are three Cartesian components of cell vector A,
+!>         Bx, By, Bz are components of B, Cx, Cy, Cz are components of C,
+!>         all in the unit of angstrom.
+!> \date   03.2026
+! **************************************************************************************************
+   SUBROUTINE read_cell_extxyz(extxyz_file_name, cell, para_env)
+
+      CHARACTER(len=*)                                   :: extxyz_file_name
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_extxyz'
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+
+      INTEGER                                            :: handle, id1, id2, i, j
+      TYPE(cp_parser_type)                               :: parser
+
+      CALL timeset(routineN, handle)
+
+      CALL parser_create(parser, extxyz_file_name, &
+                         para_env=para_env, apply_preprocessing=.FALSE.)
+      CALL parser_get_next_line(parser, 2)
+      CALL uppercase(parser%input_line)
+      id1 = INDEX(parser%input_line, "LATTICE=")
+      IF (id1 > 0) THEN
+         id2 = INDEX(parser%input_line(id1+9:),'"')
+         READ(parser%input_line(id1+9:id1+id2+7), *) hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         DO i = 1, 3
+            DO j = 1, 3
+               cell%hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
+            END DO
+         END DO
+
+      ELSE
+         CALL cp_abort(__LOCATION__, &
+                       "The field (lattice=) was not found on comment line "// &
+                       "of XYZ file, so cell information cannot be set via "// &
+                       "extended XYZ specification! ")
+      END IF
+
+      CALL parser_release(parser)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_cell_extxyz
+
+! **************************************************************************************************
+!> \brief  Reads cell information from CRYST1 record of PDB file
+!> \param pdb_file_name ...
+!> \param cell ...
+!> \param para_env ...
+!> \par    CRYST1 record may contain space group and Z value at the end,
+!>         but here only the first entries are read:
+!>         COLUMNS       DATA  TYPE    FIELD          DEFINITION
+!>         -------------------------------------------------------------
+!>          1 -  6       Record name   "CRYST1"
+!>          7 - 15       Real(9.3)     a              a (Angstroms).
+!>         16 - 24       Real(9.3)     b              b (Angstroms).
+!>         25 - 33       Real(9.3)     c              c (Angstroms).
+!>         34 - 40       Real(7.2)     alpha          alpha (degrees).
+!>         41 - 47       Real(7.2)     beta           beta (degrees).
+!>         48 - 54       Real(7.2)     gamma          gamma (degrees).
+!> \date   03.2026
+! **************************************************************************************************
+   SUBROUTINE read_cell_pdb(pdb_file_name, cell, para_env)
+
+      CHARACTER(len=*)                                   :: pdb_file_name
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_pdb'
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+
+      CHARACTER(LEN=default_string_length)               :: cryst
+      INTEGER                                            :: handle, i
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_angles, cell_lengths
+      TYPE(cp_parser_type)                               :: parser
+
+      CALL timeset(routineN, handle)
+
+      CALL parser_create(parser, pdb_file_name, &
+                         para_env=para_env, apply_preprocessing=.FALSE.)
+
+      CALL parser_search_string(parser, "CRYST1", ignore_case=.FALSE., found=found, &
+                                begin_line=.TRUE., search_from_begin_of_file=.TRUE.)
+      IF (.NOT. found) &
+         CPABORT("The field (CRYST1) was not found in PDB file! ")
+
+      periodic = 1
+      READ(parser%input_line, *) cryst, cell_lengths(:), cell_angles(:)
+      DO i = 1, 3
+         cell_lengths(i) = cp_unit_to_cp2k(cell_lengths(i), "angstrom")
+         cell_angles(i) = cp_unit_to_cp2k(cell_angles(i), "deg")
+      END DO
+      CALL set_cell_param(cell, cell_lengths, cell_angles, periodic=periodic, &
+                          do_init_cell=.TRUE.)
+
+      CALL parser_release(parser)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_cell_pdb
 
 ! **************************************************************************************************
 !> \brief   Write the cell parameters to the output unit.

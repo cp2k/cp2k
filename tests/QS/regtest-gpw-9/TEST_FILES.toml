@@ -15,6 +15,8 @@
 "cif_symbol_1st_column.inp"             = [{matcher="E_total", tol=1.0E-14, ref=-13.41107059145742}]
 "cif_symbol_2nd_column.inp"             = [{matcher="E_total", tol=1.0E-14, ref=-13.41107059145742}]
 "cif_symbol_missing.inp"                = [{matcher="E_total", tol=1.0E-14, ref=-13.41107059145742}]
+"read_extxyz_cell.inp"                  = [{matcher="E_total", tol=1.0E-14, ref=-16.94116910066402}]
+"read_pdb_cell.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-16.94123937045257}]
 #
 "H2_rigpw.inp"                          = [{matcher="E_total", tol=5.0E-10, ref=-1.188555459589530}]
 #EOF
