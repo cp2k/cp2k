@@ -34,10 +34,9 @@ MODULE cell_methods
                                               cp_unit_to_cp2k
    USE input_constants,                 ONLY: do_cell_cif,&
                                               do_cell_cp2k,&
-                                              do_cell_xsc,&
                                               do_cell_extxyz,&
-                                              do_cell_pdb
-   USE string_utilities,                ONLY: uppercase
+                                              do_cell_pdb,&
+                                              do_cell_xsc
    USE input_cp2k_subsys,               ONLY: create_cell_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -57,6 +56,7 @@ MODULE cell_methods
                                               det_3x3,&
                                               inv_3x3
    USE message_passing,                 ONLY: mp_para_env_type
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -737,22 +737,23 @@ CONTAINS
 !> \param extxyz_file_name ...
 !> \param cell ...
 !> \param para_env ...
+!> \date   03.2026
 !> \par    Extended xyz format has comment on the second line in the form as
 !>               Lattice="Ax Ay Az Bx By Bz Cx Cy Cz"
 !>         where Ax, Ay, Az are three Cartesian components of cell vector A,
 !>         Bx, By, Bz are components of B, Cx, Cy, Cz are components of C,
 !>         all in the unit of angstrom.
-!> \date   03.2026
 ! **************************************************************************************************
    SUBROUTINE read_cell_extxyz(extxyz_file_name, cell, para_env)
 
       CHARACTER(len=*)                                   :: extxyz_file_name
       TYPE(cell_type), POINTER                           :: cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_extxyz'
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
 
-      INTEGER                                            :: handle, id1, id2, i, j
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_extxyz'
+
+      INTEGER                                            :: handle, i, id1, id2, j
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(cp_parser_type)                               :: parser
 
       CALL timeset(routineN, handle)
@@ -763,8 +764,8 @@ CONTAINS
       CALL uppercase(parser%input_line)
       id1 = INDEX(parser%input_line, "LATTICE=")
       IF (id1 > 0) THEN
-         id2 = INDEX(parser%input_line(id1+9:),'"')
-         READ(parser%input_line(id1+9:id1+id2+7), *) hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         id2 = INDEX(parser%input_line(id1 + 9:), '"')
+         READ (parser%input_line(id1 + 9:id1 + id2 + 7), *) hmat(:, 1), hmat(:, 2), hmat(:, 3)
          DO i = 1, 3
             DO j = 1, 3
                cell%hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
@@ -789,6 +790,7 @@ CONTAINS
 !> \param pdb_file_name ...
 !> \param cell ...
 !> \param para_env ...
+!> \date   03.2026
 !> \par    CRYST1 record may contain space group and Z value at the end,
 !>         but here only the first entries are read:
 !>         COLUMNS       DATA  TYPE    FIELD          DEFINITION
@@ -800,15 +802,14 @@ CONTAINS
 !>         34 - 40       Real(7.2)     alpha          alpha (degrees).
 !>         41 - 47       Real(7.2)     beta           beta (degrees).
 !>         48 - 54       Real(7.2)     gamma          gamma (degrees).
-!> \date   03.2026
 ! **************************************************************************************************
    SUBROUTINE read_cell_pdb(pdb_file_name, cell, para_env)
 
       CHARACTER(len=*)                                   :: pdb_file_name
       TYPE(cell_type), POINTER                           :: cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
+
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_pdb'
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
 
       CHARACTER(LEN=default_string_length)               :: cryst
       INTEGER                                            :: handle, i
@@ -828,7 +829,7 @@ CONTAINS
          CPABORT("The field (CRYST1) was not found in PDB file! ")
 
       periodic = 1
-      READ(parser%input_line, *) cryst, cell_lengths(:), cell_angles(:)
+      READ (parser%input_line, *) cryst, cell_lengths(:), cell_angles(:)
       DO i = 1, 3
          cell_lengths(i) = cp_unit_to_cp2k(cell_lengths(i), "angstrom")
          cell_angles(i) = cp_unit_to_cp2k(cell_angles(i), "deg")

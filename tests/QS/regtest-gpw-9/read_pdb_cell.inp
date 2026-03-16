@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT read_pdb_cell 
+  PROJECT read_pdb_cell
   RUN_TYPE ENERGY
 &END GLOBAL
 
