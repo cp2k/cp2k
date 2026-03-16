@@ -176,7 +176,7 @@ spack:
     - "gmake@4.2:"
     - "mpich@4.3.2"
     - "ninja@1.13"
-#   - "openmpi@5.0.9"
+#   - "openmpi@5.0.10"
     - "python@3.11:"
     # CP2K
     - "adios2@2.11.0"
