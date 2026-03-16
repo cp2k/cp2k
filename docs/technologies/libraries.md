@@ -17,9 +17,11 @@ latest versions available, use the interfaces matching your compiler, and downlo
 
 Please note that the BLAS/LAPACK implementation used by CP2K needs to be thread-safe (OpenMP).
 Examples are the sequential variant of the Intel MKL, the Cray libsci, the OpenBLAS OpenMP variant
-and the reference BLAS/LAPACK packages. If compiling with MKL, users must pass
-`-DCP2K_BLAS_VENDOR=MKL -DCP2K_SCALAPACK_VENDOR=MKL` to CMake to ensure the code is thread-safe. MKL
-with multiple OpenMP threads in CP2K requires that CP2K was compiled with the Intel compiler.
+and the reference BLAS/LAPACK packages. Usually the CMake step of CP2K will auto-detect the type of
+BLAS and SCALAPACK and then use the right configuration to ensure the code is thread-safe; however,
+if you encounter problems when compiling with MKL, try passing
+`-DCP2K_BLAS_VENDOR=MKL -DCP2K_SCALAPACK_VENDOR=MKL` to CMake. MKL with multiple OpenMP threads in
+CP2K requires that CP2K was compiled with the Intel compiler.
 
 On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework. If using this
 framework, `-DCP2K_BLAS_VENDOR=Apple` must be passed to CMake to account for some interface
@@ -27,19 +29,21 @@ incompatibilities between Accelerate and reference BLAS/LAPACK.
 
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
-MPI (version 3) and SCALAPACK are needed for parallel code. (Use the latest versions available and
-download all patches!).
+MPI (version 3 or later) and SCALAPACK are needed for parallel code. (Use the latest versions
+available and download all patches!).
 
 :warning: Note that your MPI installation must match the used Fortran compiler. If your computing
 platform does not provide MPI, there are several freely available alternatives:
 
-- MPICH2 MPI: <http://www-unix.mcs.anl.gov/mpi/mpich/> (may require `-fallow-argument-mismatch` when
-  building with GCC 10)
+- MPICH MPI: <https://www.mpich.org/> (may require `-fallow-argument-mismatch` when building with
+  GCC 10) (Note that latest version 5.0.0 has a bug, and if you want to use it you should manually
+  apply [this fix](https://github.com/pmodels/mpich/pull/7722))
 - OpenMPI MPI: <http://www.open-mpi.org/>
 - ScaLAPACK:
   - <http://www.netlib.org/scalapack/>
   - <http://www.netlib.org/lapack-dev/>
-  - ScaLAPACK can be part of ACML or cluster MKL. These libraries are recommended if available.
+  - ScaLAPACK can be part of ACML (AMD) or cluster MKL (Intel). These libraries are recommended on
+    the corresponding machines if available.
   - Recently a [ScaLAPACK installer](http://www.netlib.org/scalapack/scalapack_installer.tgz) has
     been added that simplifies the installation.
 
@@ -51,29 +55,32 @@ are not supported. CP2K can make use of the mpi_f08 module. If its use is reques
 
 FFTW can be used to improve FFT speed on a wide range of architectures. It is strongly recommended
 to install and use FFTW3. The current version of CP2K works with FFTW 3.X (pass
-`-DCP2K_USE_FFTW3=ON` to CMake). It can be downloaded from <http://www.fftw.org>
+`-DCP2K_USE_FFTW3=ON` to CMake). It can be downloaded from <http://www.fftw.org>.
 
-FFTW is also provided by MKL. Pass `-DCP2K_USE_FFTW3_WITH_MKL=ON` to CMake.
+FFTW is also provided by MKL. If you have MKL but still want to use standalone FFTW3, pass
+`-DCP2K_USE_FFTW3_WITH_MKL=ON` to CMake.
 
 :warning: Note that FFTW must know the Fortran compiler you will use in order to install properly
 (e.g., `export F77=gfortran` before configure if you intend to use gfortran).
 
-Since CP2K is OpenMP parallelized, the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is
-required. Pass `-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON` or `-DCP2K_ENABLE_FFTW3_OPENMP_SUPPORT=ON`
+Since CP2K is OpenMP parallelized, the FFTW3 threading library libfftw3_omp (or libfftw3_threads) is
+required. Pass `-DCP2K_ENABLE_FFTW3_OPENMP_SUPPORT=ON` or `-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON`
 respectivly to CMake.
 
 ## LIBINT (enables methods including HF exchange)
 
-- Hartree-Fock exchange requires the LIBINT package to be installed.
+- Hartree-Fock exchange requires the LIBINT package to calculate ERI.
 - Pass `-DCP2K_USE_LIBINT2=ON` to CMake to enable LIBINT.
-- Recommended way to build LIBINT: Download a CP2K-configured LIBINT library from
-  [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install LIBINT by following the
-  instructions provided there. Note that using a library configured for higher maximum angular
-  momentum will increase build time and binary size of CP2K binary (assuming static linking).
+- It's always suggested to build LIBINT with toolchain or Spack. If you want to build it yourself,
+  download a CP2K-configured LIBINT library from our
+  [CP2K server](https://www.cp2k.org/static/downloads/), then build and install LIBINT by following
+  the instructions provided [here](https://github.com/cp2k/cp2k/blob/master/tools/libint/README.md).
+  Note that using a library configured for higher maximum angular momentum will increase build time
+  and binary size of CP2K binary (assuming static linking).
 - CP2K is not hardwired to these provided libraries and any other LIBINT library (version >= 2.5.0)
   should be compatible as long as it was compiled with `--enable-eri=1` and default ordering.
-- Avoid debugging information (`-g` flag) for compiling LIBINT since this will increase library size
-  by a large factor.
+- Avoid debugging information (`-g` or `-g2` flag) for compiling LIBINT since this will increase
+  library size by a large factor.
 
 ## LIBXSMM (improved performance for matrix multiplication)
 
@@ -84,8 +91,7 @@ respectivly to CMake.
 
 ## LIBXC (wider choice of xc functionals)
 
-- The version 5.1.0 (or later) of LIBXC can be downloaded from
-  <https://www.tddft.org/programs/libxc>
+- The latest version of LIBXC can be downloaded from <https://gitlab.com/libxc/libxc/-/releases>
 - CP2K does not make use of fourth derivates such that LIBXC may be configured with
   `./configure --disable-lxc <other LIBXC configuration flags>`.
 - During the installation, the directories `$(LIBXC_DIR)/lib` and `$(LIBXC_DIR)/include` are
@@ -233,6 +239,7 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 ## TBLITE (semiempirical method)
 
 - tblite - Light-weight tight-binding framework
+- With tblite you can calculate using GFN2-xTB method.
 - For more information see <https://github.com/tblite/tblite>
 - Pass `-DCP2K_USE_TBLITE=ON` to CMake.
 
