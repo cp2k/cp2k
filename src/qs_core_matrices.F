@@ -82,7 +82,9 @@ MODULE qs_core_matrices
                                               dbcsr_iterator_type,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: do_ppl_analytic,&
                                               rel_none,&
@@ -164,6 +166,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_hloc, matrix_ploc
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -177,7 +180,12 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(virial_type), POINTER                         :: virial
 
-      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      END IF
 
       ext_kp = .FALSE.
       IF (PRESENT(ext_kpoints)) THEN
@@ -427,6 +435,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -437,7 +446,12 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(virial_type), POINTER                         :: virial
 
-      iounit = cp_logger_get_default_unit_nr(local=.FALSE.)
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env)
       ! is this a orbital-free method calculation
