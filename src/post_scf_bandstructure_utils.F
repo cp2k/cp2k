@@ -2628,20 +2628,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index_simple'
 
       INTEGER                                            :: handle, nimages
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, para_env, sab_orb)
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, dft_control=dft_control, sab_orb=sab_orb)
-      nimages = dft_control%nimages
-      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
-
-      ! set back dft_control%nimages
-      dft_control%nimages = nimages
+      NULLIFY (para_env, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env, sab_orb=sab_orb)
+      CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, nimages)
 
       CALL timestop(handle)
 

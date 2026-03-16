@@ -23,8 +23,7 @@ MODULE kpoint_methods
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_control_types,                ONLY: dft_control_type,&
-                                              hairy_probes_type
+   USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
@@ -680,15 +679,15 @@ CONTAINS
 !> \param kpoint    Kpoint environment
 !> \param sab_nl    Defining neighbour list
 !> \param para_env  Parallel environment
-!> \param dft_control ...
+!> \param nimages   [output]
 ! **************************************************************************************************
-   SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
+   SUBROUTINE kpoint_init_cell_index(kpoint, sab_nl, para_env, nimages)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER, INTENT(OUT)                               :: nimages
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index'
 
@@ -795,11 +794,12 @@ CONTAINS
       kpoint%sab_nl => sab_nl
 
       ! set number of images
-      dft_control%nimages = SIZE(index_to_cell, 2)
+      nimages = SIZE(index_to_cell, 2)
 
       DEALLOCATE (list)
 
       CALL timestop(handle)
+
    END SUBROUTINE kpoint_init_cell_index
 
 ! **************************************************************************************************

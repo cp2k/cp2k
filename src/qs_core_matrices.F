@@ -132,13 +132,15 @@ CONTAINS
 !> \param ec_env ...
 !> \param dcdr_env ...
 !> \param ec_env_matrices ...
+!> \param ext_kpoints ...
 !> \param basis_type ...
 !> \param debug_forces ...
 !> \param debug_stress ...
 !> \param atcore ...
 ! **************************************************************************************************
    SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder, ec_env, dcdr_env, &
-                            ec_env_matrices, basis_type, debug_forces, debug_stress, atcore)
+                            ec_env_matrices, ext_kpoints, basis_type, &
+                            debug_forces, debug_stress, atcore)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
@@ -147,6 +149,7 @@ CONTAINS
       TYPE(energy_correction_type), OPTIONAL, POINTER    :: ec_env
       TYPE(dcdr_env_type), OPTIONAL                      :: dcdr_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: ec_env_matrices
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
       CHARACTER(LEN=*), OPTIONAL                         :: basis_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug_forces, debug_stress
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atcore
@@ -154,9 +157,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: iounit, natom, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_present, debfor, debstr, my_gt_nl, &
-                                                            ppl_present, ppnl_present, use_lrigpw, &
-                                                            use_virial
+      LOGICAL                                            :: all_present, debfor, debstr, ext_kp, &
+                                                            my_gt_nl, ppl_present, ppnl_present, &
+                                                            use_lrigpw, use_virial
       REAL(KIND=dp)                                      :: eps_ppnl, fconv
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
@@ -182,6 +185,11 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
+      END IF
+
+      ext_kp = .FALSE.
+      IF (PRESENT(ext_kpoints)) THEN
+         IF (ASSOCIATED(ext_kpoints)) ext_kp = .TRUE.
       END IF
 
       NULLIFY (dft_control)
@@ -214,13 +222,19 @@ CONTAINS
       END IF
 
       ! prepare for k-points
-      nimages = dft_control%nimages
       NULLIFY (cell_to_index)
-      IF (nimages > 1) THEN
-         CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
-         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      IF (ext_kp) THEN
+         nimages = SIZE(ext_kpoints%index_to_cell, 2)
+         CALL get_kpoint_info(kpoint=ext_kpoints, cell_to_index=cell_to_index)
          dft_control%qs_control%do_ppl_method = do_ppl_analytic
+      ELSE
+         nimages = dft_control%nimages
+         IF (nimages > 1) THEN
+            CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+            CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+            CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+            dft_control%qs_control%do_ppl_method = do_ppl_analytic
+         END IF
       END IF
 
       ! Possible dc/dr terms
@@ -380,6 +394,7 @@ CONTAINS
 !> \param matrixkp_t ...
 !> \param matrix_t ...
 !> \param matrix_p ...
+!> \param ext_kpoints ...
 !> \param matrix_name ...
 !> \param calculate_forces ...
 !> \param nderivative ...
@@ -390,7 +405,7 @@ CONTAINS
 !> \param debug_stress ...
 !> \author Creation (21.08.2025,JGH)
 ! **************************************************************************************************
-   SUBROUTINE kinetic_energy_matrix(qs_env, matrixkp_t, matrix_t, matrix_p, &
+   SUBROUTINE kinetic_energy_matrix(qs_env, matrixkp_t, matrix_t, matrix_p, ext_kpoints, &
                                     matrix_name, calculate_forces, nderivative, &
                                     sab_orb, eps_filter, basis_type, debug_forces, debug_stress)
 
@@ -401,6 +416,7 @@ CONTAINS
          POINTER                                         :: matrix_t
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_p
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
@@ -413,7 +429,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: ic, img, iounit, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: debfor, debstr, use_virial
+      LOGICAL                                            :: debfor, debstr, ext_kp, use_virial
       REAL(KIND=dp)                                      :: fconv
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
@@ -441,8 +457,10 @@ CONTAINS
       ! is this a orbital-free method calculation
       IF (dft_control%qs_control%ofgpw) RETURN
 
-      ! Matrix images (kp)
-      nimages = dft_control%nimages
+      ext_kp = .FALSE.
+      IF (PRESENT(ext_kpoints)) THEN
+         IF (ASSOCIATED(ext_kpoints)) ext_kp = .TRUE.
+      END IF
 
       ! basis type
       IF (PRESENT(basis_type)) THEN
@@ -477,7 +495,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
-            DO img = 1, nimages
+            DO img = 1, SIZE(matrix_p, 2)
                CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
@@ -493,14 +511,19 @@ CONTAINS
       END IF
 
       ! T matrix
-      CALL build_kinetic_matrix(ks_env, matrixkp_t=matrixkp_t, matrix_t=matrix_t, &
-                                matrix_name=matrix_name, &
-                                basis_type=my_basis_type, &
-                                sab_nl=sab_nl, &
-                                calculate_forces=calculate_forces, &
-                                matrixkp_p=matrix_p, &
-                                nderivative=nderivative, &
-                                eps_filter=eps_filter)
+      IF (ext_kp) THEN
+         CALL build_kinetic_matrix(ks_env, matrixkp_t=matrixkp_t, matrix_t=matrix_t, &
+                                   matrix_name=matrix_name, basis_type=my_basis_type, &
+                                   sab_nl=sab_nl, calculate_forces=calculate_forces, &
+                                   matrixkp_p=matrix_p, ext_kpoints=ext_kpoints, &
+                                   nderivative=nderivative, eps_filter=eps_filter)
+      ELSE
+         CALL build_kinetic_matrix(ks_env, matrixkp_t=matrixkp_t, matrix_t=matrix_t, &
+                                   matrix_name=matrix_name, basis_type=my_basis_type, &
+                                   sab_nl=sab_nl, calculate_forces=calculate_forces, &
+                                   matrixkp_p=matrix_p, nderivative=nderivative, &
+                                   eps_filter=eps_filter)
+      END IF
 
       IF (debfor) THEN
          fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
@@ -516,7 +539,7 @@ CONTAINS
 
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
-            DO img = 1, nimages
+            DO img = 1, SIZE(matrix_p, 2)
                CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
             END DO
@@ -527,12 +550,17 @@ CONTAINS
       IF (qs_env%rel_control%rel_method /= rel_none) THEN
          IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
             CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
-            IF (nimages == 1) THEN
-               ic = 1
+            IF (ext_kp) THEN
+               ic = ext_kpoints%cell_to_index(0, 0, 0)
             ELSE
-               CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-               CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-               ic = cell_to_index(0, 0, 0)
+               nimages = dft_control%nimages
+               IF (nimages == 1) THEN
+                  ic = 1
+               ELSE
+                  CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+                  CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+                  ic = cell_to_index(0, 0, 0)
+               END IF
             END IF
             IF (my_basis_type /= "ORB") THEN
                CPABORT("Basis mismatch for relativistic correction")
