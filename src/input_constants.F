@@ -83,7 +83,9 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k = 1, &
                                                do_cell_cif = 2, &
-                                               do_cell_xsc = 3
+                                               do_cell_xsc = 3, &
+                                               do_cell_extxyz = 4, &
+                                               do_cell_pdb = 5
 
    INTEGER, PARAMETER, PUBLIC               :: rmsd_all = 0, &
                                                rmsd_list = 1, &
