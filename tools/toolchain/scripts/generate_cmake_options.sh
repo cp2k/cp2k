@@ -31,7 +31,7 @@ source "${INSTALLDIR}"/toolchain.env
 #             ├── toolchain.conf        <- * file to be parsed in this script
 #             └── toolchain.env         <- * file to be parsed in this script
 #
-# First, validate existence of relevant upper-level directory and file
+# First, validate completion of relevant upper-level directory and file
 printf "\n========================== %s =========================\n" \
   "Generating CMake options for building CP2K"
 CP2K_ROOT=$(cd "${ROOTDIR}/../.." && pwd)
@@ -42,28 +42,22 @@ Root directory of CP2K with source code is found as ${CP2K_ROOT}
 Build directory will be \${CP2K_ROOT}/build.
 Install directory will be \${CP2K_ROOT}/install.
 EOF
-  export CP2K_ROOT
-  CMAKE_OPTIONS="-S ${CP2K_ROOT} -B ${CP2K_ROOT}/build"
-  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install"
-  CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_INSTALL_LIBDIR=lib"
+  CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=./install"
 else
-  report_error ${LINENO} "\${CP2K_ROOT} does not have subdirectory src, so it
-cannot be set as source path for CMake options."
+  report_error ${LINENO} "\${CP2K_ROOT} does not have subdirectory src."
   return 1
 fi
 if [ -f "${CP2K_ROOT}/CMakeLists.txt" ] && [ -r "${CP2K_ROOT}/CMakeLists.txt" ]; then
-  echo "${CP2K_ROOT}/CMakeLists.txt exists; will be parsed for CMake options."
+  echo "\${CP2K_ROOT}/CMakeLists.txt exists; will be parsed for CMake options."
 else
-  report_error ${LINENO} "${CP2K_ROOT}/CMakeLists.txt cannot be found or read;
-suggested CMake option will be incomplete and/or incorrect."
+  report_error ${LINENO} "\${CP2K_ROOT}/CMakeLists.txt cannot be found or read."
   return 1
 fi
 if [ -d "${CP2K_ROOT}/data" ]; then
-  echo "Data directory ${CP2K_ROOT}/data is found and set as -DCP2K_DATA_DIR."
+  echo "Data directory ${CP2K_ROOT}/data is found and set as CP2K_DATA_DIR."
   CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 else
-  report_warning ${LINENO} "Data directory ${CP2K_ROOT}/data cannot be found;
-please set -DCP2K_DATA_DIR to actual path manually."
+  report_error ${LINENO} "Data directory \${CP2K_ROOT}/data cannot be found."
 fi
 
 # ------------------------------------------------------------------------
@@ -126,63 +120,120 @@ export CP2K_ROOT="${CP2K_ROOT}"
 export CP2K_CMAKE_OPTIONS="${CMAKE_OPTIONS}"
 prepend_path PATH "${CP2K_ROOT}/install/bin"
 prepend_path LD_LIBRARY_PATH "${CP2K_ROOT}/install/lib"
-prepend_path LD_RUN_PATH "${CP2K_ROOT}/install/lib"
-prepend_path LIBRARY_PATH "${CP2K_ROOT}/install/lib"
 prepend_path PKG_CONFIG_PATH "${CP2K_ROOT}/install/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "${CP2K_ROOT}"
 EOF
-cat << EOF
+if [ "${dry_run}" = "__TRUE__" ]; then
+  cat << EOF
+
 Suggested cmake command if toolchain is built with your options:
 
   cmake ${CMAKE_OPTIONS}
+EOF
+else
+  cat << EOF
 
-These options are also collected in the variable \${CP2K_CMAKE_OPTIONS} that is
+Suggested CMake options are collected in the variable \${CP2K_CMAKE_OPTIONS} that is
 exported at the end of setup file ${SETUPFILE}.
 EOF
+fi
 
 # -------------------------
 # print out user instructions
 # -------------------------
-if [ ! "${dry_run}" = "__TRUE__" ]; then
+if [ "${dry_run}" != "__TRUE__" ]; then
   echo
-  cat << EOF | tee ${INSTALLDIR}/cp2k_installation_guide.txt
+  cat << EOF
 ========================== Epilogue =========================
-Toolchain is now ready for building CP2K! Instructions for next steps:
+Toolchain is now ready for building CP2K!
 
-(1) Optional - remove packages in ./build directory to free up disk space:
-      rm -rf ${BUILDDIR}
-    However, do NOT delete or move the ./install directory from now on.
+To use the installed tools and libraries and cp2k version compiled with it you
+will first need to execute at the prompt:
 
-(2) Required - source setup file to activate toolchain-configured dependencies:
-      source ${SETUPFILE}
-    This setup file MUST also be sourced whenever CP2K built with this toolchain
-    is executed. If modules have been used to estabilish environment variables
-    and paths, remember to load these modules prior to sourcing setup file.
+  source ${SETUPFILE}
 
-(3) Required - go to root directory of CP2K and configure CMake with options
-    suggested above:
-      cd ${CP2K_ROOT}
-      cmake ${CMAKE_OPTIONS}
-    Other commands from ${CP2K_ROOT}/CMakeLists.txt can also be added. For more
-    information about available build options, see documentation:
-    https://manual.cp2k.org/trunk/getting-started/build-from-source.html.
-    Alternative to copy-paste long lines in terminal is to use a variable from
-    setup file for CMake options, which is not to be quoted so that whitespace
-    delimiters allow it to expand to command options in shell:
-      cmake \${CP2K_CMAKE_OPTIONS}
+Then it's recommended for you to build and install CP2K with following commands:
 
-(4) Required - build CP2K with command:
-      cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs)
-    It may be helpful to also save a copy of command line messages to log files:
-      cmake --build ${CP2K_ROOT}/build --target install -j $(get_nprocs) 2>&1 | tee install.log
+  cd ${CP2K_ROOT}
+  cmake -S . -B build ${CMAKE_OPTIONS}
+  cmake --build build --target install -j $(get_nprocs)
 
-(5) Optional - once build is completed, remove ./build directory like in (1):
-      cmake --build ${CP2K_ROOT}/build --target clean
-    Again, do not move the ./install directory from now on.
+For more information about available build options, see:
+https://manual.cp2k.org/trunk/getting-started/build-from-source.html
 
-(6) Recommended - perform regtest as is suggested at the end of (3).
+For detailed explanation of above steps of building CP2K, see:
+${INSTALLDIR}/cp2k_installation_guide.md
 
-This message is saved to "${INSTALLDIR}/cp2k_installation_guide.txt".
+EOF
+  cat << EOF > ${INSTALLDIR}/cp2k_installation_guide.md
+## Building CP2K with dependencies installed in toolchain
+
+Here is a detailed instruction of building CP2K with dependencies installed via toolchain.
+
+### Required - commands you must execute or the building fails
+
+1. Source setup file to activate toolchain-configured dependencies:
+
+\`\`\`bash
+source ${SETUPFILE}
+\`\`\`
+
+This setup file **MUST** also be sourced whenever CP2K built with this toolchain is executed.
+If modules have been used to estabilish environment variables and paths, remember to load
+these modules prior to sourcing setup file.
+
+2. Go to root directory of CP2K and configure CMake with corresponding options:
+
+\`\`\`bash
+cd ${CP2K_ROOT}
+cmake -S . -B build ${CMAKE_OPTIONS}
+\`\`\`
+
+Other commands from \`${CP2K_ROOT}/CMakeLists.txt\` can also be added. For more information
+about available build options, see documentation:
+<https://manual.cp2k.org/trunk/getting-started/build-from-source.html>.
+
+Alternative to copy-paste long lines in terminal is to use a variable from setup file for
+CMake options, which is not to be quoted so that whitespace delimiters allow it to expand
+to command options in shell:
+
+\`\`\`bash
+cmake -S . -B build \${CP2K_CMAKE_OPTIONS}
+\`\`\`
+
+3. Build and install CP2K with command:
+
+\`\`\`bash
+cmake --build build --target install -j $(get_nprocs)
+\`\`\`
+
+It may be helpful to also save a copy of command line messages to log files:
+
+\`\`\`bash
+cmake --build build --target install -j $(get_nprocs) 2>&1 | tee install.log
+\`\`\`
+
+If you want another build of CP2K without changing toolchain configuration, simply change
+the building directory set by \`-B <dirname>\` in the cmake command above.
+
+### Optional but recommended
+
+At the ending of the output of step 3, CP2K will give you a command that can be used to
+do regtests, which can further ensure if you have built CP2K correctly. You can perform
+the regtests with that command. You can run
+\`${CP2K_ROOT}/tests/do_regtest.py --help\`
+to see available options. For a detailed instruction of how to run regtests (especially
+on HPC clusters), see:
+<https://www.cp2k.org/dev:regtesting>.
+
+### Other optional behaviors
+
+Both for toolchain buildings and CP2K building: once build is completed, the \`build\`
+directory can be safely deleted. However, you **MUST** keep the \`install\` directory
+as is.
+
+Especially, if you want to save disk space but at the same time keep the cached CMake
+files, you can run \`cmake --build build --target clean\` alternatively after installing
+successfully.
 EOF
 fi
 

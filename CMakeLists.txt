@@ -106,6 +106,10 @@ foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
   endif()
 endforeach()
 
+set(CMAKE_INSTALL_LIBDIR
+    "lib"
+    CACHE PATH "Default installation directory for libraries")
+
 # =================================================================================================
 # OPTIONS
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
@@ -1240,8 +1244,9 @@ endif()
 
 message(
   "\n\n" # let below line separate
-  "After building CP2K the regtests can be run with the following command:\n"
-  "   ./tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${__cp2k_ext}\n\n")
+  "After building and installing CP2K the regtests can be run with the following command:\n"
+  "   ${PROJECT_SOURCE_DIR}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${__cp2k_ext}\n\n"
+)
 
 # files needed for cmake
 
