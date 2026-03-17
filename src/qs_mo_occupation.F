@@ -424,6 +424,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: delectron, e1, e2, edelta, edist, &
                                                             el_count, nelec, occ_estate, &
                                                             total_zeff_corr, xas_nelectron
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp_v
 
       CALL timeset(routineN, handle)
 
@@ -621,11 +622,12 @@ CONTAINS
                                smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac, &
                                xas_estate, occ_estate)
             ELSE
-               eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
+               IF (.NOT. ALLOCATED(tmp_v)) ALLOCATE (tmp_v(SIZE(eval_deriv)))
+               tmp_v(:) = eval_deriv - mo_set%eigenvalues + mo_set%mu
                CALL SmearFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
                                       mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
                                       smear%electronic_temperature, mo_set%maxocc, smear_fermi_dirac, &
-                                      eval_deriv, xas_estate, occ_estate)
+                                      tmp_v, xas_estate, occ_estate)
             END IF
 
             ! Find the lowest fractional occupied MO (LFOMO)
@@ -663,11 +665,12 @@ CONTAINS
                                smear%smearing_width, mo_set%maxocc, smear%method, &
                                xas_estate, occ_estate)
             ELSE
-               eval_deriv = eval_deriv - mo_set%eigenvalues + mo_set%mu
+               IF (.NOT. ALLOCATED(tmp_v)) ALLOCATE (tmp_v(SIZE(eval_deriv)))
+               tmp_v(:) = eval_deriv - mo_set%eigenvalues + mo_set%mu
                CALL SmearFixedDerivMV(eval_deriv, mo_set%occupation_numbers(1:mo_set%nmo), mo_set%mu, &
                                       mo_set%kTS, mo_set%eigenvalues(1:mo_set%nmo), Nelec, &
                                       smear%smearing_width, mo_set%maxocc, smear%method, &
-                                      eval_deriv, xas_estate, occ_estate)
+                                      tmp_v, xas_estate, occ_estate)
             END IF
 
             ! Find the lowest fractional occupied MO (LFOMO)
@@ -772,6 +775,7 @@ CONTAINS
       ! zeros don't count as uniform
       mo_set%uniform_occupation = has_uniform_occupation(mo_set=mo_set)
 
+      IF (ALLOCATED(tmp_v)) DEALLOCATE (tmp_v)
       CALL timestop(handle)
 
    END SUBROUTINE set_mo_occupation_1

@@ -8,7 +8,7 @@
 "si8_kerker.inp"                        = [{matcher="E_total", tol=1e-12, ref=-31.06508598268039}]
 "si8_pulay.inp"                         = [{matcher="E_total", tol=2e-13, ref=-31.06537120886255}]
 "si8_broy.inp"                          = [{matcher="E_total", tol=7e-14, ref=-31.06537114151118}]
-"si8_pulay_md.inp"                      = [{matcher="E_total", tol=5e-09, ref=-31.06663571989989}]
+"si8_pulay_md.inp"                      = [{matcher="E_total", tol=5e-09, ref=-31.06829331239024}]
 "si8_pulay_skip.inp"                    = [{matcher="E_total", tol=5e-14, ref=-31.06537121708260}]
 # cholesky methods
 "si8_pulay_reduce.inp"                  = [{matcher="E_total", tol=2e-13, ref=-31.06537120886254}]
