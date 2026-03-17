@@ -170,9 +170,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_basisset_type), INTENT(OUT)             :: basis
 
-      INTEGER                                            :: iatom, ikind, iprim, iset, istart, &
-                                                            local_ishell, lval, nkind, npgf, nset, &
-                                                            nshell, nshell_total, shell_index
+      INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
+                                                            nkind, npgf, nset, nshell, &
+                                                            nshell_total, shell_index
       REAL(c_double), DIMENSION(3)                       :: shell_origin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_shell_type), ALLOCATABLE, DIMENSION(:)  :: shells
@@ -197,38 +197,36 @@ CONTAINS
       ALLOCATE (shells(nshell_total))
 
       shell_index = 0
-      DO iatom = 1, natoms
+      DO iatom = 1, natoms ! for each atom
          atomic_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
 
          gto_basis => basis_set_list(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(gto_basis)) CYCLE
+         CPASSERT(ASSOCIATED(gto_basis))
 
          shell_origin(1) = REAL(particle_set(iatom)%r(1), c_double)
          shell_origin(2) = REAL(particle_set(iatom)%r(2), c_double)
          shell_origin(3) = REAL(particle_set(iatom)%r(3), c_double)
 
          nset = gto_basis%nset
-         istart = 1
-         DO iset = 1, nset
+         CPASSERT(nset == SIZE(gto_basis%nshell))
+         DO iset = 1, nset ! for each shell group
             nshell = gto_basis%nshell(iset)
-            npgf = gto_basis%npgf(iset)
+            npgf = gto_basis%npgf(iset) ! corresponds with nprim of gauxc
 
-            DO local_ishell = istart, istart + nshell - 1
-               shell_index = shell_index + 1
-               lval = gto_basis%l(1, local_ishell)
+            DO ishell = 1, gto_basis%nshell(iset) ! for each shell within the shell group
+               shell_index = shell_index + 1 ! global shell index, flattened over atoms and groups
+               lval = gto_basis%l(ishell, iset)
                shells(shell_index)%l = INT(lval, c_int32_t)
                shells(shell_index)%pure = .TRUE._c_bool
                shells(shell_index)%nprim = INT(npgf, c_int32_t)
                shells(shell_index)%origin = shell_origin
 
                DO iprim = 1, npgf
-                  shells(shell_index)%exponents(iprim) = REAL(gto_basis%zet(iprim, local_ishell), c_double)
-                  shells(shell_index)%coefficients(iprim) = REAL(gto_basis%gcc(iprim, local_ishell, 1), c_double)
+                  shells(shell_index)%exponents(iprim) = REAL(gto_basis%zet(iprim, iset), c_double)
+                  shells(shell_index)%coefficients(iprim) = REAL(gto_basis%gcc(iprim, ishell, iset), c_double)
                END DO
             END DO
-
-            istart = istart + nshell
          END DO
       END DO
 
