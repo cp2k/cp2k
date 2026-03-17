@@ -92,7 +92,6 @@ CONTAINS
       CPASSERT(status%code == 0)
 
       world_size = gauxc_runtime_environment_comm_size(status, rt)
-      CPASSERT(status%code == 0)
 
       IF (world_rank == 0) THEN
          IF (status%code /= 0) THEN
@@ -103,13 +102,12 @@ CONTAINS
          ! This output is prolly not supposed to come at init
          PRINT '(a)', &
            & "Configuration", &
-           & "-> Input file        : "//input_file, &
-           & "-> Model             : "//model, &
            & "-> Grid              : "//grid_spec, &
            & "-> Radial quadrature : "//rad_quad_spec, &
            & "-> Pruning scheme    : "//prune_spec, &
            & ""
       END IF
+      CPASSERT(status%code == 0)
 
    END SUBROUTINE
 
