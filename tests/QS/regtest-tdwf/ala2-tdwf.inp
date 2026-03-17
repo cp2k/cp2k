@@ -1,0 +1,141 @@
+&FORCE_EVAL
+  METHOD QUICKSTEP
+  &DFT
+    &LOCALIZE
+      OUT_ITER_EACH 1
+      &PRINT
+        &WANNIER_CENTERS
+          ADD_LAST NUMERIC
+          COMMON_ITERATION_LEVELS 5
+          FILENAME ""
+          IONS+CENTERS .TRUE.
+        &END
+        &WANNIER_STATES
+          ADD_LAST NUMERIC
+          COMMON_ITERATION_LEVELS 5
+          FILENAME ""
+        &END
+      &END
+    &END
+    &REAL_TIME_PROPAGATION
+       MAX_ITER 5
+       MAT_EXP TAYLOR
+       EPS_ITER 1.0E-9
+       INITIAL_WFN SCF_WFN
+       APPLY_DELTA_PULSE .TRUE.
+       DELTA_PULSE_DIRECTION 1 0 0
+    &END
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &PRINT
+      &MOMENTS
+        ADD_LAST NUMERIC
+        COMMON_ITERATION_LEVELS 5
+        FILENAME ""
+        COM_NL .TRUE.
+        MAGNETIC .TRUE.
+        MAX_MOMENT 2
+        PERIODIC .FALSE.
+        REFERENCE COM
+        VEL_REPRS .TRUE.
+      &END
+    &END
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      MAX_SCF 60
+      EPS_SCF 1.0E-3
+      SCF_GUESS ATOMIC
+      &OUTER_SCF
+      EPS_SCF 1.0E-3
+      &END
+      &OT ON
+        ROTATION
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+    &END CELL
+    &COORD
+C        5.60889372       7.91089503       7.34163846   ala1
+O        6.38161046       8.80575592       6.93857847   ala1
+O        6.00460768       6.75352255       7.87485118   ala1
+H        7.03381608       6.74195421       7.93900598   ala1
+C        4.07968959       8.08184096       7.28249444   ala1
+N        3.28464581       6.84641114       7.31185266   ala1
+H        3.51198881       6.33132063       8.17743841   ala1
+H        3.59129924       6.22491103       6.54777369   ala1
+H        3.88047765       8.60652652       6.32417938   ala1
+C        3.65601814       9.00917693       8.43957322   ala1
+H        4.21277290       9.96623836       8.40603503   ala1
+H        2.56994330       9.21317368       8.36421786   ala1
+H        3.85345734       8.52162850       9.41822403   ala1
+C        9.43099625       7.41104693       7.48410514   ala2
+O        8.62570760       6.65724617       8.06037806   ala2
+O        9.08124980       8.53072770       6.84310590   ala2
+H        8.06197300       8.64063252       6.89691741   ala2
+C       10.94199510       7.13338289       7.42179293   ala2
+N       11.15263621       6.10031573       6.37912597   ala2
+H       11.01242647       6.51860491       5.44684167   ala2
+H       12.14148320       5.80888725       6.41202068   ala2
+H       11.43319115       8.10664826       7.18552219   ala2
+C       11.44582472       6.61548086       8.77309139   ala2
+H       11.27789034       7.36302569       9.57491922   ala2
+H       10.91578919       5.68022999       9.03929716   ala2
+H       12.53619860       6.41351826       8.71683827   ala2
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PBE
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND HX
+      ELEMENT H
+      GHOST T
+      BASIS_SET DZVP-GTH-PBE
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH-PBE
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-GTH-PBE
+      POTENTIAL GTH-PBE-q5
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PBE
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT ala2-tdwf
+ RUN_TYPE RT_PROPAGATION
+!  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP [au_t] 0.25
+    TEMPERATURE 300.0
+  &END MD
+    &PRINT
+       &TRAJECTORY
+          &EACH
+             MD 1
+          &END
+       &END
+    &END
+&END MOTION
