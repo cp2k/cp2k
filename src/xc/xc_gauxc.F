@@ -170,6 +170,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_basisset_type), INTENT(OUT)             :: basis
 
+      CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
                                                             nkind, npgf, nset, nshell, &
                                                             nshell_total, shell_index
@@ -182,16 +183,22 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
 
       ALLOCATE (basis_set_list(nkind))
+      ! fixme: schreibe version dieser funktion, die als eingabe direkt die basis_set_list nimmt
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       nshell_total = 0
       DO iatom = 1, natoms
          atomic_kind => particle_set(iatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-         gto_basis => basis_set_list(ikind)%gto_basis_set
-         IF (ASSOCIATED(gto_basis)) THEN
-            nshell_total = nshell_total + SUM(gto_basis%nshell)
-         END IF
+         CALL get_atomic_kind(atomic_kind, element_symbol=element_symbol)
+         NULLIFY (gto_basis)
+         DO ikind = 1, nkind
+            IF (qs_kind_set(ikind)%element_symbol .EQ. element_symbol) THEN
+               gto_basis => basis_set_list(ikind)%gto_basis_set
+               EXIT
+            END IF
+         END DO
+         CPASSERT(ASSOCIATED(gto_basis))
+         nshell_total = nshell_total + SUM(gto_basis%nshell)
       END DO
 
       ALLOCATE (shells(nshell_total))
