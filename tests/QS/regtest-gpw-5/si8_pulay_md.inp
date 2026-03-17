@@ -26,7 +26,6 @@
       NGRIDS 5
     &END MGRID
     &QS
-      EPS_DEFAULT 1.0E-12
       EXTRAPOLATION ASPC
       METHOD GPW
     &END QS
@@ -41,7 +40,7 @@
         ALPHA 0.4
         BETA 1.0
         METHOD PULAY_MIXING
-        NPULAY 5
+        NPULAY 8
         PULAY_ALPHA 0.0
       &END MIXING
       &OUTER_SCF OFF
