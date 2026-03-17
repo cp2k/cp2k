@@ -1292,16 +1292,16 @@ CONTAINS
                                         "Use this method if the temperature equivalence is important for you, "// &
                                         "e.g. if you want to compute some properties based on the occupations. "// &
                                         "If you use this method without interest in electronic temperature, "// &
-                                        "it's suggested use extrapolated result from finite ELECTRONIC_TEMPERATURE "// &
+                                        "it's suggested to use extrapolated result from finite ELECTRONIC_TEMPERATURE "// &
                                         "to ELECTRONIC_TEMPERATURE = 0. Note the forces and stress are consistent "// &
                                         "with the free energy and not with the extrapolated energy.", &
                                         "Energy window defined by the keyword WINDOW_SIZE.", &
                                         "Use a fixed list of occupations.", &
                                         "Gaussian broadening with width SIGMA; should work well in most cases. "// &
                                         "With this method you have to use extrapolated results from finite "// &
-                                        "SIGMA results to SIGMA = 0, but usually this value will not be accurate "// &
-                                        "without systematically reducing SIGMA. Note the forces and stress are "// &
-                                        "consistent with the free energy and not with the extrapolated energy.", &
+                                        "SIGMA results to SIGMA = 0, but usually this value would not be quite "// &
+                                        "accurate without systematically reducing SIGMA. Note the forces and stress "// &
+                                        "are consistent with the free energy and not with the extrapolated energy.", &
                                         "First-order Methfessel-Paxton distribution with width SIGMA. Don't "// &
                                         "use it for semiconductors and insulators because the partial "// &
                                         "occupancies can be unphysical and thus lead to wrong results.", &
