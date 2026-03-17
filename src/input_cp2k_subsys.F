@@ -182,13 +182,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_FORMAT", &
                           description="Specify the format of the cell file (if used)", &
-                          usage="CELL_FILE_FORMAT (CP2K|CIF|XSC|XYZ|PDB)", &
-                          enum_c_vals=s2a("CP2K", "CIF", "XSC", "XYZ", "PDB"), &
-                          enum_i_vals=[do_cell_cp2k, do_cell_cif, do_cell_xsc, do_cell_extxyz, do_cell_pdb], &
-                          enum_desc=s2a("Cell info in the CP2K native format.", &
-                                        "Cell info from CIF file.", &
+                          usage="CELL_FILE_FORMAT (CP2K|CIF|XSC|EXTXYZ|XYZ|PDB)", &
+                          enum_c_vals=s2a("CP2K", "CIF", "XSC", "EXTXYZ", "XYZ", "PDB"), &
+                          enum_i_vals=[do_cell_cp2k, do_cell_cif, do_cell_xsc, do_cell_extxyz, do_cell_extxyz, do_cell_pdb], &
+                          enum_desc=s2a("Cell info in the CP2K native format", &
+                                        "Cell info from CIF file", &
                                         "Cell info in the XSC format (NAMD)", &
                                         "Cell info in the comment line of Extended XYZ format", &
+                                        "Alias for Extended XYZ", &
                                         "Cell info in the CRYST1 record of PDB format"), &
                           default_i_val=do_cell_cp2k)
       CALL section_add_keyword(section, keyword)
