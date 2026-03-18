@@ -289,7 +289,7 @@ CONTAINS
 
       CALL gauxc_create_molecule(particle_set, natom, gauxc_mol)
       CALL gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_basis)
-      CALL gauxc_create_grid(gauxc_mol, gauxc_grid)
+      CALL gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_grid)
       CALL gauxc_create_integrator("PBE")
 
       nimages = dft_control%nimages

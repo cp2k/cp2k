@@ -46,7 +46,6 @@ MODULE xc_gauxc
    ! Copy paste from docu, move these wherever adequate
    TYPE(gauxc_status_type) :: status
    TYPE(gauxc_runtime_environment_type) :: rt
-   TYPE(gauxc_basisset_type) :: basis
    TYPE(gauxc_load_balancer_factory_type) :: lbf
    TYPE(gauxc_load_balancer_type) :: lb
    TYPE(gauxc_molecular_weights_factory_type) :: mwf
@@ -240,8 +239,9 @@ CONTAINS
 
    END SUBROUTINE gauxc_create_basisset
 
-   SUBROUTINE gauxc_create_grid(molecule, grid)
+   SUBROUTINE gauxc_create_grid(molecule, basis, grid)
       TYPE(gauxc_molecule_type), INTENT(IN)              :: molecule
+      TYPE(gauxc_basisset_type), INTENT(in)              :: basis
       TYPE(gauxc_molgrid_type), INTENT(OUT)              :: grid
 
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
