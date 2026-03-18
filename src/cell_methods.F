@@ -32,15 +32,9 @@ MODULE cell_methods
                                               parser_release
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
-   USE input_constants,                 ONLY: do_cell_cif,&
-                                              do_cell_cp2k,&
-                                              do_cell_extxyz,&
-                                              do_cell_pdb,&
-                                              do_cell_xsc,&
-                                              do_coord_cif,&
-                                              do_coord_cp2k,&
-                                              do_coord_pdb,&
-                                              do_coord_xyz
+   USE input_constants,                 ONLY: &
+        do_cell_cif, do_cell_cp2k, do_cell_extxyz, do_cell_pdb, do_cell_xsc, do_coord_cif, &
+        do_coord_cp2k, do_coord_pdb, do_coord_xyz
    USE input_cp2k_subsys,               ONLY: create_cell_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -73,8 +67,10 @@ MODULE cell_methods
              init_cell, &
              read_cell, &
              read_cell_cif, &
+             read_cell_cp2k, &
              read_cell_extxyz, &
              read_cell_pdb, &
+             read_cell_xsc, &
              set_cell_param, &
              write_cell, &
              write_cell_low
@@ -271,6 +267,7 @@ CONTAINS
 !> \param cell_ref ...
 !> \param use_ref_cell ...
 !> \param cell_section ...
+!> \param topology_section ...
 !> \param check_for_ref ...
 !> \param para_env ...
 !> \par History
@@ -287,29 +284,26 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=default_path_length)                 :: ang_unit,&
-                                                            cell_file_name,&
-                                                            coord_file_name,&
-                                                            cryst,&
-                                                            len_unit
-      INTEGER                                            :: cell_file_format,&
-                                                            coord_file_format,&
-                                                            i, id1, id2, idum,&
-                                                            j, my_per
+      REAL(KIND=dp), PARAMETER                           :: eps = EPSILON(0.0_dp)
+
+      CHARACTER(LEN=default_path_length)                 :: cell_file_name, coord_file_name
+      INTEGER                                            :: cell_file_format, coord_file_format, &
+                                                            my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       LOGICAL :: cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, cell_read_b, cell_read_c, &
-         cell_read_file, cif_cell, my_check_ref, my_end, pdb_cryst, tmp_comb_abc, tmp_comb_cell, &
-         tmp_comb_top, topo_read_coord
-      REAL(KIND=dp)                                      :: xdum
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: read_mat
+         cell_read_file, my_check_ref, tmp_comb_abc, tmp_comb_cell, tmp_comb_top, topo_read_coord
       REAL(KIND=dp), DIMENSION(3)                        :: read_ang, read_len
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: read_mat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
-      REAL(KIND=dp), PARAMETER                           :: eps = EPSILON(0.0_dp)
-      TYPE(cp_parser_type)                               :: parser
+      TYPE(cell_type), POINTER                           :: cell_tmp
       TYPE(section_vals_type), POINTER                   :: cell_ref_section
 
       my_check_ref = .TRUE.
-      NULLIFY (cell_ref_section, cell_par, multiple_unit_cell)
+      NULLIFY (cell_ref_section, cell_par, cell_tmp, multiple_unit_cell)
+      ! cell_tmp is only for transferring matrix of cell vectors from
+      ! individual file parser subroutines to read_mat here, assuming
+      ! that unit conversion has been done in those subroutines.
+      CALL cell_create(cell_tmp)
       IF (.NOT. ASSOCIATED(cell)) CALL cell_create(cell, tag="CELL")
       IF (.NOT. ASSOCIATED(cell_ref)) CALL cell_create(cell_ref, tag="CELL_REF")
       IF (PRESENT(check_for_ref)) my_check_ref = check_for_ref
@@ -338,7 +332,7 @@ CONTAINS
       ! The actual order of processing is 4 -> 1 -> 2 -> 3, with
       ! case 4 merged to case 1 (if file format permits) first.
       ! Store data into either read_mat or read_ang and read_len
-      ! in CP2K units, which will be converted to cell%hamt and A, B, C.
+      ! in CP2K units, which will be converted to cell%hmat and A, B, C.
       CALL section_vals_val_get(cell_section, "A", explicit=cell_read_a)
       CALL section_vals_val_get(cell_section, "B", explicit=cell_read_b)
       CALL section_vals_val_get(cell_section, "C", explicit=cell_read_c)
@@ -354,7 +348,7 @@ CONTAINS
       IF (tmp_comb_top) THEN
          CALL cp_warn(__LOCATION__, &
                       "None of the keywords CELL_FILE_NAME, ABC, or A, B, C "// &
-                      "are specified in CELL section. Will now attempt to read "// &
+                      "are specified in CELL section. CP2K will now attempt to read "// &
                       "TOPOLOGY/COORD_FILE_NAME if its format can be parsed for "// &
                       "cell information.")
          IF (ASSOCIATED(topology_section)) THEN
@@ -377,12 +371,12 @@ CONTAINS
                   CALL section_vals_val_set(cell_section, "CELL_FILE_FORMAT", i_val=do_cell_extxyz)
                CASE DEFAULT
                   CALL cp_abort(__LOCATION__, &
-                               "COORD_FILE_FORMAT is not set to one of implemented CELL_FILE_FORMAT "// &
-                               "and cannot be parsed for cell information!" )
+                                "COORD_FILE_FORMAT is not set to one of the implemented "// &
+                                "CELL_FILE_FORMAT options and cannot be parsed for cell information!")
                END SELECT
             ELSE
                CALL cp_abort(__LOCATION__, &
-                            "COORD_FILE_NAME is not set, so no cell information available!")
+                             "COORD_FILE_NAME is not set, so no cell information is available!")
             END IF
          ELSE
             CALL cp_warn(__LOCATION__, &
@@ -393,126 +387,31 @@ CONTAINS
       ! Former logic in SUBROUTINE read_cell_from_external_file is moved here
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
       IF (cell_read_file) THEN ! Case 1
-         len_unit = "angstrom" ! Initialize default units; when adding new cell format
-         ang_unit = "deg"      ! parser, units should be set for specific case
          tmp_comb_cell = (cell_read_abc .OR. (cell_read_a .OR. (cell_read_b .OR. cell_read_c)))
          IF (tmp_comb_cell) &
             CALL cp_warn(__LOCATION__, &
-                        "Cell Information provided through A, B, C, or ABC in conjunction "// &
-                        "with CELL_FILE_NAME. The definition in external file will override "// &
-                        "other ones.")
+                         "Cell Information provided through A, B, C, or ABC in conjunction "// &
+                         "with CELL_FILE_NAME. The definition in external file will override "// &
+                         "other ones.")
          CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", c_val=cell_file_name)
          CALL section_vals_val_get(cell_section, "CELL_FILE_FORMAT", i_val=cell_file_format)
          SELECT CASE (cell_file_format)
          CASE (do_cell_cp2k)
-            len_unit = "angstrom"
-            CALL parser_create(parser, cell_file_name, para_env=para_env)
-            CALL parser_get_next_line(parser, 1)
-            my_end = .FALSE.
-            DO WHILE (.NOT. my_end)
-               READ (parser%input_line, *) idum, xdum, read_mat(:, 1), read_mat(:, 2), read_mat(:, 3)
-               CALL parser_get_next_line(parser, 1, at_end=my_end)
-            END DO
-            CALL parser_release(parser)
+            CALL read_cell_cp2k(cell_file_name, cell_tmp, para_env)
          CASE (do_cell_xsc)
-            len_unit = "angstrom"
-            CALL parser_create(parser, cell_file_name, para_env=para_env)
-            CALL parser_get_next_line(parser, 1)
-            READ (parser%input_line, *) idum, read_mat(:, 1), read_mat(:, 2), read_mat(:, 3)
-            CALL parser_release(parser)
+            CALL read_cell_xsc(cell_file_name, cell_tmp, para_env)
          CASE (do_cell_extxyz)
-            len_unit = "angstrom"
-            CALL parser_create(parser, cell_file_name, para_env=para_env)
-            CALL parser_get_next_line(parser, 2)
-            CALL uppercase(parser%input_line)
-            id1 = INDEX(parser%input_line, "LATTICE=")
-            IF (id1 > 0) THEN
-               id2 = INDEX(parser%input_line(id1 + 9:), '"')
-               READ (parser%input_line(id1 + 9:id1 + id2 + 7), *) read_mat(:, 1), read_mat(:, 2), read_mat(:, 3)
-               CALL parser_release(parser)
-            ELSE
-               CALL parser_release(parser)
-               CALL cp_abort(__LOCATION__, &
-                            "The field lattice= was not found on comment line "// &
-                            "of XYZ file, so cell information cannot be set via "// &
-                            "extended XYZ specification!")
-            END IF
+            CALL read_cell_extxyz(cell_file_name, cell_tmp, para_env)
          CASE (do_cell_pdb)
-            len_unit = "angstrom"
-            ang_unit = "deg"
-            CALL parser_create(parser, cell_file_name, para_env=para_env)
-            CALL parser_search_string(parser, "CRYST1", ignore_case=.FALSE., found=pdb_cryst, &
-                                begin_line=.TRUE., search_from_begin_of_file=.TRUE.)
-            IF (pdb_cryst) THEN
-               READ (parser%input_line, *) cryst, read_len(:), read_ang(:)
-               CALL parser_release(parser)
-            ELSE
-               CALL parser_release(parser)
-               CALL cp_abort(__LOCATION__, &
-                            "The field CRYST1 was not found in PDB file, so cell "// &
-                            "information cannot be set!")
-            END IF
+            CALL read_cell_pdb(cell_file_name, cell_tmp, para_env)
          CASE (do_cell_cif)
-            len_unit = "angstrom"
-            ang_unit = "deg"
-            CALL parser_create(parser, cell_file_name, para_env=para_env)
-            cif_cell = .FALSE.
-            ! _cell_length_a
-            CALL parser_search_string(parser, "_cell_length_a", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_length_a was not found in CIF file!")
-            CALL cif_get_real(parser, read_len(1))
-            ! _cell_length_b
-            CALL parser_search_string(parser, "_cell_length_b", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_length_b was not found in CIF file!")
-            CALL cif_get_real(parser, read_len(2))
-            ! _cell_length_c
-            CALL parser_search_string(parser, "_cell_length_c", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_length_c was not found in CIF file!")
-            CALL cif_get_real(parser, read_len(3))
-            ! _cell_angle_alpha
-            CALL parser_search_string(parser, "_cell_angle_alpha", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_angle_alpha was not found in CIF file!")
-            CALL cif_get_real(parser, read_ang(1))
-            ! _cell_angle_beta
-            CALL parser_search_string(parser, "_cell_angle_beta", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_angle_beta was not found in CIF file!")
-            CALL cif_get_real(parser, read_ang(2))
-            ! _cell_angle_gamma
-            CALL parser_search_string(parser, "_cell_angle_gamma", ignore_case=.FALSE., &
-                                      found=cif_cell, begin_line=.FALSE., &
-                                      search_from_begin_of_file=.TRUE.)
-            IF (.NOT. cif_cell) CALL cp_abort(__LOCATION__, "The field "// &
-                                                            "_cell_angle_gamma was not found in CIF file!")
-            CALL cif_get_real(parser, read_ang(3))
-            CALL parser_release(parser)
+            CALL read_cell_cif(cell_file_name, cell_tmp, para_env)
          CASE DEFAULT
             CALL cp_abort(__LOCATION__, &
-                          "CELL_FILE_FORMAT is not set to one of implemented options "// &
-                          "and cannot be parsed for cell information!" )
+                          "CELL_FILE_FORMAT is not set to one of the implemented "// &
+                          "options and cannot be parsed for cell information!")
          END SELECT
-         ! Unit conversion
-         DO i = 1, 3
-            read_len(i) = cp_unit_to_cp2k(read_len(i), TRIM(len_unit))
-            read_ang(i) = cp_unit_to_cp2k(read_ang(i), TRIM(ang_unit))
-            DO j = 1, 3
-               read_mat(j, i) = cp_unit_to_cp2k(read_mat(j, i), TRIM(len_unit))
-            END DO
-         END DO
+         read_mat = cell_tmp%hmat
       ELSE
          IF (cell_read_abc) THEN ! Case 2
             CALL section_vals_val_get(cell_section, "ABC", r_vals=cell_par)
@@ -543,20 +442,8 @@ CONTAINS
             END IF
          END IF
       END IF
-      ! Unset other cell options
-      IF (cell_read_file) &
-         CALL section_vals_val_unset(cell_section, "CELL_FILE_NAME")
-         CALL section_vals_val_unset(cell_section, "CELL_FILE_FORMAT")
-      IF (cell_read_abc) &
-         CALL section_vals_val_unset(cell_section, "ABC")
-      IF (cell_read_alpha_beta_gamma) &
-      CALL section_vals_val_unset(cell_section, "ALPHA_BETA_GAMMA")
-      IF (cell_read_a) &
-         CALL section_vals_val_unset(cell_section, "A")
-      IF (cell_read_b) &
-         CALL section_vals_val_unset(cell_section, "B")
-      IF (cell_read_c) &
-         CALL section_vals_val_unset(cell_section, "C")
+      CALL cell_release(cell_tmp)
+
       ! Convert read_mat or read_len and read_ang to actual cell%hmat
       IF (ANY(read_mat(:, :) > eps)) THEN
          ! Make a warning before storing cell vectors that
@@ -564,7 +451,7 @@ CONTAINS
          IF ((ABS(read_mat(2, 1)) > eps) .OR. &
              (ABS(read_mat(3, 1)) > eps) .OR. &
              (ABS(read_mat(3, 2)) > eps)) &
-             CALL cp_warn(__LOCATION__, &
+            CALL cp_warn(__LOCATION__, &
                          "Cell vectors are read but cell matrix is not "// &
                          "a lower triangle, not conforming to the program "// &
                          "convention that A lies along the X-axis and "// &
@@ -579,16 +466,8 @@ CONTAINS
                           "No meaningful cell information is read from parser!")
          END IF
       END IF
-      ! Modify CELL section to use A, B, C keywords for future reuse.
-      ALLOCATE (cell_par(3))
-      cell_par = cell%hmat(:, 1)
-      CALL section_vals_val_set(cell_section, "A", r_vals_ptr=cell_par)
-      ALLOCATE (cell_par(3))
-      cell_par = cell%hmat(:, 2)
-      CALL section_vals_val_set(cell_section, "B", r_vals_ptr=cell_par)
-      ALLOCATE (cell_par(3))
-      cell_par = cell%hmat(:, 3)
-      CALL section_vals_val_set(cell_section, "C", r_vals_ptr=cell_par)
+      ! Reset cell section so that only A, B, C are kept
+      CALL reset_cell_section_by_cell_mat(cell, cell_section)
 
       ! Multiple unit cell
       CALL section_vals_val_get(cell_section, "MULTIPLE_UNIT_CELL", i_vals=multiple_unit_cell)
@@ -982,6 +861,124 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE read_cell_pdb
+
+! **************************************************************************************************
+!> \brief  Reads cell information from cp2k file
+!> \param cp2k_file_name ...
+!> \param cell ...
+!> \param para_env ...
+!> \date   03.2026
+!> \par    Isolated from former read_cell_from_external_file
+! **************************************************************************************************
+   SUBROUTINE read_cell_cp2k(cp2k_file_name, cell, para_env)
+
+      CHARACTER(len=*)                                   :: cp2k_file_name
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_cp2k'
+
+      INTEGER                                            :: handle, i, idum, j
+      LOGICAL                                            :: my_end
+      REAL(KIND=dp)                                      :: xdum
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(cp_parser_type)                               :: parser
+
+      CALL timeset(routineN, handle)
+
+      CALL parser_create(parser, cp2k_file_name, &
+                         para_env=para_env, apply_preprocessing=.FALSE.)
+
+      CALL parser_get_next_line(parser, 1)
+      my_end = .FALSE.
+      DO WHILE (.NOT. my_end)
+         READ (parser%input_line, *) idum, xdum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
+         CALL parser_get_next_line(parser, 1, at_end=my_end)
+      END DO
+      DO i = 1, 3
+         DO j = 1, 3
+            cell%hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
+         END DO
+      END DO
+
+      CALL parser_release(parser)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_cell_cp2k
+
+! **************************************************************************************************
+!> \brief  Reads cell information from xsc file
+!> \param xsc_file_name ...
+!> \param cell ...
+!> \param para_env ...
+!> \date   03.2026
+!> \par    Isolated from former read_cell_from_external_file
+! **************************************************************************************************
+   SUBROUTINE read_cell_xsc(xsc_file_name, cell, para_env)
+
+      CHARACTER(len=*)                                   :: xsc_file_name
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell_xsc'
+
+      INTEGER                                            :: handle, i, idum, j
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(cp_parser_type)                               :: parser
+
+      CALL timeset(routineN, handle)
+
+      CALL parser_create(parser, xsc_file_name, &
+                         para_env=para_env, apply_preprocessing=.FALSE.)
+
+      CALL parser_get_next_line(parser, 1)
+      READ (parser%input_line, *) idum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
+      DO i = 1, 3
+         DO j = 1, 3
+            cell%hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
+         END DO
+      END DO
+
+      CALL parser_release(parser)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_cell_xsc
+
+! **************************************************************************************************
+!> \brief   Reset cell section by matrix in cell-type pointer
+!> \param cell ...
+!> \param cell_section ...
+!> \date    03.2026
+!> \par     Alternative keywords for cell settings will be unset
+!>          except MULTIPLE_UNIT_CELL, PERIODIC and SYMMETRY.
+! **************************************************************************************************
+   SUBROUTINE reset_cell_section_by_cell_mat(cell, cell_section)
+
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(section_vals_type), POINTER                   :: cell_section
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
+
+      CALL section_vals_val_unset(cell_section, "CELL_FILE_NAME")
+      CALL section_vals_val_unset(cell_section, "CELL_FILE_FORMAT")
+      CALL section_vals_val_unset(cell_section, "ABC")
+      CALL section_vals_val_unset(cell_section, "ALPHA_BETA_GAMMA")
+      CALL section_vals_val_unset(cell_section, "A")
+      CALL section_vals_val_unset(cell_section, "B")
+      CALL section_vals_val_unset(cell_section, "C")
+      ALLOCATE (cell_par(3))
+      cell_par = cell%hmat(:, 1)
+      CALL section_vals_val_set(cell_section, "A", r_vals_ptr=cell_par)
+      ALLOCATE (cell_par(3))
+      cell_par = cell%hmat(:, 2)
+      CALL section_vals_val_set(cell_section, "B", r_vals_ptr=cell_par)
+      ALLOCATE (cell_par(3))
+      cell_par = cell%hmat(:, 3)
+      CALL section_vals_val_set(cell_section, "C", r_vals_ptr=cell_par)
+
+   END SUBROUTINE reset_cell_section_by_cell_mat
 
 ! **************************************************************************************************
 !> \brief   Write the cell parameters to the output unit.
