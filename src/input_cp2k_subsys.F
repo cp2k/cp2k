@@ -88,7 +88,13 @@ CONTAINS
                           description="Input parameters needed to set up the simulation cell. "// &
                           "Simple products and fractions combined with functions of a single "// &
                           "number can be used like 2/3, 0.3*COS(60) or -SQRT(3)/2. The functions "// &
-                          "COS, EXP, LOG, LOG10, SIN, SQRT, and TAN are available.")
+                          "COS, EXP, LOG, LOG10, SIN, SQRT, and TAN are available."//newline//newline// &
+                          "Cell settings are parsed in the following precedence order:"//newline// &
+                          "1. The external file set by CELL_FILE_NAME with a CELL_FILE_FORMAT;"//newline// &
+                          "2. The lengths and angles of cell vectors set by ABC and ALPHA_BETA_GAMMA;"//newline// &
+                          "3. The vectors set by A, B, C together;"//newline// &
+                          "4. If none above exist, the external file set by TOPOLOGY/COORD_FILE_NAME with "// &
+                          "certain TOPOLOGY/COORD_FILE_FORMAT may also be parsed.")
       CALL create_cell_section_low(section, periodic)
 
       NULLIFY (subsection)
@@ -1670,7 +1676,10 @@ CONTAINS
       ! Character
       CALL keyword_create(keyword, __LOCATION__, name="COORD_FILE_NAME", &
                           variants=s2a("COORD_FILE"), &
-                          description="Specifies the filename that contains coordinates.", &
+                          description="Specifies the filename that contains coordinates. "// &
+                          "In case the CELL section is not set explicitly but this file "// &
+                          "contains cell information, including CIF, PDB and (Extended) XYZ "// &
+                          "formats, this file is also parsed for setting up the simulation cell.", &
                           usage="COORD_FILE_NAME <FILENAME>", type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
