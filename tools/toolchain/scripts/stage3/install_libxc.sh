@@ -53,6 +53,7 @@ case "$with_libxc" in
       fi
 
       # CP2K does not make use of fourth derivatives, so skip their compilation with -DDISABLE_KXC=OFF
+      # Add "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" to keep legacy compatibility for CMake version 4.x
       CFLAGS="${LIBXC_CFLAGS}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
@@ -60,6 +61,7 @@ case "$with_libxc" in
         -DBUILD_TESTING=OFF \
         -DENABLE_FORTRAN=ON \
         -DDISABLE_KXC=OFF \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
