@@ -50,15 +50,8 @@ MODULE qs_ks_methods
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
    USE gauxc_basisset,                  ONLY: gauxc_basisset_type
-   USE gauxc_integrator,                ONLY: gauxc_integrator_type
-   USE gauxc_load_balancer,             ONLY: gauxc_load_balancer_factory_type,&
-                                              gauxc_load_balancer_type
-   USE gauxc_molecular_weights,         ONLY: gauxc_molecular_weights_factory_type,&
-                                              gauxc_molecular_weights_type
    USE gauxc_molecule,                  ONLY: gauxc_molecule_type
-   USE gauxc_molgrid,                   ONLY: gauxc_molgrid_type
    USE gauxc_status,                    ONLY: gauxc_status_type
-   USE gauxc_xc_functional,             ONLY: gauxc_functional_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
@@ -146,14 +139,10 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc,                        ONLY: gauxc_create_basisset,&
-                                              gauxc_create_grid,&
-                                              gauxc_create_integrator,&
-                                              gauxc_create_molecule,&
-                                              gauxc_destroy_basisset,&
-                                              gauxc_destroy_grid,&
-                                              gauxc_destroy_integrator,&
-                                              gauxc_destroy_molecule
+   USE xc_gauxc,                        ONLY: &
+        gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, &
+        gauxc_destroy_basisset, gauxc_destroy_grid, gauxc_destroy_integrator, &
+        gauxc_destroy_molecule, gauxc_grid_result_type, gauxc_integrator_result_type
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -223,14 +212,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(gauxc_basisset_type)                          :: gauxc_basis
-      TYPE(gauxc_functional_type)                        :: gauxc_func
-      TYPE(gauxc_integrator_type)                        :: gauxc_integrator
-      TYPE(gauxc_load_balancer_factory_type)             :: gauxc_lbf
-      TYPE(gauxc_load_balancer_type)                     :: gauxc_lb
-      TYPE(gauxc_molecular_weights_factory_type)         :: gauxc_mwf
-      TYPE(gauxc_molecular_weights_type)                 :: gauxc_mw
+      TYPE(gauxc_grid_result_type)                       :: gauxc_grid_result
+      TYPE(gauxc_integrator_result_type)                 :: gauxc_integrator_result
       TYPE(gauxc_molecule_type)                          :: gauxc_mol
-      TYPE(gauxc_molgrid_type)                           :: gauxc_grid
       TYPE(gauxc_status_type)                            :: gauxc_status
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
@@ -301,11 +285,10 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
-      CALL gauxc_create_molecule(particle_set, natom, gauxc_mol, gauxc_status)
-      CALL gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_basis, gauxc_status)
-      CALL gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_grid, gauxc_status, &
-         & gauxc_lb, gauxc_lbf, gauxc_mw, gauxc_mwf)
-      CALL gauxc_create_integrator("PBE", gauxc_status, gauxc_func, gauxc_lb, gauxc_integrator)
+      gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
+      gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
+      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
+      gauxc_integrator_result = gauxc_create_integrator("PBE", gauxc_status, gauxc_grid_result%lb)
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
@@ -1002,8 +985,8 @@ CONTAINS
 
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
       CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
-      CALL gauxc_destroy_grid(gauxc_grid, gauxc_status, gauxc_mw, gauxc_mwf, gauxc_lb, gauxc_lbf)
-      CALL gauxc_destroy_integrator(gauxc_status, gauxc_integrator, gauxc_func)
+      CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
+      CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
 
       CALL timestop(handle)
 
