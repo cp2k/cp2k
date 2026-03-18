@@ -997,6 +997,7 @@ CONTAINS
 
       ALLOCATE (vxc_scalar(SIZE(density_scalar, 1), SIZE(density_scalar, 2)))
       ALLOCATE (vxc_zeta(SIZE(density_zeta, 1), SIZE(density_zeta, 2)))
+      ! TODO deallocation
       gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
                                          gauxc_status)
       energy%exc = gauxc_xc_result%exc
