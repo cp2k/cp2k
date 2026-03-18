@@ -51,6 +51,7 @@ MODULE qs_ks_methods
    USE dft_plus_u,                      ONLY: plus_u
    USE gauxc_basisset,                  ONLY: gauxc_basisset_type
    USE gauxc_molecule,                  ONLY: gauxc_molecule_type
+   USE gauxc_molgrid,                   ONLY: gauxc_molgrid_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
@@ -216,6 +217,7 @@ CONTAINS
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(gauxc_basisset_type)                          :: gauxc_basis
       TYPE(gauxc_molecule_type)                          :: gauxc_mol
+      TYPE(gauxc_molgrid_type)                           :: gauxc_grid
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_density_type), POINTER                    :: lri_density
@@ -287,7 +289,7 @@ CONTAINS
 
       CALL gauxc_create_molecule(particle_set, natom, gauxc_mol)
       CALL gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_basis)
-      CALL gauxc_create_grid()
+      CALL gauxc_create_grid(gauxc_mol, gauxc_grid)
       CALL gauxc_create_integrator("PBE")
 
       nimages = dft_control%nimages
@@ -985,7 +987,7 @@ CONTAINS
 
       CALL gauxc_destroy_molecule(gauxc_mol)
       CALL gauxc_destroy_basisset(gauxc_basis)
-      CALL gauxc_destroy_grid()
+      CALL gauxc_destroy_grid(gauxc_grid)
       CALL gauxc_destroy_integrator()
 
       CALL timestop(handle)

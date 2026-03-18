@@ -46,9 +46,7 @@ MODULE xc_gauxc
    ! Copy paste from docu, move these wherever adequate
    TYPE(gauxc_status_type) :: status
    TYPE(gauxc_runtime_environment_type) :: rt
-   TYPE(gauxc_molecule_type) :: mol
    TYPE(gauxc_basisset_type) :: basis
-   TYPE(gauxc_molgrid_type) :: grid
    TYPE(gauxc_load_balancer_factory_type) :: lbf
    TYPE(gauxc_load_balancer_type) :: lb
    TYPE(gauxc_molecular_weights_factory_type) :: mwf
@@ -242,15 +240,18 @@ CONTAINS
 
    END SUBROUTINE gauxc_create_basisset
 
-   SUBROUTINE gauxc_create_grid()
+   SUBROUTINE gauxc_create_grid(molecule, grid)
+      TYPE(gauxc_molecule_type), INTENT(IN)              :: molecule
+      TYPE(gauxc_molgrid_type), INTENT(OUT)              :: grid
+
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
 
       PRINT *, "DEBUG: Starting gauxc_create_grid"
-      PRINT *, "DEBUG: mol%hdr%type =", mol%hdr%type
+      PRINT *, "DEBUG: molecule%hdr%type =", molecule%hdr%type
       PRINT *, "DEBUG: basis%hdr%type =", basis%hdr%type
-      PRINT *, "DEBUG: mol%hdr%type == 1 (molecule) =", mol%hdr%type == 1_c_int
+      PRINT *, "DEBUG: molecule%hdr%type == 1 (molecule) =", molecule%hdr%type == 1_c_int
       PRINT *, "DEBUG: basis%hdr%type == 2 (basisset) =", basis%hdr%type == 2_c_int
 
       grid_type_local = read_atomic_grid_size(grid_spec)
@@ -260,7 +261,7 @@ CONTAINS
       int_exec_space_local = read_execution_space(int_exec_space_str)
 
       PRINT *, "DEBUG: Calling gauxc_molgrid_new_default"
-      grid = gauxc_molgrid_new_default(status, mol, pruning_scheme_local, &
+      grid = gauxc_molgrid_new_default(status, molecule, pruning_scheme_local, &
          & batch_size, radial_quad_local, grid_type_local)
       PRINT *, "DEBUG: gauxc_molgrid_new_default returned, status%code =", status%code
       IF (status%code /= 0) THEN
@@ -279,7 +280,7 @@ CONTAINS
       CPASSERT(status%code == 0)
 
       PRINT *, "DEBUG: Calling gauxc_load_balancer_factory_get_instance"
-      lb = gauxc_load_balancer_factory_get_instance(status, lbf, rt, mol, grid, basis)
+      lb = gauxc_load_balancer_factory_get_instance(status, lbf, rt, molecule, grid, basis)
       PRINT *, "DEBUG: gauxc_load_balancer_factory_get_instance returned, status%code =", status%code
       IF (status%code /= 0) THEN
          PRINT *, "gauxc_load_balancer_factory_get_instance failed with status:", status%code
@@ -421,7 +422,9 @@ CONTAINS
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_basisset
 
-   SUBROUTINE gauxc_destroy_grid()
+   SUBROUTINE gauxc_destroy_grid(grid)
+      TYPE(gauxc_molgrid_type)                           :: grid
+
       CALL gauxc_delete(status, mw)
       CPASSERT(status%code == 0)
       CALL gauxc_delete(status, mwf)
