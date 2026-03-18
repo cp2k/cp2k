@@ -287,7 +287,7 @@ CONTAINS
       gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
       gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
       gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
-      gauxc_integrator_result = gauxc_create_integrator("PBE", gauxc_status, gauxc_grid_result%lb)
+      gauxc_integrator_result = gauxc_create_integrator("PBE", gauxc_grid_result%lb, gauxc_status)
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins

@@ -307,10 +307,10 @@ CONTAINS
 
    END FUNCTION gauxc_create_grid
 
-   FUNCTION gauxc_create_integrator(xc_functional_name, status, lb) RESULT(res)
+   FUNCTION gauxc_create_integrator(xc_functional_name, lb, status) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
+      TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
 
       LOGICAL(c_bool), PARAMETER                         :: hybrid = .TRUE._c_bool
