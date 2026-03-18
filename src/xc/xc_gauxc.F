@@ -2,7 +2,7 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t
+   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr
    USE kinds, ONLY: dp
    USE particle_types, ONLY: particle_type
    USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, &
@@ -25,14 +25,14 @@ MODULE xc_gauxc
    USE gauxc_molgrid, ONLY: gauxc_molgrid_type, gauxc_molgrid_new_default, &
      & gauxc_delete
    USE gauxc_load_balancer, ONLY: gauxc_load_balancer_type, gauxc_load_balancer_factory_type, &
-     & gauxc_load_balancer_factory_new, gauxc_delete
+     & gauxc_load_balancer_factory_new, gauxc_load_balancer_factory_get_instance, gauxc_delete
    USE gauxc_molecular_weights, ONLY: gauxc_molecular_weights_type, &
      & gauxc_molecular_weights_factory_type, gauxc_molecular_weights_factory_new, &
      & gauxc_molecular_weights_modify_weights, gauxc_get_instance, gauxc_delete, &
      & gauxc_molecular_weights_settings
    USE gauxc_xc_functional, ONLY: gauxc_functional_type, gauxc_functional_from_string, gauxc_delete
    USE gauxc_integrator, ONLY: gauxc_integrator_type, &
-     & gauxc_eval_exc_vxc, gauxc_delete
+     & gauxc_integrator_new, gauxc_eval_exc_vxc, gauxc_delete
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
 #ifdef GAUXC_HAS_MPI
    USE mpi
@@ -56,18 +56,17 @@ MODULE xc_gauxc
    TYPE(gauxc_functional_type) :: func
    TYPE(gauxc_integrator_type) :: integrator
 
-   ! Copy paste from docu, move these wherever adequate
-   CHARACTER(len=:), ALLOCATABLE :: input_file, model, grid_spec, rad_quad_spec, prune_spec, &
-  & lb_exec_space_str, int_exec_space_str
+   CHARACTER(len=:), ALLOCATABLE :: grid_spec, rad_quad_spec, prune_spec, &
+      & lb_exec_space_str, int_exec_space_str
    INTEGER(c_int) :: grid_type, radial_quad, pruning_scheme
    INTEGER(c_int) :: lb_exec_space, int_exec_space
    INTEGER(c_int) :: world_rank, world_size
    INTEGER(c_int64_t) :: batch_size
-   REAL(c_double) :: exc, t_exc, t_start, t_end
-   INTEGER :: error
 
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
-      & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset
+      & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
+      & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
+      & gauxc_destroy_integrator, gauxc_compute_xc
 
 CONTAINS
 
@@ -243,6 +242,155 @@ CONTAINS
 
    END SUBROUTINE gauxc_create_basisset
 
+   SUBROUTINE gauxc_create_grid()
+      INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
+                                                            lb_exec_space_local, &
+                                                            pruning_scheme_local, radial_quad_local
+
+      PRINT *, "DEBUG: Starting gauxc_create_grid"
+      PRINT *, "DEBUG: mol%hdr%type =", mol%hdr%type
+      PRINT *, "DEBUG: basis%hdr%type =", basis%hdr%type
+      PRINT *, "DEBUG: mol%hdr%type == 1 (molecule) =", mol%hdr%type == 1_c_int
+      PRINT *, "DEBUG: basis%hdr%type == 2 (basisset) =", basis%hdr%type == 2_c_int
+
+      grid_type_local = read_atomic_grid_size(grid_spec)
+      radial_quad_local = read_radial_quad(rad_quad_spec)
+      pruning_scheme_local = read_pruning_scheme(prune_spec)
+      lb_exec_space_local = read_execution_space(lb_exec_space_str)
+      int_exec_space_local = read_execution_space(int_exec_space_str)
+
+      PRINT *, "DEBUG: Calling gauxc_molgrid_new_default"
+      grid = gauxc_molgrid_new_default(status, mol, pruning_scheme_local, &
+         & batch_size, radial_quad_local, grid_type_local)
+      PRINT *, "DEBUG: gauxc_molgrid_new_default returned, status%code =", status%code
+      IF (status%code /= 0) THEN
+         PRINT *, "gauxc_molgrid_new_default failed with status:", status%code
+         PRINT *, "GauXC status message:", gauxc_status_message(status)
+      END IF
+      CPASSERT(status%code == 0)
+
+      PRINT *, "DEBUG: Calling gauxc_load_balancer_factory_new"
+      lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
+      PRINT *, "DEBUG: gauxc_load_balancer_factory_new returned, status%code =", status%code
+      IF (status%code /= 0) THEN
+         PRINT *, "gauxc_load_balancer_factory_new failed with status:", status%code
+         PRINT *, "GauXC status message:", gauxc_status_message(status)
+      END IF
+      CPASSERT(status%code == 0)
+
+      PRINT *, "DEBUG: Calling gauxc_load_balancer_factory_get_instance"
+      lb = gauxc_load_balancer_factory_get_instance(status, lbf, rt, mol, grid, basis)
+      PRINT *, "DEBUG: gauxc_load_balancer_factory_get_instance returned, status%code =", status%code
+      IF (status%code /= 0) THEN
+         PRINT *, "gauxc_load_balancer_factory_get_instance failed with status:", status%code
+         PRINT *, "GauXC status message:", gauxc_status_message(status)
+      END IF
+      CPASSERT(status%code == 0)
+
+      mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
+      CPASSERT(status%code == 0)
+
+      mw = gauxc_get_instance(status, mwf)
+      CPASSERT(status%code == 0)
+
+      CALL gauxc_molecular_weights_modify_weights(status, mw, lb)
+      CPASSERT(status%code == 0)
+
+   END SUBROUTINE gauxc_create_grid
+
+   SUBROUTINE gauxc_create_integrator(xc_functional_name)
+      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
+
+      LOGICAL(c_bool), PARAMETER                         :: hybrid = .TRUE._c_bool
+
+      func = gauxc_functional_from_string(status, xc_functional_name, hybrid)
+      CPASSERT(status%code == 0)
+
+      int_exec_space = read_execution_space(int_exec_space_str)
+      integrator = gauxc_integrator_new(status, func, lb, int_exec_space)
+      CPASSERT(status%code == 0)
+
+   END SUBROUTINE gauxc_create_integrator
+
+   SUBROUTINE gauxc_compute_xc(density_scalar, density_zeta, exc, vxc_scalar, vxc_zeta)
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar, density_zeta
+      REAL(c_double), INTENT(OUT)                        :: exc
+      REAL(c_double), DIMENSION(:, :), INTENT(OUT)       :: vxc_scalar, vxc_zeta
+
+      CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
+         & "PBE", exc, vxc_scalar, vxc_zeta)
+      CPASSERT(status%code == 0)
+
+   END SUBROUTINE gauxc_compute_xc
+
+   PURE FUNCTION read_execution_space(spec) RESULT(val)
+      CHARACTER(len=*), INTENT(IN)                       :: spec
+      INTEGER(c_int)                                     :: val
+
+      SELECT CASE (spec)
+      CASE ("host")
+         val = gauxc_executionspace%host
+      CASE ("device")
+         val = gauxc_executionspace%device
+      CASE DEFAULT
+         val = gauxc_executionspace%host
+      END SELECT
+   END FUNCTION read_execution_space
+
+   PURE FUNCTION read_atomic_grid_size(spec) RESULT(val)
+      CHARACTER(len=*), INTENT(IN)                       :: spec
+      INTEGER(c_int)                                     :: val
+
+      SELECT CASE (spec)
+      CASE ("fine")
+         val = gauxc_atomicgridsizedefault%finegrid
+      CASE ("ultrafine")
+         val = gauxc_atomicgridsizedefault%ultrafinegrid
+      CASE ("superfine")
+         val = gauxc_atomicgridsizedefault%superfinegrid
+      CASE ("gm3")
+         val = gauxc_atomicgridsizedefault%gm3
+      CASE ("gm5")
+         val = gauxc_atomicgridsizedefault%gm5
+      CASE DEFAULT
+         val = gauxc_atomicgridsizedefault%finegrid
+      END SELECT
+   END FUNCTION read_atomic_grid_size
+
+   PURE FUNCTION read_radial_quad(spec) RESULT(val)
+      CHARACTER(len=*), INTENT(IN)                       :: spec
+      INTEGER(c_int)                                     :: val
+
+      SELECT CASE (spec)
+      CASE ("becke")
+         val = gauxc_radialquad%becke
+      CASE ("muraknowles")
+         val = gauxc_radialquad%mura_knowles
+      CASE ("treutlerahlrichs")
+         val = gauxc_radialquad%treutler_ahlrichs
+      CASE ("murrayhandylaming")
+         val = gauxc_radialquad%murray_handy_laming
+      CASE DEFAULT
+         val = gauxc_radialquad%mura_knowles
+      END SELECT
+   END FUNCTION read_radial_quad
+
+   PURE FUNCTION read_pruning_scheme(spec) RESULT(val)
+      CHARACTER(len=*), INTENT(IN)                       :: spec
+      INTEGER(c_int)                                     :: val
+
+      SELECT CASE (spec)
+      CASE ("unpruned")
+         val = gauxc_pruningscheme%unpruned
+      CASE ("robust")
+         val = gauxc_pruningscheme%robust
+      CASE ("treutler")
+         val = gauxc_pruningscheme%treutler
+      CASE DEFAULT
+         val = gauxc_pruningscheme%robust
+      END SELECT
+   END FUNCTION read_pruning_scheme
+
    ! **************************************************************************************************
    !> \brief ...
    !> \param molecule ...
@@ -272,5 +420,25 @@ CONTAINS
       CALL gauxc_delete(status, basis)
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_basisset
+
+   SUBROUTINE gauxc_destroy_grid()
+      CALL gauxc_delete(status, mw)
+      CPASSERT(status%code == 0)
+      CALL gauxc_delete(status, mwf)
+      CPASSERT(status%code == 0)
+      CALL gauxc_delete(status, lb)
+      CPASSERT(status%code == 0)
+      CALL gauxc_delete(status, lbf)
+      CPASSERT(status%code == 0)
+      CALL gauxc_delete(status, grid)
+      CPASSERT(status%code == 0)
+   END SUBROUTINE gauxc_destroy_grid
+
+   SUBROUTINE gauxc_destroy_integrator()
+      CALL gauxc_delete(status, integrator)
+      CPASSERT(status%code == 0)
+      CALL gauxc_delete(status, func)
+      CPASSERT(status%code == 0)
+   END SUBROUTINE gauxc_destroy_integrator
 
 END MODULE

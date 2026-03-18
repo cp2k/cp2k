@@ -139,8 +139,12 @@ MODULE qs_ks_methods
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: gauxc_create_basisset,&
+                                              gauxc_create_grid,&
+                                              gauxc_create_integrator,&
                                               gauxc_create_molecule,&
                                               gauxc_destroy_basisset,&
+                                              gauxc_destroy_grid,&
+                                              gauxc_destroy_integrator,&
                                               gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
@@ -283,6 +287,8 @@ CONTAINS
 
       CALL gauxc_create_molecule(particle_set, natom, gauxc_mol)
       CALL gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_basis)
+      CALL gauxc_create_grid()
+      CALL gauxc_create_integrator("PBE")
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
@@ -979,6 +985,8 @@ CONTAINS
 
       CALL gauxc_destroy_molecule(gauxc_mol)
       CALL gauxc_destroy_basisset(gauxc_basis)
+      CALL gauxc_destroy_grid()
+      CALL gauxc_destroy_integrator()
 
       CALL timestop(handle)
 
