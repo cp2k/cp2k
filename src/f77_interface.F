@@ -68,6 +68,7 @@ MODULE f77_interface
                                               fp_env_read,&
                                               fp_env_write,&
                                               fp_type
+   USE gauxc_status,                    ONLY: gauxc_status_type
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_create,&
                                               globenv_release
@@ -229,6 +230,7 @@ CONTAINS
       INTEGER, POINTER                                   :: active_device_id
       INTEGER, TARGET                                    :: offload_chosen_device
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(gauxc_status_type)                            :: gauxc_status
 
       IF (.NOT. module_initialized) THEN
          ! install error handler hooks
@@ -302,7 +304,7 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
-         CALL gauxc_init(default_para_env%get_handle())
+         CALL gauxc_init(default_para_env%get_handle(), gauxc_status)
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -327,6 +329,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER                                            :: ienv
+      TYPE(gauxc_status_type)                            :: gauxc_status
 
 !sample peak memory
 
@@ -347,7 +350,7 @@ CONTAINS
          CALL pw_gpu_finalize()
          CALL pw_fpga_finalize()
          IF (cp_sirius_is_initialized()) CALL cp_sirius_finalize()
-         CALL gauxc_finalize()
+         CALL gauxc_finalize(gauxc_status)
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
 
