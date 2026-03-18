@@ -327,18 +327,20 @@ CONTAINS
 
    END FUNCTION gauxc_create_integrator
 
-   SUBROUTINE gauxc_compute_xc(integrator, density_scalar, density_zeta, exc, vxc_scalar, vxc_zeta, status)
+   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, status) RESULT(res)
       TYPE(gauxc_integrator_type), INTENT(IN)            :: integrator
-      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar, density_zeta
-      REAL(c_double), INTENT(OUT)                        :: exc
-      REAL(c_double), DIMENSION(:, :), INTENT(OUT)       :: vxc_scalar, vxc_zeta
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
+      REAL(c_double), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+      INTEGER, INTENT(IN)                                :: nspins
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_xc_type)                             :: res
 
       CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
-         & "PBE", exc, vxc_scalar, vxc_zeta)
+         & "PBE", res%exc, res%vxc_scalar, res%vxc_zeta)
       CPASSERT(status%code == 0)
 
-   END SUBROUTINE gauxc_compute_xc
+   END FUNCTION gauxc_compute_xc
 
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
       TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule

@@ -139,9 +139,10 @@ MODULE qs_ks_methods
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, dbcsr_to_dense, gauxc_compute_xc, gauxc_create_basisset, &
-        gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
-        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
+        cp_gauxc_molecule_type, cp_gauxc_xc_type, dbcsr_to_dense, gauxc_compute_xc, &
+        gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, &
+        gauxc_destroy_basisset, gauxc_destroy_grid, gauxc_destroy_integrator, &
+        gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -210,6 +211,7 @@ CONTAINS
       TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
       TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
+      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
@@ -995,8 +997,9 @@ CONTAINS
 
       ALLOCATE (vxc_scalar(SIZE(density_scalar, 1), SIZE(density_scalar, 2)))
       ALLOCATE (vxc_zeta(SIZE(density_zeta, 1), SIZE(density_zeta, 2)))
-      CALL gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
-                            energy%exc, vxc_scalar, vxc_zeta, gauxc_status)
+      gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
+                                         gauxc_status)
+      energy%exc = gauxc_xc_result%exc
 
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
       CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
