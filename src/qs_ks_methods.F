@@ -49,8 +49,6 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
-   USE gauxc_basisset,                  ONLY: gauxc_basisset_type
-   USE gauxc_molecule,                  ONLY: gauxc_molecule_type
    USE gauxc_status,                    ONLY: gauxc_status_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
@@ -140,9 +138,10 @@ MODULE qs_ks_methods
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: &
-        gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, &
-        gauxc_destroy_basisset, gauxc_destroy_grid, gauxc_destroy_integrator, &
-        gauxc_destroy_molecule, gauxc_grid_result_type, gauxc_integrator_result_type
+        cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
+        cp_gauxc_molecule_type, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
+        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
+        gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -205,16 +204,16 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
+      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
+      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
                                                             matrix_h_im, matrix_s, my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
-      TYPE(gauxc_basisset_type)                          :: gauxc_basis
-      TYPE(gauxc_grid_result_type)                       :: gauxc_grid_result
-      TYPE(gauxc_integrator_result_type)                 :: gauxc_integrator_result
-      TYPE(gauxc_molecule_type)                          :: gauxc_mol
       TYPE(gauxc_status_type)                            :: gauxc_status
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set

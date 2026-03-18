@@ -43,23 +43,31 @@ MODULE xc_gauxc
    IMPLICIT NONE
    PRIVATE
 
-   TYPE gauxc_grid_result_type
+   TYPE cp_gauxc_molecule_type
+      TYPE(gauxc_molecule_type) :: molecule
+   END TYPE
+
+   TYPE cp_gauxc_basisset_type
+      TYPE(gauxc_basisset_type) :: basis
+   END TYPE
+
+   TYPE cp_gauxc_grid_type
       TYPE(gauxc_molgrid_type) :: grid
       TYPE(gauxc_load_balancer_type) :: lb
       TYPE(gauxc_load_balancer_factory_type) :: lbf
       TYPE(gauxc_molecular_weights_type) :: mw
       TYPE(gauxc_molecular_weights_factory_type) :: mwf
-   END TYPE gauxc_grid_result_type
+   END TYPE cp_gauxc_grid_type
 
-   TYPE gauxc_integrator_result_type
+   TYPE cp_gauxc_integrator_type
       TYPE(gauxc_functional_type) :: func
       TYPE(gauxc_integrator_type) :: integrator
-   END TYPE gauxc_integrator_result_type
+   END TYPE cp_gauxc_integrator_type
 
-   TYPE gauxc_xc_result_type
+   TYPE cp_gauxc_xc_type
       REAL(c_double) :: exc
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
-   END TYPE gauxc_xc_result_type
+   END TYPE cp_gauxc_xc_type
 
    ! Copy paste from docu, move these wherever adequate
    TYPE(gauxc_runtime_environment_type) :: rt
@@ -77,7 +85,7 @@ MODULE xc_gauxc
       & gauxc_destroy_integrator, gauxc_compute_xc, &
       & read_execution_space, read_atomic_grid_size, read_radial_quad, &
       & read_pruning_scheme, &
-      & gauxc_grid_result_type, gauxc_integrator_result_type, gauxc_xc_result_type
+      & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
 
 CONTAINS
 
@@ -145,7 +153,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
-      TYPE(gauxc_molecule_type)                          :: res
+      TYPE(cp_gauxc_molecule_type)                       :: res
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: atomic_number, i
@@ -164,7 +172,7 @@ CONTAINS
          atoms(i)%z = REAL(particle_set(i)%r(3), c_double)
       END DO
 
-      res = gauxc_molecule_new_from_atoms(status, atoms, INT(natoms, c_size_t))
+      res%molecule = gauxc_molecule_new_from_atoms(status, atoms, INT(natoms, c_size_t))
       CPASSERT(status%code == 0)
 
       DEALLOCATE (atoms)
@@ -185,7 +193,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
-      TYPE(gauxc_basisset_type)                          :: res
+      TYPE(cp_gauxc_basisset_type)                       :: res
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
@@ -254,7 +262,7 @@ CONTAINS
          END DO
       END DO
 
-      res = gauxc_basisset_new_from_shells(status, shells, INT(nshell_total, c_size_t))
+      res%basis = gauxc_basisset_new_from_shells(status, shells, INT(nshell_total, c_size_t))
       CPASSERT(status%code == 0)
 
       DEALLOCATE (shells)
@@ -263,10 +271,10 @@ CONTAINS
    END FUNCTION gauxc_create_basisset
 
    FUNCTION gauxc_create_grid(molecule, basis, status) RESULT(res)
-      TYPE(gauxc_molecule_type), INTENT(IN)              :: molecule
-      TYPE(gauxc_basisset_type), INTENT(in)              :: basis
+      TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
+      TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
-      TYPE(gauxc_grid_result_type)                       :: res
+      TYPE(cp_gauxc_grid_type)                           :: res
 
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
@@ -278,14 +286,14 @@ CONTAINS
       lb_exec_space_local = read_execution_space(lb_exec_space_str)
       int_exec_space_local = read_execution_space(int_exec_space_str)
 
-      res%grid = gauxc_molgrid_new_default(status, molecule, pruning_scheme_local, &
+      res%grid = gauxc_molgrid_new_default(status, molecule%molecule, pruning_scheme_local, &
          & batch_size, radial_quad_local, grid_type_local)
       CPASSERT(status%code == 0)
 
       res%lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
       CPASSERT(status%code == 0)
 
-      res%lb = gauxc_load_balancer_factory_get_instance(status, res%lbf, rt, molecule, res%grid, basis)
+      res%lb = gauxc_load_balancer_factory_get_instance(status, res%lbf, rt, molecule%molecule, res%grid, basis%basis)
       CPASSERT(status%code == 0)
 
       res%mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
@@ -303,7 +311,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
-      TYPE(gauxc_integrator_result_type)                 :: res
+      TYPE(cp_gauxc_integrator_type)                     :: res
 
       LOGICAL(c_bool), PARAMETER                         :: hybrid = .TRUE._c_bool
 
@@ -322,7 +330,7 @@ CONTAINS
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar, density_zeta
       TYPE(gauxc_integrator_type), INTENT(IN)            :: integrator
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
-      TYPE(gauxc_xc_result_type)                         :: res
+      TYPE(cp_gauxc_xc_type)                             :: res
 
       CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
          & "PBE", res%exc, res%vxc_scalar, res%vxc_zeta)
@@ -331,23 +339,23 @@ CONTAINS
    END FUNCTION gauxc_compute_xc
 
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
-      TYPE(gauxc_molecule_type), INTENT(INOUT)           :: molecule
+      TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, molecule)
+      CALL gauxc_delete(status, molecule%molecule)
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_molecule
 
    SUBROUTINE gauxc_destroy_basisset(basis, status)
-      TYPE(gauxc_basisset_type), INTENT(INOUT)           :: basis
+      TYPE(cp_gauxc_basisset_type), INTENT(INOUT)        :: basis
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, basis)
+      CALL gauxc_delete(status, basis%basis)
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_basisset
 
    SUBROUTINE gauxc_destroy_grid(grid_result, status)
-      TYPE(gauxc_grid_result_type), INTENT(INOUT)        :: grid_result
+      TYPE(cp_gauxc_grid_type), INTENT(INOUT)            :: grid_result
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, grid_result%mw)
@@ -363,7 +371,7 @@ CONTAINS
    END SUBROUTINE gauxc_destroy_grid
 
    SUBROUTINE gauxc_destroy_integrator(integrator_result, status)
-      TYPE(gauxc_integrator_result_type), INTENT(INOUT)  :: integrator_result
+      TYPE(cp_gauxc_integrator_type), INTENT(INOUT)      :: integrator_result
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, integrator_result%integrator)
