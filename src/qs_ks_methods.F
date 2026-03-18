@@ -139,9 +139,9 @@ MODULE qs_ks_methods
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
-        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
-        gauxc_destroy_integrator, gauxc_destroy_molecule
+        cp_gauxc_molecule_type, dbcsr_to_dense, gauxc_compute_xc, gauxc_create_basisset, &
+        gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
+        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -200,6 +200,8 @@ CONTAINS
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta, &
+                                                            vxc_scalar, vxc_zeta
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -291,6 +293,15 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
+
+      IF (nimages /= 1 .OR. qs_env%run_rtp) THEN
+         CPABORT("GAUXC XC energy currently supports only real Gamma-point densities")
+      END IF
+
+      CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
+      IF (nspins == 2) THEN
+         CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+      END IF
 
       ! remap pointer to allow for non-kpoint external ks matrix
       IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
@@ -981,6 +992,11 @@ CONTAINS
       IF (my_print) THEN
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
       END IF
+
+      ALLOCATE (vxc_scalar(SIZE(density_scalar, 1), SIZE(density_scalar, 2)))
+      ALLOCATE (vxc_zeta(SIZE(density_zeta, 1), SIZE(density_zeta, 2)))
+      CALL gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
+                            energy%exc, vxc_scalar, vxc_zeta, gauxc_status)
 
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
       CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)

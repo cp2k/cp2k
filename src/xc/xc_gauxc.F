@@ -34,6 +34,7 @@ MODULE xc_gauxc
    USE gauxc_integrator, ONLY: gauxc_integrator_type, &
       & gauxc_integrator_new, gauxc_eval_exc_vxc, gauxc_delete
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
+   USE cp_dbcsr_api, ONLY: dbcsr_p_type
 #ifdef GAUXC_HAS_MPI
    USE mpi
 #endif
@@ -82,7 +83,7 @@ MODULE xc_gauxc
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
       & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
       & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
-      & gauxc_destroy_integrator, gauxc_compute_xc, &
+      & gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, &
       & read_execution_space, read_atomic_grid_size, read_radial_quad, &
       & read_pruning_scheme, &
       & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
@@ -326,17 +327,18 @@ CONTAINS
 
    END FUNCTION gauxc_create_integrator
 
-   FUNCTION gauxc_compute_xc(density_scalar, density_zeta, integrator, status) RESULT(res)
-      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar, density_zeta
+   SUBROUTINE gauxc_compute_xc(integrator, density_scalar, density_zeta, exc, vxc_scalar, vxc_zeta, status)
       TYPE(gauxc_integrator_type), INTENT(IN)            :: integrator
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar, density_zeta
+      REAL(c_double), INTENT(OUT)                        :: exc
+      REAL(c_double), DIMENSION(:, :), INTENT(OUT)       :: vxc_scalar, vxc_zeta
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
-      TYPE(cp_gauxc_xc_type)                             :: res
 
       CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
-         & "PBE", res%exc, res%vxc_scalar, res%vxc_zeta)
+         & "PBE", exc, vxc_scalar, vxc_zeta)
       CPASSERT(status%code == 0)
 
-   END FUNCTION gauxc_compute_xc
+   END SUBROUTINE gauxc_compute_xc
 
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
       TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule
@@ -379,6 +381,31 @@ CONTAINS
       CALL gauxc_delete(status, integrator_result%func)
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_integrator
+
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
+      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
+                              dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
+                              dbcsr_iterator_stop
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: dense_mat
+
+      INTEGER                                            :: icol, irow, ncols, nrows
+      REAL(c_double), POINTER                            :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(dbcsr_mat%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+      ALLOCATE (dense_mat(nrows, ncols))
+      dense_mat = 0.0_c_double
+
+      CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
+         dense_mat(irow:irow + SIZE(block, 1) - 1, icol:icol + SIZE(block, 2) - 1) = block(:, :)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE dbcsr_to_dense
 
    PURE FUNCTION read_execution_space(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
