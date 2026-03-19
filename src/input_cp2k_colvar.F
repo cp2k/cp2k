@@ -2346,7 +2346,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="GROUP_1", &
-                          variants=(/"CHUNK_1"/), &
+                          variants=["CHUNK_1"], &
                           description="Specifies the indexes of atoms in the group 1 defining the total charge "// &
                           "of the group Q1", &
                           usage="GROUP_1 {integer} {integer} {integer} ..", &
@@ -2357,7 +2357,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="GROUP_2", &
-                          variants=(/"CHUNK_2"/), &
+                          variants=["CHUNK_2"], &
                           description="Specifies the indexes of atoms in the group 2 defining the total charge "// &
                           "of the group Q2", &
                           usage="GROUP_2 {integer} {integer} {integer} ..", &
@@ -2368,12 +2368,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="POPULATION", &
-                          variants=(/"POP"/), &
+                          variants=["POP"], &
                           description="Specifies the population method calculating the partial charge. "// &
                           "There are two options that are available: MULLIKEN and APT.", &
                           usage="POPULATION MULLIKEN | APT", &
                           enum_c_vals=s2a("MULLIKEN", "APT"), &
-                          enum_i_vals=(/mulliken_pop, apt_pop/), &
+                          enum_i_vals=[mulliken_pop, apt_pop], &
                           enum_desc=s2a("Use Mulliken population", &
                                         "Use APT population"), &
                           n_var=1, &
@@ -2383,12 +2383,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="FUNCTION", &
-                          variants=(/"FUNC"/), &
+                          variants=["FUNC"], &
                           description="Function to operate between Q1 and Q2. Use DIFF for difference "// &
                           "between Q1 and Q2. Use SUM for summation of Q1 and Q2.", &
                           usage="FUNCTION DIFF | SUM", &
                           enum_c_vals=s2a("DIFF", "SUM"), &
-                          enum_i_vals=(/func_diff, func_sum/), &
+                          enum_i_vals=[func_diff, func_sum], &
                           enum_desc=s2a("Charge difference", &
                                         "Charge summation"), &
                           n_var=1, &
@@ -2398,7 +2398,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="PRINT_LEVEL", &
-                          variants=(/"PRINT"/), &
+                          variants=["PRINT"], &
                           description="Depth of information printing", &
                           usage="PRINT_LEVEL {integer}", &
                           default_i_val=1, &
