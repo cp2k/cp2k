@@ -186,7 +186,7 @@ spack:
     - "dftd4@3.7.0"
     - "dla-future@0.10.0"
     - "dla-future-fortran@0.5.0"
-    - "elpa@2025.06.001"
+    - "elpa@2026.02.001"
     - "fftw@3.3.10"
     - "greenx@2.2"
     - "hdf5@2.1.0"
