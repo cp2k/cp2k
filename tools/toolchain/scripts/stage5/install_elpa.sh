@@ -49,8 +49,7 @@ case "${with_elpa}" in
       echo "elpa-${elpa_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      #retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
-      download_pkg_from_urlpath "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz" https://elpa.mpcdf.mpg.de/software/tarball-archive/Releases/2026.02.001/
+      retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
       tar -xzf elpa-${elpa_ver}.tar.gz
@@ -58,6 +57,10 @@ case "${with_elpa}" in
       # elpa expect FC to be an mpi fortran compiler that is happy
       # with long lines, and that a bunch of libs can be found
       cd elpa-${elpa_ver}
+
+      # Ensure a successful installation of nVidia version built with "-std=c++14" flag
+      sed -i 's/creal(/__real__(/g' src/GPU/CUDA/cudaFunctions_template.h
+      sed -i 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""
