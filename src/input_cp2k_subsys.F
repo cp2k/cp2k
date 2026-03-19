@@ -170,7 +170,7 @@ CONTAINS
                           description="Specify the angles between the vectors A, B and C when using the ABC keyword. "// &
                           "The convention is that A lies along the X-axis, B is in the XY plane. "// &
                           "ALPHA is the angle between B and C, BETA is the angle between A and C and "// &
-                          "GAMMA the angle between A and B.", &
+                          "GAMMA is the angle between A and B.", &
                           usage="ALPHA_BETA_GAMMA [deg] 90.0 90.0 120.0", unit_str="deg", &
                           n_var=3, default_r_vals=[cp_unit_to_cp2k(value=90.0_dp, unit_str="deg"), &
                                                    cp_unit_to_cp2k(value=90.0_dp, unit_str="deg"), &
@@ -180,21 +180,27 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_NAME", &
-                          description="Possibility to read the cell from an external file ", &
+                          description="The external file from which cell is parsed ", &
                           repeats=.FALSE., usage="CELL_FILE_NAME <CHARACTER>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_FORMAT", &
-                          description="Specify the format of the cell file (if used)", &
+                          description="Format of the external file from which "// &
+                          "cell is parsed. If the format specifies a cell by "// &
+                          "lengths and angles of three vectors, then a cell "// &
+                          "matrix is constructed with the convention that A "// &
+                          "lies along the X-axis, B is in the XY plane. ALPHA "// &
+                          "is the angle between B and C, BETA is the angle "// &
+                          "between A and C, and GAMMA is the angle between A and B.", &
                           usage="CELL_FILE_FORMAT (CP2K|CIF|XSC|EXTXYZ|XYZ|PDB)", &
                           enum_c_vals=s2a("CP2K", "CIF", "XSC", "EXTXYZ", "XYZ", "PDB"), &
                           enum_i_vals=[do_cell_cp2k, do_cell_cif, do_cell_xsc, do_cell_extxyz, do_cell_extxyz, do_cell_pdb], &
                           enum_desc=s2a("Cell info in the CP2K native format", &
-                                        "Cell info from CIF file", &
+                                        "Cell info from CIF file (from fields _cell_length_a or _cell.length_a, etc)", &
                                         "Cell info in the XSC format (NAMD)", &
-                                        "Cell info in the comment line of Extended XYZ format", &
+                                        "Cell info as lattice= field in the comment line of Extended XYZ format", &
                                         "Alias for Extended XYZ", &
                                         "Cell info in the CRYST1 record of PDB format"), &
                           default_i_val=do_cell_cp2k)
@@ -227,7 +233,15 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMMETRY", &
-         description="Imposes an initial cell symmetry.", &
+         description="Imposes an initial cell symmetry, according to the convention "// &
+         "that A lies along the X-axis, B is in the XY plane. After the "// &
+         "input cell information is parsed, the symmetry is enforced by "// &
+         "reconstructing the cell matrix from lengths and angles of the "// &
+         "cell vectors, taking averages if necessary. This process does "// &
+         "not affect input atomic coordinates; in case a space group is "// &
+         "to be detected and preserved for an optimization task, atomic "// &
+         "coordinates should correspond to cell vectors already obeying "// &
+         "the convention mentioned above.", &
          usage="SYMMETRY monoclinic", &
          enum_desc=s2a("No cell symmetry", &
                        "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)", &
