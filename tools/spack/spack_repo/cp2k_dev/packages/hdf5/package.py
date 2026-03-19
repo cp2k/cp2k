@@ -42,7 +42,7 @@ class Hdf5(CMakePackage):
     version(
         "2.1.0",
         sha256="ce7f5515a95d588b8606c3fb50643f8b88ac52ffbbde9c63bb1edca6a256e964",
-        url="https://support.hdfgroup.org/releases/hdf5/2.1.0/downloads/hdf5-2.1.0.tar.gz",
+        url="https://github.com/HDFGroup/hdf5/releases/download/2.1.0/hdf5-2.1.0.tar.gz",
     )
 
     # Odd versions are considered experimental releases
@@ -119,6 +119,14 @@ class Hdf5(CMakePackage):
 
     variant("hl", default=False, description="Enable the high-level library")
     variant("cxx", default=False, description="Enable C++ support")
+    variant(
+        "cxxstd",
+        default="11",
+        values=("98", "11", "14", "17", "20", "23"),
+        multi=False,
+        when="+cxx",
+        description="Use the specified C++ standard when building.",
+    )
     variant("map", when="@1.14:", default=False, description="Enable MAP API support")
     variant(
         "subfiling", when="@1.14: +mpi", default=False, description="Enable Subfiling VFD support"
@@ -201,8 +209,8 @@ class Hdf5(CMakePackage):
 
     # https://github.com/HDFGroup/hdf5/pull/6267
     patch(
-        "https://github.com/HDFGroup/hdf5/commit/84e5adf753cdd97a807df2da6338bb0e0cdf9862.patch",
-        sha256="f52187754844009d4fbde07a3f885e8ad9bf33abc255edb08b1a659efd03d5ba",
+        "https://github.com/HDFGroup/hdf5/commit/84e5adf753cdd97a807df2da6338bb0e0cdf9862.patch?full_index=1",
+        sha256="cf8056ec86e01aaf384bef3aecc11dc111a3f11bd83e80d1156af7f939328135",
         when="@2.1.0",
     )
 
@@ -531,6 +539,7 @@ class Hdf5(CMakePackage):
             tty.warn("hdf5@:1.8.15+shared does not produce static libraries")
 
         args = [
+            self.define_from_variant("CMAKE_CXX_STANDARD", "cxxstd"),
             # Speed-up the building by skipping the examples:
             self.define("HDF5_BUILD_EXAMPLES", False),
             self.define(
