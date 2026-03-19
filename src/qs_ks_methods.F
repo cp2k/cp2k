@@ -994,8 +994,12 @@ CONTAINS
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
       END IF
 
-      gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
-                                         gauxc_status)
+      gauxc_xc_result = gauxc_compute_xc( &
+                        gauxc_integrator_result%integrator, &
+                        density_scalar, &
+                        density_zeta, &
+                        nspins, &
+                        gauxc_status)
       energy%exc = gauxc_xc_result%exc
 
       DEALLOCATE (density_scalar)
