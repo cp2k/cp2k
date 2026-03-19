@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2024.05.001"
-elpa_sha256="9caf41a3e600e2f6f4ce1931bd54185179dade9c171556d0c9b41bbc6940f2f6"
+elpa_ver="2026.02.001"
+elpa_sha256="a379f27f4dbd27b2ee45017afec656d064301e97150c874649bdfd64957b75ed"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -49,7 +49,8 @@ case "${with_elpa}" in
       echo "elpa-${elpa_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
+      #retrieve_package "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
+      download_pkg_from_urlpath "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz" https://elpa.mpcdf.mpg.de/software/tarball-archive/Releases/2026.02.001/
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
       tar -xzf elpa-${elpa_ver}.tar.gz
