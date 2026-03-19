@@ -201,8 +201,7 @@ CONTAINS
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta, &
-                                                            vxc_scalar, vxc_zeta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -995,12 +994,12 @@ CONTAINS
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
       END IF
 
-      ALLOCATE (vxc_scalar(SIZE(density_scalar, 1), SIZE(density_scalar, 2)))
-      ALLOCATE (vxc_zeta(SIZE(density_zeta, 1), SIZE(density_zeta, 2)))
-      ! TODO deallocation
       gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, density_zeta, &
                                          gauxc_status)
       energy%exc = gauxc_xc_result%exc
+
+      DEALLOCATE (density_scalar)
+      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
 
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
       CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)

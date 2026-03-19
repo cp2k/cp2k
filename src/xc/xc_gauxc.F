@@ -336,6 +336,8 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_xc_type)                             :: res
 
+      allocate(res%vxc_scalar, mold=density_scalar)
+      allocate(res%vxc_zeta, mold=density_zeta)
       CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
          & "PBE", res%exc, res%vxc_scalar, res%vxc_zeta)
       CPASSERT(status%code == 0)
