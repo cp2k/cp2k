@@ -147,8 +147,8 @@ CONTAINS
 !> \brief ...
 !> \param particle_set ...
 !> \param natoms ...
-!> \param molecule ...
 !> \param status ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_molecule(particle_set, natoms, status) RESULT(res)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
@@ -185,8 +185,8 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param natoms ...
-!> \param basis ...
 !> \param status ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_basisset(qs_kind_set, particle_set, natoms, status) RESULT(res)
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -271,6 +271,13 @@ CONTAINS
 
    END FUNCTION gauxc_create_basisset
 
+! **************************************************************************************************
+!> \brief ...
+!> \param molecule ...
+!> \param basis ...
+!> \param status ...
+!> \return ...
+! **************************************************************************************************
    FUNCTION gauxc_create_grid(molecule, basis, status) RESULT(res)
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
@@ -308,6 +315,13 @@ CONTAINS
 
    END FUNCTION gauxc_create_grid
 
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_functional_name ...
+!> \param lb ...
+!> \param status ...
+!> \return ...
+! **************************************************************************************************
    FUNCTION gauxc_create_integrator(xc_functional_name, lb, status) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
@@ -327,7 +341,16 @@ CONTAINS
 
    END FUNCTION gauxc_create_integrator
 
-   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, status) RESULT(res)
+! **************************************************************************************************
+!> \brief ...
+!> \param integrator ...
+!> \param density_scalar ...
+!> \param density_zeta ...
+!> \param nspins ...
+!> \param status ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, nspins, status) RESULT(res)
       TYPE(gauxc_integrator_type), INTENT(IN)            :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
@@ -336,14 +359,26 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_xc_type)                             :: res
 
-      allocate(res%vxc_scalar, mold=density_scalar)
-      allocate(res%vxc_zeta, mold=density_zeta)
-      CALL gauxc_eval_exc_vxc(status, integrator, density_scalar, density_zeta, &
-         & "PBE", res%exc, res%vxc_scalar, res%vxc_zeta)
+      ALLOCATE (res%vxc_scalar, mold=density_scalar)
+
+      IF (nspins == 1) THEN
+         CALL gauxc_integrator_eval_exc_vxc_rks(status, integrator, density_scalar, &
+                                                res%exc, res%vxc_scalar)
+      ELSE
+         CPASSERT(PRESENT(density_zeta))
+         ALLOCATE (res%vxc_zeta, mold=density_zeta)
+         CALL gauxc_integrator_eval_exc_vxc_uks(status, integrator, density_scalar, &
+                                                density_zeta, res%exc, res%vxc_scalar, res%vxc_zeta)
+      END IF
       CPASSERT(status%code == 0)
 
    END FUNCTION gauxc_compute_xc
 
+! **************************************************************************************************
+!> \brief ...
+!> \param molecule ...
+!> \param status ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
       TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
@@ -352,6 +387,11 @@ CONTAINS
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_molecule
 
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param status ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_basisset(basis, status)
       TYPE(cp_gauxc_basisset_type), INTENT(INOUT)        :: basis
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
@@ -360,6 +400,11 @@ CONTAINS
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_basisset
 
+! **************************************************************************************************
+!> \brief ...
+!> \param grid_result ...
+!> \param status ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_grid(grid_result, status)
       TYPE(cp_gauxc_grid_type), INTENT(INOUT)            :: grid_result
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
@@ -376,6 +421,11 @@ CONTAINS
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_grid
 
+! **************************************************************************************************
+!> \brief ...
+!> \param integrator_result ...
+!> \param status ...
+! **************************************************************************************************
    SUBROUTINE gauxc_destroy_integrator(integrator_result, status)
       TYPE(cp_gauxc_integrator_type), INTENT(INOUT)      :: integrator_result
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
@@ -386,6 +436,11 @@ CONTAINS
       CPASSERT(status%code == 0)
    END SUBROUTINE gauxc_destroy_integrator
 
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \param dense_mat ...
+! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
@@ -411,6 +466,11 @@ CONTAINS
 
    END SUBROUTINE dbcsr_to_dense
 
+! **************************************************************************************************
+!> \brief ...
+!> \param spec ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION read_execution_space(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
@@ -425,6 +485,11 @@ CONTAINS
       END SELECT
    END FUNCTION read_execution_space
 
+! **************************************************************************************************
+!> \brief ...
+!> \param spec ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION read_atomic_grid_size(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
@@ -445,6 +510,11 @@ CONTAINS
       END SELECT
    END FUNCTION read_atomic_grid_size
 
+! **************************************************************************************************
+!> \brief ...
+!> \param spec ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION read_radial_quad(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
@@ -463,6 +533,11 @@ CONTAINS
       END SELECT
    END FUNCTION read_radial_quad
 
+! **************************************************************************************************
+!> \brief ...
+!> \param spec ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION read_pruning_scheme(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
