@@ -229,12 +229,13 @@ CONTAINS
          enum_i_vals=[do_potential_coulomb, do_potential_short, do_potential_long, &
                       do_potential_mix_cl, do_potential_gaussian, do_potential_mix_lg, &
                       do_potential_id, do_potential_truncated, do_potential_mix_cl_trunc], &
-         enum_desc=s2a("Coulomb potential: 1/r", &
-                       "Shortrange potential: erfc(omega*r)/r", &
-                       "Longrange potential: erf(omega*r)/r", &
-                       "Mix coulomb and longrange potential: 1/r + erf(omega*r)/r", &
-                       "Damped Gaussian potential: exp(-omega^2*r^2)", &
-                       "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)", &
+         enum_desc=s2a("Coulomb potential: $\frac{1}{r}$", &
+                       "Shortrange potential: $\frac{\mathrm{erfc}(\omega \cdot r)}{r}$", &
+                       "Longrange potential: $\frac{\mathrm{erf}(\omega \cdot r)}{r}$", &
+                       "Mix coulomb and longrange potential: $\frac{1}{r} + \frac{\mathrm{erf}(\omega \cdot r)}{r}$", &
+                       "Damped Gaussian potential: $\exp{-\omega^2 \cdot r^2}$", &
+                       "Mix Gaussian and longrange potential: "// &
+                       "$\frac{\mathrm{erf}(\omega \cdot r)}/r + \exp{-\omega^2 \cdot r^2}$", &
                        "Overlap", &
                        "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0", &
                        "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"), &
@@ -246,7 +247,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="OMEGA", &
-         description="Parameter for short/longrange interaction", &
+         description="Parameter $\omega$ for short/longrange interaction", &
          usage="OMEGA 0.5", &
          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -274,10 +275,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r "// &
-                          "potential or the shortrange erfc(omega*r)/r potential. Default value "// &
-                          "for shortrange potential is solved from erfc(omega*r)/r = EPS_SCHWARZ "// &
-                          "by Newton-Raphson method with SCREENING/EPS_SCHWARZ", &
+                          description="Determines cutoff radius (in Angstroms) for the truncated $\frac{1}{r}$ "// &
+                          "potential or the shortrange $\frac{\mathrm{erfc}(\omega \cdot r)}{r}$ potential. Default value "// &
+                          "for shortrange potential when this keyword is omitted is solved from "// &
+                          "$\frac{\mathrm{erfc}(\omega \cdot r)}{r} = \epsilon_{\mathrm{schwarz}}$ "// &
+                          "by Newton-Raphson method, with $\epsilon_{\mathrm{schwarz}}$ set by SCREENING/EPS_SCHWARZ", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, & ! default_r_val=10.0_dp,&
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
