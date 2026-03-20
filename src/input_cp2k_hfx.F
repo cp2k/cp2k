@@ -12,28 +12,28 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE input_cp2k_hfx
-   USE bibliography,                    ONLY: Guidon2008,&
-                                              Guidon2009
-   USE cp_output_handling,              ONLY: add_last_numeric,&
-                                              cp_print_key_section_create,&
-                                              high_print_level,&
-                                              medium_print_level
-   USE input_constants,                 ONLY: &
-        do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
-        do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_cholesky, hfx_ri_do_2c_diag, &
-        hfx_ri_do_2c_iter
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: real_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
+   USE bibliography, ONLY: Guidon2008, &
+                           Guidon2009
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 high_print_level, &
+                                 medium_print_level
+   USE input_constants, ONLY: &
+      do_potential_coulomb, do_potential_gaussian, do_potential_id, do_potential_long, &
+      do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, do_potential_short, &
+      do_potential_truncated, ehrenfest, gaussian, hfx_ri_do_2c_cholesky, hfx_ri_do_2c_diag, &
+      hfx_ri_do_2c_iter
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: real_t
+   USE kinds, ONLY: dp
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -233,9 +233,9 @@ CONTAINS
                        "Shortrange potential: $\frac{\mathrm{erfc}(\omega \cdot r)}{r}$", &
                        "Longrange potential: $\frac{\mathrm{erf}(\omega \cdot r)}{r}$", &
                        "Mix coulomb and longrange potential: $\frac{1}{r} + \frac{\mathrm{erf}(\omega \cdot r)}{r}$", &
-                       "Damped Gaussian potential: $\exp{-\omega^2 \cdot r^2}$", &
+                       "Damped Gaussian potential: $\exp{(-\omega^2 \cdot r^2)}$", &
                        "Mix Gaussian and longrange potential: "// &
-                       "$\frac{\mathrm{erf}(\omega \cdot r)}/r + \exp{-\omega^2 \cdot r^2}$", &
+                       "$\frac{\mathrm{erf}(\omega \cdot r)}{r} + \exp{(-\omega^2 \cdot r^2)}$", &
                        "Overlap", &
                        "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0", &
                        "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"), &
