@@ -35,7 +35,6 @@
       MAX_ITER 10
       &PRINT
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 1
           SUM_ON_ALL_REF .FALSE.
@@ -49,7 +48,6 @@
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 2
           SUM_ON_ALL_REF .TRUE.
@@ -63,7 +61,6 @@
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 1
           SUM_ON_ALL_REF .TRUE.
@@ -77,7 +74,6 @@
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           &PRINT
             &EACH
               MD 1
@@ -85,7 +81,6 @@
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
           &PRINT
             &EACH
@@ -94,29 +89,14 @@
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE XAS_TDP
-          REF_MO_FILE_NAME H2O-B3LYP-full-xasat1_1s_singlet_idx1-1.wfn
-          SUM_ON_ALL_TD .TRUE.
-          TD_MO_INDEX -1
-          TD_MO_SPIN 1
           &PRINT
             &EACH
               MD 1
             &END EACH
           &END PRINT
         &END PROJECTION_MO
-        &PROJECTION_MO
-          REFERENCE_TYPE SCF
-          &PRINT
-            &EACH
-              MD 1
-            &END EACH
-          &END PRINT
-        &END PROJECTION_MO
-        ! PROPAGATE_REF .TRUE.
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 1
           SUM_ON_ALL_REF .FALSE.
@@ -131,7 +111,6 @@
         &END PROJECTION_MO
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 2
           SUM_ON_ALL_REF .TRUE.
@@ -146,7 +125,6 @@
         &END PROJECTION_MO
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           REF_MO_INDEX -1
           REF_MO_SPIN 1
           SUM_ON_ALL_REF .TRUE.
@@ -161,7 +139,6 @@
         &END PROJECTION_MO
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           &PRINT
             &EACH
               MD 1
@@ -170,7 +147,6 @@
         &END PROJECTION_MO
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           REF_MO_FILE_NAME H2O-projection-mo-RESTART.wfn
           &PRINT
             &EACH
@@ -180,20 +156,6 @@
         &END PROJECTION_MO
         &PROJECTION_MO
           PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE XAS_TDP
-          REF_MO_FILE_NAME H2O-B3LYP-full-xasat1_1s_singlet_idx1-1.wfn
-          SUM_ON_ALL_TD .TRUE.
-          TD_MO_INDEX -1
-          TD_MO_SPIN 1
-          &PRINT
-            &EACH
-              MD 1
-            &END EACH
-          &END PRINT
-        &END PROJECTION_MO
-        &PROJECTION_MO
-          PROPAGATE_REF .TRUE.
-          REFERENCE_TYPE SCF
           &PRINT
             &EACH
               MD 1
