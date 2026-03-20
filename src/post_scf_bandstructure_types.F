@@ -23,6 +23,7 @@ MODULE post_scf_bandstructure_types
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE input_constants,                 ONLY: rtp_method_bse,&
+                                              rtp_method_bse_linearized,&
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -280,7 +281,7 @@ MODULE post_scf_bandstructure_types
                                                       skip_Sigma_vir, &
                                                       skip_chi
       ! Marek : rtbse_method
-      INTEGER                                      :: rtp_method = rtp_method_bse
+      INTEGER                                      :: rtp_method = -1
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -475,7 +476,9 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_RI_RI)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse) CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
+      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
+         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
+      END IF
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)

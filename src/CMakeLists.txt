@@ -1053,6 +1053,7 @@ list(
   emd/rt_propagation_utils.F
   emd/rt_propagator_init.F
   emd/rt_bse.F
+  emd/rt_bse_linearized.F
   emd/rt_bse_io.F
   emd/rt_bse_types.F)
 

@@ -56,7 +56,7 @@ MODULE cp_control_utils
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
         gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
-        numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
+        numerical, ramp_env, real_time_propagation, rtp_method_bse, rtp_method_bse_linearized, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
         sic_mauri_spz, sic_mauri_us, sic_none, slater, tblite_cli_born_kernel_auto, &
@@ -566,7 +566,8 @@ CONTAINS
       IF (do_rtp) THEN
          ! tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
          ! CALL section_vals_get(tmp_section, explicit=is_present)
-         local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+         local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse .OR. &
+                                  dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) .OR. &
                                  ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
          IF (local_moment_possible .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
@@ -3382,7 +3383,8 @@ CONTAINS
 
       INTEGER                                            :: i, j, n_elems
       INTEGER, DIMENSION(:), POINTER                     :: tmp
-      LOGICAL                                            :: is_present, local_moment_possible
+      LOGICAL                                            :: is_present, linearize_bse_propagation, &
+                                                            local_moment_possible
       TYPE(section_vals_type), POINTER                   :: proj_mo_section, subsection
 
       ALLOCATE (dft_control%rtp_control)
@@ -3398,6 +3400,13 @@ CONTAINS
                                 i_val=dft_control%rtp_control%rtp_method)
       CALL section_vals_val_get(rtp_section, "RTBSE%RTBSE_HAMILTONIAN", &
                                 i_val=dft_control%rtp_control%rtbse_ham)
+      CALL section_vals_val_get(rtp_section, "RTBSE%LINEARIZED_BSE_PROPAGATION", &
+                                l_val=linearize_bse_propagation)
+      ! Change rtp_method to linearized bse
+      IF (linearize_bse_propagation) THEN
+         dft_control%rtp_control%rtp_method = rtp_method_bse_linearized
+      END IF
+
       CALL section_vals_val_get(rtp_section, "PROPAGATOR", &
                                 i_val=dft_control%rtp_control%propagator)
       CALL section_vals_val_get(rtp_section, "EPS_ITER", &

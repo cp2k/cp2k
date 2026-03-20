@@ -137,8 +137,7 @@ CONTAINS
 !> \param qs_env Quickstep environment data, containing the config from input files
 !> \param force_env Force environment data, entry point of the calculation
 ! **************************************************************************************************
-   SUBROUTINE run_propagation_bse(qs_env, force_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE run_propagation_bse(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation_bse'
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -159,7 +158,7 @@ CONTAINS
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
 
       ! Allocate all persistant storage and read input that does not need further processing
-      CALL create_rtbse_env(rtbse_env, qs_env, force_env)
+      CALL create_rtbse_env(rtbse_env, force_env)
 
       CALL print_rtbse_header_info(rtbse_env)
 
@@ -171,11 +170,15 @@ CONTAINS
       !     - reads the restart density if requested
       !  - reads the field and moment trace from previous runs
       !  - populates overlap and inverse overlap matrices
+      !  - prints some info about loaded files into the output
+      CALL initialize_rtbse_env(rtbse_env)
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       !  - calculates the Hartree reference potential
       !  - calculates the COHSEX reference self-energy
-      !  - prints some info about loaded files into the output
-      CALL initialize_rtbse_env(rtbse_env)
+
+      CALL initialize_singleparticle_hamiltonian(rtbse_env)
+      CALL initialize_hartree_potential(rtbse_env)
+      CALL initialize_cohsex_selfenergy(rtbse_env)
 
       ! Setup the time based on the starting step
       ! Assumes identical dt between two runs
@@ -249,7 +252,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the initial values, based on restart/scf density, and other non-trivial values
 !> \param rtbse_env RT-BSE environment
-!> \param qs_env Quickstep environment (needed for reference to previous calculations)
 !> \author Stepan Marek (09.24)
 ! **************************************************************************************************
    SUBROUTINE initialize_rtbse_env(rtbse_env)
@@ -348,6 +350,25 @@ CONTAINS
       CALL cp_fm_invert(rtbse_env%S_fm, rtbse_env%S_inv_fm)
       ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
 
+      CALL timestop(handle)
+   END SUBROUTINE initialize_rtbse_env
+
+! **************************************************************************************************
+!> \brief Calculates the single particle Hamiltonian
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_singleparticle_hamiltonian(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_singleparticle_hamiltonian"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
+      INTEGER                                      :: i, handle
+
+      CALL timeset(routineN, handle)
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
+
       ! ****** START SINGLE PARTICLE HAMILTONIAN CALCULATION
       DO i = 1, rtbse_env%n_spin
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
@@ -376,6 +397,25 @@ CONTAINS
       END DO
       ! ****** END SINGLE PARTICLE HAMILTONIAN CALCULATION
 
+      CALL timestop(handle)
+   END SUBROUTINE initialize_singleparticle_hamiltonian
+
+! **************************************************************************************************
+!> \brief Calculates the Hartree potential
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_hartree_potential(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_hartree_potential"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
+      INTEGER                                      :: i, handle
+
+      CALL timeset(routineN, handle)
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
+
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! Calculate Coulomb RI elements, necessary for Hartree calculation
       CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
@@ -401,6 +441,22 @@ CONTAINS
                                    CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END DO
       ! ****** END HARTREE POTENTIAL REFERENCE CALCULATION
+
+      CALL timestop(handle)
+   END SUBROUTINE initialize_hartree_potential
+
+! **************************************************************************************************
+!> \brief Calculates the single particle Hamiltonian
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_cohsex_selfenergy(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_cohsex_selfenergy"
+      INTEGER                                      :: i, handle
+
+      CALL timeset(routineN, handle)
 
       ! ****** START COHSEX REFERENCE CALCULATION
       ! Calculate the COHSEX starting energies
@@ -432,7 +488,7 @@ CONTAINS
       ! ****** END COHSEX REFERENCE CALCULATION
 
       CALL timestop(handle)
-   END SUBROUTINE initialize_rtbse_env
+   END SUBROUTINE initialize_cohsex_selfenergy
 
 ! **************************************************************************************************
 !> \brief Custom reimplementation of the delta pulse routines

@@ -2028,6 +2028,7 @@ CONTAINS
                           repeats=.FALSE., citations=[Marek2025])
 
       ! Marek : Controlling flow to RTBSE
+      !MG: Linearized rtbse is activated via section keyword
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Which method is used for the time propagation of electronic structure. "// &
                           "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
@@ -2052,6 +2053,16 @@ CONTAINS
                           enum_i_vals=[rtp_bse_ham_ks, rtp_bse_ham_g0w0], &
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Switch for linearized rtbse propagation
+      CALL keyword_create(keyword, __LOCATION__, name="LINEARIZED_BSE_PROPAGATION", &
+                          variants=s2a("LRRTBSE"), &
+                          description="Linearizes the BSE propagation", &
+                          usage="LINEARIZED_BSE_PROPAGATION .T.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

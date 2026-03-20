@@ -251,9 +251,8 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_rtbse_env(rtbse_env, qs_env, force_env)
+   SUBROUTINE create_rtbse_env(rtbse_env, force_env)
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
-      TYPE(qs_environment_type), POINTER                        :: qs_env
       TYPE(force_env_type), POINTER                             :: force_env
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
@@ -266,7 +265,7 @@ CONTAINS
       NULLIFY (rtbse_env)
       ALLOCATE (rtbse_env)
       ! Extract the other types first
-      CALL get_qs_env(qs_env, &
+      CALL get_qs_env(force_env%qs_env, &
                       bs_env=bs_env, &
                       rtp=rtp, &
                       matrix_s=matrix_s, &
@@ -344,7 +343,7 @@ CONTAINS
       CALL warn_section_unused(rtbse_env%rtp_section, "PRINT%RESTART_HISTORY", &
                                "RESTART_HISTORY print section not yet implemented for RTBSE.")
       ! DEBUG : References to previous environments
-      rtbse_env%qs_env => qs_env
+      rtbse_env%qs_env => force_env%qs_env
       rtbse_env%bs_env => bs_env
       ! Padé refinement
       rtbse_env%pade_requested = rtbse_env%dft_control%rtp_control%pade_requested
@@ -480,10 +479,10 @@ CONTAINS
       END DO
 
       ! Allocate workspaces for get_sigma
-      CALL create_sigma_workspace(rtbse_env, qs_env)
+      CALL create_sigma_workspace(rtbse_env)
 
       ! Depending on the chosen methods, allocate extra workspace
-      CALL create_hartree_ri_workspace(rtbse_env, qs_env)
+      CALL create_hartree_ri_workspace(rtbse_env)
 
    END SUBROUTINE create_rtbse_env
 
@@ -562,19 +561,18 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 05.2024
 ! **************************************************************************************************
-   SUBROUTINE create_hartree_ri_workspace(rtbse_env, qs_env)
+   SUBROUTINE create_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
-      TYPE(qs_environment_type), POINTER                :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
 
-      CALL get_qs_env(qs_env, bs_env=bs_env)
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
       CALL dbcsr_create(rtbse_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
       CALL dbcsr_create(rtbse_env%v_ao_dbcsr, name="Sparse Hartree", template=bs_env%mat_ao_ao%matrix)
 
       CALL create_hartree_ri_3c(rtbse_env%rho_dbcsr, rtbse_env%int_3c_array, rtbse_env%n_ao, rtbse_env%n_RI, &
                                 bs_env%basis_set_AO, bs_env%basis_set_RI, bs_env%i_RI_start_from_atom, &
-                                bs_env%ri_metric, qs_env, rtbse_env%unit_nr)
+                                bs_env%ri_metric, rtbse_env%qs_env, rtbse_env%unit_nr)
    END SUBROUTINE create_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Separated method for allocating the 3c integrals for RI Hartree
@@ -692,11 +690,10 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_sigma_workspace(rtbse_env, qs_env)
+   SUBROUTINE create_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CALL create_sigma_workspace_qs_only(qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
+      CALL create_sigma_workspace_qs_only(rtbse_env%qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
                                           rtbse_env%t_3c_w, rtbse_env%t_3c_work_RI_AO__AO, &
                                           rtbse_env%t_3c_work2_RI_AO__AO, rtbse_env%greens_dbt)
    END SUBROUTINE create_sigma_workspace
