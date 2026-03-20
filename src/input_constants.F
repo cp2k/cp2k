@@ -957,10 +957,6 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: rtp_bse_ham_ks = 1, &
                                                rtp_bse_ham_g0w0 = 2
 
-   ! type of reference for RTP%PRINT%PROJECTION_MO
-   INTEGER, PARAMETER, PUBLIC               :: proj_mo_ref_scf = 1, &
-                                               proj_mo_ref_xas_tdp = 2
-
    ! how to solve polarizable force fields
    INTEGER, PARAMETER, PUBLIC               :: do_fist_pol_none = 1, &
                                                do_fist_pol_sc = 2, &

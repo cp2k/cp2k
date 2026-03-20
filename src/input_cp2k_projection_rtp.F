@@ -10,9 +10,8 @@
 !> \author Guillaume Le Breton 04.2023
 ! **************************************************************************************************
 MODULE input_cp2k_projection_rtp
+
    USE cp_output_handling,              ONLY: cp_print_key_section_create
-   USE input_constants,                 ONLY: proj_mo_ref_scf,&
-                                              proj_mo_ref_xas_tdp
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -22,7 +21,6 @@ MODULE input_cp2k_projection_rtp
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: integer_t
-   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -72,24 +70,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_TYPE", &
-                          description="Type of the reference MO file provided in REF_MO_FILE_NAME.", &
-                          enum_c_vals=s2a("SCF", "XAS_TDP"), &
-                          usage="REFERENCE_TYPE SCF", &
-                          default_i_val=proj_mo_ref_scf, &
-                          enum_desc=s2a("The reference MO is from an SCF calculation.", &
-                                        "The reference MO is from an XAS_TDP analysis."), &
-                          enum_i_vals=[proj_mo_ref_scf, proj_mo_ref_xas_tdp])
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_FILE_NAME", &
                           description="Name of the wavefunction file to read the reference MO from. "// &
-                          "For instance, a restart wfn file from SCF calculation or an excited state from XAS_TDP calculation. "// &
                           "If no file is specified, the default is to use DFT%WFN_RESTART_FILE_NAME. "// &
                           "Currently, a RTP restart file (.rtpwfn) cannot be used as reference. "// &
-                          "Currently, this file SHALL have the same number of spin as the propagated one "// &
-                          "(eventhough you use only the first spin from this reference).", &
+                          "It is important that the number of spin channels of the reference matches the "// &
+                          "type of propagation calculation you are performing (1 for restricted KS, and 2 "// &
+                          "for UKS/LSD.", &
                           usage="REF_MO_FILE_NAME <FILENAME>", &
                           default_lc_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
@@ -97,7 +84,6 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REF_MO_INDEX", &
                           description="Indexes of the reference MO read from the .wfn reference file (see REF_MO_FILE_NAME). "// &
-                          "Use this keyword if REFERENCE_TYPE=SCF. "// &
                           "Set to -1 to project on all the MO available. "// &
                           "One file will be generated per index defined.", &
                           usage="REF_MO_INDEX 1 2", &
