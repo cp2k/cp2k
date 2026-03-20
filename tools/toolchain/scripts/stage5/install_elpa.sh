@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2024.05.001"
-elpa_sha256="9caf41a3e600e2f6f4ce1931bd54185179dade9c171556d0c9b41bbc6940f2f6"
+elpa_ver="2026.02.001"
+elpa_sha256="a379f27f4dbd27b2ee45017afec656d064301e97150c874649bdfd64957b75ed"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -57,6 +57,10 @@ case "${with_elpa}" in
       # elpa expect FC to be an mpi fortran compiler that is happy
       # with long lines, and that a bunch of libs can be found
       cd elpa-${elpa_ver}
+
+      # Ensure a successful installation of nVidia version built with "-std=c++14" flag
+      sed -i 's/creal(/__real__(/g' src/GPU/CUDA/cudaFunctions_template.h
+      sed -i 's/cimag(/__imag__(/g' src/GPU/CUDA/cudaFunctions_template.h
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""
