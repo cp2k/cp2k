@@ -25,36 +25,29 @@ MODULE input_cp2k_subsys
       cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
       cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, use_perd_x, use_perd_xy, &
       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
-   USE cp_output_handling, ONLY: cp_print_key_section_create, &
-                                 debug_print_level, &
-                                 high_print_level, &
-                                 medium_print_level
+   USE cp_output_handling, ONLY: cp_print_key_section_create, debug_print_level, &
+                                 high_print_level, medium_print_level
    USE cp_units, ONLY: cp_unit_to_cp2k
-   USE input_constants, ONLY: &
-      do_add, do_bondparm_covalent, do_bondparm_vdw, &
-      do_cell_cif, do_cell_cp2k, do_cell_xsc, do_cell_extxyz, do_cell_pdb, &
-      do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
-      do_conn_psf, do_conn_psf_u, do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, &
-      do_coord_g96, do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
-      do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
+   USE input_constants, ONLY: do_add, do_bondparm_covalent, do_bondparm_vdw, &
+                              do_cell_cif, do_cell_cp2k, do_cell_xsc, &
+                              do_cell_extxyz, do_cell_pdb, &
+                              do_conn_amb7, do_conn_g87, do_conn_g96, &
+                              do_conn_generate, do_conn_mol_set, do_conn_off, &
+                              do_conn_psf, do_conn_psf_u, do_conn_user, &
+                              do_coord_cif, do_coord_cp2k, do_coord_crd, &
+                              do_coord_g96, do_coord_off, do_coord_pdb, &
+                              do_coord_xtl, do_coord_xyz, do_remove, &
+                              do_skip_11, do_skip_12, do_skip_13, do_skip_14, &
+                              dump_pdb, gaussian
    USE input_cp2k_colvar, ONLY: create_colvar_section
    USE input_cp2k_mm, ONLY: create_neighbor_lists_section
-   USE input_keyword_types, ONLY: keyword_create, &
-                                  keyword_release, &
-                                  keyword_type
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type
-   USE input_val_types, ONLY: char_t, &
-                              integer_t, &
-                              lchar_t, &
-                              real_t
+   USE input_keyword_types, ONLY: keyword_create, keyword_release, keyword_type
+   USE input_section_types, ONLY: section_add_keyword, section_add_subsection, &
+                                  section_create, section_release, section_type
+   USE input_val_types, ONLY: char_t, integer_t, lchar_t, real_t
    USE kinds, ONLY: dp
    USE physcon, ONLY: bohr
-   USE string_utilities, ONLY: newline, &
-                               s2a
+   USE string_utilities, ONLY: newline, s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -170,7 +163,7 @@ CONTAINS
                           description="Specify the angles between the vectors A, B and C when using the ABC keyword. "// &
                           "The convention is that A lies along the X-axis, B is in the XY plane. "// &
                           "ALPHA is the angle between B and C, BETA is the angle between A and C and "// &
-                          "GAMMA the angle between A and B.", &
+                          "GAMMA is the angle between A and B.", &
                           usage="ALPHA_BETA_GAMMA [deg] 90.0 90.0 120.0", unit_str="deg", &
                           n_var=3, default_r_vals=[cp_unit_to_cp2k(value=90.0_dp, unit_str="deg"), &
                                                    cp_unit_to_cp2k(value=90.0_dp, unit_str="deg"), &
@@ -180,23 +173,29 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_NAME", &
-                          description="Possibility to read the cell from an external file ", &
+                          description="The external file from which cell is parsed ", &
                           repeats=.FALSE., usage="CELL_FILE_NAME <CHARACTER>", &
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CELL_FILE_FORMAT", &
-                          description="Specify the format of the cell file (if used)", &
+                          description="Format of the external file from which "// &
+                          "cell is parsed. If the format specifies a cell by "// &
+                          "lengths and angles of three vectors, then a cell "// &
+                          "matrix is constructed with the convention that A "// &
+                          "lies along the X-axis, B is in the XY plane. ALPHA "// &
+                          "is the angle between B and C, BETA is the angle "// &
+                          "between A and C, and GAMMA is the angle between A and B.", &
                           usage="CELL_FILE_FORMAT (CP2K|CIF|XSC|EXTXYZ|XYZ|PDB)", &
                           enum_c_vals=s2a("CP2K", "CIF", "XSC", "EXTXYZ", "XYZ", "PDB"), &
                           enum_i_vals=[do_cell_cp2k, do_cell_cif, do_cell_xsc, do_cell_extxyz, do_cell_extxyz, do_cell_pdb], &
                           enum_desc=s2a("Cell info in the CP2K native format", &
-                                        "Cell info from CIF file", &
+                                        "Cell info from CIF file (from fields `_cell_length_a` or `_cell.length_a`, etc)", &
                                         "Cell info in the XSC format (NAMD)", &
-                                        "Cell info in the comment line of Extended XYZ format", &
+                                        "Cell info as `lattice=...` field in the comment line of Extended XYZ format", &
                                         "Alias for Extended XYZ", &
-                                        "Cell info in the CRYST1 record of PDB format"), &
+                                        "Cell info in the `CRYST1` record of PDB format"), &
                           default_i_val=do_cell_cp2k)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -227,7 +226,15 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMMETRY", &
-         description="Imposes an initial cell symmetry.", &
+         description="Imposes an initial cell symmetry, according to the convention "// &
+         "that A lies along the X-axis, B is in the XY plane. After the "// &
+         "input cell information is parsed, the symmetry is enforced by "// &
+         "reconstructing the cell matrix from lengths and angles of the "// &
+         "cell vectors, taking averages if necessary. This process does "// &
+         "not affect input atomic coordinates; in case a space group is "// &
+         "to be detected and preserved for an optimization task, atomic "// &
+         "coordinates should correspond to cell vectors already obeying "// &
+         "the convention mentioned above.", &
          usage="SYMMETRY monoclinic", &
          enum_desc=s2a("No cell symmetry", &
                        "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)", &

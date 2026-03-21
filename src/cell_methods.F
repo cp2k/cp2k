@@ -284,9 +284,10 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      REAL(KIND=dp), PARAMETER                           :: eps = EPSILON(0.0_dp)
+      REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-14_dp
 
-      CHARACTER(LEN=default_path_length)                 :: cell_file_name, coord_file_name
+      CHARACTER(LEN=default_path_length)                 :: cell_file_name, coord_file_name, &
+                                                            error_msg
       INTEGER                                            :: cell_file_format, coord_file_format, &
                                                             my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
@@ -300,9 +301,12 @@ CONTAINS
 
       my_check_ref = .TRUE.
       NULLIFY (cell_ref_section, cell_par, cell_tmp, multiple_unit_cell)
-      ! cell_tmp is only for transferring matrix of cell vectors from
-      ! individual file parser subroutines to read_mat here, assuming
-      ! that unit conversion has been done in those subroutines.
+      ! cell_tmp has two purposes:
+      ! 1. for transferring matrix of cell vectors from individual
+      ! file parser subroutines to read_mat here, assuming that
+      ! unit conversion has been done in those subroutines;
+      ! 2. for testing whether enforcing symmetry makes a new set
+      ! of cell vectors significantly different from parsed input
       CALL cell_create(cell_tmp)
       IF (.NOT. ASSOCIATED(cell)) CALL cell_create(cell, tag="CELL")
       IF (.NOT. ASSOCIATED(cell_ref)) CALL cell_create(cell_ref, tag="CELL_REF")
@@ -442,7 +446,6 @@ CONTAINS
             END IF
          END IF
       END IF
-      CALL cell_release(cell_tmp)
 
       ! Convert read_mat or read_len and read_ang to actual cell%hmat
       IF (ANY(read_mat(:, :) > eps)) THEN
@@ -497,9 +500,22 @@ CONTAINS
 
       ! Load requested cell symmetry
       CALL section_vals_val_get(cell_section, "SYMMETRY", i_val=cell%symmetry_id)
-
-      ! Initialize cell
-      CALL init_cell(cell)
+      ! Try enforcing symmetry by initializing a temporary copy of cell
+      ! and see if the resulting cell matrix differ significantly
+      CALL cell_clone(cell, cell_tmp)
+      CALL init_cell(cell_tmp)
+      IF (ANY(ABS(cell_tmp%hmat - cell%hmat) > eps)) THEN
+         WRITE (UNIT=error_msg, FMT="(A)") &
+            "When initializing cell vectors with requested symmetry, one "// &
+            "or more elements of the cell matrix has varied significantly. "// &
+            "The input parameters are either deviating from the symmetry, "// &
+            "or not conforming to the program convention that cell matrix "// &
+            "is a lower triangle. The symmetrized cell vectors will be used "// &
+            "anyway with the input atomic coordinates."
+         CALL cp_warn(__LOCATION__, error_msg)
+      END IF
+      CALL cell_clone(cell_tmp, cell)
+      CALL cell_release(cell_tmp)
 
       IF (my_check_ref) THEN
          ! Recursive check for reference cell requested
@@ -639,12 +655,12 @@ CONTAINS
 !> \param para_env ...
 !> \date   12.2008
 !> \par    Format Information implemented:
-!>            _cell_length_a
-!>            _cell_length_b
-!>            _cell_length_c
-!>            _cell_angle_alpha
-!>            _cell_angle_beta
-!>            _cell_angle_gamma
+!>            _cell_length_a    (_cell.length_a)
+!>            _cell_length_b    (_cell.length_b)
+!>            _cell_length_c    (_cell.length_c)
+!>            _cell_angle_alpha (_cell.length_alpha)
+!>            _cell_angle_beta  (_cell.length_beta)
+!>            _cell_angle_gamma (_cell.length_gamma)
 !>
 !> \author Teodoro Laino [tlaino]
 !>         moved from topology_cif (1/2019 JHU)
@@ -670,51 +686,75 @@ CONTAINS
 
       ! Parsing cell infos
       periodic = 1
-      ! Check for   _cell_length_a
+      ! Check for   _cell_length_a or _cell.length_a
       CALL parser_search_string(parser, "_cell_length_a", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_a) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.length_a", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_length_a or _cell.length_a was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_lengths(1))
       cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1), "angstrom")
 
-      ! Check for   _cell_length_b
+      ! Check for   _cell_length_b or _cell.length_b
       CALL parser_search_string(parser, "_cell_length_b", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_b) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.length_b", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_length_b or _cell.length_b was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_lengths(2))
       cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2), "angstrom")
 
-      ! Check for   _cell_length_c
+      ! Check for   _cell_length_c or _cell.length_c
       CALL parser_search_string(parser, "_cell_length_c", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_length_c) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.length_c", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_length_c or _cell.length_c was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_lengths(3))
       cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3), "angstrom")
 
-      ! Check for   _cell_angle_alpha
+      ! Check for   _cell_angle_alpha or _cell.angle_alpha
       CALL parser_search_string(parser, "_cell_angle_alpha", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_alpha) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.angle_alpha", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_angle_alpha or _cell.angle_alpha was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_angles(1))
       cell_angles(1) = cp_unit_to_cp2k(cell_angles(1), "deg")
 
-      ! Check for   _cell_angle_beta
+      ! Check for   _cell_angle_beta or _cell.angle_beta
       CALL parser_search_string(parser, "_cell_angle_beta", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_beta) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.angle_beta", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_angle_beta or _cell.angle_beta was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_angles(2))
       cell_angles(2) = cp_unit_to_cp2k(cell_angles(2), "deg")
 
-      ! Check for   _cell_angle_gamma
+      ! Check for   _cell_angle_gamma or _cell.angle_gamma
       CALL parser_search_string(parser, "_cell_angle_gamma", ignore_case=.FALSE., found=found, &
                                 begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
-      IF (.NOT. found) &
-         CPABORT("The field (_cell_angle_gamma) was not found in CIF file! ")
+      IF (.NOT. found) THEN
+         CALL parser_search_string(parser, "_cell.angle_gamma", ignore_case=.FALSE., found=found, &
+                                   begin_line=.FALSE., search_from_begin_of_file=.TRUE.)
+         IF (.NOT. found) &
+            CPABORT("The field _cell_angle_gamma or _cell.angle_gamma was not found in CIF file! ")
+      END IF
       CALL cif_get_real(parser, cell_angles(3))
       cell_angles(3) = cp_unit_to_cp2k(cell_angles(3), "deg")
 
