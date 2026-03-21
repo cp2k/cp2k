@@ -4,9 +4,6 @@
 
 # Legacy entries. TODO: Please fix.
 
-# Test produced 21.61 MiB of output.
-QS/regtest-kp-1/c_5.inp
-
 # Test produced 9.98 MiB of output.
 QS/regtest-ot/H2O-geo-ot-lumo-all.inp
 
@@ -34,14 +31,8 @@ QS/regtest-embed/H2O_H2_pbe_mp2.inp
 # Test produced 7.22 MiB of output.
 QS/regtest-embed/H2O_H2_pbe_rpa_restart.inp
 
-# Test produced 7.15 MiB of output.
-xTB/regtest-3/si_print.inp
-
 # Test produced 7.09 MiB of output.
 QS/regtest-gpw-1/Ne_debug.inp
-
-# Test produced 6.93 MiB of output.
-xTB/regtest-3/si_kp.inp
 
 # Test produced 6.61 MiB of output.
 QS/regtest-ls-rtp/Ar_mixed_aa_planar-rtp-osc-field.inp
@@ -54,9 +45,6 @@ SE/regtest-2-1/hcl_ot.inp
 
 # Test produced 5.62 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-cs-8.inp
-
-# Test produced 5.59 MiB of output.
-xTB/regtest-5/ice2.inp
 
 # Test produced 5.03 MiB of output.
 QS/regtest-ot-1/H2O-print.inp
@@ -94,9 +82,6 @@ Fist/regtest-12/argon_opt_cell_ks.inp
 # Test produced 3.79 MiB of output.
 Fist/regtest-1-2/multi_frag.inp
 
-# Test produced 3.73 MiB of output.
-QS/C.inp
-
 # Test produced 3.69 MiB of output.
 QS/regtest-dm-ls-scf-3/H2O-dft-ecube.inp
 
@@ -126,9 +111,6 @@ Fist/regtest-1-2/multi_frag_check.inp
 
 # Test produced 3.10 MiB of output.
 QS/regtest-rtp-3/wfn_mix_loc-1.inp
-
-# Test produced 2.99 MiB of output.
-xTB/regtest-5/Ru_geo.inp
 
 # Test produced 2.91 MiB of output.
 Fist/regtest-7-2/UO2-2x2x2-binary_restart-npt-nve-2.inp

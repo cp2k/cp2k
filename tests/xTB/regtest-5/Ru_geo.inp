@@ -47,6 +47,10 @@
         METHOD BROYDEN_MIXING
         NBROYDEN 8
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
       &SMEAR ON
         ELECTRONIC_TEMPERATURE [K] 300
         METHOD FERMI_DIRAC
