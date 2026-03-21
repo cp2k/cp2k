@@ -453,9 +453,7 @@ This calculation is spin-independent so one does not have to define the spin of 
 The reference to projected to is loaded from the file `RTP-RESTART.wfn`, which is the ground state
 obtained after the SCF cycles. Note that you can define a wave-function that is not the ground state
 as long as the wave-function description (basis set, number of electrons...) is the same as the one
-used for the real-time propagation. The
-[REFERENCE_TYPE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.PROJECTION_MO.REFERENCE_TYPE)
-defaults to `SCF`.
+used for the real-time propagation. The `REFERENCE_TYPE` defaults to `SCF`.
 
 All the molecular orbitals available in this reference wave-function will be used as a reference for
 the projection by setting
