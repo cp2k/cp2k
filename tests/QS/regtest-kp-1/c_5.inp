@@ -29,6 +29,10 @@
         ALPHA 0.70
         METHOD DIRECT_P_MIXING
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE

@@ -33,6 +33,10 @@
         ALPHA 0.75
         METHOD DIRECT_P_MIXING
       &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
     &END SCF
   &END DFT
   &PRINT
