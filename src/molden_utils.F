@@ -10,11 +10,17 @@
 !> \author Teodoro Laino, 03.2009
 ! **************************************************************************************************
 MODULE molden_utils
+   USE admm_types,                      ONLY: admm_type
+   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
+                                              admm_uncorrect_for_eigenvalues
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
@@ -38,10 +44,14 @@ MODULE molden_utils
    USE periodic_table,                  ONLY: get_ptable_info
    USE physcon,                         ONLY: angstrom,&
                                               massunit
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_types,                     ONLY: mo_set_type
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -66,10 +76,12 @@ CONTAINS
 !> \param cell ...
 !> \param unoccupied_orbs optional: unoccupied orbital coefficients from make_lumo_gpw
 !> \param unoccupied_evals optional: unoccupied orbital eigenvalues
+!> \param qs_env ...
+!> \param calc_energies ...
 !> \author MattW, IainB
 ! **************************************************************************************************
    SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section, cell, &
-                               unoccupied_orbs, unoccupied_evals)
+                               unoccupied_orbs, unoccupied_evals, qs_env, calc_energies)
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -79,6 +91,8 @@ CONTAINS
          OPTIONAL                                        :: unoccupied_orbs
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: unoccupied_evals
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calc_energies
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mos_molden'
       CHARACTER(LEN=molden_lmax+1), PARAMETER            :: angmom = "spdfg"
@@ -91,12 +105,19 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
-      LOGICAL                                            :: print_warn, write_cell, write_nval
+      LOGICAL                                            :: do_calc_energies, print_warn, &
+                                                            write_cell, write_nval
       REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks, mo_coeff_deriv
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       CALL timeset(routineN, handle)
@@ -274,6 +295,40 @@ CONTAINS
          END IF
 
          DO ispin = 1, SIZE(mos)
+            do_calc_energies = .FALSE.
+            IF (PRESENT(calc_energies)) do_calc_energies = calc_energies
+
+            IF (PRESENT(qs_env) .AND. do_calc_energies) THEN
+               CALL get_qs_env(qs_env, matrix_ks=ks, dft_control=dft_control)
+
+               matrix_ks => ks(ispin)%matrix
+
+               ! With ADMM, we have to modify the Kohn-Sham matrix
+               IF (dft_control%do_admm) THEN
+                  CALL get_qs_env(qs_env, admm_env=admm_env)
+                  CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks)
+               END IF
+
+               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues)
+
+               IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                  mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
+               ELSE
+                  mo_coeff_deriv => NULL()
+               END IF
+
+               ! Update the eigenvalues of the occupied orbitals
+               CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                   ks_matrix=matrix_ks, &
+                                                   evals_arg=mo_eigenvalues, &
+                                                   co_rotate_dbcsr=mo_coeff_deriv)
+
+               ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
+               IF (dft_control%do_admm) THEN
+                  CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks)
+               END IF
+            END IF
+
             CALL cp_fm_get_info(mos(ispin)%mo_coeff, &
                                 nrow_global=nrow_global, &
                                 ncol_global=ncol_global)

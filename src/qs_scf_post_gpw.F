@@ -1145,7 +1145,8 @@ CONTAINS
             END IF
             CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
                                   unoccupied_orbs=unoccupied_orbs, &
-                                  unoccupied_evals=unoccupied_evals)
+                                  unoccupied_evals=unoccupied_evals, &
+                                  qs_env=qs_env, calc_energies=.TRUE.)
             DO ispin = 1, dft_control%nspins
                DEALLOCATE (unoccupied_evals(ispin)%array)
                CALL cp_fm_release(unoccupied_orbs(ispin))
@@ -2164,7 +2165,8 @@ CONTAINS
                IF (scf_env%method == ot_method_nr) defer_molden = .TRUE.
             END IF
             IF (.NOT. defer_molden) THEN
-               CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell)
+               CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
+                                     qs_env=qs_env, calc_energies=.TRUE.)
             END IF
             ! Write Chargemol .wfx
             IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%CHARGEMOL"), &

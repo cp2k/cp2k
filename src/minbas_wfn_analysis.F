@@ -367,7 +367,7 @@ CONTAINS
          ! Print basis functions: molden format
          CALL get_qs_env(qs_env, cell=cell)
          molden_section => section_vals_get_subs_vals(input_section, "MINBAS_MOLDEN")
-         CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section, cell=cell)
+         CALL write_mos_molden(mbas, qs_kind_set, particle_set, molden_section, cell=cell, qs_env=qs_env)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mbas(ispin))
          END DO

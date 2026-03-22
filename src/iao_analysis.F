@@ -488,7 +488,7 @@ CONTAINS
             mo_iao(ispin)%occupation_numbers = 1.0_dp
          END DO
          ! Print IAO basis functions: molden format
-         CALL write_mos_molden(mo_iao, qs_kind_set, particle_set, iao_molden_section, cell=cell)
+         CALL write_mos_molden(mo_iao, qs_kind_set, particle_set, iao_molden_section, cell=cell, qs_env=qs_env)
          DO ispin = 1, nspin
             CALL deallocate_mo_set(mo_iao(ispin))
          END DO
@@ -662,7 +662,7 @@ CONTAINS
                mo_loc(ispin)%occupation_numbers = 1.0_dp
             END DO
             ! Print IBO functions: molden format
-            CALL write_mos_molden(mo_loc, qs_kind_set, particle_set, ibo_molden_section, cell=cell)
+            CALL write_mos_molden(mo_loc, qs_kind_set, particle_set, ibo_molden_section, cell=cell, qs_env=qs_env)
             DO ispin = 1, nspin
                CALL deallocate_mo_set(mo_loc(ispin))
             END DO
