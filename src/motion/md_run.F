@@ -87,7 +87,8 @@ MODULE md_run
                                               simpar_type
    USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions,&
-                                              print_thermal_regions_langevin
+                                              print_thermal_regions_langevin,&
+                                              update_thermal_regions_temp_expected
    USE thermostat_methods,              ONLY: create_thermostats
    USE thermostat_types,                ONLY: thermostats_type
    USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -373,8 +374,6 @@ CONTAINS
 
          IF (ASSOCIATED(force_env%qs_env)) THEN
             CALL qs_env_time_update(force_env%qs_env, time, itimes)
-!deb        force_env%qs_env%sim_time = time
-!deb        force_env%qs_env%sim_step = itimes
          END IF
          ! Warm-up engines for metadynamics
          IF (ASSOCIATED(force_env%meta_env)) THEN
@@ -456,8 +455,6 @@ CONTAINS
          !needed when electric field fields are applied
          IF (ASSOCIATED(force_env%qs_env)) THEN
             CALL qs_env_time_update(force_env%qs_env, time, itimes)
-!deb        force_env%qs_env%sim_time = time
-!deb        force_env%qs_env%sim_step = itimes
          END IF
          IF (ehrenfest_md) force_env%qs_env%rtp%istep = istep
 
@@ -523,6 +520,10 @@ CONTAINS
 
          IF (simpar%ensemble /= reftraj_ensemble) THEN
             CALL md_energy(md_env, md_ener)
+            IF (simpar%do_thermal_region) THEN ! Optionally update expected temperature for each region
+               CALL get_md_env(md_env, thermal_regions=thermal_regions)
+               CALL update_thermal_regions_temp_expected(itimes, thermal_regions)
+            END IF
             CALL temperature_control(simpar, md_env, md_ener, force_env, logger)
             CALL comvel_control(md_ener, force_env, md_section, logger)
             CALL angvel_control(md_ener, force_env, md_section, logger)

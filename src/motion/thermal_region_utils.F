@@ -28,8 +28,16 @@ MODULE thermal_region_utils
                                               cp_print_key_unit_nr
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                              cp_unit_to_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
+   USE force_fields_util,               ONLY: get_generic_info
+   USE fparser,                         ONLY: EvalErrType,&
+                                              evalf,&
+                                              finalizef,&
+                                              initf,&
+                                              parsef
    USE input_constants,                 ONLY: langevin_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
@@ -58,7 +66,8 @@ MODULE thermal_region_utils
    PRIVATE
    PUBLIC :: create_thermal_regions, &
              print_thermal_regions_temperature, &
-             print_thermal_regions_langevin
+             print_thermal_regions_langevin, &
+             update_thermal_regions_temp_expected
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
 
@@ -81,18 +90,19 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       CHARACTER(LEN=default_string_length)               :: my_region
-      INTEGER                                            :: i, il, ipart, ireg, nlist, nregions
+      INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, nregions
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
-                                                            explicit
+                                                            explicit, use_t, use_tfunc
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(section_vals_type), POINTER                   :: region_sections, thermal_region_section
+      TYPE(section_vals_type), POINTER                   :: region_sections, thermal_region_section,&
+                                                            tfunc_section
       TYPE(thermal_region_type), POINTER                 :: t_region
 
-      NULLIFY (region_sections, t_region, thermal_region_section, particles, subsys, tmplist)
+      NULLIFY (region_sections, t_region, tfunc_section, thermal_region_section, particles, subsys, tmplist)
       ALLOCATE (thermal_regions)
       CALL allocate_thermal_regions(thermal_regions)
       thermal_region_section => section_vals_get_subs_vals(md_section, "THERMAL_REGION")
@@ -135,8 +145,11 @@ CONTAINS
             END IF
             DO ireg = 1, nregions
                NULLIFY (t_region)
+               CALL integer_to_string(ireg, my_region)
                t_region => thermal_regions%thermal_region(ireg)
                t_region%region_index = ireg
+
+               ! Determine t_region%npart
                CALL section_vals_val_get(region_sections, "LIST", &
                                          i_rep_section=ireg, n_rep_val=nlist)
                NULLIFY (t_region%part_index)
@@ -160,9 +173,37 @@ CONTAINS
                      END IF
                   END DO
                END DO
-               CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, &
-                                         r_val=temp)
-               t_region%temp_expected = temp
+
+               ! Determine t_region%temp_expected
+               tfunc_section => section_vals_get_subs_vals(region_sections, "TFUNC", i_rep_section=ireg)
+               CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, explicit=use_t)
+               IF (use_t) CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, r_val=temp)
+               CALL section_vals_get(tfunc_section, explicit=use_tfunc)
+               IF (use_tfunc) THEN
+                  CALL get_generic_info(tfunc_section, "FUNCTION", &
+                                        t_region%temperature_function, &
+                                        t_region%temperature_function_parameters, &
+                                        t_region%temperature_function_values, &
+                                        input_variables=["S", "T"], i_rep_sec=1)
+                  CALL initf(1)
+                  CALL parsef(1, TRIM(t_region%temperature_function), &
+                              t_region%temperature_function_parameters)
+                  IF (.NOT. use_t) THEN ! Evaluate function for initial temperature
+                     CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=itimes)
+                     temp = cp_unit_to_cp2k(evalf(1, [itimes*1.0_dp, 0.0_dp]), "K")
+                     CPASSERT(EvalErrType <= 0)
+                  END IF
+                  CALL finalizef()
+               END IF
+               IF (temp >= 0.0_dp) THEN ! Check for negative temperature in Kelvin
+                  t_region%temp_expected = temp
+               ELSE
+                  CALL cp_abort(__LOCATION__, &
+                             "The initial temperature for region "//TRIM(my_region)//" is "// &
+                             TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(temp, "K"))))// &
+                             " K, which is negative and unphysical!")
+               END IF
+
                CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
                                          r_val=temp_tol)
                t_region%temp_tol = temp_tol
@@ -172,7 +213,6 @@ CONTAINS
                                             r_val=t_region%noisy_gamma_region)
                   IF (simpar%ensemble == langevin_ensemble) THEN
                      IF (.NOT. do_langevin) THEN
-                        CALL integer_to_string(ireg, my_region)
                         CALL cp_warn(__LOCATION__, &
                                      "You provided NOISY_GAMMA_REGION but atoms in thermal region "//TRIM(my_region)// &
                                      " will not undergo Langevin MD. "// &
@@ -202,6 +242,49 @@ CONTAINS
    END SUBROUTINE create_thermal_regions
 
 ! **************************************************************************************************
+!> \brief update_thermal_regions_temp_expected
+!> \param thermal_regions : thermal regions type contains information
+!>                          about the regions
+!> \param itimes          : iteration number of the time step
+!> \par    Note on units: t_region%temperature is updated by
+!>         SUBROUTINE scale_velocity_region in md_vel_utils.F
+!>         which is in Kelvin, but t_region%temp_expected is
+!>         in cp2k internal units. See "Note the unit conversion
+!>         here" in print_thermal_regions_temperature below.
+!> \date   03.2026
+!> \author HE Zilong
+! **************************************************************************************************
+   SUBROUTINE update_thermal_regions_temp_expected(itimes, thermal_regions)
+      TYPE(thermal_regions_type), POINTER                :: thermal_regions
+      INTEGER, INTENT(IN)                                :: itimes
+
+      CHARACTER(LEN=default_string_length)               :: my_region
+      INTEGER                                            :: ireg
+      TYPE(thermal_region_type), POINTER                 :: t_region
+
+      DO ireg = 1, thermal_regions%nregions
+         NULLIFY (t_region)
+         t_region => thermal_regions%thermal_region(ireg)
+         IF (LEN_TRIM(t_region%temperature_function) > 0) THEN
+            CALL initf(1)
+            CALL parsef(1, TRIM(t_region%temperature_function), t_region%temperature_function_parameters)
+            t_region%temp_expected = &
+               cp_unit_to_cp2k(evalf(1, [itimes*1.0_dp, t_region%temperature]), "K")
+            CPASSERT(EvalErrType <= 0)
+            CALL finalizef()
+            IF (t_region%temp_expected < 0.0_dp) THEN
+               CALL integer_to_string(ireg, my_region)
+               CALL cp_abort(__LOCATION__, &
+                             "The temperature evaluated for region "//TRIM(my_region)//" is "// &
+                             TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(t_region%temp_expected, "K"))))// &
+                             " K, which is negative and unphysical!")
+            END IF
+         END IF
+      END DO
+
+   END SUBROUTINE update_thermal_regions_temp_expected
+
+! **************************************************************************************************
 !> \brief print_thermal_regions_temperature
 !> \param thermal_regions : thermal regions type contains information
 !>                          about the regions
@@ -224,7 +307,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: fmd
       INTEGER                                            :: ireg, nregions, unit
       LOGICAL                                            :: new_file
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: temp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: temp, temp_tfunc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -244,15 +327,19 @@ CONTAINS
                END IF
                nregions = thermal_regions%nregions
                ALLOCATE (temp(0:nregions))
+               ALLOCATE (temp_tfunc(1:nregions))
                temp = 0.0_dp
                temp(0) = thermal_regions%temp_reg0
                DO ireg = 1, nregions
+                  ! Note the unit conversion here
                   temp(ireg) = thermal_regions%thermal_region(ireg)%temperature
+                  temp_tfunc(ireg) = cp_unit_from_cp2k(thermal_regions%thermal_region(ireg)%temp_expected, "K")
                END DO
-               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nregions + 1)))//"F20.6)"
+               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(2*nregions + 1)))//"F20.8)"
                fmd = TRIM(fmd)
-               WRITE (UNIT=unit, FMT=fmd) itimes, time, temp(0:nregions)
+               WRITE (UNIT=unit, FMT=fmd) itimes, time, temp(0), (temp_tfunc(ireg), temp(ireg), ireg=1, nregions)
                DEALLOCATE (temp)
+               DEALLOCATE (temp_tfunc)
             END IF
             CALL cp_print_key_finished_output(unit, logger, thermal_regions%section, "PRINT%TEMPERATURE")
          END IF

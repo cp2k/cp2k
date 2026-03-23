@@ -22,6 +22,7 @@ MODULE input_cp2k_md
                                               low_print_level,&
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, md_init_default, md_init_vib, npe_f_ensemble, &
         npe_i_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
@@ -40,14 +41,15 @@ MODULE input_cp2k_md
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: integer_t,&
+   USE input_val_types,                 ONLY: char_t,&
+                                              integer_t,&
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
    USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY,&
                                               REFTRAJ_EVAL_ENERGY_FORCES,&
                                               REFTRAJ_EVAL_NONE
-   USE string_utilities,                ONLY: s2a
+   USE string_utilities,                ONLY: newline, s2a
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -940,11 +942,12 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, region_section, subsection
+      TYPE(section_type), POINTER                        :: print_key, region_section,&
+                                                            subsection, tfunc_section
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      CALL section_create(section, __LOCATION__, name="thermal_region", &
+      CALL section_create(section, __LOCATION__, name="THERMAL_REGION", &
                           description="Define regions where different initialization and control "// &
                           "of the temperature is used. When MOTION%MD%ENSEMBLE is set to LANGEVIN, "// &
                           "this section controls if the atoms defined inside and outside the "// &
@@ -955,9 +958,9 @@ CONTAINS
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (region_section)
-      NULLIFY (keyword, subsection)
+      NULLIFY (keyword, subsection, tfunc_section)
 
-      CALL keyword_create(keyword, __LOCATION__, name="force_rescaling", &
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_RESCALING", &
                           description="Control the rescaling ot the velocities in all the regions, "// &
                           "according to the temperature assigned to each reagion, when "// &
                           "RESTART_VELOCITY in EXT_RESTART is active.", &
@@ -965,18 +968,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="do_langevin_default", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_LANGEVIN_DEFAULT", &
                           description="If ENSEMBLE is set to LANGEVIN, controls whether the "// &
                           "atoms NOT defined in the thermal regions to undergo langevin MD "// &
                           "or not. If not, then the atoms will undergo NVE Born-Oppenheimer MD.", &
-                          usage="do_langevin_default .FALSE.", &
+                          usage="DO_LANGEVIN_DEFAULT .FALSE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL section_create(region_section, __LOCATION__, name="DEFINE_REGION", &
-                          description="This section provides the possibility to define arbitrary region ", &
-                          n_keywords=3, n_subsections=0, repeats=.TRUE.)
+                          description="Define arbitrary thermal region with distinct "// &
+                          "temperature controls. For thermostat regions, see section "// &
+                          "MOTION%MD%THERMOSTAT%DEFINE_REGION.", &
+                          n_keywords=3, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="LIST", &
@@ -986,42 +991,99 @@ CONTAINS
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="temperature", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="The temperature in K used to initialize the velocities "// &
-                          "of the atoms in this region ", &
-                          usage="temperature 5.0", &
+                          "of the atoms in this region. It overrides the value evaluated by the "// &
+                          "function defined in TFUNC section.", &
+                          usage="TEMPERATURE 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="K"), &
                           unit_str="K")
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="temp_tol", &
-                          description="Maximum accepted temperature deviation from the expected "// &
-                          "value for this region. If temp_tol=0 no rescaling is performed", &
-                          usage="temp_tol 0.0", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMP_TOL", &
+                          description="Maximum accepted temperature deviation from the target "// &
+                          "value for this region, which is defined by TEMPERATURE or evaluated "// &
+                          "with the function defined in TFUNC section. Default value is 0 that "// &
+                          "turns off re-scaling.", &
+                          usage="TEMP_TOL 0.0", &
                           default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="do_langevin", &
+      CALL keyword_create(keyword, __LOCATION__, name="DO_LANGEVIN", &
                           description="When ENSEMBLE is set to LANGEVIN, Controls whether "// &
                           "the atoms in the thermal region should undergo Langevin MD. If "// &
                           "not, then they will undergo NVE Born-Oppenheimer MD.", &
-                          usage="do_langevin .TRUE.", &
+                          usage="DO_LANGEVIN .TRUE.", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="noisy_gamma_region", &
+      CALL keyword_create(keyword, __LOCATION__, name="NOISY_GAMMA_REGION", &
                           description="Special imaginary Langevin Friction term"// &
                           " for Langevin Dynamics with noisy forces for the atoms in this region."// &
                           " When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."// &
                           " When unset for a defined region, the general NOISY_GAMMA value applies.", &
-                          citations=[Kuhne2007], usage="noisy_gamma_region 4.0E-5", &
+                          citations=[Kuhne2007], usage="NOISY_GAMMA_REGION 4.0E-5", &
                           type_of_var=real_t, &
                           unit_str="fs^-1")
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
+
+      ! Define temperature function start
+      CALL section_create(tfunc_section, __LOCATION__, name="TFUNC", &
+                          description="This section specify the target temperature by using "// &
+                          "the time step and the last-step temperature, allowing for simple "// &
+                          "region-wise simulated annealing (heating/cooling) controls. When "// &
+                          "the absolute difference between target and actual temperature is "// &
+                          "larger than TEMP_TOL, the atomic velocities in the region are re-"// &
+                          "scaled to match target temperature. Note that actual temperature "// &
+                          "is also subject to thermostat coupling, and a small, restrictive "// &
+                          "TEMP_TOL together with rapidly varying target temperature leaves "// &
+                          "little time for system relaxation."//newline// &
+                          "Further notes about temperature. "//docf(), &
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+      
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
+                          description="Specifies the functional form of temperature in "// &
+                          "Kelvin in mathematical notation. Two variables are available "// &
+                          "with one denoted S for integer time step and another denoted "// &
+                          "T for the last-step temperature in Kelvin respectively. When "// &
+                          "DEFINE_REGION%TEMPERATURE is not explicitly set, the function "// &
+                          "will be evaluated at S set in MD%STEP_START_VAL and T = 0.0 "// &
+                          "to initialize the velocities of atoms in the region.", &
+                          usage="FUNCTION  0.5*(T+300*(2/(1+EXP(-0.001*S))-1))", &
+                          type_of_var=lchar_t, n_var=1)
+      CALL section_add_keyword(tfunc_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
+                          description="Defines the parameters of the functional form", &
+                          usage="PARAMETERS ", type_of_var=char_t, &
+                          n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(tfunc_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
+                          description="Defines the values of parameter of the functional form", &
+                          usage="VALUES ", type_of_var=real_t, &
+                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
+      CALL section_add_keyword(tfunc_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
+                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
+                          "It is assumed that the corresponding parameter value is specified in this unit.", &
+                          usage="UNITS ", type_of_var=char_t, &
+                          n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(tfunc_section, keyword)
+      CALL keyword_release(keyword)
+      
+      CALL section_add_subsection(region_section, tfunc_section)
+      CALL section_release(tfunc_section)
+      ! Define temperature function end
 
       CALL section_add_subsection(section, region_section)
       CALL section_release(region_section)
@@ -1032,7 +1094,13 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMPERATURE", &
-                                       description="Controls output of temperature per region.", &
+                                       description="Controls output of temperature per region. "// &
+                                       "The first three columns are: step number, time (in fs), "// &
+                                       "and temperature of atoms not in any temperature region "// &
+                                       "(or zero if all atoms are in some temperature region). "// &
+                                       "Subsequent columns are, in pairs, the target value "// &
+                                       "(calculated by TFUNC or specified by TEMPERATURE) "// &
+                                       "and the actual value of temperature for each region.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(subsection, print_key)
