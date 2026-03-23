@@ -83,6 +83,7 @@ MODULE dm_ls_scf
    USE transport,                       ONLY: external_scf_method,&
                                               transport_initialize
    USE transport_env_types,             ONLY: transport_env_type
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -160,12 +161,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_init_scf'
 
       INTEGER                                            :: handle, ispin, nspin, unit_nr
+      LOGICAL                                            :: use_virial
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: input
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -181,6 +184,7 @@ CONTAINS
       CALL get_qs_env(qs_env, nelectron_total=ls_scf_env%nelectron_total, &
                       matrix_s=matrix_s, &
                       matrix_w=matrix_w, &
+                      virial=virial, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       molecule_set=molecule_set, &
@@ -191,6 +195,11 @@ CONTAINS
 
       ! needs forces ? There might be a better way to flag this
       ls_scf_env%calculate_forces = ASSOCIATED(matrix_w)
+
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (use_virial .AND. ls_scf_env%calculate_forces .AND. .NOT. dft_control%qs_control%do_kg) THEN
+         CPABORT("Analytical stress tensor not implemented for linear scaling SCF.")
+      END IF
 
       ! some basic initialization of the QS side of things
       CALL ls_scf_init_qs(qs_env)
