@@ -120,6 +120,9 @@ async def main() -> None:
 
     # Have to copy everything upfront because the test dirs are not self-contained.
     print("------------------------------------------------------------------------")
+    if cfg.work_base_dir.is_relative_to(cfg.cp2k_root / "tests"):
+        print(f"Error: Work base dir must not be relative to cp2k/tests dir.")
+        sys.exit(1)
     print("Copying test files ...", end="")
     shutil.copytree(cfg.cp2k_root / "tests", cfg.work_base_dir)
     print(" done")
