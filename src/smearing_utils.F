@@ -23,6 +23,12 @@
 ! **************************************************************************************************
 MODULE smearing_utils
 
+   USE bibliography,                    ONLY: FuHo1983,&
+                                              Marzari1999,&
+                                              Mermin1965,&
+                                              MethfesselPaxton1989,&
+                                              cite_reference,&
+                                              dosSantos2023
    USE input_constants,                 ONLY: smear_fermi_dirac,&
                                               smear_gaussian,&
                                               smear_mp,&
@@ -41,12 +47,35 @@ MODULE smearing_utils
    ! Unified interface (method as parameter)
    PUBLIC :: SmearOcc, SmearFixed, SmearFixedDeriv, SmearFixedDerivMV
    PUBLIC :: Smearkp, Smearkp2
+   PRIVATE :: cite_smearing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
    INTEGER, PARAMETER, PRIVATE                           :: BISECT_MAX_ITER = 400
    INTEGER, PARAMETER, PRIVATE                           :: NEWTON_MAX_ITER = 50
 
 CONTAINS
+! **************************************************************************************************
+!> \brief   Citation of Smearing methods
+!> \param method ...
+! **************************************************************************************************
+   SUBROUTINE cite_smearing(method)
+      INTEGER, INTENT(IN)                                :: method
+
+      SELECT CASE (method)
+      CASE (smear_fermi_dirac)
+         CALL cite_reference(Mermin1965)
+      CASE (smear_gaussian)
+         CALL cite_reference(FuHo1983)
+      CASE (smear_mp)
+         CALL cite_reference(FuHo1983)
+         CALL cite_reference(MethfesselPaxton1989)
+         CALL cite_reference(dosSantos2023)
+      CASE (smear_mv)
+         CALL cite_reference(FuHo1983)
+         CALL cite_reference(Marzari1999)
+         CALL cite_reference(dosSantos2023)
+      END SELECT
+   END SUBROUTINE cite_smearing
 
 ! **************************************************************************************************
 !> \brief   Returns occupations and smearing correction for a given set of
@@ -302,6 +331,8 @@ CONTAINS
 
       Nstate = SIZE(e)
 
+      CALL cite_smearing(method)
+
       SELECT CASE (method)
 
          ! Non-monotonic methods: Gaussian bisection + Newton refinement
@@ -448,6 +479,8 @@ CONTAINS
       nmo = SIZE(e, 1)
       nkp = SIZE(e, 2)
 
+      CALL cite_smearing(method)
+
       ! Choose bisection method: Gaussian for MP/MV, actual method for FD/Gaussian
       SELECT CASE (method)
       CASE (smear_mp, smear_mv)
@@ -560,6 +593,8 @@ CONTAINS
 
       nmo = SIZE(e, 1)
       nkp = SIZE(e, 2)
+
+      CALL cite_smearing(method)
 
       SELECT CASE (method)
       CASE (smear_mp, smear_mv)
