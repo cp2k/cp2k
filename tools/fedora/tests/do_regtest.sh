@@ -28,15 +28,15 @@ rlJournalStart
 
     if [[ "${CP2K_VARIANT}" != "serial" ]]; then
       rlRun "ls ${MPI_BIN}/cp2k.psmp" 0 "Verify CP2K MPI binary exists"
+      if [[ "${CP2K_VARIANT}" == "openmpi" ]]; then
+        rlRun "time mpiexec -n 2 cp2k.psmp --version > /dev/null" 0 "Check the PRTE startup overhead in OpenMPI 5.x."
+      else
+        rlRun "time mpiexec -n 2 cp2k.psmp --version > /dev/null"
+      fi
     else
       rlRun "ls /usr/bin/cp2k.ssmp" 0 "Verify CP2K serial binary exists"
     fi
 
-    # Temporary change to try looking for why performance issue happen
-    if [[ "${CP2K_VARIANT}" == "openmpi" ]]; then
-      rlRun "cat /proc/sys/kernel/yama/ptrace_scope" 0 "Check ptrace scope (0=CMA works, 1+=CMA blocked)"
-      rlRun "df -h /dev/shm" 0 "Check shared memory size"
-    fi
 
     rlRun "./do_regtest.py $args" 0 "Run regression tests"
 
