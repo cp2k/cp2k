@@ -3,7 +3,7 @@ framework: beakerlib
 path: /
 test: ./tools/fedora/tests/do_regtest.sh
 # TODO: Reduce the tests duration
-duration: 3h
+duration: 2h
 environment+:
   # Cannot run unittest outside of the build environment
   CP2K_SKIP_UNITTEST: true
@@ -19,6 +19,9 @@ environment+:
     # prterun blocks running mpiexec as root. Set some environment variables to workaround it
     OMPI_ALLOW_RUN_AS_ROOT: 1
     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    OMPI_MCA_mpi_yield_when_idle: 1
+    OMPI_MCA_pml: ob1
+    OMPI_MCA_btl: self,sm
 /mpich:
   summary+: (mpich)
   environment+:
