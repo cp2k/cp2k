@@ -156,6 +156,13 @@ async def main() -> None:
                 break  # run only one test per directory
         batches.append(batch)
 
+    # Check for nested test dirs.
+    for batch_a in batches:
+        for batch_b in batches:
+            if batch_a != batch_b and batch_a.workdir.is_relative_to(batch_b.workdir):
+                print(f"Error: Test dirs {batch_a.name} and {batch_b.name} are nested.")
+                sys.exit(1)
+
     # Create async tasks.
     tasks: List[Task[BatchResult]] = []
     num_restrictdirs = num_skipdirs = 0
