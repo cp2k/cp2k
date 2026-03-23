@@ -1,0 +1,9 @@
+"dbm_blocks_01.inp"                     = [{matcher="M058", tol=5.0E-14, ref=20978908949.261906}]
+"dbm_blocks_02.inp"                     = [{matcher="M058", tol=5.0E-14, ref=21229174127.238159}]
+"dbm_blocks_03.inp"                     = [{matcher="M058", tol=5.0E-14, ref=21561533688.640675}]
+"dbm_blocks_04.inp"                     = [{matcher="M058", tol=5.0E-14, ref=21304439095.77774}]
+"dbm_blocks_05.inp"                     = [{matcher="M058", tol=5.0E-14, ref=21455488291.450737}]
+"dbm_blocks_06.inp"                     = [{matcher="M058", tol=5.0E-14, ref=165599.60719889530}]
+"dbm_order_N.inp"                       = [{matcher="M058", tol=5.0E-14, ref=1910924.8949438382}]
+
+#EOF
