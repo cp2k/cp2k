@@ -91,7 +91,8 @@ MODULE bibliography
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
-                            Hanasaki2025, Tan2025
+                            Hanasaki2025, Tan2025, FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, &
+                            Mermin1965
 
 CONTAINS
 
@@ -2011,6 +2012,37 @@ CONTAINS
                          "and Nonadiabatic Dynamics with CP2K’s Multifaceted Approach", &
                          source="J. Phys. Chem. A", volume="129", pages="7313-7344", &
                          year=2025, doi="10.1021/acs.jpca.5c02969")
+
+      CALL add_reference(key=Mermin1965, &
+                         authors=s2a("N. D. Mermin"), &
+                         title="Thermal Properties of the Inhomogeneous Electron Gas", &
+                         source="Phys. Rev.", volume="137", pages="A1441-A1443", &
+                         year=1965, doi="10.1103/PhysRev.137.A1441")
+
+      CALL add_reference(key=FuHo1983, &
+                         authors=s2a("C.-L. Fu", "K.-M. Ho"), &
+                         title="First-principles calculation of the equilibrium ground-state "// &
+                         "properties of transition metals: Applications to Nb and Mo", &
+                         source="Phys. Rev. B", volume="28", pages="5480-5486", &
+                         year=1983, doi="10.1103/PhysRevB.28.5480")
+
+      CALL add_reference(key=MethfesselPaxton1989, &
+                         authors=s2a("M. Methfessel", "A. T. Paxton"), &
+                         title="High-precision sampling for Brillouin-zone integration in metals", &
+                         source="Phys. Rev. B", volume="40", pages="3616-3621", &
+                         year=1989, doi="10.1103/PhysRevB.40.3616")
+
+      CALL add_reference(key=Marzari1999, &
+                         authors=s2a("N. Marzari", "D. Vanderbilt", "A. De Vita", "M. C. Payne"), &
+                         title="Thermal Contraction and Disordering of the Al(110) Surface", &
+                         source="Phys. Rev. Lett.", volume="82", pages="3296-3299", &
+                         year=1999, doi="10.1103/PhysRevLett.82.3296")
+
+      CALL add_reference(key=dosSantos2023, &
+                         authors=s2a("F. J. dos Santos", "N. Marzari"), &
+                         title="Fermi energy determination for advanced smearing techniques", &
+                         source="Phys. Rev. B", volume="107", pages="195122", &
+                         year=2023, doi="10.1103/PhysRevB.107.195122")
 
    END SUBROUTINE add_all_references
 

@@ -23,6 +23,12 @@
 ! **************************************************************************************************
 MODULE smearing_utils
 
+   USE bibliography,                    ONLY: FuHo1983,&
+                                              Marzari1999,&
+                                              Mermin1965,&
+                                              MethfesselPaxton1989,&
+                                              cite_reference,&
+                                              dosSantos2023
    USE input_constants,                 ONLY: smear_fermi_dirac,&
                                               smear_gaussian,&
                                               smear_mp,&
@@ -41,11 +47,35 @@ MODULE smearing_utils
    ! Unified interface (method as parameter)
    PUBLIC :: SmearOcc, SmearFixed, SmearFixedDeriv, SmearFixedDerivMV
    PUBLIC :: Smearkp, Smearkp2
+   PRIVATE :: cite_smearing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
    INTEGER, PARAMETER, PRIVATE                           :: BISECT_MAX_ITER = 400
+   INTEGER, PARAMETER, PRIVATE                           :: NEWTON_MAX_ITER = 50
 
 CONTAINS
+! **************************************************************************************************
+!> \brief   Citation of Smearing methods
+!> \param method ...
+! **************************************************************************************************
+   SUBROUTINE cite_smearing(method)
+      INTEGER, INTENT(IN)                                :: method
+
+      SELECT CASE (method)
+      CASE (smear_fermi_dirac)
+         CALL cite_reference(Mermin1965)
+      CASE (smear_gaussian)
+         CALL cite_reference(FuHo1983)
+      CASE (smear_mp)
+         CALL cite_reference(FuHo1983)
+         CALL cite_reference(MethfesselPaxton1989)
+         CALL cite_reference(dosSantos2023)
+      CASE (smear_mv)
+         CALL cite_reference(FuHo1983)
+         CALL cite_reference(Marzari1999)
+         CALL cite_reference(dosSantos2023)
+      END SELECT
+   END SUBROUTINE cite_smearing
 
 ! **************************************************************************************************
 !> \brief   Returns occupations and smearing correction for a given set of
@@ -260,7 +290,12 @@ CONTAINS
 !>          electron count equals N, for a given smearing method (Gamma point).
 !>          Brackets mu by expanding outward from [min(e), max(e)] in steps
 !>          of sigma, then bisects to machine precision.
-!>          Could fail if mu lies far outside the eigenvalue range (to be fixed).
+!>
+!>          For MP-1 and MV: the occupation function is non-monotonic, so it's
+!>          possible that pure bisection find a spurious root.
+!>          We first bisect with Gaussian smearing to get a reliable initial mu,
+!>          then refine with Newton's method using the actual method's dN/dmu.
+!>          (dos Santos & Marzari, PRB 2023)
 !>
 !> \param f       occupations (output)
 !> \param mu      chemical potential found by bisection (output)
@@ -281,9 +316,10 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
 
-      INTEGER                                            :: iter, my_estate
-      REAL(KIND=dp)                                      :: mu_max, mu_min, mu_now, my_festate, &
-                                                            N_now, N_tmp
+      INTEGER                                            :: iter, my_estate, Nstate
+      REAL(KIND=dp)                                      :: Gsum, mu_max, mu_min, mu_now, &
+                                                            my_festate, N_now, N_tmp
+      REAL(KIND=dp), ALLOCATABLE                         :: gvec(:)
 
       IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
          my_estate = estate
@@ -293,53 +329,114 @@ CONTAINS
          my_festate = my_estate
       END IF
 
-      ! Bracket mu from below
-      mu_min = MINVAL(e)
-      iter = 0
-      DO
-         iter = iter + 1
-         CALL SmearOcc(f, N_tmp, kTS, e, mu_min, sigma, maxocc, method, my_estate, my_festate)
-         IF (N_tmp > N .OR. iter > 20) THEN
-            mu_min = mu_min - sigma
-         ELSE
-            EXIT
-         END IF
-      END DO
+      Nstate = SIZE(e)
 
-      ! Bracket mu from above
-      mu_max = MAXVAL(e)
-      iter = 0
-      DO
-         iter = iter + 1
-         CALL SmearOcc(f, N_tmp, kTS, e, mu_max, sigma, maxocc, method, my_estate, my_festate)
-         IF (N_tmp < N .OR. iter > 20) THEN
-            mu_max = mu_max + sigma
-         ELSE
-            EXIT
-         END IF
-      END DO
+      CALL cite_smearing(method)
 
-      ! Bisection
-      iter = 0
-      DO WHILE (mu_max - mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
-         iter = iter + 1
-         mu_now = (mu_max + mu_min)/2.0_dp
-         CALL SmearOcc(f, N_now, kTS, e, mu_now, sigma, maxocc, method, my_estate, my_festate)
+      SELECT CASE (method)
 
-         IF (N_now <= N) THEN
-            mu_min = mu_now
-         ELSE
-            mu_max = mu_now
-         END IF
+         ! Non-monotonic methods: Gaussian bisection + Newton refinement
+      CASE (smear_mp, smear_mv)
+         ! Step 1: Gaussian bisection for a reliable initial mu
+         mu_min = MINVAL(e)
+         iter = 0
+         DO
+            iter = iter + 1
+            CALL SmearOcc(f, N_tmp, kTS, e, mu_min, sigma, maxocc, smear_gaussian, my_estate, my_festate)
+            IF (N_tmp > N .OR. iter > 20) THEN
+               mu_min = mu_min - sigma
+            ELSE
+               EXIT
+            END IF
+         END DO
 
-         IF (iter > BISECT_MAX_ITER) THEN
-            CPWARN("SmearFixed: maximum bisection iterations reached")
-            EXIT
-         END IF
-      END DO
+         mu_max = MAXVAL(e)
+         iter = 0
+         DO
+            iter = iter + 1
+            CALL SmearOcc(f, N_tmp, kTS, e, mu_max, sigma, maxocc, smear_gaussian, my_estate, my_festate)
+            IF (N_tmp < N .OR. iter > 20) THEN
+               mu_max = mu_max + sigma
+            ELSE
+               EXIT
+            END IF
+         END DO
 
-      mu = (mu_max + mu_min)/2.0_dp
-      CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+         iter = 0
+         DO WHILE (mu_max - mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
+            iter = iter + 1
+            mu_now = (mu_max + mu_min)/2.0_dp
+            CALL SmearOcc(f, N_now, kTS, e, mu_now, sigma, maxocc, smear_gaussian, my_estate, my_festate)
+            IF (N_now <= N) THEN
+               mu_min = mu_now
+            ELSE
+               mu_max = mu_now
+            END IF
+            IF (iter > BISECT_MAX_ITER) EXIT
+         END DO
+         mu = (mu_max + mu_min)/2.0_dp
+
+         ! Step 2: Newton refinement with the actual method
+         ALLOCATE (gvec(Nstate))
+         DO iter = 1, NEWTON_MAX_ITER
+            CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+            IF (ABS(N_now - N) < N*1.0e-12_dp) EXIT
+            CALL compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, my_estate, my_festate)
+            Gsum = accurate_sum(gvec)
+            IF (ABS(Gsum) < EPSILON(Gsum)) EXIT
+            mu = mu + (N - N_now)/Gsum
+         END DO
+         DEALLOCATE (gvec)
+
+         ! Final evaluation
+         CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+
+         ! Monotonic methods (FD, Gaussian): pure bisection
+      CASE DEFAULT
+         mu_min = MINVAL(e)
+         iter = 0
+         DO
+            iter = iter + 1
+            CALL SmearOcc(f, N_tmp, kTS, e, mu_min, sigma, maxocc, method, my_estate, my_festate)
+            IF (N_tmp > N .OR. iter > 20) THEN
+               mu_min = mu_min - sigma
+            ELSE
+               EXIT
+            END IF
+         END DO
+
+         mu_max = MAXVAL(e)
+         iter = 0
+         DO
+            iter = iter + 1
+            CALL SmearOcc(f, N_tmp, kTS, e, mu_max, sigma, maxocc, method, my_estate, my_festate)
+            IF (N_tmp < N .OR. iter > 20) THEN
+               mu_max = mu_max + sigma
+            ELSE
+               EXIT
+            END IF
+         END DO
+
+         iter = 0
+         DO WHILE (mu_max - mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
+            iter = iter + 1
+            mu_now = (mu_max + mu_min)/2.0_dp
+            CALL SmearOcc(f, N_now, kTS, e, mu_now, sigma, maxocc, method, my_estate, my_festate)
+            IF (N_now <= N) THEN
+               mu_min = mu_now
+            ELSE
+               mu_max = mu_now
+            END IF
+            IF (iter > BISECT_MAX_ITER) THEN
+               CPWARN("SmearFixed: maximum bisection iterations reached")
+               EXIT
+            END IF
+         END DO
+
+         mu = (mu_max + mu_min)/2.0_dp
+         CALL SmearOcc(f, N_now, kTS, e, mu, sigma, maxocc, method, my_estate, my_festate)
+
+      END SELECT
 
    END SUBROUTINE SmearFixed
 
@@ -349,6 +446,9 @@ CONTAINS
 !>          Initial bracket width is max(10*sigma, 0.5) for Gaussian/MP/MV,
 !>          or sigma*ln[(1-eps)/eps] for Fermi-Dirac, reflecting the different
 !>          tail decay rates.
+!>
+!>          For MP-1 and MV: Gaussian bisection + Newton refinement
+!>          (dos Santos & Marzari, PRB 2023).
 !>
 !> \param f       occupations (nmo x nkp, output)
 !> \param mu      chemical potential (output)
@@ -372,10 +472,25 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
-      INTEGER                                            :: iter
-      REAL(KIND=dp)                                      :: de, mu_max, mu_min, N_now
+      INTEGER                                            :: bisect_method, ik, is, iter, nkp, nmo
+      REAL(KIND=dp)                                      :: de, dNdmu, expu2, expx2, mu_max, mu_min, &
+                                                            N_now, u, x
 
+      nmo = SIZE(e, 1)
+      nkp = SIZE(e, 2)
+
+      CALL cite_smearing(method)
+
+      ! Choose bisection method: Gaussian for MP/MV, actual method for FD/Gaussian
       SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         bisect_method = smear_gaussian
+      CASE DEFAULT
+         bisect_method = method
+      END SELECT
+
+      ! Initial bracket
+      SELECT CASE (bisect_method)
       CASE (smear_fermi_dirac)
          de = sigma*LOG((1.0_dp - epsocc)/epsocc)
       CASE DEFAULT
@@ -383,13 +498,14 @@ CONTAINS
       END SELECT
       de = MAX(de, 0.5_dp)
 
+      ! Bisection with bisect_method
       mu_min = MINVAL(e) - de
       mu_max = MAXVAL(e) + de
       iter = 0
       DO WHILE (mu_max - mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
          iter = iter + 1
          mu = (mu_max + mu_min)/2.0_dp
-         CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
+         CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, bisect_method)
 
          IF (ABS(N_now - nel) < nel*epsocc) EXIT
 
@@ -404,8 +520,38 @@ CONTAINS
             EXIT
          END IF
       END DO
-
       mu = (mu_max + mu_min)/2.0_dp
+
+      ! Newton refinement for non-monotonic methods
+      SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         DO iter = 1, NEWTON_MAX_ITER
+            CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
+            IF (ABS(N_now - nel) < nel*epsocc) EXIT
+
+            ! Compute dN/dmu = sum_{ik} wk * g_i(k)  inline
+            dNdmu = 0.0_dp
+            DO ik = 1, nkp
+               DO is = 1, nmo
+                  x = (e(is, ik) - mu)/sigma
+                  SELECT CASE (method)
+                  CASE (smear_mp)
+                     expx2 = EXP(-x*x)
+                     dNdmu = dNdmu + maxocc*(3.0_dp - 2.0_dp*x*x)/(2.0_dp*sigma*rootpi)*expx2*wk(ik)
+                  CASE (smear_mv)
+                     u = x + sqrthalf
+                     expu2 = EXP(-u*u)
+                     dNdmu = dNdmu + maxocc*(2.0_dp + sqrt2*x)/(sigma*rootpi)*expu2*wk(ik)
+                  END SELECT
+               END DO
+            END DO
+
+            IF (ABS(dNdmu) < EPSILON(dNdmu)) EXIT
+            mu = mu + (nel - N_now)/dNdmu
+         END DO
+      END SELECT
+
+      ! Final evaluation with the actual method
       CALL Smear2(f, N_now, kTS, e, mu, wk, sigma, maxocc, method)
 
    END SUBROUTINE Smearkp
@@ -414,6 +560,8 @@ CONTAINS
 !> \brief   Bisection search for mu (k-point, spin-polarised with a shared
 !>          chemical potential across both spin channels).
 !>          Asserts that the third dimension of f and e is exactly 2.
+!>
+!>          For MP-1 and MV: Gaussian bisection + Newton refinement.
 !>
 !> \param f       occupations (nmo x nkp x 2, output)
 !> \param mu      chemical potential (output)
@@ -436,13 +584,26 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
-      INTEGER                                            :: iter
-      REAL(KIND=dp)                                      :: de, kTSa, kTSb, mu_max, mu_min, N_now, &
-                                                            na, nb
+      INTEGER                                            :: bisect_method, ik, is, ispin, iter, nkp, &
+                                                            nmo
+      REAL(KIND=dp)                                      :: de, dNdmu, expu2, expx2, kTSa, kTSb, &
+                                                            mu_max, mu_min, N_now, na, nb, u, x
 
       CPASSERT(SIZE(f, 3) == 2 .AND. SIZE(e, 3) == 2)
 
+      nmo = SIZE(e, 1)
+      nkp = SIZE(e, 2)
+
+      CALL cite_smearing(method)
+
       SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         bisect_method = smear_gaussian
+      CASE DEFAULT
+         bisect_method = method
+      END SELECT
+
+      SELECT CASE (bisect_method)
       CASE (smear_fermi_dirac)
          de = sigma*LOG((1.0_dp - epsocc)/epsocc)
       CASE DEFAULT
@@ -450,14 +611,15 @@ CONTAINS
       END SELECT
       de = MAX(de, 0.5_dp)
 
+      ! Bisection with bisect_method
       mu_min = MINVAL(e) - de
       mu_max = MAXVAL(e) + de
       iter = 0
       DO WHILE (mu_max - mu_min > EPSILON(mu)*MAX(1.0_dp, ABS(mu_max), ABS(mu_min)))
          iter = iter + 1
          mu = (mu_max + mu_min)/2.0_dp
-         CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
-         CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
+         CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, bisect_method)
+         CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, bisect_method)
          N_now = na + nb
 
          IF (ABS(N_now - nel) < nel*epsocc) EXIT
@@ -473,8 +635,42 @@ CONTAINS
             EXIT
          END IF
       END DO
-
       mu = (mu_max + mu_min)/2.0_dp
+
+      ! Newton refinement for non-monotonic methods
+      SELECT CASE (method)
+      CASE (smear_mp, smear_mv)
+         DO iter = 1, NEWTON_MAX_ITER
+            CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
+            CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
+            N_now = na + nb
+            IF (ABS(N_now - nel) < nel*epsocc) EXIT
+
+            ! dN/dmu across both spin channels (maxocc=1 per spin)
+            dNdmu = 0.0_dp
+            DO ispin = 1, 2
+               DO ik = 1, nkp
+                  DO is = 1, nmo
+                     x = (e(is, ik, ispin) - mu)/sigma
+                     SELECT CASE (method)
+                     CASE (smear_mp)
+                        expx2 = EXP(-x*x)
+                        dNdmu = dNdmu + (3.0_dp - 2.0_dp*x*x)/(2.0_dp*sigma*rootpi)*expx2*wk(ik)
+                     CASE (smear_mv)
+                        u = x + sqrthalf
+                        expu2 = EXP(-u*u)
+                        dNdmu = dNdmu + (2.0_dp + sqrt2*x)/(sigma*rootpi)*expu2*wk(ik)
+                     END SELECT
+                  END DO
+               END DO
+            END DO
+
+            IF (ABS(dNdmu) < EPSILON(dNdmu)) EXIT
+            mu = mu + (nel - N_now)/dNdmu
+         END DO
+      END SELECT
+
+      ! Final evaluation with the actual method
       CALL Smear2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, sigma, 1.0_dp, method)
       CALL Smear2(f(:, :, 2), nb, kTSb, e(:, :, 2), mu, wk, sigma, 1.0_dp, method)
       kTS = kTSa + kTSb
