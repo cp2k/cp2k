@@ -32,6 +32,9 @@ export COSMA_DIM_THRESHOLD=0
 export OMPI_MCA_plm_rsh_agent=/bin/false
 export OMPI_ALLOW_RUN_AS_ROOT=1
 export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+export OMPI_MCA_mpi_yield_when_idle=1
+export OMPI_MCA_btl=self,sm
+export OMPI_MCA_pml=ob1
 
 # Use keepalive mode for GPU tests.
 if [[ "${PROFILE}" == *cuda* ]] || [[ "${PROFILE}" == *hip* ]]; then
