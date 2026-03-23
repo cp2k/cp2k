@@ -1,3 +1,4 @@
+"C.inp"                                 = [{matcher="E_total", tol=7e-12, ref=-5.3386305984555102}]
 "H2O-meta_kinds.inp"                    = [{matcher="E_total", tol=4e-14, ref=-17.16166674842984}]
 "H2O-meta.inp"                          = [{matcher="E_total", tol=2e-14, ref=-17.16168353866058}]
 "H2O-meta_res0.inp"                     = [{matcher="E_total", tol=4e-14, ref=-17.16173774136890}]
