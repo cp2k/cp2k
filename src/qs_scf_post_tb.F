@@ -426,7 +426,8 @@ CONTAINS
                CASE ("xTB")
                   sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
                   CALL get_qs_env(qs_env, mos=mos, cell=cell)
-                  CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell)
+                  CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
+                                        qs_env=qs_env, calc_energies=.TRUE.)
                CASE DEFAULT
                   CPABORT("Unknown TB type")
                END SELECT

@@ -1184,7 +1184,7 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, cell=cell)
             molden_section => section_vals_get_subs_vals(print_section, "MOS_MOLDEN")
-            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section, cell=cell)
+            CALL write_mos_molden(nto_set, qs_kind_set, particle_set, molden_section, cell=cell, qs_env=qs_env)
             !
             DEALLOCATE (eigenvalues)
             CALL cp_fm_release(teig)
