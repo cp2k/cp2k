@@ -249,7 +249,6 @@ RTP.inp is the input file used for such simulation:
           FILENAME =applied_field
         &END FIELD
         &PROJECTION_MO
-          REFERENCE_TYPE SCF
           REF_MO_FILE_NAME RTP-RESTART.wfn
           REF_MO_INDEX -1
           SUM_ON_ALL_REF .FALSE.
@@ -262,7 +261,6 @@ RTP.inp is the input file used for such simulation:
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE XAS_TDP
           REF_MO_FILE_NAME ${EXC_STATE_1}
           TD_MO_INDEX -1
           SUM_ON_ALL_TD .FALSE.
@@ -273,7 +271,6 @@ RTP.inp is the input file used for such simulation:
           &END PRINT
         &END PROJECTION_MO
         &PROJECTION_MO
-          REFERENCE_TYPE XAS_TDP
           REF_MO_FILE_NAME ${EXC_STATE_2}
           TD_MO_INDEX -1
           SUM_ON_ALL_TD .FALSE.
@@ -387,18 +384,18 @@ Note that the smaller this threshold, the more iterations per time step will be 
 Hence, we have set the maximal iteration number
 [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) at quite high value of 100.
 The time step used is rather small since we have to describe a core-hole excitation process that
-takes place with a typical frequency of 529 eV. Following the rule of thumb to set the time step to
-about 10 times the field frequency, we set [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) to
+takes place with a typical frequency of 529 eV. Following the rule of thumb to use a time step 10
+times smaller than the field wavelength, we set [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) to
 `[fs] 0.00078`
 
 ### Field parameters
 
 The field is defined by its envelope, its intensity, its polarization along the laboratory x, y, and
 z-axis, its wavelength, and the original phase. Several types of field envelopes can be used. Here
-we use a Gaussian one with a width of $\sigma=0.3073$ fs and centered at $T0=1.3190$ fs. The
-intensity used is 4.08E+13 W.cm$^{-2}$. Along with a carrying frequency of 529 eV (approximately
-2.34374655955 nm), it should promote about $10^{-3}$ from the Oxygen 1s to the first available
-excited state.
+we use a Gaussian with a width of $\sigma=0.3073$ fs and centered at $T0=1.3190$ fs. The intensity
+used is 4.08E+13 W.cm$^{-2}$. Along with a carrying frequency of 529 eV (approximately 2.34374655955
+nm), it should promote about $10^{-3}$ electrons from the Oxygen 1s to the first available excited
+state.
 
 ```none
 &EFIELD
@@ -429,7 +426,6 @@ First, let us have a look at the projection toward the ground state:
 
 ```none
 &PROJECTION_MO
-   REFERENCE_TYPE SCF
    REF_MO_FILE_NAME RTP-RESTART.wfn
    REF_MO_INDEX -1
    SUM_ON_ALL_REF .FALSE.
@@ -450,10 +446,10 @@ All the time-dependent Molecular Orbitals are projected by setting
 to `.FALSE.`.
 
 This calculation is spin-independent so one does not have to define the spin of the MO to project.
-The reference to projected to is loaded from the file `RTP-RESTART.wfn`, which is the ground state
-obtained after the SCF cycles. Note that you can define a wave-function that is not the ground state
-as long as the wave-function description (basis set, number of electrons...) is the same as the one
-used for the real-time propagation. The `REFERENCE_TYPE` defaults to `SCF`.
+The reference to project onto is loaded from the file `RTP-RESTART.wfn`, which is the ground state
+obtained from the SCF calculation. Note that you can define a wave-function that is not the ground
+state as long as the wave-function description (basis set, number of electrons...) is the same as
+the one used for the real-time propagation.
 
 All the molecular orbitals available in this reference wave-function will be used as a reference for
 the projection by setting
@@ -476,7 +472,6 @@ excited-states:
 
 ```none
 &PROJECTION_MO
-   REFERENCE_TYPE XAS_TDP
    REF_MO_FILE_NAME ${EXC_STATE_1}
    TD_MO_INDEX -1
    SUM_ON_ALL_TD .FALSE.
@@ -489,12 +484,17 @@ excited-states:
 ```
 
 In this case, all the time-dependent MO are involved in the projection and stored separately. This
-time, the reference wave function is supposed to be from an XAS_TDP calculation, see Linear Response
-input file in the
-[tutorial archive](https://github.com/cp2k/cp2k-examples/tree/master/rtp_field_xas). Running with
-the proper parameters, this XAS_TDP run saves one .wfn file per excited state. Using
-`REFERENCE_TYPE XAS_TDP`, the projection uses automatically the state saved in the produced wave
-function file as the reference:
+time, the reference wave function is obtained from an XAS_TDP calculation, see the
+[RESTART_WFN](https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/DFT/XAS_TDP/PRINT/RESTART_WFN.html)
+option of the XAS_TDP module in the CP2K input reference. When requesting to print an excited state
+wavefunction, the resulting .wfn file is that of the groundstate wavefunction except that the
+initial orbital from which the electron is excited is replaced by the final orbital where the
+electron is excited to. Therefore, please be aware that the ordering of the orbitals will affect
+which file the excited orbital is written to. This is especially important to look out for if the
+initial orbital is not of the lowest energy.
+
+XAS_TDP will save one .wfn file per printed excited state, and the projection during RTP is obtained
+by:
 
 $$
 n_{\omega}^i(t) = |<\omega | \psi_i(t)>|^2 = |\sum_{ab} \left( C_\omega^a \right)^* c_i^b(t) S_{ab} |^2
