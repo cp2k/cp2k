@@ -1,0 +1,20 @@
+"test_01.inp"                           = []
+"test_02.inp"                           = []
+"test_pw.inp"                           = []
+"test_pw_02.inp"                        = []
+"test_pw_03.inp"                        = []
+"test_pw_04.inp"                        = []
+"test_pw_05.inp"                        = []
+"test_cp_fm_gemm_01.inp"                = []
+"test_cp_fm_gemm_02.inp"                = []
+"eig.inp"                               = []
+
+"test_eri_mme_accuracy.inp"             = []
+"test_eri_mme_accuracy_longrange.inp"   = []
+"test_eri_mme_accuracy_yukawa.inp"      = []
+"test_eri_mme_performance.inp"          = []
+"test_minimax.inp"                      = []
+"test_shg_integrals_01.inp"             = []
+"test_shg_integrals_02.inp"             = []
+
+#EOF

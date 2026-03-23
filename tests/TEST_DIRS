@@ -91,7 +91,9 @@ QS/regtest-sym-5
 QS/regtest-cdft-diag
 QS/regtest-kp-hfx-ri-admm-2                                 libint !ifx
 QS/regtest-plus_u
-LIBTEST
+LIBTEST/dbcsr
+LIBTEST/dbm
+LIBTEST/misc
 QS/regtest-stda-force                                       libint !ifx
 QS/regtest-ls-rtp
 QS/regtest-ot-1
