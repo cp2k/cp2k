@@ -208,7 +208,7 @@ CONTAINS
       ! band energy
       CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-      CALL calculate_ptrace(matrix_ks, rho_ao_kp, eband, nspins)
+      CALL calculate_ptrace(matrix_ks, rho_ao_kp, eband, nspins, .TRUE.)
 
       ! get full density
       CALL pw_copy(band_density, energy_density)

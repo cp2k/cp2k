@@ -701,7 +701,7 @@ CONTAINS
 
       ! band energy : Tr(PH)
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
-      CALL calculate_ptrace(matrix_ks, rho_ao, energy%band, nspin)
+      CALL calculate_ptrace(matrix_ks, rho_ao, energy%band, nspin, .TRUE.)
       ! core energy : Tr(Ph)
       energy%total = energy%total - energy%core
       CALL get_qs_env(qs_env, matrix_h=matrix_h)

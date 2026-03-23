@@ -25,6 +25,9 @@ MODULE ec_environment
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
@@ -43,7 +46,9 @@ MODULE ec_environment
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
-                                              kpoint_initialize
+                                              kpoint_initialize,&
+                                              kpoint_initialize_mo_set,&
+                                              kpoint_initialize_mos
    USE kpoint_types,                    ONLY: kpoint_create,&
                                               read_kpoint_section,&
                                               write_kpoint_info
@@ -62,6 +67,10 @@ MODULE ec_environment
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              init_mo_set,&
+                                              mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
@@ -121,15 +130,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_ec_env'
 
-      INTEGER                                            :: handle, ikind, maxlgto, nkind, unit_nr
+      INTEGER                                            :: handle, ikind, ispin, maxlgto, nel(2), &
+                                                            nkind, nsgf, nspins, unit_nr
       LOGICAL                                            :: explicit, gpw, gs_kpoints, paw_atom
-      REAL(KIND=dp)                                      :: eps_pgf_orb, etemp, rc
+      REAL(KIND=dp)                                      :: eps_pgf_orb, etemp, &
+                                                            flexible_electron_count, focc, n_el_f, &
+                                                            rc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis, &
                                                             harris_soft_basis
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
@@ -438,6 +452,36 @@ CONTAINS
             IF (ec_env%smear%do_smear .AND. ec_env%ks_solver /= ec_diagonalization) THEN
                CPABORT("Harris functional with Fermi-Dirac smearing needs diagonalization solver.")
             END IF
+            IF (ec_env%do_kpoints .AND. ec_env%ks_solver /= ec_diagonalization) THEN
+               CPABORT("Harris functional with K-points needs diagonalization solver.")
+            END IF
+         END IF
+
+         ! initialize Kpoint MOs
+         IF (ec_env%do_kpoints) THEN
+            CALL get_qs_env(qs_env, dft_control=dft_control)
+            nspins = dft_control%nspins
+            CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, basis_type="HARRIS")
+            focc = 2.0_dp + REAL(1 - nspins, dp)
+            flexible_electron_count = dft_control%relax_multiplicity
+            CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+            CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nsgf, ncol_global=nsgf)
+            CALL get_qs_env(qs_env, nelectron_spin=nel)
+            ALLOCATE (mo_set(nspins))
+            DO ispin = 1, nspins
+               n_el_f = nel(ispin)
+               CALL allocate_mo_set(mo_set(ispin), nsgf, nsgf, nel(ispin), n_el_f, &
+                                    focc, flexible_electron_count)
+               CALL init_mo_set(mo_set(ispin), fm_struct=fm_struct, name="MO")
+            END DO
+            CALL kpoint_initialize_mos(ec_env%kpoints, mo_set)
+            CALL kpoint_initialize_mo_set(ec_env%kpoints)
+            DO ispin = 1, nspins
+               CALL deallocate_mo_set(mo_set(ispin))
+            END DO
+            DEALLOCATE (mo_set)
+            CALL cp_fm_struct_release(fm_struct)
          END IF
 
       END IF
