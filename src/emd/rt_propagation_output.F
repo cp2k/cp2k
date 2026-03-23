@@ -350,7 +350,19 @@ CONTAINS
                      output_unit = cp_logger_get_default_io_unit(logger)
                      unit_nr = cp_print_key_unit_nr(logger, dft_section, &
                                                   "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", is_new_file=new_file)
+
                      IF (output_unit > 0) THEN
+                        IF (new_file) THEN
+                           IF (nspin == 2) THEN
+                              WRITE (UNIT=unit_nr, FMT='("#",5X,A,4X,A,2X,A,2(10X,A),4X,A,2(10X,A))') &
+                                 "Step Nr.", "Time[fs]", "ALPHA jint[X]", "jint[Y]", "jint[Z]", &
+                                 "BETA jint[X]", "jint[Y]", "jint[Z]"
+                           ELSE
+                              WRITE (UNIT=unit_nr, FMT='("#",5X,A,4X,A,8X,A,2(10X,A))') "Step Nr.", "Time[fs]", &
+                                 "jint[X]", "jint[Y]", "jint[Z]"
+                           END IF
+                        END IF
+
                         IF (nspin == 2) THEN
                            WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
                               j_int(1, 1:3), j_int(2, 1:3)
