@@ -3,7 +3,7 @@ framework: beakerlib
 path: /
 test: ./tools/fedora/tests/do_regtest.sh
 # TODO: Reduce the tests duration
-duration: 2h
+duration: 3h
 environment+:
   # Cannot run unittest outside of the build environment
   CP2K_SKIP_UNITTEST: true

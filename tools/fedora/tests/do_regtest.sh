@@ -32,10 +32,18 @@ rlJournalStart
       rlRun "ls /usr/bin/cp2k.ssmp" 0 "Verify CP2K serial binary exists"
     fi
 
+    # Temporary change to try looking for why performance issue happen
+    if [[ "${CP2K_VARIANT}" == "openmpi" ]]; then
+      rlRun "cat /proc/sys/kernel/yama/ptrace_scope" 0 "Check ptrace scope (0=CMA works, 1+=CMA blocked)"
+      rlRun "df -h /dev/shm" 0 "Check shared memory size"
+    fi
+
     rlRun "./do_regtest.py $args" 0 "Run regression tests"
 
     if [[ -d "${workdir}" ]]; then
-      rlFileSubmit "${workdir}/TEST-"*/status.txt "regtest-${CP2K_VARIANT}-status.txt" 2>/dev/null || true
+      for file in ${workdir}/TEST-*/status.txt regtest-${CP2K_VARIANT}-status.txt; do
+        rlFileSubmit $file
+      done
     fi
 
     rlRun "popd"
