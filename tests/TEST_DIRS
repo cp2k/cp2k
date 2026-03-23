@@ -389,7 +389,6 @@ QS/regtest-harris
 TAMC/regtest
 QS/regtest-fftw-wisdom                                      fftw3
 FE/regtest-2
-QS
 QS/regtest-gw-ic-model                                      libint !ifx
 NEB/regtest-3
 QS/regtest-sto
