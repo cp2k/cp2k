@@ -548,10 +548,8 @@ CONTAINS
       END IF
    END SUBROUTINE print_density_output_message
 
-   ! **************************************************************************************************
-   !> \brief collects possible post - scf calculations and prints info / computes properties.
 ! **************************************************************************************************
-!> \brief ...
+!> \brief collects possible post - scf calculations and prints info / computes properties.
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param wf_type ...
 !> \param do_mp2 ...
@@ -1045,11 +1043,6 @@ CONTAINS
             CALL cp_fm_release(mixed_localized)
             DEALLOCATE (mixed_orbs)
             DEALLOCATE (mixed_evals)
-            ! Print Total Dipole if the localization has been performed
-! Revisit the formalism later
-            !IF (qs_loc_env_mixed%do_localize) THEN
-            !   CALL loc_dipole(input, dft_control, qs_loc_env_mixed, logger, qs_env)
-            !END IF
          END IF
       END IF
 

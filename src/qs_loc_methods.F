@@ -1005,9 +1005,9 @@ CONTAINS
             ! Note (TL) : even the new DCD format is unfortunately too poor
             !             for our capabilities.. for example here the printing
             !             of the geometry could be nested inside several iteration
-            !             levels.. this cannot be exactly reproduce with DCD.
+            !             levels.. this cannot be exactly reproduced with DCD.
             !             Just as a compromise let's pick-up the value of the MD iteration
-            !             level. In any case this is not any sensible information for the standard..
+            !             level. In any case this is not any sensible information for the standard.
             iskip = section_get_ival(print_key, "EACH%MD")
             WRITE (iunit) "CORD", 0, -1, iskip, &
                0, 0, 0, 0, 0, 0, REAL(0, KIND=sp), 1, 0, 0, 0, 0, 0, 0, 0, 0, 24

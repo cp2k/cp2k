@@ -96,7 +96,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ACTIVE_ORBITAL_INDICES", &
-                          description="The indices of the active orbitals. Requires ORBITAL_SELECTION MANUAL!", &
+                          description="The indices of the active orbitals. Requires ORBITAL_SELECTION MANUAL! "// &
+                          "Need to be as many indices as active orbitals times the number of spin "// &
+                          "channels (2 if ROKS or UKS/LSD else 1).", &
                           usage="ACTIVE_ORBITAL_INDICES 2 3 {...}", n_var=-1, default_i_vals=[-1], &
                           type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
