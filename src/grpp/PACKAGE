@@ -1,5 +1,0 @@
-{
-    "description": "grpp library",
-    "requires": [],
-    "public": ["libgrpp.F"],
-}

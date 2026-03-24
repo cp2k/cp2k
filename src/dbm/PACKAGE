@@ -1,5 +1,0 @@
-{
-    "description": "Distributed Block-sparse Matrix",
-    "requires": ["../base", "../mpiwrap", "../offload"],
-    "public": ["dbm_api.F", "dbm_tests.F"],
-}
