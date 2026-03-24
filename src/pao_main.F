@@ -56,6 +56,7 @@ MODULE pao_main
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -331,6 +332,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_post_scf'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: use_virial
+      TYPE(virial_type), POINTER                         :: virial
 
       IF (.NOT. ls_scf_env%do_pao) RETURN
       IF (.NOT. pao_is_done) RETURN
@@ -346,6 +349,12 @@ CONTAINS
 
       CALL pao_store_P(qs_env, ls_scf_env)
       IF (ls_scf_env%calculate_forces) CALL pao_add_forces(qs_env, ls_scf_env)
+
+      CALL get_qs_env(qs_env=qs_env, virial=virial)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (use_virial .AND. ls_scf_env%calculate_forces) THEN
+         CPABORT("Analytical stress tensor not implemented for PAO.")
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE pao_post_scf
