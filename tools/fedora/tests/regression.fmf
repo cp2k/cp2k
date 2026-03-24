@@ -19,8 +19,9 @@ environment+:
     # prterun blocks running mpiexec as root. Set some environment variables to workaround it
     OMPI_ALLOW_RUN_AS_ROOT: 1
     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-  # TODO: Investigate why openmpi tests are significantly slower
-  duration: 6h
+    OMPI_MCA_mpi_yield_when_idle: 1
+    OMPI_MCA_pml: ob1
+    OMPI_MCA_btl: self,sm
 /mpich:
   summary+: (mpich)
   environment+:
