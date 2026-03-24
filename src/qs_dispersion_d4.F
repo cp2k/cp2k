@@ -21,6 +21,7 @@ MODULE qs_dispersion_d4
                          plane_distance, &
                          pbc, &
                          get_cell
+   USE qs_dispersion_types, ONLY: qs_atom_dispersion_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_force_types, ONLY: qs_force_type
@@ -312,7 +313,7 @@ CONTAINS
          END IF
 
          ! EEQ charges
-         ALLOCATE (q(natom))
+         ALLOCATE (q(natom+nghost))
          IF (dispersion_env%ext_charges) THEN
             q(1:natom) = dispersion_env%charges(1:natom)
          ELSE
@@ -341,7 +342,7 @@ CONTAINS
             ga(:, :) = 0.0_dp
             sigma(:, :) = 0.0_dp
          END IF
-         CALL dispersion_2b(dispersion_env, cutoff%disp2, disp%r4r2, &
+         CALL dispersion_2b(qs_env, dispersion_env, cutoff%disp2, disp%r4r2, &
                             gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
                             energies, dEdcn, dEdq, grad, ga, sigma)
          IF (grad) THEN
@@ -687,10 +688,11 @@ CONTAINS
 !> \param gradient ...
 !> \param stress ...
 ! **************************************************************************************************
-   SUBROUTINE dispersion_2b(dispersion_env, cutoff, r4r2, &
+   SUBROUTINE dispersion_2b(qs_env, dispersion_env, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
                             calculate_forces, gradient, stress)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
@@ -705,6 +707,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
 
+      LOGICAL                                            :: floating_i, ghost_i, floating_j, ghost_j
       INTEGER                                            :: iatom, ikind, jatom, jkind, mepos, num_pe
       REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
                                                             edisp, fac, gdisp, r0ij, rrij, s6, s8, &
@@ -712,6 +715,8 @@ CONTAINS
       REAL(KINd=dp), DIMENSION(2)                        :: dcdcn, dcdq
       REAL(KINd=dp), DIMENSION(3)                        :: dG, rij
       REAL(KINd=dp), DIMENSION(3, 3)                     :: dS
+      TYPE(qs_atom_dispersion_type), POINTER             :: disp_i, disp_j
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -727,11 +732,18 @@ CONTAINS
 
       num_pe = 1
       CALL neighbor_list_iterator_create(nl_iterator, sab_vdw, nthread=num_pe)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
 
       mepos = 0
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij)
+          
+         CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_i, ghost=ghost_i, floating=floating_i)
+         IF (.NOT. disp_i%defined .OR. ghost_i .OR. floating_i) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_j, ghost=ghost_j, floating=floating_j)
+         IF (.NOT. disp_j%defined .OR. ghost_j .OR. floating_j) CYCLE
+
          ! vdW potential
          dr2 = SUM(rij(:)**2)
          IF (dr2 <= cutoff2 .AND. dr2 > 0.0000001_dp) THEN
@@ -813,6 +825,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
 
+      LOGICAL                                            :: floating_i, ghost_i, floating_j, ghost_j
       INTEGER                                            :: iatom, ikind, jatom, jkind, katom, &
                                                             kkind, ktr, mepos, natom, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
@@ -829,6 +842,8 @@ CONTAINS
       REAL(KINd=dp), DIMENSION(3, 3)                     :: dS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(qs_atom_dispersion_type), POINTER             :: disp_i, disp_j
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -842,6 +857,7 @@ CONTAINS
       DO iatom = 1, natom
          rcpbc(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
       END DO
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
       a1 = dispersion_env%a1
@@ -861,6 +877,11 @@ CONTAINS
       mepos = 0
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
+
+         CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_i, ghost=ghost_i, floating=floating_i)
+         IF (.NOT. disp_i%defined .OR. ghost_i .OR. floating_i) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_j, ghost=ghost_j, floating=floating_j)
+         IF (.NOT. disp_j%defined .OR. ghost_j .OR. floating_j) CYCLE
 
          r2ij = SUM(rij(:)**2)
          IF (calculate_forces) THEN
