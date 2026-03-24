@@ -5,6 +5,7 @@ MODULE xc_gauxc
    USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr
    USE kinds, ONLY: dp
    USE particle_types, ONLY: particle_type
+   USE physcon, ONLY: bohr
    USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, &
       & get_atomic_kind_set
    USE qs_integral_utils, ONLY: basis_set_list_setup
@@ -32,7 +33,8 @@ MODULE xc_gauxc
       & gauxc_molecular_weights_settings
    USE gauxc_xc_functional, ONLY: gauxc_functional_type, gauxc_functional_from_string, gauxc_delete
    USE gauxc_integrator, ONLY: gauxc_integrator_type, &
-      & gauxc_integrator_new, gauxc_eval_exc_vxc, gauxc_delete
+       & gauxc_integrator_new, gauxc_integrator_eval_exc_vxc_rks, &
+       & gauxc_integrator_eval_exc_vxc_uks, gauxc_delete
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
 #ifdef GAUXC_HAS_MPI
@@ -196,7 +198,6 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_basisset_type)                       :: res
 
-      CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
                                                             nkind, npgf, nset, nshell, &
                                                             nshell_total, shell_index
@@ -215,14 +216,8 @@ CONTAINS
       nshell_total = 0
       DO iatom = 1, natoms
          atomic_kind => particle_set(iatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind, element_symbol=element_symbol)
-         NULLIFY (gto_basis)
-         DO ikind = 1, nkind
-            IF (qs_kind_set(ikind)%element_symbol .EQ. element_symbol) THEN
-               gto_basis => basis_set_list(ikind)%gto_basis_set
-               EXIT
-            END IF
-         END DO
+         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+         gto_basis => basis_set_list(ikind)%gto_basis_set
          CPASSERT(ASSOCIATED(gto_basis))
          nshell_total = nshell_total + SUM(gto_basis%nshell)
       END DO
@@ -233,7 +228,6 @@ CONTAINS
       DO iatom = 1, natoms ! for each atom
          atomic_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-
          gto_basis => basis_set_list(ikind)%gto_basis_set
          CPASSERT(ASSOCIATED(gto_basis))
 
