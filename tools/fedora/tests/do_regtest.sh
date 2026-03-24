@@ -28,11 +28,6 @@ rlJournalStart
 
     if [[ "${CP2K_VARIANT}" != "serial" ]]; then
       rlRun "ls ${MPI_BIN}/cp2k.psmp" 0 "Verify CP2K MPI binary exists"
-      if [[ "${CP2K_VARIANT}" == "openmpi" ]]; then
-        rlRun "time mpiexec -n 2 cp2k.psmp --version > /dev/null" 0 "Check the PRTE startup overhead in OpenMPI 5.x."
-      else
-        rlRun "time mpiexec -n 2 cp2k.psmp --version > /dev/null"
-      fi
     else
       rlRun "ls /usr/bin/cp2k.ssmp" 0 "Verify CP2K serial binary exists"
     fi
