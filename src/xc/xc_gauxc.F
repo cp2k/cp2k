@@ -309,24 +309,26 @@ CONTAINS
 
    END FUNCTION gauxc_create_grid
 
-! **************************************************************************************************
-!> \brief ...
-!> \param xc_functional_name ...
-!> \param lb ...
-!> \param status ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION gauxc_create_integrator(xc_functional_name, lb, status) RESULT(res)
+   ! **************************************************************************************************
+   !> \brief ...
+   !> \param xc_functional_name ...
+   !> \param lb ...
+   !> \param nspins ...
+   !> \param status ...
+   !> \return ...
+   ! **************************************************************************************************
+   FUNCTION gauxc_create_integrator(xc_functional_name, lb, nspins, status) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
+      INTEGER, INTENT(IN)                                :: nspins
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
 
-      LOGICAL(c_bool), PARAMETER                         :: hybrid = .TRUE._c_bool
-
       INTEGER(c_int)                                     :: int_exec_space_local
+      LOGICAL(c_bool)                                    :: polarized
 
-      res%func = gauxc_functional_from_string(status, xc_functional_name, hybrid)
+      polarized = (nspins == 2)
+      res%func = gauxc_functional_from_string(status, xc_functional_name, polarized)
       CPASSERT(status%code == 0)
 
       int_exec_space_local = read_execution_space(int_exec_space_str)
