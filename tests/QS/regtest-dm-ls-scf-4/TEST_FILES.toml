@@ -14,4 +14,7 @@
 "H2O-dft-ls-SUBMATRIX-DIRECT.inp"       = [{matcher="M011", tol=2e-13, ref=-17.031737706156235}]
 "H2O-dft-ls-SUBMATRIX-DIRECT-MUADJ.inp" = [{matcher="M011", tol=2e-13, ref=-17.031737706156235}]
 "H2O-dft-ls-SUBMATRIX-DIRECT-MUADJ-LOWMEM.inp" = [{matcher="M011", tol=2e-13, ref=-17.031737706156235}]
+"H2O-dft-ls-FORCES.inp" = []
+"H2O-dft-ls-STRESS-TENSOR.inp" = []
+
 #EOF
