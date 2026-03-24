@@ -1,6 +1,0 @@
-{
-    "description": "Wrapper for the MCL routines",
-    "requires": [
-        "../../base",
-    ],
-}

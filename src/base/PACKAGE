@@ -1,4 +1,0 @@
-{
-    "description": "base routines needed to abstract away some machine/compiler dependent functionality",
-    "requires": [],
-}

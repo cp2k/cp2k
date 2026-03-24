@@ -1,4 +1,0 @@
-{
-    "description": "DBCSR / DBM compatibility layer",
-    "requires": ["../base", "../dbm", "../mpiwrap", "../common"],
-}
