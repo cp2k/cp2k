@@ -295,13 +295,26 @@ CONTAINS
       nimages = dft_control%nimages
       nspins = dft_control%nspins
 
-      IF (nimages /= 1 .OR. qs_env%run_rtp) THEN
-         CPABORT("GAUXC XC energy currently supports only real Gamma-point densities")
+      IF (qs_env%run_rtp) THEN
+         CPABORT("GAUXC XC energy currently does not support real-time propagation")
       END IF
 
-      CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
-      IF (nspins == 2) THEN
-         CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+      IF (nimages == 1) THEN
+         CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
+         IF (nspins == 2) THEN
+            CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+         END IF
+      ELSE
+         CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
+         DO img = 2, nimages
+            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar, accumulate=.TRUE.)
+         END DO
+         IF (nspins == 2) THEN
+            CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+            DO img = 2, nimages
+               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta, accumulate=.TRUE.)
+            END DO
+         END IF
       END IF
 
       ! remap pointer to allow for non-kpoint external ks matrix
