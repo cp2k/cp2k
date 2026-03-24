@@ -361,6 +361,7 @@ CONTAINS
       CPASSERT(SIZE(predicted_xblock, 1) == n)
       CPASSERT(SIZE(predicted_xblock, 2) == m)
       CPASSERT(SIZE(predicted_xblock, 3) == 1)
+      CPASSERT(ALL(predicted_xblock == predicted_xblock)) ! checking for NaNs
       IF (PRESENT(block_X)) THEN
          block_X = RESHAPE(predicted_xblock, [n*m, 1])
       END IF
@@ -375,6 +376,7 @@ CONTAINS
          NULLIFY (edge_vectors_grad)
          CALL torch_tensor_data_ptr(edge_vectors_grad_tensor, edge_vectors_grad)
          CPASSERT(SIZE(edge_vectors_grad, 1) == 3 .AND. SIZE(edge_vectors_grad, 2) == num_edges)
+         CPASSERT(ALL(edge_vectors_grad == edge_vectors_grad)) ! checking for NaNs
          DO iedge = 1, num_edges
             jneighbor = INT(edge_index(iedge, 1) + 1)
             kneighbor = INT(edge_index(iedge, 2) + 1)
