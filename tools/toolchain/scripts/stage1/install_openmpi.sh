@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="5.0.9"
-openmpi_sha256="dfb72762531170847af3e4a0f21d77d7b23cf36f67ce7ce9033659273677d80b"
+openmpi_ver="5.0.10"
+openmpi_sha256="0acecc4fc218e5debdbcb8a41d182c6b0f1d29393015ed763b2a91d5d7374cc6"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -49,11 +49,9 @@ case "${with_openmpi}" in
         fi
       fi
 
-      # We still require MPI-1.0-compatability for PTSCOTCH
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
-        --enable-mpi1-compatibility \
         --enable-static \
         --with-libevent=internal \
         > configure.log 2>&1 || tail_excerpt configure.log
