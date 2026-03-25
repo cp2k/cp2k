@@ -58,6 +58,7 @@ case "$with_dftd4" in
     echo "==================== Finding DFTD4 from system paths ===================="
     check_command pkg-config --modversion dftd4
     DFTD4_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
+    pkg_install_dir=$(dirname ${DFTD4_INCLUDE_PATH})
     add_include_from_paths DFTD4_CFLAGS "dftd4.h" $DFTD4_INCLUDE_PATH
     add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $DFTD4_INCLUDE_PATH
     add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $DFTD4_INCLUDE_PATH
@@ -83,22 +84,21 @@ if [ "$with_dftd4" != "__DONTUSE__" ]; then
 export DFTD4_VER="${dftd4_ver}"
 EOF
 
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
+  MCHARGE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
+  MSTORE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
+  MCTC=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
+  DFTD4=${TEMP_LOC%/*}
+
+  DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
+  DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
+  DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
+  DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
+
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-    MCHARGE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-    MSTORE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-    MCTC=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-    DFTD4=${TEMP_LOC%/*}
-
-    DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
-    DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
-
-    DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
-    DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
-
     cat << EOF >> "${BUILDDIR}/setup_dftd4"
 prepend_path LD_LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
 prepend_path LD_RUN_PATH "${DFTD4_LINK_LIBRARIES}"
