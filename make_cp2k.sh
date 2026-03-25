@@ -109,8 +109,15 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   ${EXIT_CMD} 1
 fi
 
+# Print OS info if available
+if [[ -f /etc/os-release ]]; then
+  echo ""
+  cat /etc/os-release
+fi
+
 # Check bash version
 if ((BASH_VERSINFO < 4)); then
+  echo ""
   echo "ERROR: The employed bash version ${BASH_VERSION} is too old (from 2004)"
   echo "       Install a newer bash version"
   if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -120,18 +127,19 @@ if ((BASH_VERSINFO < 4)); then
   fi
   ${EXIT_CMD} 1
 elif ((BASH_VERSINFO < 5)); then
-  echo "WARNING: The employed bash version ${BASH_VERSION} is quite old (from 2009)"
+  echo -e "\nWARNING: The employed bash version ${BASH_VERSION} is quite old (from 2009)"
 else
-  echo "INFO: Using bash version ${BASH_VERSION}"
+  echo -e "\nINFO: Using bash version ${BASH_VERSION}"
 fi
 
 # Check if the python3 version is new enough for spack
 if ! python3 -c 'import sys; sys.exit(not(sys.version_info >= (3, 10)))'; then
+  echo ""
   echo "ERROR: Python version is NOT >= 3.10 (needed for Spack)"
   echo "       Found only $(python3 -V)"
   ${EXIT_CMD} 1
 else
-  echo "INFO: Found $(python3 -V)"
+  echo -e "\nINFO: Found $(python3 -V)"
 fi
 
 # Default values
