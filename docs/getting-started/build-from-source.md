@@ -40,11 +40,12 @@ The flags `-h` or `--help` print the available options.
 
 <details>
 
-<summary>Click to see all options (of version 1.6)</summary>
+<summary>Click to see all options (of version 1.7)</summary>
 
 ```
 Usage: make_cp2k.sh [-bd | --build_deps]
                     [-bd_only | --build_deps_only]
+                    [-bsl | --build_static_libcp2k]
                     [-bt | --build_type (Debug | Release | RelWithDebInfo)]
                     [-cray]
                     [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]
@@ -64,27 +65,28 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-v | --verbose]
 
 Flags:
- --build_deps         : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)
- --build_deps_only    : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)
- --build_type         : Set preferred CMake build type for CP2K (default: Release)
- --cp2k_version       : CP2K version to be built (default: psmp)
- -cray                : Use Cray specific spack configuration
- --disable_local_cache: Don't add local spack cache
- --enable_feature     : Enable feature or package (default: all)
- --disable_feature    : Disable feature or package
- --help               : Print this help information
- --gcc_version        : Use the specified GCC version (default: automatically decided by spack)
- --gpu_model          : Select GPU model (default: none)
- --install_path       : Define the CP2K installation path (default: ./install)
- -j                   : Maximum number of processes used in parallel
- --mpi_mode           : Set preferred MPI mode (default: mpich)
- --num_packages       : Maximum number of packages built by spack in parallel (default: 4)
- --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)
- --test               : Perform a regression test run after a successful build
- --use_externals      : Use external packages installed on the host system. This results in much
-                        faster build times, but it can also cause conflicts with outdated packages
-                        pulled in from the host system, e.g. old python or gcc versions
- --verbose            : Write verbose output
+ --build_deps          : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)
+ --build_deps_only     : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)
+ --build_static_libcp2k: Build a static CP2K library libcp2k.a instead of the default shared one libcp2k.so"
+ --build_type          : Set preferred CMake build type for CP2K (default: Release)
+ --cp2k_version        : CP2K version to be built (default: psmp)
+ -cray                 : Use Cray specific spack configuration
+ --disable_local_cache : Don't add local spack cache
+ --enable_feature      : Enable feature or package (default: all)
+ --disable_feature     : Disable feature or package
+ --help                : Print this help information
+ --gcc_version         : Use the specified GCC version (default: automatically decided by spack)
+ --gpu_model           : Select GPU model (default: none)
+ --install_path        : Define the CP2K installation path (default: ./install)
+ -j                    : Maximum number of processes used in parallel
+ --mpi_mode            : Set preferred MPI mode (default: mpich)
+ --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
+ --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
+ --test                : Perform a regression test run after a successful build
+ --use_externals       : Use external packages installed on the host system. This results in much
+                         faster build times, but it can also cause conflicts with outdated packages
+                         pulled in from the host system, e.g. old python or gcc versions
+ --verbose             : Write verbose output
 
 Hints:
  - Remove the folder ${CP2K_ROOT}/build to (re)build CP2K from scratch
@@ -136,7 +138,7 @@ build. Usage examples are printed at the end of a (successful) `make_cp2k.sh` ru
 Check the folder [`cp2k/tools/docker`](https://github.com/cp2k/cp2k/tree/master/tools/docker) for
 Docker files with the name pattern `Dockerfile.test_spack_*` like `Dockerfile.test_spack_psmp` to
 build Docker containers using `make_cp2k.sh`. Each Docker file provides a usage example in its
-header which employs [`podman`](https://docs.podman.io/en/latest/) for building the the CP2K docker
+header which employs [`podman`](https://docs.podman.io/en/latest/) for building the CP2K docker
 containers.
 
 ## Dependencies and build options
