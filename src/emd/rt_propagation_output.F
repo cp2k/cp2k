@@ -115,7 +115,12 @@ MODULE rt_propagation_output
              report_density_occupation, &
              print_moments, &
              calc_local_moment, &
-             print_ft
+             print_ft, &
+             print_rt_file
+
+   INTEGER, PARAMETER, PUBLIC :: rt_file_comp_both = 0, &
+                                 rt_file_comp_real = 1, &
+                                 rt_file_comp_imag = 2
 
 CONTAINS
 
@@ -1097,17 +1102,19 @@ CONTAINS
 !> \par History
 !>      10.2025  Created [Marek]
 ! **************************************************************************************************
-   SUBROUTINE print_moments(moments_section, info_unit, moments, time, imag_opt)
+   SUBROUTINE print_moments(moments_section, info_unit, moments, time, imag_opt, append_opt)
       TYPE(section_vals_type), POINTER                   :: moments_section
       INTEGER                                            :: info_unit
       COMPLEX(kind=dp), DIMENSION(:, :)                  :: moments
       REAL(kind=dp), OPTIONAL                            :: time
-      LOGICAL, OPTIONAL                                  :: imag_opt
+      LOGICAL, OPTIONAL                                  :: imag_opt, append_opt
 
       CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
+      CHARACTER(len=21)                                  :: prefix
       INTEGER                                            :: i, j, ndir, nspin, print_unit
-      LOGICAL                                            :: imaginary
+      LOGICAL                                            :: imaginary, append
       TYPE(cp_logger_type), POINTER                      :: logger
+      COMPLEX(kind=dp), DIMENSION(3,1)                   :: moment_t
 
 ! Index 1 : spin, Index 2 : direction
 
@@ -1120,6 +1127,9 @@ CONTAINS
       imaginary = .TRUE.
       IF (PRESENT(imag_opt)) imaginary = imag_opt
 
+      append = .TRUE.
+      IF (PRESENT(append_opt)) append = append_opt
+
       ! Get the program run info unit and target unit
       ! If these are the same (most likely the case of __STD_OUT__), add
       ! extra identifier to the printed output
@@ -1129,37 +1139,78 @@ CONTAINS
       file_extensions(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       DO i = 1, nspin
+         moment_t(:,1) = moments(i,:)
          ! Real part
          print_unit = cp_print_key_unit_nr(logger, moments_section, extension=file_extensions(2*i - 1))
-         IF (print_unit == info_unit .AND. print_unit > 0) THEN
-            ! Do the output with additional suffix
-            WRITE (print_unit, "(A18)", advance="no") " MOMENTS_TRACE_RE|"
-         END IF
-         IF (print_unit > 0) THEN
-            IF (PRESENT(time)) WRITE (print_unit, "(E20.8E3)", advance="no") time*femtoseconds
-            DO j = 1, ndir - 1
-               WRITE (print_unit, "(E20.8E3)", advance="no") REAL(moments(i, j))
-            END DO
-            ! Write the last direction
-            WRITE (print_unit, "(E20.8E3)") REAL(moments(i, ndir))
+         IF (print_unit == info_unit) THEN
+            ! print with prefix
+            prefix = " MOMENTS_TRACE_RE|"
+            IF (append) THEN
+               ! Print without headers
+               CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
+                  prefix=prefix, prefix_format="(A18)", &
+                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+            ELSE
+               ! Print with headers
+               CALL print_rt_file(print_unit, &
+                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
+                  " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
+                  xvals=[time], yvals=moment_t, &
+                  prefix=prefix, prefix_format="(A18)", &
+                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+            END IF
+         ELSE
+            ! Print without prefix
+            IF (append) THEN
+               ! Print without headers
+               CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
+                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+            ELSE
+               ! Print with headers
+               CALL print_rt_file(print_unit, &
+                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
+                  " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
+                  xvals=[time], yvals=moment_t, &
+                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+            END IF
          END IF
          CALL cp_print_key_finished_output(print_unit, logger, moments_section)
          ! Same for imaginary part
          IF (imaginary) THEN
             print_unit = cp_print_key_unit_nr(logger, moments_section, extension=file_extensions(2*i))
-            IF (print_unit == info_unit .AND. print_unit > 0) THEN
-               ! Do the output with additional suffix
-               WRITE (print_unit, "(A18)", advance="no") " MOMENTS_TRACE_IM|"
+            IF (print_unit == info_unit) THEN
+               ! print with prefix
+               prefix = " MOMENTS_TRACE_IM|"
+               IF (append) THEN
+                  ! Print without headers
+                  CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
+                     prefix=prefix, prefix_format="(A18)", &
+                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+               ELSE
+                  ! Print with headers
+                  CALL print_rt_file(print_unit, &
+                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
+                     " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
+                     xvals=[time], yvals=moment_t, &
+                     prefix=prefix, prefix_format="(A18)", &
+                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+               END IF
+            ELSE
+               ! Print without prefix
+               IF (append) THEN
+                  ! Print without headers
+                  CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
+                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+               ELSE
+                  ! Print with headers
+                  CALL print_rt_file(print_unit, &
+                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
+                     " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
+                     xvals=[time], yvals=moment_t, &
+                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+               END IF
             END IF
-            IF (print_unit > 0) THEN
-               IF (PRESENT(time)) WRITE (print_unit, "(E20.8E3)", advance="no") time*femtoseconds
-               DO j = 1, ndir - 1
-                  WRITE (print_unit, "(E20.8E3)", advance="no") AIMAG(moments(i, j))
-               END DO
-               ! Write the last direction
-               WRITE (print_unit, "(E20.8E3)") AIMAG(moments(i, ndir))
-            END IF
-            CALL cp_print_key_finished_output(print_unit, logger, moments_section)
+         CALL cp_print_key_finished_output(print_unit, logger, moments_section)
          END IF
       END DO
 
@@ -1330,11 +1381,11 @@ CONTAINS
                   headers(1) = "#        Energy [eV]"
                   prefix = " MOMENTS_FT|"
                   prefix_format = "(A12)"
-                  CALL print_ft_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :), &
+                  CALL print_rt_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :), &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :))
+                  CALL print_rt_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :))
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1374,11 +1425,11 @@ CONTAINS
                   headers(1) = "#        Energy [eV]"
                   prefix = " MOMENTS_FT_PADE|"
                   prefix_format = "(A17)"
-                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :), &
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :), &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :))
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :))
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1414,11 +1465,11 @@ CONTAINS
                   headers(1) = "#        Energy [eV]"
                   prefix = " POLARIZABILITY|"
                   prefix_format = "(A16)"
-                  CALL print_ft_file(ft_unit, headers, omegas, pol_results, &
+                  CALL print_rt_file(ft_unit, headers, omegas, pol_results, &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers, omegas, pol_results)
+                  CALL print_rt_file(ft_unit, headers, omegas, pol_results)
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1469,11 +1520,11 @@ CONTAINS
                   headers(1) = "#        Energy [eV]"
                   prefix = " POLARIZABILITY_PADE|"
                   prefix_format = "(A21)"
-                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade, &
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, pol_results_pade, &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade)
+                  CALL print_rt_file(ft_unit, headers, omegas_pade_real, pol_results_pade)
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1511,17 +1562,21 @@ CONTAINS
 !> \param prefix_format ...
 !> \param xscale_opt ...
 ! **************************************************************************************************
-   SUBROUTINE print_ft_file(ft_unit, headers, xvals, yvals, prefix, prefix_format, xscale_opt)
-      INTEGER, INTENT(IN)                                :: ft_unit
-      CHARACTER(len=20), DIMENSION(:), INTENT(IN)        :: headers
+   SUBROUTINE print_rt_file(rt_unit, headers, xvals, yvals, prefix, prefix_format, xscale_opt, comp_opt)
+      INTEGER, INTENT(IN)                                :: rt_unit
+      CHARACTER(len=20), DIMENSION(:), &
+         INTENT(IN), OPTIONAL                            :: headers
       REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: xvals
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: yvals
       CHARACTER(len=21), INTENT(IN), OPTIONAL            :: prefix
       CHARACTER(len=5), INTENT(IN), OPTIONAL             :: prefix_format
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: xscale_opt
+      INTEGER, OPTIONAL                                  :: comp_opt
 
-      INTEGER                                            :: i, j, ncols, nrows
-      LOGICAL                                            :: do_prefix
+      INTEGER                                            :: i, j, ncols, nrows, &
+                                                            do_comp
+      LOGICAL                                            :: do_prefix, &
+                                                            do_headers
       REAL(kind=dp)                                      :: xscale
 
       do_prefix = .FALSE.
@@ -1539,41 +1594,81 @@ CONTAINS
       ncols = SIZE(yvals, 1)
       nrows = SIZE(yvals, 2)
 
+      ! Check whether printing complex data (default) or just a component
+      do_comp = rt_file_comp_both
+      IF (PRESENT(comp_opt)) do_comp = comp_opt
+
+      do_headers = PRESENT(headers)
       ! Check whether enough headers for yvals and xvals is present
-      IF (SIZE(headers) < 2*ncols + 1) THEN
-         CPABORT("Not enough headers to print the file!")
+      IF (do_headers) THEN
+         IF ((do_comp /= rt_file_comp_both .AND. SIZE(headers) < ncols + 1) &
+            .OR. (do_comp == rt_file_comp_both .AND. SIZE(headers) < 2*ncols + 1)) THEN
+            CPABORT("Not enought headers to print the file!")
+         END IF
       END IF
 
       IF (SIZE(xvals) < nrows) THEN
          CPABORT("Not enough xvals to print all yvals!")
       END IF
 
-      IF (ft_unit > 0) THEN
-         ! If prefix is present, write prefix
-         ! Also write energy in eV instead of at.u.
-         IF (do_prefix) THEN
-            WRITE (ft_unit, prefix_format, advance="no") prefix
+      IF (rt_unit > 0) THEN
+         ! Print headers
+         IF (do_headers) THEN
+            ! If prefix is present, write prefix
+            IF (do_prefix) THEN
+               WRITE (rt_unit, prefix_format, advance="no") prefix
+            END IF
+            WRITE (rt_unit, "(A20)", advance="no") headers(1)
+            ! Print the rest of the headers
+            SELECT CASE (do_comp)
+            CASE (rt_file_comp_both)
+               ! Complex case
+               DO j = 1, 2*ncols - 1
+                  WRITE (rt_unit, "(A20)", advance="no") headers(j + 1)
+               END DO
+               WRITE (rt_unit, "(A20)") headers(2*ncols + 1)
+            CASE DEFAULT
+               ! For other cases, just one component is printed
+               DO j = 1, ncols - 1
+                  WRITE (rt_unit, "(A20)", advance="no") headers(j + 1)
+               END DO
+               WRITE (rt_unit, "(A20)") headers(ncols + 1)
+            END SELECT
          END IF
-         WRITE (ft_unit, "(A20)", advance="no") headers(1)
-         ! Print the rest of the headers
-         DO j = 1, 2*ncols - 1
-            WRITE (ft_unit, "(A20)", advance="no") headers(j + 1)
-         END DO
-         WRITE (ft_unit, "(A20)") headers(2*ncols + 1)
          ! Done with the headers, print actual data
          DO i = 1, nrows
+            ! If prefix is present, write prefix
             IF (do_prefix) THEN
-               WRITE (ft_unit, prefix_format, advance="no") prefix
+               WRITE (rt_unit, prefix_format, advance="no") prefix
             END IF
-            WRITE (ft_unit, "(E20.8E3)", advance="no") xvals(i)*xscale
+            WRITE (rt_unit, "(E20.8E3)", advance="no") xvals(i)*xscale
             DO j = 1, ncols - 1
-               WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
-                  REAL(yvals(j, i)), AIMAG(yvals(j, i))
+               SELECT CASE (do_comp)
+                  CASE (rt_file_comp_real)
+                     WRITE (rt_unit, "(E20.8E3)", advance="no") &
+                        REAL(yvals(j, i))
+                  CASE (rt_file_comp_imag)
+                     WRITE (rt_unit, "(E20.8E3)", advance="no") &
+                        AIMAG(yvals(j, i))
+                  CASE DEFAULT
+                     ! Print both components
+                     WRITE (rt_unit, "(E20.8E3,E20.8E3)", advance="no") &
+                        REAL(yvals(j, i)), AIMAG(yvals(j, i))
+               END SELECT
             END DO
-            WRITE (ft_unit, "(E20.8E3,E20.8E3)") &
-               REAL(yvals(ncols, i)), AIMAG(yvals(ncols, i))
+            ! Print the final column(s)
+            SELECT CASE (do_comp)
+               CASE (rt_file_comp_real)
+                  WRITE (rt_unit, "(E20.8E3)") REAL(yvals(j, i))
+               CASE (rt_file_comp_imag)
+                  WRITE (rt_unit, "(E20.8E3)") AIMAG(yvals(j, i))
+               CASE DEFAULT
+                  ! Print both components
+                  WRITE (rt_unit, "(E20.8E3,E20.8E3)") &
+                     REAL(yvals(j, i)), AIMAG(yvals(j, i))
+            END SELECT
          END DO
       END IF
-   END SUBROUTINE print_ft_file
+   END SUBROUTINE print_rt_file
 
 END MODULE rt_propagation_output

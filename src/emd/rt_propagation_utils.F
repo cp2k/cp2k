@@ -951,7 +951,11 @@ CONTAINS
                            unit_number=unit_re)
             CALL open_file(save_name_im, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=unit_im)
+            ! Skip the headers
+            READ (unit_re, '()')
+            READ (unit_im, '()')
             DO n = 1, max_n
+               ! Read the data
                READ (unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &
                   moments_re(1), moments_re(2), moments_re(3)
                READ (unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &

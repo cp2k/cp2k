@@ -1827,7 +1827,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FIELD", &
                                        description="Print the time-dependent field applied during an EMD simulation in "// &
                                        "atomic unit.", &
-                                       print_level=high_print_level, common_iter_levels=-1, &
+                                       print_level=high_print_level, common_iter_levels=1, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=[1], &
                                        filename="applied_field")
