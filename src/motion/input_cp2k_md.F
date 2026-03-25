@@ -1007,7 +1007,7 @@ CONTAINS
                           description="Maximum accepted temperature deviation from the target "// &
                           "value for this region, which is defined by TEMPERATURE or evaluated "// &
                           "with the function defined in TFUNC section. Default value is 0 that "// &
-                          "turns off re-scaling.", &
+                          "turns off rescaling.", &
                           usage="TEMP_TOL 0.0", &
                           default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(region_section, keyword)
@@ -1035,11 +1035,11 @@ CONTAINS
 
       ! Define temperature function start
       CALL section_create(tfunc_section, __LOCATION__, name="TFUNC", &
-                          description="This section specify the target temperature by using "// &
-                          "the time step and the last-step temperature, allowing for simple "// &
-                          "region-wise simulated annealing (heating/cooling) controls. When "// &
-                          "the absolute difference between target and actual temperature is "// &
-                          "larger than TEMP_TOL value, the atomic velocities in this region "// &
+                          description="This section specifies the target temperature by using "// &
+                          "the time step and the temperature of the last step, allowing for "// &
+                          "simple region-wise simulated annealing (heating/cooling) controls. "// &
+                          "When the absolute difference between target and actual temperature "// &
+                          "is larger than TEMP_TOL value, the atomic velocities in this region "// &
                           "are rescaled to match the target temperature. However, note that "// &
                           "the actual temperature is subject to thermostat coupling as well "// &
                           "and a small restrictive TEMP_TOL together with a rapidly varying "// &
@@ -1050,10 +1050,10 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form of temperature in "// &
-                          "Kelvin in mathematical notation. Two variables are available "// &
-                          "with one denoted S for integer time step and another denoted "// &
-                          "T for the last-step temperature in Kelvin respectively. When "// &
+                          description="Specifies the functional form of the temperature "// &
+                          "in Kelvin in mathematical notation. Two variables are available "// &
+                          "with one denoted S for the integer time step and another denoted "// &
+                          "T for the temperature of the last step in Kelvin respectively. When "// &
                           "DEFINE_REGION%TEMPERATURE is not explicitly set, the function "// &
                           "will be evaluated at S set in MD%STEP_START_VAL and T = 0.0 "// &
                           "to initialize the velocities of atoms in the region.", &
@@ -1078,7 +1078,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
+                          description="Defines the values of the parameter of the functional form", &
                           usage="VALUES 0.75 3.00E+2", type_of_var=real_t, &
                           n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(tfunc_section, keyword)
@@ -1097,13 +1097,13 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "TEMPERATURE", &
-                                       description="Controls output of temperature per region. "// &
-                                       "The first three columns are: step number, time (in fs), "// &
-                                       "and temperature of atoms not in any temperature region "// &
-                                       "(or zero if all atoms are in some temperature region). "// &
+                                       description="Controls the output of the temperature per "// &
+                                       "region. The first three columns are: step number, time "// &
+                                       "(in fs), and the temperature of atoms not in any temperature "// &
+                                       "region (or zero if all atoms are in some temperature region). "// &
                                        "Subsequent columns are, in pairs, the target value "// &
                                        "(calculated by TFUNC or specified by TEMPERATURE) "// &
-                                       "and the actual value of temperature for each region.", &
+                                       "and the actual value of the temperature for each region.", &
                                        print_level=high_print_level, common_iter_levels=1, &
                                        filename="")
       CALL section_add_subsection(subsection, print_key)
