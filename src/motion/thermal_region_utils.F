@@ -90,7 +90,8 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       CHARACTER(LEN=default_string_length)               :: my_region
-      INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, nregions
+      INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, &
+                                                            nregions
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
@@ -98,8 +99,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(section_vals_type), POINTER                   :: region_sections, thermal_region_section,&
-                                                            tfunc_section
+      TYPE(section_vals_type), POINTER                   :: region_sections, tfunc_section, &
+                                                            thermal_region_section
       TYPE(thermal_region_type), POINTER                 :: t_region
 
       NULLIFY (region_sections, t_region, tfunc_section, thermal_region_section, particles, subsys, tmplist)
@@ -190,7 +191,9 @@ CONTAINS
                               t_region%temperature_function_parameters)
                   IF (.NOT. use_t) THEN ! Evaluate function for initial temperature
                      CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=itimes)
-                     temp = cp_unit_to_cp2k(evalf(1, [itimes*1.0_dp, 0.0_dp]), "K")
+                     t_region%temperature_function_values(1) = itimes*1.0_dp
+                     t_region%temperature_function_values(2) = 0.0_dp
+                     temp = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
                      CPASSERT(EvalErrType <= 0)
                   END IF
                   CALL finalizef()
@@ -199,9 +202,9 @@ CONTAINS
                   t_region%temp_expected = temp
                ELSE
                   CALL cp_abort(__LOCATION__, &
-                             "The initial temperature for region "//TRIM(my_region)//" is "// &
-                             TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(temp, "K"))))// &
-                             " K, which is negative and unphysical!")
+                                "The initial temperature for region "//TRIM(my_region)//" is "// &
+                                TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(temp, "K"))))// &
+                                " K, which is negative and unphysical!")
                END IF
 
                CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
@@ -243,20 +246,20 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief update_thermal_regions_temp_expected
+!> \param itimes          : iteration number of the time step
 !> \param thermal_regions : thermal regions type contains information
 !>                          about the regions
-!> \param itimes          : iteration number of the time step
+!> \date   03.2026
 !> \par    Note on units: t_region%temperature is updated by
 !>         SUBROUTINE scale_velocity_region in md_vel_utils.F
 !>         which is in Kelvin, but t_region%temp_expected is
 !>         in cp2k internal units. See "Note the unit conversion
 !>         here" in print_thermal_regions_temperature below.
-!> \date   03.2026
 !> \author HE Zilong
 ! **************************************************************************************************
    SUBROUTINE update_thermal_regions_temp_expected(itimes, thermal_regions)
-      TYPE(thermal_regions_type), POINTER                :: thermal_regions
       INTEGER, INTENT(IN)                                :: itimes
+      TYPE(thermal_regions_type), POINTER                :: thermal_regions
 
       CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: ireg
@@ -268,8 +271,9 @@ CONTAINS
          IF (LEN_TRIM(t_region%temperature_function) > 0) THEN
             CALL initf(1)
             CALL parsef(1, TRIM(t_region%temperature_function), t_region%temperature_function_parameters)
-            t_region%temp_expected = &
-               cp_unit_to_cp2k(evalf(1, [itimes*1.0_dp, t_region%temperature]), "K")
+            t_region%temperature_function_values(1) = itimes*1.0_dp
+            t_region%temperature_function_values(2) = t_region%temperature
+            t_region%temp_expected = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
             CPASSERT(EvalErrType <= 0)
             CALL finalizef()
             IF (t_region%temp_expected < 0.0_dp) THEN

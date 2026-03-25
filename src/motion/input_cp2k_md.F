@@ -49,7 +49,8 @@ MODULE input_cp2k_md
    USE reftraj_types,                   ONLY: REFTRAJ_EVAL_ENERGY,&
                                               REFTRAJ_EVAL_ENERGY_FORCES,&
                                               REFTRAJ_EVAL_NONE
-   USE string_utilities,                ONLY: newline, s2a
+   USE string_utilities,                ONLY: newline,&
+                                              s2a
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -942,8 +943,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, region_section,&
-                                                            subsection, tfunc_section
+      TYPE(section_type), POINTER                        :: print_key, region_section, subsection, &
+                                                            tfunc_section
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
@@ -980,7 +981,8 @@ CONTAINS
       CALL section_create(region_section, __LOCATION__, name="DEFINE_REGION", &
                           description="Define arbitrary thermal region with distinct "// &
                           "temperature controls. For thermostat regions, see section "// &
-                          "MOTION%MD%THERMOSTAT%DEFINE_REGION.", &
+                          "MOTION%MD%THERMOSTAT%DEFINE_REGION. Typically the settings "// &
+                          "should be the same.", &
                           n_keywords=3, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -1044,7 +1046,7 @@ CONTAINS
                           "little time for system relaxation."//newline// &
                           "Further notes about temperature. "//docf(), &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
-      
+
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
                           description="Specifies the functional form of temperature in "// &
@@ -1054,22 +1056,15 @@ CONTAINS
                           "DEFINE_REGION%TEMPERATURE is not explicitly set, the function "// &
                           "will be evaluated at S set in MD%STEP_START_VAL and T = 0.0 "// &
                           "to initialize the velocities of atoms in the region.", &
-                          usage="FUNCTION  0.5*(T+300*(2/(1+EXP(-0.001*S))-1))", &
+                          usage="FUNCTION  A*T+(1-A)*B*(2/(1+EXP(-0.001*S))-1)", &
                           type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(tfunc_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS ", type_of_var=char_t, &
+                          usage="PARAMETERS A B", type_of_var=char_t, &
                           n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(tfunc_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
       CALL section_add_keyword(tfunc_section, keyword)
       CALL keyword_release(keyword)
 
@@ -1080,7 +1075,14 @@ CONTAINS
                           n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(tfunc_section, keyword)
       CALL keyword_release(keyword)
-      
+
+      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
+                          description="Defines the values of parameter of the functional form", &
+                          usage="VALUES 0.75 3.00E+2", type_of_var=real_t, &
+                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
+      CALL section_add_keyword(tfunc_section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(region_section, tfunc_section)
       CALL section_release(tfunc_section)
       ! Define temperature function end
