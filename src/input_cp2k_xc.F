@@ -1318,6 +1318,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="USE_GAUXC", &
+                          description="Use GauXC for XC calculation instead of the legacy implementation", &
+                          usage="USE_GAUXC", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_create(subsection, __LOCATION__, name="xc_grid", & !FM to do
                           description="The xc parameters used when calculating the xc on the grid", &
                           n_keywords=5, n_subsections=0, repeats=.FALSE.)

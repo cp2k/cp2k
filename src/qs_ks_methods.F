@@ -61,7 +61,8 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -194,10 +195,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
-      CHARACTER(len=default_string_length)               :: name
+      CHARACTER(len=default_string_length)               :: name, xc_fun_name
       INTEGER                                            :: handle, iatom, img, ispin, natom, &
                                                             nimages, nspins
-      LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
+      LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_gauxc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
@@ -241,14 +242,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_section
+                                                            xc_fun_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                adiabatic_rescaling_section, hfx_sections, &
-               input, scf_section, xc_section, matrix_h, matrix_h_im, matrix_s, &
+               input, scf_section, xc_section, xc_fun_section, matrix_h, matrix_h_im, matrix_s, &
                auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
                v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
                ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core, &
@@ -287,35 +288,8 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
-      gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
-      gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
-      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
-      gauxc_integrator_result = gauxc_create_integrator("PBE", gauxc_grid_result%lb, dft_control%nspins, gauxc_status)
-
       nimages = dft_control%nimages
       nspins = dft_control%nspins
-
-      IF (qs_env%run_rtp) THEN
-         CPABORT("GAUXC XC energy currently does not support real-time propagation")
-      END IF
-
-      IF (nimages == 1) THEN
-         CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
-         IF (nspins == 2) THEN
-            CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
-         END IF
-      ELSE
-         CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
-         DO img = 2, nimages
-            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar, accumulate=.TRUE.)
-         END DO
-         IF (nspins == 2) THEN
-            CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
-            DO img = 2, nimages
-               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta, accumulate=.TRUE.)
-            END DO
-         END IF
-      END IF
 
       ! remap pointer to allow for non-kpoint external ks matrix
       IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
@@ -613,8 +587,70 @@ CONTAINS
          xc_section => admm_env%xc_section_primary
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         ! build ks matrix with an xc section potentially different from the one defined in input
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
+      END IF
+
+      CALL section_vals_val_get(xc_section, "USE_GAUXC", l_val=do_gauxc)
+
+      IF (do_gauxc) THEN
+         xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+         IF (ASSOCIATED(xc_fun_section)) THEN
+            xc_fun_name = xc_fun_section%section%name
+         ELSE
+            CPABORT("XC_FUNCTIONAL section not found")
+         END IF
+         xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
+         IF (.NOT. ASSOCIATED(xc_fun_subsection)) THEN
+            CPABORT("No XC functional found in XC_FUNCTIONAL section")
+         END IF
+         IF (ASSOCIATED(section_vals_get_subs_vals2(xc_fun_section, i_section=2))) THEN
+            CPABORT("GauXC does not support multiple XC functionals")
+         END IF
+         xc_fun_name = xc_fun_subsection%section%name
+         WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
+
+         gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
+         gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
+         gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
+         gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, nspins, gauxc_status)
+
+         IF (qs_env%run_rtp) THEN
+            CPABORT("GAUXC XC energy currently does not support real-time propagation")
+         END IF
+
+         IF (nimages == 1) THEN
+            CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
+            IF (nspins == 2) THEN
+               CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+            END IF
+         ELSE
+            CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
+            DO img = 2, nimages
+               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar, accumulate=.TRUE.)
+            END DO
+            IF (nspins == 2) THEN
+               CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
+               DO img = 2, nimages
+                  CALL dbcsr_to_dense(rho_ao(2, img), density_zeta, accumulate=.TRUE.)
+               END DO
+            END IF
+         END IF
+
+         IF (nspins == 1) THEN
+            gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
+                                               nspins=nspins, status=gauxc_status)
+         ELSE
+            gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
+                                               density_zeta, nspins, gauxc_status)
+         END IF
+
+         energy%exc = gauxc_xc_result%exc
+
+         CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
+         CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
+         CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
+         CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
+
       END IF
 
       IF (gapw_xc) THEN
@@ -628,34 +664,35 @@ CONTAINS
          energy%exc = 0.0_dp
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc)
       ELSE
-         ! Embedding potential
-         IF (dft_control%apply_embed_pot) THEN
-            NULLIFY (v_rspace_embed)
-            energy%embed_corr = 0.0_dp
-            CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
-                                            energy%embed_corr, just_energy)
-         END IF
-         ! Everything else
-         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
-                            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                            edisp=edisp, dispersion_env=qs_env%dispersion_env, &
-                            just_energy=just_energy_xc)
-         IF (edisp /= 0.0_dp) energy%dispersion = edisp
-         IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
-            CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
-            CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
-         END IF
+         IF (.NOT. do_gauxc) THEN
+            ! Embedding potential
+            IF (dft_control%apply_embed_pot) THEN
+               NULLIFY (v_rspace_embed)
+               energy%embed_corr = 0.0_dp
+               CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
+                                               energy%embed_corr, just_energy)
+            END IF
+            ! Everything else (legacy XC implementation)
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                               just_energy=just_energy_xc)
+            IF (edisp /= 0.0_dp) energy%dispersion = edisp
+            IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
+               CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+               CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+            END IF
 
-         IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
-            ! test for not implemented (bug) option
-            IF (use_virial .AND. calculate_forces) THEN
-               IF (ASSOCIATED(v_tau_rspace)) THEN
-                  CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
+            IF (gapw .OR. gapw_xc) THEN
+               CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+               ! test for not implemented (bug) option
+               IF (use_virial .AND. calculate_forces) THEN
+                  IF (ASSOCIATED(v_tau_rspace)) THEN
+                     CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
+                  END IF
                END IF
             END IF
          END IF
-
       END IF
 
       ! set hartree and xc potentials for use in Harris method
@@ -1007,21 +1044,10 @@ CONTAINS
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
       END IF
 
-      gauxc_xc_result = gauxc_compute_xc( &
-                        gauxc_integrator_result%integrator, &
-                        density_scalar, &
-                        density_zeta, &
-                        nspins, &
-                        gauxc_status)
-      energy%exc = gauxc_xc_result%exc
-
-      DEALLOCATE (density_scalar)
-      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
-
-      CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
-      CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
-      CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
-      CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
+      IF (do_gauxc) THEN
+         DEALLOCATE (density_scalar)
+         IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
+      END IF
 
       CALL timestop(handle)
 
