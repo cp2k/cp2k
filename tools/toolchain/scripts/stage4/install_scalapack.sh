@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-scalapack_ver="2.2.2"
-scalapack_sha256="a2f0c9180a210bf7ffe126c9cb81099cf337da1a7120ddb4cbe4894eb7b7d022"
+scalapack_ver="2.2.3"
+scalapack_sha256="5d93701eca663925e98010dd8d0f45fd79b2191d74e5afa5711d587370a8b9dd"
 scalapack_pkg="scalapack-${scalapack_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -30,13 +30,11 @@ case "$with_scalapack" in
       echo "scalapack-${scalapack_ver} is already installed, skipping it."
     else
       require_env MATH_LIBS
-      retrieve_package "${scalapack_sha256}" "${scalapack_pkg}"
+      #retrieve_package "${scalapack_sha256}" "${scalapack_pkg}"
+      download_pkg_from_urlpath "${scalapack_sha256}" "v2.2.3.tar.gz" https://github.com/Reference-ScaLAPACK/scalapack/archive/refs/tags "${scalapack_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
       tar -xzf ${scalapack_pkg}
-
-      # Change the CMake policy requirement to keep legacy compatibility for CMake version 4.x
-      sed -e 's/2.8/3.5/g' -i scalapack-${scalapack_ver}/BLACS/INSTALL/CMakeLists.txt
 
       mkdir -p "scalapack-${scalapack_ver}/build"
       pushd "scalapack-${scalapack_ver}/build" > /dev/null
