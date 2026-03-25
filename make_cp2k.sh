@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.6
+# Version: 1.7
 
 # History: - Creation (19.12.2025, MK)
 #          - Version 0.1: First working version (09.01.2026, MK)
@@ -69,6 +69,7 @@
 #          - Version 1.4: Drop download of spack-packages (12.02.2026, MK)
 #          - Version 1.5: Add flags to enable/disable features selectively (15.02.2026, MK)
 #          - Version 1.6: Enable dbg and smp builds (01.03.2026, MK)
+#          - Version 1.7: Add flag for building a static CP2K library libcp2k.a (25.03.2026, MK)
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -136,6 +137,7 @@ fi
 # Default values
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
+BUILD_SHARED_LIBS="${BUILD_SHARED_LIBS:-ON}"
 CP2K_BUILD_TYPE="${CP2K_BUILD_TYPE:-Release}"
 DEPS_BUILD_TYPE="${DEPS_BUILD_TYPE:-Release}"
 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON" # all features are activated by default
@@ -187,6 +189,10 @@ while [[ $# -gt 0 ]]; do
     -bd_only | --build_deps_only | --build_dependencies_only)
       BUILD_DEPS="always"
       BUILD_DEPS_ONLY="yes"
+      shift 1
+      ;;
+    -bsl | --build_static_libcp2k)
+      BUILD_SHARED_LIBS="OFF"
       shift 1
       ;;
     -bt | --build_type)
@@ -556,15 +562,16 @@ for flag in ${CMAKE_FEATURE_FLAGS}; do
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
-export BUILD_DEPS BUILD_DEPS_ONLY CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CRAY CUDA_SM_CODE \
-  DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE MPI_MODE \
-  NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
+export BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE \
+  CRAY CUDA_SM_CODE DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE \
+  MPI_MODE NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
   echo ""
   echo "Usage: ${SCRIPT_NAME} [-bd | --build_deps]"
   echo "                    [-bd_only | --build_deps_only]"
+  echo "                    [-bsl | --build_static_libcp2k]"
   echo "                    [-bt | --build_type (Debug | Release | RelWithDebInfo)]"
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
@@ -584,27 +591,28 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-v | --verbose]"
   echo ""
   echo "Flags:"
-  echo " --build_deps         : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
-  echo " --build_deps_only    : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
-  echo " --build_type         : Set preferred CMake build type for CP2K (default: \"Release\")"
-  echo " --cp2k_version       : CP2K version to be built (default: \"psmp\")"
-  echo " -cray                : Use Cray specific spack configuration"
-  echo " --disable_local_cache: Don't add local Spack cache"
-  echo " --enable_feature     : Enable feature or package (default: all)"
-  echo " --disable_feature    : Disable feature or package"
-  echo " --help               : Print this help information"
-  echo " --gcc_version        : Use the specified GCC version (default: automatically decided by spack)"
-  echo " --gpu_model          : Select GPU model (default: none)"
-  echo " --install_path       : Define the CP2K installation path (default: ./install)"
-  echo " -j                   : Maximum number of processes used in parallel"
-  echo " --mpi_mode           : Set preferred MPI mode (default: \"mpich\")"
-  echo " --num_packages       : Maximum number of packages built by spack in parallel (default: 4)"
-  echo " --rebuild_cp2k       : Rebuild CP2K: removes the build folder (default: no)"
-  echo " --test               : Perform a regression test run after a successful build"
-  echo " --use_externals      : Use external packages installed on the host system. This results in much"
-  echo "                        faster build times, but it can also cause conflicts with outdated packages"
-  echo "                        pulled in from the host system, e.g. old python or gcc versions"
-  echo " --verbose            : Write verbose output"
+  echo " --build_deps          : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_deps_only     : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
+  echo " --build_static_libcp2k: Build a static CP2K library libcp2k.a instead of the default shared one libcp2k.so"
+  echo " --build_type          : Set preferred CMake build type for CP2K (default: \"Release\")"
+  echo " --cp2k_version        : CP2K version to be built (default: \"psmp\")"
+  echo " -cray                 : Use Cray specific spack configuration"
+  echo " --disable_local_cache : Don't add local Spack cache"
+  echo " --enable_feature      : Enable feature or package (default: all)"
+  echo " --disable_feature     : Disable feature or package"
+  echo " --help                : Print this help information"
+  echo " --gcc_version         : Use the specified GCC version (default: automatically decided by spack)"
+  echo " --gpu_model           : Select GPU model (default: none)"
+  echo " --install_path        : Define the CP2K installation path (default: ./install)"
+  echo " -j                    : Maximum number of processes used in parallel"
+  echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
+  echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
+  echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
+  echo " --test                : Perform a regression test run after a successful build"
+  echo " --use_externals       : Use external packages installed on the host system. This results in much"
+  echo "                         faster build times, but it can also cause conflicts with outdated packages"
+  echo "                         pulled in from the host system, e.g. old python or gcc versions"
+  echo " --verbose             : Write verbose output"
   echo ""
   echo "Hints:"
   echo " - Remove the folder ${CP2K_ROOT}/build to (re)build CP2K from scratch"
@@ -626,6 +634,7 @@ fi
 echo ""
 echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
+echo "BUILD_SHARED_LIBS   = ${BUILD_SHARED_LIBS}"
 echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
@@ -1207,10 +1216,11 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
+        -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
-        -DCMAKE_SKIP_RPATH=ON \
+        -DCMAKE_SKIP_RPATH="ON" \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
         -DCP2K_USE_PEXSI="${CP2K_USE_PEXSI}" \
@@ -1223,10 +1233,11 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
+        -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
-        -DCMAKE_SKIP_RPATH=ON \
+        -DCMAKE_SKIP_RPATH="ON" \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         ${CMAKE_FEATURE_FLAGS} \
         ${CMAKE_CUDA_FLAGS} \
@@ -1241,13 +1252,13 @@ if [[ ! -d "${CMAKE_BUILD_PATH}" ]]; then
       # shellcheck disable=SC2086
       cmake -S "${CP2K_ROOT}" -B "${CMAKE_BUILD_PATH}" \
         -GNinja \
-        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_SHARED_LIBS="OFF" \
         -DCMAKE_BUILD_TYPE="${CP2K_BUILD_TYPE}" \
         -DCMAKE_EXE_LINKER_FLAGS="-static" \
         -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
         -DCMAKE_INSTALL_MESSAGE="${INSTALL_MESSAGE}" \
-        -DCMAKE_SKIP_RPATH=ON \
+        -DCMAKE_SKIP_RPATH="ON" \
         -DCMAKE_VERBOSE_MAKEFILE="${VERBOSE_MAKEFILE}" \
         -DCP2K_BLAS_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
         -DCP2K_LAPACK_LINK_LIBRARIES="${LIBOPENBLAS};${LIBM}" \
