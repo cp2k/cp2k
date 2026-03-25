@@ -20,21 +20,21 @@ cd "${BUILDDIR}"
 case "${with_cmake}" in
   __INSTALL__)
     echo "==================== Installing CMake ===================="
-    cmake_ver="4.2.3"
+    cmake_ver="4.3.0"
     if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
       if [ "$(uname -s)" = "Darwin" ]; then
         cmake_arch="macos-universal"
-        cmake_sha256="c2302d3e9c48daabee5ea7c4db4b2b93b989bcc89dae8b760880e00120641b5b"
+        cmake_sha256="5bd933daf6e9234a53a9a43092746993870d9f162b6c399fd6e4a05cdd475e67"
       elif [ "$(uname -s)" = "Linux" ]; then
         cmake_arch="linux-aarch64"
-        cmake_sha256="e529c75f18f27ba27c52b329efe7b1f98dc32ccc0c6d193c7ab343f888962672"
+        cmake_sha256="26fe3011f497eb9398115dcabcc094685e634b1841f7c01dc01c5a89b8b0ea0d"
       else
         report_error ${LINENO} \
           "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
       fi
     elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
       cmake_arch="linux-x86_64"
-      cmake_sha256="5bb505d5e0cca0480a330f7f27ccf52c2b8b5214c5bba97df08899f5ef650c23"
+      cmake_sha256="201bdabe17a54e017f119cffa247648e9c44327e52473c2cc60a88fded94652a"
     else
       report_error ${LINENO} \
         "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
