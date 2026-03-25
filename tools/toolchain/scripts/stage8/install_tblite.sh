@@ -69,7 +69,8 @@ case "$with_tblite" in
   __SYSTEM__)
     echo "==================== Finding tblite from system paths ===================="
     check_command pkg-config --modversion tblite
-    TBLITE_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
+    TBLITE_INCLUDE_PATH=$(pkg-config --cflags tblite | awk '{print $1}' | cut -dI -f2)
+    pkg_install_dir=$(dirname ${TBLITE_INCLUDE_PATH})
     add_include_from_paths TBLITE_CFLAGS "tblite.h" $TBLITE_INCLUDE_PATH
     add_include_from_paths TBLITE_CFLAGS "tblite.mod" $TBLITE_INCLUDE_PATH
     add_include_from_paths TBLITE_CFLAGS "dftd4.mod" $TBLITE_INCLUDE_PATH
@@ -96,27 +97,27 @@ if [ "$with_tblite" != "__DONTUSE__" ]; then
 export TBLITE_VER="${tblite_ver}"
 EOF
 
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "tomlf.mod")
+  TOMLF=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
+  MCHARGE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
+  MSTORE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
+  MCTC=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd3.mod")
+  SDFTD3=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
+  DFTD4=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "tblite_xtb.mod")
+  TBLITE=${TEMP_LOC%/*}
+
+  TBLITE_INCLUDE_DIRS="${pkg_install_dir}/include"
+  TBLITE_LINK_LIBRARIES="${pkg_install_dir}/lib"
+  TBLITE_CFLAGS="-I'${TOMLF}' -I'${MCTC}' -I'${SDFTD3}' -I'${DFTD4}' -I'${TBLITE}'"
+  TBLITE_LDFLAGS="-L'${TBLITE_LINK_LIBRARIES}' -Wl,-rpath,'${TBLITE_LINK_LIBRARIES}'"
+
   if [ "$with_tblite" != "__SYSTEM__" ]; then
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "tomlf.mod")
-    TOMLF=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-    MCHARGE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-    MSTORE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-    MCTC=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd3.mod")
-    SDFTD3=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-    DFTD4=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "tblite_xtb.mod")
-    TBLITE=${TEMP_LOC%/*}
-
-    TBLITE_INCLUDE_DIRS="${pkg_install_dir}/include"
-    TBLITE_LINK_LIBRARIES="${pkg_install_dir}/lib"
-    TBLITE_CFLAGS="-I'${TOMLF}' -I'${MCTC}' -I'${SDFTD3}' -I'${DFTD4}' -I'${TBLITE}'"
-    TBLITE_LDFLAGS="-L'${TBLITE_LINK_LIBRARIES}' -Wl,-rpath,'${TBLITE_LINK_LIBRARIES}'"
-
     cat << EOF >> "${BUILDDIR}/setup_tblite"
 prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${TBLITE_LINK_LIBRARIES}"

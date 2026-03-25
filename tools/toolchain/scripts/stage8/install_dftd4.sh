@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="3.7.0"
-dftd4_sha256="2e0d3504038358b8a82fdd21912b7765d416a58ebedbdd44f2ca8d2e88339ad7"
+dftd4_ver="4.0.2"
+dftd4_sha256="ed4a6a3ba0a89b8d6825bf11724dee647fd8ee6272e7822e0cbd9847994eb872"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -32,18 +32,15 @@ case "$with_dftd4" in
     install_lock_file="${pkg_install_dir}/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
-      echo "dftd4_dist-${dftd4_ver} is already installed, skipping it."
+      echo "dftd4-${dftd4_ver} is already installed, skipping it."
     else
-      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.gz"
+      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}-source.tar.xz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
-      tar -xzf dftd4-${dftd4_ver}.tar.gz
-      cd dftd4-${dftd4_ver}/subprojects/dftd4
+      tar -xJf dftd4-${dftd4_ver}-source.tar.xz
+      cd dftd4-${dftd4_ver}
 
-      rm -Rf build
-      mkdir build
-      cd build
-
+      mkdir build && cd build
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
@@ -61,6 +58,7 @@ case "$with_dftd4" in
     echo "==================== Finding DFTD4 from system paths ===================="
     check_command pkg-config --modversion dftd4
     DFTD4_INCLUDE_PATH=$(pkg-config --cflags dftd4 | awk '{print $1}' | cut -dI -f2)
+    pkg_install_dir=$(dirname ${DFTD4_INCLUDE_PATH})
     add_include_from_paths DFTD4_CFLAGS "dftd4.h" $DFTD4_INCLUDE_PATH
     add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $DFTD4_INCLUDE_PATH
     add_include_from_paths DFTD4_CFLAGS "mctc_io.mod" $DFTD4_INCLUDE_PATH
@@ -86,22 +84,21 @@ if [ "$with_dftd4" != "__DONTUSE__" ]; then
 export DFTD4_VER="${dftd4_ver}"
 EOF
 
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
+  MCHARGE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
+  MSTORE=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
+  MCTC=${TEMP_LOC%/*}
+  TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
+  DFTD4=${TEMP_LOC%/*}
+
+  DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
+  DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
+  DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
+  DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
+
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-    MCHARGE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-    MSTORE=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-    MCTC=${TEMP_LOC%/*}
-    TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-    DFTD4=${TEMP_LOC%/*}
-
-    DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
-    DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
-
-    DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
-    DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
-
     cat << EOF >> "${BUILDDIR}/setup_dftd4"
 prepend_path LD_LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
 prepend_path LD_RUN_PATH "${DFTD4_LINK_LIBRARIES}"

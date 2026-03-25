@@ -939,9 +939,12 @@ CONTAINS
                           usage="POTENTIAL_TYPE (NONE|PAIR_POTENTIAL|NON_LOCAL)", &
                           enum_c_vals=s2a("NONE", "PAIR_POTENTIAL", "NON_LOCAL"), &
                           enum_i_vals=[xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc], &
-                          enum_desc=s2a("No dispersion/van der Waals functional", &
-                                        "Pair potential van der Waals density functional", &
-                                        "Nonlocal van der Waals density functional"), &
+                          enum_desc=s2a("No dispersion/van der Waals functional.", &
+                                        "Pair potential van der Waals density functional, "// &
+                                        "including Grimme's empirical DFT-D methods.", &
+                                        "Nonlocal van der Waals density functional; more "// &
+                                        "rigorous in principle, but significantly more "// &
+                                        "time-consuming."), &
                           default_i_val=xc_vdw_fun_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -981,7 +984,7 @@ CONTAINS
                                         "Grimme D3 method (zero damping)", &
                                         "Grimme D3 method (Becke-Johnson damping)", &
                                         "Grimme D4 method"), &
-                          default_i_val=vdw_pairpot_dftd3)
+                          default_i_val=vdw_pairpot_dftd3bj)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_FILE_NAME", &
@@ -1001,7 +1004,11 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_REFERENCE_CODE", &
-                          description="Calculate D4 energy using external library.", &
+                          description="Calculate D4 energy using external library entirely. "// &
+                          "If set to F, CP2K will use its own codes to perform part of the "// &
+                          "DFT-D4 correction (including the calculation of EEQ charges) in "// &
+                          "parallel, which can significally save time if you use an MPI version "// &
+                          "of CP2K because DFT-D4 package does not support MPI parallelization.", &
                           usage="D4_REFERENCE_CODE", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
