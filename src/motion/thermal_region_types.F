@@ -15,7 +15,9 @@
 MODULE thermal_region_types
 
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,9 +38,12 @@ MODULE thermal_region_types
    END TYPE thermal_regions_type
 
    TYPE thermal_region_type
+      CHARACTER(len=default_path_length) :: temperature_function = ""
+      CHARACTER(len=default_string_length), POINTER, DIMENSION(:) :: temperature_function_parameters => NULL()
       INTEGER :: region_index = 0, npart = 0
       INTEGER, DIMENSION(:), POINTER :: part_index => NULL()
       REAL(KIND=dp) :: ekin = 0.0_dp, noisy_gamma_region = 0.0_dp, temperature = 0.0_dp, temp_expected = 0.0_dp, temp_tol = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:), POINTER :: temperature_function_values => NULL()
    END TYPE thermal_region_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'
