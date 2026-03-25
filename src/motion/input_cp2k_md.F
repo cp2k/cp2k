@@ -109,99 +109,99 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="steps", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEPS", &
                           description="The number of MD steps to perform, counting from step_start_val. ", &
-                          usage="steps 100", default_i_val=3)
+                          usage="STEPS 100", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="max_steps", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_STEPS", &
                           description="The number of MD steps to perform, counting from step 1", &
-                          usage="max_steps 100", default_i_val=1000000000)
+                          usage="MAX_STEPS 100", default_i_val=1000000000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="timestep", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIMESTEP", &
                           description="The length of an integration step (in case RESPA the large TIMESTEP)", &
-                          usage="timestep 1.0", default_r_val=cp_unit_to_cp2k(value=0.5_dp, unit_str="fs"), &
+                          usage="TIMESTEP 1.0", default_r_val=cp_unit_to_cp2k(value=0.5_dp, unit_str="fs"), &
                           unit_str="fs")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="step_start_val", &
-                          description="The starting step value for the MD", usage="step_start_val <integer>", &
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_START_VAL", &
+                          description="The starting step value for the MD", usage="STEP_START_VAL <integer>", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="time_start_val", &
+      CALL keyword_create(keyword, __LOCATION__, name="TIME_START_VAL", &
                           description="The starting timer value for the MD", &
-                          usage="time_start_val <real>", default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="fs"), &
+                          usage="TIME_START_VAL <real>", default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="fs"), &
                           unit_str="fs")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="econs_start_val", &
+      CALL keyword_create(keyword, __LOCATION__, name="ECONS_START_VAL", &
                           description="The starting  value of the conserved quantity", &
-                          usage="econs_start_val <real>", default_r_val=0.0_dp, &
+                          usage="ECONS_START_VAL <real>", default_r_val=0.0_dp, &
                           unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="temperature", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
                           description="The temperature in K used to initialize "// &
                           "the velocities with init and pos restart, and in the NPT/NVT simulations", &
-                          usage="temperature 325.0", default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          usage="TEMPERATURE 325.0", default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
                           unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="temp_tol", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMP_TOL", &
                           variants=s2a("temp_to", "temperature_tolerance"), &
                           description="The maximum accepted deviation of the (global) temperature "// &
-                          "from the desired target temperature before a rescaling of the velocites "// &
+                          "from the desired target temperature before a rescaling of the velocities "// &
                           "is performed. If it is 0 no rescaling is performed. NOTE: This keyword is "// &
                           "obsolescent; Using a CSVR thermostat with a short timeconstant is "// &
                           "recommended as a better alternative.", &
-                          usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K')
+                          usage="TEMP_TOL 0.0", default_r_val=0.0_dp, unit_str='K')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="temp_kind", &
+      CALL keyword_create(keyword, __LOCATION__, name="TEMP_KIND", &
                           description="Compute the temperature per each kind separately", &
-                          usage="temp_kind LOGICAL", &
+                          usage="TEMP_KIND LOGICAL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="scale_temp_kind", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_TEMP_KIND", &
                           description="When necessary rescale the temperature per each kind separately", &
-                          usage="scale_temp_kind LOGICAL", &
+                          usage="SCALE_TEMP_KIND LOGICAL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="comvel_tol", &
+      CALL keyword_create(keyword, __LOCATION__, name="COMVEL_TOL", &
                           description="The maximum accepted velocity of the center of mass. "// &
                           "With Shell-Model, comvel may drift if MD%THERMOSTAT%REGION /= GLOBAL ", &
-                          usage="comvel_tol 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1")
+                          usage="COMVEL_TOL 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="angvel_tol", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANGVEL_TOL", &
                           description="The maximum accepted angular velocity. This option is ignored "// &
                           "when the system is periodic. Removes the components of the velocities that "// &
                           "project on the external rotational degrees of freedom.", &
-                          usage="angvel_tol 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1")
+                          usage="ANGVEL_TOL 0.1", type_of_var=real_t, n_var=1, unit_str="bohr*au_t^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="angvel_zero", &
+      CALL keyword_create(keyword, __LOCATION__, name="ANGVEL_ZERO", &
                           description="Set the initial angular velocity to zero. This option is ignored "// &
                           "when the system is periodic or when initial velocities are defined. Technically, "// &
                           "the part of the random initial velocities that projects on the external "// &
                           "rotational degrees of freedom is subtracted.", &
-                          usage="angvel_zero LOGICAL", &
+                          usage="ANGVEL_ZERO LOGICAL", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1039,12 +1039,13 @@ CONTAINS
                           "the time step and the last-step temperature, allowing for simple "// &
                           "region-wise simulated annealing (heating/cooling) controls. When "// &
                           "the absolute difference between target and actual temperature is "// &
-                          "larger than TEMP_TOL, the atomic velocities in the region are re-"// &
-                          "scaled to match target temperature. Note that actual temperature "// &
-                          "is also subject to thermostat coupling, and a small, restrictive "// &
-                          "TEMP_TOL together with rapidly varying target temperature leaves "// &
-                          "little time for system relaxation."//newline// &
-                          "Further notes about temperature. "//docf(), &
+                          "larger than TEMP_TOL value, the atomic velocities in this region "// &
+                          "are rescaled to match the target temperature. However, note that "// &
+                          "the actual temperature is subject to thermostat coupling as well "// &
+                          "and a small restrictive TEMP_TOL together with a rapidly varying "// &
+                          "target temperature function leaves little time for the system to "// &
+                          "adjust itself, possibly showing unphysical relaxation behaviors. "// &
+                          newline//"Further notes about temperature. "//docf(), &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
