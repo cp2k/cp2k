@@ -102,6 +102,7 @@ CONTAINS
 !> \param skip_load_balance_distributed ...
 !> \param pw_env_external ...
 !> \param sab_orb_external ...
+!> \param ext_kpoints ...
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
 !>      04.2010 divides tasks into grid levels and atom pairs for integrate/collocate [Iain Bethune]
@@ -115,7 +116,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE generate_qs_task_list(ks_env, task_list, basis_type, &
                                     reorder_rs_grid_ranks, skip_load_balance_distributed, &
-                                    pw_env_external, sab_orb_external)
+                                    pw_env_external, sab_orb_external, ext_kpoints)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
@@ -125,6 +126,7 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_external
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: ext_kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list'
       INTEGER, PARAMETER                                 :: max_tasks = 2000
@@ -198,14 +200,20 @@ CONTAINS
 
       ! kpoint related
       nimages = dft_control%nimages
-      IF (nimages > 1) THEN
+      dokp = .FALSE.
+      NULLIFY (cell_to_index)
+      NULLIFY (kpoints)
+      IF (PRESENT(ext_kpoints)) THEN
+         IF (ASSOCIATED(ext_kpoints)) THEN
+            dokp = .TRUE.
+            CALL get_kpoint_info(kpoint=ext_kpoints, cell_to_index=cell_to_index)
+            nimages = SIZE(ext_kpoints%index_to_cell, 2)
+         END IF
+      END IF
+      IF (.NOT. dokp .AND. nimages > 1) THEN
          dokp = .TRUE.
-         NULLIFY (kpoints)
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-      ELSE
-         dokp = .FALSE.
-         NULLIFY (cell_to_index)
       END IF
 
       ! free the atom_pair lists if allocated

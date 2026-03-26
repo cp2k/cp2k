@@ -53,6 +53,9 @@ MODULE ec_diag_solver
                                               ot_precond_full_single_inverse,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
+                                              kpoint_density_transform,&
+                                              kpoint_set_mo_occupation
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: make_preconditioner
@@ -77,6 +80,7 @@ MODULE ec_diag_solver
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_diagonalization,          ONLY: diag_kp_basic
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
@@ -211,29 +215,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_diag_solver_kp'
 
-      INTEGER                                            :: handle, ispin, nmo(2), nsize, nspins
-      REAL(KIND=dp)                                      :: eps_filter, flexible_electron_count, &
-                                                            focc(2), n_el_f
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigvals
+      INTEGER                                            :: handle, i, ispin, nsize
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_k, fm_s, fm_w
-      TYPE(cp_fm_type), POINTER                          :: fm_mos
-      TYPE(dbcsr_type), POINTER                          :: ref_matrix
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: moset
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(dbcsr_type), POINTER                          :: tempmat
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-      eps_filter = dft_control%qs_control%eps_filter_matrix
-      nspins = dft_control%nspins
-
-      nmo = 0
-      CALL get_qs_env(qs_env=qs_env, nelectron_spin=nmo)
-      focc = 1._dp
-      IF (nspins == 1) focc = 2._dp
 
       CALL dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
 
@@ -242,66 +232,32 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nsize, &
                                ncol_global=nsize, para_env=para_env)
-      CALL cp_fm_create(fm_k, fm_struct)
-      CALL cp_fm_create(fm_s, fm_struct)
-      CALL cp_fm_create(fm_w, fm_struct)
+      ALLOCATE (fmwork(4))
+      DO i = 1, 4
+         CALL cp_fm_create(fmwork(i), fm_struct)
+      END DO
       CALL cp_fm_struct_release(fm_struct)
 
-      ! MO sets
-      flexible_electron_count = 0.0_dp
-      IF (ec_env%smear%do_smear) flexible_electron_count = 0.0001_dp
+      ! Diagonalization
+      CALL diag_kp_basic(matrix_ks, matrix_s, ec_env%kpoints, fmwork)
+      ! MO occupations
+      CALL kpoint_set_mo_occupation(ec_env%kpoints, ec_env%smear)
+      ! density matrices
+      CALL kpoint_density_matrices(ec_env%kpoints)
+      ! density matrices in real space
+      tempmat => matrix_s(1, 1)%matrix
+      CALL kpoint_density_transform(ec_env%kpoints, matrix_p, .FALSE., tempmat, &
+                                    ec_env%sab_orb, fmwork)
+      CALL kpoint_density_transform(ec_env%kpoints, matrix_w, .TRUE., tempmat, &
+                                    ec_env%sab_orb, fmwork)
 
-      ALLOCATE (moset(nspins))
-      DO ispin = 1, nspins
-         n_el_f = nmo(ispin)
-         CALL allocate_mo_set(moset(ispin), nsize, nsize, nmo(ispin), n_el_f, &
-                              focc(ispin), flexible_electron_count)
-         CALL init_mo_set(moset(ispin), fm_ref=fm_w, name="MO")
+      ec_env%ekTS = 0.0_dp
+      mos => ec_env%kpoints%kp_env(1)%kpoint_env%mos
+      DO ispin = 1, SIZE(mos, 2)
+         ec_env%ekTS = ec_env%ekTS + mos(1, ispin)%kTS
       END DO
 
-      DO ispin = 1, nspins
-         ref_matrix => matrix_s(1, 1)%matrix
-         CALL copy_dbcsr_to_fm(ref_matrix, fm_s)
-         ref_matrix => matrix_ks(ispin, 1)%matrix
-         CALL copy_dbcsr_to_fm(ref_matrix, fm_k)
-         CALL get_mo_set(moset(ispin), eigenvalues=eigvals, mo_coeff=fm_mos)
-         CALL cp_fm_geeig(fm_k, fm_s, fm_mos, eigvals, fm_w)
-      END DO
-!deb  CALL diag_kp_basic(matrix_ks, matrix_s, kpoints, fmwork)
-!deb
-!     ! MO occupations
-!     CALL kpoint_set_mo_occupation(kpoints, smear)
-!     ! density matrices
-!     CALL kpoint_density_matrices(kpoints)
-!     ! density matrices in real space
-!     CALL kpoint_density_transform(kpoints, matrix_p, .FALSE., tempmat, sab_nl, fmwork)
-
-!     energy%kTS = 0.0_dp
-!     energy%efermi = 0.0_dp
-!     mos => kpoints%kp_env(1)%kpoint_env%mos
-!     DO ispin = 1, SIZE(mos, 2)
-!        energy%kTS = energy%kTS + mos(1, ispin)%kTS
-!        energy%efermi = energy%efermi + mos(1, ispin)%mu
-!     END DO
-!     energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
-
-!deb
-      !
-      CALL set_mo_occupation(moset, ec_env%smear)
-      !
-      DO ispin = 1, nspins
-         ec_env%ekTS = ec_env%ekTS + moset(ispin)%kTS
-         CALL calculate_density_matrix(moset(ispin), matrix_p(ispin, 1)%matrix)
-         CALL calculate_w_matrix(moset(ispin), matrix_w(ispin, 1)%matrix)
-      END DO
-      !
-      CALL cp_fm_release(fm_k)
-      CALL cp_fm_release(fm_s)
-      CALL cp_fm_release(fm_w)
-      DO ispin = 1, nspins
-         CALL deallocate_mo_set(moset(ispin))
-      END DO
-      DEALLOCATE (moset)
+      CALL cp_fm_release(fmwork)
 
       CALL timestop(handle)
 

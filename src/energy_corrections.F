@@ -344,11 +344,10 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      INTEGER                                            :: ispin, nimages, nkind, nspins
+      INTEGER                                            :: ispin, nkind, nspins
       LOGICAL                                            :: debug_f, gapw, gapw_xc
       REAL(KIND=dp)                                      :: eps_fit, exc
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -369,10 +368,6 @@ CONTAINS
                                ec_env%ehartree, exc)
          CALL ks_ref_potential_atom(qs_env, ec_env%local_rho_set, &
                                     ec_env%local_rho_set_admm, ec_env%vh_rspace)
-         IF (ec_env%do_kpoints) THEN
-            CALL get_qs_env(qs_env=qs_env, para_env=para_env)
-            CALL kpoint_init_cell_index(ec_env%kpoints, ec_env%sab_kp, para_env, nimages)
-         END IF
 
          SELECT CASE (ec_env%energy_functional)
          CASE (ec_functional_harris)
@@ -1605,7 +1600,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, img, iounit, ispin, natom, &
-                                                            nhfimg, nspins
+                                                            nhfimg, nimages, nspins
       LOGICAL                                            :: calculate_forces, &
                                                             do_adiabatic_rescaling, do_ec_hfx, &
                                                             gapw, gapw_xc, hfx_treat_lsd_in_core, &
@@ -1645,6 +1640,7 @@ CONTAINS
                       ks_env=ks_env, &
                       rho=rho, rho_xc=rho_xc)
       nspins = dft_control%nspins
+      nimages = dft_control%nimages  ! this is from the ref calculation
       calculate_forces = .FALSE.
       use_virial = .FALSE.
 
@@ -1654,6 +1650,7 @@ CONTAINS
       ! Kohn-Sham matrix
       IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
       nhfimg = SIZE(ec_env%matrix_s, 2)
+      dft_control%nimages = nhfimg
       CALL dbcsr_allocate_matrix_set(ec_env%matrix_ks, nspins, nhfimg)
       DO ispin = 1, nspins
          headline = "KOHN-SHAM MATRIX"
@@ -1882,6 +1879,8 @@ CONTAINS
                               dft_control%qs_control%eps_filter_matrix)
          END DO
       END DO
+
+      dft_control%nimages = nimages
 
       CALL timestop(handle)
 
@@ -2957,7 +2956,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ex       ", ec_env%ex
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Evhxc    ", ec_env%vhxc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
-            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eentropy ", ec_env%ekTS
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Entropy  ", ec_env%ekTS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Harris Functional   ", ec_env%etotal
          END IF
 
@@ -2978,7 +2977,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ex       ", ec_env%ex
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc_aux_fit", ec_env%exc_aux_fit + ec_env%exc1_aux_fit
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
-            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eentropy ", ec_env%ekTS
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Entropy  ", ec_env%ekTS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
          END IF
 
@@ -3015,7 +3014,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_neighborlist'
 
-      INTEGER                                            :: handle, ikind, nkind, zat
+      INTEGER                                            :: handle, ikind, nimages, nkind, zat
       LOGICAL :: all_potential_present, gth_potential_present, paw_atom, paw_atom_present, &
          sgp_potential_present, skip_load_balance_distributed
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: all_present, default_present, &
@@ -3035,6 +3034,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_cn, sab_vdw
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -3135,7 +3135,10 @@ CONTAINS
             CALL build_neighbor_lists(ec_env%sab_kp_nosym, particle_set, atom2d, cell, pair_radius, &
                                       subcells=subcells, nlname="sab_kp_nosym", symmetric=.FALSE.)
          END IF
+         CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+         CALL kpoint_init_cell_index(ec_env%kpoints, ec_env%sab_kp, para_env, nimages)
       END IF
+
       ! pseudopotential/AE
       IF (all_potential_present .OR. sgp_potential_present) THEN
          IF (ANY(all_present)) THEN
@@ -3226,7 +3229,8 @@ CONTAINS
       CALL generate_qs_task_list(ks_env, ec_env%task_list, basis_type="HARRIS", &
                                  reorder_rs_grid_ranks=.FALSE., &
                                  skip_load_balance_distributed=skip_load_balance_distributed, &
-                                 sab_orb_external=ec_env%sab_orb)
+                                 sab_orb_external=ec_env%sab_orb, &
+                                 ext_kpoints=ec_env%kpoints)
       ! Task list soft
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          IF (ASSOCIATED(ec_env%task_list_soft)) CALL deallocate_task_list(ec_env%task_list_soft)
@@ -3234,7 +3238,8 @@ CONTAINS
          CALL generate_qs_task_list(ks_env, ec_env%task_list_soft, basis_type="HARRIS_SOFT", &
                                     reorder_rs_grid_ranks=.FALSE., &
                                     skip_load_balance_distributed=skip_load_balance_distributed, &
-                                    sab_orb_external=ec_env%sab_orb)
+                                    sab_orb_external=ec_env%sab_orb, &
+                                    ext_kpoints=ec_env%kpoints)
       END IF
 
       CALL timestop(handle)
