@@ -168,7 +168,7 @@ spack:
 
   repos:
     builtin:
-      commit: e513ba74c77a67964d05acef489e333f4298628a # 2026-03-25
+      commit: c5de721edfc3312f42ea7b0847bc16d1481982c1 # 2026-03-26
 
   specs:
     # Build tools
@@ -199,7 +199,7 @@ spack:
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
     - "mimic-mcl@3.0.0"
-    - "netlib-scalapack@2.2.2"
+    - "netlib-scalapack@2.2.3"
     - "openblas@0.3.32"
     - "openpmd-api@0.17.0"
     - "pace@2025.12.4"
