@@ -43,13 +43,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv sdbg -gpu none -gv 13 -mpi no -ue 
+RUN ./make_cp2k.sh -bd_only -cv sdbg -gpu none -gv 13 -mpi no -ue -df deepmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv sdbg -gv 13 -gpu none -mpi no 
+RUN ./make_cp2k.sh -cv sdbg -gv 13 -gpu none -mpi no -df deepmd
 
 ###### Stage 3: Install CP2K ######
 

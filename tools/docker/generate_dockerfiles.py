@@ -57,7 +57,9 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_spack_pdbg", args.check) as f:
         f.write(
-            install_cp2k_spack("pdbg", mpi_mode="mpich", feature_flags="-ef openpmd")
+            install_cp2k_spack(
+                "pdbg", mpi_mode="mpich", feature_flags="-df deepmd -ef openpmd"
+            )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
@@ -146,7 +148,7 @@ def main() -> None:
         )
 
     with OutputFile(f"Dockerfile.test_spack_sdbg", args.check) as f:
-        f.write(install_cp2k_spack("sdbg", mpi_mode="no"))
+        f.write(install_cp2k_spack("sdbg", mpi_mode="no", feature_flags="-df deepmd"))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(install_cp2k_spack("ssmp", mpi_mode="no"))
