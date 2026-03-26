@@ -295,16 +295,16 @@ CONTAINS
       field_unit = cp_print_key_unit_nr(logger, rtbse_env%field_section, extension=".dat")
       IF (append) THEN
          CALL print_rt_file(field_unit, xvals=rtbse_env%time_trace(n:n), &
-            yvals=rtbse_env%field_trace(:, n:n), &
-            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                            yvals=rtbse_env%field_trace(:, n:n), &
+                            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
       ELSE
          CALL print_rt_file(field_unit, [ &
-            "#          Time [fs]", &
-            "     field x [at.u.]", &
-            "     field y [at.u.]", &
-            "     field z [at.u.]"], &
-            rtbse_env%time_trace(n:n), rtbse_env%field_trace(:,n:n), &
-            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                            "#          Time [fs]", &
+                            "     field x [at.u.]", &
+                            "     field y [at.u.]", &
+                            "     field z [at.u.]"], &
+                            rtbse_env%time_trace(n:n), rtbse_env%field_trace(:, n:n), &
+                            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
       END IF
       CALL cp_print_key_finished_output(field_unit, logger, rtbse_env%field_section)
 

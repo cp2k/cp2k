@@ -1099,6 +1099,7 @@ CONTAINS
 !> \param moments Actual moment values (for specific time step)
 !> \param time Current simulation time
 !> \param imag_opt Whether to calculate the imaginary part
+!> \param append_opt ...
 !> \par History
 !>      10.2025  Created [Marek]
 ! **************************************************************************************************
@@ -1111,10 +1112,10 @@ CONTAINS
 
       CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
       CHARACTER(len=21)                                  :: prefix
-      INTEGER                                            :: i, j, ndir, nspin, print_unit
-      LOGICAL                                            :: imaginary, append
+      COMPLEX(kind=dp), DIMENSION(3, 1)                  :: moment_t
+      INTEGER                                            :: i, ndir, nspin, print_unit
+      LOGICAL                                            :: append, imaginary
       TYPE(cp_logger_type), POINTER                      :: logger
-      COMPLEX(kind=dp), DIMENSION(3,1)                   :: moment_t
 
 ! Index 1 : spin, Index 2 : direction
 
@@ -1139,7 +1140,7 @@ CONTAINS
       file_extensions(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
       DO i = 1, nspin
-         moment_t(:,1) = moments(i,:)
+         moment_t(:, 1) = moments(i, :)
          ! Real part
          print_unit = cp_print_key_unit_nr(logger, moments_section, extension=file_extensions(2*i - 1))
          IF (print_unit == info_unit) THEN
@@ -1148,30 +1149,30 @@ CONTAINS
             IF (append) THEN
                ! Print without headers
                CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
-                  prefix=prefix, prefix_format="(A18)", &
-                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                                  prefix=prefix, prefix_format="(A18)", &
+                                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
             ELSE
                ! Print with headers
                CALL print_rt_file(print_unit, &
-                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
-                  " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
-                  xvals=[time], yvals=moment_t, &
-                  prefix=prefix, prefix_format="(A18)", &
-                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
+                                           " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
+                                  xvals=[time], yvals=moment_t, &
+                                  prefix=prefix, prefix_format="(A18)", &
+                                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
             END IF
          ELSE
             ! Print without prefix
             IF (append) THEN
                ! Print without headers
                CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
-                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
             ELSE
                ! Print with headers
                CALL print_rt_file(print_unit, &
-                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
-                  " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
-                  xvals=[time], yvals=moment_t, &
-                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+                                  headers=["#          Time [fs]", " re(mom_t) x [at.u.]", &
+                                           " re(mom_t) y [at.u.]", " re(mom_t) z [at.u.]"], &
+                                  xvals=[time], yvals=moment_t, &
+                                  xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
             END IF
          END IF
          CALL cp_print_key_finished_output(print_unit, logger, moments_section)
@@ -1184,33 +1185,33 @@ CONTAINS
                IF (append) THEN
                   ! Print without headers
                   CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
-                     prefix=prefix, prefix_format="(A18)", &
-                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+                                     prefix=prefix, prefix_format="(A18)", &
+                                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
                ELSE
                   ! Print with headers
                   CALL print_rt_file(print_unit, &
-                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
-                     " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
-                     xvals=[time], yvals=moment_t, &
-                     prefix=prefix, prefix_format="(A18)", &
-                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+                                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
+                                              " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
+                                     xvals=[time], yvals=moment_t, &
+                                     prefix=prefix, prefix_format="(A18)", &
+                                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
                END IF
             ELSE
                ! Print without prefix
                IF (append) THEN
                   ! Print without headers
                   CALL print_rt_file(print_unit, xvals=[time], yvals=moment_t, &
-                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+                                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
                ELSE
                   ! Print with headers
                   CALL print_rt_file(print_unit, &
-                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
-                     " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
-                     xvals=[time], yvals=moment_t, &
-                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
+                                     headers=["#          Time [fs]", " im(mom_t) x [at.u.]", &
+                                              " im(mom_t) y [at.u.]", " im(mom_t) z [at.u.]"], &
+                                     xvals=[time], yvals=moment_t, &
+                                     xscale_opt=femtoseconds, comp_opt=rt_file_comp_imag)
                END IF
             END IF
-         CALL cp_print_key_finished_output(print_unit, logger, moments_section)
+            CALL cp_print_key_finished_output(print_unit, logger, moments_section)
          END IF
       END DO
 
@@ -1554,18 +1555,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param ft_unit ...
+!> \param rt_unit ...
 !> \param headers ...
 !> \param xvals ...
 !> \param yvals ...
 !> \param prefix ...
 !> \param prefix_format ...
 !> \param xscale_opt ...
+!> \param comp_opt ...
 ! **************************************************************************************************
    SUBROUTINE print_rt_file(rt_unit, headers, xvals, yvals, prefix, prefix_format, xscale_opt, comp_opt)
       INTEGER, INTENT(IN)                                :: rt_unit
-      CHARACTER(len=20), DIMENSION(:), &
-         INTENT(IN), OPTIONAL                            :: headers
+      CHARACTER(len=20), DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: headers
       REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: xvals
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: yvals
       CHARACTER(len=21), INTENT(IN), OPTIONAL            :: prefix
@@ -1573,10 +1575,8 @@ CONTAINS
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: xscale_opt
       INTEGER, OPTIONAL                                  :: comp_opt
 
-      INTEGER                                            :: i, j, ncols, nrows, &
-                                                            do_comp
-      LOGICAL                                            :: do_prefix, &
-                                                            do_headers
+      INTEGER                                            :: do_comp, i, j, ncols, nrows
+      LOGICAL                                            :: do_headers, do_prefix
       REAL(kind=dp)                                      :: xscale
 
       do_prefix = .FALSE.
@@ -1602,7 +1602,7 @@ CONTAINS
       ! Check whether enough headers for yvals and xvals is present
       IF (do_headers) THEN
          IF ((do_comp /= rt_file_comp_both .AND. SIZE(headers) < ncols + 1) &
-            .OR. (do_comp == rt_file_comp_both .AND. SIZE(headers) < 2*ncols + 1)) THEN
+             .OR. (do_comp == rt_file_comp_both .AND. SIZE(headers) < 2*ncols + 1)) THEN
             CPABORT("Not enought headers to print the file!")
          END IF
       END IF
@@ -1644,28 +1644,28 @@ CONTAINS
             WRITE (rt_unit, "(E20.8E3)", advance="no") xvals(i)*xscale
             DO j = 1, ncols - 1
                SELECT CASE (do_comp)
-                  CASE (rt_file_comp_real)
-                     WRITE (rt_unit, "(E20.8E3)", advance="no") &
-                        REAL(yvals(j, i))
-                  CASE (rt_file_comp_imag)
-                     WRITE (rt_unit, "(E20.8E3)", advance="no") &
-                        AIMAG(yvals(j, i))
-                  CASE DEFAULT
-                     ! Print both components
-                     WRITE (rt_unit, "(E20.8E3,E20.8E3)", advance="no") &
-                        REAL(yvals(j, i)), AIMAG(yvals(j, i))
+               CASE (rt_file_comp_real)
+                  WRITE (rt_unit, "(E20.8E3)", advance="no") &
+                     REAL(yvals(j, i))
+               CASE (rt_file_comp_imag)
+                  WRITE (rt_unit, "(E20.8E3)", advance="no") &
+                     AIMAG(yvals(j, i))
+               CASE DEFAULT
+                  ! Print both components
+                  WRITE (rt_unit, "(E20.8E3,E20.8E3)", advance="no") &
+                     REAL(yvals(j, i)), AIMAG(yvals(j, i))
                END SELECT
             END DO
             ! Print the final column(s)
             SELECT CASE (do_comp)
-               CASE (rt_file_comp_real)
-                  WRITE (rt_unit, "(E20.8E3)") REAL(yvals(j, i))
-               CASE (rt_file_comp_imag)
-                  WRITE (rt_unit, "(E20.8E3)") AIMAG(yvals(j, i))
-               CASE DEFAULT
-                  ! Print both components
-                  WRITE (rt_unit, "(E20.8E3,E20.8E3)") &
-                     REAL(yvals(j, i)), AIMAG(yvals(j, i))
+            CASE (rt_file_comp_real)
+               WRITE (rt_unit, "(E20.8E3)") REAL(yvals(j, i))
+            CASE (rt_file_comp_imag)
+               WRITE (rt_unit, "(E20.8E3)") AIMAG(yvals(j, i))
+            CASE DEFAULT
+               ! Print both components
+               WRITE (rt_unit, "(E20.8E3,E20.8E3)") &
+                  REAL(yvals(j, i)), AIMAG(yvals(j, i))
             END SELECT
          END DO
       END IF
