@@ -418,7 +418,6 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         CPASSERT(.NOT. ec_env%do_kpoints)
 
          debug_f = ec_env%debug_forces .OR. ec_env%debug_stress
 
@@ -456,6 +455,7 @@ CONTAINS
 
          CASE (ec_functional_dc)
 
+            CPASSERT(.NOT. ec_env%do_kpoints)
             ! Prepare Density-corrected DFT (DC-DFT) calculation
             ! by getting ground-state matrices
             CALL ec_dc_energy(qs_env, ec_env, calculate_forces=.TRUE.)
@@ -472,6 +472,7 @@ CONTAINS
 
          CASE (ec_functional_ext)
 
+            CPASSERT(.NOT. ec_env%do_kpoints)
             CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
             CALL init_response_deriv(qs_env, ec_env)
             ! orthogonality force
@@ -1904,7 +1905,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_core_hamiltonian_force'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
-      INTEGER                                            :: handle, iounit, nder, nimages
+      INTEGER                                            :: handle, img, iounit, nder, nhfimg, &
+                                                            nimages
       LOGICAL                                            :: calculate_forces, debug_forces, &
                                                             debug_stress, use_virial
       REAL(KIND=dp)                                      :: fconv
@@ -1963,16 +1965,21 @@ CONTAINS
       sab_orb => ec_env%sab_orb
 
       ! initialize src matrix
+      nhfimg = SIZE(matrix_s, 2)
       NULLIFY (scrm)
-      CALL dbcsr_allocate_matrix_set(scrm, 1, 1)
-      ALLOCATE (scrm(1, 1)%matrix)
-      CALL dbcsr_create(scrm(1, 1)%matrix, template=matrix_s(1, 1)%matrix)
-      CALL cp_dbcsr_alloc_block_from_nbl(scrm(1, 1)%matrix, sab_orb)
+      CALL dbcsr_allocate_matrix_set(scrm, 1, nhfimg)
+      DO img = 1, nhfimg
+         ALLOCATE (scrm(1, img)%matrix)
+         CALL dbcsr_create(scrm(1, img)%matrix, template=matrix_s(1, img)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(scrm(1, img)%matrix, sab_orb)
+      END DO
 
       nder = 1
       IF (SIZE(matrix_p, 1) == 2) THEN
-         CALL dbcsr_add(matrix_w(1, 1)%matrix, matrix_w(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         DO img = 1, nhfimg
+            CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         END DO
       END IF
 
       ! Overlap and kinetic energy matrices
@@ -1983,7 +1990,7 @@ CONTAINS
                                 basis_type_a=basis_type, &
                                 basis_type_b=basis_type, &
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrixkp_p=matrix_w)
+                                matrixkp_p=matrix_w, ext_kpoints=ec_env%kpoints)
 
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
@@ -1998,13 +2005,13 @@ CONTAINS
       END IF
 
       CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm, matrix_p=matrix_p, &
-                                 calculate_forces=.TRUE., &
-                                 sab_orb=sab_orb, &
-                                 basis_type=basis_type, &
+                                 calculate_forces=.TRUE., sab_orb=sab_orb, &
+                                 basis_type=basis_type, ext_kpoints=ec_env%kpoints, &
                                  debug_forces=debug_forces, debug_stress=debug_stress)
 
       CALL core_matrices(qs_env, scrm, matrix_p, calculate_forces, nder, &
                          ec_env=ec_env, ec_env_matrices=.FALSE., basis_type=basis_type, &
+                         ext_kpoints=ec_env%kpoints, &
                          debug_forces=debug_forces, debug_stress=debug_stress)
 
       ! External field (nonperiodic case)
@@ -2047,7 +2054,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
       CHARACTER(LEN=default_string_length)               :: unit_string
-      INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
+      INTEGER                                            :: handle, i, img, iounit, ispin, natom, &
+                                                            nhfimg, nimages, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             use_virial
       REAL(dp)                                           :: dehartree, dummy_real, dummy_real2(2), &
@@ -2057,8 +2065,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, rho_ao, scrmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s, scrm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -2142,9 +2150,15 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(dv_hartree_rspace)
       CALL auxbas_pw_pool%create_pw(vtot_rspace)
 
+      ! set local number of images
+      nhfimg = SIZE(ec_env%matrix_s, 2)
+      nimages = dft_control%nimages
+      dft_control%nimages = nhfimg
+
       CALL pw_zero(rhodn_tot_gspace)
       DO ispin = 1, nspins
-         CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
+         rho_ao => ec_env%matrix_p(ispin, :)
+         CALL calculate_rho_elec(ks_env=ks_env, matrix_p_kp=rho_ao, &
                                  rho=rhoout_r(ispin), &
                                  rho_gspace=rhoout_g(ispin), &
                                  basis_type="HARRIS", &
@@ -2180,6 +2194,9 @@ CONTAINS
             CALL auxbas_pw_pool%give_back_pw(tauout_g)
          END BLOCK
       END IF
+
+      ! reset nimages to base method
+      dft_control%nimages = nimages
 
       IF (use_virial) THEN
 
@@ -2410,16 +2427,6 @@ CONTAINS
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
       END IF
 
-      ! initialize srcm matrix
-      NULLIFY (scrm)
-      CALL dbcsr_allocate_matrix_set(scrm, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (scrm(ispin)%matrix)
-         CALL dbcsr_create(scrm(ispin)%matrix, template=ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL dbcsr_copy(scrm(ispin)%matrix, ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL dbcsr_set(scrm(ispin)%matrix, 0.0_dp)
-      END DO
-
       ! v_rspace and v_tau_rspace are generated from the auxbas pool
       NULLIFY (v_rspace, v_tau_rspace)
 
@@ -2455,6 +2462,20 @@ CONTAINS
       IF (use_virial) THEN
          pv_loc = virial%pv_virial
       END IF
+      ! set local number of images
+      dft_control%nimages = nhfimg
+
+      ! initialize srcm matrix
+      NULLIFY (scrm)
+      CALL dbcsr_allocate_matrix_set(scrm, nspins, nhfimg)
+      DO ispin = 1, nspins
+         DO img = 1, nhfimg
+            ALLOCATE (scrm(ispin, img)%matrix)
+            CALL dbcsr_create(scrm(ispin, img)%matrix, template=ec_env%matrix_ks(ispin, img)%matrix)
+            CALL dbcsr_copy(scrm(ispin, img)%matrix, ec_env%matrix_ks(ispin, img)%matrix)
+            CALL dbcsr_set(scrm(ispin, img)%matrix, 0.0_dp)
+         END DO
+      END DO
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
@@ -2463,9 +2484,11 @@ CONTAINS
          CALL pw_scale(v_rspace(ispin), v_rspace(ispin)%pw_grid%dvol)
          CALL pw_axpy(v_hartree_rspace, v_rspace(ispin))
          ! integrate over potential <a|V|b>
+         rho_ao => ec_env%matrix_p(ispin, :)
+         scrmat => scrm(ispin, :)
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-                                 hmat=scrm(ispin), &
-                                 pmat=ec_env%matrix_p(ispin, 1), &
+                                 hmat_kp=scrmat, &
+                                 pmat_kp=rho_ao, &
                                  qs_env=qs_env, &
                                  calculate_forces=.TRUE., &
                                  basis_type="HARRIS", &
@@ -2489,14 +2512,19 @@ CONTAINS
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
       END IF
 
+      ! reset nimages to base method
+      dft_control%nimages = nimages
+
       IF (ASSOCIATED(v_tau_rspace)) THEN
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          DO ispin = 1, nspins
             ! integrate over Tau-potential <nabla.a|V|nabla.b>
             CALL pw_scale(v_tau_rspace(ispin), v_tau_rspace(ispin)%pw_grid%dvol)
+            rho_ao => ec_env%matrix_p(ispin, :)
+            scrmat => scrm(ispin, :)
             CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), &
-                                    hmat=scrm(ispin), &
-                                    pmat=ec_env%matrix_p(ispin, 1), &
+                                    hmat_kp=scrmat, &
+                                    pmat_kp=rho_ao, &
                                     qs_env=qs_env, &
                                     calculate_forces=.TRUE., &
                                     compute_tau=.TRUE., &
@@ -2519,6 +2547,10 @@ CONTAINS
       CALL section_vals_get(ec_hfx_sections, explicit=do_ec_hfx)
 
       IF (do_ec_hfx) THEN
+
+         IF (ec_env%do_kpoints) THEN
+            CALL cp_abort(__LOCATION__, "HFX and K-points NYI for energy correction")
+         END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          IF (use_virial) virial%pv_fock_4c = 0.0_dp

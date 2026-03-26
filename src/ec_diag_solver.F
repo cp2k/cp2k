@@ -244,6 +244,7 @@ CONTAINS
       CALL kpoint_set_mo_occupation(ec_env%kpoints, ec_env%smear)
       ! density matrices
       CALL kpoint_density_matrices(ec_env%kpoints)
+      CALL kpoint_density_matrices(ec_env%kpoints, .TRUE.)
       ! density matrices in real space
       tempmat => matrix_s(1, 1)%matrix
       CALL kpoint_density_transform(ec_env%kpoints, matrix_p, .FALSE., tempmat, &
