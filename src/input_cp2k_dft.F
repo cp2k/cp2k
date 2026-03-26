@@ -1830,7 +1830,7 @@ CONTAINS
                                        print_level=high_print_level, common_iter_levels=1, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=[1], &
-                                       filename="applied_field")
+                                       filename="FIELD")
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 
@@ -1992,7 +1992,8 @@ CONTAINS
                           "Note that running RTBSE requires previous low-scaling "// &
                           "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
                           "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
-                          "deallocation errors.", &
+                          "deallocation errors. More details (including description of output files) is available in "// &
+                          "the [methods](../../../../methods/properties/optical/rtbse) section of the documentation.", &
                           repeats=.FALSE., citations=[Marek2025])
 
       ! Marek : Controlling flow to RTBSE
