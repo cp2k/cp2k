@@ -66,8 +66,7 @@ MODULE thermal_region_utils
    PRIVATE
    PUBLIC :: create_thermal_regions, &
              print_thermal_regions_temperature, &
-             print_thermal_regions_langevin, &
-             update_thermal_regions_temp_expected
+             print_thermal_regions_langevin
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
 
@@ -243,50 +242,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_thermal_regions
-
-! **************************************************************************************************
-!> \brief update_thermal_regions_temp_expected
-!> \param itimes          : iteration number of the time step
-!> \param thermal_regions : thermal regions type contains information
-!>                          about the regions
-!> \date   03.2026
-!> \par    Note on units: t_region%temperature is updated by
-!>         SUBROUTINE scale_velocity_region in md_vel_utils.F
-!>         which is in Kelvin, but t_region%temp_expected is
-!>         in cp2k internal units. See "Note the unit conversion
-!>         here" in print_thermal_regions_temperature below.
-!> \author HE Zilong
-! **************************************************************************************************
-   SUBROUTINE update_thermal_regions_temp_expected(itimes, thermal_regions)
-      INTEGER, INTENT(IN)                                :: itimes
-      TYPE(thermal_regions_type), POINTER                :: thermal_regions
-
-      CHARACTER(LEN=default_string_length)               :: my_region
-      INTEGER                                            :: ireg
-      TYPE(thermal_region_type), POINTER                 :: t_region
-
-      DO ireg = 1, thermal_regions%nregions
-         NULLIFY (t_region)
-         t_region => thermal_regions%thermal_region(ireg)
-         IF (LEN_TRIM(t_region%temperature_function) > 0) THEN
-            CALL initf(1)
-            CALL parsef(1, TRIM(t_region%temperature_function), t_region%temperature_function_parameters)
-            t_region%temperature_function_values(1) = itimes*1.0_dp
-            t_region%temperature_function_values(2) = t_region%temperature
-            t_region%temp_expected = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
-            CPASSERT(EvalErrType <= 0)
-            CALL finalizef()
-            IF (t_region%temp_expected < 0.0_dp) THEN
-               CALL integer_to_string(ireg, my_region)
-               CALL cp_abort(__LOCATION__, &
-                             "The temperature evaluated for region "//TRIM(my_region)//" is "// &
-                             TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(t_region%temp_expected, "K"))))// &
-                             " K, which is negative and unphysical!")
-            END IF
-         END IF
-      END DO
-
-   END SUBROUTINE update_thermal_regions_temp_expected
 
 ! **************************************************************************************************
 !> \brief print_thermal_regions_temperature

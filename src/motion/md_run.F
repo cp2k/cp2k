@@ -61,7 +61,8 @@ MODULE md_run
                                               md_environment_type,&
                                               need_per_atom_wiener_process,&
                                               set_md_env
-   USE md_util,                         ONLY: md_output
+   USE md_util,                         ONLY: md_output,&
+                                              update_expected_temperature
    USE md_vel_utils,                    ONLY: angvel_control,&
                                               comvel_control,&
                                               setup_velocities,&
@@ -87,8 +88,7 @@ MODULE md_run
                                               simpar_type
    USE thermal_region_types,            ONLY: thermal_regions_type
    USE thermal_region_utils,            ONLY: create_thermal_regions,&
-                                              print_thermal_regions_langevin,&
-                                              update_thermal_regions_temp_expected
+                                              print_thermal_regions_langevin
    USE thermostat_methods,              ONLY: create_thermostats
    USE thermostat_types,                ONLY: thermostats_type
    USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -473,6 +473,10 @@ CONTAINS
          simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info, constraint_section, &
                                                            "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
+         ! Update temperature for thermal regions and thermostat regions
+         !deb CALL set_md_env(md_env, itimes=itimes)
+         CALL update_expected_temperature(md_env)
+
          ! Velocity Verlet Integrator
          CALL velocity_verlet(md_env, globenv)
 
@@ -520,10 +524,6 @@ CONTAINS
 
          IF (simpar%ensemble /= reftraj_ensemble) THEN
             CALL md_energy(md_env, md_ener)
-            IF (simpar%do_thermal_region) THEN ! Optionally update expected temperature for each region
-               CALL get_md_env(md_env, thermal_regions=thermal_regions)
-               CALL update_thermal_regions_temp_expected(itimes, thermal_regions)
-            END IF
             CALL temperature_control(simpar, md_env, md_ener, force_env, logger)
             CALL comvel_control(md_ener, force_env, md_section, logger)
             CALL angvel_control(md_ener, force_env, md_section, logger)

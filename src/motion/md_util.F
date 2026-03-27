@@ -14,17 +14,31 @@ MODULE md_util
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+                                              cp_logger_type, &
+                                              cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                              cp_unit_to_cp2k
+   USE fparser,                         ONLY: EvalErrType,&
+                                              evalf,&
+                                              finalizef,&
+                                              initf,&
+                                              parsef
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE md_energies,                     ONLY: md_write_output
-   USE md_environment_types,            ONLY: md_environment_type
+   USE md_environment_types,            ONLY: get_md_env,&
+                                              md_environment_type
    USE message_passing,                 ONLY: mp_para_env_type
+   USE simpar_types,                    ONLY: simpar_type
+   USE string_utilities,                ONLY: integer_to_string
+   USE thermal_region_types,            ONLY: thermal_region_type,&
+                                              thermal_regions_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,9 +50,67 @@ MODULE md_util
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_util'
 
    PUBLIC :: md_output, &
-             read_vib_eigs_unformatted
+             read_vib_eigs_unformatted, &
+             update_expected_temperature
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief update_expected_temperature
+!> \param md_env ...
+!> \date   03.2026
+!> \par    Note on units: t_region%temperature is updated by
+!>         SUBROUTINE scale_velocity_region in md_vel_utils.F
+!>         which is in Kelvin, but t_region%temp_expected is
+!>         in cp2k internal units. See "Note the unit conversion
+!>         here" in SUBROUTINE print_thermal_regions_temperature
+!>         in thermal_region_utils.F for output processing.
+!> \author HE Zilong
+! **************************************************************************************************
+   SUBROUTINE update_expected_temperature(md_env)
+      TYPE(md_environment_type), POINTER                 :: md_env
+
+      CHARACTER(LEN=default_string_length)               :: my_itimes, my_region
+      INTEGER                                            :: ireg
+      INTEGER, POINTER                                   :: itimes
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermal_region_type), POINTER                 :: t_region
+      TYPE(thermal_regions_type), POINTER                :: thermal_regions
+
+      NULLIFY (itimes, simpar)
+      CALL get_md_env(md_env, itimes=itimes, simpar=simpar)
+
+      ! Update thermal regions
+      IF (simpar%do_thermal_region) THEN
+         NULLIFY (thermal_regions)
+         CALL get_md_env(md_env, thermal_regions=thermal_regions)
+         DO ireg = 1, thermal_regions%nregions
+            NULLIFY (t_region)
+            t_region => thermal_regions%thermal_region(ireg)
+            IF (LEN_TRIM(t_region%temperature_function) > 0) THEN
+               CALL initf(1)
+               CALL parsef(1, TRIM(t_region%temperature_function), t_region%temperature_function_parameters)
+               t_region%temperature_function_values(1) = itimes*1.0_dp
+               t_region%temperature_function_values(2) = t_region%temperature
+               t_region%temp_expected = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
+               CPASSERT(EvalErrType <= 0)
+               CALL finalizef()
+               IF (t_region%temp_expected < 0.0_dp) THEN
+                  CALL integer_to_string(ireg, my_region)
+                  CALL integer_to_string(itimes, my_itimes)
+                  CALL cp_abort(__LOCATION__, &
+                                "At step "//TRIM(my_itimes)//" , the temperature "// &
+                                "evaluated for thermal region "//TRIM(my_region)//" is "// &
+                                TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(t_region%temp_expected, "K"))))// &
+                                " K, which is negative and unphysical!")
+               END IF
+            END IF
+         END DO
+      END IF
+
+      ! Update thermostat regions: WIP
+
+   END SUBROUTINE update_expected_temperature
 
 ! **************************************************************************************************
 !> \brief collects the part of the MD that, basically, does the output
