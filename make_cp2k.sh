@@ -246,7 +246,7 @@ while [[ $# -gt 0 ]]; do
             case "${CP2K_VERSION}" in
               ssmp-static)
                 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
-                for package in dftd4 libint2 libxc libxsmm spglib vori tblite; do
+                for package in libint2 libxc libxsmm spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
                 for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
@@ -281,7 +281,7 @@ while [[ $# -gt 0 ]]; do
         case "${2,,}" in
           all)
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
-            for package in adios2 cosma deepmdkit dftd4 dla-future dla-future-fortran \
+            for package in adios2 cosma deepmdkit dla-future dla-future-fortran \
               elpa greenx hdf5 libfabric libint libvdwxc libsmeagol libvori libxc \
               libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
               spglib spla tblite trexio; do
@@ -300,7 +300,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | tblite | trexio)
+              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd | libtorch)
@@ -333,6 +333,13 @@ while [[ $# -gt 0 ]]; do
                 ;;
               vori)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"lib${2,,}@/ ${SUBST}"
+                ;;
+              tblite)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  echo "INFO: Enabling tblite. Automatically disabling standalone dftd4 to avoid potential conflicts."
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"dftd4@/ s/^ /#/'"
+                fi
                 ;;
             esac
             ;;
