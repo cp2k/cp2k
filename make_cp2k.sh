@@ -303,11 +303,13 @@ while [[ $# -gt 0 ]]; do
               cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | tblite | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
-              deepmd | libtorch)
-                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DEEPMD=${ON_OFF}"
-                CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
+              deepmd)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}kit@/ ${SUBST}"
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  # DeePMD-kit requires libtorch
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                fi
                 ;;
               dlaf)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"dla-future.*@/ ${SUBST}"
@@ -317,6 +319,14 @@ while [[ $# -gt 0 ]]; do
                 ;;
               libint2)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"libint@/ ${SUBST}"
+                ;;
+              libtorch)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "OFF" ]]; then
+                  # DeePMD-kit requires libtorch
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DEEPMD=${ON_OFF}"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"deepmdkit@/ ${SUBST}"
+                fi
                 ;;
               libxsmm)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
@@ -837,7 +847,12 @@ else
 fi
 export CMAKE_CUDA_FLAGS
 
-((VERBOSE > 0)) && ulimit -a
+# Retrieve and print available resources
+free -h
+echo ""
+ulimit -c 0 -s unlimited
+ulimit -a
+echo ""
 
 ### Build CP2K dependencies with Spack if needed or requested ###
 
