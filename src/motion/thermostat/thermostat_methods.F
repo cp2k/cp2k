@@ -47,9 +47,9 @@ MODULE thermostat_methods
                                               initialize_gle_part
    USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: &
-        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble
+        do_region_global, do_region_thermal, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
+        do_thermo_nose, do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, npt_f_ensemble, &
+        npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_remove_values,&
@@ -122,8 +122,8 @@ CONTAINS
       INTEGER                                            :: n_rep, region, thermostat_type
       LOGICAL :: apply_general_thermo, apply_thermo_adiabatic, apply_thermo_baro, &
          apply_thermo_shell, explicit_adiabatic_fast, explicit_adiabatic_slow, explicit_baro, &
-         explicit_barostat_section, explicit_part, explicit_shell, save_mem, shell_adiabatic, &
-         shell_present
+         explicit_barostat_section, explicit_part, explicit_shell, explicit_thermal, save_mem, &
+         shell_adiabatic, shell_present
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -135,14 +135,15 @@ CONTAINS
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       TYPE(section_vals_type), POINTER :: adiabatic_fast_section, adiabatic_slow_section, &
          barostat_section, print_section, region_section_fast, region_section_slow, &
-         region_sections, thermo_baro_section, thermo_part_section, thermo_shell_section, &
-         work_section
+         region_sections, thermal_region_section, thermo_baro_section, thermo_part_section, &
+         thermo_shell_section, work_section
 
       NULLIFY (qmmm_env, cell)
       ALLOCATE (thermostats)
       CALL allocate_thermostats(thermostats)
       adiabatic_fast_section => section_vals_get_subs_vals(md_section, "ADIABATIC_DYNAMICS%THERMOSTAT_FAST")
       adiabatic_slow_section => section_vals_get_subs_vals(md_section, "ADIABATIC_DYNAMICS%THERMOSTAT_SLOW")
+      thermal_region_section => section_vals_get_subs_vals(md_section, "THERMAL_REGION")
       thermo_part_section => section_vals_get_subs_vals(md_section, "THERMOSTAT")
       thermo_shell_section => section_vals_get_subs_vals(md_section, "SHELL%THERMOSTAT")
       thermo_baro_section => section_vals_get_subs_vals(md_section, "BAROSTAT%THERMOSTAT")
@@ -152,6 +153,7 @@ CONTAINS
       CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell)
       CALL section_vals_get(barostat_section, explicit=explicit_barostat_section)
       CALL section_vals_val_get(global_section, "SAVE_MEM", l_val=save_mem)
+      CALL section_vals_get(thermal_region_section, explicit=explicit_thermal)
       CALL section_vals_get(thermo_part_section, explicit=explicit_part)
       CALL section_vals_get(thermo_shell_section, explicit=explicit_shell)
       CALL section_vals_get(thermo_baro_section, explicit=explicit_baro)
@@ -233,9 +235,25 @@ CONTAINS
          CALL release_thermostat_info(thermostats%thermostat_info_slow)
          DEALLOCATE (thermostats%thermostat_info_fast)
       ELSE
-         region = do_region_global
-         region_sections => section_vals_get_subs_vals(thermo_part_section, "DEFINE_REGION")
-         IF (explicit_part) CALL section_vals_val_get(thermo_part_section, "REGION", i_val=region)
+         IF (explicit_part) THEN
+            CALL section_vals_val_get(thermo_part_section, "REGION", i_val=region)
+         ELSE
+            region = do_region_global
+         END IF
+         ! Pass region and region_sections to compute_degrees_of_freedom()
+         ! which calls setup_thermostat_info() which calls get_defined_region_info()
+         ! in thermostat_utils.F
+         IF (region == do_region_thermal) THEN
+            IF (explicit_thermal) THEN
+               region_sections => section_vals_get_subs_vals(thermal_region_section, "DEFINE_REGION")
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "Thermostat region THERMAL must be used with explicitly defined "// &
+                             "thermal regions in MD/THERMAL_REGION section, but none is found!")
+            END IF
+         ELSE
+            region_sections => section_vals_get_subs_vals(thermo_part_section, "DEFINE_REGION")
+         END IF
          CALL cp_subsys_get(subsys, molecule_kinds=molecule_kinds, local_molecules=local_molecules, &
                             molecules=molecules, gci=gci, particles=particles)
          CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds%els, &

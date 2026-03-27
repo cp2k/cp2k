@@ -24,10 +24,10 @@ MODULE input_cp2k_md
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE fparser,                         ONLY: docf
    USE input_constants,                 ONLY: &
-        isokin_ensemble, langevin_ensemble, md_init_default, md_init_vib, npe_f_ensemble, &
-        npe_i_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-        npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
-        nvt_ensemble, reftraj_ensemble
+        do_constr_atomic, do_constr_molec, do_constr_none, isokin_ensemble, langevin_ensemble, &
+        md_init_default, md_init_vib, npe_f_ensemble, npe_i_ensemble, nph_ensemble, &
+        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
+        npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&
@@ -981,8 +981,10 @@ CONTAINS
       CALL section_create(region_section, __LOCATION__, name="DEFINE_REGION", &
                           description="Define arbitrary thermal region with distinct "// &
                           "temperature controls. For thermostat regions, see section "// &
-                          "MOTION%MD%THERMOSTAT%DEFINE_REGION. Typically the settings "// &
-                          "should be the same.", &
+                          "MOTION%MD%THERMOSTAT%DEFINE_REGION; when the keyword "// &
+                          "MOTION%MD%THERMOSTAT%REGION is set to THERMAL, the "// &
+                          "definition of thermostat regions will be the same as "// &
+                          "that of thermal regions.", &
                           n_keywords=3, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -990,6 +992,39 @@ CONTAINS
                           description="Specifies a list of atoms belonging to the region.", &
                           usage="LIST {integer} {integer} .. {integer}", &
                           repeats=.TRUE., n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(region_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
+                          variants=["SEGNAME"], &
+                          description="Specifies the name of the molecules belonging to the region.", &
+                          usage="MOLNAME WAT MEOH", repeats=.TRUE., &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(region_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MM_SUBSYS", &
+                          variants=["PROTEIN"], &
+                          description="In a QM/MM run all MM atoms are specified as a whole region", &
+                          usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
+                          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
+                          enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
+                          enum_desc=s2a("Nothing in the region", &
+                                        "Only the MM atoms itself", &
+                                        "The full molecule/residue that contains a MM atom"), &
+                          default_i_val=do_constr_none, repeats=.FALSE.)
+      CALL section_add_keyword(region_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="QM_SUBSYS", &
+                          description="In a QM/MM run all QM atoms are specified as a whole region", &
+                          usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
+                          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
+                          enum_desc=s2a("Nothing in the region", &
+                                        "Only the QM atoms itself", &
+                                        "The full molecule/residue that contains a QM atom"), &
+                          enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
+                          default_i_val=do_constr_none, repeats=.FALSE.)
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
@@ -1045,7 +1080,7 @@ CONTAINS
                           "and a small restrictive TEMP_TOL together with a rapidly varying "// &
                           "target temperature function leaves little time for the system to "// &
                           "adjust itself, possibly showing unphysical relaxation behaviors. "// &
-                          newline//"Further notes about temperature. "//docf(), &
+                          newline//newline//"Further notes about temperature. "//docf(), &
                           n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)

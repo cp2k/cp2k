@@ -23,6 +23,7 @@ MODULE thermostat_mapping
                                               do_region_global,&
                                               do_region_massive,&
                                               do_region_molecule,&
+                                              do_region_thermal,&
                                               do_thermo_communication,&
                                               do_thermo_no_communication
    USE kinds,                           ONLY: dp
@@ -567,7 +568,7 @@ CONTAINS
       SELECT CASE (region)
       CASE (do_region_global, do_region_molecule, do_region_massive)
          nsize = number
-      CASE (do_region_defined)
+      CASE (do_region_defined, do_region_thermal)
          nsize = sum_of_thermostats
       END SELECT
       ALLOCATE (map_info%s_kin(nsize))
@@ -665,7 +666,7 @@ CONTAINS
             number = 1
          END DO
          deg_of_freedom(1) = deg_of_freedom(1) + nglob_cns
-      ELSE IF (region == do_region_defined) THEN
+      ELSE IF ((region == do_region_defined) .OR. (region == do_region_thermal)) THEN
          ! User defined Region to thermostat
          check = (map_info%dis_type == do_thermo_communication)
          CPASSERT(check)
@@ -909,7 +910,7 @@ CONTAINS
             END DO
          END DO
       ELSE IF (dis_type == do_thermo_communication) THEN
-         IF (region == do_region_defined) THEN
+         IF ((region == do_region_defined) .OR. (region == do_region_thermal)) THEN
             ! Setup of the arbitrary region
             ALLOCATE (tot_const(sum_of_thermostats))
             ALLOCATE (point(2, 0))

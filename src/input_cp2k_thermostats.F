@@ -23,8 +23,8 @@ MODULE input_cp2k_thermostats
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         do_constr_atomic, do_constr_molec, do_constr_none, do_region_defined, do_region_global, &
-        do_region_massive, do_region_molecule, do_region_none, do_thermo_al, do_thermo_csvr, &
-        do_thermo_gle, do_thermo_nose, do_thermo_same_as_part
+        do_region_massive, do_region_molecule, do_region_none, do_region_thermal, do_thermo_al, &
+        do_thermo_csvr, do_thermo_gle, do_thermo_nose, do_thermo_same_as_part
    USE input_cp2k_subsys,               ONLY: create_rng_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -247,10 +247,16 @@ CONTAINS
 
          CALL keyword_create(keyword, __LOCATION__, name="REGION", &
                              description="Determines the region each thermostat is attached to.", &
-                             usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
-                             enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
-                             enum_i_vals=[do_region_global, do_region_molecule, &
-                                          do_region_massive, do_region_defined, do_region_none], &
+                             usage="REGION (GLOBAL|MOLECULE|MASSIVE|DEFINED|THERMAL|NONE)", &
+                             enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "THERMAL", "NONE"), &
+                             enum_i_vals=[do_region_global, do_region_molecule, do_region_massive, &
+                                          do_region_defined, do_region_thermal, do_region_none], &
+                             enum_desc=s2a("Apply one thermostat to the whole system (default)", &
+                                           "Apply one thermostat to each molecule kind", &
+                                           "Apply one thermostat to each degree of freedom", &
+                                           "Apply one thermostat to each defined region from THERMOSTAT/DEFINE_REGION", &
+                                           "Apply one thermostat to each defined region from THERMAL_REGION/DEFINE_REGION", &
+                                           "No thermostat is applied"), &
                              default_i_val=do_region_global)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)

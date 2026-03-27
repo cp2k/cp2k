@@ -14,7 +14,7 @@ MODULE md_util
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type, &
+                                              cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&

@@ -474,7 +474,6 @@ CONTAINS
                                                            "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
          ! Update temperature for thermal regions and thermostat regions
-         !deb CALL set_md_env(md_env, itimes=itimes)
          CALL update_expected_temperature(md_env)
 
          ! Velocity Verlet Integrator

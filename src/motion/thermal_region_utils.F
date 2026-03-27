@@ -38,7 +38,8 @@ MODULE thermal_region_utils
                                               finalizef,&
                                               initf,&
                                               parsef
-   USE input_constants,                 ONLY: langevin_ensemble,&
+   USE input_constants,                 ONLY: do_region_thermal,&
+                                              langevin_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
                                               npt_ia_ensemble,&
@@ -90,7 +91,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, &
-                                                            nregions
+                                                            nregions, region
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
@@ -113,10 +114,14 @@ CONTAINS
                             (simpar%ensemble == npt_ia_ensemble) .OR. &
                             (simpar%ensemble == npt_i_ensemble)
          IF (apply_thermostat) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "With the chosen ensemble the temperature is "// &
-                         "controlled by thermostats. The definition of different thermal "// &
-                         "regions might result inconsistent with the presence of thermostats.")
+            CALL section_vals_val_get(md_section, "THERMOSTAT%REGION", i_val=region)
+            IF (region /= do_region_thermal) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "An ensemble has been chosen where one or more thermostats are "// &
+                            "used to control temperature, and one or more thermal regions "// &
+                            "are also defined. To ensure consistency between thermostat "// &
+                            "regions and thermal regions, set THERMOSTAT/REGION to THERMAL.")
+            END IF
          END IF
          IF (simpar%temp_tol > 0.0_dp) THEN
             CALL cp_warn(__LOCATION__, &
@@ -143,6 +148,10 @@ CONTAINS
                ALLOCATE (thermal_regions%do_langevin(particles%n_els))
                thermal_regions%do_langevin = do_langevin_default
             END IF
+            ! TODO: parsing logic of thermal region should be aligned
+            ! with thermostat region as in SUBROUTINE get_defined_region_info,
+            ! src/motion/thermostat/thermostat_utils.F, so that MOLNAME,
+            ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
             DO ireg = 1, nregions
                NULLIFY (t_region)
                CALL integer_to_string(ireg, my_region)
