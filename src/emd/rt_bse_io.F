@@ -42,7 +42,9 @@ MODULE rt_bse_io
                               rtp_bse_ham_ks, &
                               use_rt_restart
    USE physcon, ONLY: femtoseconds
-   USE rt_propagation_output, ONLY: print_moments
+   USE rt_propagation_output, ONLY: print_moments, &
+                                    print_rt_file, &
+                                    rt_file_comp_real
 
 #include "../base/base_uses.f90"
 
@@ -267,28 +269,43 @@ CONTAINS
 !> \param rtbse_env Entry point - gwbse environment
 !> \param rtp_section RTP input section
 ! **************************************************************************************************
-   SUBROUTINE output_field(rtbse_env)
+   SUBROUTINE output_field(rtbse_env, append_opt)
       TYPE(rtbse_env_type)                               :: rtbse_env
+      LOGICAL, OPTIONAL                                  :: append_opt
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: field_unit, n, i
+      LOGICAL                                            :: append
 
-      ! Get logger
-      logger => cp_get_default_logger()
-      ! Get file descriptor
-      field_unit = cp_print_key_unit_nr(logger, rtbse_env%field_section, extension=".dat")
-      ! If the file descriptor is non-zero, output field
-      ! TODO : Output also in SI
-      IF (field_unit /= -1) THEN
-         WRITE (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%sim_time*femtoseconds, &
-            rtbse_env%field(1), rtbse_env%field(2), rtbse_env%field(3)
-      END IF
-      ! Write the output to memory for FT
+      ! Figure out whether we are appending or not, true by default
+      append = .TRUE.
+      IF (PRESENT(append_opt)) append = .FALSE.
+
+      ! First, write the current field to memory
       ! Need the absolute index
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
       DO i = 1, 3
          rtbse_env%field_trace(i, n) = CMPLX(rtbse_env%field(i), 0.0, kind=dp)
       END DO
       rtbse_env%time_trace(n) = rtbse_env%sim_time
+
+      ! Now, continue to file output
+      ! Get logger
+      logger => cp_get_default_logger()
+      ! Get file descriptor
+      field_unit = cp_print_key_unit_nr(logger, rtbse_env%field_section, extension=".dat")
+      IF (append) THEN
+         CALL print_rt_file(field_unit, xvals=rtbse_env%time_trace(n:n), &
+                            yvals=rtbse_env%field_trace(:, n:n), &
+                            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+      ELSE
+         CALL print_rt_file(field_unit, [ &
+                            "#          Time [fs]", &
+                            "     field x [at.u.]", &
+                            "     field y [at.u.]", &
+                            "     field z [at.u.]"], &
+                            rtbse_env%time_trace(n:n), rtbse_env%field_trace(:, n:n), &
+                            xscale_opt=femtoseconds, comp_opt=rt_file_comp_real)
+      END IF
       CALL cp_print_key_finished_output(field_unit, logger, rtbse_env%field_section)
 
    END SUBROUTINE output_field
@@ -311,6 +328,8 @@ CONTAINS
       IF (file_exists(save_name)) THEN
          CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                         unit_number=field_unit)
+         ! Skip the first line - it contains headers
+         READ (field_unit, '()')
          DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
             n = k - rtbse_env%sim_start_orig + 1
             READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace(n), &
@@ -364,7 +383,7 @@ CONTAINS
       END DO
       ! Output to the file
       CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, rtbse_env%moments_trace(:, :, n), &
-                         rtbse_env%sim_time, .TRUE.)
+                         rtbse_env%sim_time, .TRUE., append_opt=(rtbse_env%sim_step /= rtbse_env%sim_start_orig))
    END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Outputs the restart info (last finished iteration step) + restard density matrix

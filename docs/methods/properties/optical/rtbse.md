@@ -166,21 +166,68 @@ absorption spectrum. The printing of all available properties is controlled in t
 RTBSE propagation are listed here
 
 - [DENSITY_MATRIX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.DENSITY_MATRIX) - Prints
-  the elements of the density matrix in the MO basis into a file at every timestep
+  the elements of the density matrix in the MO basis into a file at every timestep.
 - [FIELD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.FIELD) - Prints the elements of the
-  electric field applied at every time step
+  electric field applied at every time step. By default, the file name contains `FIELD` in its name
+  (rest is given by the name of the project). The example of the output follows
+
+```
+#          Time [fs]     field x [at.u.]     field y [at.u.]     field z [at.u.]
+     0.00000000E+000     0.00000000E+000     0.00000000E+000     0.00000000E+000
+     0.20000000E-002     0.16409233E-025     0.00000000E+000     0.00000000E+000
+     0.40000000E-002     0.70473572E-024     0.00000000E+000     0.00000000E+000
+     0.60000000E-002     0.25791168E-022     0.00000000E+000     0.00000000E+000
+```
+
 - [MOMENTS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS) - Prints the electric
-  dipole moment elements reported at every time step
+  dipole moment elements reported at every time step. By default, prints both real and imaginary
+  components into the standard output, as follows. When a filename is specified, the real and
+  imaginary components are saved to separate files.
+
+```
+ MOMENTS_TRACE_RE|#          Time [fs] re(mom_t) x [at.u.] re(mom_t) y [at.u.] re(mom_t) z [at.u.]
+ MOMENTS_TRACE_RE|     0.00000000E+000     0.29242549E-007     0.00000000E+000     0.00000000E+000
+ MOMENTS_TRACE_IM|#          Time [fs] im(mom_t) x [at.u.] im(mom_t) y [at.u.] im(mom_t) z [at.u.]
+ MOMENTS_TRACE_IM|     0.00000000E+000     0.00000000E+000     0.00000000E+000     0.00000000E+000
+ MOMENTS_TRACE_RE|     0.20000000E-002     0.19484725E-002     0.00000000E+000     0.00000000E+000
+ MOMENTS_TRACE_IM|     0.20000000E-002     0.20709485E-020     0.00000000E+000     0.00000000E+000
+ MOMENTS_TRACE_RE|     0.40000000E-002     0.38810614E-002     0.00000000E+000     0.00000000E+000
+ MOMENTS_TRACE_IM|     0.40000000E-002     0.12130849E-017     0.00000000E+000     0.00000000E+000
+```
+
 - [MOMENTS_FT](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS_FT) - Prints the
-  Fourier transform of the dipole moment elements time series
+  Fourier transform of the dipole moment elements time series. By default, the output file includes
+  `MOMENTS_FT` in its name, with example below
+
+```
+#      omega [at.u.]      x,real [at.u.]      x,imag [at.u.]      y,real [at.u.]      y,imag [at.u.]      z,real [at.u.]      z,imag [at.u.]
+    -0.37995746E+002     0.00000000E+000    -0.00000000E+000    -0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000
+    -0.37235831E+002     0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000
+    -0.36475916E+002     0.00000000E+000    -0.00000000E+000    -0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000
+    -0.35716001E+002     0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000    -0.00000000E+000     0.00000000E+000
+```
+
 - [POLARIZABILITY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.POLARIZABILITY) - Prints
-  an element of the Fourier transform of polarizability.
+  elements of the Fourier transform of polarizability. Elements may be specified, but a reasonable
+  guess is made if not specified. The output filename contains `POLARIZABILITY` by default. Example
+  output is shown below
+
+```
+#      omega [at.u.] real pol. elem. 1 1 imag pol. elem. 1 1 real pol. elem. 2 1 imag pol. elem. 2 1 real pol. elem. 3 1 imag pol. elem. 3 1
+    -0.37995746E+002    -0.68121670E+011    -0.18127288E+010     0.00000000E+000     0.00000000E+000     0.00000000E+000     0.00000000E+000
+    -0.36475916E+002     0.60890185E+010     0.55419866E+009    -0.00000000E+000    -0.00000000E+000    -0.00000000E+000    -0.00000000E+000
+    -0.34956086E+002    -0.65208145E+009    -0.10855213E+009     0.00000000E+000     0.00000000E+000     0.00000000E+000     0.00000000E+000
+    -0.33436257E+002     0.77398877E+008     0.17348325E+008    -0.00000000E+000    -0.00000000E+000    -0.00000000E+000    -0.00000000E+000
+```
+
 - [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART) - Controls the name of
-  the restart file
+  the restart files. Three files are produced -- real and imaginary parts of the instantaneous
+  density `matrix` at the last converged timestep, in binary format, and an `info` file, storing the
+  index of the last timestep.
   - note that for RT-BSE calculations, the
     [EACH](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH) section should have
     [MD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH.MD) keyword set to 1 to
-    enable restarts at arbitrary number of iteration steps
+    enable restarts at arbitrary number of iteration steps, default is 20
 
 When [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART),
 [MOMENTS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS) and

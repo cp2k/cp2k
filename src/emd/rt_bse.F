@@ -182,7 +182,7 @@ CONTAINS
       rtbse_env%sim_time = REAL(rtbse_env%sim_start, dp)*rtbse_env%sim_dt
       ! Output 0 time moments and field
       IF (.NOT. rtbse_env%restart_extracted) THEN
-         CALL output_field(rtbse_env)
+         CALL output_field(rtbse_env, append_opt=.FALSE.)
          CALL output_moments(rtbse_env, rtbse_env%rho)
       END IF
 
