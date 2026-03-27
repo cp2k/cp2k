@@ -31,12 +31,14 @@ build deps eiger:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "CP2K_VERSION",
-      "FEATURE_FLAGS"
+      "FEATURE_FLAGS",
+      "NUM_PROCS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    FEATURE_FLAGS: "-ef openpmd"
+    FEATURE_FLAGS: "-df libtorch -ef openpmd"
+    NUM_PROCS: 32
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
@@ -52,12 +54,14 @@ build cp2k eiger:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "DEPS_IMAGE",
-      "FEATURE_FLAGS"
+      "FEATURE_FLAGS",
+      "NUM_PROCS"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
-    FEATURE_FLAGS: "-ef openpmd"
+    FEATURE_FLAGS: "-df libtorch -ef openpmd"
+    NUM_PROCS: 32
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k eiger:
