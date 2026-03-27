@@ -300,7 +300,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
+              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | tblite | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd | libtorch)
@@ -333,13 +333,6 @@ while [[ $# -gt 0 ]]; do
                 ;;
               vori)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"lib${2,,}@/ ${SUBST}"
-                ;;
-              tblite)
-                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
-                if [[ "${ON_OFF}" == "ON" ]]; then
-                  echo "INFO: Enabling tblite. Automatically disabling standalone dftd4 to avoid potential conflicts."
-                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"dftd4@/ s/^ /#/'"
-                fi
                 ;;
             esac
             ;;
@@ -753,6 +746,15 @@ case "${MPI_MODE}" in
     ${EXIT_CMD} 1
     ;;
 esac
+
+# Check if dftd4 and tblite are enabled at the same time; if so, install tblite only
+if [[ "${CMAKE_FEATURE_FLAGS}" != *"-DCP2K_USE_TBLITE=OFF"* ]]; then
+  if [[ "${CMAKE_FEATURE_FLAG_ALL}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
+    [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_TBLITE=ON"* ]]; then
+    echo "INFO: Prioritizing tblite. Automatically disabling dftd4 to avoid conflicts."
+    SED_PATTERN_LIST+=" -e '/\s*-\s+\"dftd4@/ s/^ /#/'"
+  fi
+fi
 
 # Check if CP2K_VERSION and the selected features are compatible
 case "${CP2K_VERSION}" in
