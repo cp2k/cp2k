@@ -33,9 +33,9 @@ radiation. The light is then treated classically using, either the length gauge 
 systems, or the velocity gauge for periodic systems.
 
 A rather general derivation for Ehrenfest (non-adiabatic quantum-classical molecular) dynamics can
-be obtained starting from the action of a system. For a situation in which the the electrons are
-treated quantum mechanically while the nuclei are treated classically the total action can be
-written as the sum of the two environments
+be obtained starting from the action of a system. For a situation in which the electrons are treated
+quantum mechanically, while the nuclei are treated classically the total action can be written as
+the sum of the two environments
 
 $$
 A = A_c + A_q \qquad A_c = \int_{t_0}^{t_f} \left[ \sum_A \frac{M_A}{2}\dot{\bf R}_A -U({\bf R},t)\right]dt
@@ -51,10 +51,10 @@ $$
 Evaluating these expressions in the framework of TDDFT, the equations of motion become
 
 $$
-M\ddot{\bf R}  = -\frac{\partial}{\partial {\bf R}} U({\bf R},t) - \sum_j\left\langle \Psi^j \left| \frac{\partial}{\partial{\bf R}} V_{\text{int}}({\bf r},{\bf R})\right| \Psi^j \right\rangle
+M\ddot{\bf R}  = -\frac{\partial}{\partial {\bf R}} U({\bf R},t) - \sum_j\left\langle \psi^j \left| \frac{\partial}{\partial{\bf R}} V_{\text{int}}({\bf r},{\bf R})\right| \psi^j \right\rangle
 $$
 
-for the nuclear motion, wile for the electrons the time dependent SE as given above is used. These
+for the nuclear motion, while for the electrons the time dependent SE as given above is used. These
 equations are valid for the exact wavefunctions. In the Kohn-Sham approach, the wavefunctions are
 replaced by a linear combination of basis functions. For plane waves the equations remain the same,
 since they do not depend on the nuclear coordinates and therefore are independent of the change of
@@ -104,8 +104,8 @@ usual [WFN_RESTART_FILE_NAME](#CP2K_INPUT.FORCE_EVAL.DFT.WFN_RESTART_FILE_NAME) 
 
 Three different propagators are available in CP2K, the enforced time-reversible symmetry propagator
 (ETRS), the exponential midpoint (EM) propagator, and the Crank-Nicholson propagator which can be
-seen as a first order Pad'e approximation of the EM propagator. The ETRS approach starts with an
-exponential approximation to the evolution operator $\hat{U}(t,0)=\exp{-it\hat{H}(0)}$, to then
+seen as a first order Padé approximation of the EM propagator. The ETRS approach starts with an
+exponential approximation to the evolution operator $\hat{U}(t,0)=\exp{[-it\hat{H}(0)]}$, to then
 compute the final time-reversible and unitary propagator self-consistently. In the real time
 propagation scheme (fixed ionic positions) the self consistent solution only involves the
 calculation of the new Kohn-Sham matrix for the propagated coefficients. For Ehrenfest MD, the
@@ -123,10 +123,10 @@ given by `EPS_ITER`.
 
 In terms of computational cost, the most expensive part is the evaluation of the matrix exponential
 in the propagator. Four different methods among those listed in have been implemented in CP2K, i.e.,
-the Taylor expansion, he diagonalization, the Pad'e approximation, and the Arnoldi subspace
+the Taylor expansion, he diagonalization, the Padé approximation, and the Arnoldi subspace
 iteration, to be selected via the `MAT_ESP` input key. The Arnoldi method often provides a superior
 performance. Comparing the theoretical scaling, the Arnoldi method is expected to be about 5 times
-as fast as Pad'e or Taylor. However, the Pade approximation can be sometime the faster and more
+as fast as Padé or Taylor. However, the Padé approximation can be sometime the faster and more
 stable choice than the Arnoldi method (e.g., large time step). Since propagation schemes require an
 iterative procedure, it is convenient to apply an extrapolation scheme in order to speed up
 convergence. For Ehrenfest dynamics, an extrapolation based on the product of the density and the
@@ -140,7 +140,7 @@ keyword).
 
 ## The external electric field
 
-One of the most relevant application domains for RT-TDDFT is the study of light?matter interactions,
+One of the most relevant application domains for RT-TDDFT is the study of light-matter interactions,
 e.g., in the field of spectroscopy, excited state dynamics and radiation damage. To mimic these
 phenomena, at any time during the propagation, it is possible to apply a time dependent electric
 field ${\bf E}(t)$. The applied field is in general modulated by an envelope function,
@@ -166,14 +166,11 @@ $$
 
 In the time dependent KS equations, the vector potential ${\bf A}(t)$ appears in the kinetic energy
 term and, in the case where non-local pseudopotentials are used, the gauge field also transforms the
-electron?ion interaction. To use this representation the `VELOCITY_GAUGE` input keyword has to be
+electron-ion interaction. To use this representation the `VELOCITY_GAUGE` input keyword has to be
 activated. The total energy varies with time as the applied external field interacts with the
 system. To monitor the time evolution of the field as well as of the various terms contributing to
 the total electronic energy, the corresponding print key can be activated from the
 [REAL_TIME_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION) section.
-
-with $\Delta C$ as the difference of coefficient matrices in two successive steps, and $\epsilon$
-given by `EPS_ITER`.
 
 ## Resonant Excitation
 
@@ -203,7 +200,7 @@ while monitoring density differences is usually helpful to detect charge transfe
 
 By projecting the time-dependent molecular orbitals onto some reference states (e.g., the initial
 MOs) means computing the overlap between the propagated orbital
-$\psi_i({\bf r}, t) = \sum_\alpha C_{i\alpha}(t)\phi({\bf r})$ and any reference orbital
+$\psi_i({\bf r}, t) = \sum_\alpha C_{i\alpha}(t)\phi_\alpha({\bf r})$ and any reference orbital
 $\psi^{\text{ref}}_m$. For instance, considering as reference orbitals the static unoccupied ones,
 the quantity
 
@@ -497,7 +494,7 @@ XAS_TDP will save one .wfn file per printed excited state, and the projection du
 by:
 
 $$
-n_{\omega}^i(t) = |<\omega | \psi_i(t)>|^2 = |\sum_{ab} \left( C_\omega^a \right)^* c_i^b(t) S_{ab} |^2
+n_{\omega}^i(t) = |\langle\omega | \psi_i(t)\rangle|^2 = |\sum_{ab} \left( C_\omega^a \right)^* c_i^b(t) S_{ab} |^2
 $$
 
 where $C_{\omega\alpha}$ is the $a^{\text{th}}$ atomic coefficient of the excited state found in the

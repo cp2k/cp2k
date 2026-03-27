@@ -3641,6 +3641,7 @@ CONTAINS
                                                             n_img_scf, n_img_all, nao, &
                                                             num_pe, num_copy, mepos, n, m, mu, &
                                                             ispin, nspin
+      INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
@@ -3680,7 +3681,7 @@ CONTAINS
                       mos=mos)
 
       CALL get_mo_set(mo_set=mos(1), nao=nao)
-      CALL get_cell(cell=cell, h=hmat)
+      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
       nspin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
 
@@ -3720,8 +3721,8 @@ CONTAINS
       IF (calc_bc) ALLOCATE (berry_c(nspin, num_copy, 3, nao), source=0.0_dp)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
-!$OMP dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
-!$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, &
+!$OMP i_dir, dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
+!$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, periodic, &
 !$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, calc_bc)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
       ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
@@ -3757,6 +3758,7 @@ CONTAINS
 
             DO i_dir = 1, 3 ! d^x, d^y, d^z
 
+               IF (periodic(i_dir) == 0) CYCLE
                ! ∇ S(k) = Σ_R iR S^R e^(ikR), ∇ H(k) = Σ_R iR H^R e^(ikR)
                CALL rs_to_kp(S_rs(1, :, :, :), dS_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
                CALL rs_to_kp(H_rs(ispin, :, :, :), dH_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
@@ -3783,7 +3785,7 @@ CONTAINS
                END DO
             END DO
             ! Compute the Berry curvature from the dipoles
-            ! Ω^γ_n = Σ_m 2*Im[d^α_nm (d^β_mn)*], where, α, β, γ belong to {x, y, z}
+            ! Ω^γ_n = Σ_m 2*Im[d^α_nm d^β_mn], where, α, β, γ belong to {x, y, z}
             IF (calc_bc) THEN
                bc = 0.0_dp
                DO i_dir = 1, 3
