@@ -18,8 +18,12 @@ rlJournalStart
     [[ "${CP2K_SMOKE_ONLY,,}" == "true" ]] && rlRun "args=\"\$args --smoketest\"" 0 "Set smoketest flag"
 
     if [[ "${CP2K_VARIANT}" != "serial" ]]; then
-      rlRun "module avail" 0 "Show available modules"
-      rlRun "module load mpi/${CP2K_VARIANT}-$(arch)" 0 "Load MPI module: ${CP2K_VARIANT}"
+      # TODO: Revert to "module" command after lua issue is resolved
+      #rlRun "module avail" 0 "Show available modules"
+      #rlRun "module load mpi/${CP2K_VARIANT}-$(arch)" 0 "Load MPI module: ${CP2K_VARIANT}"
+      rlRun "export PATH=/usr/lib64/${CP2K_VARIANT}/bin:\${PATH}"
+      rlRun "export LD_LIBRARY_PATH=/usr/lib64/${CP2K_VARIANT}/lib:\${LD_LIBRARY_PATH}"
+      rlRun "export MPI_BIN=/usr/lib64/${CP2K_VARIANT}/bin"
       rlRun "args=\"\$args --mpiranks 2\"" 0 "Set MPI arguments"
       rlRun "args=\"\$args $MPI_BIN psmp\"" 0 "Set run specific arguments"
     else
