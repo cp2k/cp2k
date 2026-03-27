@@ -67,7 +67,7 @@ def main() -> None:
             install_cp2k_spack("psmp", mpi_mode="mpich", feature_flags="-ef openpmd")
         )
 
-    for gcc_version in 10, 11, 12, 14, 15:
+    for gcc_version in 10, 11, 12, 14:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
@@ -79,6 +79,17 @@ def main() -> None:
                     feature_flags="-ef openpmd",
                 )
             )
+
+    with OutputFile(f"Dockerfile.test_spack_psmp-gcc15", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                "psmp",
+                mpi_mode="mpich",
+                gcc_version=15,
+                base_image="ubuntu:26.04",
+                feature_flags="-ef openpmd",
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
         f.write(
@@ -191,7 +202,7 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(coverage())
 
-    for gcc_version in 8, 9, 10, 11, 12, 13, 14:
+    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
             testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
@@ -436,7 +447,11 @@ def install_deps_toolchain(
 
 # ======================================================================================
 def install_deps_ubuntu(gcc_version: int = 13) -> str:
-    base_image = "ubuntu:24.04" if gcc_version > 8 else "ubuntu:20.04"
+    base_image = (
+        "ubuntu:26.04"
+        if gcc_version > 14
+        else ("ubuntu:24.04" if gcc_version > 8 else "ubuntu:20.04")
+    )
     output = f"\nFROM {base_image}\n"
 
     if gcc_version > 13:
