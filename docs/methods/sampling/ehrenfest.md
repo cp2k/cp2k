@@ -33,9 +33,9 @@ radiation. The light is then treated classically using, either the length gauge 
 systems, or the velocity gauge for periodic systems.
 
 A rather general derivation for Ehrenfest (non-adiabatic quantum-classical molecular) dynamics can
-be obtained starting from the action of a system. For a situation in which the electrons are
-treated quantum mechanically, while the nuclei are treated classically the total action can be
-written as the sum of the two environments
+be obtained starting from the action of a system. For a situation in which the electrons are treated
+quantum mechanically, while the nuclei are treated classically the total action can be written as
+the sum of the two environments
 
 $$
 A = A_c + A_q \qquad A_c = \int_{t_0}^{t_f} \left[ \sum_A \frac{M_A}{2}\dot{\bf R}_A -U({\bf R},t)\right]dt
