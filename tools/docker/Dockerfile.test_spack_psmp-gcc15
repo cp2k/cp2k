@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-gcc15 ../../
 #
 
-ARG BASE_IMAGE="ubuntu:24.04"
+ARG BASE_IMAGE="ubuntu:26.04"
 
 ###### Stage 1: Build CP2K dependencies ######
 
