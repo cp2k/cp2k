@@ -188,13 +188,15 @@ CONTAINS
 !> \param eeq_sparam ...
 !> \param eeq_model ...
 !> \param enshift_type ...
+!> \param exclude ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_charges(qs_env, charges, eeq_sparam, eeq_model, enshift_type)
+   SUBROUTINE eeq_charges(qs_env, charges, eeq_sparam, eeq_model, enshift_type, exclude)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
+      LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: exclude
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_charges'
 
@@ -260,6 +262,19 @@ CONTAINS
          END DO
       END DO
 
+      ! Override parameters for excluded kinds (ghost/floating atoms in BSSE):
+      ! huge hardness + zero coupling -> q = 0, no influence on other atoms.
+      ! This preserves the matrix size and MPI-parallel solver infrastructure.
+      IF (PRESENT(exclude)) THEN
+         DO ikind = 1, nkind
+            IF (exclude(ikind)) THEN
+               gam(ikind) = 1.0e30_dp
+               gab(ikind, :) = 0.0_dp
+               gab(:, ikind) = 0.0_dp
+            END IF
+         END DO
+      END IF
+
       ! Chi[a,a]
       sgamma = 8.0_dp ! see D4 for periodic systems paper
       esg = 1.0_dp + EXP(sgamma)
@@ -280,6 +295,14 @@ CONTAINS
          chia(iatom) = xi - kappa*scn
          !
       END DO
+
+      ! Zero electronegativity for excluded atoms (ghost/floating in BSSE)
+      IF (PRESENT(exclude)) THEN
+         DO iatom = 1, natom
+            ikind = kind_of(iatom)
+            IF (exclude(ikind)) chia(iatom) = 0.0_dp
+         END DO
+      END IF
 
       ! efield
       IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
@@ -341,9 +364,10 @@ CONTAINS
 !> \param eeq_model ...
 !> \param enshift_type ...
 !> \param response_only ...
+!> \param exclude ...
 ! **************************************************************************************************
    SUBROUTINE eeq_forces(qs_env, charges, dcharges, gradient, stress, &
-                         eeq_sparam, eeq_model, enshift_type, response_only)
+                         eeq_sparam, eeq_model, enshift_type, response_only, exclude)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges
@@ -352,6 +376,7 @@ CONTAINS
       TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
       LOGICAL, INTENT(IN)                                :: response_only
+      LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: exclude
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_forces'
 
@@ -441,6 +466,17 @@ CONTAINS
             !
          END DO
       END DO
+
+      ! Override parameters for excluded kinds (ghost/floating atoms in BSSE)
+      IF (PRESENT(exclude)) THEN
+         DO ikind = 1, nkind
+            IF (exclude(ikind)) THEN
+               gam(ikind) = 1.0e30_dp
+               gab(ikind, :) = 0.0_dp
+               gab(:, ikind) = 0.0_dp
+            END IF
+         END DO
+      END IF
 
       ALLOCATE (qlag(natom))
 

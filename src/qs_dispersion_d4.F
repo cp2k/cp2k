@@ -100,24 +100,27 @@ CONTAINS
 
       INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom
 #if defined(__DFTD4_V3)
-      INTEGER                                            :: ikind, mref, natom, nghost
+      INTEGER                                            :: ifull, ikind, mref, natom, &
+                                                            natom_full, nghost
 #else
-      INTEGER                                            :: ikind, mref, natom, ncoup, nghost
+      INTEGER                                            :: ifull, ikind, mref, natom, ncoup, &
+                                                            natom_full, nghost
 #endif
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of, &
-                                                            t_atomtype
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_map, atom_map_back, atom_of_kind, &
+                                                            atomtype, kind_of, species, t_atomtype
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: debug, grad, ifloating, ighost, &
                                                             use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_ghost
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_ghost, exclude_ghost
       LOGICAL, DIMENSION(3)                              :: lperiod
       REAL(KIND=dp)                                      :: ed2, ed3, ev1, ev2, ev3, ev4, pd2, pd3, &
                                                             ta, tb, tc, td, te, ts
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cnd, dEdcn, dEdq, edcn, edq, enerd2, &
-                                                            enerd3, energies, energies3, q, qd
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cn_red, cnd, dEdcn, dEdq, &
+                                                            edcn, edq, enerd2, &
+                                                            enerd3, energies, energies3, q_red, qd
 #if defined(__DFTD4_V3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, &
-                                                            t_xyz, tvec, xyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, &
+                                                            gwvec, t_xyz, tvec, xyz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb
 #else
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, t_xyz, tvec, xyz
@@ -152,11 +155,11 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
 
       !get information about particles
-      natom = SIZE(particle_set)
+      natom_full = SIZE(particle_set)
       nghost = 0
-      ALLOCATE (t_xyz(3, natom), t_atomtype(natom), a_ghost(natom))
+      ALLOCATE (t_xyz(3, natom_full), t_atomtype(natom_full), a_ghost(natom_full))
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-      DO iatom = 1, natom
+      DO iatom = 1, natom_full
          t_xyz(:, iatom) = particle_set(iatom)%r(:)
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), zatom=t_atomtype(iatom), ghost=ighost, floating=ifloating)
@@ -164,12 +167,17 @@ CONTAINS
          IF (a_ghost(iatom)) nghost = nghost + 1
       END DO
 
-      natom = natom - nghost
+      natom = natom_full - nghost
+      ! Build atom mapping: full index -> reduced index (0 for ghost)
+      ALLOCATE (atom_map(natom_full), atom_map_back(natom))
+      atom_map = 0
       iatom = 0
       ALLOCATE (xyz(3, natom), atomtype(natom))
-      DO i = 1, natom + nghost
+      DO i = 1, natom_full
          IF (.NOT. a_ghost(i)) THEN
             iatom = iatom + 1
+            atom_map(i) = iatom
+            atom_map_back(iatom) = i
             xyz(:, iatom) = t_xyz(:, i)
             atomtype(iatom) = t_atomtype(i)
          END IF
@@ -199,6 +207,21 @@ CONTAINS
       ! Number of coupling
       ncoup = disp%ncoup
 #endif
+
+      ! Build species mapping: full atom index -> D4 species ID (0 for ghost)
+      ALLOCATE (species(natom_full))
+      species = 0
+      DO i = 1, natom
+         species(atom_map_back(i)) = mol%id(i)
+      END DO
+
+      ! Build per-kind exclusion mask for EEQ (ghost/floating kinds excluded)
+      ALLOCATE (exclude_ghost(SIZE(qs_kind_set)))
+      exclude_ghost = .FALSE.
+      DO i = 1, SIZE(qs_kind_set)
+         CALL get_qs_kind(qs_kind_set(i), ghost=ighost, floating=ifloating)
+         exclude_ghost(i) = ighost .OR. ifloating
+      END DO
 
       IF (dispersion_env%ref_functional == "none") THEN
          CALL get_rational_damping("pbe", param, s9=0.0_dp)
@@ -254,8 +277,9 @@ CONTAINS
                   virial%pv_virial = virial%pv_virial - stress/para_env%num_pe
                END IF
                DO iatom = 1, natom
-                  ikind = kind_of(iatom)
-                  atoma = atom_of_kind(iatom)
+                  ifull = atom_map_back(iatom)
+                  ikind = kind_of(ifull)
+                  atoma = atom_of_kind(ifull)
                   force(ikind)%dispersion(:, atoma) = &
                      force(ikind)%dispersion(:, atoma) + gradient(:, iatom)/para_env%num_pe
                END DO
@@ -303,26 +327,49 @@ CONTAINS
          ts = m_walltime()
 
          mref = MAXVAL(disp%ref)
-         ! Coordination numbers
+         ! Coordination numbers (full-size from qs_env; ghosts excluded internally)
          cnfun = dispersion_env%cnfun
          CALL cnumber_init(qs_env, cn, dcnum, cnfun, grad)
+         ! cn has size natom_full; ghost entries are 0
+
+         ! Filter CN to reduced space for D4 model
+         ALLOCATE (cn_red(natom))
+         DO i = 1, natom
+            cn_red(i) = cn(atom_map_back(i))
+         END DO
          IF (debug .AND. iw > 0) THEN
-            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| CN differences (max)", MAXVAL(ABS(cn - cnd))
-            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| CN differences (ave)", SUM(ABS(cn - cnd))/natom
+            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| CN differences (max)", MAXVAL(ABS(cn_red - cnd))
+            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| CN differences (ave)", SUM(ABS(cn_red - cnd))/natom
          END IF
 
          ! EEQ charges
-         ALLOCATE (q(natom))
+         ! Use CP2K's MPI-parallel EEQ solver with ghost exclusion.
+         ! Ghost kinds get huge hardness + zero coupling -> q_ghost = 0 exactly,
+         ! without influencing real atom charges. Preserves full MPI parallelism.
          IF (dispersion_env%ext_charges) THEN
-            q(1:natom) = dispersion_env%charges(1:natom)
+            ALLOCATE (q_red(natom))
+            q_red(1:natom) = dispersion_env%charges(1:natom)
          ELSE
-            CALL eeq_charges(qs_env, q, dispersion_env%eeq_sparam, 2, enshift)
+            ! eeq_charges writes natom_full entries (from qs_env), so allocate full-size
+            ALLOCATE (q_red(natom_full))
+            CALL eeq_charges(qs_env, q_red, dispersion_env%eeq_sparam, 2, enshift, &
+                             exclude=exclude_ghost)
+            ! Filter to reduced size for D4 model
+            BLOCK
+               REAL(KIND=dp), ALLOCATABLE :: q_tmp(:)
+               ALLOCATE (q_tmp(natom))
+               DO i = 1, natom
+                  q_tmp(i) = q_red(atom_map_back(i))
+               END DO
+               DEALLOCATE (q_red)
+               CALL MOVE_ALLOC(q_tmp, q_red)
+            END BLOCK
          END IF
          IF (debug .AND. iw > 0) THEN
-            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (max)", MAXVAL(ABS(q - qd))
-            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (ave)", SUM(ABS(q - qd))/natom
+            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (max)", MAXVAL(ABS(q_red - qd))
+            WRITE (iw, '(A,T71,F10.6)') " DEBUG D4| Charge differences (ave)", SUM(ABS(q_red - qd))/natom
          END IF
-         ! Weights for C6 calculation
+         ! Weights for C6 calculation (reduced space)
 #if defined(__DFTD4_V3)
          ALLOCATE (gwvec(mref, natom))
          IF (grad) ALLOCATE (gwdcn(mref, natom), gwdq(mref, natom))
@@ -330,22 +377,24 @@ CONTAINS
          ALLOCATE (gwvec(mref, natom, ncoup))
          IF (grad) ALLOCATE (gwdcn(mref, natom, ncoup), gwdq(mref, natom, ncoup))
 #endif
-         CALL disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
+         CALL disp%weight_references(mol, cn_red, q_red, gwvec, gwdcn, gwdq)
 
-         ALLOCATE (energies(natom))
+         ! Energies and derivatives (full-size for CP2K infrastructure compatibility)
+         ALLOCATE (energies(natom_full))
          energies(:) = 0.0_dp
          IF (grad) THEN
-            ALLOCATE (gradient(3, natom), ga(3, natom))
-            ALLOCATE (dEdcn(natom), dEdq(natom))
+            ALLOCATE (gradient(3, natom_full), ga(3, natom_full))
+            ALLOCATE (dEdcn(natom_full), dEdq(natom_full))
             dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
             ga(:, :) = 0.0_dp
             sigma(:, :) = 0.0_dp
          END IF
          CALL dispersion_2b(dispersion_env, cutoff%disp2, disp%r4r2, &
                             gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
-                            energies, dEdcn, dEdq, grad, ga, sigma)
+                            energies, dEdcn, dEdq, grad, ga, sigma, &
+                            atom_map, species)
          IF (grad) THEN
-            gradient(1:3, 1:natom) = ga(1:3, 1:natom)
+            gradient(1:3, 1:natom_full) = ga(1:3, 1:natom_full)
             stress = sigma
             IF (debug) THEN
                CALL para_env%sum(ga)
@@ -362,17 +411,27 @@ CONTAINS
             END IF
          END IF
          ! no contribution from dispersion_3b as q=0 (but q is changed!)
-         ! so we callculate this here
+         ! so we calculate this here
          IF (grad) THEN
             IF (dispersion_env%ext_charges) THEN
                dispersion_env%dcharges = dEdq
             ELSE
                CALL para_env%sum(dEdq)
-               ga(:, :) = 0.0_dp
-               sigma = 0.0_dp
-               CALL eeq_forces(qs_env, q, dEdq, ga, sigma, dispersion_env%eeq_sparam, &
-                               2, enshift, response_only=.TRUE.)
-               gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
+               ! Reconstruct full-sized charges for eeq_forces
+               BLOCK
+                  REAL(KIND=dp), ALLOCATABLE :: q_full(:)
+                  ALLOCATE (q_full(natom_full))
+                  q_full = 0.0_dp
+                  DO i = 1, natom
+                     q_full(atom_map_back(i)) = q_red(i)
+                  END DO
+                  ga(:, :) = 0.0_dp
+                  sigma = 0.0_dp
+                  CALL eeq_forces(qs_env, q_full, dEdq, ga, sigma, dispersion_env%eeq_sparam, &
+                                  2, enshift, response_only=.TRUE., exclude=exclude_ghost)
+                  DEALLOCATE (q_full)
+               END BLOCK
+               gradient(1:3, 1:natom_full) = gradient(1:3, 1:natom_full) + ga(1:3, 1:natom_full)
                stress = stress + sigma
                IF (debug) THEN
                   CALL para_env%sum(ga)
@@ -393,11 +452,11 @@ CONTAINS
          END IF
 
          IF (dispersion_env%doabc) THEN
-            ALLOCATE (energies3(natom))
+            ALLOCATE (energies3(natom_full))
             energies3(:) = 0.0_dp
-            q(:) = 0.0_dp
+            q_red(:) = 0.0_dp
             ! i.e. dc6dq = dEdq = 0
-            CALL disp%weight_references(mol, cn, q, gwvec, gwdcn, gwdq)
+            CALL disp%weight_references(mol, cn_red, q_red, gwvec, gwdcn, gwdq)
             !
             IF (grad) THEN
                gwdq = 0.0_dp
@@ -407,9 +466,10 @@ CONTAINS
             CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, tvec)
             CALL dispersion_3b(qs_env, dispersion_env, tvec, cutoff%disp3, disp%r4r2, &
                                gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
-                               energies3, dEdcn, dEdq, grad, ga, sigma)
+                               energies3, dEdcn, dEdq, grad, ga, sigma, &
+                               atom_map, species)
             IF (grad) THEN
-               gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
+               gradient(1:3, 1:natom_full) = gradient(1:3, 1:natom_full) + ga(1:3, 1:natom_full)
                stress = stress + sigma
                IF (debug) THEN
                   CALL para_env%sum(ga)
@@ -432,7 +492,7 @@ CONTAINS
             ga(:, :) = 0.0_dp
             sigma = 0.0_dp
             CALL dEdcn_force(qs_env, dEdcn, dcnum, ga, sigma)
-            gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
+            gradient(1:3, 1:natom_full) = gradient(1:3, 1:natom_full) + ga(1:3, 1:natom_full)
             stress = stress + sigma
             IF (debug) THEN
                CALL para_env%sum(ga)
@@ -450,7 +510,7 @@ CONTAINS
                END IF
             END IF
          END IF
-         DEALLOCATE (q)
+         DEALLOCATE (q_red, cn_red)
          CALL cnumber_release(cn, dcnum, grad)
          te = m_walltime()
          tc = tc + te - ts
@@ -485,14 +545,15 @@ CONTAINS
          END IF
          evdw = SUM(energies)
          IF (PRESENT(atomic_energy)) THEN
-            atomic_energy(1:natom) = energies(1:natom)
+            atomic_energy(1:natom_full) = energies(1:natom_full)
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN
             virial%pv_virial = virial%pv_virial - stress
          END IF
          IF (calculate_forces) THEN
-            DO iatom = 1, natom
+            DO iatom = 1, natom_full
+               IF (atom_map(iatom) == 0) CYCLE
                ikind = kind_of(iatom)
                atoma = atom_of_kind(iatom)
                force(ikind)%dispersion(:, atoma) = &
@@ -508,7 +569,7 @@ CONTAINS
 
       END IF
 
-      DEALLOCATE (xyz, atomtype)
+      DEALLOCATE (xyz, atomtype, atom_map, atom_map_back, species, exclude_ghost)
 
       CALL timestop(handle)
 
@@ -686,11 +747,14 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param gradient ...
 !> \param stress ...
+!> \param atom_map ...
+!> \param species ...
 ! **************************************************************************************************
    SUBROUTINE dispersion_2b(dispersion_env, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
-                            calculate_forces, gradient, stress)
+                            calculate_forces, gradient, stress, &
+                            atom_map, species)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
@@ -704,8 +768,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_map, species
 
-      INTEGER                                            :: iatom, ikind, jatom, jkind, mepos, num_pe
+      INTEGER                                            :: ia, iatom, ik, ikind, ja, jatom, jk, &
+                                                            jkind, mepos, num_pe
       REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
                                                             edisp, fac, gdisp, r0ij, rrij, s6, s8, &
                                                             t6, t8
@@ -732,16 +798,23 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij)
+         ! Skip ghost/floating atoms
+         ia = atom_map(iatom)
+         ja = atom_map(jatom)
+         IF (ia == 0 .OR. ja == 0) CYCLE
+         ! D4 species indices
+         ik = species(iatom)
+         jk = species(jatom)
          ! vdW potential
          dr2 = SUM(rij(:)**2)
          IF (dr2 <= cutoff2 .AND. dr2 > 0.0000001_dp) THEN
-            rrij = 3._dp*r4r2(ikind)*r4r2(jkind)
+            rrij = 3._dp*r4r2(ik)*r4r2(jk)
             r0ij = a1*SQRT(rrij) + a2
             IF (calculate_forces) THEN
-               CALL get_c6derivs(c6ij, dcdcn, dcdq, iatom, jatom, ikind, jkind, &
+               CALL get_c6derivs(c6ij, dcdcn, dcdq, ia, ja, ik, jk, &
                                  gwvec, gwdcn, gwdq, c6ref, mrefs)
             ELSE
-               CALL get_c6value(c6ij, iatom, jatom, ikind, jkind, gwvec, c6ref, mrefs)
+               CALL get_c6value(c6ij, ia, ja, ik, jk, gwvec, c6ref, mrefs)
             END IF
             fac = 1._dp
             IF (iatom == jatom) fac = 0.5_dp
@@ -792,11 +865,14 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param gradient ...
 !> \param stress ...
+!> \param atom_map ...
+!> \param species ...
 ! **************************************************************************************************
    SUBROUTINE dispersion_3b(qs_env, dispersion_env, tvec, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
-                            calculate_forces, gradient, stress)
+                            calculate_forces, gradient, stress, &
+                            atom_map, species)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: tvec
@@ -812,9 +888,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_map, species
 
-      INTEGER                                            :: iatom, ikind, jatom, jkind, katom, &
-                                                            kkind, ktr, mepos, natom, num_pe
+      INTEGER                                            :: ia, iatom, ik, ikind, ja, jatom, jk, &
+                                                            jkind, ka, katom, kk, ktr, mepos, &
+                                                            natom, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       REAL(KINd=dp)                                      :: a1, a2, alp, ang, c6ij, c6ik, c6jk, c9, &
@@ -862,14 +940,21 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
+         ! Skip ghost/floating atoms
+         ia = atom_map(iatom)
+         ja = atom_map(jatom)
+         IF (ia == 0 .OR. ja == 0) CYCLE
+         ik = species(iatom)
+         jk = species(jatom)
+
          r2ij = SUM(rij(:)**2)
          IF (calculate_forces) THEN
-            CALL get_c6derivs(c6ij, dc6dcnij, dc6dqij, iatom, jatom, ikind, jkind, &
+            CALL get_c6derivs(c6ij, dc6dcnij, dc6dqij, ia, ja, ik, jk, &
                               gwvec, gwdcn, gwdq, c6ref, mrefs)
          ELSE
-            CALL get_c6value(c6ij, iatom, jatom, ikind, jkind, gwvec, c6ref, mrefs)
+            CALL get_c6value(c6ij, ia, ja, ik, jk, gwvec, c6ref, mrefs)
          END IF
-         r0ij = a1*SQRT(3._dp*r4r2(jkind)*r4r2(ikind)) + a2
+         r0ij = a1*SQRT(3._dp*r4r2(jk)*r4r2(ik)) + a2
          IF (r2ij <= cutoff2 .AND. r2ij > EPSILON(1._dp)) THEN
             CALL get_iterator_info(nl_iterator, cell=cell_b)
             rb0(:) = MATMUL(cell%hmat, cell_b)
@@ -878,19 +963,21 @@ CONTAINS
             vij(:) = rb(:) - ra(:)
 
             DO katom = 1, MIN(iatom, jatom)
-               kkind = kind_of(katom)
+               ka = atom_map(katom)
+               IF (ka == 0) CYCLE
+               kk = species(katom)
                IF (calculate_forces) THEN
-                  CALL get_c6derivs(c6ik, dc6dcnik, dc6dqik, katom, iatom, kkind, ikind, &
+                  CALL get_c6derivs(c6ik, dc6dcnik, dc6dqik, ka, ia, kk, ik, &
                                     gwvec, gwdcn, gwdq, c6ref, mrefs)
-                  CALL get_c6derivs(c6jk, dc6dcnjk, dc6dqjk, katom, jatom, kkind, jkind, &
+                  CALL get_c6derivs(c6jk, dc6dcnjk, dc6dqjk, ka, ja, kk, jk, &
                                     gwvec, gwdcn, gwdq, c6ref, mrefs)
                ELSE
-                  CALL get_c6value(c6ik, katom, iatom, kkind, ikind, gwvec, c6ref, mrefs)
-                  CALL get_c6value(c6jk, katom, jatom, kkind, jkind, gwvec, c6ref, mrefs)
+                  CALL get_c6value(c6ik, ka, ia, kk, ik, gwvec, c6ref, mrefs)
+                  CALL get_c6value(c6jk, ka, ja, kk, jk, gwvec, c6ref, mrefs)
                END IF
                c9 = -s9*SQRT(ABS(c6ij*c6ik*c6jk))
-               r0ik = a1*SQRT(3._dp*r4r2(kkind)*r4r2(ikind)) + a2
-               r0jk = a1*SQRT(3._dp*r4r2(kkind)*r4r2(jkind)) + a2
+               r0ik = a1*SQRT(3._dp*r4r2(kk)*r4r2(ik)) + a2
+               r0jk = a1*SQRT(3._dp*r4r2(kk)*r4r2(jk)) + a2
                r0 = r0ij*r0ik*r0jk
                fac = triple_scale(iatom, jatom, katom)
                DO ktr = 1, SIZE(tvec, 2)
