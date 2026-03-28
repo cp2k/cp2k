@@ -21,6 +21,7 @@ MODULE qs_dispersion_d4
                          plane_distance, &
                          pbc, &
                          get_cell
+   USE qs_dispersion_types, ONLY: qs_atom_dispersion_type
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE qs_force_types, ONLY: qs_force_type
@@ -105,7 +106,7 @@ CONTAINS
       INTEGER                                            :: ikind, mref, natom, ncoup, nghost
 #endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of, &
-                                                            t_atomtype
+                                                            t_atomtype, l_temp, new_kind, new_at
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: debug, grad, ifloating, ighost, &
                                                             use_virial
@@ -154,14 +155,33 @@ CONTAINS
       !get information about particles
       natom = SIZE(particle_set)
       nghost = 0
-      ALLOCATE (t_xyz(3, natom), t_atomtype(natom), a_ghost(natom))
+      ALLOCATE (t_xyz(3, natom), t_atomtype(natom), a_ghost(natom), l_temp(natom), new_kind(natom), new_at(natom))
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+
+      l_temp = -1
+      new_at = -1
+      i = 0
       DO iatom = 1, natom
          t_xyz(:, iatom) = particle_set(iatom)%r(:)
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), zatom=t_atomtype(iatom), ghost=ighost, floating=ifloating)
          a_ghost(iatom) = ighost .OR. ifloating
-         IF (a_ghost(iatom)) nghost = nghost + 1
+         IF (a_ghost(iatom)) THEN
+            nghost = nghost + 1
+         ELSE
+            i = i + 1
+            new_at(iatom) = i
+            l_temp(iatom) = ikind
+         END IF
+      END DO
+
+      ikind = 0
+      new_kind = -1
+      DO i = 1, natom
+         IF (ANY(l_temp == i)) THEN
+            ikind = ikind + 1
+            new_kind(i) = ikind
+         END IF
       END DO
 
       natom = natom - nghost
@@ -174,7 +194,7 @@ CONTAINS
             atomtype(iatom) = t_atomtype(i)
          END IF
       END DO
-      DEALLOCATE (a_ghost, t_xyz, t_atomtype)
+      DEALLOCATE (a_ghost, t_xyz, t_atomtype, l_temp)
 
       !get information about cell / lattice
       CALL get_cell(cell=cell, periodic=periodic)
@@ -312,7 +332,7 @@ CONTAINS
          END IF
 
          ! EEQ charges
-         ALLOCATE (q(natom))
+         ALLOCATE (q(natom + nghost))
          IF (dispersion_env%ext_charges) THEN
             q(1:natom) = dispersion_env%charges(1:natom)
          ELSE
@@ -341,9 +361,9 @@ CONTAINS
             ga(:, :) = 0.0_dp
             sigma(:, :) = 0.0_dp
          END IF
-         CALL dispersion_2b(dispersion_env, cutoff%disp2, disp%r4r2, &
+         CALL dispersion_2b(qs_env, dispersion_env, cutoff%disp2, disp%r4r2, &
                             gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
-                            energies, dEdcn, dEdq, grad, ga, sigma)
+                            energies, dEdcn, dEdq, grad, ga, sigma, new_kind, new_at)
          IF (grad) THEN
             gradient(1:3, 1:natom) = ga(1:3, 1:natom)
             stress = sigma
@@ -407,7 +427,7 @@ CONTAINS
             CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, tvec)
             CALL dispersion_3b(qs_env, dispersion_env, tvec, cutoff%disp3, disp%r4r2, &
                                gwvec, gwdcn, gwdq, disp%c6, disp%ref, &
-                               energies3, dEdcn, dEdq, grad, ga, sigma)
+                               energies3, dEdcn, dEdq, grad, ga, sigma, new_kind, new_at)
             IF (grad) THEN
                gradient(1:3, 1:natom) = gradient(1:3, 1:natom) + ga(1:3, 1:natom)
                stress = stress + sigma
@@ -508,6 +528,7 @@ CONTAINS
 
       END IF
 
+      DEALLOCATE (new_kind, new_at)
       DEALLOCATE (xyz, atomtype)
 
       CALL timestop(handle)
@@ -672,6 +693,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param dispersion_env ...
 !> \param cutoff ...
 !> \param r4r2 ...
@@ -686,11 +708,14 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param gradient ...
 !> \param stress ...
+!> \param new_kind ...
+!> \param new_at ...
 ! **************************************************************************************************
-   SUBROUTINE dispersion_2b(dispersion_env, cutoff, r4r2, &
+   SUBROUTINE dispersion_2b(qs_env, dispersion_env, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
-                            calculate_forces, gradient, stress)
+                            calculate_forces, gradient, stress, new_kind, new_at)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r4r2
@@ -704,8 +729,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: new_kind, new_at
 
       INTEGER                                            :: iatom, ikind, jatom, jkind, mepos, num_pe
+      LOGICAL                                            :: floating_i, floating_j, ghost_i, ghost_j
       REAL(KINd=dp)                                      :: a1, a2, c6ij, cutoff2, d6, d8, dE, dr2, &
                                                             edisp, fac, gdisp, r0ij, rrij, s6, s8, &
                                                             t6, t8
@@ -716,6 +743,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_vdw
+      TYPE(qs_atom_dispersion_type), POINTER             :: disp_i, disp_j
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       a1 = dispersion_env%a1
       a2 = dispersion_env%a2
@@ -727,11 +756,22 @@ CONTAINS
 
       num_pe = 1
       CALL neighbor_list_iterator_create(nl_iterator, sab_vdw, nthread=num_pe)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
 
       mepos = 0
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij)
+
+         CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_i, ghost=ghost_i, floating=floating_i)
+         IF (.NOT. disp_i%defined .OR. ghost_i .OR. floating_i) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_j, ghost=ghost_j, floating=floating_j)
+         IF (.NOT. disp_j%defined .OR. ghost_j .OR. floating_j) CYCLE
+         ikind = new_kind(ikind)
+         jkind = new_kind(jkind)
+         iatom = new_at(iatom)
+         jatom = new_at(jatom)
+
          ! vdW potential
          dr2 = SUM(rij(:)**2)
          IF (dr2 <= cutoff2 .AND. dr2 > 0.0000001_dp) THEN
@@ -792,11 +832,13 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param gradient ...
 !> \param stress ...
+!> \param new_kind ...
+!> \param new_at ...
 ! **************************************************************************************************
    SUBROUTINE dispersion_3b(qs_env, dispersion_env, tvec, cutoff, r4r2, &
                             gwvec, gwdcn, gwdq, c6ref, mrefs, &
                             energies, dEdcn, dEdq, &
-                            calculate_forces, gradient, stress)
+                            calculate_forces, gradient, stress, new_kind, new_at)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: tvec
@@ -812,11 +854,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: energies, dEdcn, dEdq
       LOGICAL, INTENT(IN)                                :: calculate_forces
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: gradient, stress
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: new_kind, new_at
 
-      INTEGER                                            :: iatom, ikind, jatom, jkind, katom, &
-                                                            kkind, ktr, mepos, natom, num_pe
+      INTEGER                                            :: iatom, ikind, jatom, jkind, k0atom, &
+                                                            katom, kkind, ktr, mepos, natom, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
+      LOGICAL                                            :: floating_i, floating_j, ghost_i, ghost_j
       REAL(KINd=dp)                                      :: a1, a2, alp, ang, c6ij, c6ik, c6jk, c9, &
                                                             cutoff2, dang, dE, dfdmp, fac, fdmp, &
                                                             r0, r0ij, r0ik, r0jk, r1, r2, r2ij, &
@@ -834,6 +878,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_vdw
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_atom_dispersion_type), POINTER             :: disp_i, disp_j
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env=qs_env, natom=natom, cell=cell, &
                       atomic_kind_set=atomic_kind_set, particle_set=particle_set)
@@ -842,6 +888,7 @@ CONTAINS
       DO iatom = 1, natom
          rcpbc(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
       END DO
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
       a1 = dispersion_env%a1
@@ -862,6 +909,15 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
+         CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_i, ghost=ghost_i, floating=floating_i)
+         IF (.NOT. disp_i%defined .OR. ghost_i .OR. floating_i) CYCLE
+         CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_j, ghost=ghost_j, floating=floating_j)
+         IF (.NOT. disp_j%defined .OR. ghost_j .OR. floating_j) CYCLE
+         ikind = new_kind(ikind)
+         jkind = new_kind(jkind)
+         iatom = new_at(iatom)
+         jatom = new_at(jatom)
+
          r2ij = SUM(rij(:)**2)
          IF (calculate_forces) THEN
             CALL get_c6derivs(c6ij, dc6dcnij, dc6dqij, iatom, jatom, ikind, jkind, &
@@ -877,8 +933,10 @@ CONTAINS
             rb(:) = rcpbc(:, jatom) + rb0
             vij(:) = rb(:) - ra(:)
 
-            DO katom = 1, MIN(iatom, jatom)
-               kkind = kind_of(katom)
+            DO k0atom = 1, MIN(iatom, jatom)
+               kkind = new_kind(kind_of(k0atom))
+               katom = new_at(k0atom)
+               IF (kkind < 0) CYCLE
                IF (calculate_forces) THEN
                   CALL get_c6derivs(c6ik, dc6dcnik, dc6dqik, katom, iatom, kkind, ikind, &
                                     gwvec, gwdcn, gwdq, c6ref, mrefs)
