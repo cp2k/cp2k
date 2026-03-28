@@ -189,14 +189,16 @@ CONTAINS
 !> \param eeq_model ...
 !> \param enshift_type ...
 !> \param exclude ...
+!> \param cn_max ...
 ! **************************************************************************************************
-   SUBROUTINE eeq_charges(qs_env, charges, eeq_sparam, eeq_model, enshift_type, exclude)
+   SUBROUTINE eeq_charges(qs_env, charges, eeq_sparam, eeq_model, enshift_type, exclude, cn_max)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: exclude
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cn_max
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_charges'
 
@@ -246,6 +248,13 @@ CONTAINS
 
       CALL get_cnumbers(qs_env, cnumbers, dcnum, .FALSE.)
 
+      ! Apply smooth logistic CN cutoff to match multicharge/D4 behavior
+      IF (PRESENT(cn_max)) THEN
+         DO iatom = 1, natom
+            cnumbers(iatom) = LOG(1.0_dp + EXP(cn_max)) - LOG(1.0_dp + EXP(cn_max - cnumbers(iatom)))
+         END DO
+      END IF
+
       ! gamma[a,b]
       ALLOCATE (gab(nkind, nkind), gam(nkind))
       gab = 0.0_dp
@@ -264,7 +273,6 @@ CONTAINS
 
       ! Override parameters for excluded kinds (ghost/floating atoms in BSSE):
       ! huge hardness + zero coupling -> q = 0, no influence on other atoms.
-      ! This preserves the matrix size and MPI-parallel solver infrastructure.
       IF (PRESENT(exclude)) THEN
          DO ikind = 1, nkind
             IF (exclude(ikind)) THEN
@@ -365,9 +373,10 @@ CONTAINS
 !> \param enshift_type ...
 !> \param response_only ...
 !> \param exclude ...
+!> \param cn_max ...
 ! **************************************************************************************************
    SUBROUTINE eeq_forces(qs_env, charges, dcharges, gradient, stress, &
-                         eeq_sparam, eeq_model, enshift_type, response_only, exclude)
+                         eeq_sparam, eeq_model, enshift_type, response_only, exclude, cn_max)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges
@@ -377,6 +386,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: eeq_model, enshift_type
       LOGICAL, INTENT(IN)                                :: response_only
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: exclude
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cn_max
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_forces'
 
@@ -387,10 +397,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: do_ewald, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: default_present
-      REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
-                                                            elag, esg, fe, gam2, gama, grc, kappa, &
-                                                            qlam, qq, qq1, qq2, rcut, scn, sgamma, &
-                                                            subcells, totalcharge, xi
+      REAL(KIND=dp) :: ala, alb, alpha, cn, ctot, dcnpdcn, dr, dr2, drk, elag, esg, fe, gam2, &
+         gama, grc, kappa, qlam, qq, qq1, qq2, rcut, scn, sgamma, subcells, totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: c_radius, cnumbers, gam, qlag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: epforce, gab, pair_radius
       REAL(KIND=dp), DIMENSION(3)                        :: fdik, ri, rij, rik, rj
@@ -450,6 +458,18 @@ CONTAINS
       totalcharge = dft_control%charge
 
       CALL get_cnumbers(qs_env, cnumbers, dcnum, .TRUE.)
+
+      ! Apply smooth logistic CN cutoff to match multicharge/D4 behavior
+      ! Chain rule: dcn_cut/dR = (dcn_cut/dcn) * (dcn/dR)
+      IF (PRESENT(cn_max)) THEN
+         DO iatom = 1, natom
+            dcnpdcn = EXP(cn_max)/(EXP(cn_max) + EXP(cnumbers(iatom)))
+            cnumbers(iatom) = LOG(1.0_dp + EXP(cn_max)) - LOG(1.0_dp + EXP(cn_max - cnumbers(iatom)))
+            DO i = 1, dcnum(iatom)%neighbors
+               dcnum(iatom)%dvals(i) = dcnum(iatom)%dvals(i)*dcnpdcn
+            END DO
+         END DO
+      END IF
 
       ! gamma[a,b]
       ALLOCATE (gab(nkind, nkind), gam(nkind))

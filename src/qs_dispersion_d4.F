@@ -353,7 +353,7 @@ CONTAINS
             ! eeq_charges writes natom_full entries (from qs_env), so allocate full-size
             ALLOCATE (q_red(natom_full))
             CALL eeq_charges(qs_env, q_red, dispersion_env%eeq_sparam, 2, enshift, &
-                             exclude=exclude_ghost)
+                             exclude=exclude_ghost, cn_max=8.0_dp)
             ! Filter to reduced size for D4 model
             BLOCK
                REAL(KIND=dp), ALLOCATABLE :: q_tmp(:)
@@ -428,7 +428,8 @@ CONTAINS
                   ga(:, :) = 0.0_dp
                   sigma = 0.0_dp
                   CALL eeq_forces(qs_env, q_full, dEdq, ga, sigma, dispersion_env%eeq_sparam, &
-                                  2, enshift, response_only=.TRUE., exclude=exclude_ghost)
+                                  2, enshift, response_only=.TRUE., exclude=exclude_ghost, &
+                                  cn_max=8.0_dp)
                   DEALLOCATE (q_full)
                END BLOCK
                gradient(1:3, 1:natom_full) = gradient(1:3, 1:natom_full) + ga(1:3, 1:natom_full)
