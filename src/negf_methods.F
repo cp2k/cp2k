@@ -37,16 +37,15 @@ MODULE negf_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_add_to_element, cp_fm_copy_general, cp_fm_create, cp_fm_get_info, &
-        cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+        cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_p_file,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_should_output,&
-                                              cp_print_key_unit_nr,&
-                                              debug_print_level,&
-                                              high_print_level
+   USE cp_output_handling,              ONLY: &
+        cp_add_iter_level, cp_iterate, cp_p_file, cp_print_key_finished_output, &
+        cp_print_key_should_output, cp_print_key_unit_nr, cp_rm_iter_level, debug_print_level, &
+        high_print_level
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_p_type,&
@@ -57,7 +56,8 @@ MODULE negf_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -96,6 +96,8 @@ MODULE negf_methods
                                               simpsonrule_type,&
                                               sr_shape_arc,&
                                               sr_shape_linear
+   USE negf_io,                         ONLY: negf_read_matrix_from_file,&
+                                              negf_restart_file_name
    USE negf_matrix_utils,               ONLY: invert_cell_to_index,&
                                               negf_copy_fm_submat_to_dbcsr,&
                                               negf_copy_sym_dbcsr_to_fm_submat
@@ -291,7 +293,8 @@ CONTAINS
 
          ! self-consistent density
          ! -----------------------
-         CALL converge_density(negf_env, negf_control, sub_env, qs_env, negf_control%v_shift, base_contact=1, log_unit=log_unit)
+         CALL converge_density(negf_env, negf_control, sub_env, negf_section, qs_env, negf_control%v_shift, &
+                               base_contact=1, log_unit=log_unit)
 
          ! restart.hs
          ! ----------
@@ -1056,6 +1059,7 @@ CONTAINS
 !> \param negf_env      NEGF environment
 !> \param negf_control  NEGF control
 !> \param sub_env       NEGF parallel (sub)group environment
+!> \param negf_section ...
 !> \param qs_env        QuickStep environment
 !> \param v_shift       shift in Hartree potential
 !> \param base_contact  index of the reference contact
@@ -1064,10 +1068,11 @@ CONTAINS
 !>    * 06.2017 created  [Sergey Chulkov]
 !>    * 11.2025 modified [Dmitry Ryndyk]
 ! **************************************************************************************************
-   SUBROUTINE converge_density(negf_env, negf_control, sub_env, qs_env, v_shift, base_contact, log_unit)
+   SUBROUTINE converge_density(negf_env, negf_control, sub_env, negf_section, qs_env, v_shift, base_contact, log_unit)
       TYPE(negf_env_type), INTENT(inout)                 :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
+      TYPE(section_vals_type), POINTER                   :: negf_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), INTENT(in)                          :: v_shift
       INTEGER, INTENT(in)                                :: base_contact, log_unit
@@ -1076,18 +1081,22 @@ CONTAINS
       REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
       TYPE(cp_fm_type), PARAMETER                        :: fm_dummy = cp_fm_type()
 
+      CHARACTER(len=100)                                 :: sfmt
+      CHARACTER(LEN=default_path_length)                 :: filebase, filename
       COMPLEX(kind=dp)                                   :: lbound_cpath, ubound_cpath, ubound_lpath
-      INTEGER                                            :: handle, icontact, image, ispin, &
-                                                            iter_count, nao, ncontacts, nimages, &
-                                                            nspins
-      LOGICAL                                            :: do_kpoints
+      INTEGER                                            :: handle, i, icontact, image, ispin, &
+                                                            iter_count, j, nao, ncol, ncontacts, &
+                                                            nimages, nrow, nspins, print_unit
+      LOGICAL                                            :: do_kpoints, exist
       REAL(kind=dp)                                      :: delta, iter_delta, mu_base, nelectrons, &
                                                             nelectrons_diff, t1, t2, temperature, &
                                                             trace, v_base
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: target_m
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_initial_kp, matrix_ks_qs_kp, &
                                                             rho_ao_initial_kp, rho_ao_new_kp, &
                                                             rho_ao_qs_kp
@@ -1099,6 +1108,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      logger => cp_get_default_logger()
 
       ncontacts = SIZE(negf_control%contacts)
       ! the current subroutine works for the general case as well, but the Poisson solver does not
@@ -1129,10 +1140,10 @@ CONTAINS
       t1 = m_walltime()
 
       ! need a globally distributed overlap matrix in order to compute integration errors
+      CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
       IF (sub_env%ngroups > 1) THEN
          NULLIFY (matrix_s_fm, fm_struct)
 
-         CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
          ALLOCATE (matrix_s_fm)
@@ -1156,8 +1167,114 @@ CONTAINS
       v_base = negf_control%contacts(base_contact)%v_external
       mu_base = negf_control%contacts(base_contact)%fermi_level - v_base
 
-      ! keep the initial charge density matrix and Kohn-Sham matrix
+      ! keep the initial charge density matrix
       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_qs_kp)
+
+      ALLOCATE (target_m(nao, nao))
+      ALLOCATE (rho_ao_delta_fm(nspins), rho_ao_new_fm(nspins))
+      DO ispin = 1, nspins
+         CALL cp_fm_create(rho_ao_delta_fm(ispin), fm_struct)
+         CALL cp_fm_create(rho_ao_new_fm(ispin), fm_struct)
+      END DO
+
+      IF (negf_control%restart_scf) THEN
+         IF (para_env%is_source()) THEN
+            CALL negf_restart_file_name(filebase, exist, negf_section, logger, h_scf=.TRUE.)
+         END IF
+         CALL para_env%bcast(filebase)
+         IF (nspins == 1) THEN
+            filename = TRIM(filebase)//'.hs'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the KS matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial KS matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(negf_env%h_s(1), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " H_s is read from "//TRIM(filename)
+            END IF
+            filename = TRIM(filebase)//'.rho'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the density matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial density matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(rho_ao_delta_fm(1), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " rho_s is read from "//TRIM(filename)
+               CALL negf_copy_fm_submat_to_dbcsr(fm=rho_ao_delta_fm(1), &
+                                                 matrix=rho_ao_qs_kp(1, 1)%matrix, &
+                                                 atomlist_row=negf_control%atomlist_S_screening, &
+                                                 atomlist_col=negf_control%atomlist_S_screening, &
+                                                 subsys=subsys)
+            END IF
+         END IF
+         IF (nspins == 2) THEN
+            filename = TRIM(filebase)//'-S1.hs'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the KS matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial KS matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(negf_env%h_s(1), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " H_s is read from "//TRIM(filename)
+            END IF
+            filename = TRIM(filebase)//'-S2.hs'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the KS matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial KS matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(negf_env%h_s(2), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " H_s is read from "//TRIM(filename)
+            END IF
+            filename = TRIM(filebase)//'-S1.rho'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the density matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial density matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(rho_ao_delta_fm(1), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " rho_s is read from "//TRIM(filename)
+               CALL negf_copy_fm_submat_to_dbcsr(fm=rho_ao_delta_fm(1), &
+                                                 matrix=rho_ao_qs_kp(1, 1)%matrix, &
+                                                 atomlist_row=negf_control%atomlist_S_screening, &
+                                                 atomlist_col=negf_control%atomlist_S_screening, &
+                                                 subsys=subsys)
+            END IF
+            filename = TRIM(filebase)//'-S2.rho'
+            INQUIRE (FILE=filename, exist=exist)
+            IF (.NOT. exist) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "User requested to read the density matrix from the file named: "// &
+                            TRIM(filename)//". This file does not exist. The initial density matrix will be used.")
+            ELSE
+               IF (para_env%is_source()) CALL negf_read_matrix_from_file(filename, target_m)
+               CALL para_env%bcast(target_m)
+               CALL cp_fm_set_submatrix(rho_ao_delta_fm(2), target_m)
+               IF (log_unit > 0) WRITE (log_unit, '(T2,A)') " rho_s is read from "//TRIM(filename)
+               CALL negf_copy_fm_submat_to_dbcsr(fm=rho_ao_delta_fm(2), &
+                                                 matrix=rho_ao_qs_kp(2, 1)%matrix, &
+                                                 atomlist_row=negf_control%atomlist_S_screening, &
+                                                 atomlist_col=negf_control%atomlist_S_screening, &
+                                                 subsys=subsys)
+            END IF
+         END IF
+         CALL qs_rho_update_rho(rho_struct, qs_env=qs_env)
+      END IF
 
       NULLIFY (matrix_ks_initial_kp, rho_ao_initial_kp, rho_ao_new_kp)
       CALL dbcsr_allocate_matrix_set(matrix_ks_initial_kp, nspins, nimages)
@@ -1179,27 +1296,18 @@ CONTAINS
 
       ! extract the reference density matrix blocks
       nelectrons = 0.0_dp
-      ALLOCATE (rho_ao_delta_fm(nspins), rho_ao_new_fm(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create(rho_ao_delta_fm(ispin), fm_struct)
-         CALL cp_fm_create(rho_ao_new_fm(ispin), fm_struct)
-      END DO
-      IF (.NOT. negf_control%is_restart) THEN
-         DO ispin = 1, nspins
-            CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_qs_kp(ispin, 1)%matrix, &
-                                                  fm=rho_ao_delta_fm(ispin), &
-                                                  atomlist_row=negf_control%atomlist_S_screening, &
-                                                  atomlist_col=negf_control%atomlist_S_screening, &
-                                                  subsys=subsys, mpi_comm_global=para_env, &
-                                                  do_upper_diag=.TRUE., do_lower=.TRUE.)
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_qs_kp(ispin, 1)%matrix, &
+                                               fm=rho_ao_delta_fm(ispin), &
+                                               atomlist_row=negf_control%atomlist_S_screening, &
+                                               atomlist_col=negf_control%atomlist_S_screening, &
+                                               subsys=subsys, mpi_comm_global=para_env, &
+                                               do_upper_diag=.TRUE., do_lower=.TRUE.)
 
-            CALL cp_fm_trace(rho_ao_delta_fm(ispin), matrix_s_fm, trace)
-            nelectrons = nelectrons + trace
-         END DO
-         negf_env%nelectrons = nelectrons
-      ELSE
-         nelectrons = negf_env%nelectrons
-      END IF
+         CALL cp_fm_trace(rho_ao_delta_fm(ispin), matrix_s_fm, trace)
+         nelectrons = nelectrons + trace
+      END DO
+      negf_env%nelectrons = nelectrons
 
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
@@ -1231,11 +1339,13 @@ CONTAINS
                            REAL(negf_control%delta_npoles, kind=dp)*twopi*temperature, kind=dp)
 
       ALLOCATE (g_surf_circular(nspins), g_surf_linear(nspins), g_surf_nonequiv(nspins))
+      CALL cp_add_iter_level(logger%iter_info, "NEGF_SCF")
 
       !--- main SCF cycle -------------------------------------------------------------------!
       DO iter_count = 1, negf_control%max_scf
          ! compute an updated density matrix
          CALL integration_status_reset(stats)
+         CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_count)
 
          DO ispin = 1, nspins
             ! closed contour: residuals
@@ -1392,8 +1502,8 @@ CONTAINS
                                rho_struct, para_env, iter_count)
          END IF
 
+         ! update KS-matrix
          IF (negf_control%update_HS) THEN
-            ! update KS-matrix
             CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
             ! extract blocks from the updated Kohn-Sham matrix
             DO ispin = 1, nspins
@@ -1406,7 +1516,215 @@ CONTAINS
             END DO
          END IF
 
+         ! Write the HS restart files
+         IF (nspins == 1) THEN
+            CALL cp_fm_get_submatrix(negf_env%h_s(1), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension=".hs", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+         END IF
+         IF (nspins == 2) THEN
+            CALL cp_fm_get_submatrix(negf_env%h_s(1), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension="-S1.hs", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+            CALL cp_fm_get_submatrix(negf_env%h_s(2), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension="-S2.hs", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+         END IF
+
+         ! Write the rho restart files
+         IF (nspins == 1) THEN
+            CALL cp_fm_get_submatrix(rho_ao_new_fm(1), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension=".rho", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+         END IF
+         IF (nspins == 2) THEN
+            CALL cp_fm_get_submatrix(rho_ao_new_fm(1), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension="-S1.rho", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+            CALL cp_fm_get_submatrix(rho_ao_new_fm(2), target_m)
+            IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                            negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+               print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                                 extension="-S2.rho", file_status="REPLACE", file_action="WRITE", &
+                                                 do_backup=.TRUE., file_form="FORMATTED")
+               nrow = SIZE(target_m, 1)
+               ncol = SIZE(target_m, 2)
+               WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+               WRITE (print_unit, *) nrow, ncol
+               DO i = 1, nrow
+                  WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+               END DO
+               CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+            END IF
+         END IF
+
       END DO
+
+      ! Write the final HS restart files
+      CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=iter_count)
+      IF (nspins == 1) THEN
+         CALL cp_fm_get_submatrix(negf_env%h_s(1), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension=".hs", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+      END IF
+      IF (nspins == 2) THEN
+         CALL cp_fm_get_submatrix(negf_env%h_s(1), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension="-S1.hs", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+         CALL cp_fm_get_submatrix(negf_env%h_s(1), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension="-S2.hs", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+      END IF
+
+      ! Write the final rho restart files
+      IF (nspins == 1) THEN
+         CALL cp_fm_get_submatrix(rho_ao_new_fm(1), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension=".rho", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+      END IF
+      IF (nspins == 2) THEN
+         CALL cp_fm_get_submatrix(rho_ao_new_fm(1), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension="-S1.rho", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+         CALL cp_fm_get_submatrix(rho_ao_new_fm(2), target_m)
+         IF (para_env%is_source() .AND. BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                                         negf_section, 'PRINT%RESTART'), cp_p_file)) THEN
+            print_unit = cp_print_key_unit_nr(logger, negf_section, 'PRINT%RESTART', &
+                                              extension="-S2.rho", file_status="REPLACE", file_action="WRITE", &
+                                              do_backup=.TRUE., file_form="FORMATTED")
+            nrow = SIZE(target_m, 1)
+            ncol = SIZE(target_m, 2)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") ncol
+            WRITE (print_unit, *) nrow, ncol
+            DO i = 1, nrow
+               WRITE (print_unit, sfmt) (target_m(i, j), j=1, ncol)
+            END DO
+            CALL cp_print_key_finished_output(print_unit, logger, negf_section, 'PRINT%RESTART')
+         END IF
+      END IF
+
+      DEALLOCATE (target_m)
+      CALL cp_rm_iter_level(logger%iter_info, level_name="NEGF_SCF")
 
       !--------------------------------------------------------------------------------------!
 

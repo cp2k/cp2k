@@ -209,12 +209,6 @@ CONTAINS
                           n_var=1, type_of_var=integer_t, default_i_val=30)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="UPDATE_HS", &
-                          description="Change the atomic Hamiltonian during NEGF self-consistent cycle."// &
-                          " If .FALSE., only the density matrix is updated.", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       ! PRINT subsection
       CALL section_create(subsection, __LOCATION__, "PRINT", "Printing of information during the NEGF.", &
@@ -237,10 +231,36 @@ CONTAINS
                                        description="Controls the dumping of the restart files during NEGF SCF."// &
                                        " By default keeps a short history of three restarts.", &
                                        print_level=low_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("NEGF_SCF"), each_iter_values=[20], &
+                                       each_iter_names=s2a("NEGF_SCF"), each_iter_values=[1], &
                                        add_last=add_last_numeric, filename="RESTART")
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
+                          description="Specifies the maximum number of backup copies.", &
+                          usage="BACKUP_COPIES {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! SCF subsection
+      CALL section_create(subsection, __LOCATION__, "SCF", "Additional parameters for an NEGF SCF run.", &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="UPDATE_HS", &
+                          description="Change the atomic Hamiltonian during NEGF self-consistent cycle."// &
+                          " If .FALSE., only the density matrix is updated.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_SCF", &
+                          description="Restart SCF from files saved as defined in NEGF%PRINT%RESTART", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

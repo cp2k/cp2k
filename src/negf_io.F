@@ -15,6 +15,7 @@ MODULE negf_io
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_generate_filename,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_iter_string
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -51,20 +52,22 @@ CONTAINS
 !> \param s   ...
 !> \param hc ...
 !> \param sc ...
+!> \param h_scf ...
 !> \par History
 !>    * 12.2025 created  [Dmitry Ryndyk]
 ! **************************************************************************************************
-   SUBROUTINE negf_restart_file_name(filename, exist, negf_section, logger, icontact, ispin, h00, h01, s00, s01, h, s, hc, sc)
+   SUBROUTINE negf_restart_file_name(filename, exist, negf_section, logger, icontact, ispin, h00, h01, &
+                                     s00, s01, h, s, hc, sc, h_scf)
       CHARACTER(LEN=default_path_length), INTENT(OUT)    :: filename
       LOGICAL, INTENT(OUT)                               :: exist
       TYPE(section_vals_type), POINTER                   :: negf_section
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER, INTENT(IN), OPTIONAL                      :: icontact, ispin
-      LOGICAL, INTENT(IN), OPTIONAL                      :: h00, h01, s00, s01, h, s, hc, sc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: h00, h01, s00, s01, h, s, hc, sc, h_scf
 
       CHARACTER(len=default_string_length)               :: middle_name, string1, string2
-      LOGICAL                                            :: my_h, my_h00, my_h01, my_hc, my_s, &
-                                                            my_s00, my_s01, my_sc
+      LOGICAL                                            :: my_h, my_h00, my_h01, my_h_scf, my_hc, &
+                                                            my_s, my_s00, my_s01, my_sc
       TYPE(section_vals_type), POINTER                   :: contact_section, print_key
 
       my_h00 = .FALSE.
@@ -83,6 +86,8 @@ CONTAINS
       IF (PRESENT(hc)) my_hc = hc
       my_sc = .FALSE.
       IF (PRESENT(sc)) my_sc = sc
+      my_h_scf = .FALSE.
+      IF (PRESENT(h_scf)) my_h_scf = h_scf
 
       exist = .FALSE.
 
@@ -99,8 +104,8 @@ CONTAINS
          ELSE
             middle_name = "N"//TRIM(string1)//"-H00-S"//TRIM(string2)
          END IF
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_h01) THEN
@@ -109,20 +114,20 @@ CONTAINS
          ELSE
             middle_name = "N"//TRIM(string1)//"-H01-S"//TRIM(string2)
          END IF
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_s00) THEN
          middle_name = "N"//TRIM(string1)//"-S00"
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_s01) THEN
          middle_name = "N"//TRIM(string1)//"-S01"
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       ! try to read from the filename that is generated automatically from the printkey
@@ -134,14 +139,14 @@ CONTAINS
          ELSE
             middle_name = "Hs-S"//TRIM(string2)
          END IF
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_s) THEN
          middle_name = "Ss"
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_hc) THEN
@@ -150,14 +155,22 @@ CONTAINS
          ELSE
             middle_name = "Hsc-N"//TRIM(string1)//"-S"//TRIM(string2)
          END IF
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
       END IF
 
       IF (my_sc) THEN
          middle_name = "Ssc-N"//TRIM(string1)
-         filename = negf_elecrodes_generate_filename(logger, print_key, middle_name=middle_name, &
-                                                     extension=".hs", my_local=.FALSE.)
+         filename = negf_generate_filename(logger, print_key, middle_name=middle_name, &
+                                           extension=".hs", my_local=.FALSE.)
+      END IF
+
+      ! try to read from the filename that is generated automatically from the printkey
+      print_key => section_vals_get_subs_vals(negf_section, "PRINT%RESTART")
+
+      IF (my_h_scf) THEN
+         filename = negf_generate_filename(logger, print_key, &
+                                           extension="", my_local=.FALSE., iter_string=.TRUE.)
       END IF
 
       INQUIRE (FILE=filename, exist=exist)
@@ -175,17 +188,18 @@ CONTAINS
 !> \param extension extension to be applied to the filename (including the ".")
 !> \param my_local if the unit should be local to this task, or global to the
 !>        program (defaults to false).
+!> \param iter_string ...
 !> \return ...
 !> \par History
 !>    * 12.2025 created  [Dmitry Ryndyk]
 ! **************************************************************************************************
-   FUNCTION negf_elecrodes_generate_filename(logger, print_key, middle_name, extension, &
-                                             my_local) RESULT(filename)
+   FUNCTION negf_generate_filename(logger, print_key, middle_name, extension, &
+                                   my_local, iter_string) RESULT(filename)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
       CHARACTER(len=*), INTENT(IN)                       :: extension
-      LOGICAL, INTENT(IN)                                :: my_local
+      LOGICAL, INTENT(IN), OPTIONAL                      :: my_local, iter_string
       CHARACTER(len=default_path_length)                 :: filename
 
       CHARACTER(len=default_path_length)                 :: outName, outPath, postfix, root
@@ -238,13 +252,21 @@ CONTAINS
          root = outPath(1:my_ind1)//my_middle_name(2:LEN_TRIM(my_middle_name))
       END IF
 
-      postfix = extension
+      IF (PRESENT(iter_string) .AND. iter_string) THEN
+         ! use the cp_iter_string as a postfix
+         postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
+         IF (TRIM(postfix) == "-") postfix = ""
+         ! and add the extension
+         postfix = TRIM(postfix)//extension
+      ELSE
+         postfix = extension
+      END IF
 
       ! and let the logger generate the filename
       CALL cp_logger_generate_filename(logger, res=filename, &
                                        root=root, postfix=postfix, local=my_local)
 
-   END FUNCTION negf_elecrodes_generate_filename
+   END FUNCTION negf_generate_filename
 
 ! **************************************************************************************************
 !> \brief Prints full matrix to a file.
