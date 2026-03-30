@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-mpich_ver="4.3.2"
-mpich_sha256="47d774587a7156a53752218c811c852e70ac44db9c502dc3f399b4cb817e3818"
+mpich_ver="5.0.1rc1"
+mpich_sha256="391907db8c2c34129cb6cb894e4866fe97bc66f10ccfb8dc690288a78add5bbb"
 mpich_pkg="mpich-${mpich_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -30,7 +30,8 @@ case "${with_mpich}" in
     if verify_checksums "${install_lock_file}"; then
       echo "mpich-${mpich_ver} is already installed, skipping it."
     else
-      retrieve_package "${mpich_sha256}" "${mpich_pkg}"
+      #retrieve_package "${mpich_sha256}" "${mpich_pkg}"
+      download_pkg_from_urlpath "${mpich_sha256}" "${mpich_pkg}" https://github.com/pmodels/mpich/releases/download/v5.0.1rc1
       echo "Installing from scratch into ${pkg_install_dir} for MPICH device ${MPICH_DEVICE}"
       [ -d mpich-${mpich_ver} ] && rm -rf mpich-${mpich_ver}
       tar -xzf ${mpich_pkg}
@@ -38,20 +39,22 @@ case "${with_mpich}" in
       unset F90
       unset F90FLAGS
 
-      # workaround for compilation with GCC >= 10, until properly fixed:
-      #   https://github.com/pmodels/mpich/issues/4300
-      if ("${FC}" --version | grep -q 'GNU'); then
-        compat_flag=$(allowed_gfortran_flags "-fallow-argument-mismatch")
+      if [ "${TARGET_CPU}" = "native" ] && [ -f /proc/cpuinfo ]; then
+        if [ -n "$(grep "avx512f" /proc/cpuinfo)" ]; then
+          FAST_OPTION="--enable-fast=avx512f"
+        elif [ -n "$(grep "avx" /proc/cpuinfo)" ]; then
+          FAST_OPTION="--enable-fast=avx"
+        fi
       fi
+
       ./configure \
         --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
-        MPICC="" \
-        FFLAGS="${FCFLAGS} ${compat_flag}" \
-        FCFLAGS="${FCFLAGS} ${compat_flag}" \
-        --without-x --without-slurm \
-        --enable-gl=no \
         --with-device=${MPICH_DEVICE} \
+        --without-slurm \
+        ${FAST_OPTION} \
+        FFLAGS="${FCFLAGS}" \
+        FCFLAGS="${FCFLAGS}" \
         > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
