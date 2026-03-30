@@ -245,8 +245,8 @@ CONTAINS
 
          ! Skip kernel if collinear xc-kernel for spin-flip is requested
          IF (spinflip /= tddfpt_sf_col) THEN
-
-            IF (.NOT. dft_control%tddfpt2_control%do_bse) THEN
+            IF ((.NOT. dft_control%tddfpt2_control%do_bse) .AND. (.NOT. dft_control%tddfpt2_control%do_bse_w_only)) THEN
+            IF ((.NOT. dft_control%tddfpt2_control%do_bse_gw_only)) THEN
                ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
                ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
                IF (gapw_xc) THEN
@@ -293,10 +293,13 @@ CONTAINS
                                                    do_sf=do_noncol)
                END IF
 
+            END IF ! do_bse
             END IF  ! do_bse
          END IF ! spin-flip
 
          ! ADMM correction
+         IF ((.NOT. dft_control%tddfpt2_control%do_bse) .AND. (.NOT. dft_control%tddfpt2_control%do_bse_w_only) &
+             .AND. (.NOT. dft_control%tddfpt2_control%do_bse_gw_only)) THEN
          IF (do_admm .AND. admm_xc_correction) THEN
             IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
                CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
@@ -410,8 +413,11 @@ CONTAINS
                END IF
             END IF
          END IF
+         END IF
 
          ! electron-hole Coulomb interaction
+         IF (.NOT. dft_control%tddfpt2_control%do_bse_w_only) THEN
+         IF (.NOT. dft_control%tddfpt2_control%do_bse_gw_only) THEN
          IF ((.NOT. is_rks_triplets) .AND. (spinflip == no_sf_tddfpt)) THEN
             ! a sum J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu can be computed by solving
             ! the Poisson equation for combined density (rho_{ia,alpha} + rho_{ia,beta}) .
@@ -499,6 +505,8 @@ CONTAINS
                                             ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END IF
          END DO
+         END IF
+         END IF
       END DO
 
       CALL timestop(handle)
