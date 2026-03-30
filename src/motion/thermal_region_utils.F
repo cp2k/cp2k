@@ -20,6 +20,7 @@ MODULE thermal_region_utils
                                               Kantorovich2008a,&
                                               cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -91,19 +92,23 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, &
-                                                            nregions, region
+                                                            nregions, output_unit, region
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
                                                             explicit, use_t, use_tfunc
       REAL(KIND=dp)                                      :: temp, temp_tol
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: region_sections, tfunc_section, &
                                                             thermal_region_section
       TYPE(thermal_region_type), POINTER                 :: t_region
 
-      NULLIFY (region_sections, t_region, tfunc_section, thermal_region_section, particles, subsys, tmplist)
+      NULLIFY (logger, region_sections, t_region, tfunc_section, &
+               thermal_region_section, particles, subsys, tmplist)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
       ALLOCATE (thermal_regions)
       CALL allocate_thermal_regions(thermal_regions)
       thermal_region_section => section_vals_get_subs_vals(md_section, "THERMAL_REGION")
@@ -248,6 +253,16 @@ CONTAINS
             END IF
             ! End of Langevin treatment
             simpar%do_thermal_region = .TRUE.
+
+            ! Output thermal region mapping to particles
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(/,T2,A)') &
+                  "THERMAL_REGION| Mapping of thermal region indices to particles"
+               DO ipart = 1, particles%n_els, 8
+                  WRITE (output_unit, '(T2,A,T17,8I8)') &
+                     "THERMAL_REGION|", particles%els(ipart:MIN(ipart + 7, particles%n_els))%t_region_index
+               END DO
+            END IF
          ELSE
             CALL release_thermal_regions(thermal_regions)
             DEALLOCATE (thermal_regions)

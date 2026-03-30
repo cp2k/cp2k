@@ -822,14 +822,30 @@ CONTAINS
                thermolist(i) = nregions
             END IF
          END DO
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, '(A)') "THERMOSTAT| Warning: No thermostats defined for the following atoms:"
-            IF (ilist > 0) WRITE (output_unit, '("THERMOSTAT|",9I8)') tmp
-            WRITE (output_unit, '(A)') "THERMOSTAT| They will be included in a further unique thermostat!"
+         IF (ilist > 0) THEN
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(/,T2,A)') &
+                  "THERMOSTAT| Warning: No thermostats defined for the following atoms:"
+               DO i = 1, ilist, 8
+                  WRITE (output_unit, '(T2,A,T17,8I8)') "THERMOSTAT|", tmp(i:MIN(i + 7, ilist))
+               END DO
+               WRITE (output_unit, '(T2,A)') &
+                  "THERMOSTAT| They will be included in a further unique thermostat!"
+            END IF
          END IF
          DEALLOCATE (tmp)
       END IF
       CPASSERT(ALL(thermolist /= HUGE(0)))
+
+      ! Output thermostat region mapping to particles
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T2,A)') &
+            "THERMOSTAT| Mapping of thermostat region indices to particles"
+         DO ipart = 1, particles%n_els, 8
+            WRITE (output_unit, '(T2,A,T17,8I8)') &
+               "THERMOSTAT|", thermolist(ipart:MIN(ipart + 7, particles%n_els))
+         END DO
+      END IF
 
       ! Now identify the local number of thermostats
       ALLOCATE (tmp(nregions))
