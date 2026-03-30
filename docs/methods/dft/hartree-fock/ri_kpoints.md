@@ -82,7 +82,7 @@ input. The matrices are diagonalized, and their eigenvalues used as band energie
 more workable CSV file.
 
 Note that in this input file, we select a value of $1.0\times 10^{-6}$ for
-[EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB). This parameter controls the range of
+[EPS_PGF_ORB](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.EPS_PGF_ORB). This parameter controls the range of
 AOs, and threfore the extent of the local atom-specific RI basis sets. This value leads to
 particularly high accuracy. The default of $1.0\times 10^{-5}$ is typically enough.
 
@@ -103,9 +103,9 @@ As for most HFX calculations, the SCF convergence can be spedup by restarting fr
 wavefunction. Note that in k-point restart files, the real-space density matrices are dumped.
 However, many more images are required for HFX calculation than for PBE, due to the non-locality of
 exact-exchange. Using a very tight value of
-[EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB) (e.g. $1.0\times 10^{-12}$) in the
+[EPS_PGF_ORB](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.EPS_PGF_ORB) (e.g. $1.0\times 10^{-12}$) in the
 initial PBE calculation leads to a lot of images there as well. An example is provided in the
-example file [bundle](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX). The example bellow
+example file [bundle](https://github.com/cp2k/cp2k-examples/tree/master/RI_HFX). The example below
 takes about 5 minutes to run on 32 CPUs if restarted from a PBE wavefunction, and 10 minutes
 otherwise.
 
@@ -163,6 +163,12 @@ otherwise.
           !using a smaller than default EPS_PGF_ORB allows for a
           !more accurate calculation with a larger local RI basis
           EPS_PGF_ORB 1.0E-6
+          &PRINT
+            !prints an estimate of required memory per MPI rank
+            KP_RI_MEMORY_ESTIMATE
+            !prints a progress bar for the current SCF step
+            KP_RI_PROGRESS_BAR
+          &END PRINT
         &END RI
         &INTERACTION_POTENTIAL
           !Always use a limited ranged potential in PBCs
@@ -212,25 +218,44 @@ otherwise.
 
 There are a few important input parameters for RI-HFXk calculations:
 
-- [EPS_FILTER](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_FILTER): the filtering threshold for sparse
+- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.EPS_FILTER): the filtering threshold for sparse
   tensors. Works the same way as for $\Gamma$-point calculations (see above).
-- [RI_METRIC](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.RI_METRIC): using the default value for the RI
+- [RI_METRIC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.RI_METRIC): using the default value for the RI
   metric, which correspond to the choice of HFX potential, is the way to go. It insures best
   possible accuracy, while only marginally increasing the costs.
-- [KP_NGROUPS](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.KP_NGROUPS): this is a performance keyword. During
-  the calculation of the real-space exact-exchange matrices, the work is split among MPI
+- [KP_NGROUPS](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.KP_NGROUPS): this is a performance keyword.
+  During the calculation of the real-space exact-exchange matrices, the work is split among MPI
   subcommunicators. Using more groups drastically speeds up the calculation (efficienctly up to 16
   groups, reasonably up to 32). This comes with a memory overhead though, as some data must be
   replicated on each subgroup. The total number of MPI ranks must be divisible by the number of
   groups.
-- [EPS_PGF_ORB](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.EPS_PGF_ORB): generally determines the range of
+- [EPS_PGF_ORB](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.EPS_PGF_ORB): generally determines the range of
   GTOs in the AO basis. As such, it also determines the extent of the local atom-specific RI basis
   used for RI-HFXk. The default value of $1.0\times 10^{-5}$ has proven to be accurate and fast.
-- [KP_USE_DELTA_P](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI.KP_USE_DELTA_P): when set to .TRUE. (default
+- [KP_USE_DELTA_P](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.KP_USE_DELTA_P): when set to .TRUE. (default
   value), the next SCF step is calculated using the density matrix difference, rather than the full
   new density matrix. This helps with computational efficiency by increasing sparsity. If your
   calculation struggles to converge, you can try to turn this off.
 
-The rest of the [HF/RI](#CP2K_INPUT.ATOM.METHOD.XC.HF.RI) input parameters related to k-point
+The rest of the [HF/RI](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI) input parameters related to k-point
 sampling (all with a KP\_ prefix) have little to no impact, and their default values are good
 enough.
+
+## Useful PRINT keywords
+
+To track the calculation cost and progress, the following keywords are recommended:
+
+- [PRINT_LEVEL MEDIUM](#CP2K_INPUT.GLOBAL.PRINT_LEVEL): In the &GLOBAL input section, it is
+  recommended to run with `PRINT_LEVEL MEDIUM` or higher. A bunch of RI-HFXk specific metrics will
+  be printed, some of them with a heavy impact on performance. For example, one can track the number
+  of periodic images involved (should be as small as possible), or the average atom specific RI
+  basis size (should also be as small as possible).
+- [KP_RI_MEMORY_ESTIMATE](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.PRINT.KP_RI_MEMORY_ESTIMATE): This
+  keyword triggers the printing of an estimate of the required memory to run the RI-HFXk
+  calculation, per MPI rank. This is really useful to maximize resource usage, and to tune
+  performance keywords such as KP_NGROUPS or KP_STACK_SIZE. Note that some calculations must take
+  place before the estimate can be printed: in some extreme cases, the calculation will run out of
+  memory before the message is printed.
+- [KP_RI_PROGRESS_BAR](#CP2K_INPUT.FORCE_EVAL.DFT.XC.HF.RI.PRINT.KP_RI_PROGRESS_BAR): This keyword
+  prints a progress bar for the current SCF step. Large calculations (large cells, diffuse basis,
+  long range exchange operators, etc.) can be rather slow. This keywords helps tracking progress.
