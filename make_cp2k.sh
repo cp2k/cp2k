@@ -280,6 +280,7 @@ while [[ $# -gt 0 ]]; do
         esac
         case "${2,,}" in
           all)
+            # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran \
               elpa greenx hdf5 libfabric libint libvdwxc libsmeagol libvori libxc \
@@ -287,6 +288,7 @@ while [[ $# -gt 0 ]]; do
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
+            # dbcsr must use blas as fallback when libxsmm is disabled
             if [[ "${ON_OFF}" == "OFF" ]]; then
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
             fi
@@ -300,7 +302,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | dftd4 | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | tblite | trexio)
+              cosma | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -309,6 +311,14 @@ while [[ $# -gt 0 ]]; do
                   # DeePMD-kit requires libtorch
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_LIBTORCH=${ON_OFF}"
                   SED_PATTERN_LIST+=" -e '/\s*-\s+\"py-torch@/ ${SUBST}"
+                fi
+                ;;
+              dftd4)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  echo "INFO: tblite is disabled to avoid conflicts when dftd4 is used"
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_TBLITE=OFF"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"tblite@/ s/^ /#/'"
                 fi
                 ;;
               dlaf)
@@ -340,6 +350,14 @@ while [[ $# -gt 0 ]]; do
               openpmd | adios2)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"adios2@/ ${SUBST}"
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"openpmd-api@/ ${SUBST}"
+                ;;
+              tblite)
+                SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
+                if [[ "${ON_OFF}" == "ON" ]]; then
+                  echo "INFO: dftd4 is disabled to avoid conflicts when tblite is used"
+                  CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_DFTD4=OFF"
+                  SED_PATTERN_LIST+=" -e '/\s*-\s+\"dftd4@/ s/^ /#/'"
+                fi
                 ;;
               vori)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"lib${2,,}@/ ${SUBST}"
@@ -569,14 +587,24 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 # Assemble CMake feature flag list
 CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
 
-# Clean CMake feature flag list from repeated entries
+# Clean CMake feature flag list from repeated entries and keep only the last definition
+declare -A last=()
+order=()
+# First pass: record the last occurrence of each flag
+for flag in ${CMAKE_FEATURE_FLAGS}; do
+  name=${flag%=*}
+  last[${name}]=${flag}
+  order+=("${name}")
+done
+# Second pass: output only the last definition per flag
+# but respecting original order of last appearance
 declare -A seen=()
 out=()
-for flag in ${CMAKE_FEATURE_FLAGS}; do
-  [[ ${seen[${flag}]+_} ]] || {
-    seen[${flag}]=1
-    out+=("${flag}")
-  }
+for name in "${order[@]}"; do
+  if [[ -z ${seen[${name}]+_} ]]; then
+    seen[${name}]=1
+    out+=("${last[${name}]}")
+  fi
 done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
@@ -756,15 +784,6 @@ case "${MPI_MODE}" in
     ${EXIT_CMD} 1
     ;;
 esac
-
-# Check if dftd4 and tblite are enabled at the same time; if so, install tblite only
-if [[ "${CMAKE_FEATURE_FLAGS}" != *"-DCP2K_USE_TBLITE=OFF"* ]]; then
-  if [[ "${CMAKE_FEATURE_FLAG_ALL}" == *"-DCP2K_USE_EVERYTHING=ON"* ]] ||
-    [[ "${CMAKE_FEATURE_FLAGS}" == *"-DCP2K_USE_TBLITE=ON"* ]]; then
-    echo "INFO: Prioritizing tblite. Automatically disabling dftd4 to avoid conflicts."
-    SED_PATTERN_LIST+=" -e '/\s*-\s+\"dftd4@/ s/^ /#/'"
-  fi
-fi
 
 # Check if CP2K_VERSION and the selected features are compatible
 case "${CP2K_VERSION}" in
