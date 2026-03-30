@@ -140,14 +140,7 @@ CONTAINS
             ALLOCATE (thermal_regions%thermal_region(nregions))
             CALL force_env_get(force_env, subsys=subsys)
             CALL cp_subsys_get(subsys, particles=particles)
-            IF (simpar%ensemble == langevin_ensemble) THEN
-               CALL cite_reference(Kantorovich2008)
-               CALL cite_reference(Kantorovich2008a)
-               CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
-                                         l_val=do_langevin_default)
-               ALLOCATE (thermal_regions%do_langevin(particles%n_els))
-               thermal_regions%do_langevin = do_langevin_default
-            END IF
+
             ! TODO: parsing logic of thermal region should be aligned
             ! with thermostat region as in SUBROUTINE get_defined_region_info,
             ! src/motion/thermostat/thermostat_utils.F, so that MOLNAME,
@@ -163,10 +156,6 @@ CONTAINS
                                          i_rep_section=ireg, n_rep_val=nlist)
                NULLIFY (t_region%part_index)
                t_region%npart = 0
-               IF (simpar%ensemble == langevin_ensemble) THEN
-                  CALL section_vals_val_get(region_sections, "DO_LANGEVIN", &
-                                            i_rep_section=ireg, l_val=do_langevin)
-               END IF
                DO il = 1, nlist
                   CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
                                             i_rep_val=il, i_vals=tmplist)
@@ -177,9 +166,6 @@ CONTAINS
                      t_region%npart = t_region%npart + 1
                      t_region%part_index(t_region%npart) = ipart
                      particles%els(ipart)%t_region_index = ireg
-                     IF (simpar%ensemble == langevin_ensemble) THEN
-                        thermal_regions%do_langevin(ipart) = do_langevin
-                     END IF
                   END DO
                END DO
 
@@ -218,11 +204,37 @@ CONTAINS
                CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
                                          r_val=temp_tol)
                t_region%temp_tol = temp_tol
-               CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, explicit=do_read_ngr)
-               IF (do_read_ngr) THEN
-                  CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, &
-                                            r_val=t_region%noisy_gamma_region)
-                  IF (simpar%ensemble == langevin_ensemble) THEN
+            END DO
+
+            ! For Langevin ensemble, determine thermal_regions%do_langevin
+            ! and t_region%noisy_gamma_region
+            IF (simpar%ensemble == langevin_ensemble) THEN
+               CALL cite_reference(Kantorovich2008)
+               CALL cite_reference(Kantorovich2008a)
+               CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
+                                         l_val=do_langevin_default)
+               ALLOCATE (thermal_regions%do_langevin(particles%n_els))
+               thermal_regions%do_langevin = do_langevin_default
+               DO ireg = 1, nregions
+                  NULLIFY (t_region)
+                  t_region => thermal_regions%thermal_region(ireg)
+                  CALL integer_to_string(ireg, my_region)
+                  CALL section_vals_val_get(region_sections, "DO_LANGEVIN", &
+                                            i_rep_section=ireg, l_val=do_langevin)
+                  CALL section_vals_val_get(region_sections, "LIST", &
+                                            i_rep_section=ireg, n_rep_val=nlist)
+                  DO il = 1, nlist
+                     CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
+                                               i_rep_val=il, i_vals=tmplist)
+                     DO i = 1, SIZE(tmplist)
+                        ipart = tmplist(i)
+                        thermal_regions%do_langevin(ipart) = do_langevin
+                     END DO
+                  END DO
+                  CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, explicit=do_read_ngr)
+                  IF (do_read_ngr) THEN
+                     CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, &
+                                               r_val=t_region%noisy_gamma_region)
                      IF (.NOT. do_langevin) THEN
                         CALL cp_warn(__LOCATION__, &
                                      "You provided NOISY_GAMMA_REGION but atoms in thermal region "//TRIM(my_region)// &
@@ -230,14 +242,11 @@ CONTAINS
                                      "NOISY_GAMMA_REGION will be ignored and its value discarded!")
                      END IF
                   ELSE
-                     CALL cp_warn(__LOCATION__, &
-                                  "You provided NOISY_GAMMA_REGION but the Langevin Ensamble is not selected "// &
-                                  "NOISY_GAMMA_REGION will be ignored and its value discarded!")
+                     t_region%noisy_gamma_region = simpar%noisy_gamma
                   END IF
-               ELSE
-                  t_region%noisy_gamma_region = simpar%noisy_gamma
-               END IF
-            END DO
+               END DO
+            END IF
+            ! End of Langevin treatment
             simpar%do_thermal_region = .TRUE.
          ELSE
             CALL release_thermal_regions(thermal_regions)
