@@ -120,7 +120,7 @@ async def main() -> None:
 
     # Have to copy everything upfront because the test dirs are not self-contained.
     print("------------------------------------------------------------------------")
-    if cfg.work_base_dir.is_relative_to(cfg.cp2k_root / "tests"):
+    if is_relative_to(cfg.work_base_dir, cfg.cp2k_root / "tests"):
         print(f"Error: Work base dir must not be relative to cp2k/tests dir.")
         sys.exit(1)
     print("Copying test files ...", end="")
@@ -159,7 +159,7 @@ async def main() -> None:
     # Check for nested test dirs.
     for batch_a in batches:
         for batch_b in batches:
-            if batch_a != batch_b and batch_a.workdir.is_relative_to(batch_b.workdir):
+            if batch_a != batch_b and is_relative_to(batch_a.workdir, batch_b.workdir):
                 print(f"Error: Test dirs {batch_a.name} and {batch_b.name} are nested.")
                 sys.exit(1)
 
@@ -688,6 +688,11 @@ def percentile(values: List[float], percent: float) -> float:
     d0 = values[int(f)] * (c - k)
     d1 = values[int(c)] * (k - f)
     return d0 + d1
+
+
+# ======================================================================================
+def is_relative_to(p: Path, u: Path) -> bool:  # not in pathlib before Python 3.9
+    return u == p or u in p.parents
 
 
 # ======================================================================================
