@@ -17,7 +17,6 @@ MODULE qs_tddfpt2_bse_utils
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm,&
                                               cp_fm_matvec,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -462,8 +461,8 @@ CONTAINS
                                      context=blacs_env, nrow_global=nvirt, ncol_global=nao)
             CALL cp_fm_create(CSvirt, fmstruct)
             CALL cp_fm_struct_release(fmstruct)
-            CALL cp_fm_gemm('T', 'N', nvirt, nao, nao, 1.0_dp, gs_mos(ispin)%mos_virt, fms, 0.0_dp, &
-                            CSvirt)
+            CALL parallel_gemm('T', 'N', nvirt, nao, nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
+                               fms, 0.0_dp, CSvirt)
 
             NULLIFY (fmstruct)
             CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
