@@ -19,7 +19,7 @@ blas_re = re.compile(
 
 lapack_re = re.compile(
     r"ILAENV|"
-    r"([SDCZ]" + "(BD|DI|GB|GE|GG|GT|HB|HE|HG|HP|HS|OP"
+    r"([SDCZ]" + r"(BD|DI|GB|GE|GG|GT|HB|HE|HG|HP|HS|OP"
     r"|OR|PB|PO|PP|PT|SB|SP|ST|SY|TB|TG|TP|TR|TZ|UN|UP)"
     r"(BAK|BAL|BRD|CON|EBZ|EDC|EIN|EQR|EGR|EQU|EQZ|ERF|EVC"
     r"|EXC|GBR|GHR|GLQ|GQL|GQR|GRQ|GST|GTR|HRD|LQF|MBR|MHR"
@@ -27,6 +27,24 @@ lapack_re = re.compile(
     r"|SEN|SJA|SNA|SQR|SVP|SYL|TRD|TRF|TRI|TRS"
     r"|SDD|EV|GV|SV|BS2D|BR2D|LS))"
 )
+
+blacs_re = re.compile(r"BLACS_.*|IGSUM2D")
+
+scalapack_re = re.compile(
+    r"DESCINIT|NUMROC|INFOG2L|INDXG2L|INDXG2P|INDXL2G|PILAENV|ICEIL|"
+    r"(P[SDCZ]"
+    r"(ROT|COPY|"
+    r"LA(CPY|NGE|TRA)|"
+    r"(AX|DB|DT|GB|GE|GG|HE|OR|PB|PO|PT|ST|SY|TR|TZ|UN)"
+    r"(MR2D|MM|ADD|ANU|ANC|TRI|LS|EV|EVD|EVX|GVX|SVD|BRD|CON|EBZ|EDC|EIN|EQU|"
+    r"EVC|GBR|GHR|GLQ|GQL|GQR|GRQ|GST|HRD|LQF|MBR|MHR|MLQ|MQL|"
+    r"MQR|MRQ|MRZ|MTR|QLF|QPF|QRF|RFS|RQF|RZF|TRD|TRF|TRI|TRS|"
+    r"PY|SM|AN|RK)))"
+)
+
+fftw_re = re.compile(r"DFFTW_.*")
+
+mpi_re = re.compile(r"MPI_.*")
 
 warning_re = re.compile(r".*[Ww]arning: (.*)")
 
@@ -95,8 +113,16 @@ def check_warnings(fhandle):
             parts = warning.split()
             assert parts[0] == "Procedure"
             routine = parts[1].strip("'").upper()
-            if may_call_implicit(loc, routine):
-                continue
+            if blas_re.match(routine) or lapack_re.match(routine):
+                continue  # Calls to BLAS and LAPACK are allowed everywhere.
+            if blacs_re.match(routine) and "src/fm/" in loc:
+                continue  # Calls to BLACS are only allowed from the fm package.
+            if scalapack_re.match(routine) and "src/fm/" in loc:
+                continue  # Calls to ScaLAPACK are only allowed from the fm package.
+            if fftw_re.match(routine) and "src/pw/fft/" in loc:
+                continue  # Calls to FFTW are only allowed from the pw/fft package.
+            if mpi_re.match(routine) and "src/mpiwrap/" in loc:
+                continue  # Calls to MPI are only allowed from the mpiwrap package.
 
         if ".ubound' is used uninitialized" in warning:
             continue
@@ -105,25 +131,6 @@ def check_warnings(fhandle):
 
         # ok this warning we should handle
         print("%s: %s" % (loc_short, warning))
-
-
-# ======================================================================================
-def may_call_implicit(loc, routine):
-    if blas_re.match(routine):
-        return True  # BLAS calls are allowed everywhere
-
-    if lapack_re.match(routine):
-        return True  # Lapack calls are allowed everywhere
-
-    pkg = path.dirname(loc)
-    manifest_fn = pkg + "/PACKAGE"
-    with open(manifest_fn, encoding="utf8") as fhandle:
-        manifest = ast.literal_eval(fhandle.read())
-
-    if "implicit" not in manifest:
-        return False
-
-    return re.match(manifest["implicit"], routine)
 
 
 # ======================================================================================
