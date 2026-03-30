@@ -67,29 +67,20 @@ def main() -> None:
             install_cp2k_spack("psmp", mpi_mode="mpich", feature_flags="-ef openpmd")
         )
 
-    for gcc_version in 10, 11, 12, 14:
+    for gcc_version in 10, 11, 12, 14, 15:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
+            base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
             f.write(
                 install_cp2k_spack(
                     "psmp",
                     mpi_mode="mpich",
                     gcc_version=gcc_version,
+                    base_image=base_image,
                     feature_flags="-ef openpmd",
                 )
             )
-
-    with OutputFile(f"Dockerfile.test_spack_psmp-gcc15", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                "psmp",
-                mpi_mode="mpich",
-                gcc_version=15,
-                base_image="ubuntu:26.04",
-                feature_flags="-ef openpmd",
-            )
-        )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
         f.write(
@@ -447,11 +438,12 @@ def install_deps_toolchain(
 
 # ======================================================================================
 def install_deps_ubuntu(gcc_version: int = 13) -> str:
-    base_image = (
-        "ubuntu:26.04"
-        if gcc_version > 14
-        else ("ubuntu:24.04" if gcc_version > 8 else "ubuntu:20.04")
-    )
+    if gcc_version > 14:
+        base_image = "ubuntu:26.04"
+    elif gcc_version > 8:
+        base_image = "ubuntu:24.04"
+    else:
+        base_image = "ubuntu:20.04"
     output = f"\nFROM {base_image}\n"
 
     if gcc_version > 13:
