@@ -88,7 +88,9 @@ MODULE negf_control_types
       !> to read/write H and S from/to file
       LOGICAL                                            :: read_write_HS = .FALSE.
       !> to update the atomic Hamiltonian during NEGF self-consistent cycle
-      LOGICAL                                            :: update_HS = .FALSE.
+      LOGICAL                                            :: update_HS = .TRUE.
+      !> if NEGF SCF id restart from saved files
+      LOGICAL                                            :: restart_scf = .TRUE.
       !> if dft of entire system is done
       LOGICAL                                            :: is_dft_entire = .FALSE.
       !> if restart from files is really done
@@ -374,7 +376,8 @@ CONTAINS
       CALL section_vals_val_get(negf_section, "V_SHIFT_OFFSET", r_val=negf_control%v_shift_offset)
       CALL section_vals_val_get(negf_section, "V_SHIFT_MAX_ITERS", i_val=negf_control%v_shift_maxiters)
 
-      CALL section_vals_val_get(negf_section, "UPDATE_HS", l_val=negf_control%update_HS)
+      CALL section_vals_val_get(negf_section, "SCF%UPDATE_HS", l_val=negf_control%update_HS)
+      CALL section_vals_val_get(negf_section, "SCF%RESTART_SCF", l_val=negf_control%restart_scf)
 
       ! check consistency
       IF (negf_control%eta < 0.0_dp) THEN

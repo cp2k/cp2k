@@ -334,7 +334,10 @@ CONTAINS
          CALL negf_env_scatt_read_write_hs(force_env, para_env, negf_env, sub_env, negf_control, negf_section, log_unit, &
                                            is_dft_entire=is_dft_entire)
       ELSE
-         IF (.NOT. is_dft_entire) CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
+         IF (.NOT. is_dft_entire) THEN
+            CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
+            is_dft_entire = .TRUE.
+         END IF
          ! extract device-related matrix blocks
          CALL negf_env_device_init_matrices(negf_env, negf_control, sub_env, qs_env)
       END IF
@@ -549,8 +552,10 @@ CONTAINS
       IF (exist_all) THEN
 
          negf_control%contacts(icontact)%is_restart = .TRUE.
-
-         IF (log_unit > 0) WRITE (log_unit, '(/,T2,A)') "All restart files exist."
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, '(/,T2,A)') "User requested to read the Hamiltonian and overlap matrices from files."
+            WRITE (log_unit, '(T2,A)') "All restart files exist."
+         END IF
 
          ! ++ create matrices: s_00, s_01, h_00, h_01
          IF (para_env%is_source()) THEN
@@ -1112,7 +1117,10 @@ CONTAINS
 
          negf_control%is_restart = .TRUE.
 
-         IF (log_unit > 0) WRITE (log_unit, '(/,T2,A)') "All restart files exist."
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, '(/,T2,A)') "User requested to read the Hamiltonian and overlap matrices from files."
+            WRITE (log_unit, '(T2,A)') "All restart files exist."
+         END IF
 
          ! ++ create matrices: s_s, s_sc, h_s, h_sc
          IF (para_env%is_source()) THEN
