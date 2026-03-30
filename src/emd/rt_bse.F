@@ -117,7 +117,14 @@ MODULE rt_bse
 
    PUBLIC :: run_propagation_bse, &
              get_hartree, &
-             get_sigma
+             get_sigma, &
+             initialize_rtbse_env, &
+            initialize_singleparticle_hamiltonian, &
+            initialize_hartree_potential, &
+            initialize_cohsex_selfenergy, &
+            get_idempotence_deviation, &
+            antiherm_metric, &
+            init_hartree
 
    INTERFACE get_sigma
       MODULE PROCEDURE get_sigma_complex, &
@@ -166,18 +173,19 @@ CONTAINS
       CALL cp_add_iter_level(logger%iter_info, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
-      !  - populates the initial density matrix
-      !     - reads the restart density if requested
       !  - reads the field and moment trace from previous runs
       !  - populates overlap and inverse overlap matrices
       !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
-      !  - calculates/populates the G0W0/KS Hamiltonian, respectively
-      !  - calculates the Hartree reference potential
-      !  - calculates the COHSEX reference self-energy
 
+      !  - populates the initial density matrix
+      !     - reads the restart density if requested
+      CALL initialize_density_matrix(rtbse_env)
+      !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
+      !  - calculates the Hartree reference potential
       CALL initialize_hartree_potential(rtbse_env)
+      !  - calculates the COHSEX reference self-energy
       CALL initialize_cohsex_selfenergy(rtbse_env)
 
       ! Setup the time based on the starting step
@@ -260,7 +268,6 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      REAL(kind=dp), DIMENSION(:), POINTER         :: occupations
       REAL(kind=dp), DIMENSION(3)                  :: rpoint
       INTEGER                                      :: i, k, handle
 
@@ -308,6 +315,44 @@ CONTAINS
       DEALLOCATE (moments_dbcsr_p)
       ! ****** END MOMENTS OPERATOR CALCULATION
 
+      ! ****** START MOMENTS TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
+                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
+      ! ****** END MOMENTS TRACE LOAD
+
+      ! ****** START FIELD TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_field(rtbse_env)
+      ! ****** END FIELD TRACE LOAD
+
+      ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm)
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%S_cfm)
+      CALL cp_fm_invert(rtbse_env%S_fm, rtbse_env%S_inv_fm)
+      ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
+
+      CALL timestop(handle)
+   END SUBROUTINE initialize_rtbse_env
+
+! **************************************************************************************************
+!> \brief Calculates the initial density matrix, based on the SCF density or restart density if requested
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_density_matrix(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_density_matrix"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
+      REAL(kind=dp), DIMENSION(:), POINTER         :: occupations
+      INTEGER                                      :: i, handle
+
+      CALL timeset(routineN, handle)
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
+
+
       ! ****** START INITIAL DENSITY MATRIX CALCULATION
       ! Get the rho from fm_MOS
       ! Uses real orbitals only - no kpoints
@@ -333,25 +378,9 @@ CONTAINS
          CALL read_restart(rtbse_env)
       END IF
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
-      ! ****** START MOMENTS TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
-                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
-      ! ****** END MOMENTS TRACE LOAD
-
-      ! ****** START FIELD TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_field(rtbse_env)
-      ! ****** END FIELD TRACE LOAD
-
-      ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm)
-      CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%S_cfm)
-      CALL cp_fm_invert(rtbse_env%S_fm, rtbse_env%S_inv_fm)
-      ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
 
       CALL timestop(handle)
-   END SUBROUTINE initialize_rtbse_env
+   END SUBROUTINE initialize_density_matrix
 
 ! **************************************************************************************************
 !> \brief Calculates the single particle Hamiltonian
@@ -419,16 +448,6 @@ CONTAINS
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! Calculate Coulomb RI elements, necessary for Hartree calculation
       CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-         ! In a non-HF calculation, copy the actual correlation part of the interaction
-         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
-      ELSE
-         ! In HF, correlation is set to zero
-         CALL dbcsr_set(rtbse_env%w_dbcsr, 0.0_dp)
-      END IF
-      ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
-      CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
-      CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
       DO i = 1, rtbse_env%n_spin
@@ -454,11 +473,24 @@ CONTAINS
    SUBROUTINE initialize_cohsex_selfenergy(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_cohsex_selfenergy"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, handle
 
       CALL timeset(routineN, handle)
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
       ! ****** START COHSEX REFERENCE CALCULATION
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         ! In a non-HF calculation, copy the actual correlation part of the interaction
+         CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
+      ELSE
+         ! In HF, correlation is set to zero
+         CALL dbcsr_set(rtbse_env%w_dbcsr, 0.0_dp)
+      END IF
+      ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
+      CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
+      CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the COHSEX starting energies
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
@@ -693,7 +725,7 @@ CONTAINS
                                       CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END DO
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-            ! Add the COH part - so far static but can be dynamic in principle throught the W updates
+            ! Add the COH part - so far static but can be dynamic in principle through the W updates
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(j), -0.5_dp, rtbse_env%S_inv_fm)
             CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(j), mtarget=rtbse_env%ham_workspace(1))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
