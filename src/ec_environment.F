@@ -223,6 +223,9 @@ CONTAINS
                                    l_val=ec_env%debug_stress)
          CALL section_vals_val_get(ec_section, "DEBUG_EXTERNAL_METHOD", &
                                    l_val=ec_env%debug_external)
+         ! WFN output
+         section1 => section_vals_get_subs_vals(ec_section, "PRINT%HARRIS_OUTPUT_WFN")
+         CALL section_vals_get(section1, explicit=ec_env%write_harris_wfn)
          ! ADMM
          CALL section_vals_val_get(ec_section, "ADMM", l_val=ec_env%do_ec_admm)
          ! EXTERNAL

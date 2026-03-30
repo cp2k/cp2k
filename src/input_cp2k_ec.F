@@ -618,6 +618,13 @@ CONTAINS
 
       NULLIFY (print_key, keyword)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "HARRIS_OUTPUT_WFN", &
+                                       description="Controls printing the Harris output density/wfn "// &
+                                       "information to a [kpoint] restart file.", &
+                                       print_level=debug_print_level + 1, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       ! Output of BQB volumetric files
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_BQB", &
                                        description="Controls the output of the electron density to the losslessly"// &

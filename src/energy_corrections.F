@@ -29,6 +29,7 @@ MODULE energy_corrections
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
@@ -36,7 +37,8 @@ MODULE energy_corrections
         dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
@@ -51,7 +53,8 @@ MODULE energy_corrections
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type
+                                              cp_fm_type,&
+                                              cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -103,7 +106,10 @@ MODULE energy_corrections
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_io,                       ONLY: get_cell,&
+                                              write_kpoints_file_header
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
+   USE kpoint_types,                    ONLY: get_kpoint_info
    USE mao_basis,                       ONLY: mao_generate_basis
    USE mathlib,                         ONLY: det_3x3,&
                                               invmat_symm
@@ -388,6 +394,10 @@ CONTAINS
             CALL ec_ks_solver(qs_env, ec_env)
 
             CALL evaluate_ec_core_matrix_traces(qs_env, ec_env)
+
+            IF (ec_env%write_harris_wfn) THEN
+               CALL harris_wfn_output(qs_env, ec_env, unit_nr)
+            END IF
 
          CASE (ec_functional_dc)
             CPASSERT(.NOT. ec_env%do_kpoints)
@@ -3516,6 +3526,90 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_properties
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ec_env ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE harris_wfn_output(qs_env, ec_env, unit_nr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(energy_correction_type), POINTER              :: ec_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'harris_wfn_output'
+
+      INTEGER                                            :: handle, ic, ires, ispin, nimages, nsize, &
+                                                            nspin
+      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fmat
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: ec_section
+
+      MARK_USED(unit_nr)
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+
+      ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set)
+
+      IF (ec_env%do_kpoints) THEN
+         ires = cp_print_key_unit_nr(logger, ec_section, "PRINT%HARRIS_OUTPUT_WFN", &
+                                     extension=".kp", file_status="REPLACE", file_action="WRITE", &
+                                     file_form="UNFORMATTED", middle_name="Harris")
+
+         CALL write_kpoints_file_header(qs_kind_set, particle_set, ires)
+
+         denmat => ec_env%matrix_p
+         nspin = SIZE(denmat, 1)
+         nimages = SIZE(denmat, 2)
+         NULLIFY (cell_to_index)
+         IF (nimages > 1) THEN
+            CALL get_kpoint_info(kpoint=ec_env%kpoints, cell_to_index=cell_to_index)
+         END IF
+         CALL dbcsr_get_info(denmat(1, 1)%matrix, nfullrows_total=nsize)
+         NULLIFY (blacs_env, para_env)
+         CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, para_env=para_env)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nsize, &
+                                  ncol_global=nsize, para_env=para_env)
+         CALL cp_fm_create(fmat, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+
+         DO ispin = 1, nspin
+            IF (ires > 0) WRITE (ires) ispin, nspin, nimages
+            DO ic = 1, nimages
+               IF (nimages > 1) THEN
+                  cell = get_cell(ic, cell_to_index)
+               ELSE
+                  cell = 0
+               END IF
+               IF (ires > 0) WRITE (ires) ic, cell
+               CALL copy_dbcsr_to_fm(denmat(ispin, ic)%matrix, fmat)
+               CALL cp_fm_write_unformatted(fmat, ires)
+            END DO
+         END DO
+
+         CALL cp_print_key_finished_output(ires, logger, ec_section, "PRINT%HARRIS_OUTPUT_WFN")
+         CALL cp_fm_release(fmat)
+      ELSE
+         CALL cp_warn(__LOCATION__, &
+                      "Orbital energy correction potential is an experimental feature. "// &
+                      "Use it with extreme care")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE harris_wfn_output
 
 ! **************************************************************************************************
 !> \brief ...
