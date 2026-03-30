@@ -98,7 +98,7 @@ spack:
     - "python@3.11:"
     # CP2K
     - "dbcsr@2.9.1"
-    - "dftd4@4.0.2"
+#   - "dftd4@4.0.2"
     - "fftw@3.3.10"
 #   - "hdf5@2.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
