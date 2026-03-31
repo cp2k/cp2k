@@ -51,7 +51,6 @@ MODULE thermal_region_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE memory_utilities,                ONLY: reallocate
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: femtoseconds,&
                                               kelvin
@@ -92,7 +91,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, &
-                                                            nregions, output_unit, region
+                                                            nnpart, nregions, output_unit, region
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
@@ -146,30 +145,25 @@ CONTAINS
             CALL force_env_get(force_env, subsys=subsys)
             CALL cp_subsys_get(subsys, particles=particles)
 
-            ! TODO: parsing logic of thermal region should be aligned
-            ! with thermostat region as in SUBROUTINE get_defined_region_info,
-            ! src/motion/thermostat/thermostat_utils.F, so that MOLNAME,
-            ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
             DO ireg = 1, nregions
                NULLIFY (t_region)
                CALL integer_to_string(ireg, my_region)
                t_region => thermal_regions%thermal_region(ireg)
                t_region%region_index = ireg
+               NULLIFY (t_region%part_index)
 
-               ! Determine t_region%npart
+               ! TODO: parsing logic of thermal region should be aligned
+               ! with thermostat region as in SUBROUTINE get_defined_region_info,
+               ! src/motion/thermostat/thermostat_utils.F, so that MOLNAME,
+               ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
                CALL section_vals_val_get(region_sections, "LIST", &
                                          i_rep_section=ireg, n_rep_val=nlist)
-               NULLIFY (t_region%part_index)
-               t_region%npart = 0
                DO il = 1, nlist
                   CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
                                             i_rep_val=il, i_vals=tmplist)
-                  CALL reallocate(t_region%part_index, 1, t_region%npart + SIZE(tmplist))
                   DO i = 1, SIZE(tmplist)
                      ipart = tmplist(i)
                      CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
-                     t_region%npart = t_region%npart + 1
-                     t_region%part_index(t_region%npart) = ipart
                      particles%els(ipart)%t_region_index = ireg
                   END DO
                END DO
@@ -212,7 +206,7 @@ CONTAINS
             END DO
 
             ! For Langevin ensemble, determine thermal_regions%do_langevin
-            ! and t_region%noisy_gamma_region
+            ! and t_region%npart, t_region%part_index, t_region%noisy_gamma_region
             IF (simpar%ensemble == langevin_ensemble) THEN
                CALL cite_reference(Kantorovich2008)
                CALL cite_reference(Kantorovich2008a)
@@ -224,17 +218,20 @@ CONTAINS
                   NULLIFY (t_region)
                   t_region => thermal_regions%thermal_region(ireg)
                   CALL integer_to_string(ireg, my_region)
+                  nnpart = 0
+                  DO ipart = 1, particles%n_els
+                     IF (particles%els(ipart)%t_region_index == ireg) nnpart = nnpart + 1
+                  END DO
+                  ALLOCATE (t_region%part_index(nnpart))
+                  t_region%npart = 0
                   CALL section_vals_val_get(region_sections, "DO_LANGEVIN", &
                                             i_rep_section=ireg, l_val=do_langevin)
-                  CALL section_vals_val_get(region_sections, "LIST", &
-                                            i_rep_section=ireg, n_rep_val=nlist)
-                  DO il = 1, nlist
-                     CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
-                                               i_rep_val=il, i_vals=tmplist)
-                     DO i = 1, SIZE(tmplist)
-                        ipart = tmplist(i)
+                  DO ipart = 1, particles%n_els
+                     IF (particles%els(ipart)%t_region_index == ireg) THEN
+                        t_region%npart = t_region%npart + 1
+                        t_region%part_index(t_region%npart) = ipart
                         thermal_regions%do_langevin(ipart) = do_langevin
-                     END DO
+                     END IF
                   END DO
                   CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, explicit=do_read_ngr)
                   IF (do_read_ngr) THEN

@@ -73,7 +73,9 @@ CONTAINS
 
       IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
          DO ireg = 1, SIZE(thermal_regions%thermal_region)
-            DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
+            IF (ASSOCIATED(thermal_regions%thermal_region(ireg)%part_index)) THEN
+               DEALLOCATE (thermal_regions%thermal_region(ireg)%part_index)
+            END IF
          END DO
          DEALLOCATE (thermal_regions%thermal_region)
       END IF
