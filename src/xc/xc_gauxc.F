@@ -466,32 +466,27 @@ CONTAINS
    ! **************************************************************************************************
    !> \brief ...
    !> \param dbcsr_mat ...
-   !> \param dense_mat ...
-   !> \param accumulate if true, add to existing dense_mat instead of overwriting
-   ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat, accumulate)
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \param dense_mat ...
+!> \note UNKNOWN_COMMENT  **************************************************************************************************
+! **************************************************************************************************
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_stop
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
-      LOGICAL, INTENT(IN), OPTIONAL                      :: accumulate
 
       INTEGER                                            :: icol, irow, ncols, nrows
-      LOGICAL                                            :: do_accumulate
       REAL(c_double), POINTER                            :: block(:, :)
       TYPE(dbcsr_iterator_type)                          :: iter
 
-      do_accumulate = .FALSE.
-      IF (PRESENT(accumulate)) do_accumulate = accumulate
-
-      IF (.NOT. do_accumulate .OR. .NOT. ALLOCATED(dense_mat)) THEN
-         CALL dbcsr_get_info(dbcsr_mat%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+      CALL dbcsr_get_info(dbcsr_mat%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+      IF (.NOT. ALLOCATED(dense_mat)) THEN
          ALLOCATE (dense_mat(nrows, ncols))
-      END IF
-
-      IF (.NOT. do_accumulate) THEN
          dense_mat = 0.0_c_double
       END IF
 

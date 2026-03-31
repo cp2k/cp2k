@@ -625,14 +625,12 @@ CONTAINS
                CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
             END IF
          ELSE
-            CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
-            DO img = 2, nimages
-               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar, accumulate=.TRUE.)
+            DO img = 1, nimages
+               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
             END DO
             IF (nspins == 2) THEN
-               CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
-               DO img = 2, nimages
-                  CALL dbcsr_to_dense(rho_ao(2, img), density_zeta, accumulate=.TRUE.)
+               DO img = 1, nimages
+                  CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
                END DO
             END IF
          END IF
