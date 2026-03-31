@@ -145,6 +145,7 @@ list(
   ec_env_types.F
   ec_external.F
   ec_methods.F
+  ec_diag_solver.F
   ec_orth_solver.F
   ed_analysis.F
   efield_tb_methods.F

@@ -921,7 +921,7 @@ CONTAINS
    SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(smear_type), POINTER                          :: smear
+      TYPE(smear_type)                                   :: smear
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
 

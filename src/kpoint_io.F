@@ -56,6 +56,7 @@ MODULE kpoint_io
 
    PUBLIC :: read_kpoints_restart, &
              write_kpoints_restart
+   PUBLIC :: get_cell, write_kpoints_file_header
 
 ! **************************************************************************************************
 

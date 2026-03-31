@@ -90,6 +90,7 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF (dft_control%apply_efield) THEN
+         CPASSERT(.NOT. ec_env%do_kpoints)
          rpoint = 0.0_dp
          CALL ec_efield_integrals(qs_env, ec_env, rpoint)
          CALL ec_efield_mo_derivatives(qs_env, ec_env, rpoint, calculate_forces)

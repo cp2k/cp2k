@@ -73,29 +73,39 @@ CONTAINS
 !> \param pmat ...
 !> \param ecore ...
 !> \param nspin ...
+!> \param spinmat   Flag for spin dependency of operator matrix
 !> \date    29.07.2014
 !> \par History
 !>         - none
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_ptrace_gamma(hmat, pmat, ecore, nspin)
+   SUBROUTINE calculate_ptrace_gamma(hmat, pmat, ecore, nspin, spinmat)
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hmat, pmat
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
+      LOGICAL, INTENT(IN), OPTIONAL                      :: spinmat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma'
 
       INTEGER                                            :: handle, ispin
+      LOGICAL                                            :: lspin
       REAL(KIND=dp)                                      :: etr
 
       CALL timeset(routineN, handle)
 
+      lspin = .FALSE.
+      IF (PRESENT(spinmat)) lspin = spinmat
+
       ecore = 0.0_dp
       DO ispin = 1, nspin
          etr = 0.0_dp
-         CALL dbcsr_dot(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         IF (lspin) THEN
+            CALL dbcsr_dot(hmat(ispin)%matrix, pmat(ispin)%matrix, etr)
+         ELSE
+            CALL dbcsr_dot(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         END IF
          ecore = ecore + etr
       END DO
 
@@ -111,22 +121,28 @@ CONTAINS
 !> \param pmat    P matrices
 !> \param ecore   Tr(HP) output
 !> \param nspin   Number of P matrices
+!> \param spinmat   Flag for spin dependency of operator matrix
 !> \date    29.07.2014
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_ptrace_kp(hmat, pmat, ecore, nspin)
+   SUBROUTINE calculate_ptrace_kp(hmat, pmat, ecore, nspin, spinmat)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: hmat, pmat
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
+      LOGICAL, INTENT(IN), OPTIONAL                      :: spinmat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp'
 
       INTEGER                                            :: handle, ic, ispin, nc
+      LOGICAL                                            :: lspin
       REAL(KIND=dp)                                      :: etr
 
       CALL timeset(routineN, handle)
+
+      lspin = .FALSE.
+      IF (PRESENT(spinmat)) lspin = spinmat
 
       nc = SIZE(pmat, 2)
 
@@ -134,7 +150,11 @@ CONTAINS
       DO ispin = 1, nspin
          DO ic = 1, nc
             etr = 0.0_dp
-            CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            IF (lspin) THEN
+               CALL dbcsr_dot(hmat(ispin, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            ELSE
+               CALL dbcsr_dot(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            END IF
             ecore = ecore + etr
          END DO
       END DO

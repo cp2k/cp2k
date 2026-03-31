@@ -73,6 +73,8 @@ MODULE ec_env_types
       LOGICAL                                          :: use_ls_solver = .FALSE.
       LOGICAL                                          :: reuse_hfx = .FALSE.
       LOGICAL                                          :: basis_inconsistent = .FALSE.
+      !
+      LOGICAL                                          :: write_harris_wfn = .FALSE.
       ! debug
       LOGICAL                                          :: debug_forces = .FALSE.
       LOGICAL                                          :: debug_stress = .FALSE.

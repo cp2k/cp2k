@@ -84,7 +84,8 @@ CONTAINS
 !> \date    11.2019
 !> \author  fbelle
 ! **************************************************************************************************
-   SUBROUTINE create_kernel(qs_env, vxc, vxc_tau, rho, rho1_r, rho1_g, tau1_r, xc_section, compute_virial, virial_xc)
+   SUBROUTINE create_kernel(qs_env, vxc, vxc_tau, rho, rho1_r, rho1_g, tau1_r, xc_section, &
+                            compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc, vxc_tau
