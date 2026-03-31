@@ -36,7 +36,7 @@ MODULE qs_active_space_types
 
    PUBLIC :: active_space_type, eri_type, eri_type_eri_element_func
    PUBLIC :: create_active_space_type, release_active_space_type
-   PUBLIC :: csr_idx_to_combined, csr_idx_from_combined, get_irange_csr
+   PUBLIC :: csr_idx_to_combined, csr_idx_from_combined
 
 ! **************************************************************************************************
 !> \brief Quantities needed for AS determination
@@ -282,45 +282,6 @@ CONTAINS
    END SUBROUTINE csr_idx_from_combined
 
 ! **************************************************************************************************
-!> \brief calculates index range for processor in group mp_group
-!> \param nindex the number of indices
-!> \param mp_group message-passing group ID
-!> \return a range tuple
-!> \par History
-!>      04.2016 created [JGH]
-! **************************************************************************************************
-   FUNCTION get_irange_csr(nindex, mp_group) RESULT(irange)
-      USE message_passing, ONLY: mp_comm_type
-      INTEGER, INTENT(IN)                                :: nindex
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: mp_group
-      INTEGER, DIMENSION(2)                              :: irange
-
-      REAL(KIND=dp)                                      :: rat
-
-      ASSOCIATE (numtask => mp_group%num_pe, taskid => mp_group%mepos)
-
-         IF (numtask == 1 .AND. taskid == 0) THEN
-            irange(1) = 1
-            irange(2) = nindex
-         ELSEIF (numtask >= nindex) THEN
-            IF (taskid >= nindex) THEN
-               irange(1) = 1
-               irange(2) = 0
-            ELSE
-               irange(1) = taskid + 1
-               irange(2) = taskid + 1
-            END IF
-         ELSE
-            rat = REAL(nindex, KIND=dp)/REAL(numtask, KIND=dp)
-            irange(1) = NINT(rat*taskid) + 1
-            irange(2) = NINT(rat*taskid + rat)
-         END IF
-      END ASSOCIATE
-
-   END FUNCTION get_irange_csr
-
-! **************************************************************************************************
 !> \brief Calls the provided function for each element in the ERI
 !> \param this object reference
 !> \param nspin The spin number
@@ -342,7 +303,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = "eri_type_eri_foreach"
 
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, m1, m2, m3, m4, &
-                                            irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local, handle, dummy_int(1)
+                                                  irptr, nspin, nindex, nmo, proc, nonzero_elements_local, handle, dummy_int(1)
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind, offsets, nonzero_elements_global
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint, dummy_real(1)
@@ -365,7 +326,6 @@ CONTAINS
          CALL mp_group%set_handle(eri%mp_group%get_handle())
          nmo = SIZE(active_orbitals, 1)
          ! Irrelevant in case of half-transformed integrals
-         irange = get_irange_csr(nindex, this%comm_exchange)
          ALLOCATE (erival(nindex), colind(nindex))
          ALLOCATE (offsets(0:mp_group%num_pe - 1), &
                    nonzero_elements_global(0:mp_group%num_pe - 1))
@@ -375,7 +335,7 @@ CONTAINS
             DO m2 = m1, nmo
                i2 = active_orbitals(m2, spin1)
                i12 = csr_idx_to_combined(i1, i2, norb)
-               i12l = i12 - irange(1) + 1
+               i12l = (i12 - 1)/this%comm_exchange%num_pe + 1
 
                ! In case of half-transformed integrals, every process might carry integrals of a row
                ! The number of integrals varies between processes and rows (related to the randomized
@@ -383,7 +343,8 @@ CONTAINS
 
                ! 1) Collect the amount of local data from each process
                nonzero_elements_local = 0
-               IF (i12 >= irange(1) .AND. i12 <= irange(2)) nonzero_elements_local = eri%nzerow_local(i12l)
+               IF (MOD(i12 - 1, this%comm_exchange%num_pe) == this%comm_exchange%mepos) &
+                  nonzero_elements_local = eri%nzerow_local(i12l)
                CALL mp_group%allgather(nonzero_elements_local, nonzero_elements_global)
 
                ! 2) Prepare arrays for communication (calculate the offsets and the total number of elements)
@@ -393,7 +354,7 @@ CONTAINS
                END DO
                nindex = offsets(mp_group%num_pe - 1) + nonzero_elements_global(mp_group%num_pe - 1)
                irptr = 1
-               IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
+               IF (MOD(i12 - 1, this%comm_exchange%num_pe) == this%comm_exchange%mepos) THEN
                   irptr = eri%rowptr_local(i12l)
 
                   ! Exchange actual data
