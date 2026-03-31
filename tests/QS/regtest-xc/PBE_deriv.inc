@@ -17,6 +17,7 @@
       &END DIAGONALIZATION
     &END SCF
     &XC
+      USE_GAUXC ON
       &XC_FUNCTIONAL
         &PBE
 

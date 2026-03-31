@@ -61,6 +61,7 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
+                                              section_vals_get_subs_vals2,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
@@ -242,14 +243,16 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_fun_section, xc_section
+                                                            xc_fun_section, xc_fun_subsection, &
+                                                            xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                adiabatic_rescaling_section, hfx_sections, &
-               input, scf_section, xc_section, xc_fun_section, matrix_h, matrix_h_im, matrix_s, &
+               input, scf_section, xc_section, xc_fun_section, xc_fun_subsection, &
+               matrix_h, matrix_h_im, matrix_s, &
                auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
                v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
                ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core, &
@@ -594,9 +597,7 @@ CONTAINS
 
       IF (do_gauxc) THEN
          xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-         IF (ASSOCIATED(xc_fun_section)) THEN
-            xc_fun_name = xc_fun_section%section%name
-         ELSE
+         IF (.NOT. ASSOCIATED(xc_fun_section)) THEN
             CPABORT("XC_FUNCTIONAL section not found")
          END IF
          xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
