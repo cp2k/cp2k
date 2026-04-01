@@ -1,5 +1,5 @@
 aiohappyeyeballs==2.6.1
-aiohttp==3.13.3
+aiohttp==3.13.4
 aiosignal==1.4.0
 antlr4-python3-runtime==4.9.3
 ase==3.27.0
