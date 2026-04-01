@@ -2271,9 +2271,7 @@ CONTAINS
          ! should be extended to the case where added MOs are present
          ! should be extended to the k-point case
          !
-         IF (do_kpoints) THEN
-            CPWARN("Spin contamination estimate not implemented for k-points.")
-         ELSE
+         IF (.NOT. do_kpoints) THEN
             all_equal = .TRUE.
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), &
@@ -2287,10 +2285,7 @@ CONTAINS
                                ALL(occupation_numbers(homo + 1:nmo) == 0.0_dp))
                END IF
             END DO
-            IF (.NOT. all_equal) THEN
-               IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(T3,A)") &
-                  "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
-            ELSE
+            IF (all_equal) THEN
                CALL get_qs_env(qs_env=qs_env, &
                                matrix_s=matrix_s, &
                                energy=energy)
