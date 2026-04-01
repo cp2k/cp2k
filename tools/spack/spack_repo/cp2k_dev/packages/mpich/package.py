@@ -79,6 +79,7 @@ class Mpich(MpichEnvironmentModifications, AutotoolsPackage, CudaPackage, ROCmPa
     license("mpich2")
 
     version("develop", submodules=True)
+    version("5.0.1rc2", sha256="7f3b7946b5516cf76a92d4e38e03a8f8cee6cbca128ebd75dbebd2877baf20dd")
     version("5.0.1rc1", sha256="391907db8c2c34129cb6cb894e4866fe97bc66f10ccfb8dc690288a78add5bbb")
     version("5.0.0", sha256="e9350e32224283e95311f22134f36c98e3cd1c665d17fae20a6cc92ed3cffe11")
     version("4.3.2", sha256="47d774587a7156a53752218c811c852e70ac44db9c502dc3f399b4cb817e3818")
