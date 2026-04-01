@@ -2,7 +2,7 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr, c_ptr, c_f_pointer, c_associated
+   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr, c_ptr, c_f_pointer, c_associated, c_char
    USE kinds, ONLY: dp
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: bohr
@@ -45,6 +45,13 @@ MODULE xc_gauxc
 
    IMPLICIT NONE
    PRIVATE
+
+   INTERFACE
+      SUBROUTINE print_gauxc_status_message(c_message) BIND(C, name="print_c_string")
+         IMPORT :: c_ptr
+         TYPE(c_ptr), VALUE :: c_message
+      END SUBROUTINE print_gauxc_status_message
+   END INTERFACE
 
    TYPE cp_gauxc_molecule_type
       TYPE(gauxc_molecule_type) :: molecule
@@ -101,7 +108,13 @@ CONTAINS
 
       IF (status%code /= 0) THEN
          WRITE (*, '(a,1x,i0)') "GauXC returned with status code", status%code
-         WRITE (0, '(a)') "GauxC status message: ["//TRIM(gauxc_status_message(status))//"]"
+         IF (c_associated(status%message)) THEN
+            WRITE (0, '(a)', ADVANCE='no') "GauxC status message: ["
+            CALL print_gauxc_status_message(status%message)
+            WRITE (0, '(a)') "]"
+         ELSE
+            WRITE (0, '(a)') "GauxC status message: [null]"
+         END IF
          CPABORT("GauXC returned with non-zero status code")
       END IF
    END SUBROUTINE check_gauxc_status
