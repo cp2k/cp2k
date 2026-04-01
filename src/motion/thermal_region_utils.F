@@ -168,6 +168,20 @@ CONTAINS
                   END DO
                END DO
 
+               ! Set up t_region%part_index
+               nnpart = 0
+               t_region%npart = 0
+               DO ipart = 1, particles%n_els
+                  IF (particles%els(ipart)%t_region_index == ireg) nnpart = nnpart + 1
+               END DO
+               ALLOCATE (t_region%part_index(nnpart))
+               DO ipart = 1, particles%n_els
+                  IF (particles%els(ipart)%t_region_index == ireg) THEN
+                     t_region%npart = t_region%npart + 1
+                     t_region%part_index(t_region%npart) = ipart
+                  END IF
+               END DO
+
                ! Determine t_region%temp_expected
                tfunc_section => section_vals_get_subs_vals(region_sections, "TFUNC", i_rep_section=ireg)
                CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, explicit=use_t)
@@ -206,7 +220,7 @@ CONTAINS
             END DO
 
             ! For Langevin ensemble, determine thermal_regions%do_langevin
-            ! and t_region%npart, t_region%part_index, t_region%noisy_gamma_region
+            ! and t_region%noisy_gamma_region
             IF (simpar%ensemble == langevin_ensemble) THEN
                CALL cite_reference(Kantorovich2008)
                CALL cite_reference(Kantorovich2008a)
@@ -218,18 +232,10 @@ CONTAINS
                   NULLIFY (t_region)
                   t_region => thermal_regions%thermal_region(ireg)
                   CALL integer_to_string(ireg, my_region)
-                  nnpart = 0
-                  DO ipart = 1, particles%n_els
-                     IF (particles%els(ipart)%t_region_index == ireg) nnpart = nnpart + 1
-                  END DO
-                  ALLOCATE (t_region%part_index(nnpart))
-                  t_region%npart = 0
                   CALL section_vals_val_get(region_sections, "DO_LANGEVIN", &
                                             i_rep_section=ireg, l_val=do_langevin)
                   DO ipart = 1, particles%n_els
                      IF (particles%els(ipart)%t_region_index == ireg) THEN
-                        t_region%npart = t_region%npart + 1
-                        t_region%part_index(t_region%npart) = ipart
                         thermal_regions%do_langevin(ipart) = do_langevin
                      END IF
                   END DO
