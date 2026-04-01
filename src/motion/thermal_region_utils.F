@@ -51,6 +51,11 @@ MODULE thermal_region_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
+   USE molecule_kind_types,             ONLY: molecule_kind_type
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
+                                              molecule_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: femtoseconds,&
                                               kelvin
@@ -64,7 +69,7 @@ MODULE thermal_region_utils
 
    IMPLICIT NONE
 
-   PRIVATE
+   PRIVATE :: set_t_region_index
    PUBLIC :: create_thermal_regions, &
              print_thermal_regions_temperature, &
              print_thermal_regions_langevin
@@ -90,7 +95,10 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       CHARACTER(LEN=default_string_length)               :: my_region
-      INTEGER                                            :: i, il, ipart, ireg, itimes, nlist, &
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: tmpstringlist
+      INTEGER                                            :: first_atom, i, ikind, il, imol, ipart, &
+                                                            ireg, itimes, last_atom, nlist, &
                                                             nnpart, nregions, output_unit, region
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
@@ -99,12 +107,18 @@ CONTAINS
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind, molecule_kind_set(:)
+      TYPE(molecule_list_type), POINTER                  :: molecules
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), POINTER                       :: molecule
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: region_sections, tfunc_section, &
                                                             thermal_region_section
       TYPE(thermal_region_type), POINTER                 :: t_region
 
-      NULLIFY (logger, region_sections, t_region, tfunc_section, &
+      NULLIFY (logger, molecule, molecule_kind, molecule_kind_set, molecule_kinds, &
+               region_sections, t_region, tfunc_section, &
                thermal_region_section, particles, subsys, tmplist)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -142,8 +156,13 @@ CONTAINS
             thermal_regions%nregions = nregions
             thermal_regions%section => thermal_region_section
             ALLOCATE (thermal_regions%thermal_region(nregions))
+            simpar%do_thermal_region = .TRUE.
             CALL force_env_get(force_env, subsys=subsys)
-            CALL cp_subsys_get(subsys, particles=particles)
+            CALL cp_subsys_get(subsys, molecules=molecules, &
+                               molecule_kinds=molecule_kinds, &
+                               particles=particles)
+            molecule_kind_set => molecule_kinds%els
+            molecule_set => molecules%els
 
             DO ireg = 1, nregions
                NULLIFY (t_region)
@@ -154,21 +173,44 @@ CONTAINS
 
                ! TODO: parsing logic of thermal region should be aligned
                ! with thermostat region as in SUBROUTINE get_defined_region_info,
-               ! src/motion/thermostat/thermostat_utils.F, so that MOLNAME,
+               ! src/motion/thermostat/thermostat_utils.F, so that
                ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
                CALL section_vals_val_get(region_sections, "LIST", &
                                          i_rep_section=ireg, n_rep_val=nlist)
-               DO il = 1, nlist
-                  CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
-                                            i_rep_val=il, i_vals=tmplist)
-                  DO i = 1, SIZE(tmplist)
-                     ipart = tmplist(i)
-                     CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
-                     particles%els(ipart)%t_region_index = ireg
+               IF (nlist > 0) THEN
+                  DO il = 1, nlist
+                     CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
+                                               i_rep_val=il, i_vals=tmplist)
+                     DO i = 1, SIZE(tmplist)
+                        ipart = tmplist(i)
+                        CALL set_t_region_index(particles, ipart, ireg)
+                     END DO
                   END DO
-               END DO
+               END IF
+               CALL section_vals_val_get(region_sections, "MOLNAME", &
+                                         i_rep_section=ireg, n_rep_val=nlist)
+               IF (nlist > 0) THEN
+                  DO il = 1, nlist
+                     CALL section_vals_val_get(region_sections, "MOLNAME", i_rep_section=ireg, &
+                                               i_rep_val=il, c_vals=tmpstringlist)
+                     DO i = 1, SIZE(tmpstringlist)
+                        DO ikind = 1, SIZE(molecule_kind_set)
+                           molecule_kind => molecule_kind_set(ikind)
+                           IF (molecule_kind%name == tmpstringlist(i)) THEN
+                              DO imol = 1, SIZE(molecule_kind%molecule_list)
+                                 molecule => molecule_set(molecule_kind%molecule_list(imol))
+                                 CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
+                                 DO ipart = first_atom, last_atom
+                                    CALL set_t_region_index(particles, ipart, ireg)
+                                 END DO
+                              END DO
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END IF
 
-               ! Set up t_region%part_index
+               ! Set up t_region%part_index after parsing input
                nnpart = 0
                t_region%npart = 0
                DO ipart = 1, particles%n_els
@@ -255,7 +297,6 @@ CONTAINS
                END DO
             END IF
             ! End of Langevin treatment
-            simpar%do_thermal_region = .TRUE.
 
             ! Output thermal region mapping to particles
             IF (output_unit > 0) THEN
@@ -278,6 +319,49 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_thermal_regions
+
+! **************************************************************************************************
+!> \brief set particles%els(ipart)%t_region_index to ireg
+!> \param particles ...
+!> \param ipart ...
+!> \param ireg ...
+!> \par History
+!>   - Created (04/2026)
+!> \author
+! **************************************************************************************************
+   SUBROUTINE set_t_region_index(particles, ipart, ireg)
+      TYPE(particle_list_type), POINTER                  :: particles
+      INTEGER, INTENT(IN)                                :: ipart, ireg
+
+      CHARACTER(LEN=default_string_length)               :: my_part, my_reg, my_region
+      INTEGER                                            :: iregion
+
+      CALL integer_to_string(ipart, my_part)
+      IF ((ipart > 0) .AND. (ipart <= particles%n_els)) THEN
+         CALL integer_to_string(ireg, my_reg)
+         iregion = particles%els(ipart)%t_region_index
+         IF ((iregion == 0) .OR. (iregion == ireg)) THEN
+            ! No thermal region has been assigned, or
+            ! the same one has already been assigned
+            particles%els(ipart)%t_region_index = ireg
+         ELSE
+            CALL integer_to_string(iregion, my_region)
+            CALL cp_abort(__LOCATION__, &
+                          "Atom "//TRIM(my_part)//" has been "// &
+                          "assigned to two different thermal "// &
+                          "regions "//TRIM(my_region)//" and "// &
+                          TRIM(my_reg)//" which is not allowed!")
+         END IF
+      ELSE
+         IF (.NOT. ipart > 0) &
+            CALL cp_abort(__LOCATION__, &
+                          "Input atom index "//TRIM(my_part)//" is non-positive!")
+         IF (.NOT. ipart <= particles%n_els) &
+            CALL cp_abort(__LOCATION__, &
+                          "Input atom index "//TRIM(my_part)//" is out of bounds!")
+      END IF
+
+   END SUBROUTINE set_t_region_index
 
 ! **************************************************************************************************
 !> \brief print_thermal_regions_temperature
@@ -330,7 +414,7 @@ CONTAINS
                   temp(ireg) = thermal_regions%thermal_region(ireg)%temperature
                   temp_tfunc(ireg) = cp_unit_from_cp2k(thermal_regions%thermal_region(ireg)%temp_expected, "K")
                END DO
-               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(2*nregions + 1)))//"F20.8)"
+               fmd = "(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(2*nregions + 1)))//"F20.10)"
                fmd = TRIM(fmd)
                WRITE (UNIT=unit, FMT=fmd) itimes, time, temp(0), (temp_tfunc(ireg), temp(ireg), ireg=1, nregions)
                DEALLOCATE (temp)
