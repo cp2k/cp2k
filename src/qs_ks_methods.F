@@ -293,6 +293,7 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
+      WRITE (*, '(A,I0)') "DEBUG: dft_control%nspins = ", dft_control%nspins
 
       ! remap pointer to allow for non-kpoint external ks matrix
       IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
