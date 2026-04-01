@@ -2,7 +2,7 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr
+   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr, c_ptr, c_f_pointer, c_associated
    USE kinds, ONLY: dp
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: bohr
@@ -85,12 +85,30 @@ MODULE xc_gauxc
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
       & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
       & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
-      & gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, &
-      & read_execution_space, read_atomic_grid_size, read_radial_quad, &
-      & read_pruning_scheme, &
-      & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
+& gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, &
+       & read_execution_space, read_atomic_grid_size, read_radial_quad, &
+       & read_pruning_scheme, &
+       & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Checks gauxc status and prints error message before aborting
+!> \param status the gauxc status to check
+! **************************************************************************************************
+   SUBROUTINE check_gauxc_status(status)
+      TYPE(gauxc_status_type), INTENT(IN)                :: status
+
+      IF (status%code /= 0) THEN
+         WRITE (*, '(a,1x,i0)') "GauXC returned with status code", status%code
+         WRITE (0, '(a)') "GauxC status message: ["//TRIM(gauxc_status_message(status))//"]"
+         CPABORT("GauXC returned with non-zero status code")
+      END IF
+   END SUBROUTINE check_gauxc_status
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mpi_comm ...
 
 ! **************************************************************************************************
 !> \brief ...
@@ -109,10 +127,10 @@ CONTAINS
       batch_size = 512_c_int64_t
 
       rt = gauxc_runtime_environment_new(status, mpi_comm)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       world_rank = gauxc_runtime_environment_comm_rank(status, rt)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       world_size = gauxc_runtime_environment_comm_size(status, rt)
 
@@ -130,7 +148,7 @@ CONTAINS
            & "-> Pruning scheme    : "//prune_spec, &
            & ""
       END IF
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
    END SUBROUTINE
 
@@ -142,7 +160,7 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_runtime_environment_delete(status, rt)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -176,7 +194,7 @@ CONTAINS
       END DO
 
       res%molecule = gauxc_molecule_new_from_atoms(status, atoms, INT(natoms, c_size_t))
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       DEALLOCATE (atoms)
 
@@ -258,7 +276,7 @@ CONTAINS
       END DO
 
       res%basis = gauxc_basisset_new_from_shells(status, shells, INT(nshell_total, c_size_t))
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       DEALLOCATE (shells)
       DEALLOCATE (basis_set_list)
@@ -290,22 +308,22 @@ CONTAINS
 
       res%grid = gauxc_molgrid_new_default(status, molecule%molecule, pruning_scheme_local, &
          & batch_size, radial_quad_local, grid_type_local)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       res%lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       res%lb = gauxc_load_balancer_factory_get_instance(status, res%lbf, rt, molecule%molecule, res%grid, basis%basis)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       res%mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       res%mw = gauxc_get_instance(status, res%mwf)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       CALL gauxc_molecular_weights_modify_weights(status, res%mw, res%lb)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_create_grid
 
@@ -329,11 +347,11 @@ CONTAINS
 
       polarized = (nspins == 2)
       res%func = gauxc_functional_from_string(status, xc_functional_name, polarized)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
       int_exec_space_local = read_execution_space(int_exec_space_str)
       res%integrator = gauxc_integrator_new(status, res%func, lb, int_exec_space_local)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_create_integrator
 
@@ -366,7 +384,7 @@ CONTAINS
          CALL gauxc_integrator_eval_exc_vxc_uks(status, integrator, density_scalar, &
                                                 density_zeta, res%exc, res%vxc_scalar, res%vxc_zeta)
       END IF
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_compute_xc
 
@@ -380,7 +398,7 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, molecule%molecule)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
    END SUBROUTINE gauxc_destroy_molecule
 
 ! **************************************************************************************************
@@ -393,7 +411,7 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, basis%basis)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
    END SUBROUTINE gauxc_destroy_basisset
 
 ! **************************************************************************************************
@@ -406,15 +424,15 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, grid_result%mw)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%mwf)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%lb)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%lbf)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%grid)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
    END SUBROUTINE gauxc_destroy_grid
 
 ! **************************************************************************************************
@@ -427,9 +445,9 @@ CONTAINS
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
       CALL gauxc_delete(status, integrator_result%integrator)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, integrator_result%func)
-      CPASSERT(status%code == 0)
+      CALL check_gauxc_status(status)
    END SUBROUTINE gauxc_destroy_integrator
 
    ! **************************************************************************************************
