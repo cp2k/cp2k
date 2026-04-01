@@ -207,6 +207,7 @@ by passing `-DCP2K_USE_ACE=ON` to CMake.
 ## DFTD4 (dispersion correction)
 
 - dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
+- Please always use the CMake-built dftd4 package rather than the Meson-built one for CP2K.
 - For more information see <https://github.com/dftd4/dftd4>
 - Pass `-DCP2K_USE_DFTD4=ON` to CMake.
 
@@ -240,6 +241,7 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 
 - tblite - Light-weight tight-binding framework
 - With tblite you can calculate using GFN2-xTB method.
+- Please always use the CMake-built tblite package rather than the Meson-built one for CP2K.
 - For more information see <https://github.com/tblite/tblite>
 - Pass `-DCP2K_USE_TBLITE=ON` to CMake.
 
