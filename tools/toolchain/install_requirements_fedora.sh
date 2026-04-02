@@ -23,6 +23,7 @@ dnf -qy install \
   libtool \
   make \
   nano \
+  ninja-build \
   patch \
   perl-open \
   perl-FindBin \
