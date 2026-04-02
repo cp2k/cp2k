@@ -620,19 +620,24 @@ CONTAINS
             CPABORT("GAUXC XC energy currently does not support real-time propagation")
          END IF
 
-         DO img = 1, nimages
-            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
-         END DO
-         IF (nspins == 2) THEN
-            DO img = 1, nimages
-               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
-            END DO
-         END IF
-
          IF (nspins == 1) THEN
+            DO img = 1, nimages
+               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+            END DO
             gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
                                                nspins=nspins, status=gauxc_status)
          ELSE
+            DO img = 1, nimages
+               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
+            END DO
+            ! Do NOT reorder the following lines!
+            density_scalar = density_scalar + density_zeta
+            ! Factor two because the next line is evaluated after the above line.
+            ! We need to subtract density_zeta once to undo the above line and
+            ! a second time because that is what UKS requires.
+            ! This style lowers memory footprint.
+            density_zeta = density_scalar - 2.0_dp*density_zeta
             gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
                                                density_zeta, nspins, gauxc_status)
          END IF
