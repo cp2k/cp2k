@@ -716,9 +716,14 @@ CONTAINS
             END IF
 
             IF (gapw .OR. gapw_xc) THEN
+               IF (do_gauxc) THEN
+                  CPABORT("GauXC is incompatible with GAPW/GAPW_XC. Please use the legacy XC (USE_GAUXC = .FALSE.).")
+               END IF
                CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
-               ! test for not implemented (bug) option
                IF (use_virial .AND. calculate_forces) THEN
+                  IF (do_gauxc) THEN
+       CPABORT("GauXC is incompatible with GAPW/GAPW_XC when calculating stresses. Please use the legacy XC (USE_GAUXC = .FALSE.).")
+                  END IF
                   IF (ASSOCIATED(v_tau_rspace)) THEN
                      CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
                   END IF
