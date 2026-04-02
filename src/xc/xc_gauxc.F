@@ -64,7 +64,9 @@ MODULE xc_gauxc
    TYPE cp_gauxc_grid_type
       TYPE(gauxc_molgrid_type) :: grid
       TYPE(gauxc_load_balancer_type) :: lb
+      TYPE(gauxc_load_balancer_factory_type) :: lbf
       TYPE(gauxc_molecular_weights_type) :: mw
+      TYPE(gauxc_molecular_weights_factory_type) :: mwf
    END TYPE cp_gauxc_grid_type
 
    TYPE cp_gauxc_integrator_type
@@ -310,8 +312,6 @@ CONTAINS
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
-      TYPE(gauxc_load_balancer_factory_type) :: lbf
-      TYPE(gauxc_molecular_weights_factory_type) :: mwf
 
       grid_type_local = read_atomic_grid_size(grid_spec)
       radial_quad_local = read_radial_quad(rad_quad_spec)
@@ -323,25 +323,19 @@ CONTAINS
          & batch_size, radial_quad_local, grid_type_local)
       CALL check_gauxc_status(status)
 
-      res%lb = gauxc_load_balancer_factory_get_instance(status, lbf, rt, molecule%molecule, res%grid, basis%basis)
+      res%lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
       CALL check_gauxc_status(status)
 
-      CALL gauxc_delete(status, lbf)
+      res%lb = gauxc_load_balancer_factory_get_instance(status, res%lbf, rt, molecule%molecule, res%grid, basis%basis)
       CALL check_gauxc_status(status)
 
-      mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
+      res%mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
       CALL check_gauxc_status(status)
 
-      CALL gauxc_delete(status, mwf)
+      res%mw = gauxc_get_instance(status, res%mwf)
       CALL check_gauxc_status(status)
 
       CALL gauxc_molecular_weights_modify_weights(status, res%mw, res%lb)
-      CALL check_gauxc_status(status)
-
-      lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
-      CALL check_gauxc_status(status)
-
-      res%mw = gauxc_get_instance(status, mwf)
       CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_create_grid
@@ -444,7 +438,11 @@ CONTAINS
 
       CALL gauxc_delete(status, grid_result%mw)
       CALL check_gauxc_status(status)
+      CALL gauxc_delete(status, grid_result%mwf)
+      CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%lb)
+      CALL check_gauxc_status(status)
+      CALL gauxc_delete(status, grid_result%lbf)
       CALL check_gauxc_status(status)
       CALL gauxc_delete(status, grid_result%grid)
       CALL check_gauxc_status(status)
