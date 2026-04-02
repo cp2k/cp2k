@@ -6,8 +6,6 @@
       MAX_ITER 100
       OUT_ITER_EACH 1
       OPERATOR PIPEK
-      #FRAGMENT .TRUE.
-      #SEQUENTIAL .TRUE.
       &PRINT
         &WANNIER_CENTERS
           ADD_LAST NUMERIC
