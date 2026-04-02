@@ -694,7 +694,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type)                                   :: csc, fm_tmp, tmp_square
+      TYPE(cp_fm_type)                                   :: csc, fm_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
@@ -1860,56 +1860,6 @@ CONTAINS
 
    END SUBROUTINE wfi_purge_history
 
-   subroutine save_matrix(a,m,n,basename,frame)
-      integer, intent(in) :: m, n, frame
-      real(kind=dp), intent(in) :: a(m,n)
-      character(len=*), intent(in) :: basename
-      integer :: i, j
-      character(len=256) :: path
-      write(path, '(A, I0.6, A)') trim(basename), frame, '.dat'
-      open(100,file=trim(path),form="formatted")
-      do i = 1, m
-          do j = 1, n
-              write(100,'(F20.10)',advance="no") a(i,j)
-          end do
-          write(100,*)
-      end do
-      close(100)
-   end subroutine save_matrix
-
-   subroutine save_matrix_bin(a,m,n,basename,frame)
-       integer, intent(in) :: m, n, frame
-       real(kind=dp), intent(in) :: a(m,n)
-       character(len=*), intent(in) :: basename
-       character(len=256) :: path
-       write(path, "(A, I0.6, A)") trim(basename), frame, ".bin"
-       open(100,file=trim(path),form="unformatted",access="stream", &
-           & action="write",status="replace")
-       write(100) a
-       close(100)
-   end subroutine save_matrix_bin
-
-   subroutine square_to_lt(square,lt,n)
-   !
-   !   Given a symmetric square matrix, assemble the lower triangular.
-   !
-       integer, intent(in) :: n
-       real(dp), intent(in) :: square(n,n)
-       real(dp), intent(out) :: lt(n*(n+1)/2)
-   !
-       integer :: ij, i, j
-   !
-       lt = 0.0d0
-       ij = 0
-       do i = 1, n
-           do j = 1, i
-               ij = ij + 1
-               lt(ij) = square(j,i)
-           end do
-       end do
-   !
-   end subroutine square_to_lt
-
    SUBROUTINE dbcsr_diff_fitting(wf_history, current_overlap, coeffs, nvec)
       INTEGER, INTENT(IN) :: nvec
       TYPE(qs_wf_history_type), POINTER :: wf_history
@@ -1993,71 +1943,6 @@ CONTAINS
       DEALLOCATE(A, b)
 
    END SUBROUTINE dbcsr_diff_fitting
-
-   subroutine ls_fitting(descriptors,nd,q,target_descriptor,eps, &
-        & coefficients,error)
-!
-!   Given a matrix of descriptors of size (nd,q) and a target descriptor
-!   of size (nd), find the linear combination that best approximates it.
-!   The argument eps sets the Tikhonov regularization.
-!
-    integer, intent(in) :: nd, q
-    real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
-        & eps
-    real(dp), intent(out) :: coefficients(q)
-    integer, intent(out) :: error
-!
-    real(dp), allocatable :: a(:,:)
-    integer :: info, i
-!
-    error = 0
-!
-!   Debug: call the dgels version of the fitting.
-!
-!   call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
-!       & coefficients,error)
-!   return
-!
-    allocate(a(q,q),stat=info)
-    if (info.ne.0) then
-        error = 42
-        return
-    end if
-!
-!   Given the descriptor matrix (D), compute A := D^T D.
-!
-    call dgemm("t","n",q,q,nd,1.0d0,descriptors,nd,descriptors,nd, &
-        & 0.0d0,a,q)
-!
-!   Add the regularization to the diagonal.
-!
-    do i = 1, q
-        a(i,i) = a(i,i) + eps**2
-    end do
-
-!
-!   Get the RHS b := D^T target.
-!
-    call dgemv("t",nd,q,1.0d0,descriptors,nd,target_descriptor,1, &
-        & 0.0d0,coefficients,1)
-!
-!   Solve the linear system A coeff = b.
-!
-    write(6,*) "STD: A", A
-    write(6,*) "STD: b", coefficients
-    call dposv('u',q,1,a,q,coefficients,q,info)
-    if (info.ne.0) then
-        error = 43
-        return
-    end if
-!
-    deallocate(a,stat=info)
-    if (info.ne.0) then
-        error = 44
-        return
-    end if
-!
-    end subroutine ls_fitting
 
    SUBROUTINE dbcsr_tr_fitting(wf_history, current_overlap, coeffs, nvec)
       INTEGER, INTENT(IN) :: nvec
