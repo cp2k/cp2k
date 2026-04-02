@@ -1924,17 +1924,6 @@ CONTAINS
       coeffs(1) = 1.0_dp - sum(b)
       coeffs(2:nvec) = b(:)
 
-      ! debug: test how good is approximated the target overlap
-      CALL dbcsr_copy(tmp_i, current_overlap)
-      DO i = 1, nvec
-         state => wfi_get_snapshot(wf_history, wf_index=i)
-         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
-      END DO
-      WRITE(6,*) "Fitting error:", dbcsr_frobenius_norm(tmp_i) &
-                                  /dbcsr_frobenius_norm(current_overlap)
-      WRITE(6,*) "Fitting coeffs:", coeffs
-      WRITE(6,*) "Sum coeffs:", sum(coeffs)
-
       ! free the memory
       CALL dbcsr_release(tmp_i)
       CALL dbcsr_release(tmp_j)
