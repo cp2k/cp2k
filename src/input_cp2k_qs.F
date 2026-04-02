@@ -434,7 +434,7 @@ CONTAINS
          wfi_use_prev_wf_method_nr, &
          wfi_ps_method_nr, &
          wfi_frozen_method_nr, &
-         wfi_aspc_nr,
+         wfi_aspc_nr, &
          wfi_gext_nr, &
          wfi_gext_qtr_nr], &
          default_i_val=wfi_aspc_nr)
