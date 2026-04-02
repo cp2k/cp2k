@@ -15,7 +15,7 @@ MODULE input_cp2k_loc
         do_loc_both, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
         do_loc_cpo_space_nmo, do_loc_cpo_space_wan, do_loc_crazy, do_loc_direct, do_loc_gapo, &
         do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
-        do_loc_mixed, do_loc_none, do_loc_scdm, op_loc_berry, op_loc_boys, op_loc_pipek
+        do_loc_mixed, do_loc_none, do_loc_scdm, do_loc_cs, op_loc_berry, op_loc_boys, op_loc_pipek
    USE input_cp2k_mm,                   ONLY: create_dipoles_section
    USE input_cp2k_motion_print,         ONLY: add_format_keyword
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -135,20 +135,24 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="METHOD", &
          description="Method of optimization if any", &
-         usage="METHOD (JACOBI|CRAZY|DIRECT|GAPO|L1SD|SCDM|NONE)", &
-         enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "GAPO", "L1SD", "DIRECT", "SCDM"), &
+         usage="METHOD (JACOBI|CRAZY|DIRECT|GAPO|L1SD|SCDM|CS|NONE)", &
+         enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "GAPO", "L1SD", "DIRECT", "SCDM", "CS"), &
          enum_i_vals=[do_loc_none, &
                       do_loc_jacobi, &
                       do_loc_crazy, &
                       do_loc_gapo, &
                       do_loc_l1_norm_sd, &
-                      do_loc_direct, do_loc_scdm], &
+                      do_loc_direct, &
+                      do_loc_scdm, &
+                      do_loc_cs], &
          enum_desc=s2a("No localization is applied", &
                        "Using 2 x 2 rotations of the orbitals, slow but robust", &
                        "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
                        "Gradient ascent for partially occupied wannier functions", &
                        "Steepest descent minimization of an approximate l1 norm", &
-                       "Using a direct minimisation approacha", "Use QR factorization"), &
+                       "Using a direct minimisation approacha", &
+                       "Use QR factorization", &
+                       "Using the Cardoso-Souloumiac algorithm for complex matrices"), &
          default_i_val=do_loc_jacobi)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

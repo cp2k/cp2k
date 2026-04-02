@@ -463,7 +463,8 @@ MODULE input_constants
                                                do_loc_direct = 3, &
                                                do_loc_l1_norm_sd = 4, &
                                                do_loc_scdm = 5, &
-                                               do_loc_gapo = 6
+                                               do_loc_gapo = 6, &
+                                               do_loc_cs = 7
 
    INTEGER, PARAMETER, PUBLIC               :: do_loc_cpo_atomic = 0, &
                                                do_loc_cpo_restart = 1, &
