@@ -122,8 +122,7 @@ MODULE qs_active_space_methods
                                     csr_idx_from_combined, &
                                     csr_idx_to_combined, &
                                     eri_type, &
-                                    eri_type_eri_element_func, &
-                                    get_irange_csr
+                                    eri_type_eri_element_func
    USE qs_active_space_utils, ONLY: eri_to_array, &
                                     subspace_matrix_to_array
    USE qs_collocate_density, ONLY: calculate_wavefunction
@@ -1324,10 +1323,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_eri_gpw'
 
-      INTEGER :: col_local, color, handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, &
-         irange(2), isp, isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, iwbs, iwbt, &
-         iwfn, n_multigrid, ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, nrow_global, &
-         nrow_local, nspins, number_of_subgroups, nx, row_local, stored_integrals
+      INTEGER :: col_local, color, handle, i1, i2, i3, i4, i_multigrid, icount2, intcount, isp, &
+         isp1, isp2, ispin, iwa1, iwa12, iwa2, iwb1, iwb12, iwb2, iwbs, iwbt, iwfn, n_multigrid, &
+         ncol_global, ncol_local, nmm, nmo, nmo1, nmo2, nrow_global, nrow_local, nspins, &
+         number_of_subgroups, nx, row_local, stored_integrals
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: eri_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: print1, print2, &
@@ -1631,7 +1630,6 @@ CONTAINS
       DO isp1 = 1, nspins
          CALL get_mo_set(mo_set=mos(isp1), nmo=nmo1)
          nmm = (nmo1*(nmo1 + 1))/2
-         irange = get_irange_csr(nmm, eri_env%comm_exchange)
          DO i1 = 1, SIZE(orbitals, 1)
             iwa1 = orbitals(i1, isp1)
             IF (eri_env%eri_gpw%store_wfn) THEN
@@ -1644,8 +1642,8 @@ CONTAINS
                iwa2 = orbitals(i2, isp1)
                iwa12 = csr_idx_to_combined(iwa1, iwa2, nmo1)
                ! Skip calculation directly if the pair is not part of our subgroup
-               IF (iwa12 < irange(1) .OR. iwa12 > irange(2)) CYCLE
-               iwa12 = iwa12 - irange(1) + 1
+               IF (MOD(iwa12 - 1, eri_env%comm_exchange%num_pe) /= eri_env%comm_exchange%mepos) CYCLE
+               iwa12 = (iwa12 - 1)/eri_env%comm_exchange%num_pe + 1
                IF (eri_env%eri_gpw%store_wfn) THEN
                   wfn2 => wfn_a(iwa2, isp1)
                ELSE
@@ -2561,7 +2559,6 @@ CONTAINS
       INTEGER                                            :: handle, i1, i12, i12l, i2, i3, i34, &
                                                             i34l, i4, irptr, m1, m2, nindex, &
                                                             nmo_total, norb
-      INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
 
@@ -2572,14 +2569,13 @@ CONTAINS
       nmo_total = SIZE(p_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
       CALL mp_group%set_handle(eri%mp_group%get_handle())
-      irange = get_irange_csr(nindex, comm_exchange)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
             i2 = active_orbitals(m2, 1)
             i12 = csr_idx_to_combined(i1, i2, nmo_total)
-            IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-               i12l = i12 - irange(1) + 1
+            IF (MOD(i12 - 1, comm_exchange%num_pe) == comm_exchange%mepos) THEN
+               i12l = (i12 - 1)/comm_exchange%num_pe + 1
                irptr = eri%rowptr_local(i12l) - 1
                DO i34l = 1, eri%nzerow_local(i12l)
                   i34 = eri%colind_local(irptr + i34l)
@@ -2651,7 +2647,6 @@ CONTAINS
       INTEGER                                            :: handle, i1, i12, i12l, i2, i3, i34, &
                                                             i34l, i4, irptr, m1, m2, nindex, &
                                                             nmo_total, norb, spin1, spin2
-      INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
 
@@ -2660,7 +2655,6 @@ CONTAINS
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
-      irange = get_irange_csr(nindex, comm_exchange)
       IF (tr_mixed_eri) THEN
          spin1 = 2
          spin2 = 1
@@ -2673,8 +2667,8 @@ CONTAINS
          DO m2 = m1, norb
             i2 = active_orbitals(m2, spin1)
             i12 = csr_idx_to_combined(i1, i2, nmo_total)
-            IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-               i12l = i12 - irange(1) + 1
+            IF (MOD(i12 - 1, comm_exchange%num_pe) == comm_exchange%mepos) THEN
+               i12l = (i12 - 1)/comm_exchange%num_pe + 1
                irptr = eri_aa%rowptr_local(i12l) - 1
                DO i34l = 1, eri_aa%nzerow_local(i12l)
                   i34 = eri_aa%colind_local(irptr + i34l)
@@ -2709,14 +2703,13 @@ CONTAINS
       END DO
       !
 
-      irange = get_irange_csr(nindex, comm_exchange)
       DO m1 = 1, norb
          i1 = active_orbitals(m1, 1)
          DO m2 = m1, norb
             i2 = active_orbitals(m2, 1)
             i12 = csr_idx_to_combined(i1, i2, nmo_total)
-            IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-               i12l = i12 - irange(1) + 1
+            IF (MOD(i12 - 1, comm_exchange%num_pe) == comm_exchange%mepos) THEN
+               i12l = (i12 - 1)/comm_exchange%num_pe + 1
                irptr = eri_ab%rowptr_local(i12l) - 1
                DO i34l = 1, eri_ab%nzerow_local(i12l)
                   i34 = eri_ab%colind_local(irptr + i34l)

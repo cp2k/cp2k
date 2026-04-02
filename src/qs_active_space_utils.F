@@ -21,8 +21,7 @@ MODULE qs_active_space_utils
    USE message_passing,                 ONLY: mp_comm_type
    USE qs_active_space_types,           ONLY: csr_idx_from_combined,&
                                               csr_idx_to_combined,&
-                                              eri_type,&
-                                              get_irange_csr
+                                              eri_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -92,7 +91,6 @@ CONTAINS
                                                             ijkl, ijlk, irptr, j, jikl, jilk, k, &
                                                             klij, klji, l, lkij, lkji, nindex, &
                                                             nmo_active, nmo_max
-      INTEGER, DIMENSION(2)                              :: irange
       REAL(KIND=dp)                                      :: erival
       TYPE(dbcsr_csr_type), POINTER                      :: eri
       TYPE(mp_comm_type)                                 :: mp_group
@@ -109,7 +107,6 @@ CONTAINS
       END IF
 
       CALL mp_group%set_handle(eri%mp_group%get_handle())
-      irange = get_irange_csr(nindex, mp_group)
 
       array = 0.0_dp
 
@@ -118,8 +115,8 @@ CONTAINS
          DO j = i, nmo_active
             i2 = active_orbitals(j, spin1)
             i12 = csr_idx_to_combined(i1, i2, nmo_max)
-            IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-               i12l = i12 - irange(1) + 1
+            IF (MOD(i12 - 1, eri_env%comm_exchange%num_pe) == eri_env%comm_exchange%mepos) THEN
+               i12l = (i12 - 1)/eri_env%comm_exchange%num_pe + 1
                irptr = eri%rowptr_local(i12l) - 1
                DO i34l = 1, eri%nzerow_local(i12l)
                   i34 = eri%colind_local(irptr + i34l)

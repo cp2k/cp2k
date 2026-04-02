@@ -105,16 +105,12 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_scf_read_input
+
 ! **************************************************************************************************
-   !
-   ! performs the actual minimisation, needs only limited info
-   ! updated for restricted calculations
-   ! matrix_dedc is the derivative of the energy with respect to the orbitals (except for a factor 2*fi)
-   ! a null pointer for matrix_s implies that matrix_s is the unit matrix
-   !
-   !
-! **************************************************************************************************
-!> \brief ...
+!> \brief performs the actual minimisation, needs only limited info
+!>        updated for restricted calculations
+!>        matrix_dedc is the derivative of the energy with respect to the orbitals (except for a factor 2*fi)
+!>        a null pointer for matrix_s implies that matrix_s is the unit matrix
 !> \param mo_array ...
 !> \param matrix_dedc ...
 !> \param smear ...
@@ -339,12 +335,10 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_scf_mini
-   !
-   ! initialises qs_ot_env so that mo_coeff is the current point
-   ! and that the mimizization can be started.
-   !
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief initialises qs_ot_env so that mo_coeff is the current point
+!>        and that the minization can be started.
 !> \param mo_array ...
 !> \param matrix_s ...
 !> \param qs_ot_env ...
