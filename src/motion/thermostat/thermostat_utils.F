@@ -841,9 +841,9 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,T2,A)') &
             "THERMOSTAT| Mapping of thermostat region indices to particles"
-         DO ipart = 1, particles%n_els, 8
-            WRITE (output_unit, '(T2,A,T17,8I8)') &
-               "THERMOSTAT|", thermolist(ipart:MIN(ipart + 7, particles%n_els))
+         DO ipart = 1, particles%n_els, 16
+            WRITE (output_unit, '(T2,A,T17,16I4)') &
+               "THERMOSTAT|", thermolist(ipart:MIN(ipart + 15, particles%n_els))
          END DO
       END IF
 

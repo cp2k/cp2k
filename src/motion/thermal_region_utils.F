@@ -103,7 +103,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
                                                             do_langevin_default, do_read_ngr, &
-                                                            explicit, use_t, use_tfunc
+                                                            explicit, use_t, use_temp_tol, &
+                                                            use_tfunc
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -140,12 +141,6 @@ CONTAINS
                             "are also defined. To ensure consistency between thermostat "// &
                             "regions and thermal regions, set THERMOSTAT/REGION to THERMAL.")
             END IF
-         END IF
-         IF (simpar%temp_tol > 0.0_dp) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "Control of the global temperature by rescaling of the velocity "// &
-                         "is not consistent with the presence of different thermal regions. "// &
-                         "The temperature of different regions is rescaled separatedly.")
          END IF
          CALL section_vals_val_get(thermal_region_section, "FORCE_RESCALING", &
                                    l_val=thermal_regions%force_rescaling)
@@ -224,10 +219,8 @@ CONTAINS
                   END IF
                END DO
 
-               ! Determine t_region%temp_expected
+               ! Set up temperature function, if any
                tfunc_section => section_vals_get_subs_vals(region_sections, "TFUNC", i_rep_section=ireg)
-               CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, explicit=use_t)
-               IF (use_t) CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, r_val=temp)
                CALL section_vals_get(tfunc_section, explicit=use_tfunc)
                IF (use_tfunc) THEN
                   CALL get_generic_info(tfunc_section, "FUNCTION", &
@@ -235,30 +228,74 @@ CONTAINS
                                         t_region%temperature_function_parameters, &
                                         t_region%temperature_function_values, &
                                         input_variables=["S", "T"], i_rep_sec=1)
-                  CALL initf(1)
-                  CALL parsef(1, TRIM(t_region%temperature_function), &
-                              t_region%temperature_function_parameters)
-                  IF (.NOT. use_t) THEN ! Evaluate function for initial temperature
+               END IF
+
+               ! Set up t_region%temp_expected
+               ! Precedence of temperature setting: the first positive value in
+               ! 1. MD/THERMAL_REGION/DEFINE_REGION/TEMPERATURE
+               ! 2. The temperature function evaluated at S = STEP_START_VAL and T = 0
+               ! 3. MD/TEMPERATURE
+               ! Otherwise it will be set to 0
+               temp = 0.0_dp
+               CALL section_vals_val_get(region_sections, "TEMPERATURE", &
+                                         i_rep_section=ireg, explicit=use_t)
+               IF (use_t) THEN
+                  CALL section_vals_val_get(region_sections, "TEMPERATURE", &
+                                            i_rep_section=ireg, r_val=temp)
+               END IF
+               IF (temp > 0.0_dp) THEN
+                  t_region%temp_expected = temp
+               ELSE
+                  IF (use_tfunc) THEN
+                     CALL initf(1)
+                     CALL parsef(1, TRIM(t_region%temperature_function), &
+                                 t_region%temperature_function_parameters)
                      CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=itimes)
                      t_region%temperature_function_values(1) = itimes*1.0_dp
                      t_region%temperature_function_values(2) = 0.0_dp
                      temp = cp_unit_to_cp2k(evalf(1, t_region%temperature_function_values), "K")
                      CPASSERT(EvalErrType <= 0)
+                     CALL finalizef()
                   END IF
-                  CALL finalizef()
-               END IF
-               IF (temp >= 0.0_dp) THEN ! Check for negative temperature in Kelvin
-                  t_region%temp_expected = temp
-               ELSE
-                  CALL cp_abort(__LOCATION__, &
-                                "The initial temperature for region "//TRIM(my_region)//" is "// &
-                                TRIM(ADJUSTL(cp_to_string(cp_unit_from_cp2k(temp, "K"))))// &
-                                " K, which is negative and unphysical!")
+                  IF (temp > 0.0_dp) THEN
+                     t_region%temp_expected = temp
+                  ELSE
+                     temp = simpar%temp_ext
+                     IF (temp > 0.0_dp) THEN
+                        t_region%temp_expected = temp
+                     ELSE
+                        CALL cp_warn(__LOCATION__, &
+                                     "The initial temperature for the region "//TRIM(my_region)// &
+                                     "cannot be assigned to a positive value in K from input. "// &
+                                     "A value of zero will be used instead.")
+                        t_region%temp_expected = 0.0_dp
+                     END IF
+                  END IF
                END IF
 
-               CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
-                                         r_val=temp_tol)
-               t_region%temp_tol = temp_tol
+               ! Set up t_region%temp_tol
+               ! Precedence of tolerance setting: the first positive value in
+               ! 1. MD/THERMAL_REGION/DEFINE_REGION/TEMP_TOL
+               ! 2. MD/TEMP_TOL
+               ! Otherwise it will be set to 0 (i.e. not used)
+               temp_tol = 0.0_dp
+               CALL section_vals_val_get(region_sections, "TEMP_TOL", &
+                                         i_rep_section=ireg, explicit=use_temp_tol)
+               IF (use_temp_tol) THEN
+                  CALL section_vals_val_get(region_sections, "TEMP_TOL", &
+                                            i_rep_section=ireg, r_val=temp_tol)
+               END IF
+               IF (temp_tol > 0.0_dp) THEN
+                  t_region%temp_tol = temp_tol
+               ELSE
+                  temp_tol = simpar%temp_tol
+                  IF (temp_tol > 0.0_dp) THEN
+                     t_region%temp_tol = temp_tol
+                  ELSE
+                     t_region%temp_tol = 0.0_dp
+                  END IF
+               END IF
+               ! End of one thermal region in the loop
             END DO
 
             ! For Langevin ensemble, determine thermal_regions%do_langevin
@@ -302,9 +339,9 @@ CONTAINS
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(/,T2,A)') &
                   "THERMAL_REGION| Mapping of thermal region indices to particles"
-               DO ipart = 1, particles%n_els, 8
-                  WRITE (output_unit, '(T2,A,T17,8I8)') &
-                     "THERMAL_REGION|", particles%els(ipart:MIN(ipart + 7, particles%n_els))%t_region_index
+               DO ipart = 1, particles%n_els, 16
+                  WRITE (output_unit, '(T2,A,T17,16I4)') &
+                     "THERMAL_REGION|", particles%els(ipart:MIN(ipart + 15, particles%n_els))%t_region_index
                END DO
             END IF
          ELSE
