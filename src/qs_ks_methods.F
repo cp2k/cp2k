@@ -620,20 +620,13 @@ CONTAINS
             CPABORT("GAUXC XC energy currently does not support real-time propagation")
          END IF
 
-         IF (nimages == 1) THEN
-            CALL dbcsr_to_dense(rho_ao(1, 1), density_scalar)
-            IF (nspins == 2) THEN
-               CALL dbcsr_to_dense(rho_ao(2, 1), density_zeta)
-            END IF
-         ELSE
+         DO img = 1, nimages
+            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+         END DO
+         IF (nspins == 2) THEN
             DO img = 1, nimages
-               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
             END DO
-            IF (nspins == 2) THEN
-               DO img = 1, nimages
-                  CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
-               END DO
-            END IF
          END IF
 
          IF (nspins == 1) THEN
