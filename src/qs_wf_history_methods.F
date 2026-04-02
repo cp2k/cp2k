@@ -72,7 +72,7 @@ MODULE qs_wf_history_methods
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        wfi_aspc_nr, wfi_gext_nr, wfi_gext_qtr_nr, &
+        wfi_aspc_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
         wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
@@ -561,11 +561,11 @@ CONTAINS
             wf_history%store_overlap = .TRUE.
             wf_history%store_overlap_kp = .TRUE.
          END IF
-      CASE (wfi_gext_nr)
+      CASE (wfi_gext_proj_nr)
          wf_history%memory_depth = extrapolation_order
          wf_history%store_wf = .TRUE.
          wf_history%store_overlap = .TRUE.
-      CASE (wfi_gext_qtr_nr)
+      CASE (wfi_gext_proj_qtr_nr)
          wf_history%memory_depth = extrapolation_order
          wf_history%store_wf = .TRUE.
          wf_history%store_overlap = .TRUE.
@@ -652,10 +652,10 @@ CONTAINS
          res = "frozen density approximation"
       CASE (wfi_aspc_nr)
          res = "ASPC"
-      CASE (wfi_gext_nr)
-         res = "GEXT"
-      CASE (wfi_gext_qtr_nr)
-         res = "GEXT_QTR"
+      CASE (wfi_gext_proj_nr)
+         res = "GEXT_PROJ"
+      CASE (wfi_gext_proj_qtr_nr)
+         res = "GEXT_PROJ_QTR"
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -1147,7 +1147,7 @@ CONTAINS
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          END IF ! do_kpoints
 
-      CASE (wfi_gext_nr)
+      CASE (wfi_gext_proj_nr)
          CPASSERT(.NOT. do_kpoints)
          CALL cite_reference(Kolafa2004)
          CALL cite_reference(Kuhne2007)
@@ -1216,7 +1216,7 @@ CONTAINS
 
          DEALLOCATE(coeffs)
 
-      CASE (wfi_gext_qtr_nr)
+      CASE (wfi_gext_proj_qtr_nr)
          CPASSERT(.NOT. do_kpoints)
          CALL cite_reference(Kolafa2004)
          CALL cite_reference(Kuhne2007)
@@ -1840,7 +1840,7 @@ CONTAINS
          ! do nothing
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
-            wfi_aspc_nr,wfi_gext_nr)
+            wfi_aspc_nr,wfi_gext_proj_nr,wfi_gext_proj_qtr_nr)
          IF (qs_env%wf_history%snapshot_count >= 2) THEN
             IF (debug_this_module .AND. io_unit > 0) &
                WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
