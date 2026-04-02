@@ -90,12 +90,12 @@ MODULE xc_gauxc
    INTEGER(c_int64_t) :: batch_size
 
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
-      & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
-      & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
-& gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, &
-       & read_execution_space, read_atomic_grid_size, read_radial_quad, &
-       & read_pruning_scheme, &
-       & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
+          & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
+          & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
+    & gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, dense_to_dbcsr, &
+           & read_execution_space, read_atomic_grid_size, read_radial_quad, &
+           & read_pruning_scheme, &
+           & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
 
 CONTAINS
 
@@ -500,10 +500,54 @@ CONTAINS
 
    END SUBROUTINE dbcsr_to_dense
 
+   ! **************************************************************************************************
+   !> \brief Convert a dense matrix to dbcsr format using a template matrix
+   !> \param dense_mat Input dense matrix
+   !> \param template_dbcsr Template dbcsr matrix for structure
+   !> \param dbcsr_mat Output dbcsr matrix
+   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
-!> \param spec ...
-!> \return ...
+!> \param dense_mat ...
+!> \param template_dbcsr ...
+!> \param dbcsr_mat ...
+! **************************************************************************************************
+   SUBROUTINE dense_to_dbcsr(dense_mat, template_dbcsr, dbcsr_mat)
+      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
+                              dbcsr_iterator_start, dbcsr_iterator_next_block, &
+                              dbcsr_iterator_blocks_left, dbcsr_iterator_stop, &
+                              dbcsr_put_block, dbcsr_finalize, dbcsr_work_create, &
+                              dbcsr_init_p, dbcsr_create, dbcsr_copy, dbcsr_release
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
+      TYPE(dbcsr_p_type), INTENT(OUT)                    :: dbcsr_mat
+
+      INTEGER                                            :: icol, irow, ncols, nrows
+      REAL(c_double), POINTER                            :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(template_dbcsr%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+
+      CALL dbcsr_init_p(dbcsr_mat%matrix)
+      CALL dbcsr_create(dbcsr_mat%matrix, template=template_dbcsr%matrix, name="VXC from GauXC")
+      CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
+      CALL dbcsr_finalize(dbcsr_mat%matrix)
+
+      CALL dbcsr_iterator_start(iter, template_dbcsr%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
+         CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
+                              dense_mat(irow:irow + SIZE(block, 1) - 1, &
+                                        icol:icol + SIZE(block, 2) - 1))
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE dense_to_dbcsr
+
+   ! **************************************************************************************************
+   !> \brief ...
+   !> \param spec ...
+   !> \return ...
 ! **************************************************************************************************
    PURE FUNCTION read_execution_space(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec

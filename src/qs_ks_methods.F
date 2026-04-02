@@ -35,9 +35,9 @@ MODULE qs_ks_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy_columns_hack
@@ -141,10 +141,10 @@ MODULE qs_ks_methods
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, cp_gauxc_xc_type, dbcsr_to_dense, gauxc_compute_xc, &
-        gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, &
-        gauxc_destroy_basisset, gauxc_destroy_grid, gauxc_destroy_integrator, &
-        gauxc_destroy_molecule
+        cp_gauxc_molecule_type, cp_gauxc_xc_type, dbcsr_to_dense, dense_to_dbcsr, &
+        gauxc_compute_xc, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
+        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
+        gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -214,6 +214,7 @@ CONTAINS
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type)                                 :: vxc_zeta_dbcsr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
                                                             matrix_h_im, matrix_s, my_rho, rho_ao
@@ -632,17 +633,43 @@ CONTAINS
                CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
             END DO
             ! Do NOT reorder the following lines!
-            density_scalar = density_scalar + density_zeta
+            density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
             ! Factor two because the next line is evaluated after the above line.
             ! We need to subtract density_zeta once to undo the above line and
             ! a second time because that is what UKS requires.
             ! This style lowers memory footprint.
-            density_zeta = density_scalar - 2.0_dp*density_zeta
+            density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
             gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
                                                density_zeta, nspins, gauxc_status)
          END IF
 
          energy%exc = gauxc_xc_result%exc
+
+         ALLOCATE (matrix_vxc(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (matrix_vxc(ispin)%matrix)
+            CALL dbcsr_init_p(matrix_vxc(ispin)%matrix)
+         END DO
+
+         IF (nspins == 1) THEN
+            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1), matrix_vxc(1))
+            CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
+         ELSE
+            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1), matrix_vxc(1))
+            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(2, 1), matrix_vxc(2))
+            CALL dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1), vxc_zeta_dbcsr)
+            CALL dbcsr_add(matrix_vxc(1)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_vxc(2)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(ks_matrix(2, 1)%matrix, matrix_vxc(2)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
+            DEALLOCATE (vxc_zeta_dbcsr%matrix)
+         END IF
+
+         DO ispin = 1, nspins
+            CALL dbcsr_release(matrix_vxc(ispin)%matrix)
+         END DO
+         DEALLOCATE (matrix_vxc)
 
          CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
          CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
