@@ -1149,8 +1149,6 @@ CONTAINS
 
       CASE (wfi_gext_proj_nr)
          CPASSERT(.NOT. do_kpoints)
-         CALL cite_reference(Kolafa2004)
-         CALL cite_reference(Kuhne2007)
 
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
@@ -1218,8 +1216,6 @@ CONTAINS
 
       CASE (wfi_gext_proj_qtr_nr)
          CPASSERT(.NOT. do_kpoints)
-         CALL cite_reference(Kolafa2004)
-         CALL cite_reference(Kuhne2007)
 
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
@@ -2009,16 +2005,6 @@ CONTAINS
         coeffs(i) = coeffs(i) + b(i)
         coeffs(nvec-i) = coeffs(nvec-i) + b(i)
       end do
-
-      ! debug: test how good is approximated the target overlap
-      CALL dbcsr_copy(tmp_i, current_overlap)
-      DO i = 1, nvec
-         state => wfi_get_snapshot(wf_history, wf_index=i)
-         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
-      END DO
-      WRITE(6,*) "Fitting error:", dbcsr_frobenius_norm(tmp_i)
-      WRITE(6,*) "Fitting coeffs:", coeffs
-      WRITE(6,*) "Sum coeffs:", sum(coeffs)
 
       ! free the memory
       CALL dbcsr_release(tmp_i)
