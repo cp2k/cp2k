@@ -58,7 +58,8 @@ MODULE qs_ks_methods
    USE input_constants,                 ONLY: do_ppl_grid,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint,&
-                                              smeagol_runtype_emtransport
+                                              smeagol_runtype_emtransport,&
+                                              xc_vdw_fun_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -598,6 +599,12 @@ CONTAINS
       CALL section_vals_val_get(xc_section, "USE_GAUXC", l_val=do_gauxc)
 
       IF (do_gauxc) THEN
+         IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+            IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
+               CPABORT("GauXC does not support dispersion corrections. Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.).")
+            END IF
+         END IF
+         NULLIFY (vxc_zeta_dbcsr%matrix)
          xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
          IF (.NOT. ASSOCIATED(xc_fun_section)) THEN
             CPABORT("XC_FUNCTIONAL section not found")
