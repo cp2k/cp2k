@@ -166,10 +166,7 @@ CONTAINS
                t_region%region_index = ireg
                NULLIFY (t_region%part_index)
 
-               ! TODO: parsing logic of thermal region should be aligned
-               ! with thermostat region as in SUBROUTINE get_defined_region_info,
-               ! src/motion/thermostat/thermostat_utils.F, so that
-               ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
+               ! Set up thermal region mapping to particles
                CALL section_vals_val_get(region_sections, "LIST", &
                                          i_rep_section=ireg, n_rep_val=nlist)
                IF (nlist > 0) THEN
@@ -203,6 +200,20 @@ CONTAINS
                         END DO
                      END DO
                   END DO
+               END IF
+               ! TODO: parsing logic of thermal region should be aligned
+               ! with thermostat region as in SUBROUTINE get_defined_region_info,
+               ! src/motion/thermostat/thermostat_utils.F, so that
+               ! MM_SUBSYS and QM_SUBSYS keywords work for thermal regions
+               CALL section_vals_val_get(region_sections, "QM_SUBSYS", &
+                                         i_rep_section=ireg, n_rep_val=nlist, explicit=explicit)
+               IF (explicit) THEN
+                  CPABORT("QM_SUBSYS not yet implemented for thermal regions")
+               END IF
+               CALL section_vals_val_get(region_sections, "MM_SUBSYS", &
+                                         i_rep_section=ireg, n_rep_val=nlist, explicit=explicit)
+               IF (explicit) THEN
+                  CPABORT("MM_SUBSYS not yet implemented for thermal regions")
                END IF
 
                ! Set up t_region%part_index after parsing input
@@ -265,9 +276,10 @@ CONTAINS
                         t_region%temp_expected = temp
                      ELSE
                         CALL cp_warn(__LOCATION__, &
-                                     "The initial temperature for the region "//TRIM(my_region)// &
-                                     "cannot be assigned to a positive value in K from input. "// &
-                                     "A value of zero will be used instead.")
+                                     "For thermal region "//TRIM(my_region)//" , none of the "// &
+                                     "input values for the initial temperature, nor the result "// &
+                                     "of evaluating temperature function at STEP_START_VAL, is "// &
+                                     "positive in Kelvin. A value of zero will be used instead.")
                         t_region%temp_expected = 0.0_dp
                      END IF
                   END IF

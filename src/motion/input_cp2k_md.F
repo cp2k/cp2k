@@ -1005,7 +1005,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MM_SUBSYS", &
                           variants=["PROTEIN"], &
-                          description="In a QM/MM run all MM atoms are specified as a whole region", &
+                          description="Not yet implemented: In a QM/MM run all "// &
+                          "MM atoms are specified as a whole region", &
                           usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
                           enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
                           enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
@@ -1017,7 +1018,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QM_SUBSYS", &
-                          description="In a QM/MM run all QM atoms are specified as a whole region", &
+                          description="Not yet implemented: In a QM/MM run all "// &
+                          "QM atoms are specified as a whole region", &
                           usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
                           enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
                           enum_desc=s2a("Nothing in the region", &
