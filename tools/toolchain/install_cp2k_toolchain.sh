@@ -214,8 +214,6 @@ Specific options of --with-PKG:
                           Default = system
   --with-cmake            CMake utilities.
                           Default = install
-  --with-ninja            Ninja utilities.
-                          Default = install
   --with-openmpi          Use OpenMPI library for parallel versions of
                           newly installed dependencies and CP2K.
                           Only one of --with-openmpi, --with-mpich and
@@ -453,7 +451,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="gcc intel amd cmake ninja"
+tool_list="gcc intel amd cmake"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
@@ -495,7 +493,6 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
-with_ninja="__DONTUSE__"
 with_dftd4="__INSTALL__"
 with_tblite="__DONTUSE__"
 with_libsmeagol="__DONTUSE__"
@@ -766,9 +763,6 @@ Otherwise use option no."
       ;;
     --with-cmake*)
       with_cmake=$(read_with "${1}")
-      ;;
-    --with-ninja*)
-      with_ninja=$(read_with "${1}")
       ;;
     --with-mpich-device=*)
       user_input="${1#*=}"
@@ -1079,7 +1073,6 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_cosma}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
   [ "${with_spla}" = "__INSTALL__" ] ||
-  [ "${with_ninja}" = "__INSTALL__" ] ||
   [ "${with_greenx}" = "__INSTALL__" ] ||
   [ "${with_dftd4}" = "__INSTALL__" ] ||
   [ "${with_mcl}" = "__INSTALL__" ] ||

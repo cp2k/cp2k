@@ -59,7 +59,7 @@ case "$with_ace" in
         -DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp=TRUE \
         > build/cmake.log 2>&1 || tail_excerpt build/cmake.log
 
-      # build (uses the generator CMake picked: make/ninja)
+      # build
       cmake --build build -j ${NPROCS:-16} \
         > build/make.log 2>&1 || tail_excerpt build/make.log
 
