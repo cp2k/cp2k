@@ -97,8 +97,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: my_region
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: first_atom, i, ikind, il, imol, ipart, &
-                                                            ireg, itimes, last_atom, nlist, &
+      INTEGER                                            :: first_atom, flen, i, ikind, il, imol, &
+                                                            ipart, ireg, itimes, last_atom, nlist, &
                                                             nnpart, nregions, output_unit, region
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
@@ -347,12 +347,34 @@ CONTAINS
             END IF
             ! End of Langevin treatment
 
-            ! Output thermal region mapping to particles
+            ! Output thermal region temperature and mapping to particles
+            ! The region indices are assumed to be 0-999
             IF (output_unit > 0) THEN
+               WRITE (output_unit, '(/,T2,A)') &
+                  "THERMAL_REGION| Temperature value and function for each region [K]"
+               DO ireg = 1, nregions
+                  NULLIFY (t_region)
+                  t_region => thermal_regions%thermal_region(ireg)
+                  WRITE (output_unit, '(T2,A,T25,I3,T29,A,T34,I6,T41,A,T66,F15.6)') &
+                     "THERMAL_REGION| Region", t_region%region_index, &
+                     "with", t_region%npart, &
+                     "particles initialized at", &
+                     cp_unit_from_cp2k(t_region%temp_expected, "K")
+                  flen = LEN(TRIM(t_region%temperature_function))
+                  IF (flen > 0) THEN
+                     DO i = 1, flen, 64
+                        WRITE (output_unit, '(T2,A,T17,A64)') &
+                           "THERMAL_REGION|", t_region%temperature_function(i:MIN(i + 64, flen))
+                     END DO
+                  ELSE
+                     WRITE (output_unit, '(T2,A,T66,F15.6)') &
+                        "THERMAL_REGION|", cp_unit_from_cp2k(t_region%temp_expected, "K")
+                  END IF
+               END DO
                WRITE (output_unit, '(/,T2,A)') &
                   "THERMAL_REGION| Mapping of thermal region indices to particles"
                DO ipart = 1, particles%n_els, 16
-                  WRITE (output_unit, '(T2,A,T17,16I4)') &
+                  WRITE (output_unit, '(T2,A,T17,16(" ",I3))') &
                      "THERMAL_REGION|", particles%els(ipart:MIN(ipart + 15, particles%n_els))%t_region_index
                END DO
             END IF

@@ -838,11 +838,12 @@ CONTAINS
       CPASSERT(ALL(thermolist /= HUGE(0)))
 
       ! Output thermostat region mapping to particles
+      ! The region indices are assumed to be 0-999
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,T2,A)') &
             "THERMOSTAT| Mapping of thermostat region indices to particles"
          DO ipart = 1, particles%n_els, 16
-            WRITE (output_unit, '(T2,A,T17,16I4)') &
+            WRITE (output_unit, '(T2,A,T17,16(" ",I3))') &
                "THERMOSTAT|", thermolist(ipart:MIN(ipart + 15, particles%n_els))
          END DO
       END IF
