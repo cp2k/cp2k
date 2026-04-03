@@ -30,11 +30,10 @@ MODULE input_cp2k_qs
         do_method_rm1, do_method_xtb, do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
         do_spin_density, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, &
-        gapw_1c_very_large, gaussian, numerical, slater, wfi_aspc_nr, wfi_gext_proj_nr, &
-        wfi_gext_proj_qtr_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
-        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
+        gapw_1c_very_large, gaussian, numerical, slater, wfi_aspc_nr, wfi_frozen_method_nr, &
+        wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_opt,                  ONLY: create_optimize_dmfet,&
                                               create_optimize_embed,&
@@ -443,7 +442,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EXTRAPOLATION_ORDER", &
                           description="Order for the PS, ASPC extrapolation (typically 2-4) or "// &
-                          "order for the GEXT_PROJ, GEXT_PROJ_QTR extrapolation (typically 4-10)."// &
+                          "order for the GEXT_PROJ, GEXT_PROJ_QTR extrapolation (typically 4-10). "// &
                           "Higher order might bring more accuracy, but comes, "// &
                           "for large systems, also at some cost. "// &
                           "In some cases, a high order extrapolation is not stable,"// &
