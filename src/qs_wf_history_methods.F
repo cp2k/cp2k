@@ -64,7 +64,7 @@ MODULE qs_wf_history_methods
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
-        cp_fm_set_all, &
+        cp_fm_set_all
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -675,6 +675,7 @@ CONTAINS
 !> \par History
 !>      02.2003 created [fawzi]
 !>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
+!>      04.2026 Michele Nottoli : Added GEXT_PROJ and GEXT_PROJ_QTR extrapolations
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
@@ -1171,7 +1172,7 @@ CONTAINS
          ALLOCATE(coeffs(nvec))
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
+         CALL diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec,1e-4_dp)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1238,7 +1239,7 @@ CONTAINS
          ALLOCATE(coeffs(nvec))
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL dbcsr_tr_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
+         CALL tr_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec,1e-4_dp)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1856,11 +1857,25 @@ CONTAINS
 
    END SUBROUTINE wfi_purge_history
 
-   SUBROUTINE dbcsr_diff_fitting(wf_history, current_overlap, coeffs, nvec)
+! **************************************************************************************************
+!> \brief Gives the coefficients that best approximate the new overlap
+!>        as a linear combination of the previous overlaps in the
+!>        wf_history buffer. This is done by solving
+!>        argmin_a || S_{n+1} - S_{n} - \sum_i^{nvec-1} a_i (S_{n-q+i} - S_{n}) ||^2
+!> \param wf_history wavefunction history buffer, containing the previous overlaps
+!> \param current_overlap current overlap in dbcsr format
+!> \param coeffs resulting nvec coefficients
+!> \param nvec number of previous overlaps
+!> \param eps Tikhonov regularization
+!> \par History
+!>      04.2026 created [Michele Nottoli]
+!> \author Michele Nottoli
+   SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec, eps)
       INTEGER, INTENT(IN) :: nvec
       TYPE(qs_wf_history_type), POINTER :: wf_history
       TYPE(dbcsr_type), INTENT(IN) :: current_overlap
       REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+      REAL(KIND=dp), INTENT(IN) :: eps
 
       INTEGER :: i, j, info
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
@@ -1907,7 +1922,7 @@ CONTAINS
 
       ! add the Tikhonov regularization
       DO i = 1, nvec-1
-         A(i, i) = A(i, i) + 1e-8_dp
+         A(i, i) = A(i, i) + eps**2
       END DO
 
       ! solve the linear system
@@ -1927,13 +1942,28 @@ CONTAINS
       CALL dbcsr_release(target_diff)
       DEALLOCATE(A, b)
 
-   END SUBROUTINE dbcsr_diff_fitting
+   END SUBROUTINE diff_fitting
 
-   SUBROUTINE dbcsr_tr_fitting(wf_history, current_overlap, coeffs, nvec)
+! **************************************************************************************************
+!> \brief Gives the coefficients that best approximate the new overlap
+!>        as a time reversible linear combination of the previous overlaps in the
+!>        wf_history buffer. This is done by solving
+!>        argmin_a || S_{n+1} + S_{n+1-nvec}
+!>                    - \sum_{i=1}^q a_i (S_{n+1-nvec+i} + S_{n+1-i}) ||^2
+!>        with q = nvec/2 if nvec is even, or q = (nvec-1)/2 if odd.
+!> \param wf_history wavefunction history buffer, containing the previous overlaps
+!> \param current_overlap current overlap in dbcsr format
+!> \param coeffs resulting nvec coefficients
+!> \param nvec number of previous overlaps
+!> \param eps Tikhonov regularization
+!> \par History
+!>      04.2026 created [Michele Nottoli]
+   SUBROUTINE tr_fitting(wf_history, current_overlap, coeffs, nvec, eps)
       INTEGER, INTENT(IN) :: nvec
       TYPE(qs_wf_history_type), POINTER :: wf_history
       TYPE(dbcsr_type), INTENT(IN) :: current_overlap
       REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+      REAL(KIND=dp), INTENT(IN) :: eps
 
       INTEGER :: ntr, i, j, info
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
@@ -1989,7 +2019,7 @@ CONTAINS
 
       ! add the Tikhonov regularization
       DO i = 1, ntr
-         A(i, i) = A(i, i) + 1e-8_dp
+         A(i, i) = A(i, i) + eps**2
       END DO
 
       ! solve the linear system
@@ -2013,6 +2043,6 @@ CONTAINS
       CALL dbcsr_release(target_overlap)
       DEALLOCATE(A, b)
 
-   END SUBROUTINE dbcsr_tr_fitting
+   END SUBROUTINE tr_fitting
 
 END MODULE qs_wf_history_methods
