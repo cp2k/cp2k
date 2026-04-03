@@ -46,7 +46,8 @@ MODULE qs_wf_history_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+                                              dbcsr_deallocate_matrix_set,&
+                                              copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -58,9 +59,19 @@ MODULE qs_wf_history_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
+<<<<<<< HEAD
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+=======
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              !cmn: debug
+                                              cp_fm_write_unformatted
+>>>>>>> 20269829d6 (Added a new extrapolation keyword and some temporary debug code.)
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -68,7 +79,7 @@ MODULE qs_wf_history_methods
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_aspc_nr, wfi_gext_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
         wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
@@ -556,6 +567,10 @@ CONTAINS
             wf_history%store_overlap = .TRUE.
             wf_history%store_overlap_kp = .TRUE.
          END IF
+      CASE (wfi_gext_nr)
+         wf_history%memory_depth = extrapolation_order + 2
+         wf_history%store_wf = .TRUE.
+         wf_history%store_overlap = .TRUE.
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -639,6 +654,8 @@ CONTAINS
          res = "frozen density approximation"
       CASE (wfi_aspc_nr)
          res = "ASPC"
+      CASE (wfi_gext_nr)
+         res = "GEXT"
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -677,7 +694,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type)                                   :: csc, fm_tmp
+      TYPE(cp_fm_type)                                   :: csc, fm_tmp, tmp_square
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
@@ -1127,6 +1144,101 @@ CONTAINS
             CALL qs_rho_update_rho(rho, qs_env=qs_env)
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          END IF ! do_kpoints
+
+      CASE (wfi_gext_nr)
+         CPASSERT(.NOT. do_kpoints)
+         CALL cite_reference(Kolafa2004)
+         CALL cite_reference(Kuhne2007)
+         ! figure out the actual number of vectors to use in the extrapolation:
+         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         CPASSERT(nvec .GT. 0)
+         IF (nvec >= wf_history%memory_depth) THEN
+            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            END IF
+         END IF
+
+         my_orthogonal_wf = .TRUE.
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+         DO ispin = 1, SIZE(mos)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+            CALL cp_fm_get_info(mo_coeff, &
+                                nrow_global=n, &
+                                ncol_global=k, &
+                                matrix_struct=matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=k, &
+                                     ncol_global=k)
+            CALL cp_fm_create(csc, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+
+            !cmn: debug
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=n, &
+                                     ncol_global=n)
+            CALL cp_fm_create(tmp_square, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+
+            ! first the most recent
+            t1_state => wfi_get_snapshot(wf_history, &
+                                         wf_index=1)
+            CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
+
+            !cmn: debug
+            CALL save_matrix_bin(mo_coeff, "matrices/C", wf_history%snapshot_count)
+            CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
+            CALL save_matrix_bin(tmp_square, "matrices/S", wf_history%snapshot_count)
+            CALL cp_fm_release(tmp_square)
+
+            alpha = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
+            IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+               WRITE (UNIT=io_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
+                  "Parameters for the always stable predictor-corrector (ASPC) method:", &
+                  "ASPC order: ", MAX(nvec - 2, 0), &
+                  "B(", 1, ") = ", alpha
+            END IF
+            CALL cp_fm_scale(alpha, mo_coeff)
+
+            DO i = 2, nvec
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+               IF (use_overlap) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
+               ELSE
+                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
+                                     t1_state%wf(ispin), 0.0_dp, csc)
+               END IF
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
+               alpha = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
+                       binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
+               IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+                  WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") &
+                     "B(", i, ") = ", alpha
+               END IF
+               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
+            END DO
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
+            CALL reorthogonalize_vectors(qs_env, &
+                                         v_matrix=mo_coeff, &
+                                         n_col=k)
+            CALL calculate_density_matrix(mo_set=mos(ispin), &
+                                          density_matrix=rho_ao(ispin)%matrix)
+         END DO
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
       CASE default
          CALL cp_abort(__LOCATION__, &
@@ -1683,7 +1795,7 @@ CONTAINS
          ! do nothing
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
-            wfi_aspc_nr)
+            wfi_aspc_nr,wfi_gext_nr)
          IF (qs_env%wf_history%snapshot_count >= 2) THEN
             IF (debug_this_module .AND. io_unit > 0) &
                WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
@@ -1702,5 +1814,17 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE wfi_purge_history
+
+   SUBROUTINE save_matrix_bin(matrix, basename, frame)
+      type(cp_fm_type), intent(in) :: matrix
+      character(len=*), intent(in) :: basename
+      integer, intent(in) :: frame
+      character(len=256) :: path
+      WRITE(path, "(A, I0.6, A)") trim(basename), frame, ".bin"
+      OPEN(100,file=trim(path),form="unformatted",access="stream", &
+         & action="write",status="replace")
+      CALL cp_fm_write_unformatted(matrix, 100)
+      CLOSE(100)
+   END SUBROUTINE save_matrix_bin
 
 END MODULE qs_wf_history_methods
