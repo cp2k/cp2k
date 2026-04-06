@@ -325,7 +325,9 @@ CONTAINS
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
       CALL cp_fm_create(csc, fm_struct_tmp, "csc")
+      CALL cp_fm_set_all(csc, 0.0_dp)
       CALL cp_fm_create(work, fm_struct_tmp, "work")
+      CALL cp_fm_set_all(work, 0.0_dp)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, sc, rzero, csc)
