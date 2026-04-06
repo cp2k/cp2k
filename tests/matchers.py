@@ -278,4 +278,7 @@ registry["Dipole_for_CrSBr"] = GenericMatcher(r"  1  31  32", col=4)
 
 # Berry curvature calculated from dipoles near K point in graphene BZ
 registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
+
+# GEXT extrapolation
+registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
 # EOF
