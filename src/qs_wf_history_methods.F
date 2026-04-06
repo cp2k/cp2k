@@ -42,7 +42,7 @@ MODULE qs_wf_history_methods
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_trace
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_trace, dbcsr_frobenius_norm
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -1169,7 +1169,8 @@ CONTAINS
          ALLOCATE (coeffs(nvec))
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL diff_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, 1e-4_dp)
+         CALL diff_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, &
+                           1e-4_dp, io_unit, print_level)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1236,7 +1237,8 @@ CONTAINS
          ALLOCATE (coeffs(nvec))
          NULLIFY (matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         CALL tr_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, 1e-4_dp)
+         CALL tr_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, &
+                         1e-4_dp, io_unit, print_level)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1864,14 +1866,16 @@ CONTAINS
 !> \param coeffs resulting nvec coefficients
 !> \param nvec number of previous overlaps
 !> \param eps Tikhonov regularization
+!> \param io_unit output unit
+!> \param print_level print level
 !> \par History
 !>      04.2026 created [Michele Nottoli]
 !> \author Michele Nottoli
 ! **************************************************************************************************
-   SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec, eps)
+   SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec, eps, io_unit, print_level)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(dbcsr_type), INTENT(IN)                       :: current_overlap
-      INTEGER, INTENT(IN)                                :: nvec
+      INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
       REAL(KIND=dp), INTENT(OUT)                         :: coeffs(nvec)
       REAL(KIND=dp), INTENT(IN)                          :: eps
 
@@ -1880,6 +1884,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A
       TYPE(dbcsr_type)                                   :: target_diff, tmp_i, tmp_j, tmp_k
       TYPE(qs_wf_snapshot_type), POINTER                 :: ref_state, state
+      REAL(KIND=dp)                                      :: error
 
       IF (nvec <= 0) THEN
          CPABORT("Not enough vectors to do the fitting")
@@ -1933,6 +1938,20 @@ CONTAINS
       coeffs(1) = 1.0_dp - SUM(b)
       coeffs(2:nvec) = b(:)
 
+      ! as a consistency check, print how well the current overlap
+      ! is approximated by the linear combination of previous overlaps
+      if (print_level > low_print_level) THEN
+         CALL dbcsr_copy(tmp_i, current_overlap)
+         DO i = 1, nvec
+            state => wfi_get_snapshot(wf_history, wf_index=i)
+            CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+         END DO
+         error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
+         IF (io_unit > 0) THEN
+            WRITE(6,*) "GEXT overlap fitting error:", error
+         END IF
+      END IF
+
       ! free the memory
       CALL dbcsr_release(tmp_i)
       CALL dbcsr_release(tmp_j)
@@ -1954,13 +1973,15 @@ CONTAINS
 !> \param coeffs resulting nvec coefficients
 !> \param nvec number of previous overlaps
 !> \param eps Tikhonov regularization
+!> \param io_unit output unit
+!> \param print_level print level
 !> \par History
 !>      04.2026 created [Michele Nottoli]
 ! **************************************************************************************************
-   SUBROUTINE tr_fitting(wf_history, current_overlap, coeffs, nvec, eps)
+   SUBROUTINE tr_fitting(wf_history, current_overlap, coeffs, nvec, eps, io_unit, print_level)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(dbcsr_type), INTENT(IN)                       :: current_overlap
-      INTEGER, INTENT(IN)                                :: nvec
+      INTEGER, INTENT(IN)                                :: nvec, io_unit, print_level
       REAL(KIND=dp), INTENT(OUT)                         :: coeffs(nvec)
       REAL(KIND=dp), INTENT(IN)                          :: eps
 
@@ -1969,6 +1990,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A
       TYPE(dbcsr_type)                                   :: target_overlap, tmp_i, tmp_j, tmp_k
       TYPE(qs_wf_snapshot_type), POINTER                 :: ref_state, state
+      REAL(KIND=dp)                                      :: error
 
       IF (nvec <= 0) THEN
          CPABORT("Not enough vectors to do the fitting")
@@ -2034,6 +2056,20 @@ CONTAINS
          coeffs(i) = coeffs(i) + b(i)
          coeffs(nvec - i) = coeffs(nvec - i) + b(i)
       END DO
+
+      ! as a consistency check, print how well the current overlap
+      ! is approximated by the linear combination of previous overlaps
+      if (print_level > low_print_level) THEN
+         CALL dbcsr_copy(tmp_i, current_overlap)
+         DO i = 1, nvec
+            state => wfi_get_snapshot(wf_history, wf_index=i)
+            CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+         END DO
+         error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
+         IF (io_unit > 0) THEN
+            WRITE(6,*) "GEXT overlap fitting error:", error
+         END IF
+      END IF
 
       ! free the memory
       CALL dbcsr_release(tmp_i)
