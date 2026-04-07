@@ -2255,7 +2255,7 @@ CONTAINS
             ceig(1:nao) = SQRT(eigenvalues(1:nao))
             CALL cp_cfm_to_cfm(cwork, csmat)
             CALL cp_cfm_column_scale(csmat, ceig)
-            CALL parallel_gemm("N", "T", nao, nao, nao, cone, csmat, cwork, &
+            CALL parallel_gemm("N", "C", nao, nao, nao, cone, csmat, cwork, &
                                czero, kp%cshalf)
          END IF
       END DO
