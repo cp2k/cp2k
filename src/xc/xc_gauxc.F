@@ -516,7 +516,7 @@ CONTAINS
 !> \param template_dbcsr ...
 !> \param dbcsr_mat ...
 ! **************************************************************************************************
-   SUBROUTINE dense_to_dbcsr(dense_mat, template_dbcsr, dbcsr_mat)
+   FUNCTION dense_to_dbcsr(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, &
                               dbcsr_iterator_blocks_left, dbcsr_iterator_stop, &
@@ -524,7 +524,7 @@ CONTAINS
                               dbcsr_init_p, dbcsr_create, dbcsr_copy, dbcsr_release
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
       TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
-      TYPE(dbcsr_p_type), INTENT(OUT)                    :: dbcsr_mat
+      TYPE(dbcsr_p_type)                                 :: dbcsr_mat
 
       INTEGER                                            :: icol, irow, ncols, nrows
       REAL(c_double), POINTER                            :: block(:, :)
@@ -546,7 +546,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-   END SUBROUTINE dense_to_dbcsr
+   END FUNCTION dense_to_dbcsr
 
    ! **************************************************************************************************
    !> \brief ...

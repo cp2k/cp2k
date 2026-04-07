@@ -653,19 +653,16 @@ CONTAINS
 
          energy%exc = gauxc_xc_result%exc
 
-         ALLOCATE (matrix_vxc(nspins))
-         DO ispin = 1, nspins
-            NULLIFY (matrix_vxc(ispin)%matrix)
-         END DO
+         CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
 
          IF (nspins == 1) THEN
-            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1), matrix_vxc(1))
+            matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1))
             CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
          ELSE
             CPASSERT(nspins == 2)
-            CALL dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1), vxc_zeta_dbcsr)
+            vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1))
             DO ispin = 1, 2
-               CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1), matrix_vxc(ispin))
+               matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
                CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
                CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
             END DO
