@@ -1293,7 +1293,6 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: f1work, f2work
       TYPE(cp_fm_type), POINTER                          :: cpmat, pmat, rpmat, shalf
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CALL timeset(routineN, handle)
@@ -1302,9 +1301,8 @@ CONTAINS
       pmat_diag = 0.0_dp
 
       ! work matrix
-      mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)
-      CALL get_mo_set(mo_set, nao=nao)
-      CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
+      CALL cp_fm_get_info(kpoint%kp_env(1)%kpoint_env%pmat(1, 1), &
+                          matrix_struct=matrix_struct, nrow_global=nao)
       IF (kpoint%use_real_wfn) THEN
          CALL cp_fm_create(f1work, matrix_struct, nrow=nao, ncol=nao)
          CALL cp_fm_create(f2work, matrix_struct, nrow=nao, ncol=nao)
