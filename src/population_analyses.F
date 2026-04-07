@@ -41,6 +41,8 @@ MODULE population_analyses
    USE cp_result_types,                 ONLY: cp_result_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: lowdin_kp_trans
+   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso
@@ -52,8 +54,10 @@ MODULE population_analyses
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -87,17 +91,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lowdin_population_analysis'
 
       CHARACTER(LEN=default_string_length)               :: headline
-      INTEGER                                            :: handle, ispin, ndep, nsgf, nspin
-      LOGICAL                                            :: print_gop
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
+      INTEGER                                            :: handle, i, ispin, ndep, nimg, nsgf, nspin
+      LOGICAL                                            :: do_kpoints, print_gop
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orbpop
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: fm_s_half, fm_work1, fm_work2
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_p, matrixkp_s
       TYPE(dbcsr_type), POINTER                          :: sm_p, sm_s
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -105,25 +113,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_kind_set)
-      NULLIFY (qs_kind_set)
-      NULLIFY (fmstruct)
-      NULLIFY (matrix_p)
-      NULLIFY (matrixkp_p)
-      NULLIFY (matrixkp_s)
-      NULLIFY (orbpop)
-      NULLIFY (particle_set)
-      NULLIFY (rho)
-      NULLIFY (scf_control)
-      NULLIFY (sm_p)
-      NULLIFY (sm_s)
-      NULLIFY (orbpop)
-      NULLIFY (para_env)
-      NULLIFY (blacs_env)
+      NULLIFY (sm_p, sm_s)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
+                      do_kpoints=do_kpoints, &
                       matrix_s_kp=matrixkp_s, &
                       particle_set=particle_set, &
                       rho=rho, &
@@ -131,36 +126,45 @@ CONTAINS
                       para_env=para_env, &
                       blacs_env=blacs_env)
 
-      CPASSERT(ASSOCIATED(atomic_kind_set))
-      CPASSERT(ASSOCIATED(qs_kind_set))
-      CPASSERT(ASSOCIATED(matrixkp_s))
-      CPASSERT(ASSOCIATED(particle_set))
-      CPASSERT(ASSOCIATED(rho))
-      CPASSERT(ASSOCIATED(scf_control))
+      CALL qs_rho_get(rho, rho_ao_kp=matrixkp_p) ! Density matrices in sparse format
+      nspin = SIZE(matrixkp_p, 1)
+      nimg = SIZE(matrixkp_p, 2)
 
-      IF (SIZE(matrixkp_s, 2) > 1) THEN
+      ! Get the total number of contracted spherical Gaussian basis functions
+      CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+      ! Provide an array to store the orbital populations for each spin
+      ALLOCATE (orbpop(nsgf, nspin))
+      orbpop(:, :) = 0.0_dp
 
-         CPWARN("Lowdin population analysis not implemented for k-points.")
+      ! Write headline
+      IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") "LOWDIN POPULATION ANALYSIS"
+      END IF
+
+      IF (do_kpoints) THEN
+
+         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, sab_orb=sab_nl)
+
+         ! work matrices
+         CALL cp_fm_struct_create(fmstruct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nsgf, ncol_global=nsgf)
+         ALLOCATE (fmwork(4))
+         DO i = 1, 4
+            CALL cp_fm_create(fmwork(i), matrix_struct=fmstruct, name="work")
+         END DO
+         CALL cp_fm_struct_release(fmstruct)
+
+         ! S^1/2
+         CALL diag_kp_smat(matrixkp_s, kpoints, fmwork)
+         ! Lowdin P Matrix Transform
+         CALL lowdin_kp_trans(kpoints, orbpop)
+
+         CALL cp_fm_release(fmwork)
 
       ELSE
 
          sm_s => matrixkp_s(1, 1)%matrix ! Overlap matrix in sparse format
-         CALL qs_rho_get(rho, rho_ao_kp=matrixkp_p) ! Density matrices in sparse format
-
          matrix_p => matrixkp_p(:, 1)
-         nspin = SIZE(matrix_p, 1)
-
-         ! Get the total number of contracted spherical Gaussian basis functions
-         CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
-
-         ! Provide an array to store the orbital populations for each spin
-         ALLOCATE (orbpop(nsgf, nspin))
-         orbpop(:, :) = 0.0_dp
-
-         ! Write headline
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") "LOWDIN POPULATION ANALYSIS"
-         END IF
 
          ! Provide full size work matrices
          CALL cp_fm_struct_create(fmstruct=fmstruct, &
@@ -218,21 +222,20 @@ CONTAINS
             CALL cp_fm_get_diag(fm_work2, orbpop(:, ispin))
          END DO ! next spin ispin
 
-         ! Write atomic populations and charges
-         IF (output_unit > 0) THEN
-            print_gop = (print_level > 1) ! Print also orbital populations
-            CALL write_orbpop(orbpop, atomic_kind_set, qs_kind_set, particle_set, output_unit, print_gop)
-         END IF
-
          ! Release local working storage
          CALL cp_fm_release(matrix=fm_s_half)
          CALL cp_fm_release(matrix=fm_work1)
          CALL cp_fm_release(matrix=fm_work2)
-         IF (ASSOCIATED(orbpop)) THEN
-            DEALLOCATE (orbpop)
-         END IF
 
       END IF
+
+      ! Write atomic populations and charges
+      IF (output_unit > 0) THEN
+         print_gop = (print_level > 1) ! Print also orbital populations
+         CALL write_orbpop(orbpop, atomic_kind_set, qs_kind_set, particle_set, output_unit, print_gop)
+      END IF
+
+      DEALLOCATE (orbpop)
 
       CALL timestop(handle)
 
@@ -261,7 +264,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       LOGICAL                                            :: found, print_gop
       REAL(KIND=dp)                                      :: ps
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop, p_block, ps_block, s_block
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orbpop
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, ps_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
@@ -273,20 +277,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_kind_set)
-      NULLIFY (qs_kind_set)
-      NULLIFY (matrix_p)
-      NULLIFY (matrix_s)
-      NULLIFY (orbpop)
-      NULLIFY (particle_set)
-      NULLIFY (ps_block)
-      NULLIFY (p_block)
-      NULLIFY (rho)
-      NULLIFY (sm_p)
-      NULLIFY (sm_ps)
-      NULLIFY (sm_s)
-      NULLIFY (s_block)
-      NULLIFY (para_env)
+      NULLIFY (sm_p, sm_ps, sm_s)
+      NULLIFY (p_block, s_block, ps_block)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -295,12 +287,6 @@ CONTAINS
                       particle_set=particle_set, &
                       rho=rho, &
                       para_env=para_env)
-
-      CPASSERT(ASSOCIATED(atomic_kind_set))
-      CPASSERT(ASSOCIATED(qs_kind_set))
-      CPASSERT(ASSOCIATED(particle_set))
-      CPASSERT(ASSOCIATED(rho))
-      CPASSERT(ASSOCIATED(matrix_s))
 
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
       nspin = SIZE(matrix_p, 1)
@@ -409,12 +395,8 @@ CONTAINS
 
       ! Release local working storage
       IF (ASSOCIATED(sm_ps)) CALL dbcsr_deallocate_matrix(sm_ps)
-      IF (ASSOCIATED(orbpop)) THEN
-         DEALLOCATE (orbpop)
-      END IF
-      IF (ALLOCATED(first_sgf_atom)) THEN
-         DEALLOCATE (first_sgf_atom)
-      END IF
+      DEALLOCATE (orbpop)
+      DEALLOCATE (first_sgf_atom)
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(T2,A)") &
@@ -441,7 +423,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: orbpop
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -453,18 +435,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       REAL(KIND=dp)                                      :: zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: all_sumorbpop, charges_save
       REAL(KIND=dp), DIMENSION(3)                        :: sumorbpop
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: all_sumorbpop, charges_save
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-
-      NULLIFY (lshell)
-      NULLIFY (nshell)
-      NULLIFY (orb_basis_set)
-
-      CPASSERT(ASSOCIATED(orbpop))
-      CPASSERT(ASSOCIATED(atomic_kind_set))
-      CPASSERT(ASSOCIATED(particle_set))
 
       nspin = SIZE(orbpop, 2)
 
@@ -553,7 +527,7 @@ CONTAINS
    SUBROUTINE write_orbpop(orbpop, atomic_kind_set, qs_kind_set, particle_set, output_unit, &
                            print_orbital_contributions)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: orbpop
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -574,15 +548,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (lshell)
-      NULLIFY (nshell)
-      NULLIFY (orb_basis_set)
-      NULLIFY (sgf_symbol)
-
-      CPASSERT(ASSOCIATED(orbpop))
-      CPASSERT(ASSOCIATED(atomic_kind_set))
-      CPASSERT(ASSOCIATED(particle_set))
 
       nspin = SIZE(orbpop, 2)
 

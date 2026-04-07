@@ -1322,11 +1322,7 @@ CONTAINS
          IF (print_it) print_level = 2
          CALL section_vals_val_get(print_key, "PRINT_ALL", l_val=print_it)
          IF (print_it) print_level = 3
-         IF (do_kpoints) THEN
-            CPWARN("Lowdin charges not implemented for k-point calculations!")
-         ELSE
-            CALL lowdin_population_analysis(qs_env, unit_nr, print_level)
-         END IF
+         CALL lowdin_population_analysis(qs_env, unit_nr, print_level)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%LOWDIN")
       END IF
 

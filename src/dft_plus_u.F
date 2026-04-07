@@ -59,7 +59,6 @@ MODULE dft_plus_u
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_methods,                  ONLY: lowdin_kp_trans
    USE kpoint_types,                    ONLY: kpoint_type
    USE mathlib,                         ONLY: jacobi
    USE message_passing,                 ONLY: mp_para_env_type
@@ -389,13 +388,11 @@ CONTAINS
          DEALLOCATE (eigval, slam)
       END IF
 
-      ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
-      IF (do_kpoints) THEN
-         ! stored in kp%pmat
-         DO ispin = 1, nspin
-            CALL lowdin_kp_trans(matrix_p, kpoints, ispin, fm_wmat)
-         END DO
-      END IF
+      ! Calculate S^(1/2)*P*S^(1/2)
+!deb  IF (do_kpoints) THEN
+!        ! stored in kp%pmat
+!        CALL lowdin_kp_trans(kpoints, orbmat)
+!deb  END IF
 
       ! Create local block diagonal matrices
       sm_s => matrix_s(1, 1)%matrix
