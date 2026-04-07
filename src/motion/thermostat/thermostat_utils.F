@@ -771,10 +771,14 @@ CONTAINS
                DO i = 1, SIZE(tmplist)
                   ipart = tmplist(i)
                   CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
-                  IF (thermolist(ipart) == HUGE(0)) THEN
+                  IF (thermolist(ipart) == HUGE(0) .OR. thermolist(ipart) == ig) THEN
                      thermolist(ipart) = ig
                   ELSE
-                     CPABORT("")
+                     CALL cp_abort(__LOCATION__, &
+                                   "The atom "//cp_to_string(ipart)//" has been "// &
+                                   "assigned to different thermostat regions "// &
+                                   cp_to_string(thermolist(ipart))//" and "// &
+                                   cp_to_string(ig)//" which is not allowed!")
                   END IF
                END DO
             END DO
@@ -791,10 +795,14 @@ CONTAINS
                            molecule => molecule_set(molecule_kind%molecule_list(imol))
                            CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
                            DO ipart = first_atom, last_atom
-                              IF (thermolist(ipart) == HUGE(0)) THEN
+                              IF (thermolist(ipart) == HUGE(0) .OR. thermolist(ipart) == ig) THEN
                                  thermolist(ipart) = ig
                               ELSE
-                                 CPABORT("")
+                                 CALL cp_abort(__LOCATION__, &
+                                               "The atom "//cp_to_string(ipart)//" has been "// &
+                                               "assigned to different thermostat regions "// &
+                                               cp_to_string(thermolist(ipart))//" and "// &
+                                               cp_to_string(ig)//" which is not allowed!")
                               END IF
                            END DO
                         END DO
