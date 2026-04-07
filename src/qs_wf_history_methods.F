@@ -40,8 +40,10 @@ MODULE qs_wf_history_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
+                                              dbcsr_trace
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -60,7 +62,8 @@ MODULE qs_wf_history_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+        cp_fm_get_info, cp_fm_release, cp_fm_set_all, cp_fm_start_copy_general, cp_fm_to_fm, &
+        cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -68,9 +71,10 @@ MODULE qs_wf_history_methods
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
+        wfi_aspc_nr, wfi_frozen_method_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
+        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
@@ -556,6 +560,14 @@ CONTAINS
             wf_history%store_overlap = .TRUE.
             wf_history%store_overlap_kp = .TRUE.
          END IF
+      CASE (wfi_gext_proj_nr)
+         wf_history%memory_depth = extrapolation_order
+         wf_history%store_wf = .TRUE.
+         wf_history%store_overlap = .TRUE.
+      CASE (wfi_gext_proj_qtr_nr)
+         wf_history%memory_depth = extrapolation_order
+         wf_history%store_wf = .TRUE.
+         wf_history%store_overlap = .TRUE.
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -639,6 +651,10 @@ CONTAINS
          res = "frozen density approximation"
       CASE (wfi_aspc_nr)
          res = "ASPC"
+      CASE (wfi_gext_proj_nr)
+         res = "GEXT_PROJ"
+      CASE (wfi_gext_proj_qtr_nr)
+         res = "GEXT_PROJ_QTR"
       CASE default
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
@@ -658,6 +674,7 @@ CONTAINS
 !> \par History
 !>      02.2003 created [fawzi]
 !>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
+!>      04.2026 Michele Nottoli : Added GEXT_PROJ and GEXT_PROJ_QTR extrapolations
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
@@ -675,12 +692,13 @@ CONTAINS
                                                             nvec, print_level
       LOGICAL                                            :: do_kpoints, my_orthogonal_wf, use_overlap
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeffs
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
       TYPE(cp_fm_type)                                   :: csc, fm_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao, rho_frozen_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1127,6 +1145,142 @@ CONTAINS
             CALL qs_rho_update_rho(rho, qs_env=qs_env)
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          END IF ! do_kpoints
+
+      CASE (wfi_gext_proj_nr)
+         CPASSERT(.NOT. do_kpoints)
+
+         ! figure out the actual number of vectors to use in the extrapolation:
+         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         IF (nvec >= wf_history%memory_depth) THEN
+            IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist /= 0)) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            END IF
+         END IF
+         CPASSERT(nvec > 0)
+
+         ! get the coefficients for the fitting
+         ALLOCATE (coeffs(nvec))
+         NULLIFY (matrix_s)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL diff_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, &
+                           1e-4_dp, io_unit, print_level)
+
+         my_orthogonal_wf = .TRUE.
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+         DO ispin = 1, SIZE(mos)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+            CALL cp_fm_get_info(mo_coeff, &
+                                nrow_global=n, &
+                                ncol_global=k, &
+                                matrix_struct=matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=k, &
+                                     ncol_global=k)
+            CALL cp_fm_create(csc, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+
+            ! do the linear combination of previous PSs
+            CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+            DO i = 1, nvec
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
+               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, coeffs(i), fm_tmp)
+            END DO
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
+            CALL reorthogonalize_vectors(qs_env, &
+                                         v_matrix=mo_coeff, &
+                                         n_col=k)
+            CALL calculate_density_matrix(mo_set=mos(ispin), &
+                                          density_matrix=rho_ao(ispin)%matrix)
+         END DO
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+         DEALLOCATE (coeffs)
+
+      CASE (wfi_gext_proj_qtr_nr)
+         CPASSERT(.NOT. do_kpoints)
+
+         ! figure out the actual number of vectors to use in the extrapolation:
+         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         IF (nvec >= wf_history%memory_depth) THEN
+            IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist /= 0)) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            END IF
+         END IF
+         CPASSERT(nvec > 0)
+
+         ! get the coefficients for the fitting
+         ALLOCATE (coeffs(nvec))
+         NULLIFY (matrix_s)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL tr_fitting(wf_history, matrix_s(1)%matrix, coeffs, nvec, &
+                         1e-4_dp, io_unit, print_level)
+
+         my_orthogonal_wf = .TRUE.
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+         DO ispin = 1, SIZE(mos)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+            CALL cp_fm_get_info(mo_coeff, &
+                                nrow_global=n, &
+                                ncol_global=k, &
+                                matrix_struct=matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_struct_create(matrix_struct_new, &
+                                     template_fmstruct=matrix_struct, &
+                                     nrow_global=k, &
+                                     ncol_global=k)
+            CALL cp_fm_create(csc, matrix_struct_new)
+            CALL cp_fm_struct_release(matrix_struct_new)
+
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+
+            ! do the linear combination of previous PSs
+            CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+            DO i = 1, nvec
+               t0_state => wfi_get_snapshot(wf_history, wf_index=i)
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
+               CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
+               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, coeffs(i), fm_tmp)
+            END DO
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
+            CALL reorthogonalize_vectors(qs_env, &
+                                         v_matrix=mo_coeff, &
+                                         n_col=k)
+            CALL calculate_density_matrix(mo_set=mos(ispin), &
+                                          density_matrix=rho_ao(ispin)%matrix)
+         END DO
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+         DEALLOCATE (coeffs)
 
       CASE default
          CALL cp_abort(__LOCATION__, &
@@ -1683,7 +1837,7 @@ CONTAINS
          ! do nothing
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
-            wfi_aspc_nr)
+            wfi_aspc_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr)
          IF (qs_env%wf_history%snapshot_count >= 2) THEN
             IF (debug_this_module .AND. io_unit > 0) &
                WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
@@ -1702,5 +1856,231 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE wfi_purge_history
+
+! **************************************************************************************************
+!> \brief Gives the coefficients that best approximate the new overlap
+!>        as a linear combination of the previous overlaps in the
+!>        wf_history buffer. This is done by solving
+!>        argmin_a || S_{n+1} - S_{n} - \sum_i^{nvec-1} a_i (S_{n-q+i} - S_{n}) ||^2
+!> \param wf_history wavefunction history buffer, containing the previous overlaps
+!> \param current_overlap current overlap in dbcsr format
+!> \param coeffs resulting nvec coefficients
+!> \param nvec number of previous overlaps
+!> \param eps Tikhonov regularization
+!> \param io_unit output unit
+!> \param print_level print level
+!> \par History
+!>      04.2026 created [Michele Nottoli]
+!> \author Michele Nottoli
+! **************************************************************************************************
+   SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec, eps, io_unit, print_level)
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(dbcsr_type), INTENT(IN)                       :: current_overlap
+      INTEGER, INTENT(IN)                                :: nvec
+      REAL(KIND=dp), INTENT(OUT)                         :: coeffs(nvec)
+      REAL(KIND=dp), INTENT(IN)                          :: eps
+      INTEGER, INTENT(IN)                                :: io_unit, print_level
+
+      INTEGER                                            :: i, info, j
+      REAL(KIND=dp)                                      :: error
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A
+      TYPE(dbcsr_type)                                   :: target_diff, tmp_i, tmp_j, tmp_k
+      TYPE(qs_wf_snapshot_type), POINTER                 :: ref_state, state
+
+      IF (nvec <= 0) THEN
+         CPABORT("Not enough vectors to do the fitting")
+      ELSE IF (nvec == 1) THEN
+         coeffs(1) = 1.0_dp
+         RETURN
+      END IF
+
+      ALLOCATE (A(nvec - 1, nvec - 1), b(nvec - 1))
+
+      ! get the reference for the difference fitting
+      ref_state => wfi_get_snapshot(wf_history, wf_index=1)
+
+      ! assemble the target difference
+      CALL dbcsr_copy(target_diff, current_overlap)
+      CALL dbcsr_add(target_diff, ref_state%overlap, 1.0_dp, -1.0_dp)
+
+      ! allocate tmp_k
+      CALL dbcsr_copy(tmp_k, current_overlap)
+
+      ! assemble the matrix A and the RHS b
+      DO i = 2, nvec
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_copy(tmp_i, state%overlap)
+         CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_diff, 0.0_dp, tmp_k)
+         CALL dbcsr_trace(tmp_k, b(i - 1))
+
+         DO j = 2, i
+            state => wfi_get_snapshot(wf_history, wf_index=j)
+            CALL dbcsr_copy(tmp_j, state%overlap)
+            CALL dbcsr_add(tmp_j, ref_state%overlap, 1.0_dp, -1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, tmp_j, 0.0_dp, tmp_k)
+            CALL dbcsr_trace(tmp_k, A(j - 1, i - 1))
+            A(i - 1, j - 1) = A(j - 1, i - 1)
+         END DO
+      END DO
+
+      ! add the Tikhonov regularization
+      DO i = 1, nvec - 1
+         A(i, i) = A(i, i) + eps**2
+      END DO
+
+      ! solve the linear system
+      CALL dposv('u', nvec - 1, 1, A, nvec - 1, b, nvec - 1, info)
+      IF (info /= 0) THEN
+         CPABORT("DPOSV failed.")
+      END IF
+
+      ! set the coefficient for the reference snapshot
+      coeffs(1) = 1.0_dp - SUM(b)
+      coeffs(2:nvec) = b(:)
+
+      ! as a consistency check, print how well the current overlap
+      ! is approximated by the linear combination of previous overlaps
+      IF (print_level > low_print_level) THEN
+         CALL dbcsr_copy(tmp_i, current_overlap)
+         DO i = 1, nvec
+            state => wfi_get_snapshot(wf_history, wf_index=i)
+            CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+         END DO
+         error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
+         IF (io_unit > 0) THEN
+            WRITE (6, *) "GEXT overlap fitting error:", error
+         END IF
+      END IF
+
+      ! free the memory
+      CALL dbcsr_release(tmp_i)
+      CALL dbcsr_release(tmp_j)
+      CALL dbcsr_release(tmp_k)
+      CALL dbcsr_release(target_diff)
+      DEALLOCATE (A, b)
+
+   END SUBROUTINE diff_fitting
+
+! **************************************************************************************************
+!> \brief Gives the coefficients that best approximate the new overlap
+!>        as a time reversible linear combination of the previous overlaps in the
+!>        wf_history buffer. This is done by solving
+!>        argmin_a || S_{n+1} + S_{n+1-nvec}
+!>                    - \sum_{i=1}^q a_i (S_{n+1-nvec+i} + S_{n+1-i}) ||^2
+!>        with q = nvec/2 if nvec is even, or q = (nvec-1)/2 if odd.
+!> \param wf_history wavefunction history buffer, containing the previous overlaps
+!> \param current_overlap current overlap in dbcsr format
+!> \param coeffs resulting nvec coefficients
+!> \param nvec number of previous overlaps
+!> \param eps Tikhonov regularization
+!> \param io_unit output unit
+!> \param print_level print level
+!> \par History
+!>      04.2026 created [Michele Nottoli]
+! **************************************************************************************************
+   SUBROUTINE tr_fitting(wf_history, current_overlap, coeffs, nvec, eps, io_unit, print_level)
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(dbcsr_type), INTENT(IN)                       :: current_overlap
+      INTEGER, INTENT(IN)                                :: nvec
+      REAL(KIND=dp), INTENT(OUT)                         :: coeffs(nvec)
+      REAL(KIND=dp), INTENT(IN)                          :: eps
+      INTEGER, INTENT(IN)                                :: io_unit, print_level
+
+      INTEGER                                            :: i, info, j, ntr
+      REAL(KIND=dp)                                      :: error
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A
+      TYPE(dbcsr_type)                                   :: target_overlap, tmp_i, tmp_j, tmp_k
+      TYPE(qs_wf_snapshot_type), POINTER                 :: ref_state, state
+
+      IF (nvec <= 0) THEN
+         CPABORT("Not enough vectors to do the fitting")
+      ELSE IF (nvec == 1) THEN
+         coeffs(1) = 1.0_dp
+         RETURN
+      END IF
+
+      IF (MOD(nvec, 2) == 0) THEN
+         ntr = nvec/2
+      ELSE
+         ntr = (nvec - 1)/2
+      END IF
+
+      ALLOCATE (A(ntr, ntr), b(ntr))
+
+      ! get the reference for the difference fitting
+      ref_state => wfi_get_snapshot(wf_history, wf_index=nvec)
+
+      ! assemble the target sum
+      CALL dbcsr_copy(target_overlap, current_overlap)
+      CALL dbcsr_add(target_overlap, ref_state%overlap, 1.0_dp, 1.0_dp)
+
+      ! allocate tmp_k
+      CALL dbcsr_copy(tmp_k, current_overlap)
+
+      ! assemble the matrix A and the RHS b
+      DO i = 1, ntr
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_copy(tmp_i, state%overlap)
+         state => wfi_get_snapshot(wf_history, wf_index=nvec - i)
+         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, 1.0_dp)
+
+         CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_overlap, &
+                             0.0_dp, tmp_k)
+         CALL dbcsr_trace(tmp_k, b(i))
+         DO j = 1, i
+            state => wfi_get_snapshot(wf_history, wf_index=j)
+            CALL dbcsr_copy(tmp_j, state%overlap)
+            state => wfi_get_snapshot(wf_history, wf_index=nvec - j)
+            CALL dbcsr_add(tmp_j, state%overlap, 1.0_dp, 1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, tmp_j, 0.0_dp, tmp_k)
+            CALL dbcsr_trace(tmp_k, A(j, i))
+            A(i, j) = A(j, i)
+         END DO
+      END DO
+
+      ! add the Tikhonov regularization
+      DO i = 1, ntr
+         A(i, i) = A(i, i) + eps**2
+      END DO
+
+      ! solve the linear system
+      CALL dposv('u', ntr, 1, A, ntr, b, ntr, info)
+      IF (info /= 0) THEN
+         CPABORT("DPOSV failed.")
+      END IF
+
+      ! reorder the coefficients
+      coeffs = 0.0_dp
+      coeffs(nvec) = -1.0_dp
+      DO i = 1, ntr
+         coeffs(i) = coeffs(i) + b(i)
+         coeffs(nvec - i) = coeffs(nvec - i) + b(i)
+      END DO
+
+      ! as a consistency check, print how well the current overlap
+      ! is approximated by the linear combination of previous overlaps
+      IF (print_level > low_print_level) THEN
+         CALL dbcsr_copy(tmp_i, current_overlap)
+         DO i = 1, nvec
+            state => wfi_get_snapshot(wf_history, wf_index=i)
+            CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+         END DO
+         error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
+         IF (io_unit > 0) THEN
+            WRITE (6, *) "GEXT overlap fitting error:", error
+         END IF
+      END IF
+
+      ! free the memory
+      CALL dbcsr_release(tmp_i)
+      CALL dbcsr_release(tmp_j)
+      CALL dbcsr_release(tmp_k)
+      CALL dbcsr_release(target_overlap)
+      DEALLOCATE (A, b)
+
+   END SUBROUTINE tr_fitting
 
 END MODULE qs_wf_history_methods

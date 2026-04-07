@@ -96,9 +96,10 @@ MODULE qs_environment
         do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, &
         do_qmmm_gauss, do_qmmm_swave, general_roks, hden_atomic, kg_tnadd_embed_ri, rel_none, &
         rel_trans_atom, smear_fermi_dirac, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
-        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, &
+        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
+        xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -741,7 +742,8 @@ CONTAINS
       IF (do_kpoints) THEN
          ! reset some of the settings for wfn extrapolation for kpoints
          SELECT CASE (dft_control%qs_control%wf_interpolation_method_nr)
-         CASE (wfi_linear_wf_method_nr, wfi_linear_ps_method_nr)
+         CASE (wfi_linear_wf_method_nr, wfi_linear_ps_method_nr, &
+               wfi_gext_proj_nr, wfi_gext_proj_qtr_nr)
             CALL cp_warn(__LOCATION__, "Linear WFN-based extrapolation methods are not "// &
                          "implemented for k-points. Switching to USE_PREV_WF.")
             dft_control%qs_control%wf_interpolation_method_nr = wfi_use_prev_wf_method_nr

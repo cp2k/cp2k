@@ -13,6 +13,10 @@
 "extrap-8.inp"                          = [{matcher="E_total", tol=7e-08, ref=-34.297438185249540}]
 "extrap-9.inp"                          = [{matcher="E_total", tol=7e-08, ref=-34.297439690709957}]
 "extrap-10.inp"                         = [{matcher="E_total", tol=7e-08, ref=-34.297439732592210}]
+"extrap-11.inp"                         = [{matcher="E_total", tol=7e-08, ref=-34.284599981686500},
+                                           {matcher="gext", tol=1e-08, ref=0.06364204178157035}]
+"extrap-12.inp"                         = [{matcher="E_total", tol=7e-08, ref=-34.284599991270320},
+                                           {matcher="gext", tol=1e-08, ref=0.07823010612083225}]
 "extrap-1-far.inp"                      = [{matcher="E_total", tol=4e-07, ref=-34.037891375210037}]
 "extrap-2-far.inp"                      = [{matcher="E_total", tol=4e-07, ref=-34.037891355615457}]
 "extrap-3-far.inp"                      = [{matcher="E_total", tol=4e-07, ref=-34.037891355667090}]
@@ -23,4 +27,8 @@
 "extrap-8-far.inp"                      = [{matcher="E_total", tol=4e-07, ref=-34.037891355666268}]
 "extrap-9-far.inp"                      = [{matcher="E_total", tol=4e-07, ref=-34.037891566935699}]
 "extrap-10-far.inp"                     = [{matcher="E_total", tol=4e-07, ref=-34.037891355667090}]
+"extrap-11-far.inp"                     = [{matcher="E_total", tol=4e-07, ref=-34.308712156146110},
+                                           {matcher="gext", tol=1e-08, ref=0.03206026677000141}]
+"extrap-12-far.inp"                     = [{matcher="E_total", tol=4e-07, ref=-34.308712168635950},
+                                           {matcher="gext", tol=1e-08, ref=0.08558240032465082}]
 #EOF
