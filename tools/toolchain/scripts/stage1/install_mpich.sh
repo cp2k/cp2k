@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-mpich_ver="5.0.1rc2"
-mpich_sha256="7f3b7946b5516cf76a92d4e38e03a8f8cee6cbca128ebd75dbebd2877baf20dd"
+mpich_ver="5.0.1rc3"
+mpich_sha256="5e57d4503de1c6818eb95c1afaf9b97fe00c1fa776101eadfb876e752f655d34"
 mpich_pkg="mpich-${mpich_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -31,7 +31,7 @@ case "${with_mpich}" in
       echo "mpich-${mpich_ver} is already installed, skipping it."
     else
       #retrieve_package "${mpich_sha256}" "${mpich_pkg}"
-      download_pkg_from_urlpath "${mpich_sha256}" "${mpich_pkg}" https://github.com/pmodels/mpich/releases/download/v5.0.1rc2
+      download_pkg_from_urlpath "${mpich_sha256}" "${mpich_pkg}" https://github.com/pmodels/mpich/releases/download/v5.0.1rc3
       echo "Installing from scratch into ${pkg_install_dir} for MPICH device ${MPICH_DEVICE}"
       [ -d mpich-${mpich_ver} ] && rm -rf mpich-${mpich_ver}
       tar -xzf ${mpich_pkg}
