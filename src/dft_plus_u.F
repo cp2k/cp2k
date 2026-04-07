@@ -59,6 +59,7 @@ MODULE dft_plus_u
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: lowdin_kp_trans
    USE kpoint_types,                    ONLY: kpoint_type
    USE mathlib,                         ONLY: jacobi
    USE message_passing,                 ONLY: mp_para_env_type
@@ -230,7 +231,7 @@ CONTAINS
                                                             trq, trq2, u_minus_j, &
                                                             u_minus_j_target, u_ramping
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval, q_eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_eigvec, q_matrix, q_work, slam
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: orbq, q_eigvec, q_matrix, q_work, slam
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: q_block, v_block
@@ -256,30 +257,7 @@ CONTAINS
 
       debug = .FALSE. ! Set to .TRUE. to print debug information
 
-      NULLIFY (atom_list)
-      NULLIFY (atomic_kind_set)
-      NULLIFY (qs_kind_set)
-      NULLIFY (dft_control)
-      NULLIFY (energy)
-      NULLIFY (first_sgf)
-      NULLIFY (fm_s_half)
-      NULLIFY (matrix_p)
-      NULLIFY (matrix_s)
-      NULLIFY (l)
-      NULLIFY (last_sgf)
-      NULLIFY (nshell)
-      NULLIFY (orb_basis_set)
-      NULLIFY (orbitals)
-      NULLIFY (particle_set)
-      NULLIFY (q_block)
-      NULLIFY (rho)
-      NULLIFY (scf_env)
-      NULLIFY (sm_h)
-      NULLIFY (sm_p)
-      NULLIFY (sm_s)
-      NULLIFY (sm_w)
-      NULLIFY (v_block)
-      NULLIFY (para_env)
+      NULLIFY (sm_h, sm_p, sm_s, sm_w)
 
       smear = .FALSE.
       max_scf = -1
@@ -297,13 +275,6 @@ CONTAINS
                       rho=rho, &
                       scf_env=scf_env, &
                       para_env=para_env)
-
-      CPASSERT(ASSOCIATED(atomic_kind_set))
-      CPASSERT(ASSOCIATED(dft_control))
-      CPASSERT(ASSOCIATED(energy))
-      CPASSERT(ASSOCIATED(matrix_s))
-      CPASSERT(ASSOCIATED(particle_set))
-      CPASSERT(ASSOCIATED(rho))
 
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
 
@@ -328,7 +299,6 @@ CONTAINS
 
       ALLOCATE (first_sgf_atom(natom))
       first_sgf_atom(:) = 0
-
       CALL get_particle_set(particle_set, qs_kind_set, &
                             first_sgf=first_sgf_atom)
 
@@ -357,6 +327,9 @@ CONTAINS
       ! See sTDA forces (get_lowdin_mo_coefficients in qs_tddfpt2_stda_utils
       ! A. Hehn et al JCTC 2022, 18, 4186
       IF (PRESENT(matrix_w)) THEN
+         IF (do_kpoints) THEN
+            CPABORT("Lowdin forces with k-points NYA in DFT+U")
+         END IF
          CALL cp_fm_create(matrix=fm_sev, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=slambda, matrix_struct=fmstruct)
          ALLOCATE (eigval(nsgf), slam(nsgf, 1))
@@ -389,10 +362,12 @@ CONTAINS
       END IF
 
       ! Calculate S^(1/2)*P*S^(1/2)
-!deb  IF (do_kpoints) THEN
-!        ! stored in kp%pmat
-!        CALL lowdin_kp_trans(kpoints, orbmat)
-!deb  END IF
+      IF (do_kpoints) THEN
+         CPABORT("Lowdin option with k-points NYA in DFT+U")
+         ALLOCATE (orbq(nsgf, nspin))
+         CALL lowdin_kp_trans(kpoints, orbq)
+         DEALLOCATE (orbq)
+      END IF
 
       ! Create local block diagonal matrices
       sm_s => matrix_s(1, 1)%matrix
@@ -405,11 +380,10 @@ CONTAINS
          CALL dbcsr_set(sm_q, 0.0_dp)
          CALL dbcsr_set(sm_v, 0.0_dp)
 
-         ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
          IF (do_kpoints) THEN
-            ! assemble results in sm_q from kp%pmat
             CPABORT("Lowdin option with k-points NYA in DFT+U")
          ELSE
+            ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
             sm_p => matrix_p(ispin, 1)%matrix
             CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
             CALL parallel_gemm(transa="N", &
