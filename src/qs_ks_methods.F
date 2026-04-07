@@ -35,12 +35,13 @@ MODULE qs_ks_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_copy_columns_hack
+                                              dbcsr_copy_columns_hack,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_ddapc,                        ONLY: qs_ks_ddapc
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -655,7 +656,6 @@ CONTAINS
          ALLOCATE (matrix_vxc(nspins))
          DO ispin = 1, nspins
             NULLIFY (matrix_vxc(ispin)%matrix)
-            CALL dbcsr_init_p(matrix_vxc(ispin)%matrix)
          END DO
 
          IF (nspins == 1) THEN
@@ -674,9 +674,10 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            CALL dbcsr_release(matrix_vxc(ispin)%matrix)
+            CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
          END DO
-         DEALLOCATE (matrix_vxc)
+
+         CALL dbcsr_deallocate_matrix_set(matrix_vxc)
 
          CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
          CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
