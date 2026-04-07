@@ -662,13 +662,13 @@ CONTAINS
             CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1), matrix_vxc(1))
             CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
          ELSE
-            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1), matrix_vxc(1))
-            CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(2, 1), matrix_vxc(2))
+            CPASSERT(nspins == 2)
             CALL dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1), vxc_zeta_dbcsr)
-            CALL dbcsr_add(matrix_vxc(1)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp)
-            CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
-            CALL dbcsr_add(matrix_vxc(2)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, -1.0_dp)
-            CALL dbcsr_add(ks_matrix(2, 1)%matrix, matrix_vxc(2)%matrix, 1.0_dp, 1.0_dp)
+            DO ispin = 1, 2
+               CALL dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1), matrix_vxc(ispin))
+               CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
+               CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
             CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
             DEALLOCATE (vxc_zeta_dbcsr%matrix)
          END IF
