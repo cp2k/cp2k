@@ -421,6 +421,7 @@ MODULE input_constants
                                                do_region_massive = 2, &
                                                do_region_none = 3, &
                                                do_region_defined = 4, &
+                                               do_region_thermal = 5, &
                                                do_bondparm_covalent = 0, &
                                                do_bondparm_vdw = 1, &
                                                do_skip_11 = 0, &

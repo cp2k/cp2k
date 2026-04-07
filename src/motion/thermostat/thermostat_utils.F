@@ -28,11 +28,11 @@ MODULE thermostat_utils
                                               npt_info_type
    USE input_constants,                 ONLY: &
         do_constr_atomic, do_constr_molec, do_region_defined, do_region_global, do_region_massive, &
-        do_region_molecule, do_thermo_al, do_thermo_communication, do_thermo_csvr, do_thermo_gle, &
-        do_thermo_no_communication, do_thermo_nose, isokin_ensemble, langevin_ensemble, &
-        npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-        npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
-        nvt_ensemble, reftraj_ensemble
+        do_region_molecule, do_region_thermal, do_thermo_al, do_thermo_communication, &
+        do_thermo_csvr, do_thermo_gle, do_thermo_no_communication, do_thermo_nose, &
+        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
+        npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -650,7 +650,17 @@ CONTAINS
                CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
                IF (sum_of_thermostats < 1) &
                   CALL cp_abort(__LOCATION__, &
-                                "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED")
+                                "A thermostat type DEFINED is requested but no thermostat "// &
+                                "regions are defined in THERMOSTAT/DEFINE_REGION.")
+            CASE (do_region_thermal)
+               ! Similar to defined region above, but in THERMAL_REGION%DEFINE_REGION
+               nointer = .FALSE.
+               ! Determine the number of thermostats defined in the input
+               CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
+               IF (sum_of_thermostats < 1) &
+                  CALL cp_abort(__LOCATION__, &
+                                "A thermostat type THERMAL is requested but no thermal "// &
+                                "regions are defined in THERMAL_REGION/DEFINE_REGION.")
             END SELECT
 
             ! Here we decide which parallel algorithm to use.
@@ -684,7 +694,7 @@ CONTAINS
                dis_type = do_thermo_communication
                IF ((region == do_region_global) .OR. (region == do_region_molecule)) THEN
                   number = 1
-               ELSE IF (region == do_region_defined) THEN
+               ELSE IF ((region == do_region_defined) .OR. (region == do_region_thermal)) THEN
                   CALL get_defined_region_info(region_sections, number, sum_of_thermostats, &
                                                map_loc_thermo_gen=thermostat_info%map_loc_thermo_gen, &
                                                local_molecules=local_molecules, molecule_kind_set=molecule_kind_set, &
@@ -755,40 +765,52 @@ CONTAINS
       mregions = nregions
       DO ig = 1, mregions
          CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ig, n_rep_val=n_rep)
-         DO jg = 1, n_rep
-            CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ig, i_rep_val=jg, i_vals=tmplist)
-            DO i = 1, SIZE(tmplist)
-               ipart = tmplist(i)
-               CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
-               IF (thermolist(ipart) == HUGE(0)) THEN
-                  thermolist(ipart) = ig
-               ELSE
-                  CPABORT("")
-               END IF
-            END DO
-         END DO
-         CALL section_vals_val_get(region_sections, "MOLNAME", i_rep_section=ig, n_rep_val=n_rep)
-         DO jg = 1, n_rep
-            CALL section_vals_val_get(region_sections, "MOLNAME", i_rep_section=ig, i_rep_val=jg, c_vals=tmpstringlist)
-            DO ilist = 1, SIZE(tmpstringlist)
-               DO ikind = 1, SIZE(molecule_kind_set)
-                  molecule_kind => molecule_kind_set(ikind)
-                  IF (molecule_kind%name == tmpstringlist(ilist)) THEN
-                     DO imol = 1, SIZE(molecule_kind%molecule_list)
-                        molecule => molecule_set(molecule_kind%molecule_list(imol))
-                        CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
-                        DO ipart = first_atom, last_atom
-                           IF (thermolist(ipart) == HUGE(0)) THEN
-                              thermolist(ipart) = ig
-                           ELSE
-                              CPABORT("")
-                           END IF
-                        END DO
-                     END DO
+         IF (n_rep > 0) THEN
+            DO jg = 1, n_rep
+               CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ig, i_rep_val=jg, i_vals=tmplist)
+               DO i = 1, SIZE(tmplist)
+                  ipart = tmplist(i)
+                  CPASSERT(((ipart > 0) .AND. (ipart <= particles%n_els)))
+                  IF (thermolist(ipart) == HUGE(0) .OR. thermolist(ipart) == ig) THEN
+                     thermolist(ipart) = ig
+                  ELSE
+                     CALL cp_abort(__LOCATION__, &
+                                   "The atom "//cp_to_string(ipart)//" has been "// &
+                                   "assigned to different thermostat regions "// &
+                                   cp_to_string(thermolist(ipart))//" and "// &
+                                   cp_to_string(ig)//" which is not allowed!")
                   END IF
                END DO
             END DO
-         END DO
+         END IF
+         CALL section_vals_val_get(region_sections, "MOLNAME", i_rep_section=ig, n_rep_val=n_rep)
+         IF (n_rep > 0) THEN
+            DO jg = 1, n_rep
+               CALL section_vals_val_get(region_sections, "MOLNAME", i_rep_section=ig, i_rep_val=jg, c_vals=tmpstringlist)
+               DO ilist = 1, SIZE(tmpstringlist)
+                  DO ikind = 1, SIZE(molecule_kind_set)
+                     molecule_kind => molecule_kind_set(ikind)
+                     IF (molecule_kind%name == tmpstringlist(ilist)) THEN
+                        DO imol = 1, SIZE(molecule_kind%molecule_list)
+                           molecule => molecule_set(molecule_kind%molecule_list(imol))
+                           CALL get_molecule(molecule, first_atom=first_atom, last_atom=last_atom)
+                           DO ipart = first_atom, last_atom
+                              IF (thermolist(ipart) == HUGE(0) .OR. thermolist(ipart) == ig) THEN
+                                 thermolist(ipart) = ig
+                              ELSE
+                                 CALL cp_abort(__LOCATION__, &
+                                               "The atom "//cp_to_string(ipart)//" has been "// &
+                                               "assigned to different thermostat regions "// &
+                                               cp_to_string(thermolist(ipart))//" and "// &
+                                               cp_to_string(ig)//" which is not allowed!")
+                              END IF
+                           END DO
+                        END DO
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END IF
          CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set, &
                                       subsys_qm=.FALSE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions)
          CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set, &
@@ -808,14 +830,31 @@ CONTAINS
                thermolist(i) = nregions
             END IF
          END DO
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, '(A)') " WARNING| No thermostats defined for the following atoms:"
-            IF (ilist > 0) WRITE (output_unit, '(" WARNING|",9I8)') tmp
-            WRITE (output_unit, '(A)') " WARNING| They will be included in a further unique thermostat!"
+         IF (ilist > 0) THEN
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(/,T2,A)') &
+                  "THERMOSTAT| Warning: No thermostats defined for the following atoms:"
+               DO i = 1, ilist, 8
+                  WRITE (output_unit, '(T2,A,T17,8I8)') "THERMOSTAT|", tmp(i:MIN(i + 7, ilist))
+               END DO
+               WRITE (output_unit, '(T2,A)') &
+                  "THERMOSTAT| They will be included in a further unique thermostat!"
+            END IF
          END IF
          DEALLOCATE (tmp)
       END IF
       CPASSERT(ALL(thermolist /= HUGE(0)))
+
+      ! Output thermostat region mapping to particles
+      ! The region indices are assumed to be 0-999
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T2,A)') &
+            "THERMOSTAT| Mapping of thermostat region indices to particles"
+         DO ipart = 1, particles%n_els, 16
+            WRITE (output_unit, '(T2,A,T17,16(" ",I3))') &
+               "THERMOSTAT|", thermolist(ipart:MIN(ipart + 15, particles%n_els))
+         END DO
+      END IF
 
       ! Now identify the local number of thermostats
       ALLOCATE (tmp(nregions))
