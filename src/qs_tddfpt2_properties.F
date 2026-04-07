@@ -904,6 +904,8 @@ CONTAINS
                   ind = inds_recv(inds(iexc)) - 1
                   IF ((nspins > 1) .AND. (spinflip == no_sf_tddfpt)) THEN
                      IF (ind < nmo_virt_occ_alpha) THEN
+                        state_spin = 1
+                        state_spin2 = 1
                         spin_label = '(alp)'
                         spin_label2 = '(alp)'
                      ELSE
