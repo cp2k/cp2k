@@ -61,6 +61,7 @@
 # Population analyses
 "NO2-mulliken.inp"                      = [{matcher="M041", tol=1.0E-14, ref=1.000000}]
 "NO2-lowdin.inp"                        = [{matcher="M041", tol=1.0E-14, ref=1.000000}]
+"NO2-lowdin-kp.inp"                     = [{matcher="M041", tol=1.0E-14, ref=1.000000}]
 # Test the new option relax_multiplicity
 "O2-UKS-GPW-relax_multip.inp"           = [{matcher="E_total", tol=5.0E-14, ref=-31.86509210053504}]
 "H2O-UKS-GPW-relax_multip.inp"          = [{matcher="E_total", tol=1e-13, ref=-17.15478069242800}]
