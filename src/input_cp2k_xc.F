@@ -568,6 +568,11 @@ CONTAINS
                           default_r_val=1._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="functional", &
+                          description="Underlying functional name to use in GauXC", &
+                          default_c_val="PBE")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

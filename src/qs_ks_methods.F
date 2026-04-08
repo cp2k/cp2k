@@ -230,8 +230,12 @@ CONTAINS
       IF (ASSOCIATED(section_vals_get_subs_vals2(xc_fun_section, i_section=2))) THEN
          CPABORT("GauXC does not support multiple XC functionals")
       END IF
-      xc_fun_name = xc_fun_subsection%section%name
-      WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
+IF (xc_fun_subsection%section%name == "SKALA") THEN
+          CALL section_vals_val_get(xc_fun_subsection, "FUNCTIONAL", c_val=xc_fun_name)
+       ELSE
+          xc_fun_name = xc_fun_subsection%section%name
+       END IF
+       WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
 
       gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
       gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
