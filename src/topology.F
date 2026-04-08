@@ -26,6 +26,8 @@ MODULE topology
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
+                                              cp_subsys_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE input_constants,                 ONLY: &
         do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
@@ -120,10 +122,12 @@ CONTAINS
 !> \param use_motion_section ...
 !> \param exclusions ...
 !> \param elkind ...
+!> \param subsys ...
 ! **************************************************************************************************
    SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set, &
                                molecule_set, colvar_p, gci, root_section, para_env, qmmm, qmmm_env, &
-                               force_env_section, subsys_section, use_motion_section, exclusions, elkind)
+                               force_env_section, subsys_section, use_motion_section, &
+                               exclusions, elkind, subsys)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -140,6 +144,7 @@ CONTAINS
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
       LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
+      TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'topology_control'
 
@@ -182,9 +187,11 @@ CONTAINS
 
       ! 2. Get the cell info
       CALL read_cell(topology%cell, topology%cell_ref, cell_section=cell_section, &
-                     para_env=para_env)
-      CALL write_cell(topology%cell, subsys_section, tag="CELL_TOP")
+                     topology_section=topology_section, para_env=para_env)
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
+      IF (PRESENT(subsys) .AND. (.NOT. my_qmmm)) THEN
+         CALL cp_subsys_set(subsys, cell=topology%cell, cell_ref=topology%cell_ref)
+      END IF
 
       ! 3. Read in the topology section in the input file if any
       CALL read_topology_section(topology, topology_section)

@@ -108,7 +108,8 @@ MODULE cp_subsys_types
       TYPE(atprop_type), POINTER                 :: atprop => Null()
       TYPE(virial_type), POINTER                 :: virial => Null()
       TYPE(cp_result_type), POINTER              :: results => Null()
-      TYPE(cell_type), POINTER                   :: cell => Null()
+      TYPE(cell_type), POINTER                   :: cell => Null(), cell_ref => Null()
+      LOGICAL                                    :: use_ref_cell = .FALSE.
    END TYPE cp_subsys_type
 
 ! **************************************************************************************************
@@ -172,6 +173,7 @@ CONTAINS
             IF (ASSOCIATED(subsys%virial)) DEALLOCATE (subsys%virial)
             CALL cp_result_release(subsys%results)
             CALL cell_release(subsys%cell)
+            CALL cell_release(subsys%cell_ref)
             DEALLOCATE (subsys)
          END IF
          NULLIFY (subsys)
@@ -195,13 +197,16 @@ CONTAINS
 !> \param multipoles ...
 !> \param results ...
 !> \param cell ...
+!> \param cell_ref ...
+!> \param use_ref_cell ...
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles, &
                             molecules, molecule_kinds, local_molecules, para_env, &
-                            colvar_p, shell_particles, core_particles, gci, multipoles, results, cell)
+                            colvar_p, shell_particles, core_particles, gci, multipoles, &
+                            results, cell, cell_ref, use_ref_cell)
       TYPE(cp_subsys_type), INTENT(INOUT)                :: subsys
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
       TYPE(particle_list_type), OPTIONAL, POINTER        :: particles
@@ -216,7 +221,8 @@ CONTAINS
       TYPE(global_constraint_type), OPTIONAL, POINTER    :: gci
       TYPE(multipole_type), OPTIONAL, POINTER            :: multipoles
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
+      LOGICAL, OPTIONAL                                  :: use_ref_cell
 
       CPASSERT(subsys%ref_count > 0)
       IF (PRESENT(multipoles)) THEN
@@ -299,6 +305,17 @@ CONTAINS
             subsys%cell => cell
          END IF
       END IF
+      IF (PRESENT(cell_ref)) THEN
+         IF (ASSOCIATED(cell_ref)) THEN
+            CALL cell_retain(cell_ref)
+            CALL cell_release(subsys%cell_ref)
+            subsys%cell_ref => cell_ref
+            subsys%use_ref_cell = .TRUE.
+         END IF
+      END IF
+      IF (PRESENT(use_ref_cell)) THEN
+         subsys%use_ref_cell = use_ref_cell
+      END IF
    END SUBROUTINE cp_subsys_set
 
 ! **************************************************************************************************
@@ -330,6 +347,8 @@ CONTAINS
 !> \param virial ...
 !> \param results ...
 !> \param cell ...
+!> \param cell_ref ...
+!> \param use_ref_cell ...
 !> \par History
 !>      08.2003 created [fawzi]
 !>      22.11.2010 (MK)
@@ -341,7 +360,7 @@ CONTAINS
                             molecule_kind_set, local_molecules, para_env, colvar_p, &
                             shell_particles, core_particles, gci, multipoles, &
                             natom, nparticle, ncore, nshell, nkind, atprop, virial, &
-                            results, cell)
+                            results, cell, cell_ref, use_ref_cell)
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       INTEGER, INTENT(out), OPTIONAL                     :: ref_count
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
@@ -368,7 +387,8 @@ CONTAINS
       TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
+      LOGICAL, OPTIONAL                                  :: use_ref_cell
 
       INTEGER                                            :: n_atom, n_core, n_shell
 
@@ -399,6 +419,8 @@ CONTAINS
       IF (PRESENT(atprop)) atprop => subsys%atprop
       IF (PRESENT(results)) results => subsys%results
       IF (PRESENT(cell)) cell => subsys%cell
+      IF (PRESENT(cell_ref)) cell_ref => subsys%cell_ref
+      IF (PRESENT(use_ref_cell)) use_ref_cell = subsys%use_ref_cell
       IF (PRESENT(nkind)) nkind = SIZE(subsys%atomic_kinds%els)
 
       IF (PRESENT(natom) .OR. PRESENT(nparticle) .OR. PRESENT(nshell)) THEN
