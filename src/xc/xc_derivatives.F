@@ -273,20 +273,20 @@ CONTAINS
          ELSE
             CALL tpss_lda_info(functional, reference, shortform, needs, max_deriv)
          END IF
-CASE ("PBE")
-          IF (lsd) THEN
-             CALL pbe_lsd_info(functional, reference, shortform, needs, max_deriv)
-          ELSE
-             CALL pbe_lda_info(functional, reference, shortform, needs, max_deriv)
-          END IF
-       CASE ("SKALA")
-          IF (PRESENT(reference)) reference = "Skala functional via GauXC"
-          IF (PRESENT(shortform)) shortform = "SKALA"
-          IF (PRESENT(max_deriv)) max_deriv = 1
-          IF (PRESENT(needs)) THEN
-             needs%rho = .TRUE.
-          END IF
-       CASE ("XWPBE")
+      CASE ("PBE")
+         IF (lsd) THEN
+            CALL pbe_lsd_info(functional, reference, shortform, needs, max_deriv)
+         ELSE
+            CALL pbe_lda_info(functional, reference, shortform, needs, max_deriv)
+         END IF
+      CASE ("SKALA")
+         IF (PRESENT(reference)) reference = "Skala functional via GauXC"
+         IF (PRESENT(shortform)) shortform = "SKALA"
+         IF (PRESENT(max_deriv)) max_deriv = 1
+         IF (PRESENT(needs)) THEN
+            needs%rho = .TRUE.
+         END IF
+      CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_info(reference, shortform, needs, max_deriv)
          ELSE
@@ -499,15 +499,15 @@ CASE ("PBE")
          ELSE
             CALL tpss_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
-CASE ("PBE")
-          IF (lsd) THEN
-             CALL pbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)
-          ELSE
-             CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
-          END IF
-       CASE ("SKALA")
-          CONTINUE
-       CASE ("XWPBE")
+      CASE ("PBE")
+         IF (lsd) THEN
+            CALL pbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)
+         ELSE
+            CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
+         END IF
+      CASE ("SKALA")
+         CONTINUE
+      CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
