@@ -750,7 +750,7 @@ CONTAINS
                CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
                                                energy%embed_corr, just_energy)
             END IF
-            ! Everything else (legacy XC implementation)
+            ! Everything else
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                                edisp=edisp, dispersion_env=qs_env%dispersion_env, &
@@ -762,14 +762,8 @@ CONTAINS
             END IF
 
             IF (gapw .OR. gapw_xc) THEN
-               IF (do_gauxc) THEN
-                  CPABORT("GauXC is incompatible with GAPW/GAPW_XC. Please use the legacy XC (USE_GAUXC = .FALSE.).")
-               END IF
                CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
                IF (use_virial .AND. calculate_forces) THEN
-                  IF (do_gauxc) THEN
-       CPABORT("GauXC is incompatible with GAPW/GAPW_XC when calculating stresses. Please use the legacy XC (USE_GAUXC = .FALSE.).")
-                  END IF
                   IF (ASSOCIATED(v_tau_rspace)) THEN
                      CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
                   END IF
