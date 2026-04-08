@@ -373,18 +373,19 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
-      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
-                                                            hfx_sections, input, scf_section, &
-                                                            xc_section
+TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
+                                                             hfx_sections, input, scf_section, &
+                                                             xc_section, xc_fun_section, &
+                                                             xc_fun_subsection
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
-               poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
-               v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
+               xc_section, xc_fun_section, xc_fun_subsection, matrix_h, matrix_h_im, &
+               matrix_s, auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
+               v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
                ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
                rho_core, particle_set, qs_kind_set)
 
@@ -725,7 +726,15 @@ CONTAINS
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
-      CALL section_vals_val_get(xc_section, "USE_GAUXC", l_val=do_gauxc)
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (ASSOCIATED(xc_fun_section)) THEN
+         xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
+         IF (ASSOCIATED(xc_fun_subsection)) THEN
+            IF (xc_fun_subsection%section%name == "SKALA") THEN
+               do_gauxc = .TRUE.
+            END IF
+         END IF
+      END IF
 
       IF (do_gauxc) THEN
          CALL apply_gauxc(qs_env, xc_section, ks_matrix)
