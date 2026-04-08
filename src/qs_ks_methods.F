@@ -162,6 +162,143 @@ MODULE qs_ks_methods
 
 CONTAINS
 
+   SUBROUTINE apply_gauxc(qs_env, xc_section, ks_matrix)
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      TYPE(dbcsr_p_type), DIMENSION(:, :), &
+         INTENT(inout), POINTER                          :: ks_matrix
+
+      CHARACTER(len=default_string_length)               :: xc_fun_name
+      INTEGER                                            :: img, ispin, natom, nimages, nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
+      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
+      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
+      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
+      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
+      TYPE(dbcsr_p_type)                                 :: vxc_zeta_dbcsr
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gauxc_status_type)                            :: gauxc_status
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_fun_subsection
+
+      NULLIFY ( &
+         dft_control, &
+         energy, &
+         matrix_vxc, &
+         particle_set, &
+         qs_kind_set, &
+         rho, &
+         rho_ao)
+
+      CALL get_qs_env( &
+         qs_env, &
+         dft_control=dft_control, &
+         energy=energy, &
+         matrix_vxc=matrix_vxc, &
+         natom=natom, &
+         particle_set=particle_set, &
+         qs_kind_set=qs_kind_set, &
+         rho=rho)
+
+      CALL qs_rho_get( &
+         rho, &
+         rho_ao_kp=rho_ao)
+
+      nimages = dft_control%nimages
+      nspins = dft_control%nspins
+
+      IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+         IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
+            CPABORT("GauXC does not support dispersion corrections. Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.).")
+         END IF
+      END IF
+      NULLIFY (vxc_zeta_dbcsr%matrix)
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(xc_fun_section)) THEN
+         CPABORT("XC_FUNCTIONAL section not found")
+      END IF
+      xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
+      IF (.NOT. ASSOCIATED(xc_fun_subsection)) THEN
+         CPABORT("No XC functional found in XC_FUNCTIONAL section")
+      END IF
+      IF (ASSOCIATED(section_vals_get_subs_vals2(xc_fun_section, i_section=2))) THEN
+         CPABORT("GauXC does not support multiple XC functionals")
+      END IF
+      xc_fun_name = xc_fun_subsection%section%name
+      WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
+
+      gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
+      gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
+      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
+      gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, nspins, gauxc_status)
+
+      IF (qs_env%run_rtp) THEN
+         CPABORT("GAUXC XC energy currently does not support real-time propagation")
+      END IF
+
+      IF (nspins == 1) THEN
+         DO img = 1, nimages
+            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+         END DO
+         gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
+                                            nspins=nspins, status=gauxc_status)
+      ELSE
+         DO img = 1, nimages
+            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+            CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
+         END DO
+         ! Do NOT reorder the following lines!
+         density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
+         ! Factor two because the next line is evaluated after the above line.
+         ! We need to subtract density_zeta once to undo the above line and
+         ! a second time because that is what UKS requires.
+         ! This style lowers memory footprint.
+         density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
+         gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
+                                            density_zeta, nspins, gauxc_status)
+      END IF
+
+      energy%exc = gauxc_xc_result%exc
+
+      CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+
+      IF (nspins == 1) THEN
+         matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1))
+         CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
+      ELSE
+         CPASSERT(nspins == 2)
+         vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1))
+         DO ispin = 1, 2
+            matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
+            CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
+            CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+         END DO
+         CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
+         DEALLOCATE (vxc_zeta_dbcsr%matrix)
+      END IF
+
+      DO ispin = 1, nspins
+         CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+      END DO
+
+      CALL dbcsr_deallocate_matrix_set(matrix_vxc)
+
+      CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
+      CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
+      CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
+      CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
+
+      DEALLOCATE (density_scalar)
+      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
+
+   END SUBROUTINE apply_gauxc
+
 ! **************************************************************************************************
 !> \brief routine where the real calculations are made: the
 !>      KS matrix is calculated
@@ -198,31 +335,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
-      CHARACTER(len=default_string_length)               :: name, xc_fun_name
+      CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, iatom, img, ispin, natom, &
                                                             nimages, nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_gauxc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
-      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
-      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
-      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
-      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type)                                 :: vxc_zeta_dbcsr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
                                                             matrix_h_im, matrix_s, my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
-      TYPE(gauxc_status_type)                            :: gauxc_status
       TYPE(harris_type), POINTER                         :: harris_env
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_density_type), POINTER                    :: lri_density
@@ -246,20 +375,18 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_fun_section, xc_fun_subsection, &
                                                             xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
-               adiabatic_rescaling_section, hfx_sections, &
-               input, scf_section, xc_section, xc_fun_section, xc_fun_subsection, &
-               matrix_h, matrix_h_im, matrix_s, &
-               auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
-               v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
-               ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core, &
-               particle_set, qs_kind_set)
+               adiabatic_rescaling_section, hfx_sections, input, scf_section, &
+               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
+               poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
+               v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
+               ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
+               rho_core, particle_set, qs_kind_set)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -594,93 +721,14 @@ CONTAINS
          xc_section => admm_env%xc_section_primary
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         ! build ks matrix with an xc section potentially different from the one defined in input
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
       CALL section_vals_val_get(xc_section, "USE_GAUXC", l_val=do_gauxc)
 
       IF (do_gauxc) THEN
-         IF (ASSOCIATED(qs_env%dispersion_env)) THEN
-            IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
-               CPABORT("GauXC does not support dispersion corrections. Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.).")
-            END IF
-         END IF
-         NULLIFY (vxc_zeta_dbcsr%matrix)
-         xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-         IF (.NOT. ASSOCIATED(xc_fun_section)) THEN
-            CPABORT("XC_FUNCTIONAL section not found")
-         END IF
-         xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
-         IF (.NOT. ASSOCIATED(xc_fun_subsection)) THEN
-            CPABORT("No XC functional found in XC_FUNCTIONAL section")
-         END IF
-         IF (ASSOCIATED(section_vals_get_subs_vals2(xc_fun_section, i_section=2))) THEN
-            CPABORT("GauXC does not support multiple XC functionals")
-         END IF
-         xc_fun_name = xc_fun_subsection%section%name
-         WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
-
-         gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
-         gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
-         gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
-         gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, nspins, gauxc_status)
-
-         IF (qs_env%run_rtp) THEN
-            CPABORT("GAUXC XC energy currently does not support real-time propagation")
-         END IF
-
-         IF (nspins == 1) THEN
-            DO img = 1, nimages
-               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
-            END DO
-            gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
-                                               nspins=nspins, status=gauxc_status)
-         ELSE
-            DO img = 1, nimages
-               CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
-               CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
-            END DO
-            ! Do NOT reorder the following lines!
-            density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
-            ! Factor two because the next line is evaluated after the above line.
-            ! We need to subtract density_zeta once to undo the above line and
-            ! a second time because that is what UKS requires.
-            ! This style lowers memory footprint.
-            density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
-            gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
-                                               density_zeta, nspins, gauxc_status)
-         END IF
-
-         energy%exc = gauxc_xc_result%exc
-
-         CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
-
-         IF (nspins == 1) THEN
-            matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1))
-            CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
-         ELSE
-            CPASSERT(nspins == 2)
-            vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1))
-            DO ispin = 1, 2
-               matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
-               CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
-               CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
-            END DO
-            CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
-            DEALLOCATE (vxc_zeta_dbcsr%matrix)
-         END IF
-
-         DO ispin = 1, nspins
-            CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
-         END DO
-
-         CALL dbcsr_deallocate_matrix_set(matrix_vxc)
-
-         CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
-         CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
-         CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
-         CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
-
+         CALL apply_gauxc(qs_env, xc_section, ks_matrix)
       END IF
 
       IF (gapw_xc) THEN
@@ -1080,8 +1128,6 @@ CONTAINS
       END IF
 
       IF (do_gauxc) THEN
-         DEALLOCATE (density_scalar)
-         IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
       END IF
 
       CALL timestop(handle)
