@@ -740,6 +740,9 @@ CONTAINS
       END IF
 
       IF (do_gauxc) THEN
+         IF (calculate_forces) THEN
+            CPABORT("SKALA functional does not support force calculations. Use RUN_TYPE ENERGY instead.")
+         END IF
          CALL apply_gauxc(qs_env, xc_section, ks_matrix)
       END IF
 
