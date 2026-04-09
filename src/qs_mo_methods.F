@@ -43,6 +43,7 @@ MODULE qs_mo_methods
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
@@ -325,7 +326,9 @@ CONTAINS
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
       CALL cp_fm_create(csc, fm_struct_tmp, "csc")
+      CALL cp_fm_set_all(csc, 0.0_dp)
       CALL cp_fm_create(work, fm_struct_tmp, "work")
+      CALL cp_fm_set_all(work, 0.0_dp)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, sc, rzero, csc)
