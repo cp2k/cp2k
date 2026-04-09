@@ -197,7 +197,7 @@ CONTAINS
       CALL cell_clone(my_cell, topology%cell)
       CALL cell_clone(my_cell_ref, topology%cell_ref)
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
-      IF (PRESENT(subsys) .AND. (.NOT. my_qmmm)) THEN
+      IF (PRESENT(subsys)) THEN ! subsys is passed from cp_subsys_create
          CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
       END IF
       CALL cell_release(my_cell)
