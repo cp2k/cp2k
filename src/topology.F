@@ -17,6 +17,7 @@ MODULE topology
                                               read_cell,&
                                               write_cell
    USE cell_types,                      ONLY: cell_clone,&
+                                              cell_release,&
                                               cell_retain,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type,&
@@ -199,6 +200,8 @@ CONTAINS
       IF (PRESENT(subsys) .AND. (.NOT. my_qmmm)) THEN
          CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
       END IF
+      CALL cell_release(my_cell)
+      CALL cell_release(my_cell_ref)
 
       ! 3. Read in the topology section in the input file if any
       CALL read_topology_section(topology, topology_section)
