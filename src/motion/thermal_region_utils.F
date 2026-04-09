@@ -69,10 +69,11 @@ MODULE thermal_region_utils
 
    IMPLICIT NONE
 
-   PRIVATE :: set_t_region_index
+   PRIVATE
    PUBLIC :: create_thermal_regions, &
              print_thermal_regions_temperature, &
-             print_thermal_regions_langevin
+             print_thermal_regions_langevin, &
+             set_t_region_index
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
 
