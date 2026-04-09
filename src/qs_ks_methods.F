@@ -162,6 +162,45 @@ MODULE qs_ks_methods
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_gauxc_functional(xc_section) RESULT(gauxc_functional_section)
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
+
+      INTEGER                                            :: ifun
+      TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
+
+      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(functionals)) THEN
+         CPABORT("XC_FUNCTIONAL section not found")
+      END IF
+
+      ifun = 0
+      DO
+         ifun = ifun + 1
+         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+         IF (xc_fun%section%name /= "SKALA" .OR. ifun > 1) THEN
+            CPABORT("SKALA functional is mutually exclusive with any other functional.")
+         END IF
+         gauxc_functional_section => xc_fun
+      END DO
+
+      IF (.NOT. ASSOCIATED(gauxc_functional_section)) THEN
+         CPABORT("No XC functional found in XC_FUNCTIONAL section")
+      END IF
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param xc_section ...
+!> \param ks_matrix ...
+! **************************************************************************************************
    SUBROUTINE apply_gauxc(qs_env, xc_section, ks_matrix)
       TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
@@ -185,7 +224,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_fun_subsection
+      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
 
       NULLIFY ( &
          dft_control, &
@@ -219,19 +258,9 @@ CONTAINS
          END IF
       END IF
       NULLIFY (vxc_zeta_dbcsr%matrix)
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      IF (.NOT. ASSOCIATED(xc_fun_section)) THEN
-         CPABORT("XC_FUNCTIONAL section not found")
-      END IF
-      xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
-      IF (.NOT. ASSOCIATED(xc_fun_subsection)) THEN
-         CPABORT("No XC functional found in XC_FUNCTIONAL section")
-      END IF
-      IF (ASSOCIATED(section_vals_get_subs_vals2(xc_fun_section, i_section=2))) THEN
-         CPABORT("GauXC does not support multiple XC functionals")
-      END IF
-      CPASSERT(xc_fun_subsection%section%name == "SKALA")
-      CALL section_vals_val_get(xc_fun_subsection, "FUNCTIONAL", c_val=xc_fun_name)
+
+      gauxc_functional_section => get_gauxc_functional(xc_section)
+      CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=xc_fun_name)
 
       gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
       gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
@@ -338,7 +367,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, iatom, img, ispin, natom, &
                                                             nimages, nspins
-      LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_gauxc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
+      LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
@@ -724,15 +753,6 @@ CONTAINS
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
-      do_gauxc = dft_control%use_gauxc
-
-      IF (do_gauxc) THEN
-         IF (calculate_forces) THEN
-            CPABORT("SKALA functional does not support force calculations. Use RUN_TYPE ENERGY instead.")
-         END IF
-         CALL apply_gauxc(qs_env, xc_section, ks_matrix)
-      END IF
-
       IF (gapw_xc) THEN
          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct)
       ELSE
@@ -744,15 +764,20 @@ CONTAINS
          energy%exc = 0.0_dp
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc)
       ELSE
-         IF (.NOT. do_gauxc) THEN
-            ! Embedding potential
-            IF (dft_control%apply_embed_pot) THEN
-               NULLIFY (v_rspace_embed)
-               energy%embed_corr = 0.0_dp
-               CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
-                                               energy%embed_corr, just_energy)
+         ! Embedding potential (runs regardless of XC method)
+         IF (dft_control%apply_embed_pot) THEN
+            NULLIFY (v_rspace_embed)
+            energy%embed_corr = 0.0_dp
+            CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
+                                            energy%embed_corr, just_energy)
+         END IF
+
+         IF (dft_control%use_gauxc) THEN
+            IF (calculate_forces) THEN
+               CPABORT("SKALA functional does not support force calculations. Use RUN_TYPE ENERGY or RUN_TYPE SP instead.")
             END IF
-            ! Everything else
+            CALL apply_gauxc(qs_env, xc_section, ks_matrix)
+         ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                                edisp=edisp, dispersion_env=qs_env%dispersion_env, &
@@ -1121,9 +1146,6 @@ CONTAINS
       ! Print detailed energy
       IF (my_print) THEN
          CALL print_detailed_energy(qs_env, dft_control, input, energy, mulliken_order_p)
-      END IF
-
-      IF (do_gauxc) THEN
       END IF
 
       CALL timestop(handle)

@@ -506,7 +506,7 @@ CONTAINS
             CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
       CASE ("SKALA")
-         CONTINUE
+   CPABORT("Control flow error: Computation of the Skala functional should not proceed to this point, but occur at a higher level.")
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)
