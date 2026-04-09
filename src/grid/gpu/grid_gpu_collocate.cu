@@ -203,56 +203,46 @@ template <bool IS_FUNC_AB>
 __device__ static void block_to_cab(const kernel_params *params,
                                     const smem_task *task, cab_store *cab) {
 
-  // The spherical index runs over angular momentum and then over contractions.
   // The carthesian index runs over exponents and then over angular momentum.
+  // The spherical index runs over angular momentum and then over contractions.
 
   // Decontract block, apply prepare_pab, and store in cab.
   // This is a double matrix product. Since the pab block can be quite large the
   // two products are fused to conserve shared memory.
-  for (int i = threadIdx.z; i < task->nsgf_setb; i += blockDim.z) {
-    for (int j = threadIdx.y; j < task->nsgf_seta; j += blockDim.y) {
-      double block_val;
-      if (task->block_transposed) {
-        block_val = task->pab_block[j * task->nsgfb + i] * task->off_diag_twice;
-      } else {
-        block_val = task->pab_block[i * task->nsgfa + j] * task->off_diag_twice;
-      }
 
-      if (IS_FUNC_AB) {
-        // fast path for common case
-        const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.x;
-        const int jco_end = ncoset(task->lb_max_basis);
-        for (int jco = jco_start; jco < jco_end; jco += blockDim.x) {
-          const orbital b = coset_inv[jco];
-          const double sphib = task->sphib[i * task->maxcob + jco];
-          const int ico_start = ncoset(task->la_min_basis - 1);
-          const int ico_end = ncoset(task->la_max_basis);
-          for (int ico = ico_start; ico < ico_end; ico++) {
-            const orbital a = coset_inv[ico];
-            const double sphia = task->sphia[j * task->maxcoa + ico];
-            const double pab_val = block_val * sphia * sphib;
-            prepare_pab(GRID_FUNC_AB, a, b, task->zeta, task->zetb, pab_val,
-                        cab);
+  // TODO find if we can make better bounds for ico and jco because
+  // we only need a submatrix of cab.
+  if (threadIdx.z == 0) { // TODO: How bad is this?
+    const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.y;
+    const int jco_end = ncoset(task->lb_max_basis);
+    for (int jco = jco_start; jco < jco_end; jco += blockDim.y) {
+      const orbital b = coset_inv[jco];
+      const int ico_start = ncoset(task->la_min_basis - 1) + threadIdx.x;
+      const int ico_end = ncoset(task->la_max_basis);
+      for (int ico = ico_start; ico < ico_end; ico += blockDim.x) {
+        const orbital a = coset_inv[ico];
+        double pab_val = 0.0;
+        for (int i = 0; i < task->nsgf_setb; i++) {
+          const double sphib = task->sphib[i * task->maxcob + idx(b)];
+          for (int j = 0; j < task->nsgf_seta; j++) {
+            double block_val;
+            if (task->block_transposed) {
+              block_val =
+                  task->pab_block[j * task->nsgfb + i] * task->off_diag_twice;
+            } else {
+              block_val =
+                  task->pab_block[i * task->nsgfa + j] * task->off_diag_twice;
+            }
+            const double sphia = task->sphia[j * task->maxcoa + idx(a)];
+            pab_val += block_val * sphia * sphib;
           }
         }
-      } else {
-        // TODO find if we can make better bounds for ico and jco because
-        // we only need a submatrix of cab.
-        // Since prepare_pab is a register hog we use it only when really needed
-        const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.x;
-        const int jco_end = ncoset(task->lb_max_basis);
-        for (int jco = jco_start; jco < jco_end; jco += blockDim.x) {
-          const orbital b = coset_inv[jco];
-          const int ico_start = ncoset(task->la_min_basis - 1);
-          const int ico_end = ncoset(task->la_max_basis);
-          for (int ico = ico_start; ico < ico_end; ico++) {
-            const orbital a = coset_inv[ico];
-            const double sphia = task->sphia[j * task->maxcoa + idx(a)];
-            const double sphib = task->sphib[i * task->maxcob + idx(b)];
-            const double pab_val = block_val * sphia * sphib;
-            prepare_pab(params->func, a, b, task->zeta, task->zetb, pab_val,
-                        cab);
-          }
+        if (IS_FUNC_AB) {
+          // fast path for common case
+          prepare_pab(GRID_FUNC_AB, a, b, task->zeta, task->zetb, pab_val, cab);
+        } else {
+          // Since prepare_pab is a register hog we use it only when needed.
+          prepare_pab(params->func, a, b, task->zeta, task->zetb, pab_val, cab);
         }
       }
     }
