@@ -728,7 +728,9 @@ CONTAINS
       END IF
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      do_gauxc = .FALSE.
       IF (ASSOCIATED(xc_fun_section)) THEN
+         ! TODO this is probably parsed at a level above this function
          xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
          IF (ASSOCIATED(xc_fun_subsection)) THEN
             IF (xc_fun_subsection%section%name == "SKALA") THEN
