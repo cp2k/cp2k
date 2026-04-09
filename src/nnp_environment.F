@@ -18,6 +18,11 @@ MODULE nnp_environment
                                               Schran2020a,&
                                               Schran2020b,&
                                               cite_reference
+   USE cell_methods,                    ONLY: read_cell,&
+                                              write_cell
+   USE cell_types,                      ONLY: cell_release,&
+                                              cell_type,&
+                                              get_cell
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -28,7 +33,8 @@ MODULE nnp_environment
                                               parser_release,&
                                               parser_reset
    USE cp_subsys_methods,               ONLY: cp_subsys_create
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
+                                              cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -92,9 +98,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: explicit
+      LOGICAL                                            :: explicit, use_ref_cell
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: nnp_section
+      TYPE(section_vals_type), POINTER                   :: cell_section, nnp_section
 
       CALL timeset(routineN, handle)
       CALL cite_reference(Behler2007)
@@ -104,11 +112,12 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(nnp_env))
 
-      NULLIFY (nnp_section, subsys)
+      NULLIFY (cell_section, nnp_section, cell, cell_ref, subsys)
 
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
          subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       END IF
+      cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       nnp_section => section_vals_get_subs_vals(force_env_section, "NNP")
       CALL section_vals_get(nnp_section, explicit=explicit)
       IF (.NOT. explicit) THEN
@@ -118,12 +127,21 @@ CONTAINS
       CALL nnp_env_set(nnp_env=nnp_env, nnp_input=nnp_section, &
                        force_env_input=force_env_section)
 
+      CALL read_cell(cell=cell, cell_ref=cell_ref, use_ref_cell=use_ref_cell, cell_section=cell_section, &
+                     para_env=para_env)
+      CALL get_cell(cell=cell, abc=abc)
+      CALL write_cell(cell=cell, subsys_section=subsys_section)
+
       CALL cp_subsys_create(subsys, para_env, root_section, &
                             force_env_section=force_env_section, subsys_section=subsys_section, &
                             use_motion_section=use_motion_section)
 
-      CALL nnp_init_subsys(nnp_env=nnp_env, subsys=subsys, &
+      CALL nnp_init_subsys(nnp_env=nnp_env, subsys=subsys, cell=cell, &
+                           cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                            subsys_section=subsys_section)
+
+      CALL cell_release(cell)
+      CALL cell_release(cell_ref)
 
       CALL timestop(handle)
 
@@ -133,13 +151,18 @@ CONTAINS
 !> \brief Read and initialize all the information for neural network potentials
 !> \param nnp_env ...
 !> \param subsys ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param use_ref_cell ...
 !> \param subsys_section ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_init_subsys(nnp_env, subsys, subsys_section)
+   SUBROUTINE nnp_init_subsys(nnp_env, subsys, cell, cell_ref, use_ref_cell, subsys_section)
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
       TYPE(cp_subsys_type), INTENT(IN), POINTER          :: subsys
+      TYPE(cell_type), INTENT(INOUT), POINTER            :: cell, cell_ref
+      LOGICAL, INTENT(IN)                                :: use_ref_cell
       TYPE(section_vals_type), INTENT(IN), POINTER       :: subsys_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_init_subsys'
@@ -164,16 +187,11 @@ CONTAINS
       !Print the molecule kind set
       CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
 
-      !Set up cell
-      CALL nnp_env_set(nnp_env=nnp_env, subsys=subsys, &
-                       cell=subsys%cell, cell_ref=subsys%cell_ref, &
-                       use_ref_cell=subsys%use_ref_cell)
-
       !Print the atomic coordinates
       CALL write_fist_particle_coordinates(particle_set, subsys_section)
-      CALL write_particle_distances(particle_set, cell=nnp_env%cell, &
+      CALL write_particle_distances(particle_set, cell=cell, &
                                     subsys_section=subsys_section)
-      CALL write_structure_data(particle_set, cell=nnp_env%cell, &
+      CALL write_structure_data(particle_set, cell=cell, &
                                 input_section=subsys_section)
 
       !Distribute molecules and atoms using the new data structures
@@ -202,7 +220,10 @@ CONTAINS
       ALLOCATE (nnp_env%sort(natom))
       ALLOCATE (nnp_env%sort_inv(natom))
 
-      CALL nnp_env_set(nnp_env=nnp_env, &
+      CALL cp_subsys_set(subsys, cell=cell)
+
+      CALL nnp_env_set(nnp_env=nnp_env, subsys=subsys, &
+                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                        local_molecules=local_molecules, &
                        local_particles=local_particles)
 
