@@ -232,7 +232,6 @@ CONTAINS
       END IF
       CPASSERT(xc_fun_subsection%section%name == "SKALA")
       CALL section_vals_val_get(xc_fun_subsection, "FUNCTIONAL", c_val=xc_fun_name)
-      WRITE (*, '(A,A)') "DEBUG: xc_fun_name = '", TRIM(xc_fun_name)//"'"
 
       gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
       gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
@@ -376,7 +375,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_fun_section, xc_fun_subsection, &
                                                             xc_section
       TYPE(virial_type), POINTER                         :: virial
 
@@ -384,9 +382,9 @@ CONTAINS
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, xc_fun_section, xc_fun_subsection, matrix_h, matrix_h_im, &
-               matrix_s, auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
-               v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
+               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
+               poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
+               v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
                ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
                rho_core, particle_set, qs_kind_set)
 
@@ -425,7 +423,6 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
-      WRITE (*, '(A,I0)') "DEBUG: dft_control%nspins = ", dft_control%nspins
 
       ! remap pointer to allow for non-kpoint external ks matrix
       IF (PRESENT(ext_ks_matrix)) ks_matrix(1:nspins, 1:1) => ext_ks_matrix(1:nspins)
@@ -727,17 +724,7 @@ CONTAINS
          IF (PRESENT(ext_xc_section)) xc_section => ext_xc_section
       END IF
 
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      do_gauxc = .FALSE.
-      IF (ASSOCIATED(xc_fun_section)) THEN
-         ! TODO this is probably parsed at a level above this function
-         xc_fun_subsection => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
-         IF (ASSOCIATED(xc_fun_subsection)) THEN
-            IF (xc_fun_subsection%section%name == "SKALA") THEN
-               do_gauxc = .TRUE.
-            END IF
-         END IF
-      END IF
+      do_gauxc = dft_control%use_gauxc
 
       IF (do_gauxc) THEN
          IF (calculate_forces) THEN

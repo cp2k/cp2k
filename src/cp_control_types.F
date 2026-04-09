@@ -694,7 +694,8 @@ MODULE cp_control_types
                                               do_sccs = .FALSE., &
                                               apply_embed_pot = .FALSE., &
                                               apply_dmfet_pot = .FALSE., &
-                                              hairy_probes = .FALSE.
+                                              hairy_probes = .FALSE., &
+                                              use_gauxc = .FALSE.
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
