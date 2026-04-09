@@ -75,6 +75,8 @@ class PaoModel(SequentialGraphNetwork):  # type: ignore
         prim_basis_specs = {
             "DZVP-MOLOPT-GTH/H": "2x0e + 1x1o",  # two s-shells, one p-shell
             "DZVP-MOLOPT-GTH/O": "2x0e + 2x1o + 1x2e",  # two s, two p, one d-shell
+            "DZVP-MOLOPT-GGA-GTH-q1/H": "2x0e + 1x1o",
+            "DZVP-MOLOPT-GGA-GTH-q6/O": "2x0e + 2x1o + 1x2e",
             "TZV2P-MOLOPT-GGA-GTH-q1/H": "3x0e + 2x1o + 1x2e",
             "TZV2P-MOLOPT-GGA-GTH-q6/O": "3x0e + 3x1o + 2x2e + 1x3o",
         }
@@ -227,7 +229,8 @@ class SymmetricMatrix(torch.nn.Module):
         assert vector.shape[-1] == sum(dim(l) for l in self.irreps_in_ls)
         basis_size = sum(dim(l) for l in self.irreps_prim_basis_ls)
         matrix = torch.zeros(vector.shape[:-1] + (basis_size, basis_size))
-        matrix[..., :, :] = torch.eye(basis_size)  # ensure matrix is diagonalizable
+        # Ensure matrix has distinct eigenvalues as needed for grad of torch.linalg.eigh().
+        matrix[..., :, :] = torch.diag(torch.arange(1, basis_size + 1))
         c = 0  # position in vector
         z = 0  # position in self.wigner_blocks
         for i, li in enumerate(self.irreps_prim_basis_ls):
