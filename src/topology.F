@@ -16,7 +16,8 @@ MODULE topology
    USE cell_methods,                    ONLY: cell_create,&
                                               read_cell,&
                                               write_cell
-   USE cell_types,                      ONLY: cell_retain,&
+   USE cell_types,                      ONLY: cell_clone,&
+                                              cell_retain,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type,&
                                               colvar_setup,&
@@ -151,6 +152,7 @@ CONTAINS
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
                                                             my_qmmm
+      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cell_section, constraint_section, &
                                                             topology_section
@@ -186,11 +188,16 @@ CONTAINS
       CALL init_topology(topology)
 
       ! 2. Get the cell info
-      CALL read_cell(topology%cell, topology%cell_ref, cell_section=cell_section, &
+      NULLIFY (my_cell, my_cell_ref)
+      CALL read_cell(my_cell, my_cell_ref, cell_section=cell_section, &
                      topology_section=topology_section, para_env=para_env)
+      IF (.NOT. ASSOCIATED(topology%cell)) CALL cell_create(topology%cell)
+      IF (.NOT. ASSOCIATED(topology%cell_ref)) CALL cell_create(topology%cell_ref)
+      CALL cell_clone(my_cell, topology%cell)
+      CALL cell_clone(my_cell_ref, topology%cell_ref)
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
       IF (PRESENT(subsys) .AND. (.NOT. my_qmmm)) THEN
-         CALL cp_subsys_set(subsys, cell=topology%cell, cell_ref=topology%cell_ref)
+         CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
       END IF
 
       ! 3. Read in the topology section in the input file if any
