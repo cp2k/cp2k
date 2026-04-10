@@ -558,16 +558,6 @@ CONTAINS
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="scale_x", &
-                          description="scales the exchange part of the functional", &
-                          default_r_val=1._dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="scale_c", &
-                          description="scales the correlation part of the functional", &
-                          default_r_val=1._dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="functional", &
                           description="Underlying functional name to use in GauXC", &
                           default_c_val="PBE")
