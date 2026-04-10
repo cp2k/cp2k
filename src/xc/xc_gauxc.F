@@ -2,53 +2,103 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, &
-                            c_int64_t, &
-                            c_double, &
-                            c_bool, &
-                            c_size_t, &
-                            c_int32_t, &
-                            c_null_ptr, &
-                            c_ptr, &
-                            c_f_pointer, &
-                            c_associated, &
-                            c_char
-   USE kinds, ONLY: dp, default_string_length
-   USE particle_types, ONLY: particle_type
-   USE physcon, ONLY: bohr
-   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, &
-       & get_atomic_kind_set
-   USE qs_integral_utils, ONLY: basis_set_list_setup
-   USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type
-   USE qs_kind_types, ONLY: qs_kind_type, get_qs_kind
-   USE periodic_table, ONLY: get_ptable_info
-   USE gauxc_status, ONLY: gauxc_status_type, gauxc_status_message
-   USE gauxc_enums, ONLY: gauxc_executionspace, gauxc_radialquad, &
-     & gauxc_atomicgridsizedefault, gauxc_pruningscheme
-   USE gauxc_runtime_environment, ONLY: gauxc_runtime_environment_type, &
-      & gauxc_runtime_environment_comm_rank, gauxc_runtime_environment_comm_size, &
-      & gauxc_runtime_environment_new, gauxc_runtime_environment_delete
-   USE gauxc_molecule, ONLY: gauxc_molecule_type, gauxc_molecule_new_from_atoms, gauxc_delete
-   USE gauxc_atom, ONLY: gauxc_atom_type
-   USE gauxc_basisset, ONLY: gauxc_basisset_type, gauxc_basisset_new, &
-      & gauxc_basisset_new_from_shells, gauxc_delete
-   USE gauxc_shell, ONLY: gauxc_shell_type
-   USE gauxc_molgrid, ONLY: gauxc_molgrid_type, gauxc_molgrid_new_default, &
-      & gauxc_delete
-   USE gauxc_load_balancer, ONLY: gauxc_load_balancer_type, gauxc_load_balancer_factory_type, &
-      & gauxc_load_balancer_factory_new, gauxc_load_balancer_factory_get_instance, gauxc_delete
-   USE gauxc_molecular_weights, ONLY: gauxc_molecular_weights_type, &
-      & gauxc_molecular_weights_factory_type, gauxc_molecular_weights_factory_new, &
-      & gauxc_molecular_weights_modify_weights, gauxc_get_instance, gauxc_delete, &
-      & gauxc_molecular_weights_settings
-   USE gauxc_xc_functional, ONLY: gauxc_functional_type, gauxc_functional_from_string, gauxc_delete
-   USE gauxc_integrator, ONLY: gauxc_integrator_type, &
-       & gauxc_integrator_new, gauxc_integrator_eval_exc_vxc_rks, &
-       & gauxc_integrator_eval_exc_vxc_uks, gauxc_delete
-   USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
-   USE cp_dbcsr_api, ONLY: dbcsr_p_type
-   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
-   USE string_utilities, ONLY: uppercase
+   USE iso_c_binding, ONLY: &
+      c_associated, &
+      c_bool, &
+      c_char, &
+      c_double, &
+      c_f_pointer, &
+      c_int, &
+      c_int32_t, &
+      c_int64_t, &
+      c_null_ptr, &
+      c_ptr, &
+      c_size_t
+   USE kinds, ONLY: &
+      default_string_length, &
+      dp
+   USE particle_types, ONLY: &
+      particle_type
+   USE physcon, ONLY: &
+      bohr
+   USE atomic_kind_types, ONLY: &
+      atomic_kind_type, &
+      get_atomic_kind, &
+      get_atomic_kind_set
+   USE qs_integral_utils, ONLY: &
+      basis_set_list_setup
+   USE basis_set_types, ONLY: &
+      gto_basis_set_p_type, &
+      gto_basis_set_type
+   USE qs_kind_types, ONLY: &
+      get_qs_kind, &
+      qs_kind_type
+   USE periodic_table, ONLY: &
+      get_ptable_info
+   USE gauxc_status, ONLY: &
+      gauxc_status_message, &
+      gauxc_status_type
+   USE gauxc_enums, ONLY: &
+      gauxc_atomicgridsizedefault, &
+      gauxc_executionspace, &
+      gauxc_pruningscheme, &
+      gauxc_radialquad
+   USE gauxc_runtime_environment, ONLY: &
+      gauxc_runtime_environment_comm_rank, &
+      gauxc_runtime_environment_comm_size, &
+      gauxc_runtime_environment_delete, &
+      gauxc_runtime_environment_new, &
+      gauxc_runtime_environment_type
+   USE gauxc_molecule, ONLY: &
+      gauxc_delete, &
+      gauxc_molecule_new_from_atoms, &
+      gauxc_molecule_type
+   USE gauxc_atom, ONLY: &
+      gauxc_atom_type
+   USE gauxc_basisset, ONLY: &
+      gauxc_basisset_new, &
+      gauxc_basisset_new_from_shells, &
+      gauxc_basisset_type, &
+      gauxc_delete
+   USE gauxc_shell, ONLY: &
+      gauxc_shell_type
+   USE gauxc_molgrid, ONLY: &
+      gauxc_delete, &
+      gauxc_molgrid_new_default, &
+      gauxc_molgrid_type
+   USE gauxc_load_balancer, ONLY: &
+      gauxc_delete, &
+      gauxc_load_balancer_factory_get_instance, &
+      gauxc_load_balancer_factory_new, &
+      gauxc_load_balancer_factory_type, &
+      gauxc_load_balancer_type
+   USE gauxc_molecular_weights, ONLY: &
+      gauxc_delete, &
+      gauxc_get_instance, &
+      gauxc_molecular_weights_factory_new, &
+      gauxc_molecular_weights_factory_type, &
+      gauxc_molecular_weights_modify_weights, &
+      gauxc_molecular_weights_settings, &
+      gauxc_molecular_weights_type
+   USE gauxc_xc_functional, ONLY: &
+      gauxc_delete, &
+      gauxc_functional_from_string, &
+      gauxc_functional_type
+   USE gauxc_integrator, ONLY: &
+      gauxc_delete, &
+      gauxc_integrator_eval_exc_vxc_rks, &
+      gauxc_integrator_eval_exc_vxc_uks, &
+      gauxc_integrator_new, &
+      gauxc_integrator_type
+   USE gauxc_external_hdf5_read, ONLY: &
+      gauxc_read_hdf5_record
+   USE cp_dbcsr_api, ONLY: &
+      dbcsr_p_type
+   USE input_section_types, ONLY: &
+      section_vals_type, &
+      section_vals_val_get
+   USE string_utilities, ONLY: &
+      uppercase
 #ifdef GAUXC_HAS_MPI
    USE mpi
 #endif
@@ -94,15 +144,29 @@ MODULE xc_gauxc
    ! Copy paste from docu, move these wherever adequate
    TYPE(gauxc_runtime_environment_type) :: rt
 
-   INTEGER(c_int) :: world_rank, world_size
-
-   PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
-          & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
-          & gauxc_create_grid, gauxc_create_integrator, gauxc_destroy_grid, &
-    & gauxc_destroy_integrator, gauxc_compute_xc, dbcsr_to_dense, dense_to_dbcsr, &
-           & read_execution_space, read_atomic_grid_size, read_radial_quad, &
-           & read_pruning_scheme, &
-           & cp_gauxc_grid_type, cp_gauxc_integrator_type, cp_gauxc_xc_type, cp_gauxc_molecule_type, cp_gauxc_basisset_type
+   PUBLIC :: &
+      cp_gauxc_basisset_type, &
+      cp_gauxc_grid_type, &
+      cp_gauxc_integrator_type, &
+      cp_gauxc_molecule_type, &
+      cp_gauxc_xc_type, &
+      dbcsr_to_dense, &
+      dense_to_dbcsr, &
+      gauxc_compute_xc, &
+      gauxc_create_basisset, &
+      gauxc_create_grid, &
+      gauxc_create_integrator, &
+      gauxc_create_molecule, &
+      gauxc_destroy_basisset, &
+      gauxc_destroy_grid, &
+      gauxc_destroy_integrator, &
+      gauxc_destroy_molecule, &
+      gauxc_finalize, &
+      gauxc_init, &
+      read_atomic_grid_size, &
+      read_execution_space, &
+      read_pruning_scheme, &
+      read_radial_quad
 
 CONTAINS
 
@@ -135,13 +199,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mpi_comm
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
+      INTEGER(c_int)                                     :: world_rank
+
       rt = gauxc_runtime_environment_new(status, mpi_comm)
       CALL check_gauxc_status(status)
 
       world_rank = gauxc_runtime_environment_comm_rank(status, rt)
       CALL check_gauxc_status(status)
-
-      world_size = gauxc_runtime_environment_comm_size(status, rt)
 
       IF (world_rank == 0) THEN
          IF (status%code /= 0) THEN

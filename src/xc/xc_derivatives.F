@@ -358,7 +358,9 @@ CONTAINS
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval'
+      CHARACTER(len=*), PARAMETER :: abort_message_skala = &
+         "Control flow error: Computation of the Skala functional should not "// &
+         "proceed to this point, but occur at a higher level.", routineN = 'xc_functional_eval'
 
       INTEGER                                            :: handle, i_param
       LOGICAL                                            :: fun_active
@@ -511,7 +513,7 @@ CONTAINS
             CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
       CASE ("SKALA")
-   CPABORT("Control flow error: Computation of the Skala functional should not proceed to this point, but occur at a higher level.")
+         CPABORT(abort_message_skala)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)
