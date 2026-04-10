@@ -285,7 +285,12 @@ CONTAINS
          IF (PRESENT(max_deriv)) max_deriv = 1
          IF (PRESENT(needs)) THEN
             needs%rho = .TRUE.
+            IF (lsd) THEN
+               needs%rho_spin = .TRUE.
+            END IF
          END IF
+!          Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
+!          when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_info(reference, shortform, needs, max_deriv)
