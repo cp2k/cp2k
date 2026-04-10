@@ -1950,7 +1950,7 @@ CONTAINS
          END DO
          error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
          IF (io_unit > 0) THEN
-            WRITE (6, *) "GEXT overlap fitting error:", error
+            WRITE (UNIT=io_unit, FMT="(/,T2,A,F20.10)") "GEXT overlap fitting error:", error
          END IF
       END IF
 
@@ -2070,7 +2070,7 @@ CONTAINS
          END DO
          error = dbcsr_frobenius_norm(tmp_i)/dbcsr_frobenius_norm(state%overlap)
          IF (io_unit > 0) THEN
-            WRITE (6, *) "GEXT overlap fitting error:", error
+            WRITE (UNIT=io_unit, FMT="(/,T2,A,F20.10)") "GEXT overlap fitting error:", error
          END IF
       END IF
 
