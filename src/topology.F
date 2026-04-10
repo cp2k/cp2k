@@ -200,6 +200,8 @@ CONTAINS
       IF (PRESENT(subsys)) THEN ! subsys is passed from cp_subsys_create
          CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
       END IF
+      CALL write_cell(my_cell, subsys_section, tag="CELL")
+      CALL write_cell(my_cell_ref, subsys_section, tag="CELL_REF")
       CALL cell_release(my_cell)
       CALL cell_release(my_cell_ref)
 
