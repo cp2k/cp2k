@@ -38,6 +38,7 @@ MODULE xc_gauxc
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
    USE input_section_types, ONLY: section_vals_type, section_vals_val_get
+   USE string_utilities, ONLY: uppercase
 #ifdef GAUXC_HAS_MPI
    USE mpi
 #endif
@@ -290,66 +291,17 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: grid_spec, lb_exec_space_str, &
                                                             prune_spec, rad_quad_spec
-      INTEGER                                            :: batch_val, grid_val, lb_exec_val, &
-                                                            prune_val, rad_quad_val
+      INTEGER                                            :: batch_val
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
       INTEGER(c_int64_t)                                 :: batch_size
 
-      CALL section_vals_val_get(gauxc_section, "GRID", i_val=grid_val)
-      CALL section_vals_val_get(gauxc_section, "RADIAL_QUADRATURE", i_val=rad_quad_val)
-      CALL section_vals_val_get(gauxc_section, "PRUNING_SCHEME", i_val=prune_val)
+      CALL section_vals_val_get(gauxc_section, "GRID", c_val=grid_spec)
+      CALL section_vals_val_get(gauxc_section, "RADIAL_QUADRATURE", c_val=rad_quad_spec)
+      CALL section_vals_val_get(gauxc_section, "PRUNING_SCHEME", c_val=prune_spec)
       CALL section_vals_val_get(gauxc_section, "BATCH_SIZE", i_val=batch_val)
-      CALL section_vals_val_get(gauxc_section, "LB_EXECUTION_SPACE", i_val=lb_exec_val)
-
-      SELECT CASE (grid_val)
-      CASE (1)
-         grid_spec = "fine"
-      CASE (2)
-         grid_spec = "ultrafine"
-      CASE (3)
-         grid_spec = "superfine"
-      CASE (4)
-         grid_spec = "gm3"
-      CASE (5)
-         grid_spec = "gm5"
-      CASE DEFAULT
-         grid_spec = "fine"
-      END SELECT
-
-      SELECT CASE (rad_quad_val)
-      CASE (1)
-         rad_quad_spec = "becke"
-      CASE (2)
-         rad_quad_spec = "muraknowles"
-      CASE (3)
-         rad_quad_spec = "treutlerahlrichs"
-      CASE (4)
-         rad_quad_spec = "murrayhandylaming"
-      CASE DEFAULT
-         rad_quad_spec = "muraknowles"
-      END SELECT
-
-      SELECT CASE (prune_val)
-      CASE (1)
-         prune_spec = "unpruned"
-      CASE (2)
-         prune_spec = "robust"
-      CASE (3)
-         prune_spec = "treutler"
-      CASE DEFAULT
-         prune_spec = "robust"
-      END SELECT
-
-      SELECT CASE (lb_exec_val)
-      CASE (1)
-         lb_exec_space_str = "host"
-      CASE (2)
-         lb_exec_space_str = "device"
-      CASE DEFAULT
-         lb_exec_space_str = "host"
-      END SELECT
+      CALL section_vals_val_get(gauxc_section, "LB_EXECUTION_SPACE", c_val=lb_exec_space_str)
 
       batch_size = INT(batch_val, c_int64_t)
 
@@ -398,19 +350,10 @@ CONTAINS
       TYPE(cp_gauxc_integrator_type)                     :: res
 
       CHARACTER(len=default_string_length)               :: int_exec_space_str
-      INTEGER(c_int)                                     :: int_exec_space_local, int_exec_val
+      INTEGER(c_int)                                     :: int_exec_space_local
       LOGICAL(c_bool)                                    :: polarized
 
-      CALL section_vals_val_get(gauxc_section, "INT_EXECUTION_SPACE", i_val=int_exec_val)
-
-      SELECT CASE (int_exec_val)
-      CASE (1)
-         int_exec_space_str = "host"
-      CASE (2)
-         int_exec_space_str = "device"
-      CASE DEFAULT
-         int_exec_space_str = "host"
-      END SELECT
+      CALL section_vals_val_get(gauxc_section, "INT_EXECUTION_SPACE", c_val=int_exec_space_str)
 
       polarized = (nspins == 2)
       res%func = gauxc_functional_from_string(status, xc_functional_name, polarized)
@@ -611,10 +554,15 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
-      SELECT CASE (spec)
-      CASE ("host")
+      CHARACTER(len=LEN(spec))                           :: spec_upper
+
+      spec_upper = spec
+      CALL uppercase(spec_upper)
+
+      SELECT CASE (spec_upper)
+      CASE ("HOST")
          val = gauxc_executionspace%host
-      CASE ("device")
+      CASE ("DEVICE")
          val = gauxc_executionspace%device
       CASE DEFAULT
          val = gauxc_executionspace%host
@@ -626,20 +574,29 @@ CONTAINS
 !> \param spec ...
 !> \return ...
 ! **************************************************************************************************
+!> \brief ...
+!> \param spec ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION read_atomic_grid_size(spec) RESULT(val)
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
-      SELECT CASE (spec)
-      CASE ("fine")
+      CHARACTER(len=LEN(spec))                           :: spec_upper
+
+      spec_upper = spec
+      CALL uppercase(spec_upper)
+
+      SELECT CASE (spec_upper)
+      CASE ("FINE")
          val = gauxc_atomicgridsizedefault%finegrid
-      CASE ("ultrafine")
+      CASE ("ULTRAFINE")
          val = gauxc_atomicgridsizedefault%ultrafinegrid
-      CASE ("superfine")
+      CASE ("SUPERFINE")
          val = gauxc_atomicgridsizedefault%superfinegrid
-      CASE ("gm3")
+      CASE ("GM3")
          val = gauxc_atomicgridsizedefault%gm3
-      CASE ("gm5")
+      CASE ("GM5")
          val = gauxc_atomicgridsizedefault%gm5
       CASE DEFAULT
          val = gauxc_atomicgridsizedefault%finegrid
@@ -655,14 +612,19 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
-      SELECT CASE (spec)
-      CASE ("becke")
+      CHARACTER(len=LEN(spec))                           :: spec_upper
+
+      spec_upper = spec
+      CALL uppercase(spec_upper)
+
+      SELECT CASE (spec_upper)
+      CASE ("BECKE")
          val = gauxc_radialquad%becke
-      CASE ("muraknowles")
+      CASE ("MURAKNOWLES")
          val = gauxc_radialquad%mura_knowles
-      CASE ("treutlerahlrichs")
+      CASE ("TREUTLERAHLRICHS")
          val = gauxc_radialquad%treutler_ahlrichs
-      CASE ("murrayhandylaming")
+      CASE ("MURRAYHANDYLAMING")
          val = gauxc_radialquad%murray_handy_laming
       CASE DEFAULT
          val = gauxc_radialquad%mura_knowles
@@ -678,12 +640,17 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: spec
       INTEGER(c_int)                                     :: val
 
-      SELECT CASE (spec)
-      CASE ("unpruned")
+      CHARACTER(len=LEN(spec))                           :: spec_upper
+
+      spec_upper = spec
+      CALL uppercase(spec_upper)
+
+      SELECT CASE (spec_upper)
+      CASE ("UNPRUNED")
          val = gauxc_pruningscheme%unpruned
-      CASE ("robust")
+      CASE ("ROBUST")
          val = gauxc_pruningscheme%robust
-      CASE ("treutler")
+      CASE ("TREUTLER")
          val = gauxc_pruningscheme%treutler
       CASE DEFAULT
          val = gauxc_pruningscheme%robust
