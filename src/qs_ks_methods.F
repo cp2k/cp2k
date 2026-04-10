@@ -264,8 +264,8 @@ CONTAINS
 
       gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
       gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
-      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_status)
-      gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, nspins, gauxc_status)
+      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_functional_section, gauxc_status)
+      gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, gauxc_functional_section, nspins, gauxc_status)
 
       IF (qs_env%run_rtp) THEN
          CPABORT("GAUXC XC energy currently does not support real-time propagation")

@@ -3,11 +3,11 @@
 MODULE xc_gauxc
 
    USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr, c_ptr, c_f_pointer, c_associated, c_char
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: dp, default_string_length
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: bohr
    USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind, &
-      & get_atomic_kind_set
+       & get_atomic_kind_set
    USE qs_integral_utils, ONLY: basis_set_list_setup
    USE basis_set_types, ONLY: gto_basis_set_type, gto_basis_set_p_type
    USE qs_kind_types, ONLY: qs_kind_type, get_qs_kind
@@ -16,8 +16,8 @@ MODULE xc_gauxc
    USE gauxc_enums, ONLY: gauxc_executionspace, gauxc_radialquad, &
      & gauxc_atomicgridsizedefault, gauxc_pruningscheme
    USE gauxc_runtime_environment, ONLY: gauxc_runtime_environment_type, &
-     & gauxc_runtime_environment_comm_rank, gauxc_runtime_environment_comm_size, &
-     & gauxc_runtime_environment_new, gauxc_runtime_environment_delete
+      & gauxc_runtime_environment_comm_rank, gauxc_runtime_environment_comm_size, &
+      & gauxc_runtime_environment_new, gauxc_runtime_environment_delete
    USE gauxc_molecule, ONLY: gauxc_molecule_type, gauxc_molecule_new_from_atoms, gauxc_delete
    USE gauxc_atom, ONLY: gauxc_atom_type
    USE gauxc_basisset, ONLY: gauxc_basisset_type, gauxc_basisset_new, &
@@ -37,6 +37,7 @@ MODULE xc_gauxc
        & gauxc_integrator_eval_exc_vxc_uks, gauxc_delete
    USE gauxc_external_hdf5_read, ONLY: gauxc_read_hdf5_record
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
+   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
 #ifdef GAUXC_HAS_MPI
    USE mpi
 #endif
@@ -82,12 +83,7 @@ MODULE xc_gauxc
    ! Copy paste from docu, move these wherever adequate
    TYPE(gauxc_runtime_environment_type) :: rt
 
-   CHARACTER(len=:), ALLOCATABLE :: grid_spec, rad_quad_spec, prune_spec, &
-      & lb_exec_space_str, int_exec_space_str
-   INTEGER(c_int) :: grid_type, radial_quad, pruning_scheme
-   INTEGER(c_int) :: lb_exec_space, int_exec_space
    INTEGER(c_int) :: world_rank, world_size
-   INTEGER(c_int64_t) :: batch_size
 
    PUBLIC :: gauxc_init, gauxc_finalize, gauxc_create_molecule, &
           & gauxc_create_basisset, gauxc_destroy_molecule, gauxc_destroy_basisset, &
@@ -128,13 +124,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mpi_comm
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
 
-      grid_spec = "fine"
-      rad_quad_spec = "muraknowles"
-      prune_spec = "robust"
-      lb_exec_space_str = "host"
-      int_exec_space_str = "host"
-      batch_size = 512_c_int64_t
-
       rt = gauxc_runtime_environment_new(status, mpi_comm)
       CALL check_gauxc_status(status)
 
@@ -148,14 +137,6 @@ CONTAINS
             PRINT '(a,1x,i0)', "GauXC returned with status code", status%code
             PRINT '(a)', gauxc_status_message(status)
          END IF
-
-         ! This output is prolly not supposed to come at init
-         PRINT '(a)', &
-           & "Configuration", &
-           & "-> Grid              : "//grid_spec, &
-           & "-> Radial quadrature : "//rad_quad_spec, &
-           & "-> Pruning scheme    : "//prune_spec, &
-           & ""
       END IF
       CALL check_gauxc_status(status)
 
@@ -296,24 +277,87 @@ CONTAINS
 !> \brief ...
 !> \param molecule ...
 !> \param basis ...
+!> \param gauxc_section ...
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_grid(molecule, basis, status) RESULT(res)
+   FUNCTION gauxc_create_grid(molecule, basis, gauxc_section, status) RESULT(res)
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_grid_type)                           :: res
 
+      CHARACTER(len=default_string_length)               :: grid_spec, lb_exec_space_str, &
+                                                            prune_spec, rad_quad_spec
+      INTEGER                                            :: batch_val, grid_val, lb_exec_val, &
+                                                            prune_val, rad_quad_val
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
+      INTEGER(c_int64_t)                                 :: batch_size
+
+      CALL section_vals_val_get(gauxc_section, "GRID", i_val=grid_val)
+      CALL section_vals_val_get(gauxc_section, "RADIAL_QUADRATURE", i_val=rad_quad_val)
+      CALL section_vals_val_get(gauxc_section, "PRUNING_SCHEME", i_val=prune_val)
+      CALL section_vals_val_get(gauxc_section, "BATCH_SIZE", i_val=batch_val)
+      CALL section_vals_val_get(gauxc_section, "LB_EXECUTION_SPACE", i_val=lb_exec_val)
+
+      SELECT CASE (grid_val)
+      CASE (1)
+         grid_spec = "fine"
+      CASE (2)
+         grid_spec = "ultrafine"
+      CASE (3)
+         grid_spec = "superfine"
+      CASE (4)
+         grid_spec = "gm3"
+      CASE (5)
+         grid_spec = "gm5"
+      CASE DEFAULT
+         grid_spec = "fine"
+      END SELECT
+
+      SELECT CASE (rad_quad_val)
+      CASE (1)
+         rad_quad_spec = "becke"
+      CASE (2)
+         rad_quad_spec = "muraknowles"
+      CASE (3)
+         rad_quad_spec = "treutlerahlrichs"
+      CASE (4)
+         rad_quad_spec = "murrayhandylaming"
+      CASE DEFAULT
+         rad_quad_spec = "muraknowles"
+      END SELECT
+
+      SELECT CASE (prune_val)
+      CASE (1)
+         prune_spec = "unpruned"
+      CASE (2)
+         prune_spec = "robust"
+      CASE (3)
+         prune_spec = "treutler"
+      CASE DEFAULT
+         prune_spec = "robust"
+      END SELECT
+
+      SELECT CASE (lb_exec_val)
+      CASE (1)
+         lb_exec_space_str = "host"
+      CASE (2)
+         lb_exec_space_str = "device"
+      CASE DEFAULT
+         lb_exec_space_str = "host"
+      END SELECT
+
+      batch_size = INT(batch_val, c_int64_t)
 
       grid_type_local = read_atomic_grid_size(grid_spec)
       radial_quad_local = read_radial_quad(rad_quad_spec)
       pruning_scheme_local = read_pruning_scheme(prune_spec)
       lb_exec_space_local = read_execution_space(lb_exec_space_str)
-      int_exec_space_local = read_execution_space(int_exec_space_str)
+      int_exec_space_local = read_execution_space("host")
 
       res%grid = gauxc_molgrid_new_default(status, molecule%molecule, pruning_scheme_local, &
          & batch_size, radial_quad_local, grid_type_local)
@@ -336,31 +380,37 @@ CONTAINS
 
    END FUNCTION gauxc_create_grid
 
-   ! **************************************************************************************************
-   !> \brief ...
-   !> \param xc_functional_name ...
-   !> \param lb ...
-   !> \param nspins ...
-   !> \param status ...
-   !> \return ...
-   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param xc_functional_name ...
 !> \param lb ...
+!> \param gauxc_section ...
 !> \param nspins ...
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_integrator(xc_functional_name, lb, nspins, status) RESULT(res)
+   FUNCTION gauxc_create_integrator(xc_functional_name, lb, gauxc_section, nspins, status) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
 
-      INTEGER(c_int)                                     :: int_exec_space_local
+      CHARACTER(len=default_string_length)               :: int_exec_space_str
+      INTEGER(c_int)                                     :: int_exec_space_local, int_exec_val
       LOGICAL(c_bool)                                    :: polarized
+
+      CALL section_vals_val_get(gauxc_section, "INT_EXECUTION_SPACE", i_val=int_exec_val)
+
+      SELECT CASE (int_exec_val)
+      CASE (1)
+         int_exec_space_str = "host"
+      CASE (2)
+         int_exec_space_str = "device"
+      CASE DEFAULT
+         int_exec_space_str = "host"
+      END SELECT
 
       polarized = (nspins == 2)
       res%func = gauxc_functional_from_string(status, xc_functional_name, polarized)
