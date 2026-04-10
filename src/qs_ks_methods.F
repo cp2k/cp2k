@@ -50,7 +50,6 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
-   USE gauxc_status,                    ONLY: gauxc_status_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
@@ -143,10 +142,10 @@ MODULE qs_ks_methods
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, cp_gauxc_xc_type, dbcsr_to_dense, dense_to_dbcsr, &
-        gauxc_compute_xc, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
-        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
-        gauxc_destroy_integrator, gauxc_destroy_molecule
+        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, dbcsr_to_dense, &
+        dense_to_dbcsr, gauxc_compute_xc, gauxc_create_basisset, gauxc_create_grid, &
+        gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
+        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -218,12 +217,12 @@ CONTAINS
       TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
       TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
       TYPE(dbcsr_p_type)                                 :: vxc_zeta_dbcsr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gauxc_status_type)                            :: gauxc_status
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -282,7 +281,7 @@ CONTAINS
                           gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &
-                                gauxc_grid_result%lb, &
+                                gauxc_grid_result, &
                                 gauxc_functional_section, &
                                 nspins, &
                                 gauxc_status)
@@ -296,7 +295,7 @@ CONTAINS
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
          END DO
          gauxc_xc_result = gauxc_compute_xc( &
-                           gauxc_integrator_result%integrator, &
+                           gauxc_integrator_result, &
                            density_scalar, &
                            nspins=nspins, &
                            status=gauxc_status)
@@ -313,7 +312,7 @@ CONTAINS
          ! This style lowers memory footprint.
          density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
          gauxc_xc_result = gauxc_compute_xc( &
-                           gauxc_integrator_result%integrator, &
+                           gauxc_integrator_result, &
                            density_scalar, &
                            density_zeta, &
                            nspins, &

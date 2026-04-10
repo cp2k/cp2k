@@ -68,7 +68,6 @@ MODULE f77_interface
                                               fp_env_read,&
                                               fp_env_write,&
                                               fp_type
-   USE gauxc_status,                    ONLY: gauxc_status_type
    USE global_types,                    ONLY: global_environment_type,&
                                               globenv_create,&
                                               globenv_release
@@ -149,7 +148,8 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc,                        ONLY: gauxc_finalize,&
+   USE xc_gauxc,                        ONLY: cp_gauxc_status_type,&
+                                              gauxc_finalize,&
                                               gauxc_init
 #include "./base/base_uses.f90"
 
@@ -229,8 +229,8 @@ CONTAINS
       INTEGER                                            :: offload_device_count, unit_nr
       INTEGER, POINTER                                   :: active_device_id
       INTEGER, TARGET                                    :: offload_chosen_device
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(gauxc_status_type)                            :: gauxc_status
 
       IF (.NOT. module_initialized) THEN
          ! install error handler hooks
@@ -329,7 +329,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER                                            :: ienv
-      TYPE(gauxc_status_type)                            :: gauxc_status
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
 
 !sample peak memory
 

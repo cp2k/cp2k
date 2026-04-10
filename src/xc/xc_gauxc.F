@@ -14,11 +14,22 @@ MODULE xc_gauxc
       c_null_ptr, &
       c_ptr, &
       c_size_t
+   USE particle_types, ONLY: &
+      particle_type
+   USE qs_kind_types, ONLY: &
+      get_qs_kind, &
+      qs_kind_type
+   USE input_section_types, ONLY: &
+      section_vals_type, &
+      section_vals_val_get
+   USE cp_dbcsr_api, ONLY: &
+      dbcsr_p_type
+
+#ifdef __GAUXC
+
    USE kinds, ONLY: &
       default_string_length, &
       dp
-   USE particle_types, ONLY: &
-      particle_type
    USE physcon, ONLY: &
       bohr
    USE atomic_kind_types, ONLY: &
@@ -30,9 +41,6 @@ MODULE xc_gauxc
    USE basis_set_types, ONLY: &
       gto_basis_set_p_type, &
       gto_basis_set_type
-   USE qs_kind_types, ONLY: &
-      get_qs_kind, &
-      qs_kind_type
    USE periodic_table, ONLY: &
       get_ptable_info
    USE gauxc_status, ONLY: &
@@ -92,18 +100,35 @@ MODULE xc_gauxc
       gauxc_integrator_type
    USE gauxc_external_hdf5_read, ONLY: &
       gauxc_read_hdf5_record
-   USE cp_dbcsr_api, ONLY: &
-      dbcsr_p_type
-   USE input_section_types, ONLY: &
-      section_vals_type, &
-      section_vals_val_get
    USE string_utilities, ONLY: &
       uppercase
+#endif
 
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
+
+#ifndef __GAUXC
+
+   ! The module still exists as an empty shell when compiling without GauXC.
+
+   TYPE cp_gauxc_molecule_type
+   END TYPE cp_gauxc_molecule_type
+
+   TYPE cp_gauxc_basisset_type
+   END TYPE cp_gauxc_basisset_type
+
+   TYPE cp_gauxc_grid_type
+   END TYPE cp_gauxc_grid_type
+
+   TYPE cp_gauxc_integrator_type
+   END TYPE cp_gauxc_integrator_type
+
+   TYPE cp_gauxc_status_type
+   END TYPE cp_gauxc_status_type
+
+#else
 
    INTERFACE
       SUBROUTINE print_gauxc_status_message(c_message) BIND(C, name="print_c_string")
@@ -111,6 +136,8 @@ MODULE xc_gauxc
          TYPE(c_ptr), VALUE :: c_message
       END SUBROUTINE print_gauxc_status_message
    END INTERFACE
+
+   ! TODO can we make the single fields private somehow?
 
    TYPE cp_gauxc_molecule_type
       TYPE(gauxc_molecule_type) :: molecule
@@ -133,22 +160,29 @@ MODULE xc_gauxc
       TYPE(gauxc_integrator_type) :: integrator
    END TYPE cp_gauxc_integrator_type
 
+   TYPE cp_gauxc_status_type
+      TYPE(gauxc_status_type) :: status
+   END TYPE cp_gauxc_status_type
+
+   TYPE(gauxc_runtime_environment_type) :: rt
+
+#endif
+
    TYPE cp_gauxc_xc_type
       REAL(c_double) :: exc
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
    END TYPE cp_gauxc_xc_type
-
-   ! Copy paste from docu, move these wherever adequate
-   TYPE(gauxc_runtime_environment_type) :: rt
 
    PUBLIC :: &
       cp_gauxc_basisset_type, &
       cp_gauxc_grid_type, &
       cp_gauxc_integrator_type, &
       cp_gauxc_molecule_type, &
+      cp_gauxc_status_type, &
       cp_gauxc_xc_type, &
       dbcsr_to_dense, &
       dense_to_dbcsr, &
+      gauxc_check_status, &
       gauxc_compute_xc, &
       gauxc_create_basisset, &
       gauxc_create_grid, &
@@ -159,33 +193,8 @@ MODULE xc_gauxc
       gauxc_destroy_integrator, &
       gauxc_destroy_molecule, &
       gauxc_finalize, &
-      gauxc_init, &
-      read_atomic_grid_size, &
-      read_execution_space, &
-      read_pruning_scheme, &
-      read_radial_quad
-
+      gauxc_init
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Checks gauxc status and prints error message before aborting
-!> \param status the gauxc status to check
-! **************************************************************************************************
-   SUBROUTINE check_gauxc_status(status)
-      TYPE(gauxc_status_type), INTENT(IN)                :: status
-
-      IF (status%code /= 0) THEN
-         WRITE (*, '(a,1x,i0)') "GauXC returned with status code", status%code
-         IF (c_associated(status%message)) THEN
-            WRITE (0, '(a)', ADVANCE='no') "GauxC status message: ["
-            CALL print_gauxc_status_message(status%message)
-            WRITE (0, '(a)') "]"
-         ELSE
-            WRITE (0, '(a)') "GauxC status message: [null]"
-         END IF
-         CPABORT("GauXC returned with non-zero status code")
-      END IF
-   END SUBROUTINE check_gauxc_status
 
 ! **************************************************************************************************
 !> \brief ...
@@ -194,24 +203,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_init(mpi_comm, status)
       INTEGER, INTENT(IN)                                :: mpi_comm
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
+#ifdef __GAUXC
       INTEGER(c_int)                                     :: world_rank
 
-      rt = gauxc_runtime_environment_new(status, mpi_comm)
-      CALL check_gauxc_status(status)
+      rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+      CALL gauxc_check_status(status)
 
-      world_rank = gauxc_runtime_environment_comm_rank(status, rt)
-      CALL check_gauxc_status(status)
-
-      IF (world_rank == 0) THEN
-         IF (status%code /= 0) THEN
-            PRINT '(a,1x,i0)', "GauXC returned with status code", status%code
-            PRINT '(a)', gauxc_status_message(status)
-         END IF
-      END IF
-      CALL check_gauxc_status(status)
-
+      world_rank = gauxc_runtime_environment_comm_rank(status%status, rt)
+      CALL gauxc_check_status(status)
+#else
+      MARK_USED(mpi_comm)
+      MARK_USED(status)
+#endif
    END SUBROUTINE gauxc_init
 
 ! **************************************************************************************************
@@ -219,10 +224,13 @@ CONTAINS
 !> \param status ...
 ! **************************************************************************************************
    SUBROUTINE gauxc_finalize(status)
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_runtime_environment_delete(status, rt)
-      CALL check_gauxc_status(status)
+#ifdef __GAUXC
+      CALL gauxc_runtime_environment_delete(status%status, rt)
+      CALL gauxc_check_status(status)
+#else
+#endif
    END SUBROUTINE gauxc_finalize
 
 ! **************************************************************************************************
@@ -235,9 +243,10 @@ CONTAINS
    FUNCTION gauxc_create_molecule(particle_set, natoms, status) RESULT(res)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_molecule_type)                       :: res
 
+#ifdef __GAUXC
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: atomic_number, i
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -255,11 +264,12 @@ CONTAINS
          atoms(i)%z = REAL(particle_set(i)%r(3), c_double)
       END DO
 
-      res%molecule = gauxc_molecule_new_from_atoms(status, atoms, INT(natoms, c_size_t))
-      CALL check_gauxc_status(status)
+      res%molecule = gauxc_molecule_new_from_atoms(status%status, atoms, INT(natoms, c_size_t))
+      CALL gauxc_check_status(status)
 
       DEALLOCATE (atoms)
-
+#else
+#endif
    END FUNCTION gauxc_create_molecule
 
 ! **************************************************************************************************
@@ -275,9 +285,10 @@ CONTAINS
          POINTER                                         :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_basisset_type)                       :: res
 
+#ifdef __GAUXC
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
                                                             nkind, npgf, nset, nshell, &
                                                             nshell_total, shell_index
@@ -339,12 +350,14 @@ CONTAINS
          END DO
       END DO
 
-      res%basis = gauxc_basisset_new_from_shells(status, shells, INT(nshell_total, c_size_t))
-      CALL check_gauxc_status(status)
+      res%basis = gauxc_basisset_new_from_shells(status%status, shells, INT(nshell_total, c_size_t))
+      CALL gauxc_check_status(status)
 
       DEALLOCATE (shells)
       DEALLOCATE (basis_set_list)
 
+#else
+#endif
    END FUNCTION gauxc_create_basisset
 
 ! **************************************************************************************************
@@ -359,9 +372,10 @@ CONTAINS
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
       TYPE(section_vals_type), POINTER                   :: gauxc_section
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_grid_type)                           :: res
 
+#ifdef __GAUXC
       CHARACTER(len=default_string_length)               :: grid_spec, lb_exec_space_str, &
                                                             prune_spec, rad_quad_spec
       INTEGER                                            :: batch_val
@@ -400,44 +414,46 @@ CONTAINS
       int_exec_space_local = read_execution_space("host")
 
       res%grid = gauxc_molgrid_new_default( &
-                 status, &
+                 status%status, &
                  molecule%molecule, &
                  pruning_scheme_local, &
                  batch_size, &
                  radial_quad_local, &
                  grid_type_local)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       res%lbf = gauxc_load_balancer_factory_new( &
-                status, &
+                status%status, &
                 lb_exec_space_local)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       res%lb = gauxc_load_balancer_factory_get_instance( &
-               status, &
+               status%status, &
                res%lbf, &
                rt, &
                molecule%molecule, &
                res%grid, &
                basis%basis)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       res%mwf = gauxc_molecular_weights_factory_new( &
-                status, &
+                status%status, &
                 int_exec_space_local)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       res%mw = gauxc_get_instance( &
-               status, &
+               status%status, &
                res%mwf)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       CALL gauxc_molecular_weights_modify_weights( &
-         status, &
+         status%status, &
          res%mw, &
          res%lb)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
+#else
+#endif
    END FUNCTION gauxc_create_grid
 
 ! **************************************************************************************************
@@ -449,14 +465,15 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_integrator(xc_functional_name, lb, gauxc_section, nspins, status) RESULT(res)
+   FUNCTION gauxc_create_integrator(xc_functional_name, grid, gauxc_section, nspins, status) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
-      TYPE(gauxc_load_balancer_type), INTENT(IN)         :: lb
+      TYPE(cp_gauxc_grid_type), INTENT(IN)         :: grid
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
 
+#ifdef __GAUXC
       CHARACTER(len=default_string_length)               :: int_exec_space_str
       INTEGER(c_int)                                     :: int_exec_space_local
       LOGICAL(c_bool)                                    :: polarized
@@ -468,19 +485,21 @@ CONTAINS
 
       polarized = (nspins == 2)
       res%func = gauxc_functional_from_string( &
-                 status, &
+                 status%status, &
                  xc_functional_name, &
                  polarized)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
       int_exec_space_local = read_execution_space(int_exec_space_str)
       res%integrator = gauxc_integrator_new( &
-                       status, &
+                       status%status, &
                        res%func, &
-                       lb, &
+                       grid%lb, &
                        int_exec_space_local)
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
+#else
+#endif
    END FUNCTION gauxc_create_integrator
 
 ! **************************************************************************************************
@@ -493,20 +512,21 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, nspins, status) RESULT(res)
-      TYPE(gauxc_integrator_type), INTENT(IN)            :: integrator
+      TYPE(cp_gauxc_integrator_type), INTENT(IN)            :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
       TYPE(cp_gauxc_xc_type)                             :: res
 
+#ifdef __GAUXC
       ALLOCATE (res%vxc_scalar, mold=density_scalar)
 
       IF (nspins == 1) THEN
          CALL gauxc_integrator_eval_exc_vxc_rks( &
-            status, &
-            integrator, &
+            status%status, &
+            integrator%integrator, &
             density_scalar, &
             res%exc, &
             res%vxc_scalar)
@@ -514,16 +534,18 @@ CONTAINS
          CPASSERT(PRESENT(density_zeta))
          ALLOCATE (res%vxc_zeta, mold=density_zeta)
          CALL gauxc_integrator_eval_exc_vxc_uks( &
-            status, &
-            integrator, &
+            status%status, &
+            integrator%integrator, &
             density_scalar, &
             density_zeta, &
             res%exc, &
             res%vxc_scalar, &
             res%vxc_zeta)
       END IF
-      CALL check_gauxc_status(status)
+      CALL gauxc_check_status(status)
 
+#else
+#endif
    END FUNCTION gauxc_compute_xc
 
 ! **************************************************************************************************
@@ -533,10 +555,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
       TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, molecule%molecule)
-      CALL check_gauxc_status(status)
+#ifdef __GAUXC
+      CALL gauxc_delete(status%status, molecule%molecule)
+      CALL gauxc_check_status(status)
+#else
+#endif
    END SUBROUTINE gauxc_destroy_molecule
 
 ! **************************************************************************************************
@@ -546,10 +571,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_basisset(basis, status)
       TYPE(cp_gauxc_basisset_type), INTENT(INOUT)        :: basis
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, basis%basis)
-      CALL check_gauxc_status(status)
+#ifdef __GAUXC
+      CALL gauxc_delete(status%status, basis%basis)
+      CALL gauxc_check_status(status)
+#else
+#endif
    END SUBROUTINE gauxc_destroy_basisset
 
 ! **************************************************************************************************
@@ -559,18 +587,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_grid(grid_result, status)
       TYPE(cp_gauxc_grid_type), INTENT(INOUT)            :: grid_result
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, grid_result%mw)
-      CALL check_gauxc_status(status)
-      CALL gauxc_delete(status, grid_result%mwf)
-      CALL check_gauxc_status(status)
-      CALL gauxc_delete(status, grid_result%lb)
-      CALL check_gauxc_status(status)
-      CALL gauxc_delete(status, grid_result%lbf)
-      CALL check_gauxc_status(status)
-      CALL gauxc_delete(status, grid_result%grid)
-      CALL check_gauxc_status(status)
+#ifdef __GAUXC
+      CALL gauxc_delete(status%status, grid_result%mw)
+      CALL gauxc_check_status(status)
+      CALL gauxc_delete(status%status, grid_result%mwf)
+      CALL gauxc_check_status(status)
+      CALL gauxc_delete(status%status, grid_result%lb)
+      CALL gauxc_check_status(status)
+      CALL gauxc_delete(status%status, grid_result%lbf)
+      CALL gauxc_check_status(status)
+      CALL gauxc_delete(status%status, grid_result%grid)
+      CALL gauxc_check_status(status)
+#endif
    END SUBROUTINE gauxc_destroy_grid
 
 ! **************************************************************************************************
@@ -580,12 +610,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_integrator(integrator_result, status)
       TYPE(cp_gauxc_integrator_type), INTENT(INOUT)      :: integrator_result
-      TYPE(gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
 
-      CALL gauxc_delete(status, integrator_result%integrator)
-      CALL check_gauxc_status(status)
-      CALL gauxc_delete(status, integrator_result%func)
-      CALL check_gauxc_status(status)
+#ifdef __GAUXC
+      CALL gauxc_delete(status%status, integrator_result%integrator)
+      CALL gauxc_check_status(status)
+      CALL gauxc_delete(status%status, integrator_result%func)
+      CALL gauxc_check_status(status)
+#else
+#endif
    END SUBROUTINE gauxc_destroy_integrator
 
 ! **************************************************************************************************
@@ -664,6 +697,36 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
    END FUNCTION dense_to_dbcsr
+
+! **************************************************************************************************
+!> \brief Checks gauxc status and prints error message before aborting
+!> \param status the gauxc status to check
+! **************************************************************************************************
+   SUBROUTINE gauxc_check_status(status)
+      TYPE(cp_gauxc_status_type), INTENT(IN)                :: status
+
+#ifdef __GAUXC
+      IF (status%status%code /= 0) THEN
+         WRITE (*, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         IF (c_associated(status%status%message)) THEN
+            WRITE (0, '(a)', ADVANCE='no') "GauxC status message: ["
+            CALL print_gauxc_status_message(status%status%message)
+            WRITE (0, '(a)') "]"
+         ELSE
+            WRITE (0, '(a)') "GauxC status message: [null]"
+         END IF
+         CPABORT("GauXC returned with non-zero status code")
+      END IF
+#else
+      MARK_USED(status)
+#endif
+   END SUBROUTINE gauxc_check_status
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! From here on, it's private helpers !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#ifdef __GAUXC
 
 ! **************************************************************************************************
 !> \brief ...
@@ -772,5 +835,7 @@ CONTAINS
          val = gauxc_pruningscheme%robust
       END SELECT
    END FUNCTION read_pruning_scheme
+
+#endif
 
 END MODULE xc_gauxc
