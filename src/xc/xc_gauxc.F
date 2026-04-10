@@ -99,9 +99,6 @@ MODULE xc_gauxc
       section_vals_val_get
    USE string_utilities, ONLY: &
       uppercase
-#ifdef GAUXC_HAS_MPI
-   USE mpi
-#endif
 
 #include "../base/base_uses.f90"
 
