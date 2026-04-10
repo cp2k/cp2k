@@ -173,6 +173,8 @@ MODULE xc_gauxc
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
    END TYPE cp_gauxc_xc_type
 
+   CHARACTER(len=*), PARAMETER :: no_gauxc_message = "Compile CP2K with GauXC to use this functionality!"
+
    PUBLIC :: &
       cp_gauxc_basisset_type, &
       cp_gauxc_grid_type, &
@@ -203,7 +205,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_init(mpi_comm, status)
       INTEGER, INTENT(IN)                                :: mpi_comm
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: world_rank
@@ -224,12 +226,13 @@ CONTAINS
 !> \param status ...
 ! **************************************************************************************************
    SUBROUTINE gauxc_finalize(status)
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       CALL gauxc_runtime_environment_delete(status%status, rt)
       CALL gauxc_check_status(status)
 #else
+      MARK_USED(status)
 #endif
    END SUBROUTINE gauxc_finalize
 
@@ -243,7 +246,7 @@ CONTAINS
    FUNCTION gauxc_create_molecule(particle_set, natoms, status) RESULT(res)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_molecule_type)                       :: res
 
 #ifdef __GAUXC
@@ -269,6 +272,10 @@ CONTAINS
 
       DEALLOCATE (atoms)
 #else
+      MARK_USED(particle_set)
+      MARK_USED(natoms)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_create_molecule
 
@@ -285,7 +292,7 @@ CONTAINS
          POINTER                                         :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, INTENT(IN)                                :: natoms
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_basisset_type)                       :: res
 
 #ifdef __GAUXC
@@ -357,6 +364,11 @@ CONTAINS
       DEALLOCATE (basis_set_list)
 
 #else
+      MARK_USED(qs_kind_set)
+      MARK_USED(particle_set)
+      MARK_USED(natoms)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_create_basisset
 
@@ -372,7 +384,7 @@ CONTAINS
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
       TYPE(section_vals_type), POINTER                   :: gauxc_section
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
@@ -453,6 +465,11 @@ CONTAINS
       CALL gauxc_check_status(status)
 
 #else
+      MARK_USED(molecule)
+      MARK_USED(basis)
+      MARK_USED(gauxc_section)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_create_grid
 
@@ -470,7 +487,7 @@ CONTAINS
       TYPE(cp_gauxc_grid_type), INTENT(IN)         :: grid
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
 
 #ifdef __GAUXC
@@ -499,6 +516,12 @@ CONTAINS
       CALL gauxc_check_status(status)
 
 #else
+      MARK_USED(xc_functional_name)
+      MARK_USED(grid)
+      MARK_USED(gauxc_section)
+      MARK_USED(nspins)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_create_integrator
 
@@ -517,7 +540,7 @@ CONTAINS
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_xc_type)                             :: res
 
 #ifdef __GAUXC
@@ -545,6 +568,12 @@ CONTAINS
       CALL gauxc_check_status(status)
 
 #else
+      MARK_USED(integrator)
+      MARK_USED(density_scalar)
+      MARK_USED(density_zeta)
+      MARK_USED(nspins)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_compute_xc
 
@@ -555,12 +584,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_molecule(molecule, status)
       TYPE(cp_gauxc_molecule_type), INTENT(INOUT)        :: molecule
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, molecule%molecule)
       CALL gauxc_check_status(status)
 #else
+      MARK_USED(molecule)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END SUBROUTINE gauxc_destroy_molecule
 
@@ -571,12 +603,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_basisset(basis, status)
       TYPE(cp_gauxc_basisset_type), INTENT(INOUT)        :: basis
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, basis%basis)
       CALL gauxc_check_status(status)
 #else
+      MARK_USED(basis)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END SUBROUTINE gauxc_destroy_basisset
 
@@ -587,7 +622,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_grid(grid_result, status)
       TYPE(cp_gauxc_grid_type), INTENT(INOUT)            :: grid_result
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, grid_result%mw)
@@ -600,6 +635,10 @@ CONTAINS
       CALL gauxc_check_status(status)
       CALL gauxc_delete(status%status, grid_result%grid)
       CALL gauxc_check_status(status)
+#else
+      MARK_USED(grid_result)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END SUBROUTINE gauxc_destroy_grid
 
@@ -610,7 +649,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gauxc_destroy_integrator(integrator_result, status)
       TYPE(cp_gauxc_integrator_type), INTENT(INOUT)      :: integrator_result
-      TYPE(cp_gauxc_status_type), INTENT(OUT)               :: status
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, integrator_result%integrator)
@@ -618,6 +657,9 @@ CONTAINS
       CALL gauxc_delete(status%status, integrator_result%func)
       CALL gauxc_check_status(status)
 #else
+      MARK_USED(integrator_result)
+      MARK_USED(status)
+      CPABORT(no_gauxc_message)
 #endif
    END SUBROUTINE gauxc_destroy_integrator
 
