@@ -2,7 +2,17 @@
 
 MODULE xc_gauxc
 
-   USE iso_c_binding, ONLY: c_int, c_int64_t, c_double, c_bool, c_size_t, c_int32_t, c_null_ptr, c_ptr, c_f_pointer, c_associated, c_char
+   USE iso_c_binding, ONLY: c_int, &
+                            c_int64_t, &
+                            c_double, &
+                            c_bool, &
+                            c_size_t, &
+                            c_int32_t, &
+                            c_null_ptr, &
+                            c_ptr, &
+                            c_f_pointer, &
+                            c_associated, &
+                            c_char
    USE kinds, ONLY: dp, default_string_length
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: bohr
@@ -57,11 +67,11 @@ MODULE xc_gauxc
 
    TYPE cp_gauxc_molecule_type
       TYPE(gauxc_molecule_type) :: molecule
-   END TYPE
+   END TYPE cp_gauxc_molecule_type
 
    TYPE cp_gauxc_basisset_type
       TYPE(gauxc_basisset_type) :: basis
-   END TYPE
+   END TYPE cp_gauxc_basisset_type
 
    TYPE cp_gauxc_grid_type
       TYPE(gauxc_molgrid_type) :: grid
@@ -141,7 +151,7 @@ CONTAINS
       END IF
       CALL check_gauxc_status(status)
 
-   END SUBROUTINE
+   END SUBROUTINE gauxc_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -152,7 +162,7 @@ CONTAINS
 
       CALL gauxc_runtime_environment_delete(status, rt)
       CALL check_gauxc_status(status)
-   END SUBROUTINE
+   END SUBROUTINE gauxc_finalize
 
 ! **************************************************************************************************
 !> \brief ...
@@ -259,8 +269,10 @@ CONTAINS
                shells(shell_index)%origin = shell_origin
 
                DO iprim = 1, npgf
-                  shells(shell_index)%exponents(iprim) = REAL(gto_basis%zet(iprim, iset), c_double)
-                  shells(shell_index)%coefficients(iprim) = REAL(gto_basis%gcc(iprim, ishell, iset), c_double)
+                  shells(shell_index)%exponents(iprim) = &
+                     REAL(gto_basis%zet(iprim, iset), c_double)
+                  shells(shell_index)%coefficients(iprim) = &
+                     REAL(gto_basis%gcc(iprim, ishell, iset), c_double)
                END DO
             END DO
          END DO
@@ -297,11 +309,26 @@ CONTAINS
                                                             pruning_scheme_local, radial_quad_local
       INTEGER(c_int64_t)                                 :: batch_size
 
-      CALL section_vals_val_get(gauxc_section, "GRID", c_val=grid_spec)
-      CALL section_vals_val_get(gauxc_section, "RADIAL_QUADRATURE", c_val=rad_quad_spec)
-      CALL section_vals_val_get(gauxc_section, "PRUNING_SCHEME", c_val=prune_spec)
-      CALL section_vals_val_get(gauxc_section, "BATCH_SIZE", i_val=batch_val)
-      CALL section_vals_val_get(gauxc_section, "LB_EXECUTION_SPACE", c_val=lb_exec_space_str)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "GRID", &
+         c_val=grid_spec)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "RADIAL_QUADRATURE", &
+         c_val=rad_quad_spec)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "PRUNING_SCHEME", &
+         c_val=prune_spec)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "BATCH_SIZE", &
+         i_val=batch_val)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "LB_EXECUTION_SPACE", &
+         c_val=lb_exec_space_str)
 
       batch_size = INT(batch_val, c_int64_t)
 
@@ -311,23 +338,43 @@ CONTAINS
       lb_exec_space_local = read_execution_space(lb_exec_space_str)
       int_exec_space_local = read_execution_space("host")
 
-      res%grid = gauxc_molgrid_new_default(status, molecule%molecule, pruning_scheme_local, &
-         & batch_size, radial_quad_local, grid_type_local)
+      res%grid = gauxc_molgrid_new_default( &
+                 status, &
+                 molecule%molecule, &
+                 pruning_scheme_local, &
+                 batch_size, &
+                 radial_quad_local, &
+                 grid_type_local)
       CALL check_gauxc_status(status)
 
-      res%lbf = gauxc_load_balancer_factory_new(status, lb_exec_space_local)
+      res%lbf = gauxc_load_balancer_factory_new( &
+                status, &
+                lb_exec_space_local)
       CALL check_gauxc_status(status)
 
-      res%lb = gauxc_load_balancer_factory_get_instance(status, res%lbf, rt, molecule%molecule, res%grid, basis%basis)
+      res%lb = gauxc_load_balancer_factory_get_instance( &
+               status, &
+               res%lbf, &
+               rt, &
+               molecule%molecule, &
+               res%grid, &
+               basis%basis)
       CALL check_gauxc_status(status)
 
-      res%mwf = gauxc_molecular_weights_factory_new(status, int_exec_space_local)
+      res%mwf = gauxc_molecular_weights_factory_new( &
+                status, &
+                int_exec_space_local)
       CALL check_gauxc_status(status)
 
-      res%mw = gauxc_get_instance(status, res%mwf)
+      res%mw = gauxc_get_instance( &
+               status, &
+               res%mwf)
       CALL check_gauxc_status(status)
 
-      CALL gauxc_molecular_weights_modify_weights(status, res%mw, res%lb)
+      CALL gauxc_molecular_weights_modify_weights( &
+         status, &
+         res%mw, &
+         res%lb)
       CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_create_grid
@@ -353,14 +400,24 @@ CONTAINS
       INTEGER(c_int)                                     :: int_exec_space_local
       LOGICAL(c_bool)                                    :: polarized
 
-      CALL section_vals_val_get(gauxc_section, "INT_EXECUTION_SPACE", c_val=int_exec_space_str)
+      CALL section_vals_val_get( &
+         gauxc_section, &
+         "INT_EXECUTION_SPACE", &
+         c_val=int_exec_space_str)
 
       polarized = (nspins == 2)
-      res%func = gauxc_functional_from_string(status, xc_functional_name, polarized)
+      res%func = gauxc_functional_from_string( &
+                 status, &
+                 xc_functional_name, &
+                 polarized)
       CALL check_gauxc_status(status)
 
       int_exec_space_local = read_execution_space(int_exec_space_str)
-      res%integrator = gauxc_integrator_new(status, res%func, lb, int_exec_space_local)
+      res%integrator = gauxc_integrator_new( &
+                       status, &
+                       res%func, &
+                       lb, &
+                       int_exec_space_local)
       CALL check_gauxc_status(status)
 
    END FUNCTION gauxc_create_integrator
@@ -386,13 +443,23 @@ CONTAINS
       ALLOCATE (res%vxc_scalar, mold=density_scalar)
 
       IF (nspins == 1) THEN
-         CALL gauxc_integrator_eval_exc_vxc_rks(status, integrator, density_scalar, &
-                                                res%exc, res%vxc_scalar)
+         CALL gauxc_integrator_eval_exc_vxc_rks( &
+            status, &
+            integrator, &
+            density_scalar, &
+            res%exc, &
+            res%vxc_scalar)
       ELSE
          CPASSERT(PRESENT(density_zeta))
          ALLOCATE (res%vxc_zeta, mold=density_zeta)
-         CALL gauxc_integrator_eval_exc_vxc_uks(status, integrator, density_scalar, &
-                                                density_zeta, res%exc, res%vxc_scalar, res%vxc_zeta)
+         CALL gauxc_integrator_eval_exc_vxc_uks( &
+            status, &
+            integrator, &
+            density_scalar, &
+            density_zeta, &
+            res%exc, &
+            res%vxc_scalar, &
+            res%vxc_zeta)
       END IF
       CALL check_gauxc_status(status)
 
@@ -460,14 +527,10 @@ CONTAINS
       CALL check_gauxc_status(status)
    END SUBROUTINE gauxc_destroy_integrator
 
-   ! **************************************************************************************************
-   !> \brief ...
-   !> \param dbcsr_mat ...
 ! **************************************************************************************************
 !> \brief ...
 !> \param dbcsr_mat ...
 !> \param dense_mat ...
-!> \note UNKNOWN_COMMENT  **************************************************************************************************
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
@@ -541,10 +604,6 @@ CONTAINS
 
    END FUNCTION dense_to_dbcsr
 
-   ! **************************************************************************************************
-   !> \brief ...
-   !> \param spec ...
-   !> \return ...
 ! **************************************************************************************************
 !> \brief ...
 !> \param spec ...
@@ -569,10 +628,6 @@ CONTAINS
       END SELECT
    END FUNCTION read_execution_space
 
-! **************************************************************************************************
-!> \brief ...
-!> \param spec ...
-!> \return ...
 ! **************************************************************************************************
 !> \brief ...
 !> \param spec ...
@@ -657,4 +712,4 @@ CONTAINS
       END SELECT
    END FUNCTION read_pruning_scheme
 
-END MODULE
+END MODULE xc_gauxc

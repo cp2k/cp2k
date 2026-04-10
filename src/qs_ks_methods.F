@@ -193,7 +193,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(gauxc_functional_section)) THEN
          CPABORT("No XC functional found in XC_FUNCTIONAL section")
       END IF
-   END FUNCTION
+   END FUNCTION get_gauxc_functional
 
 ! **************************************************************************************************
 !> \brief ...
@@ -206,6 +206,10 @@ CONTAINS
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          INTENT(inout), POINTER                          :: ks_matrix
+
+      CHARACTER(len=*), PARAMETER :: abort_message = &
+         "GauXC does not support dispersion corrections. "// &
+         "Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.)."
 
       CHARACTER(len=default_string_length)               :: xc_fun_name
       INTEGER                                            :: img, ispin, natom, nimages, nspins
@@ -254,7 +258,7 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%dispersion_env)) THEN
          IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
-            CPABORT("GauXC does not support dispersion corrections. Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.).")
+            CPABORT(abort_message)
          END IF
       END IF
       NULLIFY (vxc_zeta_dbcsr%matrix)
@@ -262,10 +266,26 @@ CONTAINS
       gauxc_functional_section => get_gauxc_functional(xc_section)
       CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=xc_fun_name)
 
-      gauxc_mol = gauxc_create_molecule(particle_set, natom, gauxc_status)
-      gauxc_basis = gauxc_create_basisset(qs_kind_set, particle_set, natom, gauxc_status)
-      gauxc_grid_result = gauxc_create_grid(gauxc_mol, gauxc_basis, gauxc_functional_section, gauxc_status)
-      gauxc_integrator_result = gauxc_create_integrator(TRIM(xc_fun_name), gauxc_grid_result%lb, gauxc_functional_section, nspins, gauxc_status)
+      gauxc_mol = gauxc_create_molecule( &
+                  particle_set, &
+                  natom, &
+                  gauxc_status)
+      gauxc_basis = gauxc_create_basisset( &
+                    qs_kind_set, &
+                    particle_set, &
+                    natom, &
+                    gauxc_status)
+      gauxc_grid_result = gauxc_create_grid( &
+                          gauxc_mol, &
+                          gauxc_basis, &
+                          gauxc_functional_section, &
+                          gauxc_status)
+      gauxc_integrator_result = gauxc_create_integrator( &
+                                TRIM(xc_fun_name), &
+                                gauxc_grid_result%lb, &
+                                gauxc_functional_section, &
+                                nspins, &
+                                gauxc_status)
 
       IF (qs_env%run_rtp) THEN
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
@@ -275,8 +295,11 @@ CONTAINS
          DO img = 1, nimages
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
          END DO
-         gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
-                                            nspins=nspins, status=gauxc_status)
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_result%integrator, &
+                           density_scalar, &
+                           nspins=nspins, &
+                           status=gauxc_status)
       ELSE
          DO img = 1, nimages
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
@@ -289,8 +312,12 @@ CONTAINS
          ! a second time because that is what UKS requires.
          ! This style lowers memory footprint.
          density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
-         gauxc_xc_result = gauxc_compute_xc(gauxc_integrator_result%integrator, density_scalar, &
-                                            density_zeta, nspins, gauxc_status)
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_result%integrator, &
+                           density_scalar, &
+                           density_zeta, &
+                           nspins, &
+                           gauxc_status)
       END IF
 
       energy%exc = gauxc_xc_result%exc
