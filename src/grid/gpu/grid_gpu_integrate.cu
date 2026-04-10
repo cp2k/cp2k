@@ -548,7 +548,7 @@ void grid_gpu_integrate_one_grid_level(
 
   // Launch !
   const int nblocks = ntasks;
-  const dim3 threads_per_block(4, 4, 4);
+  const dim3 threads_per_block(8, 8, 1);
 
   if (!compute_tau && !calculate_forces) {
     grid_integrate_density<<<nblocks, threads_per_block, smem_per_block,
