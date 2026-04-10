@@ -32,7 +32,8 @@ MODULE kpoint_io
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_path_length
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
@@ -180,15 +181,18 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param ires ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE write_kpoints_file_header(qs_kind_set, particle_set, ires)
+   SUBROUTINE write_kpoints_file_header(qs_kind_set, particle_set, ires, basis_type)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER                                            :: ires
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_file_header'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type_local
       INTEGER                                            :: handle, iatom, ikind, iset, ishell, &
                                                             lmax, lshell, nao, natom, nset, &
                                                             nset_max, nsgf, nshell_max
@@ -201,6 +205,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (ires > 0) THEN
+
+         IF (PRESENT(basis_type)) THEN
+            basis_type_local = basis_type
+         ELSE
+            basis_type_local = "ORB"
+         END IF
+
          ! create some info about the basis set first
          natom = SIZE(particle_set, 1)
          nset_max = 0
@@ -209,7 +220,7 @@ CONTAINS
          DO iatom = 1, natom
             NULLIFY (orb_basis_set, dftb_parameter)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-            CALL get_qs_kind(qs_kind_set(ikind), &
+            CALL get_qs_kind(qs_kind_set(ikind), basis_type=basis_type_local, &
                              basis_set=orb_basis_set, dftb_parameter=dftb_parameter)
             IF (ASSOCIATED(orb_basis_set)) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -242,7 +253,7 @@ CONTAINS
          DO iatom = 1, natom
             NULLIFY (orb_basis_set, dftb_parameter)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-            CALL get_qs_kind(qs_kind_set(ikind), &
+            CALL get_qs_kind(qs_kind_set(ikind), basis_type=basis_type_local, &
                              basis_set=orb_basis_set, dftb_parameter=dftb_parameter)
             IF (ASSOCIATED(orb_basis_set)) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nsgf, nset=nset, nshell=nshell, l=l)
