@@ -1,5 +1,7 @@
 #include "gauxc/gauxc_config.f"
 
+#define GAUXC_RETURN_IF_ERROR(status) IF (status%status%code /= 0) RETURN
+
 MODULE xc_gauxc
 
    USE iso_c_binding, ONLY: &
@@ -211,10 +213,10 @@ CONTAINS
       INTEGER(c_int)                                     :: world_rank
 
       rt = gauxc_runtime_environment_new(status%status, mpi_comm)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       world_rank = gauxc_runtime_environment_comm_rank(status%status, rt)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(mpi_comm)
       MARK_USED(status)
@@ -230,7 +232,7 @@ CONTAINS
 
 #ifdef __GAUXC
       CALL gauxc_runtime_environment_delete(status%status, rt)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(status)
 #endif
@@ -268,7 +270,7 @@ CONTAINS
       END DO
 
       res%molecule = gauxc_molecule_new_from_atoms(status%status, atoms, INT(natoms, c_size_t))
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       DEALLOCATE (atoms)
 #else
@@ -358,7 +360,7 @@ CONTAINS
       END DO
 
       res%basis = gauxc_basisset_new_from_shells(status%status, shells, INT(nshell_total, c_size_t))
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       DEALLOCATE (shells)
       DEALLOCATE (basis_set_list)
@@ -432,12 +434,12 @@ CONTAINS
                  batch_size, &
                  radial_quad_local, &
                  grid_type_local)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       res%lbf = gauxc_load_balancer_factory_new( &
                 status%status, &
                 lb_exec_space_local)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       res%lb = gauxc_load_balancer_factory_get_instance( &
                status%status, &
@@ -446,23 +448,23 @@ CONTAINS
                molecule%molecule, &
                res%grid, &
                basis%basis)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       res%mwf = gauxc_molecular_weights_factory_new( &
                 status%status, &
                 int_exec_space_local)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       res%mw = gauxc_get_instance( &
                status%status, &
                res%mwf)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       CALL gauxc_molecular_weights_modify_weights( &
          status%status, &
          res%mw, &
          res%lb)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
 #else
       MARK_USED(molecule)
@@ -505,7 +507,7 @@ CONTAINS
                  status%status, &
                  xc_functional_name, &
                  polarized)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
       int_exec_space_local = read_execution_space(int_exec_space_str)
       res%integrator = gauxc_integrator_new( &
@@ -513,7 +515,7 @@ CONTAINS
                        res%func, &
                        grid%lb, &
                        int_exec_space_local)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
 #else
       MARK_USED(xc_functional_name)
@@ -565,7 +567,7 @@ CONTAINS
             res%vxc_scalar, &
             res%vxc_zeta)
       END IF
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 
 #else
       MARK_USED(integrator)
@@ -588,7 +590,7 @@ CONTAINS
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, molecule%molecule)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(molecule)
       MARK_USED(status)
@@ -607,7 +609,7 @@ CONTAINS
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, basis%basis)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(basis)
       MARK_USED(status)
@@ -626,15 +628,15 @@ CONTAINS
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, grid_result%mw)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, grid_result%mwf)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, grid_result%lb)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, grid_result%lbf)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, grid_result%grid)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(grid_result)
       MARK_USED(status)
@@ -653,9 +655,9 @@ CONTAINS
 
 #ifdef __GAUXC
       CALL gauxc_delete(status%status, integrator_result%integrator)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, integrator_result%func)
-      CALL gauxc_check_status(status)
+      GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(integrator_result)
       MARK_USED(status)

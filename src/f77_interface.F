@@ -149,6 +149,7 @@ MODULE f77_interface
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
    USE xc_gauxc,                        ONLY: cp_gauxc_status_type,&
+                                              gauxc_check_status,&
                                               gauxc_finalize,&
                                               gauxc_init
 #include "./base/base_uses.f90"
@@ -305,6 +306,7 @@ CONTAINS
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
          CALL gauxc_init(default_para_env%get_handle(), gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -351,6 +353,7 @@ CONTAINS
          CALL pw_fpga_finalize()
          IF (cp_sirius_is_initialized()) CALL cp_sirius_finalize()
          CALL gauxc_finalize(gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
 

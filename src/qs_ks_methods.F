@@ -143,8 +143,8 @@ MODULE qs_ks_methods
    USE xc_gauxc,                        ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, dbcsr_to_dense, &
-        dense_to_dbcsr, gauxc_compute_xc, gauxc_create_basisset, gauxc_create_grid, &
-        gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
+        dense_to_dbcsr, gauxc_check_status, gauxc_compute_xc, gauxc_create_basisset, &
+        gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
@@ -269,22 +269,26 @@ CONTAINS
                   particle_set, &
                   natom, &
                   gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       gauxc_basis = gauxc_create_basisset( &
                     qs_kind_set, &
                     particle_set, &
                     natom, &
                     gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       gauxc_grid_result = gauxc_create_grid( &
                           gauxc_mol, &
                           gauxc_basis, &
                           gauxc_functional_section, &
                           gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &
                                 gauxc_grid_result, &
                                 gauxc_functional_section, &
                                 nspins, &
                                 gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
 
       IF (qs_env%run_rtp) THEN
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
@@ -299,6 +303,7 @@ CONTAINS
                            density_scalar, &
                            nspins=nspins, &
                            status=gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
       ELSE
          DO img = 1, nimages
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
@@ -317,6 +322,7 @@ CONTAINS
                            density_zeta, &
                            nspins, &
                            gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
       END IF
 
       energy%exc = gauxc_xc_result%exc
@@ -345,9 +351,13 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(matrix_vxc)
 
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
 
       DEALLOCATE (density_scalar)
       IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
