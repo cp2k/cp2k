@@ -15,10 +15,16 @@ MODULE qs_subsys_methods
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_methods,                    ONLY: cell_create,&
+                                              read_cell,&
+                                              write_cell
+   USE cell_types,                      ONLY: cell_clone,&
+                                              cell_release,&
+                                              cell_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
+                                              cp_subsys_set,&
                                               cp_subsys_type
    USE external_potential_types,        ONLY: all_potential_type,&
                                               get_potential,&
@@ -80,10 +86,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_subsys_type), POINTER                      :: my_cp_subsys
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: kind_section
+      TYPE(section_vals_type), POINTER                   :: cell_section, kind_section
 
-      NULLIFY (atomic_kind_set, qs_kind_set, kind_section, my_cell, &
-               my_cell_ref, my_cp_subsys)
+      NULLIFY (atomic_kind_set, qs_kind_set, cell_section, kind_section, my_cell, my_cell_ref, my_cp_subsys)
 
       be_silent = .FALSE.
       IF (PRESENT(silent)) be_silent = silent
@@ -100,23 +105,36 @@ CONTAINS
          CPABORT("qs_subsys_create: cp_subsys or root_section needed")
       END IF
 
-      ! Note: the input cell and cell_ref seems to be not removable as qs_init() and
-      ! qs_init_subsys() pass them, and qs_init() is called in qmmm_env_create()
-      ! where distinction between qm_cell_small and mm_cell is important.
+      ! create cp_subsys%cell
+      !TODO: moved to cp_subsys_create(), needs further disentanglement of cell_ref.
+      ![NB] subroutines qs_init() and qs_init_subsys() may pass cell and cell_ref to
+      ! qs_subsys_create() here, and two places where qs_init() is called are tricky:
+      ! 1. For QM/MM calculation, qmmm_env_create() passes "qm_cell_small" from
+      !    setup_qmmm_vars_qm() to qs_init() and subsequently to my_cell here;
+      ! 2. For BSSE calculation, eval_bsse_energy_low() calls create_small_subsys()
+      !    to create cp_subsys_type "subsys_loc" and then calls qs_init() with
+      !    subsys_loc, but create_small_subsys() does not set subsys_loc%cell.
+      ! If not for these, it would have been easy to set my_cell => my_cp_subsys%cell
+      ! and my_cell_ref => my_cp_subsys%cell_ref so as to avoid re-read the cell_section
+      ! when cell and cell_ref are not passed as input here.
       use_ref_cell = .FALSE.
       IF (PRESENT(cell)) THEN
          my_cell => cell
+         IF (PRESENT(cell_ref)) THEN
+            my_cell_ref => cell_ref
+            use_ref_cell = .TRUE.
+         ELSE
+            CALL cell_create(my_cell_ref)
+            CALL cell_clone(my_cell, my_cell_ref, tag="CELL_REF")
+         END IF
       ELSE
-         CPASSERT(ASSOCIATED(my_cp_subsys%cell))
-         my_cell => my_cp_subsys%cell
+         cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
+         CALL read_cell(my_cell, my_cell_ref, use_ref_cell=use_ref_cell, &
+                        cell_section=cell_section, para_env=para_env)
       END IF
-      IF (PRESENT(cell_ref)) THEN
-         my_cell_ref => cell_ref
-      ELSE
-         CPASSERT(ASSOCIATED(my_cp_subsys%cell_ref))
-         my_cell_ref => my_cp_subsys%cell_ref
-      END IF
-      IF (PRESENT(cell) .AND. PRESENT(cell_ref)) use_ref_cell = .TRUE.
+      CALL cp_subsys_set(my_cp_subsys, cell=my_cell)
+      CALL write_cell(my_cell, subsys_section)
+      CALL write_cell(my_cell_ref, subsys_section)
 
       ! setup qs_kinds
       CALL cp_subsys_get(my_cp_subsys, atomic_kind_set=atomic_kind_set)
@@ -133,6 +151,8 @@ CONTAINS
                          use_ref_cell=use_ref_cell, &
                          qs_kind_set=qs_kind_set)
 
+      IF (.NOT. PRESENT(cell)) CALL cell_release(my_cell)
+      IF (.NOT. PRESENT(cell_ref)) CALL cell_release(my_cell_ref)
       IF (.NOT. PRESENT(cp_subsys)) CALL cp_subsys_release(my_cp_subsys)
 
    END SUBROUTINE qs_subsys_create
