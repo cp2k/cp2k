@@ -166,8 +166,8 @@ There are some other important general options you may want to know:
   generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development).
 - `-DCMAKE_INSTALL_PREFIX` Specifies the installation path of CP2K. Assuming it is set to
   `/path/to/installation`, there will be several subdirectories: `bin` for binaries like
-  `cp2k.psmp`, `include` for module files and headers, `lib/lib64` for libraries, and `share` for
-  some other files such as basis data. Default is `/usr/local`.
+  `cp2k.psmp`, `include` for module files and headers, `lib` or `lib64` for libraries, and `share`
+  for some other files such as basis data. Default is `/usr/local`.
 - `-DBUILD_SHARED_LIBS` Specifies if shared libraries are built. Default is `ON`; if set `OFF`, a
   static library will be built instead.
 - `-DCMAKE_POSITION_INDEPENDENT_CODE` Specifies if position-independent code is enabled.
@@ -211,11 +211,5 @@ cmake --install build
 
 - The commands `cmake --build build -j 32` and `cmake --install build` can be replaced by a single
   command `cmake --build build --target install -j 32`
-
-## Cleaning build cache
-
-If you want to clean your build cache after installing in order to save space, simply run:
-
-```
-cmake --build build --target clean
-```
+- If you want to clean your build cache after installing in order to save space, simply run
+  `cmake --build build --target clean`
