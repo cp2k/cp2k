@@ -178,9 +178,10 @@ CONTAINS
          CPABORT("XC_FUNCTIONAL section missing.")
       END IF
 
+      dft_control%use_gauxc = .FALSE.
       IF (is_present) THEN
          xc_skala_subsection => section_vals_get_subs_vals(xc_fun_section, "SKALA")
-         dft_control%use_gauxc = ASSOCIATED(xc_skala_subsection)
+         CALL section_vals_get(xc_skala_subsection, explicit=dft_control%use_gauxc)
       END IF
 
       scf_section => section_vals_get_subs_vals(dft_section, "SCF")

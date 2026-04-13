@@ -173,6 +173,8 @@ CONTAINS
       INTEGER                                            :: ifun
       TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
 
+      NULLIFY (gauxc_functional_section)
+
       functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       IF (.NOT. ASSOCIATED(functionals)) THEN
          CPABORT("XC_FUNCTIONAL section not found")
