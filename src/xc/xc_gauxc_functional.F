@@ -63,23 +63,50 @@ CONTAINS
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: dense_mat
 
-      INTEGER                                            :: icol, irow, ncols, nrows
+      INTEGER                                            :: col, i, icol, irow, j, nblkcols_total, &
+                                                            nblkrows_total, ncols, nrows, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(c_double), POINTER                            :: block(:, :)
       TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL dbcsr_get_info(dbcsr_mat%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+      CALL dbcsr_get_info(dbcsr_mat%matrix, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total, &
+                          nfullrows_total=nrows, &
+                          nfullcols_total=ncols)
+
       IF (.NOT. ALLOCATED(dense_mat)) THEN
          ALLOCATE (dense_mat(nrows, ncols))
          dense_mat = 0.0_c_double
       END IF
 
+      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
+
+      r_offset(1) = 1
+      DO row = 2, nblkrows_total
+         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
+      END DO
+      c_offset(1) = 1
+      DO col = 2, nblkcols_total
+         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
+      END DO
+
       CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
-         dense_mat(irow:irow + SIZE(block, 1) - 1, icol:icol + SIZE(block, 2) - 1) = &
-            dense_mat(irow:irow + SIZE(block, 1) - 1, icol:icol + SIZE(block, 2) - 1) + block(:, :)
+         DO j = 1, SIZE(block, 2)
+            DO i = 1, SIZE(block, 1)
+               dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) = &
+                  dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) + block(i, j)
+            END DO
+         END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (r_offset, c_offset)
 
    END SUBROUTINE dbcsr_to_dense
 
@@ -105,25 +132,47 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
       TYPE(dbcsr_p_type)                                 :: dbcsr_mat
 
-      INTEGER                                            :: icol, irow, ncols, nrows
+      INTEGER                                            :: col, icol, irow, nblkcols_total, &
+                                                            nblkrows_total, ncols, nrows, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(c_double), POINTER                            :: block(:, :)
       TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL dbcsr_get_info(template_dbcsr%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
+      CALL dbcsr_get_info(template_dbcsr%matrix, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total, &
+                          nfullrows_total=nrows, &
+                          nfullcols_total=ncols)
 
       CALL dbcsr_init_p(dbcsr_mat%matrix)
       CALL dbcsr_create(dbcsr_mat%matrix, template=template_dbcsr%matrix, name="VXC from GauXC")
       CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
       CALL dbcsr_finalize(dbcsr_mat%matrix)
 
+      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
+
+      r_offset(1) = 1
+      DO row = 2, nblkrows_total
+         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
+      END DO
+      c_offset(1) = 1
+      DO col = 2, nblkcols_total
+         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
+      END DO
+
       CALL dbcsr_iterator_start(iter, template_dbcsr%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
-                              dense_mat(irow:irow + SIZE(block, 1) - 1, &
-                                        icol:icol + SIZE(block, 2) - 1))
+                              dense_mat(r_offset(irow):r_offset(irow) + SIZE(block, 1) - 1, &
+                                        c_offset(icol):c_offset(icol) + SIZE(block, 2) - 1))
       END DO
       CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (r_offset, c_offset)
 
    END FUNCTION dense_to_dbcsr
 
