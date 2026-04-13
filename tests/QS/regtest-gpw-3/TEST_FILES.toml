@@ -68,4 +68,6 @@
 "O2-UKS-OTdiag-relax_multip.inp"        = [{matcher="E_total", tol=5e-14, ref=-31.86509209577858}]
 # Test reading LnPP2 
 "CeO2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-64.41562845141048}]
+# Spin-channel-specific mixing parameters
+"O2-UKS-mixing.inp"                     = [{matcher="E_total", tol=5.0E-14, ref=-31.86511812037723}]
 #EOF

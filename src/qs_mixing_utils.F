@@ -436,17 +436,27 @@ CONTAINS
       IF (.NOT. ASSOCIATED(mixing_store%kerker_factor)) THEN
          ALLOCATE (mixing_store%kerker_factor(ng))
       END IF
+      IF (.NOT. ASSOCIATED(mixing_store%kerker_factor_mag)) THEN
+         ALLOCATE (mixing_store%kerker_factor_mag(ng))
+      END IF
       IF (.NOT. ASSOCIATED(mixing_store%special_metric)) THEN
          ALLOCATE (mixing_store%special_metric(ng))
       END IF
       beta = mixing_store%beta
       kmin = 0.1_dp
       mixing_store%kerker_factor = 1.0_dp
+      mixing_store%kerker_factor_mag = 1.0_dp
       mixing_store%special_metric = 1.0_dp
       ig1 = 1
       IF (rho_g(1)%pw_grid%have_g0) ig1 = 2
       DO ig = ig1, mixing_store%ig_max
          mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig) + beta*beta), kmin)
+         IF (mixing_store%beta_mag > 1.0E-10_dp) THEN
+            mixing_store%kerker_factor_mag(ig) = MAX(g2(ig)/(g2(ig) + mixing_store%beta_mag*mixing_store%beta_mag), kmin)
+         ELSE
+            ! beta_mag ~ 0 means no Kerker screening on the magnetization channel
+            mixing_store%kerker_factor_mag(ig) = 1.0_dp
+         END IF
          mixing_store%special_metric(ig) = &
             1.0_dp + 50.0_dp/8.0_dp*( &
             1.0_dp + COS(g_vec(1, ig)) + COS(g_vec(2, ig)) + COS(g_vec(3, ig)) + &

@@ -63,8 +63,11 @@ MODULE qs_density_mixing_types
                                                            max_g2 = -1.0_dp, max_gvec_exp = -1.0_dp, pulay_alpha = -1.0_dp, &
                                                            pulay_beta = -1.0_dp, r_step = -1.0_dp, reg_par = -1.0_dp, &
                                                            sigma_max = -1.0_dp, wc = -1.0_dp, wmax = -1.0_dp
+      ! Spin-channel-specific mixing parameters (for nspin==2, ispin=2 is the magnetization channel)
+      REAL(KIND=dp)                                     :: alpha_mag = -1.0_dp, beta_mag = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), POINTER              :: p_metric => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor_mag => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer => NULL()
@@ -118,12 +121,15 @@ CONTAINS
       mixing_store%alpha = 1.0_dp
       mixing_store%pulay_beta = 1.0_dp
       mixing_store%beta = 1.0_dp
+      mixing_store%alpha_mag = -1.0_dp
+      mixing_store%beta_mag = -1.0_dp
       mixing_store%iter_method = "NoMix"
       mixing_store%max_g2 = 2._dp*ecut
       mixing_store%gmix_p = .FALSE.
 
       NULLIFY (mixing_store%p_metric)
       NULLIFY (mixing_store%kerker_factor)
+      NULLIFY (mixing_store%kerker_factor_mag)
       NULLIFY (mixing_store%special_metric)
       NULLIFY (mixing_store%pulay_matrix)
       NULLIFY (mixing_store%weight)
@@ -164,6 +170,11 @@ CONTAINS
 
       CALL section_vals_val_get(mixing_section, "ALPHA", r_val=mixing_store%alpha)
       CALL section_vals_val_get(mixing_section, "BETA", r_val=mixing_store%beta)
+      CALL section_vals_val_get(mixing_section, "ALPHA_MAG", r_val=mixing_store%alpha_mag)
+      CALL section_vals_val_get(mixing_section, "BETA_MAG", r_val=mixing_store%beta_mag)
+      ! Fall back to charge-channel values if magnetization parameters are not set
+      IF (mixing_store%alpha_mag < 0.0_dp) mixing_store%alpha_mag = mixing_store%alpha
+      IF (mixing_store%beta_mag < 0.0_dp) mixing_store%beta_mag = mixing_store%beta
       CALL section_vals_val_get(mixing_section, "N_SIMPLE_MIX", i_val=mixing_store%n_simple_mix)
       CALL section_vals_val_get(mixing_section, "NBUFFER", i_val=mixing_store%nbuffer)
       CALL section_vals_val_get(mixing_section, "NSKIP", i_val=mixing_store%nskip_mixing)
@@ -208,6 +219,10 @@ CONTAINS
 
       IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
          DEALLOCATE (mixing_store%kerker_factor)
+      END IF
+
+      IF (ASSOCIATED(mixing_store%kerker_factor_mag)) THEN
+         DEALLOCATE (mixing_store%kerker_factor_mag)
       END IF
 
       IF (ASSOCIATED(mixing_store%special_metric)) THEN
@@ -524,6 +539,21 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
+                          name="ALPHA_MAG", &
+                          description="Fraction of new magnetization density to be included "// &
+                          "(for spin-polarized calculations, ispin=2 channel after rho_total/m transform). "// &
+                          "A negative value (default) means: use the same value as ALPHA. "// &
+                          "For magnetic transition-metal systems, a larger value (e.g. 0.8-1.6) "// &
+                          "than ALPHA often improves convergence.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp, &
+                          usage="ALPHA_MAG 0.8")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="BETA", &
                           description="Denominator parameter in Kerker damping "// &
                           "introduced to suppress charge sloshing: "// &
@@ -534,6 +564,22 @@ CONTAINS
                           default_r_val=0.5_dp, &
                           unit_str="bohr^-1", &
                           usage="BETA 1.5")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="BETA_MAG", &
+                          description="Kerker damping parameter for the magnetization channel "// &
+                          "(for spin-polarized calculations). A negative value (default) means: "// &
+                          "use the same value as BETA. Set to 0.0 to disable Kerker screening "// &
+                          "on the magnetization density, which avoids suppression of long-range "// &
+                          "magnetic order formation in transition-metal systems.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp, &
+                          unit_str="bohr^-1", &
+                          usage="BETA_MAG 0.0")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
