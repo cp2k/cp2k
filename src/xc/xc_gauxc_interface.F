@@ -184,8 +184,6 @@ MODULE xc_gauxc_interface
       cp_gauxc_molecule_type, &
       cp_gauxc_status_type, &
       cp_gauxc_xc_type, &
-      dbcsr_to_dense, &
-      dense_to_dbcsr, &
       gauxc_check_status, &
       gauxc_compute_xc, &
       gauxc_create_basisset, &
@@ -664,83 +662,6 @@ CONTAINS
       CPABORT(no_gauxc_message)
 #endif
    END SUBROUTINE gauxc_destroy_integrator
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_mat ...
-!> \param dense_mat ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
-      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
-                              dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
-                              dbcsr_iterator_stop
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: dense_mat
-
-      INTEGER                                            :: icol, irow, ncols, nrows
-      REAL(c_double), POINTER                            :: block(:, :)
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL dbcsr_get_info(dbcsr_mat%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
-      IF (.NOT. ALLOCATED(dense_mat)) THEN
-         ALLOCATE (dense_mat(nrows, ncols))
-         dense_mat = 0.0_c_double
-      END IF
-
-      CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
-         dense_mat(irow:irow + SIZE(block, 1) - 1, icol:icol + SIZE(block, 2) - 1) = &
-            dense_mat(irow:irow + SIZE(block, 1) - 1, icol:icol + SIZE(block, 2) - 1) + block(:, :)
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-   END SUBROUTINE dbcsr_to_dense
-
-   ! **************************************************************************************************
-   !> \brief Convert a dense matrix to dbcsr format using a template matrix
-   !> \param dense_mat Input dense matrix
-   !> \param template_dbcsr Template dbcsr matrix for structure
-   !> \param dbcsr_mat Output dbcsr matrix
-   ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param dense_mat ...
-!> \param template_dbcsr ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dense_to_dbcsr(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
-      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
-                              dbcsr_iterator_start, dbcsr_iterator_next_block, &
-                              dbcsr_iterator_blocks_left, dbcsr_iterator_stop, &
-                              dbcsr_put_block, dbcsr_finalize, dbcsr_work_create, &
-                              dbcsr_init_p, dbcsr_create, dbcsr_copy, dbcsr_release
-      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
-      TYPE(dbcsr_p_type)                                 :: dbcsr_mat
-
-      INTEGER                                            :: icol, irow, ncols, nrows
-      REAL(c_double), POINTER                            :: block(:, :)
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL dbcsr_get_info(template_dbcsr%matrix, nfullrows_total=nrows, nfullcols_total=ncols)
-
-      CALL dbcsr_init_p(dbcsr_mat%matrix)
-      CALL dbcsr_create(dbcsr_mat%matrix, template=template_dbcsr%matrix, name="VXC from GauXC")
-      CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
-      CALL dbcsr_finalize(dbcsr_mat%matrix)
-
-      CALL dbcsr_iterator_start(iter, template_dbcsr%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
-         CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
-                              dense_mat(irow:irow + SIZE(block, 1) - 1, &
-                                        icol:icol + SIZE(block, 2) - 1))
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-   END FUNCTION dense_to_dbcsr
 
 ! **************************************************************************************************
 !> \brief Checks gauxc status and prints error message before aborting
