@@ -751,13 +751,13 @@ CONTAINS
 
 #ifdef __GAUXC
       IF (status%status%code /= 0) THEN
-         WRITE (*, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         WRITE (0, '(a,1x,i0)') "GauXC returned with status code", status%status%code
          IF (c_associated(status%status%message)) THEN
-            WRITE (0, '(a)', ADVANCE='no') "GauxC status message: ["
+            WRITE (0, '(a)', ADVANCE='no') "GauXC status message: ["
             CALL print_gauxc_status_message(status%status%message)
             WRITE (0, '(a)') "]"
          ELSE
-            WRITE (0, '(a)') "GauxC status message: [null]"
+            WRITE (0, '(a)') "GauXC status message: [null]"
          END IF
          CPABORT("GauXC returned with non-zero status code")
       END IF
