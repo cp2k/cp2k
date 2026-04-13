@@ -46,7 +46,7 @@ case "${with_dbcsr}" in
       else
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=ON"
         if [ -n "$(grep "MPI_F08" "${INSTALLDIR}"/toolchain.env)" ]; then
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCP2K_USE_MPI_F08=ON"
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI_F08=ON"
         fi
       fi
       cmake \

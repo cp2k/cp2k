@@ -36,19 +36,15 @@ available and download all patches!).
 platform does not provide MPI, there are several freely available alternatives:
 
 - MPICH MPI: <https://www.mpich.org/> (may require `-fallow-argument-mismatch` when building with
-  GCC 10) (Note that latest version 5.0.0 has a bug, and if you want to use it you should manually
-  apply [this fix](https://github.com/pmodels/mpich/pull/7722))
+  GCC 10)
 - OpenMPI MPI: <http://www.open-mpi.org/>
-- ScaLAPACK:
-  - <http://www.netlib.org/scalapack/>
-  - <http://www.netlib.org/lapack-dev/>
-  - ScaLAPACK can be part of ACML (AMD) or cluster MKL (Intel). These libraries are recommended on
-    the corresponding machines if available.
-  - Recently a [ScaLAPACK installer](http://www.netlib.org/scalapack/scalapack_installer.tgz) has
-    been added that simplifies the installation.
+
+For more information of ScaLAPACK, see <http://www.netlib.org/scalapack/>. ScaLAPACK can be part of
+ACML (AMD) or cluster MKL (Intel); these libraries are recommended on the corresponding machines if
+available.
 
 CP2K assumes that the MPI library implements MPI version 3. Older versions of MPI (e.g., MPI 2.0)
-are not supported. CP2K can make use of the mpi_f08 module. If its use is requested, pass
+are not supported. CP2K can make use of the `mpi_f08` module. If its use is requested, pass
 `-DCP2K_USE_MPI_F08=ON` to CMake.
 
 ## FFTW (improved performance of FFTs)
@@ -172,7 +168,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - The C++ API of PyTorch can be downloaded from https://pytorch.org/get-started/locally/.
 - Pass `-DCP2K_USE_LIBTORCH=ON` to CMake to enable support for libtorch.
 
-## matrix-matrix multiplication offloading on GPU using SPLA
+## SPLA (Matrix-matrix multiplication offloading on GPU)
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a standalone library. It
 provides a generic interface to the blas gemm family with offloading on GPU. Offloading supports

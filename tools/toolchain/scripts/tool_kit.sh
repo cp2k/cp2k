@@ -539,7 +539,7 @@ remove_path() {
   __path=${__path//:$__directory:/:}
   __path=${__path#$__directory:}
   __path=${__path%:$__directory}
-  __path=$(echo "$__path" | sed "s:^$__directory\$::g")
+  __path=$(echo "$__path" | sed "s#^$__directory\$##g")
   eval $__path_name=\"$__path\"
   export $__path_name
 }

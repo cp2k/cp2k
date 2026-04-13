@@ -168,14 +168,14 @@ spack:
 
   repos:
     builtin:
-      commit: 8564524a7a6c0c2dec8db6cb3b738874c17d2326 # 2026-04-01
+      commit: 45b19eefd798ed82341b3e4452009c35a7255314 # 2026-04-11
 
   specs:
     # Build tools
     - "cmake@3.27:"
     - "gcc@10:"
     - "gmake@4.2:"
-    - "mpich@4.3.2"
+    - "mpich@5.0.1"
     - "ninja@1.13"
 #   - "openmpi@5.0.10"
     - "python@3.11:"
