@@ -311,6 +311,8 @@ CONTAINS
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
       END IF
 
+      energy%exc = 0
+
       DO img = 1, nimages
          IF (nspins == 1) THEN
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
@@ -340,7 +342,7 @@ CONTAINS
             CALL gauxc_check_status(gauxc_status)
          END IF
 
-         energy%exc = gauxc_xc_result%exc
+         energy%exc = energy%exc + gauxc_xc_result%exc
 
          IF (img == 1) THEN
             IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
