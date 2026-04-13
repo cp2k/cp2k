@@ -1,6 +1,6 @@
 # kp Harris Functional  
-"cc_t01.inp"                            = [{matcher="M011", tol=1e-11, ref=-45.480067261009850}]
-"cc_t02.inp"                            = [{matcher="M011", tol=1e-11, ref=-45.472869509155217}]
+"cc_t01.inp"                            = [{matcher="M011", tol=1e-11, ref=-45.504493495029216}]
+"cc_t02.inp"                            = [{matcher="M011", tol=1e-11, ref=-45.47286950901409}]
 "cc_t03.inp"                            = []
 "cc_t04.inp"                            = [{matcher="M031", tol=2e-05, ref=1.61512980469E+05}]
 #EOF

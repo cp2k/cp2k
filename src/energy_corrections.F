@@ -3567,7 +3567,7 @@ CONTAINS
                                      extension=".kp", file_status="REPLACE", file_action="WRITE", &
                                      file_form="UNFORMATTED", middle_name="Harris")
 
-         CALL write_kpoints_file_header(qs_kind_set, particle_set, ires)
+         CALL write_kpoints_file_header(qs_kind_set, particle_set, ires, basis_type="HARRIS")
 
          denmat => ec_env%matrix_p
          nspin = SIZE(denmat, 1)
