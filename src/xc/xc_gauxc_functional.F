@@ -33,11 +33,14 @@ MODULE xc_gauxc_functional
                                               set_ks_env
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE input_constants,                 ONLY: xc_vdw_fun_none
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
-
-#include "./base/base_uses.f90"
+   USE xc_gauxc_interface,              ONLY: &
+        cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
+        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, gauxc_check_status, &
+        gauxc_compute_xc, gauxc_create_basisset, gauxc_create_grid, gauxc_create_integrator, &
+        gauxc_create_molecule, gauxc_destroy_basisset, gauxc_destroy_grid, &
+        gauxc_destroy_integrator, gauxc_destroy_molecule
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -46,7 +49,7 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc
+   PUBLIC :: apply_gauxc, skala_info
 
 CONTAINS
 
@@ -210,6 +213,43 @@ CONTAINS
          CPABORT("No XC functional found in XC_FUNCTIONAL section")
       END IF
    END FUNCTION get_gauxc_functional
+
+! **************************************************************************************************
+!> \brief Return information about the Skala functional
+!> \param functional section containing the SKALA subsection
+!> \param lsd if you are using lsd or lda
+!> \param reference the reference to the article where the functional is explained
+!> \param shortform the short definition of the functional
+!> \param needs the flags corresponding to the inputs needed by this
+!>        functional are set to true (the flags not needed aren't touched)
+!> \param max_deriv the maximal derivative available
+! **************************************************************************************************
+   SUBROUTINE skala_info(functional, lsd, reference, shortform, needs, max_deriv)
+      TYPE(section_vals_type), POINTER                   :: functional
+      LOGICAL, INTENT(in)                                :: lsd
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
+      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+
+      CHARACTER(len=default_string_length)               :: xc_fun_name
+
+      CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
+
+      IF (PRESENT(reference)) THEN
+         reference = "Skala functional via GauXC (underlying: "//TRIM(xc_fun_name)//")"
+      END IF
+      IF (PRESENT(shortform)) THEN
+         shortform = "SKALA ("//TRIM(xc_fun_name)//")"
+      END IF
+      IF (PRESENT(needs)) THEN
+         needs%rho = .TRUE.
+         IF (lsd) THEN
+            needs%rho_spin = .TRUE.
+         END IF
+      END IF
+      IF (PRESENT(max_deriv)) max_deriv = 1
+
+   END SUBROUTINE skala_info
 
 ! **************************************************************************************************
 !> \brief ...

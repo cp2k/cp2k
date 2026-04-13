@@ -23,6 +23,7 @@ MODULE xc_derivatives
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
    USE xc_exchange_gga,                 ONLY: xgga_eval,&
                                               xgga_info
+   USE xc_gauxc_functional,             ONLY: skala_info
    USE xc_hcth,                         ONLY: hcth_lda_eval,&
                                               hcth_lda_info
    USE xc_ke_gga,                       ONLY: ke_gga_info,&
@@ -280,15 +281,7 @@ CONTAINS
             CALL pbe_lda_info(functional, reference, shortform, needs, max_deriv)
          END IF
       CASE ("SKALA")
-         IF (PRESENT(reference)) reference = "Skala functional via GauXC"
-         IF (PRESENT(shortform)) shortform = "SKALA"
-         IF (PRESENT(max_deriv)) max_deriv = 1
-         IF (PRESENT(needs)) THEN
-            needs%rho = .TRUE.
-            IF (lsd) THEN
-               needs%rho_spin = .TRUE.
-            END IF
-         END IF
+         CALL skala_info(functional, lsd, reference, shortform, needs, max_deriv)
 !          Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
 !          when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
       CASE ("XWPBE")
