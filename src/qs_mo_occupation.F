@@ -418,6 +418,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1'
 
+      CHARACTER(LEN=20)                                  :: method_label
       INTEGER                                            :: handle, i_first, imo, ir, irmo, nmo, &
                                                             nomo, xas_estate
       LOGICAL                                            :: equal_size, is_large
@@ -673,27 +674,37 @@ CONTAINS
                                       tmp_v, xas_estate, occ_estate)
             END IF
 
+            ! Method label for warnings
+            SELECT CASE (smear%method)
+            CASE (smear_gaussian)
+               method_label = "Gaussian"
+            CASE (smear_mp)
+               method_label = "Methfessel-Paxton"
+            CASE (smear_mv)
+               method_label = "Marzari-Vanderbilt"
+            END SELECT
+
             ! Find the lowest fractional occupied MO (LFOMO)
             DO imo = i_first, nmo
-               IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
+               IF (ABS(mo_set%occupation_numbers(imo) - mo_set%maxocc) > smear%eps_fermi_dirac) THEN
                   mo_set%lfomo = imo
                   EXIT
                END IF
             END DO
-            is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > smear%eps_fermi_dirac
-            CPWARN_IF(is_large, "Gaussian smearing includes the first MO")
+            is_large = ABS(mo_set%occupation_numbers(1) - mo_set%maxocc) > smear%eps_fermi_dirac
+            CPWARN_IF(is_large, TRIM(method_label)//" smearing includes the first MO")
 
             ! Find the highest (fractional) occupied MO which will be now the HOMO
             DO imo = nmo, mo_set%lfomo, -1
-               IF (mo_set%occupation_numbers(imo) > smear%eps_fermi_dirac) THEN
+               IF (ABS(mo_set%occupation_numbers(imo)) > smear%eps_fermi_dirac) THEN
                   mo_set%homo = imo
                   EXIT
                END IF
             END DO
-            is_large = ABS(MINVAL(mo_set%occupation_numbers)) > smear%eps_fermi_dirac
+            is_large = ABS(mo_set%occupation_numbers(nmo)) > smear%eps_fermi_dirac
             IF (is_large) &
                CALL cp_warn(__LOCATION__, &
-                            "Gaussian smearing includes the last MO => "// &
+                            TRIM(method_label)//" smearing includes the last MO => "// &
                             "Add more MOs for proper smearing.")
 
             ! Check that the total electron count is accurate
