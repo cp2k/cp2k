@@ -369,7 +369,7 @@ CONTAINS
       CALL qs_env_create(qs_env, globenv)
       CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_qm, &
                    qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm, &
-                   cell=qm_cell_small, force_env_section=force_env_section, &
+                   force_env_section=force_env_section, &
                    subsys_section=subsys_section, &
                    use_motion_section=use_motion_section)
       CALL cp_subsys_release(subsys_qm)
