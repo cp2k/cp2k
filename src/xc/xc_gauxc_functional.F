@@ -58,13 +58,12 @@ CONTAINS
 !> \param dbcsr_mat ...
 !> \param dense_mat ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
+   FUNCTION dbcsr_to_dense(dbcsr_mat) RESULT(dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_stop
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: dense_mat
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: dense_mat
 
       INTEGER                                            :: col, i, icol, irow, j, nblkcols_total, &
                                                             nblkrows_total, ncols, nrows, row
@@ -81,10 +80,9 @@ CONTAINS
                           nfullrows_total=nrows, &
                           nfullcols_total=ncols)
 
-      IF (.NOT. ALLOCATED(dense_mat)) THEN
-         ALLOCATE (dense_mat(nrows, ncols))
-         dense_mat = 0.0_c_double
-      END IF
+      CPASSERT(.NOT. ALLOCATED(dense_mat))
+      ALLOCATE (dense_mat(nrows, ncols))
+      dense_mat = 0._dp
 
       ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
 
@@ -102,8 +100,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          DO j = 1, SIZE(block, 2)
             DO i = 1, SIZE(block, 1)
-               dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) = &
-                  dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) + block(i, j)
+               dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) = block(i, j)
             END DO
          END DO
       END DO
@@ -111,7 +108,7 @@ CONTAINS
 
       DEALLOCATE (r_offset, c_offset)
 
-   END SUBROUTINE dbcsr_to_dense
+   END FUNCTION dbcsr_to_dense
 
    ! **************************************************************************************************
    !> \brief Convert a dense matrix to dbcsr format using a template matrix
@@ -355,7 +352,7 @@ CONTAINS
 
       DO img = 1, nimages
          IF (nspins == 1) THEN
-            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
+            density_scalar = dbcsr_to_dense(rho_ao(1, img))
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
@@ -364,8 +361,8 @@ CONTAINS
             CALL gauxc_check_status(gauxc_status)
          ELSE
             CPASSERT(nspins == 2)
-            CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
-            CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
+            density_scalar = dbcsr_to_dense(rho_ao(1, img))
+            density_zeta = dbcsr_to_dense(rho_ao(2, img))
             ! Do NOT reorder the following lines!
             density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
             ! Factor two because the next line is evaluated after the above line.
