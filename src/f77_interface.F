@@ -148,7 +148,7 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc,                        ONLY: cp_gauxc_status_type,&
+   USE xc_gauxc_interface,              ONLY: cp_gauxc_status_type,&
                                               gauxc_check_status,&
                                               gauxc_finalize,&
                                               gauxc_init

@@ -2,7 +2,7 @@
 
 #define GAUXC_RETURN_IF_ERROR(status) IF (status%status%code /= 0) RETURN
 
-MODULE xc_gauxc
+MODULE xc_gauxc_interface
 
    USE iso_c_binding, ONLY: &
       c_associated, &
@@ -478,7 +478,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param xc_functional_name ...
-!> \param lb ...
+!> \param grid ...
 !> \param gauxc_section ...
 !> \param nspins ...
 !> \param status ...
@@ -882,4 +882,4 @@ CONTAINS
 
 #endif
 
-END MODULE xc_gauxc
+END MODULE xc_gauxc_interface

@@ -140,7 +140,7 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc,                        ONLY: &
+   USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, dbcsr_to_dense, &
         dense_to_dbcsr, gauxc_check_status, gauxc_compute_xc, gauxc_create_basisset, &
