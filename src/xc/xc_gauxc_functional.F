@@ -21,12 +21,7 @@ MODULE xc_gauxc_functional
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_symmetric
+   USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE particle_types,                  ONLY: particle_type
@@ -171,13 +166,10 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param xc_section ...
-!> \param ks_matrix ...
 ! **************************************************************************************************
-   SUBROUTINE apply_gauxc(qs_env, xc_section, ks_matrix)
+   SUBROUTINE apply_gauxc(qs_env, xc_section)
       TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
-      TYPE(dbcsr_p_type), DIMENSION(:, :), &
-         INTENT(inout), POINTER                          :: ks_matrix
 
       CHARACTER(len=*), PARAMETER :: abort_message = &
          "GauXC does not support dispersion corrections. "// &
@@ -199,12 +191,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
 
       NULLIFY ( &
          dft_control, &
          energy, &
+         ks_env, &
          matrix_vxc, &
          particle_set, &
          qs_kind_set, &
@@ -215,6 +209,7 @@ CONTAINS
          qs_env, &
          dft_control=dft_control, &
          energy=energy, &
+         ks_env=ks_env, &
          matrix_vxc=matrix_vxc, &
          natom=natom, &
          particle_set=particle_set, &
@@ -298,29 +293,32 @@ CONTAINS
 
          energy%exc = gauxc_xc_result%exc
 
-         CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+         IF (img == 1) THEN
+            IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
+            CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+         END IF
 
          IF (nspins == 1) THEN
             matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
-            CALL dbcsr_add(ks_matrix(1, img)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
          ELSE
             CPASSERT(nspins == 2)
             vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
             DO ispin = 1, 2
                matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, img))
                CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
-               CALL dbcsr_add(ks_matrix(ispin, img)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
             END DO
             CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
             DEALLOCATE (vxc_zeta_dbcsr%matrix)
          END IF
 
-         DO ispin = 1, nspins
-            CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
-         END DO
+         IF (img == 1) THEN
+            DO ispin = 1, nspins
+               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+            END DO
+         END IF
       END DO
 
-      CALL dbcsr_deallocate_matrix_set(matrix_vxc)
+      CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
 
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
       CALL gauxc_check_status(gauxc_status)

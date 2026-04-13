@@ -600,7 +600,7 @@ CONTAINS
             IF (calculate_forces) THEN
                CPABORT("SKALA functional does not support force calculations. Use RUN_TYPE ENERGY or RUN_TYPE SP instead.")
             END IF
-            CALL apply_gauxc(qs_env, xc_section, ks_matrix)
+            CALL apply_gauxc(qs_env, xc_section)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -716,6 +716,16 @@ CONTAINS
                   END DO
                END IF
             END IF
+         END IF
+
+         IF (dft_control%use_gauxc) THEN
+            NULLIFY (matrix_vxc)
+            CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
+            DO ispin = 1, nspins
+               DO img = 1, nimages
+                  CALL dbcsr_add(ks_matrix(ispin, img)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+            END DO
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN
