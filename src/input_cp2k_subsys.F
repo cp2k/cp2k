@@ -87,7 +87,8 @@ CONTAINS
                           "2. The lengths and angles of cell vectors set by ABC and ALPHA_BETA_GAMMA;"//newline// &
                           "3. The vectors set by A, B, C together;"//newline// &
                           "4. If none above exist, the external file set by TOPOLOGY/COORD_FILE_NAME with "// &
-                          "certain TOPOLOGY/COORD_FILE_FORMAT may also be parsed.")
+                          "certain TOPOLOGY/COORD_FILE_FORMAT may also be parsed. This behavior has NOT "// &
+                          "been fully tested for BSSE as well as QM/MM calculations.")
       CALL create_cell_section_low(section, periodic)
 
       NULLIFY (subsection)

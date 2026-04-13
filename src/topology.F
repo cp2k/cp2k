@@ -16,7 +16,9 @@ MODULE topology
    USE cell_methods,                    ONLY: cell_create,&
                                               read_cell,&
                                               write_cell
-   USE cell_types,                      ONLY: cell_retain,&
+   USE cell_types,                      ONLY: cell_clone,&
+                                              cell_release,&
+                                              cell_retain,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type,&
                                               colvar_setup,&
@@ -26,6 +28,8 @@ MODULE topology
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
+                                              cp_subsys_type
    USE exclusion_types,                 ONLY: exclusion_type
    USE input_constants,                 ONLY: &
         do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, do_conn_off, &
@@ -120,10 +124,12 @@ CONTAINS
 !> \param use_motion_section ...
 !> \param exclusions ...
 !> \param elkind ...
+!> \param subsys ...
 ! **************************************************************************************************
    SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set, &
                                molecule_set, colvar_p, gci, root_section, para_env, qmmm, qmmm_env, &
-                               force_env_section, subsys_section, use_motion_section, exclusions, elkind)
+                               force_env_section, subsys_section, use_motion_section, &
+                               exclusions, elkind, subsys)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -140,12 +146,14 @@ CONTAINS
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exclusions
       LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
+      TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'topology_control'
 
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
                                                             my_qmmm
+      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cell_section, constraint_section, &
                                                             topology_section
@@ -181,10 +189,21 @@ CONTAINS
       CALL init_topology(topology)
 
       ! 2. Get the cell info
-      CALL read_cell(topology%cell, topology%cell_ref, cell_section=cell_section, &
-                     para_env=para_env)
-      CALL write_cell(topology%cell, subsys_section, tag="CELL_TOP")
+      NULLIFY (my_cell, my_cell_ref)
+      CALL read_cell(my_cell, my_cell_ref, cell_section=cell_section, &
+                     topology_section=topology_section, para_env=para_env)
+      IF (.NOT. ASSOCIATED(topology%cell)) CALL cell_create(topology%cell)
+      IF (.NOT. ASSOCIATED(topology%cell_ref)) CALL cell_create(topology%cell_ref)
+      CALL cell_clone(my_cell, topology%cell)
+      CALL cell_clone(my_cell_ref, topology%cell_ref)
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
+      IF (PRESENT(subsys)) THEN ! subsys is passed from cp_subsys_create
+         CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
+      END IF
+      CALL write_cell(my_cell, subsys_section, tag="CELL")
+      CALL write_cell(my_cell_ref, subsys_section, tag="CELL_REF")
+      CALL cell_release(my_cell)
+      CALL cell_release(my_cell_ref)
 
       ! 3. Read in the topology section in the input file if any
       CALL read_topology_section(topology, topology_section)

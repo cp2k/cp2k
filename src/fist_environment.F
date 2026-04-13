@@ -16,11 +16,7 @@ MODULE fist_environment
                                               Dick1958,&
                                               Mitchell1993,&
                                               cite_reference
-   USE cell_methods,                    ONLY: read_cell,&
-                                              write_cell
-   USE cell_types,                      ONLY: cell_release,&
-                                              cell_type,&
-                                              get_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -53,7 +49,6 @@ MODULE fist_environment
    USE header,                          ONLY: fist_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
@@ -104,8 +99,6 @@ CONTAINS
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: qmmm, shell_adiabatic, shell_present
-      REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -115,21 +108,19 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: core_particles, shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, shell_particle_set
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
-      TYPE(section_vals_type), POINTER                   :: cell_section, ewald_section, mm_section, &
+      TYPE(section_vals_type), POINTER                   :: ewald_section, mm_section, &
                                                             poisson_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
 
-      NULLIFY (subsys, cell, cell_ref)
-      NULLIFY (ewald_env, fist_nonbond_env, qmmm_env, cell_section, &
+      NULLIFY (ewald_env, fist_nonbond_env, qmmm_env, subsys, &
                poisson_section, shell_particle_set, shell_particles, &
                core_particle_set, core_particles, exclusions)
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
          subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       END IF
       mm_section => section_vals_get_subs_vals(force_env_section, "MM")
-      cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       poisson_section => section_vals_get_subs_vals(mm_section, "POISSON")
       ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
 
@@ -139,13 +130,6 @@ CONTAINS
                                 extension=".mmLog")
       CALL fist_header(iw)
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%PROGRAM_BANNER")
-
-      CALL read_cell(cell, cell_ref, cell_section=cell_section, para_env=para_env)
-      CALL get_cell(cell, abc=abc)
-
-      ! Print the cell parameters
-      CALL write_cell(cell, subsys_section)
-      CALL write_cell(cell_ref, subsys_section)
 
       ! Create the ewald environment
       ALLOCATE (ewald_env)
@@ -173,7 +157,7 @@ CONTAINS
                                ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm, &
                                qmmm_env=qmmm_env, subsys_section=subsys_section, &
                                mm_section=mm_section, shell_particle_set=shell_particle_set, &
-                               core_particle_set=core_particle_set, cell=cell)
+                               core_particle_set=core_particle_set, cell=subsys%cell)
 
       NULLIFY (shell_particles, core_particles)
       IF (ASSOCIATED(shell_particle_set)) THEN
@@ -194,11 +178,8 @@ CONTAINS
       CALL particle_list_release(shell_particles)
       CALL particle_list_release(core_particles)
 
-      CALL fist_init_subsys(fist_env, subsys, cell, cell_ref, fist_nonbond_env, ewald_env, &
+      CALL fist_init_subsys(fist_env, subsys, fist_nonbond_env, ewald_env, &
                             force_env_section, subsys_section, prev_subsys)
-
-      CALL cell_release(cell)
-      CALL cell_release(cell_ref)
 
       CALL timestop(handle)
 
@@ -209,8 +190,6 @@ CONTAINS
 !>          FIST environment.
 !> \param fist_env ...
 !> \param subsys ...
-!> \param cell ...
-!> \param cell_ref ...
 !> \param fist_nonbond_env ...
 !> \param ewald_env ...
 !> \param force_env_section ...
@@ -220,13 +199,12 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE fist_init_subsys(fist_env, subsys, cell, cell_ref, fist_nonbond_env, &
+   SUBROUTINE fist_init_subsys(fist_env, subsys, fist_nonbond_env, &
                                ewald_env, force_env_section, subsys_section, &
                                prev_subsys)
 
       TYPE(fist_environment_type), POINTER               :: fist_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
@@ -237,6 +215,7 @@ CONTAINS
       INTEGER                                            :: handle, max_multipole
       LOGICAL                                            :: do_multipoles
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles, &
                                                             prev_local_molecules
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
@@ -248,11 +227,14 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: grid_print_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (thermo, ewald_pw, local_molecules, local_particles, multipoles)
+      NULLIFY (thermo, ewald_pw, local_molecules, local_particles, &
+               multipoles, my_cell, my_cell_ref)
       particle_set => subsys%particles%els
       atomic_kind_set => subsys%atomic_kinds%els
       molecule_set => subsys%molecules%els
       molecule_kind_set => subsys%molecule_kinds%els
+      my_cell => subsys%cell
+      my_cell_ref => subsys%cell_ref
 
       IF (PRESENT(prev_subsys)) THEN
          prev_molecule_kind_set => prev_subsys%molecule_kinds%els
@@ -271,11 +253,11 @@ CONTAINS
       ! Print the atomic coordinates
       CALL write_fist_particle_coordinates(particle_set, subsys_section, &
                                            fist_nonbond_env%charges)
-      CALL write_particle_distances(particle_set, cell, subsys_section)
-      CALL write_structure_data(particle_set, cell=cell, input_section=subsys_section)
+      CALL write_particle_distances(particle_set, my_cell, subsys_section)
+      CALL write_structure_data(particle_set, cell=my_cell, input_section=subsys_section)
 
       ! Print symmetry information
-      CALL write_symmetry(particle_set, cell, subsys_section)
+      CALL write_symmetry(particle_set, my_cell, subsys_section)
 
       ! Distribute molecules and atoms using the new data structures ***
       CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set, &
@@ -292,10 +274,10 @@ CONTAINS
       grid_print_section => section_vals_get_subs_vals(force_env_section, &
                                                        "PRINT%GRID_INFORMATION")
       ALLOCATE (ewald_pw)
-      CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, grid_print_section)
+      CALL ewald_pw_create(ewald_pw, ewald_env, my_cell, my_cell_ref, grid_print_section)
 
       ! Initialize ewald grids
-      CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
+      CALL ewald_pw_grid_update(ewald_pw, ewald_env, my_cell%hmat)
 
       ! Possibly Initialize the multipole environment
       CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, &
@@ -304,11 +286,11 @@ CONTAINS
          ALLOCATE (multipoles)
          CALL create_multipole_type(multipoles, particle_set, subsys_section, max_multipole)
       END IF
-      CALL cp_subsys_set(subsys, multipoles=multipoles, cell=cell)
+      CALL cp_subsys_set(subsys, multipoles=multipoles)
 
       ! Set the fist_env
       CALL fist_env_set(fist_env=fist_env, &
-                        cell_ref=cell_ref, &
+                        cell_ref=my_cell_ref, &
                         local_molecules=local_molecules, &
                         local_particles=local_particles, &
                         ewald_env=ewald_env, ewald_pw=ewald_pw, &

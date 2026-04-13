@@ -11,20 +11,14 @@
 ! **************************************************************************************************
 MODULE mixed_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cell_methods,                    ONLY: read_cell,&
-                                              write_cell
-   USE cell_types,                      ONLY: cell_release,&
-                                              cell_type,&
-                                              get_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
-   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
-                                              cp_subsys_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mixed_energy_types,              ONLY: allocate_mixed_energy,&
                                               mixed_energy_type
@@ -68,38 +62,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_init'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: use_ref_cell
-      REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: cell_section, subsys_section
+      TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (subsys, cell, cell_ref)
-      NULLIFY (cell_section)
+      NULLIFY (subsys)
 
       subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
-      cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
 
       CALL set_mixed_env(mixed_env, input=force_env_section)
       CALL cp_subsys_create(subsys, para_env, root_section, &
                             force_env_section=force_env_section, &
                             use_motion_section=use_motion_section)
 
-      CALL read_cell(cell, cell_ref, use_ref_cell=use_ref_cell, &
-                     cell_section=cell_section, para_env=para_env)
-      CALL get_cell(cell, abc=abc)
-
-      ! Print the cell parameters ***
-      CALL write_cell(cell, subsys_section)
-      CALL write_cell(cell_ref, subsys_section)
-
-      CALL mixed_init_subsys(mixed_env, subsys, cell, cell_ref, &
+      CALL mixed_init_subsys(mixed_env, subsys, &
                              force_env_section, subsys_section)
-
-      CALL cell_release(cell)
-      CALL cell_release(cell_ref)
 
       CALL timestop(handle)
 
@@ -110,26 +88,24 @@ CONTAINS
 !>          mixed environment.
 !> \param mixed_env ...
 !> \param subsys ...
-!> \param cell ...
-!> \param cell_ref ...
 !> \param force_env_section ...
 !> \param subsys_section ...
 !> \date    11.06
 !> \author  fschiff
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE mixed_init_subsys(mixed_env, subsys, cell, cell_ref, &
-                                force_env_section, subsys_section)
+   SUBROUTINE mixed_init_subsys(mixed_env, subsys, force_env_section, &
+                                subsys_section)
 
       TYPE(mixed_environment_type), INTENT(INOUT)        :: mixed_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_init_subsys'
 
       INTEGER                                            :: handle
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: my_cell_ref
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(mixed_energy_type), POINTER                   :: mixed_energy
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -137,11 +113,12 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (mixed_energy, local_molecules, local_particles)
+      NULLIFY (mixed_energy, local_molecules, local_particles, my_cell_ref)
       particle_set => subsys%particles%els
       atomic_kind_set => subsys%atomic_kinds%els
       molecule_set => subsys%molecules%els
       molecule_kind_set => subsys%molecule_kinds%els
+      my_cell_ref => subsys%cell_ref
 
       ! Create the mixed_energy_type
       CALL allocate_mixed_energy(mixed_energy)
@@ -158,12 +135,10 @@ CONTAINS
                                    local_molecules=local_molecules, &
                                    force_env_section=force_env_section)
 
-      CALL cp_subsys_set(subsys, cell=cell)
-
       ! set the mixed_env
       CALL set_mixed_env(mixed_env=mixed_env, subsys=subsys)
       CALL set_mixed_env(mixed_env=mixed_env, &
-                         cell_ref=cell_ref, &
+                         cell_ref=my_cell_ref, &
                          local_molecules=local_molecules, &
                          local_particles=local_particles, &
                          mixed_energy=mixed_energy)

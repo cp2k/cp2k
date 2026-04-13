@@ -107,6 +107,16 @@ CONTAINS
 
       ! create cp_subsys%cell
       !TODO: moved to cp_subsys_create(), needs further disentanglement of cell_ref.
+      ![NB] subroutines qs_init() and qs_init_subsys() may pass cell and cell_ref to
+      ! qs_subsys_create() here, and two places where qs_init() is called are tricky:
+      ! 1. For QM/MM calculation, qmmm_env_create() passes "qm_cell_small" from
+      !    setup_qmmm_vars_qm() to qs_init() and subsequently to my_cell here;
+      ! 2. For BSSE calculation, eval_bsse_energy_low() calls create_small_subsys()
+      !    to create cp_subsys_type "subsys_loc" and then calls qs_init() with
+      !    subsys_loc, but create_small_subsys() does not set subsys_loc%cell.
+      ! If not for these, it would have been easy to set my_cell => my_cp_subsys%cell
+      ! and my_cell_ref => my_cp_subsys%cell_ref so as to avoid re-read the cell_section
+      ! when cell and cell_ref are not passed as input here.
       use_ref_cell = .FALSE.
       IF (PRESENT(cell)) THEN
          my_cell => cell

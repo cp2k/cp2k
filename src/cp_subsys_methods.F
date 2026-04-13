@@ -157,7 +157,8 @@ CONTAINS
                             subsys%colvar_p, subsys%gci, root_section, para_env, &
                             force_env_section=my_force_env_section, &
                             subsys_section=my_subsys_section, use_motion_section=my_use_motion_section, &
-                            qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, elkind=elkind)
+                            qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, elkind=elkind, &
+                            subsys=subsys)
 
       CALL particle_list_create(particles, els_ptr=particle_set)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)

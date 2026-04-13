@@ -14,14 +14,9 @@
 MODULE eip_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE cell_methods,                    ONLY: read_cell,&
-                                              write_cell
-   USE cell_types,                      ONLY: cell_release,&
-                                              cell_type,&
-                                              get_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_subsys_methods,               ONLY: cp_subsys_create
-   USE cp_subsys_types,                 ONLY: cp_subsys_set,&
-                                              cp_subsys_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -77,43 +72,29 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: use_ref_cell
-      REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: cell_section, colvar_section, eip_section
+      TYPE(section_vals_type), POINTER                   :: colvar_section, eip_section
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(eip_env))
 
       ! nullifying  pointers
-      NULLIFY (cell_section, colvar_section, eip_section, cell, cell_ref, &
-               subsys)
+      NULLIFY (colvar_section, eip_section, subsys)
 
       IF (.NOT. ASSOCIATED(subsys_section)) THEN
          subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       END IF
-      cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       colvar_section => section_vals_get_subs_vals(subsys_section, "COLVAR")
       eip_section => section_vals_get_subs_vals(force_env_section, "EIP")
 
       CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
                        force_env_input=force_env_section)
 
-      CALL read_cell(cell=cell, cell_ref=cell_ref, use_ref_cell=use_ref_cell, cell_section=cell_section, &
-                     para_env=para_env)
-      CALL get_cell(cell=cell, abc=abc)
-      CALL write_cell(cell=cell, subsys_section=subsys_section)
-
       CALL cp_subsys_create(subsys, para_env, root_section)
 
-      CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
-                           cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
+      CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, &
                            subsys_section=subsys_section)
-
-      CALL cell_release(cell)
-      CALL cell_release(cell_ref)
 
       CALL timestop(handle)
 
@@ -123,25 +104,21 @@ CONTAINS
 !> \brief Initialize the eip environment
 !> \param eip_env The eip environment of matter
 !> \param subsys the subsys
-!> \param cell Pointer to the actual simulation cell
-!> \param cell_ref Pointer to the reference cell, used e.g. in NPT simulations
-!> \param use_ref_cell Logical which indicates if cell_ref is in use
 !> \param subsys_section ...
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! **************************************************************************************************
-   SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, use_ref_cell, subsys_section)
+   SUBROUTINE eip_init_subsys(eip_env, subsys, subsys_section)
       TYPE(eip_environment_type), POINTER                :: eip_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
-      LOGICAL, INTENT(in)                                :: use_ref_cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init_subsys'
 
       INTEGER                                            :: handle, natom
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -152,21 +129,28 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (atomic_kind_set, molecule_kind_set, particle_set, molecule_set, &
-               local_molecules, local_particles)
+               my_cell, my_cell_ref, local_molecules, local_particles)
 
       particle_set => subsys%particles%els
       atomic_kind_set => subsys%atomic_kinds%els
       molecule_kind_set => subsys%molecule_kinds%els
       molecule_set => subsys%molecules%els
+      my_cell => subsys%cell
+      my_cell_ref => subsys%cell_ref
+
+!   *** Set up cell ***
+      CALL eip_env_set(eip_env=eip_env, subsys=subsys, &
+                       cell_ref=my_cell_ref, &
+                       use_ref_cell=subsys%use_ref_cell)
 
 !   *** Print the molecule kind set ***
       CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
 
 !   *** Print the atomic coordinates
       CALL write_fist_particle_coordinates(particle_set, subsys_section)
-      CALL write_particle_distances(particle_set, cell=cell, &
+      CALL write_particle_distances(particle_set, cell=my_cell, &
                                     subsys_section=subsys_section)
-      CALL write_structure_data(particle_set, cell=cell, &
+      CALL write_structure_data(particle_set, cell=my_cell, &
                                 input_section=subsys_section)
 
 !   *** Distribute molecules and atoms using the new data structures ***
@@ -184,9 +168,7 @@ CONTAINS
 
       eip_env%eip_forces(:, :) = 0.0_dp
 
-      CALL cp_subsys_set(subsys, cell=cell)
-      CALL eip_env_set(eip_env=eip_env, subsys=subsys, &
-                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
+      CALL eip_env_set(eip_env=eip_env, &
                        local_molecules=local_molecules, &
                        local_particles=local_particles)
 
