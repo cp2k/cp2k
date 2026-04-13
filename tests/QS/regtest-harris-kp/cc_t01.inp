@@ -32,7 +32,7 @@
       REL_CUTOFF 40
     &END MGRID
     &QS
-      EPS_DEFAULT 1.E-06
+      EPS_DEFAULT 1.E-07
     &END QS
     &SCF
       EPS_SCF 1.0E-7
