@@ -296,58 +296,57 @@ CONTAINS
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
       END IF
 
-      IF (nspins == 1) THEN
-         DO img = 1, nimages
+      DO img = 1, nimages
+         IF (nspins == 1) THEN
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
-         END DO
-         gauxc_xc_result = gauxc_compute_xc( &
-                           gauxc_integrator_result, &
-                           density_scalar, &
-                           nspins=nspins, &
-                           status=gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-      ELSE
-         DO img = 1, nimages
+            gauxc_xc_result = gauxc_compute_xc( &
+                              gauxc_integrator_result, &
+                              density_scalar, &
+                              nspins=nspins, &
+                              status=gauxc_status)
+            CALL gauxc_check_status(gauxc_status)
+         ELSE
+            CPASSERT(nspins == 2)
             CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
             CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
+            ! Do NOT reorder the following lines!
+            density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
+            ! Factor two because the next line is evaluated after the above line.
+            ! We need to subtract density_zeta once to undo the above line and
+            ! a second time because that is what UKS requires.
+            ! This style lowers memory footprint.
+            density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
+            gauxc_xc_result = gauxc_compute_xc( &
+                              gauxc_integrator_result, &
+                              density_scalar, &
+                              density_zeta, &
+                              nspins, &
+                              gauxc_status)
+            CALL gauxc_check_status(gauxc_status)
+         END IF
+
+         energy%exc = gauxc_xc_result%exc
+
+         CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+
+         IF (nspins == 1) THEN
+            matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+            CALL dbcsr_add(ks_matrix(1, img)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
+         ELSE
+            CPASSERT(nspins == 2)
+            vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
+            DO ispin = 1, 2
+               matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, img))
+               CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
+               CALL dbcsr_add(ks_matrix(ispin, img)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+            CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
+            DEALLOCATE (vxc_zeta_dbcsr%matrix)
+         END IF
+
+         DO ispin = 1, nspins
+            CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
          END DO
-         ! Do NOT reorder the following lines!
-         density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
-         ! Factor two because the next line is evaluated after the above line.
-         ! We need to subtract density_zeta once to undo the above line and
-         ! a second time because that is what UKS requires.
-         ! This style lowers memory footprint.
-         density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
-         gauxc_xc_result = gauxc_compute_xc( &
-                           gauxc_integrator_result, &
-                           density_scalar, &
-                           density_zeta, &
-                           nspins, &
-                           gauxc_status)
-         CALL gauxc_check_status(gauxc_status)
-      END IF
-
-      energy%exc = gauxc_xc_result%exc
-
-      CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
-
-      IF (nspins == 1) THEN
-         matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1))
-         CALL dbcsr_add(ks_matrix(1, 1)%matrix, matrix_vxc(1)%matrix, 1.0_dp, 1.0_dp)
-      ELSE
-         CPASSERT(nspins == 2)
-         vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, 1))
-         DO ispin = 1, 2
-            matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
-            CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
-            CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
-         END DO
-         CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
-         DEALLOCATE (vxc_zeta_dbcsr%matrix)
-      END IF
-
-      DO ispin = 1, nspins
-         CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
 
       CALL dbcsr_deallocate_matrix_set(matrix_vxc)
