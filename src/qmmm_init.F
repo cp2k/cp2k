@@ -16,7 +16,6 @@ MODULE qmmm_init
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               set_atomic_kind
-   USE cell_methods,                    ONLY: read_cell
    USE cell_types,                      ONLY: cell_type,&
                                               use_perd_xyz
    USE cp_control_types,                ONLY: dft_control_type
@@ -649,22 +648,15 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(fist_potential_type), POINTER                 :: fist_potential
-      TYPE(section_vals_type), POINTER                   :: cell_section, eri_mme_section, &
-                                                            image_charge_section, mm_kinds
+      TYPE(section_vals_type), POINTER                   :: eri_mme_section, image_charge_section, &
+                                                            mm_kinds
 
-      NULLIFY (mm_link_atoms, cell_section, tmp_sph_cut)
+      NULLIFY (mm_link_atoms, tmp_sph_cut)
       NULLIFY (image_charge_section)
       qmmm_link = .FALSE.
 
       CALL section_vals_get(qmmm_section, explicit=explicit)
       IF (explicit) THEN
-         !
-         ! QM_CELL
-         !
-         cell_section => section_vals_get_subs_vals(qmmm_section, "CELL")
-         CALL read_cell(qm_cell_small, qm_cell_small, cell_section=cell_section, &
-                        check_for_ref=.FALSE., para_env=para_env)
-         qm_cell_small%tag = "CELL_QM"
          CALL section_vals_val_get(qmmm_section, "E_COUPL", i_val=qmmm_coupl_type)
          CALL section_vals_val_get(qmmm_section, "EPS_MM_RSPACE", r_val=eps_mm_rspace)
          CALL section_vals_val_get(qmmm_section, "SPHERICAL_CUTOFF", r_vals=tmp_sph_cut)

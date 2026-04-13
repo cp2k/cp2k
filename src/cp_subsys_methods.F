@@ -378,7 +378,7 @@ CONTAINS
       CALL molecule_list_create(mols, els_ptr=molecule_set)
       CALL molecule_kind_list_create(mol_kinds, els_ptr=molecule_kind_set)
       CALL cp_subsys_set(small_subsys, particles=particles, atomic_kinds=atomic_kinds, &
-                         molecules=mols, molecule_kinds=mol_kinds)
+                         molecules=mols, molecule_kinds=mol_kinds, cell=small_cell)
       CALL particle_list_release(particles)
       CALL atomic_kind_list_release(atomic_kinds)
       CALL molecule_list_release(mols)
