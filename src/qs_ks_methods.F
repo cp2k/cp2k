@@ -365,7 +365,7 @@ CONTAINS
 
       ! Add the planar counter charge density 
       IF (qs_env%scf_control%gce%do_gce .or. dft_control%do_pcc) THEN
-         CALL planar_counter_charge(qs_env, rho_tot_gspace, dft_control%pcc_control, auxbas_pw_pool)
+         CALL planar_counter_charge(rho_tot_gspace, dft_control%pcc_control, auxbas_pw_pool)
       END IF                                  
 
       IF (my_print) THEN
