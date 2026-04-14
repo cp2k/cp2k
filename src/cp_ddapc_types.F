@@ -18,7 +18,6 @@ MODULE cp_ddapc_types
                                               ewald_ddapc_pot,&
                                               solvation_ddapc_pot
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_printkey_is_on
    USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
@@ -28,6 +27,7 @@ MODULE cp_ddapc_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
+   USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -224,7 +224,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: my_val, npts(3), output_unit
+      INTEGER                                            :: my_val, npts(3)
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
       LOGICAL                                            :: analyt, decoupling, &
                                                             do_qmmm_periodic_decpl, do_restraint, &
@@ -238,7 +238,6 @@ CONTAINS
          solvation_section
 
       logger => cp_get_default_logger()
-      output_unit = cp_logger_get_default_io_unit(logger)
       CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald))
       ALLOCATE (cp_ddapc_ewald)
       NULLIFY (cp_ddapc_ewald%pw_grid_mm, &
@@ -268,12 +267,10 @@ CONTAINS
       cp_ddapc_ewald%do_restraint = do_restraint .OR. do_restraintB
       ! Determining the tasks and further check
       IF (do_qmmm_periodic_decpl .AND. decoupling) THEN
-         ! Check than an additional POISSON section has not been defined. In case write a warning
-         IF (output_unit > 0) &
-            WRITE (output_unit, '(T2,"WARNING",A)') &
-            "A calculation with the QMMM periodic model has been requested.", &
-            "The explicit POISSON section in DFT section will be IGNORED.", &
-            "QM Electrostatic controlled only by the PERIODIC section in QMMM section"
+         CALL cp_warn(__LOCATION__, &
+                      "A calculation with the QMMM periodic model has been requested. "// &
+                      "The explicit POISSON section in DFT section will be IGNORED. "// &
+                      "QM Electrostatic controlled only by the PERIODIC section in QMMM section")
          decoupling = .FALSE.
       END IF
       IF (decoupling) THEN
@@ -301,7 +298,7 @@ CONTAINS
 
             NULLIFY (LG, gx, gy, gz)
             hmat = qm_cell%hmat
-            CALL eval_lg(multipole_section, hmat, qm_cell%deth, LG, gx, gy, gz)
+            CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
             grid_print_section => section_vals_get_subs_vals(force_env_section, "PRINT%GRID_INFORMATION")
             CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm, pw_pool=cp_ddapc_ewald%pw_pool_qm, &
                                     coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
@@ -316,7 +313,7 @@ CONTAINS
                cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
                CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, para_env=para_env)
                hmat = mm_cell%hmat
-               CALL eval_lg(multipole_section, hmat, mm_cell%deth, LG, gx, gy, gz)
+               CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
                grid_print_section => section_vals_get_subs_vals(force_env_section, "PRINT%GRID_INFORMATION")
                CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm, pw_pool=cp_ddapc_ewald%pw_pool_mm, &
                                        coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
@@ -337,7 +334,6 @@ CONTAINS
 !> \brief ...
 !> \param multipole_section ...
 !> \param hmat ...
-!> \param deth ...
 !> \param LG ...
 !> \param gx ...
 !> \param gy ...
@@ -346,16 +342,17 @@ CONTAINS
 !>      none
 !> \author Teodoro Laino - [tlaino]
 ! **************************************************************************************************
-   SUBROUTINE eval_lg(multipole_section, hmat, deth, LG, gx, gy, gz)
+   SUBROUTINE eval_lg(multipole_section, hmat, LG, gx, gy, gz)
       TYPE(section_vals_type), POINTER                   :: multipole_section
-      REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3), deth
+      REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: LG, gx, gy, gz
 
       INTEGER                                            :: i, k1, k2, k3, n_rep, ndim, nmax1, &
                                                             nmax2, nmax3
-      REAL(KIND=dp)                                      :: alpha, eps, fac, fs, fvec(3), galpha, &
-                                                            gsq, gsqi, rcut, tol, tol1
+      REAL(KIND=dp)                                      :: alpha, deth, eps, fac, fs, fvec(3), &
+                                                            galpha, gsq, gsqi, rcut, tol, tol1
 
+      deth = ABS(det_3x3(hmat))
       rcut = MIN(hmat(1, 1), hmat(2, 2), hmat(3, 3))/2.0_dp
       CALL section_vals_val_get(multipole_section, "RCUT", n_rep_val=n_rep)
       IF (n_rep == 1) CALL section_vals_val_get(multipole_section, "RCUT", r_val=rcut)
