@@ -53,7 +53,7 @@ opt-einsum-fx==0.1.4
 opt_einsum==3.4.0
 packaging==26.0
 pathspec==1.0.4
-pillow==12.1.1
+pillow==12.2.0
 propcache==0.4.1
 pyparsing==3.3.2
 python-dateutil==2.9.0.post0
