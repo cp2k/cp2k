@@ -718,16 +718,6 @@ CONTAINS
             END IF
          END IF
 
-         IF (dft_control%use_gauxc) THEN
-            NULLIFY (matrix_vxc)
-            CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
-            DO ispin = 1, nspins
-               DO img = 1, nimages
-                  CALL dbcsr_add(ks_matrix(ispin, img)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
-               END DO
-            END DO
-         END IF
-
          IF (use_virial .AND. calculate_forces) THEN
             pv_loc = virial%pv_virial
          END IF
