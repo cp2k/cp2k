@@ -13,5 +13,6 @@ PBE/GAPW/AE                       30.2            845
 SCAN                              14.2            249
 PBE0/ADMM                         16.8           1306
 DC-SCAN                           20.2           3525
+ccGRB-Q/SCAN                      33.2            479
 
 
