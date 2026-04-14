@@ -357,6 +357,9 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
 
       DO img = 1, nimages
+         IF (img > 1) THEN
+            CPABORT("The implementation for img>1 is currently incorrect.")
+         END IF
          density_scalar = dbcsr_to_dense(rho_ao(1, img))
          IF (nspins == 1) THEN
             gauxc_xc_result = gauxc_compute_xc( &
