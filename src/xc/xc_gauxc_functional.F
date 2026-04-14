@@ -270,7 +270,7 @@ CONTAINS
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
-      TYPE(dbcsr_p_type)                                 :: vxc_zeta_dbcsr
+      TYPE(dbcsr_p_type)                                 :: vxc_tmp, vxc_zeta_dbcsr
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -354,12 +354,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
 
       DO img = 1, nimages
-         IF (img > 1) THEN
-            DO ispin = 1, nspins
-               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
-            END DO
-         END IF
-
          IF (nspins == 1) THEN
             density_scalar = dbcsr_to_dense(rho_ao(1, img))
             gauxc_xc_result = gauxc_compute_xc( &
@@ -391,16 +385,39 @@ CONTAINS
          energy%exc = energy%exc + gauxc_xc_result%exc
 
          IF (nspins == 1) THEN
-            matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+            IF (img == 1) THEN
+               matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+            ELSE
+               vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+               CALL dbcsr_add(matrix_vxc(1)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp)
+               CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
+               DEALLOCATE (vxc_zeta_dbcsr%matrix)
+            END IF
          ELSE
             CPASSERT(nspins == 2)
             vxc_zeta_dbcsr = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
-            DO ispin = 1, 2
-               matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, img))
-               CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - (ispin - 1)*2.0_dp)
-            END DO
+            IF (img == 1) THEN
+               matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, 1))
+               matrix_vxc(2) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(2, 1))
+               CALL dbcsr_add(matrix_vxc(1)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp)
+               CALL dbcsr_add(matrix_vxc(2)%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, -1.0_dp)
+            ELSE
+               DO ispin = 1, 2
+                  vxc_tmp = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, img))
+                  CALL dbcsr_add(vxc_tmp%matrix, vxc_zeta_dbcsr%matrix, 1.0_dp, 1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
+                  CALL dbcsr_add(matrix_vxc(ispin)%matrix, vxc_tmp%matrix, 1.0_dp, 1.0_dp)
+                  CALL dbcsr_release(vxc_tmp%matrix)
+                  DEALLOCATE (vxc_tmp%matrix)
+               END DO
+            END IF
             CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
             DEALLOCATE (vxc_zeta_dbcsr%matrix)
+         END IF
+
+         IF (img == 1) THEN
+            DO ispin = 1, nspins
+               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+            END DO
          END IF
       END DO
 
