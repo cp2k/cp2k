@@ -544,7 +544,13 @@ CONTAINS
       TYPE(cp_gauxc_xc_type)                             :: res
 
 #ifdef __GAUXC
-      ALLOCATE (res%vxc_scalar, mold=density_scalar)
+
+      IF (.NOT. ALLOCATED(res%vxc_scalar)) THEN
+         ALLOCATE (res%vxc_scalar, mold=density_scalar)
+      ELSE
+         CPASSERT(ALL(SHAPE(res%vxc_scalar) == SHAPE(density_scalar)))
+      END IF
+      res%vxc_scalar = 0._dp
 
       IF (nspins == 1) THEN
          CALL gauxc_integrator_eval_exc_vxc_rks( &
@@ -555,7 +561,14 @@ CONTAINS
             res%vxc_scalar)
       ELSE
          CPASSERT(PRESENT(density_zeta))
-         ALLOCATE (res%vxc_zeta, mold=density_zeta)
+
+         IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
+            ALLOCATE (res%vxc_zeta, mold=density_zeta)
+         ELSE
+            CPASSERT(ALL(SHAPE(res%vxc_zeta) == SHAPE(density_scalar)))
+         END IF
+         res%vxc_zeta = 0._dp
+
          CALL gauxc_integrator_eval_exc_vxc_uks( &
             status%status, &
             integrator%integrator, &

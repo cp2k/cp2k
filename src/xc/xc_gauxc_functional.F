@@ -80,8 +80,11 @@ CONTAINS
                           nfullrows_total=nrows, &
                           nfullcols_total=ncols)
 
-      CPASSERT(.NOT. ALLOCATED(dense_mat))
-      ALLOCATE (dense_mat(nrows, ncols))
+      IF (.NOT. ALLOCATED(dense_mat)) THEN
+         ALLOCATE (dense_mat(nrows, ncols))
+      ELSE
+         CPASSERT(ALL(SHAPE(dense_mat) == (/nrows, ncols/)))
+      END IF
       dense_mat = 0._dp
 
       ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
@@ -430,13 +433,12 @@ CONTAINS
             CALL dbcsr_release(vxc_zeta_tmp%matrix)
             DEALLOCATE (vxc_zeta_tmp%matrix)
          END IF
-
-         IF (img == 1) THEN
-            DO ispin = 1, nspins
-               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
-            END DO
-         END IF
       END DO
+
+      DEALLOCATE (density_scalar)
+      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
+      DEALLOCATE (gauxc_xc_result%vxc_scalar)
+      IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
 
       CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
       DO ispin = 1, nspins
@@ -451,9 +453,6 @@ CONTAINS
       CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
-
-      DEALLOCATE (density_scalar)
-      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
 
    END SUBROUTINE apply_gauxc
 
