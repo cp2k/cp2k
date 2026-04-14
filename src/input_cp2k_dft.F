@@ -17,7 +17,7 @@ MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
         Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, Marek2025, Merlot2014, Perdew1981, &
-        VandeVondele2005b, Yin2017
+        VandeVondele2005b, Yin2017, Chai2024a
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -465,6 +465,14 @@ CONTAINS
       CALL create_hairy_probes_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      CALL create_pcc_section(subsection)     
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)        
+      
+      CALL create_paep_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection) 
 
    END SUBROUTINE create_dft_section
 
@@ -2397,5 +2405,119 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_sccs_section
+
+! **************************************************************************************************
+!> \brief      Create CP2K input section for the planar counter charge density
+!> \param section ...     
+!> \author     Ziwei Chai
+!> \version    1.0        
+! **************************************************************************************************
+   SUBROUTINE create_pcc_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, &
+                          name="PLANAR_COUNTER_CHARGE", &
+                          description="Define the parameters for planar counter charge density", &
+                          citations=[Chai2024a], &
+                          n_keywords=4, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the planar counter charge section", &
+                          usage="&PLANAR_COUNTER_CHARGE ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_PLANE", &
+                          enum_c_vals=s2a('XY', 'YZ', 'XZ'), &
+                          enum_i_vals=[3, 1, 2], &
+                          description="The coordinate plane that the surface is parallel to.", &
+                          enum_desc=s2a("Parallel to XY", "Parallel to YZ", "Parallel to XZ"), &
+                          n_var=1, &
+                          default_i_val=3, &
+                          usage="PARALLEL_PLANE XY")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__,&
+                          name="DIST_EDGE", &
+                          description="Controls the distance between the center of the Gaussian "// &
+                                      "and the cell boundary", &
+                          usage="DIST_EDGE 1.0", &
+                          unit_str="angstrom", &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__,&
+                          name="GAU_C", &
+                          description="Controls the spread of the Gaussian distribution", &
+                          usage="GAU_C 0.1", &
+                          unit_str="angstrom", &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_pcc_section
+
+! **************************************************************************************************
+!> \brief      Create CP2K input section for calculating and printing the planar averaged 
+!>             electrostatic potential (Hartree potential) for symmetric slab systems
+!> \param section ...     
+!> \author     Ziwei Chai
+!> \version    1.0        
+! **************************************************************************************************
+   SUBROUTINE create_paep_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, &
+                          name="PLANAR_AVERAGED_V_HARTREE", &
+                          description="Define the parameters for calculating and printing the planar "// &
+                                      "averaged electrostatic potential (Hartree potential) "// &
+                                      "for symmetric slab systems", &
+                          n_keywords=2, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the planar averaged electrostatic "// &
+                                      "potential (Hartree potential) section", &
+                          usage="&PLANAR_AVERAGED_V_HARTREE ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_PLANE", &
+                          enum_c_vals=s2a('XY', 'YZ', 'XZ'), &
+                          enum_i_vals=[3, 1, 2], &
+                          description="The coordinate plane that the surface is parallel to.", &
+                          enum_desc=s2a("Parallel to XY", "Parallel to YZ", "Parallel to XZ"), &
+                          n_var=1, &
+                          default_i_val=3, &
+                          usage="PARALLEL_PLANE XY")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_paep_section
 
 END MODULE input_cp2k_dft

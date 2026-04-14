@@ -49,6 +49,8 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dft_plus_u,                      ONLY: plus_u
+   USE gce_methods,                     ONLY: planar_averaged_v_hartree_3d, &
+                                              planar_counter_charge
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
@@ -361,6 +363,11 @@ CONTAINS
       ! Get the total density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
+      ! Add the planar counter charge density 
+      IF (qs_env%scf_control%gce%do_gce .or. dft_control%do_pcc) THEN
+         CALL planar_counter_charge(qs_env, rho_tot_gspace, dft_control%pcc_control, auxbas_pw_pool)
+      END IF                                  
+
       IF (my_print) THEN
          CALL print_densities(qs_env, rho)
       END IF
@@ -397,6 +404,12 @@ CONTAINS
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace, energy%hartree, &
                                   v_hartree_gspace, rho_core=rho_core)
          END IF
+      END IF
+
+      IF (dft_control%do_paep .or. qs_env%scf_control%gce%do_gce) THEN
+         CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
+         CALL planar_averaged_v_hartree_3d(v_hartree_rspace, dft_control, qs_env%scf_control%gce%do_gce, &
+                                           qs_env%scf_control%gce%ref_esp, para_env)
       END IF
 
       ! In case decouple periodic images and/or apply restraints to charges

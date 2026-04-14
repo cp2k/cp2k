@@ -92,7 +92,7 @@ MODULE bibliography
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
                             Hanasaki2025, Tan2025, FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, &
-                            Mermin1965
+                            Mermin1965, Chai2024a
 
 CONTAINS
 
@@ -2043,6 +2043,13 @@ CONTAINS
                          title="Fermi energy determination for advanced smearing techniques", &
                          source="Phys. Rev. B", volume="107", pages="195122", &
                          year=2023, doi="10.1103/PhysRevB.107.195122")
+
+      CALL add_reference(key=Chai2024a, &
+                         authors=s2a("Z. Chai", "S. Luber"), &
+                         title="Grand Canonical Ensemble Approaches in CP2K for Modeling Electrochemistry at Constant "// &
+                         "Electrode Potentials", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="8214-8228", &
+                         year=2024, doi="10.1021/acs.jctc.4c00671")
 
    END SUBROUTINE add_all_references
 
