@@ -96,7 +96,7 @@ MODULE bibliography
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
-                            Shiga2022, Lindh1995
+                            Shiga2022, Lindh1995, Chai2024a
 
 CONTAINS
 
@@ -2176,6 +2176,13 @@ CONTAINS
                          title="On the use of a Hessian model function in molecular geometry optimizations", &
                          source="Chem. Phys. Lett.", volume="241", pages="423-428", &
                          year=1995, doi="10.1016/0009-2614(95)00646-L")
+
+      CALL add_reference(key=Chai2024a, &
+                         authors=s2a("Z. Chai", "S. Luber"), &
+                         title="Grand Canonical Ensemble Approaches in CP2K for Modeling Electrochemistry at Constant "// &
+                         "Electrode Potentials", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="8214-8228", &
+                         year=2024, doi="10.1021/acs.jctc.4c00671")
 
    END SUBROUTINE add_all_references
 
