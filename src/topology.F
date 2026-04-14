@@ -152,17 +152,17 @@ CONTAINS
 
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
-                                                            my_qmmm
+                                                            my_qmmm, use_ref_cell
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: cell_section, constraint_section, &
-                                                            topology_section
+      TYPE(section_vals_type), POINTER                   :: cell_ref_section, cell_section, &
+                                                            constraint_section, topology_section
       TYPE(topology_parameters_type)                     :: topology
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
-      NULLIFY (cell_section, constraint_section, topology_section)
+      NULLIFY (cell_section, cell_ref_section, constraint_section, topology_section)
 
       cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       IF (use_motion_section) THEN
@@ -192,13 +192,17 @@ CONTAINS
       NULLIFY (my_cell, my_cell_ref)
       CALL read_cell(my_cell, my_cell_ref, cell_section=cell_section, &
                      topology_section=topology_section, para_env=para_env)
+      use_ref_cell = .FALSE.
+      cell_ref_section => section_vals_get_subs_vals(cell_section, "CELL_REF")
+      CALL section_vals_get(cell_ref_section, explicit=use_ref_cell)
       IF (.NOT. ASSOCIATED(topology%cell)) CALL cell_create(topology%cell)
       IF (.NOT. ASSOCIATED(topology%cell_ref)) CALL cell_create(topology%cell_ref)
       CALL cell_clone(my_cell, topology%cell)
       CALL cell_clone(my_cell_ref, topology%cell_ref)
       CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
       IF (PRESENT(subsys)) THEN ! subsys is passed from cp_subsys_create
-         CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref)
+         CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref, &
+                            use_ref_cell=use_ref_cell)
       END IF
       CALL write_cell(my_cell, subsys_section, tag="CELL")
       CALL write_cell(my_cell_ref, subsys_section, tag="CELL_REF")

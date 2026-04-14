@@ -106,6 +106,7 @@ CONTAINS
       CALL qs_subsys_set(subsys, &
                          cp_subsys=my_cp_subsys, &
                          cell_ref=my_cp_subsys%cell_ref, &
+                         use_ref_cell=my_cp_subsys%use_ref_cell, &
                          qs_kind_set=qs_kind_set)
 
       IF (.NOT. PRESENT(cp_subsys)) CALL cp_subsys_release(my_cp_subsys)
