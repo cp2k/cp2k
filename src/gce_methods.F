@@ -70,8 +70,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'planar_averaged_v_hartree_3d'
       INTEGER                                            :: handle, a, b, c, x, y, z, my_io_unit
-      REAL(KIND=dp)                                      :: ngrids_in_plane, tmp, my_ref_esp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: profile
+      REAL(KIND=dp)                                      :: ngrids_in_plane, my_ref_esp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: profile, profile_local
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(v_rspace))
@@ -146,18 +146,31 @@ CONTAINS
          ALLOCATE(profile(v_rspace%pw_grid%bounds(1, c):v_rspace%pw_grid%bounds(2, c))) 
          profile(:) = 0.0_dp
 
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(x,y,z) &
+!$OMP    PARALLEL    DEFAULT(NONE) &
+!$OMP                PRIVATE(x,y,z,profile_local) &
 !$OMP                SHARED(v_rspace,a,b,c) &
-!$OMP                REDUCTION(+:profile)
+!$OMP                SHARED(profile)
+
+         ALLOCATE(profile_local(v_rspace%pw_grid%bounds(1, c):v_rspace%pw_grid%bounds(2, c)))
+         profile_local(:) = 0.0_dp
+
+!$OMP DO
          DO z = v_rspace%pw_grid%bounds_local(1, c), v_rspace%pw_grid%bounds_local(2, c)
             DO y = v_rspace%pw_grid%bounds_local(1, b), v_rspace%pw_grid%bounds_local(2, b)
                DO x = v_rspace%pw_grid%bounds_local(1, a), v_rspace%pw_grid%bounds_local(2, a)
-                  profile(z) = profile(z) + v_rspace%array(x, y, z)
+                  profile_local(z) = profile_local(z) + v_rspace%array(x, y, z)
                END DO
             END DO
          END DO
-!$OMP    END PARALLEL DO
+!$OMP END DO
+
+!$OMP CRITICAL
+         profile(:) = profile(:) + profile_local(:)
+!$OMP END CRITICAL
+
+         DEALLOCATE(profile_local)
+
+!$OMP    END PARALLEL
 
          CALL para_env%sum(profile(:))
          profile(:) = profile(:) / ngrids_in_plane
@@ -188,26 +201,19 @@ CONTAINS
 !> \brief add the planar counter charge density to the total charge density
 !> \author Ziwei Chai
 ! **************************************************************************************************
-   SUBROUTINE planar_counter_charge(qs_env, rho_tot_gspace, pcc_env, auxbas_pw_pool)
+   SUBROUTINE planar_counter_charge(rho_tot_gspace, pcc_env, auxbas_pw_pool)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_tot_gspace
       TYPE(pcc_control_type), POINTER                    :: pcc_env
       TYPE(pw_pool_type), POINTER, INTENT(IN)            :: auxbas_pw_pool
-      REAL(KIND=dp)                                      :: ref_esp
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'planar_counter_charge'
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_subsys_type), POINTER                      :: cp_subsys
-      TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_r3d_rs_type)                               :: pcc_density_r
       TYPE(pw_c1d_gs_type)                               :: pcc_density_g
-      TYPE(section_vals_type), POINTER                   :: input
-      INTEGER                                            :: handle, a, b, c, z, surf_normal, ucenter, lcenter,&
-                                                            cube_unit, my_io_unit, x, y
-      LOGICAL                                            :: my_mpi_io
+      INTEGER                                            :: handle, a, b, c, z, ucenter, lcenter,&
+                                                            my_io_unit, x, y
       REAL(KIND=dp)                                      :: gau_a, tot_charge, dz, val
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: profile
 
       CALL timeset(routineN, handle)
 
