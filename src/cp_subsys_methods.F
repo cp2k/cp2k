@@ -238,7 +238,7 @@ CONTAINS
 !> \brief updates the molecule information of the given subsys
 !> \param small_subsys the subsys to create
 !> \param big_subsys the superset of small_subsys
-!> \param small_cell ...
+!> \param small_cell the cell of small_subsys
 !> \param small_para_env the parallel environment for the new (small)
 !>        subsys
 !> \param sub_atom_index indexes of the atoms that should be in small_subsys
@@ -253,6 +253,9 @@ CONTAINS
 !> \note
 !>      not really ready to be used with different para_envs for the small
 !>      and big part
+!>      qmmm_env_create() should be the only instance where this subroutine is called
+!>      with small_cell distinct from big_subsys%cell; otherwise it could be possible
+!>      to drop the small_cell as input parameter entirely.
 ! **************************************************************************************************
    SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell, &
                                   small_para_env, sub_atom_index, sub_atom_kind_name, &
