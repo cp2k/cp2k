@@ -18,6 +18,7 @@ MODULE cp_subsys_methods
                                               atomic_kind_list_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atprop_types,                    ONLY: atprop_create
+   USE cell_methods,                    ONLY: write_cell
    USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
    USE colvar_methods,                  ONLY: colvar_read
@@ -299,6 +300,8 @@ CONTAINS
       !-----------------------------------------------------------------------------
       topology%cell => small_cell
       CALL cell_retain(small_cell)
+      CALL write_cell(small_cell, subsys_section, tag="CELL")
+      CALL write_cell(small_cell, subsys_section, tag="CELL_REF")
 
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -379,7 +382,7 @@ CONTAINS
       CALL molecule_kind_list_create(mol_kinds, els_ptr=molecule_kind_set)
       CALL cp_subsys_set(small_subsys, particles=particles, atomic_kinds=atomic_kinds, &
                          molecules=mols, molecule_kinds=mol_kinds, cell=small_cell, &
-                         cell_ref=small_cell)
+                         cell_ref=small_cell, use_ref_cell=.FALSE.)
       CALL particle_list_release(particles)
       CALL atomic_kind_list_release(atomic_kinds)
       CALL molecule_list_release(mols)
