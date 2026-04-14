@@ -350,7 +350,16 @@ CONTAINS
 
       energy%exc = 0
 
+      IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
+      CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+
       DO img = 1, nimages
+         IF (img > 1) THEN
+            DO ispin = 1, nspins
+               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+            END DO
+         END IF
+
          IF (nspins == 1) THEN
             density_scalar = dbcsr_to_dense(rho_ao(1, img))
             gauxc_xc_result = gauxc_compute_xc( &
@@ -381,11 +390,6 @@ CONTAINS
 
          energy%exc = energy%exc + gauxc_xc_result%exc
 
-         IF (img == 1) THEN
-            IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
-            CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
-         END IF
-
          IF (nspins == 1) THEN
             matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
          ELSE
@@ -398,15 +402,12 @@ CONTAINS
             CALL dbcsr_release(vxc_zeta_dbcsr%matrix)
             DEALLOCATE (vxc_zeta_dbcsr%matrix)
          END IF
-
-         IF (img == 1) THEN
-            DO ispin = 1, nspins
-               CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
-            END DO
-         END IF
       END DO
 
       CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+      DO ispin = 1, nspins
+         CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+      END DO
 
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
