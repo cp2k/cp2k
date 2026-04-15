@@ -6,6 +6,7 @@ leak:MPIDIU_avt_init
 leak:MPIR_Group_create
 leak:MPIDIU_alloc_lut
 leak:MPI_File_open
+leak:getMyFQN
 # PEXSI
 leak:BcTree_Create
 leak:MPIR_Type_contiguous_impl
