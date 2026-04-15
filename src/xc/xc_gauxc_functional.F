@@ -362,7 +362,6 @@ CONTAINS
          END IF
          density_scalar = dbcsr_to_dense(rho_ao(1, img))
          IF (nspins == 1) THEN
-            density_scalar(:, :) = 0.5_dp*density_scalar(:, :)
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
