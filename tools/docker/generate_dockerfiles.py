@@ -55,14 +55,26 @@ def main() -> None:
 
     # Spack/CMake based testers
 
+    testopts = f"--keepalive"
+
     with OutputFile(f"Dockerfile.test_spack_pdbg", args.check) as f:
         f.write(
-            install_cp2k_spack("pdbg", mpi_mode="mpich", feature_flags="-ef openpmd")
+            install_cp2k_spack(
+                version="pdbg",
+                mpi_mode="mpich",
+                feature_flags="-ef openpmd",
+                testopts=testopts,
+            )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
         f.write(
-            install_cp2k_spack("psmp", mpi_mode="mpich", feature_flags="-ef openpmd")
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="-ef openpmd",
+                testopts=testopts,
+            )
         )
 
     for gcc_version in 10, 11, 12, 14, 15:
@@ -72,112 +84,129 @@ def main() -> None:
             base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
             f.write(
                 install_cp2k_spack(
-                    "psmp",
+                    version="psmp",
                     mpi_mode="mpich",
                     gcc_version=gcc_version,
                     base_image=base_image,
                     feature_flags="-ef openpmd",
+                    testopts=testopts,
                 )
             )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-rawhide", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "ssmp",
+                version="ssmp",
                 mpi_mode="no",
                 base_image="fedora:rawhide",
                 gcc_version=16,
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-rawhide", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "psmp",
+                version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:rawhide",
                 gcc_version=16,
                 feature_flags="-ef openpmd",
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-fedora", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "psmp",
+                version="psmp",
                 mpi_mode="mpich",
                 base_image="fedora:latest",
                 gcc_version=15,
                 feature_flags="-ef openpmd",
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-opensuse", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "psmp",
+                version="psmp",
                 mpi_mode="mpich",
                 base_image="opensuse/leap:15.6",
                 gcc_version=14,
                 feature_flags="-ef openpmd",
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-rockylinux", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "psmp",
+                version="psmp",
                 mpi_mode="mpich",
                 base_image="docker.io/rockylinux/rockylinux:10",
                 gcc_version=14,
                 feature_flags="-df libxsmm -ef openpmd",
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-4x2", args.check) as f:
-        testopts = f"--mpiranks=4 --ompthreads=2"
         f.write(
             install_cp2k_spack(
-                "psmp", mpi_mode="mpich", testopts=testopts, feature_flags="-ef openpmd"
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="-ef openpmd",
+                testopts=f"--keepalive --mpiranks=4 --ompthreads=2",
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
         f.write(
-            install_cp2k_spack("psmp", mpi_mode="openmpi", feature_flags="-ef openpmd")
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="openmpi",
+                feature_flags="-ef openpmd",
+                testopts=testopts,
+            )
         )
 
     with OutputFile(f"Dockerfile.test_spack_sdbg", args.check) as f:
-        f.write(install_cp2k_spack("sdbg", mpi_mode="no"))
+        f.write(install_cp2k_spack(version="sdbg", mpi_mode="no", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
-        f.write(install_cp2k_spack("ssmp", mpi_mode="no"))
+        f.write(install_cp2k_spack(version="ssmp", mpi_mode="no", testopts=testopts))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-static", args.check) as f:
-        f.write(install_cp2k_spack("ssmp-static", mpi_mode="no", gcc_version=14))
+        f.write(
+            install_cp2k_spack(
+                version="ssmp-static", mpi_mode="no", gcc_version=14, testopts=testopts
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-P100", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "ssmp",
+                version="ssmp",
                 mpi_mode="no",
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
-                testopts="--keepalive",
+                testopts=testopts,
             )
         )
 
     with OutputFile(f"Dockerfile.test_spack_psmp-P100", args.check) as f:
         f.write(
             install_cp2k_spack(
-                "psmp",
+                version="psmp",
                 mpi_mode="mpich",
                 base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="-ef openpmd",
-                testopts="--keepalive",
+                testopts=testopts,
             )
         )
 
