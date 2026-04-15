@@ -18,7 +18,6 @@
 MODULE mscfg_methods
    USE almo_scf_types,                  ONLY: almo_scf_env_type
    USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE cell_types,                      ONLY: cell_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_type_no_symmetry
@@ -151,7 +150,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_index, atom_list
       LOGICAL                                            :: global_almo_scf_keyword, smear_almo_scf
       TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_loc
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_of_frag
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
@@ -165,7 +163,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, &
+      NULLIFY (subsys_loc, subsys, particles, para_env, atom_index, atom_type, &
                force_env_section, qs_env_loc, mscfg_env, qs_env, qs_energy)
       CALL force_env_get(force_env, force_env_section=force_env_section, &
                          qs_env=qs_env)
@@ -185,8 +183,7 @@ CONTAINS
       !
       ! Get access to critical data before the loop
       !
-      CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env, &
-                         cell=cell)
+      CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env)
       CALL cp_subsys_get(subsys, particles=particles)
       CALL get_qs_env(qs_env, mscfg_env=mscfg_env, almo_scf_env=almo_scf_env)
       CPASSERT(ASSOCIATED(mscfg_env))
@@ -280,8 +277,8 @@ CONTAINS
          !
          ! Create the environment of a subsystem
          !
-         CALL create_small_subsys(subsys_loc, big_subsys=subsys, &
-                                  small_para_env=para_env, small_cell=cell, sub_atom_index=atom_index, &
+         CALL create_small_subsys(subsys_loc, big_subsys=subsys, small_para_env=para_env, &
+                                  small_cell=subsys%cell, sub_atom_index=atom_index, &
                                   sub_atom_kind_name=atom_type, para_env=para_env, &
                                   force_env_section=force_env_section, subsys_section=subsys_section)
          ALLOCATE (qs_env_loc)

@@ -87,15 +87,15 @@ CONTAINS
                           "2. The lengths and angles of cell vectors set by ABC and ALPHA_BETA_GAMMA;"//newline// &
                           "3. The vectors set by A, B, C together;"//newline// &
                           "4. If none above exist, the external file set by TOPOLOGY/COORD_FILE_NAME with "// &
-                          "certain TOPOLOGY/COORD_FILE_FORMAT may also be parsed. This behavior has NOT "// &
-                          "been fully tested for BSSE as well as QM/MM calculations.")
+                          "suitable TOPOLOGY/COORD_FILE_FORMAT may also be parsed for FORCE_EVAL/SUBSYS/CELL "// &
+                          "but not for FORCE_EVAL/QMMM/CELL.")
       CALL create_cell_section_low(section, periodic)
 
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, "CELL_REF", &
-                          description="Input parameters needed to set up the reference cell. "// &
-                          "This option can be used to keep the FFT grid fixed while "// &
-                          "running a cell optimization or NpT molecular dynamics. "// &
+                          description="Input parameters needed to set up the reference cell for "// &
+                          "FORCE_EVAL/SUBSYS/CELL. This option can be used to keep the FFT grid "// &
+                          "fixed while running a cell optimization or NpT molecular dynamics. "// &
                           "Check the &CELL section for further details.")
       CALL create_cell_section_low(subsection, periodic)
       CALL section_add_subsection(section, subsection)

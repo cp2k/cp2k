@@ -16,7 +16,8 @@ MODULE qmmm_create
                                               Laino2005,&
                                               Laino2006,&
                                               cite_reference
-   USE cell_methods,                    ONLY: write_cell
+   USE cell_methods,                    ONLY: read_cell,&
+                                              write_cell
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_release,&
                                               cell_type,&
@@ -141,13 +142,13 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env_qm
       TYPE(qmmm_links_type), POINTER                     :: qmmm_links
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(section_vals_type), POINTER                   :: multipole_section, print_gen, &
-                                                            print_section, qmmm_periodic
+      TYPE(section_vals_type), POINTER                   :: cell_section, multipole_section, &
+                                                            print_gen, print_section, qmmm_periodic
 
       CALL timeset(routineN, handle)
 
       NULLIFY (qm_atom_index, mm_atom_index, qm_atom_type)
-      NULLIFY (qmmm_env_qm, subsys_mm, subsys_qm, mm_cell, qm_cell_small)
+      NULLIFY (qmmm_env_qm, subsys_mm, subsys_qm, mm_cell, qm_cell_small, cell_section)
       NULLIFY (mm_atom_chrg, mm_el_pot_radius, qmmm_env_mm, fist_env)
       NULLIFY (mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, added_shells)
       NULLIFY (fist_scale_charge_link, print_section, fist_nonbond_env)
@@ -242,8 +243,15 @@ CONTAINS
       CALL fist_env_set(fist_env, qmmm=.TRUE., qmmm_env=qmmm_env_mm)
       CALL fist_init(fist_env, root_section, para_env, force_env_section, &
                      subsys_section, use_motion_section, prev_subsys=prev_subsys)
+
+      ! Get cell: mm_cell from FORCE_EVAL/SUBSYS/CELL like in MM-only Fist;
+      !           qm_cell from FORCE_EVAL/QMMM/CELL
       CALL fist_env_get(fist_env, subsys=subsys_mm, cell=mm_cell)
       mm_cell%tag = "CELL_MM"
+      cell_section => section_vals_get_subs_vals(qmmm_section, "CELL")
+      CALL read_cell(qm_cell_small, qm_cell_small, cell_section=cell_section, &
+                     check_for_ref=.FALSE., para_env=para_env)
+      qm_cell_small%tag = "CELL_QM"
 
       ! Set up QM/MM Options
       CALL setup_qmmm_vars_qm(qmmm_section, &
@@ -360,8 +368,9 @@ CONTAINS
       ALLOCATE (qs_env)
       CALL qs_env_create(qs_env, globenv)
       CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_qm, &
-                   cell=qm_cell_small, qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm, &
-                   force_env_section=force_env_section, subsys_section=subsys_section, &
+                   qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm, &
+                   force_env_section=force_env_section, &
+                   subsys_section=subsys_section, &
                    use_motion_section=use_motion_section)
       CALL cp_subsys_release(subsys_qm)
 

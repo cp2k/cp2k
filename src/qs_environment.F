@@ -240,8 +240,6 @@ CONTAINS
 !> \param globenv ...
 !> \param cp_subsys ...
 !> \param kpoint_env ...
-!> \param cell ...
-!> \param cell_ref ...
 !> \param qmmm ...
 !> \param qmmm_env_qm ...
 !> \param force_env_section ...
@@ -250,7 +248,7 @@ CONTAINS
 !> \param silent ...
 !> \author Creation (22.05.2000,MK)
 ! **************************************************************************************************
-   SUBROUTINE qs_init(qs_env, para_env, root_section, globenv, cp_subsys, kpoint_env, cell, cell_ref, &
+   SUBROUTINE qs_init(qs_env, para_env, root_section, globenv, cp_subsys, kpoint_env, &
                       qmmm, qmmm_env_qm, force_env_section, subsys_section, &
                       use_motion_section, silent)
 
@@ -260,7 +258,6 @@ CONTAINS
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoint_env
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: qmmm
       TYPE(qmmm_env_qm_type), OPTIONAL, POINTER          :: qmmm_env_qm
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
@@ -336,7 +333,7 @@ CONTAINS
                             subsys_section=subsys_section, &
                             use_motion_section=use_motion_section, &
                             root_section=root_section, &
-                            cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref, &
+                            cp_subsys=cp_subsys, &
                             elkind=is_semi, silent=silent)
 
       ALLOCATE (ks_env)

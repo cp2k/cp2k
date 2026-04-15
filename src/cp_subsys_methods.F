@@ -18,6 +18,7 @@ MODULE cp_subsys_methods
                                               atomic_kind_list_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atprop_types,                    ONLY: atprop_create
+   USE cell_methods,                    ONLY: write_cell
    USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
    USE colvar_methods,                  ONLY: colvar_read
@@ -237,7 +238,7 @@ CONTAINS
 !> \brief updates the molecule information of the given subsys
 !> \param small_subsys the subsys to create
 !> \param big_subsys the superset of small_subsys
-!> \param small_cell ...
+!> \param small_cell the cell of small_subsys
 !> \param small_para_env the parallel environment for the new (small)
 !>        subsys
 !> \param sub_atom_index indexes of the atoms that should be in small_subsys
@@ -252,6 +253,9 @@ CONTAINS
 !> \note
 !>      not really ready to be used with different para_envs for the small
 !>      and big part
+!>      qmmm_env_create() should be the only instance where this subroutine is called
+!>      with small_cell distinct from big_subsys%cell; otherwise it could be possible
+!>      to drop the small_cell as input parameter entirely.
 ! **************************************************************************************************
    SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell, &
                                   small_para_env, sub_atom_index, sub_atom_kind_name, &
@@ -299,6 +303,8 @@ CONTAINS
       !-----------------------------------------------------------------------------
       topology%cell => small_cell
       CALL cell_retain(small_cell)
+      CALL write_cell(small_cell, subsys_section, tag="CELL")
+      CALL write_cell(small_cell, subsys_section, tag="CELL_REF")
 
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -378,7 +384,8 @@ CONTAINS
       CALL molecule_list_create(mols, els_ptr=molecule_set)
       CALL molecule_kind_list_create(mol_kinds, els_ptr=molecule_kind_set)
       CALL cp_subsys_set(small_subsys, particles=particles, atomic_kinds=atomic_kinds, &
-                         molecules=mols, molecule_kinds=mol_kinds)
+                         molecules=mols, molecule_kinds=mol_kinds, cell=small_cell, &
+                         cell_ref=small_cell, use_ref_cell=.FALSE.)
       CALL particle_list_release(particles)
       CALL atomic_kind_list_release(atomic_kinds)
       CALL molecule_list_release(mols)
