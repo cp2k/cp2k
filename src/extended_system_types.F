@@ -48,10 +48,11 @@ MODULE extended_system_types
 
 ! **************************************************************************************************
    TYPE nhc_info_type
-      INTEGER        :: degrees_of_freedom = -1
+      INTEGER       :: degrees_of_freedom = -1
       REAL(KIND=dp) :: eta = -1.0_dp
       REAL(KIND=dp) :: v = -1.0_dp
       REAL(KIND=dp) :: f = -1.0_dp
+      REAL(KIND=dp) :: fac = -1.0_dp
       REAL(KIND=dp) :: nkt = -1.0_dp
       REAL(KIND=dp) :: mass = -1.0_dp
    END TYPE nhc_info_type
@@ -65,8 +66,8 @@ MODULE extended_system_types
    TYPE map_info_type
       INTEGER                                         :: dis_type = -1
       INTEGER, POINTER, DIMENSION(:)                  :: index => NULL(), map_index => NULL()
-      REAL(KIND=dp), POINTER, DIMENSION(:)           :: v_scale => NULL()
-      REAL(KIND=dp), POINTER, DIMENSION(:)           :: s_kin => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)            :: v_scale => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:)            :: s_kin => NULL()
       TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_scale => NULL()
       TYPE(point_info_type), POINTER, DIMENSION(:, :) :: p_kin => NULL()
    END TYPE map_info_type

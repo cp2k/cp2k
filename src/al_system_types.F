@@ -32,6 +32,7 @@ MODULE al_system_types
 ! **************************************************************************************************
    TYPE al_thermo_type
       INTEGER                                 :: degrees_of_freedom = 0
+      REAL(KIND=dp)                           :: fac = 0.0_dp
       REAL(KIND=dp)                           :: nkt = 0.0_dp
       REAL(KIND=dp)                           :: chi = 0.0_dp
       REAL(KIND=dp)                           :: mass = 0.0_dp

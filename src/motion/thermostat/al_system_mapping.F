@@ -104,13 +104,15 @@ CONTAINS
             IF (fac == 0.0_dp) THEN
                CPABORT('Zero degrees of freedom. Nothing to thermalize!')
             END IF
-            al%nvt(1)%nkt = simpar%temp_ext*fac
+            al%nvt(1)%fac = fac
+            al%nvt(1)%nkt = simpar%temp_ext*al%nvt(1)%fac
             al%nvt(1)%degrees_of_freedom = FLOOR(fac)
          ELSE
             DO i = 1, al%loc_num_al
                imap = map_info%map_index(i)
                fac = (map_info%s_kin(imap) - deg_of_freedom(i))
-               al%nvt(i)%nkt = simpar%temp_ext*fac
+               al%nvt(i)%fac = fac
+               al%nvt(i)%nkt = simpar%temp_ext*al%nvt(i)%fac
                al%nvt(i)%degrees_of_freedom = FLOOR(fac)
             END DO
          END IF

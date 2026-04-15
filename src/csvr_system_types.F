@@ -36,6 +36,7 @@ MODULE csvr_system_types
 ! **************************************************************************************************
    TYPE csvr_thermo_type
       INTEGER                                 :: degrees_of_freedom = 0
+      REAL(KIND=dp)                           :: fac = 0.0_dp
       REAL(KIND=dp)                           :: nkt = 0.0_dp
       REAL(KIND=dp)                           :: thermostat_energy = 0.0_dp
       REAL(KIND=dp)                           :: region_kin_energy = 0.0_dp
