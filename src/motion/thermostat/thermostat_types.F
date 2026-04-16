@@ -223,7 +223,8 @@ CONTAINS
          CALL gle_init(thermostat%gle, dt=simpar%dt, temp=simpar%temp_ext, &
                        section=gle_section)
          thermostat%gle%region = region
-         CPASSERT(region == do_region_massive)
+         IF (region /= do_region_massive) &
+            CPABORT("GLE thermostat is only compatible to REGION MASSIVE")
       END IF
 
    END SUBROUTINE create_thermostat_type

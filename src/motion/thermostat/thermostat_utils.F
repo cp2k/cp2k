@@ -592,11 +592,14 @@ CONTAINS
 
       INTEGER                                            :: dis_type, i, ikind, natom, nkind, &
                                                             nmol_local, nmolecule, nshell, number, &
-                                                            sum_of_thermostats
+                                                            output_unit, sum_of_thermostats
       LOGICAL                                            :: check, do_shell, nointer
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
-      NULLIFY (molecule_kind)
+      NULLIFY (logger, molecule_kind)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
       nkind = SIZE(molecule_kind_set)
       do_shell = .FALSE.
       IF (PRESENT(shell)) do_shell = shell
@@ -715,6 +718,21 @@ CONTAINS
       thermostat_info%sum_of_thermostats = sum_of_thermostats
       thermostat_info%number_of_thermostats = number
       thermostat_info%dis_type = dis_type
+
+      ! Print information about thermostats
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T2,A,T61,I20)') &
+            "THERMOSTAT| Sum of thermostats", sum_of_thermostats
+         WRITE (output_unit, '(T2,A,T61,I20)') &
+            "THERMOSTAT| Number of thermostats", number
+         IF (dis_type == do_thermo_communication) THEN
+            WRITE (output_unit, '(T2,A,T78,A)') &
+               "THERMOSTAT| Parallel communication for thermostats", "Yes"
+         ELSE IF (dis_type == do_thermo_no_communication) THEN
+            WRITE (output_unit, '(T2,A,T79,A)') &
+               "THERMOSTAT| Parallel communication for thermostats", "No"
+         END IF
+      END IF
    END SUBROUTINE setup_thermostat_info
 
 ! **************************************************************************************************
@@ -890,6 +908,17 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      ! Output thermostat region mapping to particles
+      ! The region indices are assumed to be 0-999
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, '(/,T2,A)') &
+            "THERMOSTAT| Mapping of thermostats to local atoms"
+         DO i = 1, SIZE(map_loc_thermo_gen), 16
+            WRITE (output_unit, '(T2,A,T17,16(" ",I3))') &
+               "THERMOSTAT|", map_loc_thermo_gen(i:MIN(i + 15, SIZE(map_loc_thermo_gen)))
+         END DO
+      END IF
 
       DEALLOCATE (thermolist)
    END SUBROUTINE get_defined_region_info

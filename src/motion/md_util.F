@@ -24,6 +24,9 @@ MODULE md_util
                                               finalizef,&
                                               initf,&
                                               parsef
+   USE input_constants,                 ONLY: &
+        do_region_thermal, do_thermo_al, do_thermo_csvr, do_thermo_nose, npt_f_ensemble, &
+        npt_i_ensemble, npt_ia_ensemble, nvt_adiabatic_ensemble, nvt_ensemble
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -39,6 +42,7 @@ MODULE md_util
    USE string_utilities,                ONLY: integer_to_string
    USE thermal_region_types,            ONLY: thermal_region_type,&
                                               thermal_regions_type
+   USE thermostat_types,                ONLY: thermostat_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -58,30 +62,33 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief update_expected_temperature
 !> \param md_env ...
-!> \date   03.2026
-!> \par    Note on units: t_region%temperature is updated by
-!>         SUBROUTINE scale_velocity_region in md_vel_utils.F
-!>         which is in Kelvin, but t_region%temp_expected is
-!>         in cp2k internal units. See "Note the unit conversion
-!>         here" in SUBROUTINE print_thermal_regions_temperature
-!>         in thermal_region_utils.F for output processing.
+!> \par History
+!>      03.2026 created with functionality to update thermal regions
+!>      04.2026 updated with functionality to update thermostat regions
 !> \author HE Zilong
 ! **************************************************************************************************
    SUBROUTINE update_expected_temperature(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
       CHARACTER(LEN=default_string_length)               :: my_itimes, my_region
-      INTEGER                                            :: ireg
+      INTEGER                                            :: i, ireg
       INTEGER, POINTER                                   :: itimes
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermal_region_type), POINTER                 :: t_region
       TYPE(thermal_regions_type), POINTER                :: thermal_regions
+      TYPE(thermostat_type), POINTER                     :: thermostat_part
 
       NULLIFY (itimes, simpar)
       CALL get_md_env(md_env, itimes=itimes, simpar=simpar)
 
-      ! Update thermal regions
       IF (simpar%do_thermal_region) THEN
+         ! 1. Update thermal regions
+         ! Note on units: t_region%temperature is updated by
+         ! scale_velocity_region() in md_vel_utils.F and is
+         ! in Kelvin, but t_region%temp_expected is in the
+         ! cp2k internal units.
+         ! See also: print_thermal_regions_temperature()
+         ! from thermal_region_utils.F.
          NULLIFY (thermal_regions)
          CALL get_md_env(md_env, thermal_regions=thermal_regions)
          DO ireg = 1, thermal_regions%nregions
@@ -106,9 +113,70 @@ CONTAINS
                END IF
             END IF
          END DO
-      END IF
 
-      ! Update thermostat regions: WIP
+         ! 2. Update thermostat regions by thermal regions
+         ! Number of thermostat regions is the same as that of thermal regions
+         ! if every particle is assigned to a thermal region, or one more than
+         ! that of thermal regions if one or more particles are not in any of
+         ! the thermal regions (which the extra thermostat adjusts simply to
+         ! the constant target temperature simpar%temp_ext).
+         ! The key variable is al%nvt(i)%nkt (see al_system_mapping.F) or csvr%nvt(i)%nkt
+         ! (see csvr_system_mapping.F) or nhc%nvt(:, i)%nkt (see extended_system_mapping.F)
+         ! where i loops over number of thermostats; previously ther are set by a fixed
+         ! simpar%temp_ext in cp2k internal units. The thermostat algorithms use it to
+         ! determine map_info%v_scale(imap) with imap = map_info%map_index(i).
+         ! In thermostat_mapping_region_low(), it is referenced by pointer
+         ! map_info%p_scale(ii, jj)%point => map_info%v_scale(imap)
+         ! And finally in vel_rescale_particles() the particle velocities are updated.
+         ! See also: print_thermostat_status() from thermostat_utils.F.
+         IF ((simpar%ensemble == npt_f_ensemble) .OR. &
+             (simpar%ensemble == npt_ia_ensemble) .OR. &
+             (simpar%ensemble == npt_i_ensemble) .OR. &
+             (simpar%ensemble == nvt_ensemble) .AND. &
+             (.NOT. simpar%ensemble == nvt_adiabatic_ensemble)) THEN
+            NULLIFY (thermostat_part)
+            CALL get_md_env(md_env=md_env, thermostat_part=thermostat_part)
+            SELECT CASE (thermostat_part%type_of_thermostat)
+            CASE (do_thermo_al)
+               CPASSERT(ASSOCIATED(thermostat_part%al))
+               IF (thermostat_part%al%region == do_region_thermal) THEN
+                  DO ireg = 1, thermal_regions%nregions
+                     CPASSERT(ireg <= thermostat_part%al%loc_num_al) ! Does not work
+                     thermostat_part%al%nvt(ireg)%nkt = &
+                        thermal_regions%thermal_region(ireg)%temp_expected*thermostat_part%al%nvt(ireg)%fac
+                  END DO
+               END IF
+            CASE (do_thermo_csvr)
+               CPASSERT(ASSOCIATED(thermostat_part%csvr))
+               IF (thermostat_part%csvr%region == do_region_thermal) THEN
+                  DO ireg = 1, thermal_regions%nregions
+                     CPASSERT(ireg <= thermostat_part%csvr%loc_num_csvr) ! Does not work
+                     thermostat_part%csvr%nvt(ireg)%nkt = &
+                        thermal_regions%thermal_region(ireg)%temp_expected*thermostat_part%csvr%nvt(ireg)%fac
+                  END DO
+               END IF
+            CASE (do_thermo_nose)
+               CPASSERT(ASSOCIATED(thermostat_part%nhc))
+               IF (thermostat_part%nhc%region == do_region_thermal) THEN
+                  DO ireg = 1, thermal_regions%nregions
+                     CPASSERT(ireg <= thermostat_part%nhc%loc_num_nhc) ! Does not work
+                     thermostat_part%nhc%nvt(1, ireg)%nkt = &
+                        thermal_regions%thermal_region(ireg)%temp_expected*thermostat_part%nhc%nvt(1, ireg)%fac
+                     DO i = 2, thermostat_part%nhc%nhc_len
+                        thermostat_part%nhc%nvt(i, ireg)%nkt = &
+                           thermal_regions%thermal_region(ireg)%temp_expected
+                     END DO
+                  END DO
+               END IF
+            CASE DEFAULT
+               ! Also includes GLE which is supposed to work with REGION MASSIVE
+               CALL cp_abort(__LOCATION__, &
+                             "The selected type of thermostat does not support "// &
+                             "a variable target temperature that is synchronized "// &
+                             "between thermal regions and thermostat regions.")
+            END SELECT
+         END IF
+      END IF
 
    END SUBROUTINE update_expected_temperature
 
