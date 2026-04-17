@@ -6,10 +6,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.8.2"
-cosma_sha256="bcf42558c1cdc35e91f662a9e87ae606f22d0c1aaf0cb763a6e4385c412c8f6b"
-costa_ver="2.3.0"
-costa_sha256="0413311a2821d4cd1f3f026672a75a5b5a2956f61305c07d7fc14565a126b517"
+cosma_ver="2.8.3"
+cosma_sha256="fbd53b3b399ae521b1c632c02970560c78e0ae7733aa4a52d1426183336a1f75"
+costa_ver="2.3.1"
+costa_sha256="ab3a30165a821c77d34013ef8d01a9be5fefcc804e85c1e338ac970122ae938b"
 tiled_mm_ver="2.3.2"
 tiled_mm_sha256="1f91ca02f6ee8e400835fa90630618baf86a7b425b4bbbb4151068f72658b858"
 
@@ -36,9 +36,12 @@ case "$with_cosma" in
     if verify_checksums "${install_lock_file}"; then
       echo "COSMA-${cosma_ver} is already installed, skipping it."
     else
-      retrieve_package "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
-      retrieve_package "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
-      retrieve_package "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
+      #retrieve_package "${cosma_sha256}" "COSMA-v${cosma_ver}.tar.gz"
+      #retrieve_package "${costa_sha256}" "COSTA-v${costa_ver}.tar.gz"
+      #retrieve_package "${tiled_mm_sha256}" "Tiled-MM-v${tiled_mm_ver}.tar.gz"
+      download_pkg_from_urlpath "${cosma_sha256}" "v${cosma_ver}.tar.gz" https://github.com/eth-cscs/COSMA/archive/refs/tags "COSMA-v${cosma_ver}.tar.gz"
+      download_pkg_from_urlpath "${costa_sha256}" "v${costa_ver}.tar.gz" https://github.com/eth-cscs/COSTA/archive/refs/tags "COSTA-v${costa_ver}.tar.gz"
+      download_pkg_from_urlpath "${tiled_mm_sha256}" "v${tiled_mm_ver}.tar.gz" https://github.com/eth-cscs/Tiled-MM/archive/refs/tags "Tiled-MM-v${tiled_mm_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
       tar -xzf COSMA-v${cosma_ver}.tar.gz
