@@ -178,6 +178,8 @@ MODULE rt_bse_types
       ! Different indices signify different spins
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_effective => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference => NULL()
+      !Only for linearised RTBSE
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_reference_singleparticle => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: ham_workspace => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH => NULL(), &
@@ -187,7 +189,11 @@ MODULE rt_bse_types
                                                                    rho_new => NULL(), &
                                                                    rho_new_last => NULL(), &
                                                                    rho_M => NULL(), &
-                                                                   rho_orig => NULL()
+                                                                   rho_orig => NULL(), &
+                                                                   rho_ao_lrrtbse => NULL()
+      ! Workspace for rk4 in linearized RTBSE
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rk4_coefficients => NULL()
+
       TYPE(cp_fm_type)                                          :: S_inv_fm = cp_fm_type(), &
                                                                    S_fm = cp_fm_type()
       ! Many routines require overlap in the complex format
@@ -251,15 +257,23 @@ CONTAINS
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
-   SUBROUTINE create_rtbse_env(rtbse_env, force_env)
+   SUBROUTINE create_rtbse_env(rtbse_env, force_env, linearized)
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
       TYPE(force_env_type), POINTER                             :: force_env
+      LOGICAL, OPTIONAL                                        :: linearized
       TYPE(post_scf_bandstructure_type), POINTER                :: bs_env
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
+      LOGICAL :: my_linearized
+
+      IF (PRESENT(linearized)) THEN
+         my_linearized = linearized
+      ELSE
+         my_linearized = .FALSE.
+      END IF
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
@@ -404,6 +418,15 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_create(rtbse_env%rho(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
       END DO
+      ! Allocate additional space for AO density matrix
+      ! in linearised RTBSE, where default is MO
+      IF (my_linearized) THEN
+         NULLIFY (rtbse_env%rho_ao_lrrtbse)
+         ALLOCATE (rtbse_env%rho_ao_lrrtbse(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%rho_ao_lrrtbse(i), matrix_struct=bs_env%fm_s_Gamma%matrix_struct)
+         END DO
+      END IF
       ! Create the inverse overlap matrix, for use in density propagation
       ! Start by creating the actual overlap matrix
       CALL cp_fm_create(rtbse_env%S_fm, bs_env%fm_s_Gamma%matrix_struct)
@@ -419,11 +442,21 @@ CONTAINS
          CALL cp_cfm_set_all(rtbse_env%ham_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
+      ! full RTBSE: Contains energy differences and Hartree/COHSEX ρ_0 parts 
+      ! linearised RTBSE: Contains only the Hartree/COHSEX ρ_0 parts as Δε * Δρ(t) need to be updated 
       NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_create(rtbse_env%ham_reference(i), bs_env%fm_ks_Gamma(i)%matrix_struct)
       END DO
+      ! Single particle Hamiltonian (Δε * Δρ(t)) for updates during timesteps in LR-RTBSE
+      IF (my_linearized) THEN
+         NULLIFY (rtbse_env%ham_reference_singleparticle)
+         ALLOCATE (rtbse_env%ham_reference_singleparticle(rtbse_env%n_spin))
+         DO i = 1, rtbse_env%n_spin
+            CALL cp_cfm_create(rtbse_env%ham_reference_singleparticle(i), bs_env%fm_ks_Gamma(i)%matrix_struct)
+         END DO
+      END IF
 
       ! Create the matrices and workspaces for ETRS propagation
       NULLIFY (rtbse_env%ham_effective)
@@ -447,6 +480,16 @@ CONTAINS
          CALL cp_cfm_set_all(rtbse_env%rho_M(i), CMPLX(0.0, 0.0, kind=dp))
          CALL cp_cfm_create(rtbse_env%rho_orig(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
       END DO
+
+      !For LR-RTBSE we need RK4 coefficients - create new workspace
+      IF (my_linearized) THEN
+         NULLIFY (rtbse_env%rk4_coefficients)
+         ALLOCATE (rtbse_env%rk4_coefficients(4))
+         DO i = 1, 4
+            CALL cp_cfm_create(rtbse_env%rk4_coefficients(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
+            CALL cp_cfm_set_all(rtbse_env%rk4_coefficients(i), CMPLX(0.0, 0.0, kind=dp))
+         END DO
+      END IF
 
       ! Fields for exact diagonalisation
       NULLIFY (rtbse_env%real_eigvals)
@@ -521,12 +564,18 @@ CONTAINS
       CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX)
       CALL cp_fm_release(rtbse_env%hartree_curr)
       CALL cp_cfm_release_pa1(rtbse_env%ham_reference)
+      IF (ASSOCIATED(rtbse_env%ham_reference_singleparticle)) THEN
+         CALL cp_cfm_release_pa1(rtbse_env%ham_reference_singleparticle)
+      END IF
       CALL cp_cfm_release_pa1(rtbse_env%rho)
       CALL cp_cfm_release_pa1(rtbse_env%rho_workspace)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new)
       CALL cp_cfm_release_pa1(rtbse_env%rho_new_last)
       CALL cp_cfm_release_pa1(rtbse_env%rho_M)
       CALL cp_cfm_release_pa1(rtbse_env%rho_orig)
+      IF (ASSOCIATED(rtbse_env%rk4_coefficients)) THEN
+         CALL cp_cfm_release_pa1(rtbse_env%rk4_coefficients)
+      END IF
       CALL cp_fm_release(rtbse_env%real_workspace)
       CALL cp_fm_release(rtbse_env%S_inv_fm)
       CALL cp_fm_release(rtbse_env%S_fm)

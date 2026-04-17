@@ -124,7 +124,11 @@ MODULE rt_bse
             initialize_cohsex_selfenergy, &
             get_idempotence_deviation, &
             antiherm_metric, &
-            init_hartree
+            init_hartree, &
+            rho_metric, &
+            propagate_density, &
+            cp_cfm_gexp, &
+            get_electron_number
 
    INTERFACE get_sigma
       MODULE PROCEDURE get_sigma_complex, &
@@ -173,6 +177,7 @@ CONTAINS
       CALL cp_add_iter_level(logger%iter_info, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
+      CALL initialize_moments(rtbse_env)
       !  - reads the field and moment trace from previous runs
       !  - populates overlap and inverse overlap matrices
       !  - prints some info about loaded files into the output
@@ -266,13 +271,50 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_rtbse_env"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      REAL(kind=dp), DIMENSION(3)                  :: rpoint
       INTEGER                                      :: i, k, handle
 
       CALL timeset(routineN, handle)
 
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
+
+      ! ****** START MOMENTS TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
+                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
+      ! ****** END MOMENTS TRACE LOAD
+
+      ! ****** START FIELD TRACE LOAD
+      ! The moments are only loaded if the consistent save files exist
+      CALL read_field(rtbse_env)
+      ! ****** END FIELD TRACE LOAD
+
+      ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm)
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%S_cfm)
+      CALL cp_fm_invert(rtbse_env%S_fm, rtbse_env%S_inv_fm)
+      ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
+
+      CALL timestop(handle)
+   END SUBROUTINE initialize_rtbse_env
+
+! **************************************************************************************************
+!> \brief Calculates the moment operators
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_moments(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_moments"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
+      INTEGER                                      :: i,k, handle
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
+      REAL(kind=dp), DIMENSION(3)                  :: rpoint
+
+      CALL timeset(routineN, handle)
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
 
@@ -315,25 +357,8 @@ CONTAINS
       DEALLOCATE (moments_dbcsr_p)
       ! ****** END MOMENTS OPERATOR CALCULATION
 
-      ! ****** START MOMENTS TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
-                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
-      ! ****** END MOMENTS TRACE LOAD
-
-      ! ****** START FIELD TRACE LOAD
-      ! The moments are only loaded if the consistent save files exist
-      CALL read_field(rtbse_env)
-      ! ****** END FIELD TRACE LOAD
-
-      ! ****** START OVERLAP + INVERSE OVERLAP CALCULATION
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, rtbse_env%S_fm)
-      CALL cp_fm_to_cfm(msourcer=rtbse_env%S_fm, mtarget=rtbse_env%S_cfm)
-      CALL cp_fm_invert(rtbse_env%S_fm, rtbse_env%S_inv_fm)
-      ! ****** END OVERLAP + INVERSE OVERLAP CALCULATION
-
       CALL timestop(handle)
-   END SUBROUTINE initialize_rtbse_env
+   END SUBROUTINE initialize_moments
 
 ! **************************************************************************************************
 !> \brief Calculates the initial density matrix, based on the SCF density or restart density if requested

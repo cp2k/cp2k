@@ -587,7 +587,7 @@ CONTAINS
                'where c_n = < 𝚿_n | 𝚿_n > = 1 within TDA.'
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
-               'where c_n = < 𝚿_n | 𝚿_n > deviates from 1 without TDA.'
+               'where c_n = < 𝚿_n | 𝚿_n > ≥ 1 without TDA.'
          END IF
          WRITE (unit_nr, '(T2,A4)') prefix_output
          WRITE (unit_nr, '(T2,A4)') prefix_output

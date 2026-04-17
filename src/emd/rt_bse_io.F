@@ -155,21 +155,33 @@ CONTAINS
 !> \brief Writes the header for the etrs iteration updates - only for log level > low
 !> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
-   SUBROUTINE print_timestep_info(rtbse_env, step, convergence, electron_num_re, etrs_num)
+   SUBROUTINE print_timestep_info(rtbse_env, step, electron_num_re, convergence, etrs_num)
       TYPE(rtbse_env_type)                               :: rtbse_env
       INTEGER                                            :: step
-      REAL(kind=dp)                                      :: convergence
       REAL(kind=dp)                                      :: electron_num_re
-      INTEGER                                            :: etrs_num
+      REAL(kind=dp), OPTIONAL                            :: convergence
+      INTEGER, OPTIONAL                                  :: etrs_num
       TYPE(cp_logger_type), POINTER                      :: logger
+      LOGICAL                                          :: flag_lrrtbse
 
       logger => cp_get_default_logger()
 
+      IF (.NOT. PRESENT(convergence) .OR. .NOT. PRESENT(etrs_num)) THEN
+         flag_lrrtbse = .TRUE.
+      ELSE
+         flag_lrrtbse = .FALSE.
+      END IF
+
       IF (logger%iter_info%print_level > low_print_level .AND. rtbse_env%unit_nr > 0) THEN
-         WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
-            "Electron number", "ETRS Iterations"
-         WRITE (rtbse_env%unit_nr, '(A7,I16,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
-            electron_num_re, etrs_num
+         IF (flag_lrrtbse) THEN
+            WRITE (rtbse_env%unit_nr, '(A23,T65,A15)') " RTBSE| Simulation step", "Electron number"
+            WRITE (rtbse_env%unit_nr, '(A7,I16,T60,E20.8E3)') ' RTBSE|', step, electron_num_re
+         ELSE
+            WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &
+               "Electron number", "ETRS Iterations"
+            WRITE (rtbse_env%unit_nr, '(A7,I16,E20.8E3,E20.8E3,I17)') ' RTBSE|', step, convergence, &
+               electron_num_re, etrs_num
+         END IF
       END IF
 
    END SUBROUTINE print_timestep_info

@@ -90,11 +90,15 @@ MODULE rt_bse_linearized
             antiherm_metric, &
             init_hartree, &
             get_hartree, &
-            get_sigma
+            get_sigma, &
+            rho_metric, &
+            cp_cfm_gexp, &
+            propagate_density
    USE rt_bse_types, ONLY: rtbse_env_type, &
                            create_rtbse_env, &
                            release_rtbse_env, &
-                           multiply_fm_cfm
+                           multiply_fm_cfm, &
+                           multiply_cfm_fm
    USE rt_bse_io, ONLY: output_moments, &
                         read_field, &
                         output_field, &
@@ -136,7 +140,10 @@ CONTAINS
       INTEGER                                            :: i, j, k, handle
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
-                                                            idempotence_dev, a_metric_1, a_metric_2
+                                                            idempotence_dev, a_metric_1, a_metric_2, &
+                                                            full_max, oo_max, vv_max, ov_max, vo_max, &
+                                                            full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old, &
+                                                            ov_growth, vo_growth
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -149,7 +156,7 @@ CONTAINS
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
 
       ! Allocate all persistant storage and read input that does not need further processing
-      CALL create_rtbse_env(rtbse_env, force_env)
+      CALL create_rtbse_env(rtbse_env, force_env, linearized=.TRUE.)
 
       CALL print_linrtbse_header_info(rtbse_env)
 
@@ -157,6 +164,7 @@ CONTAINS
       CALL cp_add_iter_level(logger%iter_info, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
+      CALL initialize_moments(rtbse_env)
       !  - populates the initial density matrix
       !     - reads the restart density if requested
       !  - reads the field and moment trace from previous runs
@@ -169,6 +177,10 @@ CONTAINS
       CALL initialize_density_matrix(rtbse_env)
       !  - calculates/populates the G0W0/KS Hamiltonian, respectively
       CALL initialize_singleparticle_hamiltonian(rtbse_env)
+      ! Transform initial density matrix to AO basis for use in Hartree and self-energy calculations
+      DO i = 1, rtbse_env%n_spin
+         CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%rho_ao_lrrtbse(i), i)
+      END DO
       !  - calculates the Hartree reference potential
       CALL initialize_hartree_potential(rtbse_env)
       !  - calculates the COHSEX reference self-energy
@@ -184,9 +196,9 @@ CONTAINS
       END IF
 
       ! Do not apply the delta kick if we are doing a restart calculation
-      !   IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. (.NOT. rtbse_env%restart_extracted)) THEN
-      !      CALL apply_delta_pulse(rtbse_env)
-      !   END IF
+        IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. (.NOT. rtbse_env%restart_extracted)) THEN
+           CALL apply_delta_pulse_MO(rtbse_env)
+        END IF
 
 
       ! ********************** Start the time loop **********************
@@ -197,12 +209,23 @@ CONTAINS
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
          rtbse_env%sim_step = i
 
-         ! Initial setup - calculate the Hamiltonian
-         !CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho)
-         
          CALL solve_rk4_timestep(rtbse_env, rtbse_env%rho, rtbse_env%rho_new, converged, k, metric)
-
-         !CALL get_electron_number(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
+         DO j = 1, rtbse_env%n_spin
+            CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho(j), j, &
+                                        full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old)
+            CALL get_rho_block_maxnorms(rtbse_env, rtbse_env%rho_new(j), j, &
+                                        full_max, oo_max, vv_max, ov_max, vo_max)
+            ov_growth = ov_max/MAX(ov_max_old, TINY(1.0_dp))
+            vo_growth = vo_max/MAX(vo_max_old, TINY(1.0_dp))
+            IF (rtbse_env%unit_nr > 0) THEN
+               WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
+                  full_max, oo_max, vv_max, ov_max, vo_max 
+               WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
+                  ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
+            END IF
+         END DO
+         CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
+         print *, "Electron number check (Re, Im): ", enum_re, enum_im
          IF (.FALSE.) THEN
             ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
             ! TODO : Allow for conditional warning
@@ -215,9 +238,12 @@ CONTAINS
                                     workspace=rtbse_env%rho_workspace, metric=a_metric_2)
             END DO
          END IF
-         CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
-         IF (.NOT. converged) CPABORT("ETRS did not converge")
-         CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps))
+         CALL print_timestep_info(rtbse_env, i, enum_re)
+         !IF (.NOT. converged) CPABORT("ETRS did not converge")
+         CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps-1))
+
+
+         ! Update rho
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
          END DO
@@ -281,6 +307,74 @@ CONTAINS
 
    END SUBROUTINE print_linrtbse_header_info
 
+! **************************************************************************************************
+!> \brief Calculates the single particle Hamiltonian
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml (03/26) - refactor in prep. of linearized propagation
+! **************************************************************************************************
+   SUBROUTINE initialize_moments(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_moments"
+      TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
+      INTEGER                                      :: i,k, handle
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
+      REAL(kind=dp), DIMENSION(3)                  :: rpoint
+
+      CALL timeset(routineN, handle)
+      ! Get pointers to parameters from qs_env
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, matrix_s=matrix_s)
+
+      ! ****** START MOMENTS OPERATOR CALCULATION
+      ! Construct moments from dbcsr
+      NULLIFY (moments_dbcsr_p)
+      ALLOCATE (moments_dbcsr_p(3))
+      DO k = 1, 3
+         ! Make sure the pointer is empty
+         NULLIFY (moments_dbcsr_p(k)%matrix)
+         ! Allocate a new matrix that the pointer points to
+         ALLOCATE (moments_dbcsr_p(k)%matrix)
+         ! Create the matrix storage - matrix copies the structure of overlap matrix
+         CALL dbcsr_copy(moments_dbcsr_p(k)%matrix, matrix_s(1)%matrix)
+      END DO
+      ! Run the moment calculation
+      ! check for presence to prevent memory errors
+      rpoint(:) = 0.0_dp
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+                               reference=rtbse_env%moment_ref_type, ref_point=rtbse_env%user_moment_ref_point)
+      CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
+      ! Copy to full matrix
+      DO k = 1, 3
+         ! Again, matrices are created from overlap template
+         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k))
+      END DO
+      ! MG to do: remove moments_field; only needed for TDDFT comparison
+      ! Now, repeat without reference point to get the moments for field
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+                               reference=use_mom_ref_zero)
+      CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
+      DO k = 1, 3
+         CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k))
+      END DO
+
+      ! Transform moments to MO basis
+      DO k = 1, 3
+         CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%moments(k), rtbse_env%moments(k), 1)
+         CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%moments_field(k), rtbse_env%moments_field(k), 1)
+      END DO
+
+      ! Now can deallocate dbcsr matrices
+      DO k = 1, 3
+         CALL dbcsr_release(moments_dbcsr_p(k)%matrix)
+         DEALLOCATE (moments_dbcsr_p(k)%matrix)
+      END DO
+      DEALLOCATE (moments_dbcsr_p)
+      ! ****** END MOMENTS OPERATOR CALCULATION
+
+      CALL timestop(handle)
+   END SUBROUTINE initialize_moments
+
    
 ! **************************************************************************************************
 !> \brief Calculates the initial density matrix, based on the SCF density
@@ -304,10 +398,10 @@ CONTAINS
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
 
-      !Ensure that workspace is set to 0
-      CALL cp_fm_set_all(rtbse_env%real_workspace(1), 0.0_dp)
       ! Iterate over both spins
       DO i = 1, rtbse_env%n_spin
+         !Ensure that workspace is set to 0
+         CALL cp_fm_set_all(rtbse_env%real_workspace(1), 0.0_dp)
          DO ii = 1, nrow_local
             i_row_global = row_indices(ii)
             DO jj = 1, ncol_local
@@ -372,7 +466,7 @@ CONTAINS
                   END IF
             END DO
          END DO
-         CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(i), mtarget=rtbse_env%ham_reference(i))
+         CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_reference_singleparticle(i))
       END DO
       ! ****** END SINGLE PARTICLE HAMILTONIAN CALCULATION
 
@@ -401,15 +495,17 @@ CONTAINS
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
       DO i = 1, rtbse_env%n_spin
-         CALL get_hartree(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%hartree_curr(i))
+         CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr(i))
          ! Scaling by spin degeneracy
          CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr(i))
          ! Transform to MO basis
-         CALL transform_ao_to_mo_fm(rtbse_env, rtbse_env%hartree_curr(i), rtbse_env%hartree_curr(i))
+         CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr(i), rtbse_env%hartree_curr(i), i)
+         ! Apply occupation factor f_n-f_m
+         CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(i), i)
          ! Subtract the reference from the reference Hamiltonian
          ! following H_eff = ... + V_Hartree(delta_rho) - V_Hartree(rho_0), 
          CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(i), mtarget=rtbse_env%ham_workspace(1))
-         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+         CALL cp_cfm_scale_and_add(CMPLX(0.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
                                    CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
       END DO
       ! ****** END HARTREE POTENTIAL REFERENCE CALCULATION
@@ -438,7 +534,9 @@ CONTAINS
             ! TODO : Allow no COH calculation for static screening
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(i), -0.5_dp, rtbse_env%S_inv_fm)
             ! Transform to MO basis
-            CALL transform_ao_to_mo_fm(rtbse_env, rtbse_env%sigma_COH(i), rtbse_env%sigma_COH(i))
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH(i), rtbse_env%sigma_COH(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
             ! Copy and subtract from the complex reference hamiltonian
             CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
@@ -446,9 +544,11 @@ CONTAINS
             ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
             ! So far only closed shell tested
             ! Uses rho_orig - same as rho for initial run but different for continued run
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
             ! Transform to MO basis
-            CALL transform_ao_to_mo_cfm(rtbse_env, rtbse_env%sigma_SEX(i), rtbse_env%sigma_SEX(i))
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX(i), rtbse_env%sigma_SEX(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
             ! Subtract from the complex reference Hamiltonian
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
@@ -456,9 +556,11 @@ CONTAINS
       ELSE
          ! KS Hamiltonian - use time-dependent Fock exchange
          DO i = 1, rtbse_env%n_spin
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
             ! Transform to MO basis
-            CALL transform_ao_to_mo_cfm(rtbse_env, rtbse_env%sigma_SEX(i), rtbse_env%sigma_SEX(i))
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX(i), rtbse_env%sigma_SEX(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
          END DO
@@ -486,12 +588,57 @@ CONTAINS
       INTEGER                                           :: k
       REAL(kind=dp)                                     :: metric
       CHARACTER(len=*), PARAMETER                       :: routineN = "solve_rk4_timestep"
-      INTEGER                                           :: j, handle
+      INTEGER                                           :: i, handle
 
       CALL timeset(routineN, handle)
+      ! RK4 follows the typical scheme
+      ! d/dt ρ = f(t, ρ)
+      ! f(t,ρ) = -i( Δε Δρ + (f_n-f_m) V_Hartree(Δρ) + ΔΣ(Δρ) ) 
+      ! i.e. RK4 reads
+      ! k_1 = f(t, ρ_start)
+      ! k_2 = f(t + dt/2, ρ_start + dt/2 * k_1)
+      ! k_3 = f(t + dt/2, ρ_start + dt/2 * k_2)
+      ! k_4 = f(t + dt, ρ_start + dt * k_3)
+      ! ρ_end = ρ_start + dt/6 * (k_1 + 2*k_2 + 2*k_3 + k_4)
+      ! Note that the effective Hamiltonian needs to be updated for each evaluation of f, 
+      ! as it depends on the density matrix at the respective time
 
-            
+      DO i = 1, rtbse_env%n_spin
+         ! k_1
+         CALL update_effective_ham_MO(rtbse_env, rho_start(i), rtbse_env%rk4_coefficients(1), i)
+         ! MG TODO: dt/2 needs to implemented in field
+         !          Problem: sim_step is needed as integer for envelope
+         ! k_2 - needs to be evaluated at t + dt/2 and rho + dt/2 * k_1
+         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(1))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(1), &
+                                   CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(1))
+         CALL update_effective_ham_MO(rtbse_env,  rtbse_env%rho_workspace(1), rtbse_env%rk4_coefficients(2), i)
+         ! k_3 - needs to be evaluated at t + dt/2 and rho + dt/2 * k_2
+         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(1))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(1), &
+                                   CMPLX(0.5_dp*rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(2))
+         CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(1), rtbse_env%rk4_coefficients(3), i)
+         ! k_4 - needs to be evaluated at t + dt and rho + dt * k_3
+         CALL cp_cfm_to_cfm(rho_start(i), rtbse_env%rho_workspace(1))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%rho_workspace(1), &
+                                   CMPLX(rtbse_env%sim_dt, 0.0, kind=dp), rtbse_env%rk4_coefficients(3))
+         CALL update_effective_ham_MO(rtbse_env, rtbse_env%rho_workspace(1), rtbse_env%rk4_coefficients(4), i)
+         ! Now calculate the final rho
+         CALL cp_cfm_to_cfm(rho_start(i), rho_end(i))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
+                                   CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(1))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
+                                   CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(2))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
+                                   CMPLX(rtbse_env%sim_dt/3.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(3))
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rho_end(i), &
+                                   CMPLX(rtbse_env%sim_dt/6.0_dp, 0.0_dp, kind=dp), rtbse_env%rk4_coefficients(4))
+      END DO
 
+      ! Update bookkeeping to the next timestep similar to logic of etrs_scf_loop
+      rtbse_env%sim_step = rtbse_env%sim_step + 1
+      rtbse_env%sim_time = rtbse_env%sim_time + rtbse_env%sim_dt
+      
       CALL timestop(handle)
    END SUBROUTINE solve_rk4_timestep
 
@@ -500,21 +647,96 @@ CONTAINS
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
 !> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
+!> \param ham_effective Effective Hamiltonian in the MO basis that is updated in this routine
 ! **************************************************************************************************
-   SUBROUTINE update_effective_ham_MO(rtbse_env, rho)
+   SUBROUTINE update_effective_ham_MO(rtbse_env, rho, ham_effective, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
+      TYPE(cp_cfm_type)           :: rho, ham_effective
+      INTEGER                                           :: ispin
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham_MO"
+      LOGICAL, PARAMETER                                 :: debug_disable_sex = .FALSE.
+      LOGICAL, PARAMETER                                 :: debug_disable_hartree = .FALSE.
       INTEGER                                            :: k, j, nspin, handle
 
       CALL timeset(routineN, handle)
       ! Shorthand
-      nspin = rtbse_env%n_spin
+      !nspin = rtbse_env%n_spin
+
+      ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
+      CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_lrrtbse(ispin), ispin)
+
       ! Reset the effective Hamiltonian to KS Hamiltonian + G0W0 - reference COHSEX - reference Hartree
-      DO j = 1, nspin
+      !DO j = 1, nspin
          ! Sets the imaginary part to zero
-         CALL cp_cfm_to_cfm(rtbse_env%ham_reference(j), rtbse_env%ham_effective(j))
-      END DO
+         CALL cp_cfm_to_cfm(rtbse_env%ham_reference(ispin), ham_effective)
+         ! Multiply energy differences by delta rho and add to effective Hamiltonian
+         ! MG TODO: Code that in local_data chunks later on
+         CALL cp_cfm_gemm('N', 'N', rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
+                         CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference_singleparticle(ispin), &
+                         rho, CMPLX(1.0, 0.0, kind=dp), ham_effective )
+         CALL cp_cfm_gemm('N', 'N', rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
+                         CMPLX(-1.0, 0.0, kind=dp), rho, rtbse_env%ham_reference_singleparticle(ispin), &
+                         CMPLX(1.0, 0.0, kind=dp), ham_effective )
+      !END DO
+      ! Determine the field at current time
+      IF (rtbse_env%dft_control%apply_efield_field) THEN
+         CPABORT("E(t) NYI")
+         ! MG needs trafo to MO
+         !CALL make_field(rtbse_env%dft_control, rtbse_env%field, rtbse_env%sim_step, rtbse_env%sim_time)
+      ELSE
+         ! No field
+         rtbse_env%field(:) = 0.0_dp
+      END IF
+      !DO j = 1, nspin
+         DO k = 1, 3
+         ! MG needs trafo to MO
+            ! Minus sign due to charge of electrons
+            ! CALL cp_fm_to_cfm(msourcer=rtbse_env%moments_field(k), mtarget=rtbse_env%ham_workspace(1))
+            ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+            !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
+         END DO
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+            ! Add the COH part - so far static but can be dynamic in principle through the W updates
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(ispin), -0.5_dp, rtbse_env%S_inv_fm)
+            ! Transform to MO basis
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH(ispin), rtbse_env%sigma_COH(ispin), ispin)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(ispin), ispin)
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(ispin), mtarget=rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+                                      CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+         END IF
+         ! Calculate the (S)EX part - based on provided rho
+         ! iGW = - rho W
+         IF (.NOT. debug_disable_sex) THEN
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+            ! Transform to MO basis
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), rtbse_env%sigma_SEX(ispin), ispin)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin)
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+                                      CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(ispin))
+         END IF
+         ! Calculate Hartree potential
+         ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
+         IF (.NOT. debug_disable_hartree) THEN
+            CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                             rtbse_env%hartree_curr(ispin))
+            ! Transform to MO basis
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr(ispin), rtbse_env%hartree_curr(ispin), ispin)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin)
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
+                                      CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+         END IF
+         ! Keep only the anti-Hermitian part so the RHS remains structure-preserving.
+         ! CALL cp_cfm_transpose(ham_effective, 'C', rtbse_env%ham_workspace(1))
+         ! CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, kind=dp), ham_effective, &
+         !                           CMPLX(-0.5_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+         ! Return the actual RHS f(t,rho) = -i * A(rho) for RK4
+         CALL cp_cfm_scale(CMPLX(0.0_dp, -1.0_dp, kind=dp), ham_effective)
+      !END DO
 
       CALL timestop(handle)
    END SUBROUTINE update_effective_ham_MO
@@ -525,27 +747,27 @@ CONTAINS
 !> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 ! **************************************************************************************************
-   SUBROUTINE transform_ao_to_mo_fm(rtbse_env, fm_ao, fm_mo)
+   SUBROUTINE transform_ao_to_mo_covariant_fm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                         :: fm_ao, fm_mo
-      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_ao_to_mo_fm"
-      INTEGER                                            :: k, j, nspin, handle
+      INTEGER, INTENT(IN)                                :: i_spin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_ao_to_mo_covariant_fm"
+      INTEGER                                            :: k, j, handle
 
       CALL timeset(routineN, handle)
-      ! Shorthand
-      nspin = rtbse_env%n_spin
+      
       ! Transform from AO to MO basis
       ! M_μν * C_νn
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, fm_ao, rtbse_env%bs_env%fm_mo_coeff_Gamma(1), &
+                           1.0_dp, fm_ao, rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), &
                            0.0_dp, rtbse_env%real_workspace(1))
       ! (C_μm)^T * M_μν * C_νn
       CALL parallel_gemm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(1), rtbse_env%real_workspace(1), &
+                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), rtbse_env%real_workspace(1), &
                            0.0_dp, fm_mo)
 
       CALL timestop(handle)
-   END SUBROUTINE transform_ao_to_mo_fm
+   END SUBROUTINE transform_ao_to_mo_covariant_fm
 
 ! **************************************************************************************************
 !> \brief Transforms from AO to MO basis for complex matrices
@@ -553,16 +775,16 @@ CONTAINS
 !> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 ! **************************************************************************************************
-   SUBROUTINE transform_ao_to_mo_cfm(rtbse_env, fm_ao, fm_mo)
+   SUBROUTINE transform_ao_to_mo_covariant_cfm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                         :: fm_ao, fm_mo
-      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_ao_to_mo_cfm"
-      INTEGER                                            :: k, j, nspin, handle
+      INTEGER, INTENT(IN)                                :: i_spin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_ao_to_mo_covariant_cfm"
+      INTEGER                                            :: k, j, handle
       TYPE(cp_fm_type)                         :: my_real_workspace
 
       CALL timeset(routineN, handle)
-      ! Shorthand
-      nspin = rtbse_env%n_spin
+      
       ! MG To Do: Remove/Clean for final code
       ! Additional workspace needed
       CALL cp_fm_create(my_real_workspace, rtbse_env%bs_env%fm_ks_Gamma(1)%matrix_struct)
@@ -574,28 +796,303 @@ CONTAINS
       ! REAL
       ! M_μν * C_νn
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, rtbse_env%real_workspace(1), rtbse_env%bs_env%fm_mo_coeff_Gamma(1), &
+                           1.0_dp, rtbse_env%real_workspace(1), rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), &
                            0.0_dp, my_real_workspace)
       ! (C_μm)^T * M_μν * C_νn
       CALL parallel_gemm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(1), my_real_workspace, &
+                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), my_real_workspace, &
                            0.0_dp, rtbse_env%real_workspace(1))
       ! IMAGINARY
       ! M_μν * C_νn
       CALL parallel_gemm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, rtbse_env%real_workspace(2), rtbse_env%bs_env%fm_mo_coeff_Gamma(1), &
+                           1.0_dp, rtbse_env%real_workspace(2), rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), &
                            0.0_dp, my_real_workspace)
       ! (C_μm)^T * M_μν * C_νn
       CALL parallel_gemm("T", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(1), my_real_workspace, &
+                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), my_real_workspace, &
                            0.0_dp, rtbse_env%real_workspace(2))
       ! Copy back to real part of cfm
       CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
                         msourcei=rtbse_env%real_workspace(2), &
                         mtarget=fm_mo)
 
+      ! Release workspace
+      CALL cp_fm_release(my_real_workspace)
 
       CALL timestop(handle)
-   END SUBROUTINE transform_ao_to_mo_cfm
+   END SUBROUTINE transform_ao_to_mo_covariant_cfm
+
+! **************************************************************************************************
+!> \brief Transforms from MO to AO basis for contravariant complex matrices (e.g. density matrix) 
+!> \param rtbse_env Entry point of the calculation - contains current state of variables
+!> \param qs_env QS env
+!> \param rho Real and imaginary parts ( + spin) of the density at current time
+! **************************************************************************************************
+   SUBROUTINE transform_mo_to_ao_contravariant_cfm(rtbse_env, fm_mo, fm_ao, i_spin)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type)                         :: fm_mo, fm_ao
+      INTEGER, INTENT(IN)                                :: i_spin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_mo_to_ao_contravariant_cfm"
+      INTEGER                                            :: k, j, handle
+      TYPE(cp_fm_type)                         :: my_real_workspace
+
+      CALL timeset(routineN, handle)
+      
+      ! rtbse_env%rho_workspace(1) is used inside rk4
+      ! C * rho
+      CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
+                           1.0_dp, rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), fm_mo, &
+                           0.0_dp, rtbse_env%rho_workspace(2))
+                           
+      ! C * rho * C^T
+      CALL multiply_cfm_fm("N", "T", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
+                           1.0_dp, rtbse_env%rho_workspace(2), rtbse_env%bs_env%fm_mo_coeff_Gamma(i_spin), &
+                           0.0_dp, fm_ao)
+
+      CALL timestop(handle)
+   END SUBROUTINE transform_mo_to_ao_contravariant_cfm
+
+! **************************************************************************************************
+!> \brief Applies the occupation factor difference f_n - f_m 
+!> \param rtbse_env Entry point of the calculation - contains current state of variables
+!> \param qs_env QS env
+!> \param rho Real and imaginary parts ( + spin) of the density at current time
+! **************************************************************************************************
+   SUBROUTINE transform_mo_occupation_factor_diff_cfm(rtbse_env, cfm, i_spin)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type)                         :: cfm
+      INTEGER                                           :: i_spin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_mo_occupation_factor_diff_cfm"
+      INTEGER                                            :: k, j, handle
+      TYPE(cp_fm_type)                         :: my_real_workspace
+
+      CALL timeset(routineN, handle)
+      
+      CALL cp_cfm_to_fm(msource=cfm, mtargetr=rtbse_env%real_workspace(1), &
+                        mtargeti=rtbse_env%real_workspace(2))
+      ! REAL
+      CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%real_workspace(1), i_spin)
+      ! IMAGINARY
+      CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%real_workspace(2), i_spin)
+      ! Copy back to real part of cfm
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
+                        msourcei=rtbse_env%real_workspace(2), &
+                        mtarget=cfm)
+
+
+      CALL timestop(handle)
+   END SUBROUTINE transform_mo_occupation_factor_diff_cfm
+   
+
+   SUBROUTINE transform_mo_occupation_factor_diff_fm(rtbse_env, fm, i_spin)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_fm_type)                         :: fm
+      INTEGER                                                :: i_spin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "transform_mo_occupation_factor_diff_fm"
+      INTEGER                                            :: handle, i_local, j_local, i_global, j_global, n_occ
+      INTEGER                                            :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(kind=dp)                                      :: occ_factor
+
+      CALL timeset(routineN, handle)
+
+      n_occ = rtbse_env%n_occ(i_spin)
+
+      CALL cp_fm_get_info(matrix=fm, &
+                          nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+
+      local_data => fm%local_data
+
+      DO i_local = 1, nrow_local
+         i_global = row_indices(i_local)
+         DO j_local = 1, ncol_local
+            j_global = col_indices(j_local)
+
+            IF (i_global <= n_occ .AND. j_global > n_occ) THEN
+               occ_factor = 1.0_dp
+            ELSE IF (i_global > n_occ .AND. j_global <= n_occ) THEN
+               occ_factor = -1.0_dp
+            ELSE
+               occ_factor = 0.0_dp
+            END IF
+
+            local_data(i_local, j_local) = occ_factor*local_data(i_local, j_local)
+         END DO
+      END DO
+
+
+      CALL timestop(handle)
+   END SUBROUTINE transform_mo_occupation_factor_diff_fm
+
+! **************************************************************************************************
+!> \brief Custom reimplementation of the delta pulse routines
+!> \param rtbse_env RT-BSE environment
+!> \author Stepan Marek (09.24)
+!> \author Maximilian Graml - trafo to MO and linearized version following 10.1021/acs.jctc.2c00644 (03.26)
+! **************************************************************************************************
+   SUBROUTINE apply_delta_pulse_MO(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                :: rtbse_env
+      CHARACTER(len=*), PARAMETER                  :: routineN = "apply_delta_pulse_MO"
+      REAL(kind=dp)                                :: intensity, metric
+      REAL(kind=dp), DIMENSION(3)                  :: kvec
+      INTEGER                                      :: i, k, handle
+
+      CALL timeset(routineN, handle)
+
+      ! Report application
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A28)') ' RTBSE| Applying delta pulse'
+      ! Extra minus for the propagation of density
+      intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
+      metric = 0.0_dp
+      kvec(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A38,E14.4E3,E14.4E3,E14.4E3)') &
+         " RTBSE| Delta pulse elements (a.u.) : ", intensity*kvec(:)
+      ! So far no spin dependence, but can be added by different structure of delta pulse
+      CALL cp_fm_set_all(rtbse_env%real_workspace(1), 0.0_dp)
+      DO k = 1, 3
+         CALL cp_fm_scale_and_add(1.0_dp, rtbse_env%real_workspace(1), &
+                                  kvec(k), rtbse_env%moments_field(k))
+      END DO
+      ! enforce hermiticity of the effective Hamiltonian
+      CALL cp_fm_transpose(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2))
+      CALL cp_fm_scale_and_add(0.5_dp, rtbse_env%real_workspace(1), &
+                               0.5_dp, rtbse_env%real_workspace(2))
+      ! Prepare the exponential/exponent for propagation
+      ! MG: For now only use BCH, where Overlap matrix can easily be removed
+      ! multiply by intensity
+      CALL cp_fm_scale(intensity, rtbse_env%real_workspace(1))
+      DO i = 1, rtbse_env%n_spin
+         ! Sets real part to zero
+         CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_workspace(i))
+      END DO
+      ! Propagate the density by the effect of the delta pulse
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_new)
+      metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho, rtbse_env%n_spin)
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, ('(A42,E38.8E3)')) " RTBSE| Metric difference after delta kick", metric
+      ! Copy the new density to the old density
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_cfm_to_cfm(rtbse_env%rho_new(i), rtbse_env%rho(i))
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE apply_delta_pulse_MO
+
+! **************************************************************************************************
+!> \brief Determines maxnorm of rho and its OO/VV/OV/VO blocks for one spin channel
+!> \param rtbse_env Entry point - rtbse environment
+!> \param rho Density matrix in MO basis for one spin channel
+!> \param i_spin Spin index
+!> \param full_max Maxnorm over all matrix elements
+!> \param oo_max Maxnorm in occupied-occupied block
+!> \param vv_max Maxnorm in virtual-virtual block
+!> \param ov_max Maxnorm in occupied-virtual block
+!> \param vo_max Maxnorm in virtual-occupied block
+! **************************************************************************************************
+   SUBROUTINE get_rho_block_maxnorms(rtbse_env, rho, i_spin, full_max, oo_max, vv_max, ov_max, vo_max)
+      TYPE(rtbse_env_type), INTENT(IN)                    :: rtbse_env
+      TYPE(cp_cfm_type), INTENT(IN)                       :: rho
+      INTEGER, INTENT(IN)                                 :: i_spin
+      REAL(kind=dp), INTENT(OUT)                          :: full_max, oo_max, vv_max, ov_max, vo_max
+
+      INTEGER                                             :: i_local, j_local, i_global, j_global, n_occ
+      INTEGER                                             :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER                      :: row_indices, col_indices
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER          :: local_data
+      REAL(kind=dp)                                       :: aij
+      TYPE(mp_para_env_type), POINTER                     :: para_env
+
+      full_max = 0.0_dp
+      oo_max = 0.0_dp
+      vv_max = 0.0_dp
+      ov_max = 0.0_dp
+      vo_max = 0.0_dp
+
+      n_occ = rtbse_env%n_occ(i_spin)
+
+      CALL cp_cfm_get_info(matrix=rho, &
+                           nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      local_data => rho%local_data
+
+      DO i_local = 1, nrow_local
+         i_global = row_indices(i_local)
+         DO j_local = 1, ncol_local
+            j_global = col_indices(j_local)
+
+            aij = ABS(local_data(i_local, j_local))
+            full_max = MAX(full_max, aij)
+
+            IF (i_global <= n_occ .AND. j_global <= n_occ) THEN
+               oo_max = MAX(oo_max, aij)
+            ELSE IF (i_global > n_occ .AND. j_global > n_occ) THEN
+               vv_max = MAX(vv_max, aij)
+            ELSE IF (i_global <= n_occ .AND. j_global > n_occ) THEN
+               ov_max = MAX(ov_max, aij)
+            ELSE
+               vo_max = MAX(vo_max, aij)
+            END IF
+         END DO
+      END DO
+
+      CALL get_qs_env(rtbse_env%qs_env, para_env=para_env)
+      CALL para_env%max(full_max)
+      CALL para_env%max(oo_max)
+      CALL para_env%max(vv_max)
+      CALL para_env%max(ov_max)
+      CALL para_env%max(vo_max)
+   END SUBROUTINE get_rho_block_maxnorms
+
+! **************************************************************************************************
+!> \brief Outputs the number of electrons in the system from the density matrix
+!> \param rtbse_env Entry point - rtbse environment
+!> \param rho Density matrix in MO basis
+!> \param electron_n_re Real number of electrons
+!> \param electron_n_im Imaginary number of electrons, which can arise from numerical non-hermiticity
+! **************************************************************************************************
+   SUBROUTINE get_electron_number_MO(rtbse_env, rho, electron_n_re, electron_n_im)
+      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
+      REAL(kind=dp), INTENT(OUT)                         :: electron_n_re, electron_n_im
+
+      CHARACTER(len=*), PARAMETER                  :: routineN = "get_electron_number_MO"
+
+
+      INTEGER                                            :: handle, j, i_local, j_local, i_global, j_global
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
+      INTEGER                                            :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+
+      electron_n_re = 0.0_dp
+      electron_n_im = 0.0_dp
+      DO j = 1, rtbse_env%n_spin
+         CALL cp_cfm_get_info(matrix=rho(j), &
+                              nrow_local=nrow_local, &
+                              ncol_local=ncol_local, &
+                              row_indices=row_indices, &
+                              col_indices=col_indices)
+         local_data => rho(j)%local_data
+         ! Extract and sum diagonal elements
+         DO i_local = 1, nrow_local
+            i_global = row_indices(i_local)
+            ! Search column indices for the diagonal position
+            DO j_local = 1, ncol_local
+               j_global = col_indices(j_local)
+               IF (j_global == i_global) THEN
+                  ! Found diagonal element
+                  electron_n_re = electron_n_re + REAL(local_data(i_local, j_local), kind=dp)
+                  electron_n_im = electron_n_im + AIMAG(local_data(i_local, j_local))
+                  EXIT
+               END IF
+            END DO
+         END DO
+      END DO
+      ! Scale by spin degeneracy
+      electron_n_re = electron_n_re*rtbse_env%spin_degeneracy
+      electron_n_im = electron_n_im*rtbse_env%spin_degeneracy
+   END SUBROUTINE get_electron_number_MO
+
 
 END MODULE
