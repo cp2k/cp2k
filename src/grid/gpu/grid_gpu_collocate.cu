@@ -212,7 +212,7 @@ __device__ static void block_to_cab(const kernel_params *params,
 
   // TODO find if we can make better bounds for ico and jco because
   // we only need a submatrix of cab.
-  if (threadIdx.z == 0) { // TODO: How bad is this?
+  if (threadIdx.z == 0) {
     const int jco_start = ncoset(task->lb_min_basis - 1) + threadIdx.y;
     const int jco_end = ncoset(task->lb_max_basis);
     for (int jco = jco_start; jco < jco_end; jco += blockDim.y) {
@@ -365,7 +365,7 @@ void grid_gpu_collocate_one_grid_level(
 
   // Launch !
   const int nblocks = ntasks;
-  const dim3 threads_per_block(4, 4, 4);
+  const dim3 threads_per_block(8, 8, 1);
 
   if (func == GRID_FUNC_AB) {
     collocate_kernel_density<<<nblocks, threads_per_block, smem_per_block,

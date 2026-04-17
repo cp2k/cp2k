@@ -430,7 +430,7 @@ __device__ static void cab_to_cxyz(const smem_task *task, const double *alpha,
             const orbital a = coset_inv[ico];
 #else
   // integrate
-  if (threadIdx.z == 0) { // TODO: How bad is this?
+  if (threadIdx.z == 0) {
     const int jco_start = ncoset(task->lb_min - 1) + threadIdx.y;
     const int jco_end = ncoset(task->lb_max);
     for (int jco = jco_start; jco < jco_end; jco += blockDim.y) {
