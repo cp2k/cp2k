@@ -27,8 +27,8 @@ echo -e "\n========== Generating Manual =========="
 mkdir -p /workspace/artifacts/manual
 cd /workspace/artifacts/manual
 
-/opt/cp2k/build/bin/cp2k.psmp --version
-/opt/cp2k/build/bin/cp2k.psmp --xml
+/opt/cp2k/build/bin/cp2k.pdbg --version
+/opt/cp2k/build/bin/cp2k.pdbg --xml
 
 set +e # disable error trapping for remainder of script
 (
