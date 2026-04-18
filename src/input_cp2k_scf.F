@@ -121,6 +121,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_gce_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)        
+
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LUMO", &
@@ -2040,5 +2044,64 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_cdft_opt_section
+
+! **************************************************************************************************
+!> \brief      Create CP2K input section for the grand canonical ensemble DFT
+!> \param section ...     
+!> \date       
+!> \author     Ziwei Chai
+!> \version    1.0        
+! **************************************************************************************************
+   SUBROUTINE create_gce_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, &
+                          name="GCE", &
+                          description="Define the settings of the grand canonical ensemble DFT", &
+                          n_keywords=3, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+      
+      NULLIFY (keyword)   
+                          
+      CALL keyword_create(keyword, __LOCATION__, & 
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of grand canonical ensemble DFT", &
+                          usage="&GCE ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="TARGET_WORKFUNCTION", &
+                          description="The user input target work function of the symmetric slab model", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.16_dp, &
+                          unit_str="au_e", &
+                          usage="TARGET_WORKFUNCTION [eV] 0.16")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MIXING_COEF", &
+                          description="The proportion of the target work function mixed with the "// &
+                          "work function of the previous SCF iteration", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.3_dp, &
+                          usage="MIXING_COEF 0.3")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_gce_section
 
 END MODULE input_cp2k_scf
