@@ -338,7 +338,7 @@ RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
 
 # ======================================================================================
 def manual() -> str:
-    return install_cp2k(profile="toolchain", version="psmp", revision=True) + rf"""
+    return install_cp2k(profile="toolchain", version="pdbg", revision=True) + rf"""
 # Generate manual.
 COPY ./docs ./docs
 COPY ./tools/input_editing ./tools/input_editing
