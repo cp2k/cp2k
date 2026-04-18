@@ -149,7 +149,7 @@ MODULE qs_scf_post_tb
 
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_tb'
-   PUBLIC :: scf_post_calculation_tb, make_lumo_tb
+   PUBLIC :: scf_post_calculation_tb, make_lumo_tb, rebuild_pw_env
 
 ! **************************************************************************************************
 

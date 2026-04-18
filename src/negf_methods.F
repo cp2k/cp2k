@@ -1312,8 +1312,10 @@ CONTAINS
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env, negf_env%mixing_method, nspins=nspins, mixing_store=negf_env%mixing_storage)
-         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-            CPABORT('TB Code not available')
+         IF (dft_control%qs_control%dftb) THEN
+            CPABORT('DFTB Code not available')
+         ELSE IF (dft_control%qs_control%xtb) THEN
+            CPABORT('xTB Code works only with DIRECT_P_MIXING (defaut)')
          ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
