@@ -77,6 +77,7 @@ MODULE negf_env_types
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_post_tb,                  ONLY: rebuild_pw_env
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
 #include "./base/base_uses.f90"
@@ -1313,6 +1314,7 @@ CONTAINS
                          para_env=para_env, &
                          pw_env=pw_env, &
                          subsys=subsys)
+         IF (dft_control%qs_control%xtb) CALL rebuild_pw_env(qs_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
 
          IF (do_kpoints) THEN
