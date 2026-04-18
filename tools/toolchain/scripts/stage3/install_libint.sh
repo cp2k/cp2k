@@ -66,7 +66,10 @@ case "$with_libint" in
         -DCMAKE_CXX_COMPILER="$CXX" \
         -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
         -DLIBINT2_ENABLE_FORTRAN=ON \
+        -DCMAKE_DISABLE_FIND_PACKAGE_Boost=ON \
+        -DLIBINT2_REQUIRE_CXX_API=OFF \
         > configure.log 2>&1 || tail_excerpt configure.log
+      tar -xzf ../external/boost.tar.gz -C ./include/libint2
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
 
       cd ..

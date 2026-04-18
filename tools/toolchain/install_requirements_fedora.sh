@@ -10,11 +10,9 @@ dnf -qy install \
   autoconf \
   autogen \
   automake \
-  boost-devel \
   bzip2 \
   ca-certificates \
   diffutils \
-  eigen3-devel \
   g++ \
   gcc \
   gfortran \
