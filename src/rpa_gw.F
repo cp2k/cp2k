@@ -869,7 +869,7 @@ CONTAINS
                                           mp2_env%ri_g0w0%do_aux_bas_gw, mp2_env%ri_g0w0%frac_aux_mos)
          END IF
 
-         CALL para_env%sync()
+         CALL para_env_RPA%sync()
 
          ! subtract 1 from the diagonal to get rid of exchange self-energy
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
@@ -884,7 +884,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%sync()
+         CALL para_env_RPA%sync()
 
          DO ispin = 1, nspins
             CALL compute_GW_self_energy_deep(vec_Sigma_c_gw(:, :, :, ispin), dimen_nm_gw, dimen_RI, &
