@@ -28,9 +28,12 @@ MODULE qs_loc_types
                                               cell_retain,&
                                               cell_type
    USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
+                                              cp_cfm_release
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_retain,&
@@ -55,7 +58,8 @@ MODULE qs_loc_types
 !>      the spread of a selected set of orbitals and if required
 !>      to minimize or maximize the spread by rotation of the orbitals
 !> \param para_env info for the distribution of the calculations
-!> \param mo_coeff full matrix containing only the selected subset of orbitals
+!> \param mo_coeff full matrix containing only the selected subset of real orbitals
+!> \param complex_mo_coeff full matrix containing only the selected subset of complex orbitals
 !> \param local_molecules molecules distributed
 !> \param cell box that contains the system
 !> \param localized_wfn_control variables and parameter that define the spread
@@ -85,8 +89,12 @@ MODULE qs_loc_types
       TYPE(mp_para_env_type), POINTER             :: para_env => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                                  :: moloc_coeff => NULL()
+      TYPE(cp_cfm_p_type), DIMENSION(:), &
+         POINTER                                  :: complex_moloc_coeff => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), &
          POINTER                                  :: op_fm_set => NULL()
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), &
+         POINTER                                  :: op_cfm_set => NULL()
       TYPE(distribution_1d_type), POINTER         :: local_molecules => NULL()
       TYPE(cell_type), POINTER                    :: cell => NULL()
       TYPE(localized_wfn_control_type), &
@@ -145,6 +153,7 @@ MODULE qs_loc_types
       LOGICAL                              :: use_history = .FALSE.
       INTEGER, POINTER, DIMENSION(:, :)    :: loc_states => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set = cp_2d_r_p_type()
+      LOGICAL                              :: fragment = .FALSE., sequential = .FALSE.
    END TYPE localized_wfn_control_type
 
 ! *** Public ***
@@ -171,8 +180,10 @@ CONTAINS
       NULLIFY (qs_loc_env%cell)
       NULLIFY (qs_loc_env%op_sm_set)
       NULLIFY (qs_loc_env%op_fm_set)
+      NULLIFY (qs_loc_env%op_cfm_set)
       NULLIFY (qs_loc_env%local_molecules)
       NULLIFY (qs_loc_env%moloc_coeff)
+      NULLIFY (qs_loc_env%complex_moloc_coeff)
       NULLIFY (qs_loc_env%particle_set)
       NULLIFY (qs_loc_env%localized_wfn_control)
       qs_loc_env%weights = 0.0_dp
@@ -211,7 +222,24 @@ CONTAINS
          DEALLOCATE (qs_loc_env%moloc_coeff)
       END IF
 
+      IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff)) THEN
+         DO i = 1, SIZE(qs_loc_env%complex_moloc_coeff, 1)
+            ii = LBOUND(qs_loc_env%complex_moloc_coeff, 1) + i - 1
+            CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(ii)%matrix)
+         END DO
+         DEALLOCATE (qs_loc_env%complex_moloc_coeff)
+      END IF
+
       CALL cp_fm_release(qs_loc_env%op_fm_set)
+
+      IF (ASSOCIATED(qs_loc_env%op_cfm_set)) THEN
+         DO i = 1, SIZE(qs_loc_env%op_cfm_set, 2)
+            DO j = 1, SIZE(qs_loc_env%op_cfm_set, 1)
+               CALL cp_cfm_release(qs_loc_env%op_cfm_set(j, i)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (qs_loc_env%op_cfm_set)
+      END IF
 
       IF (ASSOCIATED(qs_loc_env%op_sm_set)) THEN
          DO i = 1, SIZE(qs_loc_env%op_sm_set, 2)
@@ -250,6 +278,8 @@ CONTAINS
       NULLIFY (localized_wfn_control%loc_states)
       NULLIFY (localized_wfn_control%centers_set(1)%array)
       NULLIFY (localized_wfn_control%centers_set(2)%array)
+      localized_wfn_control%fragment = .FALSE.
+      localized_wfn_control%sequential = .FALSE.
    END SUBROUTINE localized_wfn_control_create
 
 ! **************************************************************************************************
@@ -302,6 +332,7 @@ CONTAINS
 !> \param local_molecules ...
 !> \param localized_wfn_control ...
 !> \param moloc_coeff ...
+!> \param complex_moloc_coeff ...
 !> \param op_sm_set ...
 !> \param op_fm_set ...
 !> \param para_env ...
@@ -313,7 +344,8 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE get_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
-                             moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
+                             moloc_coeff, complex_moloc_coeff, op_sm_set, op_fm_set, op_cfm_set, &
+                             para_env, particle_set, weights, dim_op)
 
       TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -321,10 +353,14 @@ CONTAINS
       TYPE(localized_wfn_control_type), OPTIONAL, &
          POINTER                                         :: localized_wfn_control
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: moloc_coeff
+      TYPE(cp_cfm_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: complex_moloc_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_sm_set
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_fm_set
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: op_cfm_set
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
@@ -333,11 +369,13 @@ CONTAINS
 
       IF (PRESENT(cell)) cell => qs_loc_env%cell
       IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
+      IF (PRESENT(complex_moloc_coeff)) complex_moloc_coeff => qs_loc_env%complex_moloc_coeff
       IF (PRESENT(local_molecules)) local_molecules => qs_loc_env%local_molecules
       IF (PRESENT(localized_wfn_control)) &
          localized_wfn_control => qs_loc_env%localized_wfn_control
       IF (PRESENT(op_sm_set)) op_sm_set => qs_loc_env%op_sm_set
       IF (PRESENT(op_fm_set)) op_fm_set => qs_loc_env%op_fm_set
+      IF (PRESENT(op_cfm_set)) op_cfm_set => qs_loc_env%op_cfm_set
       IF (PRESENT(para_env)) para_env => qs_loc_env%para_env
       IF (PRESENT(particle_set)) particle_set => qs_loc_env%particle_set
       IF (PRESENT(weights)) weights(1:6) = qs_loc_env%weights(1:6)
@@ -352,6 +390,7 @@ CONTAINS
 !> \param local_molecules ...
 !> \param localized_wfn_control ...
 !> \param moloc_coeff ...
+!> \param complex_moloc_coeff ...
 !> \param op_sm_set ...
 !> \param op_fm_set ...
 !> \param para_env ...
@@ -363,7 +402,8 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE set_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
-                             moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
+                             moloc_coeff, complex_moloc_coeff, op_sm_set, op_fm_set, op_cfm_set, &
+                             para_env, particle_set, weights, dim_op)
 
       TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -371,15 +411,21 @@ CONTAINS
       TYPE(localized_wfn_control_type), OPTIONAL, &
          POINTER                                         :: localized_wfn_control
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: moloc_coeff
+      TYPE(cp_cfm_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: complex_moloc_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_sm_set
       TYPE(cp_fm_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: op_fm_set
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: op_cfm_set
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       REAL(dp), DIMENSION(6), OPTIONAL                   :: weights
       INTEGER, OPTIONAL                                  :: dim_op
+
+      INTEGER                                            :: i
 
       IF (PRESENT(cell)) THEN
          CALL cell_retain(cell)
@@ -409,11 +455,23 @@ CONTAINS
          CALL cp_fm_release(qs_loc_env%moloc_coeff)
          qs_loc_env%moloc_coeff => moloc_coeff
       END IF
+      IF (PRESENT(complex_moloc_coeff)) THEN
+         IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff)) THEN
+            DO i = 1, SIZE(qs_loc_env%complex_moloc_coeff, 1)
+               CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(i)%matrix)
+            END DO
+            DEALLOCATE (qs_loc_env%complex_moloc_coeff)
+         END IF
+         qs_loc_env%complex_moloc_coeff => complex_moloc_coeff
+      END IF
       IF (PRESENT(op_sm_set)) THEN
          qs_loc_env%op_sm_set => op_sm_set
       END IF
       IF (PRESENT(op_fm_set)) THEN
          qs_loc_env%op_fm_set => op_fm_set
+      END IF
+      IF (PRESENT(op_cfm_set)) THEN
+         qs_loc_env%op_cfm_set => op_cfm_set
       END IF
       IF (PRESENT(weights)) THEN
          qs_loc_env%weights = weights

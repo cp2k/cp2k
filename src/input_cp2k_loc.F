@@ -12,7 +12,7 @@ MODULE input_cp2k_loc
                                               high_print_level,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        do_loc_both, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
+        do_loc_both, do_loc_cardoso, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
         do_loc_cpo_space_nmo, do_loc_cpo_space_wan, do_loc_crazy, do_loc_direct, do_loc_gapo, &
         do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
         do_loc_mixed, do_loc_none, do_loc_scdm, do_loc_cs, op_loc_berry, op_loc_boys, op_loc_pipek
@@ -100,6 +100,26 @@ CONTAINS
          description="Generate an improved initial guess based on a history of results, which is useful during MD. "// &
          "Will only work if the number of states to be localized remains constant.", &
          usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT", &
+                          description="Use the F-PMWF approach", &
+                          usage="FRAGMENT {Logical}", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SEQUENTIAL", &
+                          description="Use the sF-PMWF approach", &
+                          usage="SEQUENTIAL {Logical}", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EACH", &
+           description="localize each n steps", &
+           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -325,6 +345,32 @@ CONTAINS
       !
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
+      ! localised Wannier moments
+      CALL cp_print_key_section_create(subsection, __LOCATION__, name="WANNIER_MOMENTS", &
+                                       description="Section controlling the calculation of "// &
+                                       "Wannier-based electric moments", &
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
+                          description="Maximum order of mulitpoles to be calculated.", &
+                          usage=" ORDER {integer}", default_i_val=1, type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL section_add_subsection(print_section, subsection)
+      CALL section_release(subsection)
+      ! localised Wannier centre moments
+      CALL cp_print_key_section_create(subsection, __LOCATION__, name="WC_MOMENTS", &
+                                       description="Section controlling the calculation of "// &
+                                       "Wannier centre-based electric moments", &
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
+                          description="Maximum order of mulitpoles to be calculated.", &
+                          usage=" ORDER {integer}", default_i_val=1, type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL section_add_subsection(print_section, subsection)
+      CALL section_release(subsection)
       ! Molecular States with wannier
       CALL create_molecular_states_section(subsection)
       CALL section_add_subsection(print_section, subsection)
@@ -333,6 +379,7 @@ CONTAINS
       CALL create_wannier_states_section(subsection)
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
+      !
       CALL section_add_subsection(section, print_section)
       CALL section_release(print_section)
 
@@ -360,6 +407,12 @@ CONTAINS
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DENSITY", &
+                          description="print a cubefile of the electronic density", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

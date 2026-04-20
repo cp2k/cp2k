@@ -10,6 +10,11 @@
 !> \author Joost VandeVondele, based on Fawzi's cp_fm_* routines
 ! **************************************************************************************************
 MODULE cp_cfm_types
+   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
+                                              cp_blacs_gridinfo,&
+                                              cp_blacs_gridinit,&
+                                              cp_blacs_zgebr2d,&
+                                              cp_blacs_zgebs2d
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_equivalent,&
@@ -25,8 +30,10 @@ MODULE cp_cfm_types
                                               mp_any_source,&
                                               mp_para_env_type,&
                                               mp_proc_null,&
+                                              mp_recv,&
                                               mp_request_null,&
                                               mp_request_type,&
+                                              mp_send,&
                                               mp_waitall
 #include "../base/base_uses.f90"
 
@@ -51,6 +58,7 @@ MODULE cp_cfm_types
              cp_cfm_start_copy_general, &
              cp_cfm_to_cfm, &
              cp_cfm_to_fm, &
+             cp_cfm_write_formatted, &
              cp_fm_to_cfm
 
    INTERFACE cp_cfm_to_cfm
@@ -357,8 +365,8 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(out)     :: target_m
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_submatrix'
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_submatrix', &
+         routineP = moduleN//':'//routineN
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
       INTEGER :: end_col_global, end_col_local, end_row_global, end_row_local, handle, i, j, &
@@ -1297,4 +1305,134 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_cleanup_copy_general
+
+! **************************************************************************************************
+!> \brief Write out a complex full matrix in plain text.
+!> \param fm the matrix to be outputted
+!> \param unit the unit number for I/O
+!> \param header optional header
+!> \param value_format format string for printing floats
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_write_formatted(fm, unit, header, value_format)
+      TYPE(cp_cfm_type), POINTER                         :: fm
+      INTEGER                                            :: unit
+      CHARACTER(LEN=*), OPTIONAL                         :: header, value_format
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_write_formatted', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=32)                                  :: my_value_format
+      INTEGER                                            :: handle, i, j, max_block, ncol_global, &
+                                                            nrow_block, nrow_global
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+#if defined(__SCALAPACK)
+      INTEGER                                            :: i_block, icol_local, &
+                                                            ictxt_loc, in, info, ipcol, &
+                                                            iprow, irow_local, &
+                                                            mepos, mypcol, myprow, &
+                                                            npcol, nprow, num_pe, rb, tag, k, &
+                                                            icol, irow
+      INTEGER, DIMENSION(9)                              :: desc
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: vecbuf
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: newdat
+      INTEGER, EXTERNAL                                  :: numroc
+#endif
+
+      CALL timeset(routineN, handle)
+      CALL cp_cfm_get_info(fm, nrow_global=nrow_global, ncol_global=ncol_global, ncol_block=max_block, &
+                           nrow_block=nrow_block, para_env=para_env)
+
+      IF (PRESENT(value_format)) THEN
+         CPASSERT(LEN_TRIM(ADJUSTL(value_format)) < 11)
+         my_value_format = "(A2, I10, I10, "//TRIM(ADJUSTL(value_format))//", "//TRIM(ADJUSTL(value_format))//")"
+      ELSE
+         my_value_format = "(A2, I10, I10, ES24.12, ES24.12)"
+      END IF
+
+      IF (unit > 0) THEN
+         IF (PRESENT(header)) WRITE (unit, *) header
+         WRITE (unit, "(A2, A10, A10, A24, A24)") "#", "Row", "Column", ADJUSTL("Real"), ADJUSTL("Imag")
+      END IF
+
+#if defined(__SCALAPACK)
+      num_pe = para_env%num_pe
+      mepos = para_env%mepos
+      rb = nrow_global
+      tag = 0
+      ! get a new context
+      ictxt_loc = para_env%group
+      CALL cp_blacs_gridinit(ictxt_loc, "R", 1, num_pe)
+      CALL cp_blacs_gridinfo(ictxt_loc, nprow, npcol, myprow, mypcol)
+      CALL descinit(desc, nrow_global, ncol_global, rb, max_block, 0, 0, ictxt_loc, nrow_global, &
+           info)
+      CPASSERT(info == 0)
+      in = numroc(ncol_global, max_block, mypcol, 0, npcol)
+
+      ALLOCATE(newdat(nrow_global, MAX(1, in)))
+
+      ! scalapack to cols reordering
+      CALL pzgemr2d(nrow_global, ncol_global, fm%local_data(1, 1), 1, 1, &
+                    fm%matrix_struct%descriptor, &
+                    newdat(1, 1), 1, 1, desc, ictxt_loc)
+
+      ALLOCATE(vecbuf(nrow_global*max_block))
+      vecbuf = HUGE(1.0_dp)
+      irow = 1
+      icol = 1
+
+      DO i = 1, ncol_global, MAX(max_block, 1)
+         i_block = MIN(max_block, ncol_global - i + 1)
+         CALL infog2l(1, i, desc, nprow, npcol, myprow, mypcol, &
+                      irow_local, icol_local, iprow, ipcol)
+         IF (ipcol == mypcol) THEN
+            DO j = 1, i_block
+               vecbuf((j - 1)*nrow_global + 1:nrow_global*j) = newdat(:, icol_local + j - 1)
+            END DO
+         END IF
+
+         IF (ipcol == 0) THEN
+            ! do nothing
+         ELSE
+            IF (ipcol == mypcol) THEN
+               CALL mp_send(vecbuf(:), 0, tag, para_env%group)
+            END IF
+            IF (mypcol == 0) THEN
+               CALL mp_recv(vecbuf(:), ipcol, tag, para_env%group)
+            END IF
+         END IF
+
+         IF (unit > 0) THEN
+            DO j = 1, i_block
+               DO k = (j - 1)*nrow_global + 1, nrow_global*j
+                  WRITE (UNIT=unit, FMT=my_value_format) "  ", irow, icol, REAL(vecbuf(k)), AIMAG(vecbuf(k))
+                  irow = irow + 1
+                  IF (irow > nrow_global) THEN
+                     irow = 1
+                     icol = icol + 1
+                  END IF
+               END DO
+            END DO
+         END IF
+         
+      END DO
+      DEALLOCATE (vecbuf)
+
+      CALL cp_blacs_gridexit(ictxt_loc)
+
+      DEALLOCATE (newdat)
+#else
+
+      IF (unit > 0) THEN
+         DO j = 1, ncol_global
+            DO i = 1, nrow_global
+               WRITE (UNIT=unit, FMT=my_value_format) "  ", i, j, REAL(fm%local_data(i, j)), AIMAG(fm%local_data(i, j))
+            END DO
+         END DO
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_write_formatted
+
 END MODULE cp_cfm_types

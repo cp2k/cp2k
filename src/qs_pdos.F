@@ -639,13 +639,13 @@ CONTAINS
                 r_ldos_p(ildos)%ldos%eval_range(2) >= eigenvalues(imo)) THEN
 
                IF (imo > nmo) THEN
-                  CALL calculate_wavefunction(mo_virt, imo - nmo, &
+                  CALL calculate_wavefunction(imo - nmo, &
                                               wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                              pw_env)
+                                              pw_env, mo_vectors=mo_virt)
                ELSE
-                  CALL calculate_wavefunction(mo_coeff, imo, &
+                  CALL calculate_wavefunction(imo, &
                                               wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                              pw_env)
+                                              pw_env, mo_vectors=mo_coeff)
                END IF
                r_ldos_p(ildos)%ldos%pdos_array(imo) = 0.0_dp
                DO il = 1, r_ldos_p(ildos)%ldos%npoints

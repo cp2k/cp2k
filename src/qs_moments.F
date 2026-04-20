@@ -133,6 +133,8 @@ MODULE qs_moments
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: build_dsdv_moments
    PUBLIC :: dipole_velocity_deriv
+   PUBLIC :: calculate_commutator_nl_terms, op_orbbas, op_orbbas_rtp, &
+             print_moments, print_moments_nl, set_label
 
 CONTAINS
 
@@ -1357,7 +1359,8 @@ CONTAINS
 !> \param sab_orb_external ...
 !> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec, sab_orb_external, basis_type)
+   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec, sab_orb_external, basis_type, &
+        q)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
@@ -1365,6 +1368,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_external
       CHARACTER(len=*), OPTIONAL                         :: basis_type
+      LOGICAL, OPTIONAL                                  :: q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix'
 
@@ -1905,7 +1909,7 @@ CONTAINS
             rmom(2:4, 2) = MATMUL(cell%hmat, ci)
          CASE (2)
             ! Quadrupole
-            CPABORT("Berry phase moments bigger than 1 not implemented")
+            CPABORT("Berry phase moments bigger than 1 not implemented")  ! looks like it is though?
             zij(:, :) = CMPLX(1._dp, 0._dp, dp)
             DO ia = 1, SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
@@ -2006,7 +2010,7 @@ CONTAINS
             zi = zi*xphase
          CASE (2)
             ! Quadrupole
-            CPABORT("Berry phase moments bigger than 1 not implemented")
+            CPABORT("Berry phase moments bigger than 1 not implemented") 
             DO i = 1, 3
                DO j = i, 3
                   kvec(:) = twopi*(cell%h_inv(i, :) + cell%h_inv(j, :))
@@ -2479,8 +2483,16 @@ CONTAINS
             mmom(i) = strace
          END DO
 
+         do i = 1, 3
+            call integer_to_string(i, tag)
+            call open_file("m_"//trim(tag)//".dat", unit_number=file_unit, file_action="WRITE", file_status="REPLACE") 
+            call dbcsr_print(magmom(i)%matrix, matlab_format=.true., unit_nr=file_unit)
+            call close_file(file_unit)
+         end do
+
          CALL dbcsr_deallocate_matrix_set(magmom)
       END IF
+
 
       ! velocity representations
       IF (my_velreprs) THEN

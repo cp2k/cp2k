@@ -1841,8 +1841,9 @@ CONTAINS
          CALL para_env%sum(wf_vector)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env)
+         CALL calculate_wavefunction(1, psi_L, rho_g, atomic_kind_set, &
+                                     qs_kind_set, cell, dft_control, particle_set, pw_env, &
+                                     mo_vectors=mo_coeff)
 
          CALL collocate_function(wf_vector, psi_L, rho_g, atomic_kind_set, &
                                  qs_kind_set, cell, particle_set, pw_env, &

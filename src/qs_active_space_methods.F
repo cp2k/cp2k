@@ -1647,8 +1647,9 @@ CONTAINS
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
                CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin))
-               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
+               CALL calculate_wavefunction(iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                           mo_vectors=mo_coeff)
                IF (print2 .AND. iw > 0) THEN
                   WRITE (iw, "(T2,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
                END IF
@@ -2253,8 +2254,9 @@ CONTAINS
                do_mo = .TRUE.
             END IF
             IF (.NOT. do_mo) CYCLE
-            CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env)
+            CALL calculate_wavefunction(imo, wf_r, wf_g, atomic_kind_set, &
+                                        qs_kind_set, cell, dft_control, particle_set, pw_env, &
+                                        mo_vectors=mo_coeff)
             IF (para_env%is_source()) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"
                CALL open_file(filename, unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE")

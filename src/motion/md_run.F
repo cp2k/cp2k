@@ -19,6 +19,7 @@ MODULE md_run
    USE cell_types,                      ONLY: cell_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
@@ -183,7 +184,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_mol_dyn_low'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
-      INTEGER                                            :: handle, i, istep, md_stride, run_type_id
+      INTEGER                                            :: handle, i, istep, md_stride, run_type_id, &
+           output_unit
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: check, ehrenfest_md, save_mem, &
                                                             should_stop, write_binary_restart_file
@@ -218,6 +220,7 @@ CONTAINS
                constraint_section, thermal_regions, virial, subsys_i)
       logger => cp_get_default_logger()
       para_env => force_env%para_env
+      output_unit = cp_logger_get_default_unit_nr()
 
       global_section => section_vals_get_subs_vals(force_env%root_section, "GLOBAL")
       free_energy_section => section_vals_get_subs_vals(motion_section, "FREE_ENERGY")
@@ -449,6 +452,9 @@ CONTAINS
 
       ! Real MD Loop
       DO istep = 1, simpar%nsteps, md_stride
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, "(T3,A,I5,A,I5)") "MD step: ", istep, "/", simpar%nsteps
+         END IF
          ! Increase counters
          itimes = itimes + 1
          time = time + simpar%dt

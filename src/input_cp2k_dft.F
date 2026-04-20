@@ -1740,6 +1740,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="LOCALIZE", &
+                          description="Localise the Molecular orbitals each n steps "// &
+                          "real-time propagated TDDFT, 0 means never localise", &
+                          usage="LOCALIZE", default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_PULSE_DIRECTION", &
                           description="Direction of the applied electric field. The k vector is given as"// &
                           " 2*Pi*[i,j,k]*inv(h_mat), which for PERIODIC .FALSE. yields exp(ikr) periodic with"// &

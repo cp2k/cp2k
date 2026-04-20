@@ -735,6 +735,9 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_VXC")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_vxc)
 
+      tmp_section => section_vals_get_subs_vals(dft_section, "LOCALIZE")
+      CALL section_vals_val_get(tmp_section, "EACH", i_val=dft_control%localize_each)
+
       ! SMEAGOL interface
       tmp_section => section_vals_get_subs_vals(dft_section, "SMEAGOL")
       CALL read_smeagol_control(dft_control%smeagol_control, tmp_section)

@@ -957,6 +957,10 @@ MODULE input_constants
                                                ramp_env = 3, &
                                                custom_env = 4
 
+   INTEGER, PARAMETER, PUBLIC               :: rtp_localize_none = 0, &
+                                               rtp_localize_once = 1, &
+                                               rtp_localize_each = 2
+
    INTEGER, PARAMETER, PUBLIC               :: rtp_method_tddft = 1, &
                                                rtp_method_bse = 2
 

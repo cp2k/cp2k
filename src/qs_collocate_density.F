@@ -45,6 +45,9 @@ MODULE qs_collocate_density
                               gto_basis_set_type
    USE cell_types, ONLY: cell_type, &
                          pbc
+   USE cp_cfm_types, ONLY: cp_cfm_get_info, &
+                            cp_cfm_get_element, &
+                            cp_cfm_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types, ONLY: cp_fm_get_element, &
@@ -2615,10 +2618,10 @@ CONTAINS
 !>      03.2006 made independent of qs_env [Joost VandeVondele]
 !>      08.2024 call collocate_function [JGH]
 ! **************************************************************************************************
-   SUBROUTINE calculate_wavefunction(mo_vectors, ivector, rho, rho_gspace, &
+   SUBROUTINE calculate_wavefunction(ivector, rho, rho_gspace, &
                                      atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env, basis_type)
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_vectors
+                                     pw_env, mo_vectors, c_mo_vectors, basis_type, external_vector, &
+                                     c_external_vector)
       INTEGER, INTENT(IN)                                :: ivector
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
@@ -2628,7 +2631,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: mo_vectors
+      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: c_mo_vectors
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: external_vector
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL :: c_external_vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 
@@ -2639,11 +2646,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
-      ALLOCATE (eigenvector(nao))
-      DO i = 1, nao
-         CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
-      END DO
+      IF (PRESENT(external_vector)) THEN
+         nao = SIZE(external_vector)
+         ALLOCATE (eigenvector(nao))
+         eigenvector = external_vector
+      ELSE
+         CALL cp_fm_get_info(matrix=mo_vectors, nrow_global=nao)
+         ALLOCATE (eigenvector(nao))
+         DO i = 1, nao
+            CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
+         END DO
+      END IF
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 

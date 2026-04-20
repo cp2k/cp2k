@@ -54,6 +54,10 @@ MODULE rt_propagation_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_types'
 
+   TYPE rtp_states_type
+      INTEGER, ALLOCATABLE, DIMENSION(:)  :: states
+   END TYPE rtp_states_type
+
    TYPE rtp_rho_type
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: new => NULL()
       TYPE(dbcsr_p_type), POINTER, DIMENSION(:)     :: old => NULL()
@@ -129,7 +133,8 @@ MODULE rt_propagation_types
 
 ! *** Public data types ***
 
-   PUBLIC :: rt_prop_type
+   PUBLIC :: rt_prop_type, &
+             rtp_states_type
 
 ! *** Public subroutines ***
 
