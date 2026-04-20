@@ -19,6 +19,15 @@
     &XC
       &XC_FUNCTIONAL
         &PBE
+
+@IF $FUNC == PBE
+          PARAMETRIZATION ORIG
+@ENDIF
+
+@IF $FUNC == PBEsol
+          PARAMETRIZATION PBESOL
+@ENDIF
+
         &END PBE
       &END XC_FUNCTIONAL
     &END XC
