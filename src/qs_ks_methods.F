@@ -145,7 +145,7 @@ MODULE qs_ks_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
-             qs_ks_allocate_basics, evaluate_core_matrix_traces
+             qs_ks_allocate_basics, evaluate_core_matrix_traces, rebuild_ks_matrix
 
 CONTAINS
 
