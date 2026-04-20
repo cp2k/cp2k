@@ -553,7 +553,6 @@ else
 fi
 
 # default enable options
-list_cmake_options="__TRUE__"
 dry_run="__FALSE__"
 enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
@@ -718,13 +717,6 @@ Otherwise use option no."
       ;;
     --dry-run)
       dry_run="__TRUE__"
-      ;;
-    --list-cmake-options*)
-      list_cmake_options=$(read_enable "${1}")
-      if [ "${list_cmake_options}" = "__INVALID__" ]; then
-        report_error "invalid value for --list-cmake-options, please use yes or no"
-        exit 1
-      fi
       ;;
     --enable-tsan*)
       enable_tsan=$(read_enable "${1}")
@@ -1314,9 +1306,18 @@ else
   "${SCRIPTDIR}"/stage7/install_stage7.sh
   "${SCRIPTDIR}"/stage8/install_stage8.sh
   "${SCRIPTDIR}"/stage9/install_stage9.sh
+  echo
+  cat << EOF
+========================== Epilogue =========================
+Done! To build CP2K with dependencies you installed via toolchain, simply run
+this script:
+
+  ./build_cp2k.sh -j $(get_nprocs)
+
+It will source the file "install/setup", generate proper CMake flags based on
+toolchain options, and then build and install CP2K. For available options
+with the script, run "./build_cp2k.sh -h".
+EOF
 fi
 
-# Generate CMake options
-if [ "${list_cmake_options}" = "__TRUE__" ]; then
-  "${SCRIPTDIR}"/generate_cmake_options.sh
-fi
+#EOF

@@ -634,13 +634,11 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./tools/toolchain/scripts/common_vars.sh \
      ./tools/toolchain/scripts/signal_trap.sh \
      ./tools/toolchain/scripts/get_openblas_arch.sh \
-     ./tools/toolchain/scripts/generate_cmake_options.sh \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
 {install_args_str}
-    --dry-run \
-    --list-cmake-options=no
+    --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
 # This breaks up the lengthy installation into smaller build steps.
