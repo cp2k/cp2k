@@ -1,0 +1,285 @@
+@SET Project        H28_k
+@SET OT             F
+@SET LCD            F
+@SET UPDATE_HS      T
+@SET RESTART_SCF    F
+@SET V_bias_volt    0.0 #1.0
+@SET Temperature    100.
+# The following two parameters are computed automatically during the NEGF run.
+# You can use keywords 'FERMI_LEVEL' to give this value and skip calculation
+# or 'FERMI_LEVEL'+'REFINE_FERMI_LEVEL' to compute starting from this value.
+# If 'FERMI_LEVEL' is not given, it is calculated automatically.
+# 'V_SHIFT' is used to give initial value.
+@SET Fermi_level   -0.38560885
+@SET V_shift        0.00005408
+@SET cutoff         300
+@SET added_mos      10
+@SET max_scf        1000
+@SET eps_scf        1e-8
+@SET lx             6.0
+@SET ly             6.0
+!--------------------------------------------------------------------------------------------------!
+&GLOBAL
+  EXTENDED_FFT_LENGTHS .true.
+  PREFERRED_DIAG_LIBRARY SL
+  PRINT_LEVEL LOW  #SILENT #LOW #MEDIUM #HIGH #DEBUG
+  PROJECT ${Project}
+  RUN_TYPE NEGF
+&END GLOBAL
+
+&NEGF
+  # Integration lower bound (in Hartree)
+  ENERGY_LBOUND -2.0
+  !clenshaw-curtis simpson
+  ! INTEGRATION_MIN_POINTS 64
+  ! INTEGRATION_MAX_POINTS 768
+  # Maximum error in each matrix element of the density matrix
+  EPS_DENSITY 1e-7
+  EPS_GREEN 1e-7
+  EPS_SCF 1e-8
+  ETA 1e-7
+  HOMO_LUMO_GAP 0.5
+  # 'simpson' is slower, but works without FFTW3 library
+  # clenshaw-curtis is faster, but requires FFTW3 library
+  INTEGRATION_METHOD simpson
+  MAX_SCF 0
+  # Number of parallel processes per energy point.
+  # 'NPROC_POINT 1' means that if you run this job using 8 MPI processes,
+  # than Green's functions at up to 8 (8 / NPROC_POINT) energy points
+  # will be computed simultaneously.
+  #
+  NPROC_POINT 2
+  # Boundary conditions define solution of the Poisson equation up to
+  # an additive constant, which affects Hamiltonian matrix elements within
+  # the NEGF procedure. The following parameters control evaluation of
+  # the correct shift in Hartree potential:
+  #   * V_SHIFT           -- initial guess for the shift
+  #   * V_SHIFT_MAX_ITERS -- maximal number of iterations
+  V_SHIFT ${V_shift}
+  V_SHIFT_MAX_ITERS 100
+  &CONTACT
+    ELECTRIC_POTENTIAL [eV] ${V_bias_volt}/2
+    FERMI_LEVEL ${Fermi_level}
+    !FERMI_LEVEL_SHIFTED -0.12306442
+    !REFINE_FERMI_LEVEL
+    TEMPERATURE [K] ${Temperature}
+    # the force environment with the internal index '1' should be used
+    # to compute 'bulk' properties of this (1st) semi-infinite electrode.
+    !   FORCE_EVAL_SECTION 1
+    &BULK_REGION
+      # This section is used to map matrix elements between the primary
+      # (with index 0) and the 'electrode' (with index 1) force environments.
+      #
+      # Atomic indices (and/or names of molecular fragments) are relative
+      # to the primary force environment.
+      MOLNAME L1 L2
+      ! LIST 1..8
+      &CELL
+        MOLNAME L1
+        ! LIST 5..8
+      &END CELL
+      &CELL
+        MOLNAME L2
+        ! LIST 1..4
+      &END CELL
+    &END BULK_REGION
+    &RESTART
+      ! FILENAME Test
+      !READ_WRITE_HS
+      ! READ_WRITE_SGF
+    &END RESTART
+    &SCREENING_REGION
+      MOLNAME L0
+      ! LIST 9..12
+    &END SCREENING_REGION
+    !&PRINT
+    !  &DOS
+    !    FILENAME left
+    !    FROM_ENERGY [eV] -15
+    !    TILL_ENERGY [eV] 15
+    !    N_GRIDPOINTS 401
+    !  &END
+    !&END
+  &END CONTACT
+  &CONTACT
+    ELECTRIC_POTENTIAL [eV] -${V_bias_volt}/2
+    FERMI_LEVEL ${Fermi_level}
+    !REFINE_FERMI_LEVEL
+    TEMPERATURE [K] ${Temperature}
+    # the second semi-infinite electrode
+    !   FORCE_EVAL_SECTION 2
+    &BULK_REGION
+      MOLNAME R1 R2
+      &CELL
+        MOLNAME R1
+      &END CELL
+      &CELL
+        MOLNAME R2
+      &END CELL
+    &END BULK_REGION
+    &RESTART
+      ! FILENAME Test
+      !READ_WRITE_HS
+      ! READ_WRITE_SGF
+    &END RESTART
+    &SCREENING_REGION
+      MOLNAME R0
+    &END SCREENING_REGION
+  &END CONTACT
+  # Density mixing is not needed in zero-bias case, as NEGF self-consistent
+  # procedure will converge in one iteration. However, when an external bias
+  # is applied, a density mixing scheme in inverse space is typically
+  # much stable then the default direct mixing of new and old density matrices.
+  &MIXING
+    !  METHOD      pulay_mixing
+    !direct_p_mixing broyden_mixing pulay_mixing
+    ALPHA 0.05
+    NBUFFER 8
+    PULAY_ALPHA 0.2
+    ! PULAY_BETA 0.2
+  &END MIXING
+  &PRINT
+    &DOS
+      FILENAME device
+      FROM_ENERGY [eV] -15
+      N_GRIDPOINTS 401
+      TILL_ENERGY [eV] 15
+    &END DOS
+    &PROGRAM_RUN_INFO low
+      PRINT_LEVEL high
+      !high debug
+    &END PROGRAM_RUN_INFO
+    &RESTART OFF
+      BACKUP_COPIES 1
+      !FILENAME Test
+      &EACH
+        NEGF_SCF 10
+      &END EACH
+    &END RESTART
+    &TRANSMISSION
+      FILENAME transm
+      FROM_ENERGY [eV] -15
+      N_GRIDPOINTS 401
+      TILL_ENERGY [eV] 15
+    &END TRANSMISSION
+  &END PRINT
+  &SCATTERING_REGION
+    MOLNAME S
+    !LIST 13..16
+    &RESTART
+      ! FILENAME Test
+      !READ_WRITE_HS
+      ! READ_WRITE_SGF
+    &END RESTART
+  &END SCATTERING_REGION
+  &SCF
+    RESTART_SCF $RESTART_SCF
+    UPDATE_HS $UPDATE_HS
+  &END SCF
+  ! DISABLE_CACHE
+&END NEGF
+
+# *** Primary force environment ***
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD $LCD
+    MULTIPLICITY 1
+    &MGRID
+      CUTOFF ${cutoff}
+    &END MGRID
+    &POISSON
+      PERIODIC xyz
+      &EWALD
+        ALPHA 1.0
+      &END EWALD
+    &END POISSON
+    &QS
+      METHOD XTB
+      &XTB
+        CHECK_ATOMIC_CHARGES T
+        DO_EWALD T
+        GFN_TYPE 1
+        !  &TBLITE
+        !    METHOD GFN2
+        !  &END
+      &END XTB
+    &END QS
+    &SCF
+      MAX_SCF ${max_scf}
+      EPS_SCF ${eps_scf}
+      SCF_GUESS restart
+      !atomic restart
+      @IF ($OT == T)
+      &OT
+        MINIMIZER DIIS
+        N_DIIS 12
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        ! PRECONDITIONER          FULL_ALL
+        ! PRECONDITIONER          FULL_KINETIC
+        ! PRECOND_SOLVER          INVERSE_CHOLESKY
+        ! ALGORITHM IRAC
+        ! ENERGY_GAP              0.001
+        ! LINESEARCH              2PNT
+        ! STEPSIZE                0.1
+      &END OT
+      @ENDIF
+      @IF ($OT == F)
+      ADDED_MOS ${added_mos}
+      &SMEAR
+        ELECTRONIC_TEMPERATURE [K] 300
+        METHOD fermi_dirac
+      &END SMEAR
+      &MIXING
+        ALPHA 0.2
+        METHOD broyden_mixing
+        !broyden_mixing DIRECT_P_MIXING
+        NBUFFER 8
+      &END MIXING
+      &DIAGONALIZATION
+      &END DIAGONALIZATION
+      @ENDIF
+      &PRINT
+        &RESTART
+          FILENAME RESTART_0
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC ${lx} ${ly} 42.
+      PERIODIC xyz
+    &END CELL
+    &COORD
+      H        0.00000000       0.00000000       0.00000000 L2
+      H        0.00000000       0.00000000       1.50000000 L2
+      H        0.00000000       0.00000000       3.00000000 L2
+      H        0.00000000       0.00000000       4.50000000 L2
+      H        0.00000000       0.00000000       6.00000000 L1
+      H        0.00000000       0.00000000       7.50000000 L1
+      H        0.00000000       0.00000000       9.00000000 L1
+      H        0.00000000       0.00000000      10.50000000 L1
+      H        0.00000000       0.00000000      12.00000000 L0
+      H        0.00000000       0.00000000      13.50000000 L0
+      H        0.00000000       0.00000000      15.00000000 L0
+      H        0.00000000       0.00000000      16.50000000 L0
+      H        0.00000000       0.00000000      18.00000000 S
+      H        0.00000000       0.00000000      19.50000000 S
+      H        0.00000000       0.00000000      21.00000000 S
+      H        0.00000000       0.00000000      22.50000000 S
+      H        0.00000000       0.00000000      24.00000000 R0
+      H        0.00000000       0.00000000      25.50000000 R0
+      H        0.00000000       0.00000000      27.00000000 R0
+      H        0.00000000       0.00000000      28.50000000 R0
+      H        0.00000000       0.00000000      30.00000000 R1
+      H        0.00000000       0.00000000      31.50000000 R1
+      H        0.00000000       0.00000000      33.00000000 R1
+      H        0.00000000       0.00000000      34.50000000 R1
+      H        0.00000000       0.00000000      36.00000000 R2
+      H        0.00000000       0.00000000      37.50000000 R2
+      H        0.00000000       0.00000000      39.00000000 R2
+      H        0.00000000       0.00000000      40.50000000 R2
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

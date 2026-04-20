@@ -109,15 +109,19 @@ MODULE negf_methods
                                               evolt,&
                                               kelvin,&
                                               seconds
-   USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
-                                              gspace_mixing_nr
+   USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
+                                              direct_mixing_nr,&
+                                              gspace_mixing_nr,&
+                                              multisecant_mixing_nr,&
+                                              pulay_mixing_nr
    USE qs_energy,                       ONLY: qs_energies
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
-   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
-   USE qs_mixing_utils,                 ONLY: mixing_allocate,&
+   USE qs_ks_methods,                   ONLY: rebuild_ks_matrix
+   USE qs_mixing_utils,                 ONLY: charge_mixing_init,&
+                                              mixing_allocate,&
                                               mixing_init
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -1127,6 +1131,18 @@ CONTAINS
       IF (log_unit > 0) THEN
          WRITE (log_unit, '(/,T2,A)') "NEGF SELF-CONSISTENT PROCEDURE"
          WRITE (log_unit, "(         ' ------------------------------')")
+         IF (negf_env%mixing_method == direct_mixing_nr) THEN
+            WRITE (log_unit, '(T3,A)') "Mixing method:                Direct mixing of new and old density matrices"
+         END IF
+         IF (negf_env%mixing_method == broyden_mixing_nr) THEN
+            WRITE (log_unit, '(T3,A)') "Mixing method:                Broyden mixing"
+         END IF
+         IF (negf_env%mixing_method == pulay_mixing_nr) THEN
+            WRITE (log_unit, '(T3,A)') "Mixing method:                Pulay mixing"
+         END IF
+         IF (negf_env%mixing_method == multisecant_mixing_nr) THEN
+            WRITE (log_unit, '(T3,A)') "Mixing method:                Multisecant scheme for mixing"
+         END IF
       END IF
 
       IF (negf_control%update_HS .AND. (.NOT. negf_control%is_dft_entire)) &
@@ -1312,8 +1328,10 @@ CONTAINS
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env, negf_env%mixing_method, nspins=nspins, mixing_store=negf_env%mixing_storage)
-         IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-            CPABORT('TB Code not available')
+         IF (dft_control%qs_control%dftb) THEN
+            CPABORT('DFTB Code not available')
+         ELSE IF (dft_control%qs_control%xtb) THEN
+            CALL charge_mixing_init(negf_env%mixing_storage)
          ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
@@ -1504,7 +1522,7 @@ CONTAINS
 
          ! update KS-matrix
          IF (negf_control%update_HS) THEN
-            CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+            CALL rebuild_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
             ! extract blocks from the updated Kohn-Sham matrix
             DO ispin = 1, nspins
                CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=matrix_ks_qs_kp(ispin, 1)%matrix, &
