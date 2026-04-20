@@ -370,6 +370,9 @@ CONTAINS
             CALL gauxc_check_status(gauxc_status)
          ELSE
             CPASSERT(nspins == 2)
+            ! In here:
+            ! scalar <- rho_ao(1, :) + rho_ao(2, :)
+            ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
             density_zeta = dbcsr_to_dense(rho_ao(2, img))
             ! Do NOT reorder the following lines!
             density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
@@ -389,22 +392,22 @@ CONTAINS
 
          energy%exc = energy%exc + gauxc_xc_result%exc
 
+         ! TODO Check if it is correct to convert from dense to sparse matrix by template
+         ! The zero regions might have been filled?
          IF (nspins == 1) THEN
             IF (img == 1) THEN
                matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
-               ! Add the result of the next images to matrix_vxc(1)
-               vxc_zeta_tmp = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
-               CALL dbcsr_add(matrix_vxc(1)%matrix, vxc_zeta_tmp%matrix, 1.0_dp, 1.0_dp)
-               CALL dbcsr_release(vxc_zeta_tmp%matrix)
-               DEALLOCATE (vxc_zeta_tmp%matrix)
+               CPABORT("UNIMPLEMENTED: Handling for multiple result matrixes in k-point integration")
             END IF
          ELSE
             CPASSERT(nspins == 2)
-            vxc_zeta_tmp = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
+            ! rho_ao(1, :) = (scalar + zeta) / 2
+            ! rho_ao(2, :) = (scalar - zeta) / 2
+            vxc_zeta_tmp = dense_to_dbcsr(0.5_dp * gauxc_xc_result%vxc_zeta, rho_ao(1, img))
             IF (img == 1) THEN
                DO ispin = 1, 2
-                  matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
+                  matrix_vxc(ispin) = dense_to_dbcsr(0.5_dp * gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
                   CALL dbcsr_add( &
                      matrix_vxc(ispin)%matrix, &
                      vxc_zeta_tmp%matrix, &
@@ -413,25 +416,7 @@ CONTAINS
                      1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
                END DO
             ELSE
-               DO ispin = 1, 2
-                  ! Add the results of the next images to matrix_vxc(ispin)
-                  vxc_scalar_tmp = dense_to_dbcsr( &
-                                   gauxc_xc_result%vxc_scalar, &
-                                   rho_ao(ispin, img))
-                  CALL dbcsr_add( &
-                     vxc_scalar_tmp%matrix, &
-                     vxc_zeta_tmp%matrix, &
-                     1.0_dp, &
-                     ! 1.0 for ispin==1, -1.0 for ispin==2
-                     1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
-                  CALL dbcsr_add( &
-                     matrix_vxc(ispin)%matrix, &
-                     vxc_scalar_tmp%matrix, &
-                     1.0_dp, &
-                     1.0_dp)
-                  CALL dbcsr_release(vxc_scalar_tmp%matrix)
-                  DEALLOCATE (vxc_scalar_tmp%matrix)
-               END DO
+               CPABORT("UNIMPLEMENTED: Handling for multiple result matrixes in k-point integration")
             END IF
             CALL dbcsr_release(vxc_zeta_tmp%matrix)
             DEALLOCATE (vxc_zeta_tmp%matrix)
