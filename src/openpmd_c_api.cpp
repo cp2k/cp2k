@@ -149,6 +149,10 @@ int openPMD_attributable_set_attribute_vec_string(openPMD_Attributable attr,
 
 int openPMD_Attributable_series_flush(openPMD_Attributable attr, char const *);
 
+int openPMD_Attributable_setTimeUnitSI(
+    // in
+    openPMD_Attributable attr, double const timeUnitSI);
+
 /**********************
  * Iteration members. *
  **********************/
@@ -215,6 +219,10 @@ int openPMD_Mesh_setPosition(
     // in
     openPMD_Mesh mesh, double const *labels, int len_labels, int invert);
 
+int openPMD_Mesh_setGridUnitSI(
+    // in
+    openPMD_Mesh mesh, double const gridUnitSI);
+
 /***************************
  * RecordComponent members *
  ***************************/
@@ -238,6 +246,14 @@ int openPMD_RecordComponent_makeConstant(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
     int const *extent, int invert, void const *value);
+
+int openPMD_RecordComponent_setUnitSI(
+    // in
+    openPMD_RecordComponent rc, double const unitSI);
+
+int openPMD_RecordComponent_setUnitDimension(
+    // in
+    openPMD_RecordComponent rc, int const *unitDimension);
 
 int openPMD_RecordComponent_storeChunk(
     // in
@@ -689,6 +705,14 @@ int openPMD_Attributable_series_flush(openPMD_Attributable attr,
   return 0;
 }
 
+int openPMD_Attributable_setTimeUnitSI(
+    // in
+    openPMD_Attributable attr_param, double const timeUnitSI) {
+  auto attributable = reinterpret_cast<openPMD::Attributable *>(attr_param);
+  attributable->setAttribute("timeUnitSI", timeUnitSI);
+  return 0;
+}
+
 int openPMD_Iteration_upcast_to_Attributable(
     // in
     openPMD_Iteration iteration,
@@ -792,6 +816,14 @@ int openPMD_Mesh_setPosition(
   return 0;
 }
 
+int openPMD_Mesh_setGridUnitSI(
+    // in
+    openPMD_Mesh mesh_param, double const gridUnitSI) {
+  auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+  mesh->setGridUnitSI(gridUnitSI);
+  return 0;
+}
+
 int openPMD_MeshRecordComponent_upcast_to_RecordComponent(
     // in
     openPMD_MeshRecordComponent mrc,
@@ -843,6 +875,26 @@ int openPMD_RecordComponent_makeConstant(
   openPMD::switchDatasetType<implementation::RecordComponent_makeConstant>(
       implementation::datatype_c_to_cxx(dt), *rc, value);
 
+  return 0;
+}
+
+int openPMD_RecordComponent_setUnitSI(
+    // in
+    openPMD_RecordComponent rc_param, double const unitSI) {
+  auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+  rc->setUnitSI(unitSI);
+  return 0;
+}
+
+int openPMD_RecordComponent_setUnitDimension(
+    // in
+    openPMD_RecordComponent rc_param, int const *unitDimension) {
+  auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+  std::array<double, 7> unitDim{};
+  for (int i = 0; i < 7; ++i) {
+    unitDim[i] = static_cast<double>(unitDimension[i]);
+  }
+  rc->setAttribute("unitDimension", unitDim);
   return 0;
 }
 

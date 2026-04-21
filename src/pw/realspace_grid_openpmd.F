@@ -22,6 +22,7 @@ MODULE realspace_grid_openpmd
       file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
       mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
       mpi_character_size
+   USE physcon, ONLY: a_bohr, seconds
 #if defined(__parallel)
 #if defined(__MPI_F08)
    USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
@@ -405,7 +406,10 @@ CONTAINS
       CALL mesh%set_position([0.5_dp, 0.5_dp, 0.5_dp])
       CALL mesh%set_grid_global_offset([0._dp, 0._dp, 0._dp])
       CALL mesh%set_grid_spacing(grid_spacing)
+      CALL mesh%set_grid_unit_SI(a_bohr)
       scalar_mesh = mesh%as_record_component()
+      CALL scalar_mesh%set_unit_SI(1.0_dp)
+      CALL scalar_mesh%set_unit_dimension([0, 0, 0, 0, 0, 0, 0])
       CALL scalar_mesh%reset_dataset(openpmd_type_double, global_extent)
 
       ! shortcut
