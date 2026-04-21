@@ -4,11 +4,13 @@
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 TOOLCHAIN_ROOTDIR="${PWD}"
-TOOLCHAIN_INSTALL_DIR="${TOOLCHAIN_ROOTDIR}/install"
 TOOLCHAIN_SCRIPTS_DIR="${TOOLCHAIN_ROOTDIR}/scripts"
+source "${TOOLCHAIN_ROOTDIR}/toolchain_settings"
 source "${TOOLCHAIN_SCRIPTS_DIR}/tool_kit.sh"
 
 # ====================== Parameter parsing ======================
+CP2K_ROOT=$(cd "${TOOLCHAIN_ROOTDIR}/../.." && pwd)
+CMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install
 CLEAN_BUILD="__FALSE__"
 BUILD_JOBS="$(get_nprocs)"
 BUILD_SHARED_LIBS="ON"
@@ -23,6 +25,7 @@ Generate CMake options from the toolchain configuration and build CP2K.
 Options:
   -h, --help            Show this help message and exit
   -j N, -jN             Number of parallel build jobs
+  --prefix              Set CMAKE_INSTALL_PREFIX (default is ${CP2K_ROOT}/install)
   --dry-run             Show generated CMake options only and then exit
   --clean               Remove the build directory before configuring, which means
                         rebuilding CP2K entirely
@@ -45,6 +48,15 @@ while [ $# -ge 1 ]; do
     -j[0-9]*)
       BUILD_JOBS="${1#-j}"
       ;;
+    --prefix)
+      if [[ "${2}" != /* ]]; then
+        report_error "The path for --prefix must be an absolute path."
+        exit 1
+      fi
+      CMAKE_INSTALL_PREFIX="${2}"
+      unset CP2K_DATA_DIR
+      shift
+      ;;
     --build-static)
       BUILD_SHARED_LIBS="OFF"
       ;;
@@ -62,20 +74,7 @@ while [ $# -ge 1 ]; do
 done
 
 # ====================== Pre-checks ======================
-if [ ! -f "${TOOLCHAIN_INSTALL_DIR}/setup" ]; then
-  echo "Error: Toolchain is not installed. Please run ./install_cp2k_toolchain.sh first."
-  exit 1
-fi
-
-# Load toolchain environment (required for with_xxx variables)
-source "${TOOLCHAIN_INSTALL_DIR}/setup"
-source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
-
-printf "========================== %s =========================\n" \
-  "Generating CMake options from toolchain"
-
 # Require complete source tree
-CP2K_ROOT=$(cd "${TOOLCHAIN_ROOTDIR}/../.." && pwd)
 if [ -d "${CP2K_ROOT}/src" ]; then
   echo "Root directory of CP2K with source code is found as ${CP2K_ROOT}"
   echo "(path is exported to variable \${CP2K_ROOT})."
@@ -90,14 +89,40 @@ else
   exit 1
 fi
 if [ -d "${CP2K_ROOT}/data" ]; then
-  echo "Data directory ${CP2K_ROOT}/data is found and set as CP2K_DATA_DIR."
+  echo "Data directory ${CP2K_ROOT}/data is found."
 else
   report_error ${LINENO} "Data directory \${CP2K_ROOT}/data cannot be found."
   exit 1
 fi
 
+# Require finished toolchain
+if [ ! -f "${TOOLCHAIN_INSTALL_DIR}/setup" ]; then
+  echo "Error: Toolchain is not installed. Please run ./install_cp2k_toolchain.sh first."
+  exit 1
+fi
+
+# Disallow combination of installing toolchain outside the source tree and CP2K under the source tree
+if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}/setup" ] && [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
+  echo
+  echo "You toolchain installation is outside the source tree but the install"
+  echo "prefix of CP2K is under the source tree. This is disallowed by this"
+  echo "script. The script will now abort; please manually set \"--prefix\""
+  echo "to a proper path."
+  exit 1
+fi
+
+# Load toolchain environment (required for with_xxx variables)
+source "${TOOLCHAIN_INSTALL_DIR}/setup"
+source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
+
+printf "========================== %s =========================\n" \
+  "Generating CMake options from toolchain"
+
 # Generate cmake options for compiling cp2k
-CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install -DCP2K_DATA_DIR=${CP2K_ROOT}/data -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
+CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
+if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
+  CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
+fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_INSTALL_DIR}/setup")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
   for toolchain_option in $(grep -i "dontuse" "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf" | grep -vi "gcc" | cut -d'_' -f2 | cut -d'=' -f1); do
@@ -169,6 +194,7 @@ if [ "${DRY_RUN}" != "__TRUE__" ]; then
   echo "================== CMake configuration ==================="
   echo "Source dir : ${CP2K_ROOT}"
   echo "Build  dir : ${BUILD_DIR}"
+  echo "Install dir: ${CMAKE_INSTALL_PREFIX}"
   echo "Shared libs: ${BUILD_SHARED_LIBS}"
 
   echo -n "Configuring ... "
@@ -186,7 +212,7 @@ if [ "${DRY_RUN}" != "__TRUE__" ]; then
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file
-  cat << EOF > "${CP2K_ROOT}/install/cp2k_env"
+  cat << EOF > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
 #!/bin/bash
 export CP2K_ROOT="${CP2K_ROOT}"
 source ${TOOLCHAIN_INSTALL_DIR}/setup

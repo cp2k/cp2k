@@ -32,6 +32,7 @@ export SCRIPTDIR="${ROOTDIR}/scripts"
 export BUILDDIR="${ROOTDIR}/build"
 export INSTALLDIR="${ROOTDIR}/install"
 export SETUPFILE="${INSTALLDIR}/setup"
+export TOOLKIT_SCRIPT="${SCRIPTDIR}/tool_kit.sh"
 
 # ------------------------------------------------------------------------
 # Make a copy of all options for $SETUPFILE
@@ -85,6 +86,9 @@ OPTIONS:
                           If omitted, the script will automatically try to
                           determine the number of available processors and use
                           all of them by default.
+  --install-dir           Set the directory you want to installed toolchain
+                          dependencies to. Default is the "install" directory
+                          in current path.
   --no-check-certificate  Bypass verification of server's certificate while
                           downloading anything from internet via wget command.
                           In case wget errors about "certificate verification"
@@ -617,6 +621,16 @@ while [ $# -ge 1 ]; do
       ;;
     -j[0-9]*)
       export NPROCS_OVERWRITE="${1#-j}"
+      ;;
+    --install-dir=*)
+      if [[ "${1#--install-dir=}" != /* ]]; then
+        report_error "The path for --install-dir must be an absolute path."
+        exit 1
+      fi
+      export INSTALLDIR="${1#--install-dir=}"
+      export SETUPFILE="${INSTALLDIR}/setup"
+      cp ${SCRIPTDIR}/tool_kit.sh ${INSTALLDIR}/
+      export TOOLKIT_SCRIPT="${INSTALLDIR}/tool_kit.sh"
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="--no-check-certificate"
@@ -1252,11 +1266,17 @@ fi
 # Installing tools required for building CP2K and associated libraries
 # ------------------------------------------------------------------------
 
+# Write toolchain configurations
+cat << EOF > "${ROOTDIR}/toolchain_settings"
+#!/bin/bash
+export TOOLCHAIN_INSTALL_DIR="${INSTALLDIR}"
+export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
+EOF
+
 # Write head of setup file
 cat << EOF > "$SETUPFILE"
 #!/bin/bash
-source "${SCRIPTDIR}/tool_kit.sh"
-export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
+source "${TOOLKIT_SCRIPT}"
 EOF
 
 # Write toolchain environment
