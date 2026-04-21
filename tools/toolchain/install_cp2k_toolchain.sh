@@ -629,7 +629,7 @@ while [ $# -ge 1 ]; do
       fi
       export INSTALLDIR="${1#--install-dir=}"
       export SETUPFILE="${INSTALLDIR}/setup"
-      cp ${SCRIPTDIR}/tool_kit.sh ${INSTALLDIR}/
+      cp "${SCRIPTDIR}"/tool_kit.sh "${INSTALLDIR}"/
       export TOOLKIT_SCRIPT="${INSTALLDIR}/tool_kit.sh"
       ;;
     --no-check-certificate)

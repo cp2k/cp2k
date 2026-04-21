@@ -54,7 +54,6 @@ while [ $# -ge 1 ]; do
         exit 1
       fi
       CMAKE_INSTALL_PREFIX="${2}"
-      unset CP2K_DATA_DIR
       shift
       ;;
     --build-static)
@@ -224,12 +223,12 @@ EOF
   echo
   echo "Done! Installed binaries are now available in: ${CP2K_ROOT}/install/bin"
   echo
-  echo "Please always source the below script to load CP2K environment before running CP2K:"
-  echo "  source ${CP2K_ROOT}/install/cp2k_env"
-  echo
-  echo "To run regtests:"
-  echo "  ${CP2K_ROOT}/tests/do_regtest.py ${CP2K_ROOT}/install/bin psmp"
+  echo "It's suggested to run regtests after installation:"
+  echo "  ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp"
   echo "Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for available options of regtesting."
+  echo
+  echo "Please always source the below script to load CP2K environment before running CP2K:"
+  echo "  source ${CMAKE_INSTALL_PREFIX}/cp2k_env"
 else
   echo "Since you run this script with \"--dry-run\", it now exits."
   echo "To build CP2K, drop off this flag."
