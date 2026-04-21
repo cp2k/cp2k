@@ -70,6 +70,12 @@ a range of devices). If you wish to build with GPU support, please see the
      --with-fftw=system  --enable-hip
 ```
 
+- Build and install CP2K with prepared toolchain environment:
+
+```shell
+./build_cp2k.sh
+```
+
 ## 3. Compile
 
 This section has been moved to the

@@ -3,14 +3,22 @@
 CP2K uses the [CMake](https://cmake.org) build system, which detects dependencies and controls the
 compilation process. The dependencies have to be installed in advance.
 
-Currently, CP2K offers two convenient ways for building CP2K from source with its dependencies. One
-is to use the classic toolchain scripts to customize and install the required dependencies in a
-single step, thereby preparing the environment for compiling CP2K.
+Currently, CP2K offers two convenient ways for building CP2K from source with its dependencies:
 
-A more modern and automated approach is via the `make_cp2k.sh` script, which leverages
-[Spack](https://spack.readthedocs.io) to install the dependencies and subsequently build CP2K. The
-latter approach is only available for the current [CP2K master branch](https://github.com/cp2k/cp2k)
-and CP2K release versions `2026.02` and newer.
+1. The toolchain scripts, which customize and install the required dependencies in a single step,
+   thereby preparing the environment for compiling CP2K. Run `install_cp2k_toolchain.sh` under
+   `cp2k/tools/toolchain` to perform the toolchain steps; for detailed information, see
+   <https://github.com/cp2k/cp2k/blob/master/tools/toolchain/README.md>. After building toolchain,
+   you can use `build_cp2k.sh` to build and install CP2K with prepared toolchain environment.
+
+2. The `make_cp2k.sh` script, a more modern and automated approach which leverages
+   [Spack](https://spack.readthedocs.io) to install the dependencies and subsequently build CP2K.
+
+```{note}
+- The toolchain is deprecated and will possibly be removed or slimmed down in a future release.
+- The latter approach with Spack is only available for the current
+[CP2K master branch](https://github.com/cp2k/cp2k) and CP2K release versions `2026.02` and newer.
+```
 
 ## make_cp2k.sh
 
@@ -105,8 +113,8 @@ Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | p
 
 </details>
 
-The first run will take longer as it will build all CP2K dependencies with Spack. The Spack
-installation is kept fully local in the subfolder `cp2k/spack` which corresponds to the
+The first run will take longer as it will build all requested CP2K dependencies with Spack. The
+Spack installation is kept fully local in the subfolder `cp2k/spack` which corresponds to the
 `tools/toolchain/install` folder created by the CP2K toolchain.
 
 Subsequent runs of the `make_cp2k.sh` script will use the software stack from that `cp2k/spack`
