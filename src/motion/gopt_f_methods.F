@@ -55,6 +55,7 @@ MODULE gopt_f_methods
                     dp, &
                     int_8
    USE machine, ONLY: m_flush
+   USE mathlib, ONLY: det_3x3
    USE md_energies, ONLY: sample_memory
    USE message_passing, ONLY: mp_para_env_type
    USE motion_utils, ONLY: write_simulation_cell, &
@@ -1081,7 +1082,7 @@ CONTAINS
 
       INTEGER                                            :: i, iatom, idg, j, natom, nparticle, &
                                                             shell_index
-      REAL(KIND=dp)                                      :: fc, fs, mass
+      REAL(KIND=dp)                                      :: fc, fs, mass, ratio
       REAL(KIND=dp), DIMENSION(3)                        :: s
       TYPE(cell_type), POINTER                           :: cell_ref
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1136,6 +1137,15 @@ CONTAINS
                cell%hmat(j, i) = x(idg)
             END DO
          END DO
+         IF (gopt_env%cell_env%keep_volume) THEN
+            ratio = cell%deth/ABS(det_3x3(cell%hmat))
+            ratio = ratio**(1.0_dp/3.0_dp) ! no need to use EXP(LOG(ratio)/3) for cube root
+            DO i = 1, 3
+               DO j = 1, i
+                  cell%hmat(j, i) = cell%hmat(j, i)*ratio
+               END DO
+            END DO
+         END IF
          CALL init_cell(cell)
          CALL cp_subsys_set(subsys, cell=cell)
 

@@ -20,4 +20,6 @@
 "h2o_dimer.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-11.54506384435821}]
 "ghost.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-1.03458221876736}]
 "tcif.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-27.71649842848894}]
+"quartz-kv.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-34.8491812462054}]
+"quartz-kv-ks.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-34.85757891946725}]
 #EOF

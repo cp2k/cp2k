@@ -60,7 +60,8 @@ MODULE cell_opt_types
       ! Simulation cell optimization parameters
       INTEGER                                    :: constraint_id = fix_none
       LOGICAL                                    :: keep_angles = .FALSE., &
-                                                    keep_symmetry = .FALSE.
+                                                    keep_symmetry = .FALSE., &
+                                                    keep_volume = .FALSE.
       REAL(KIND=dp)                              :: pres_ext = 0.0_dp, pres_int = 0.0_dp, pres_tol = 0.0_dp, pres_constr = 0.0_dp
       REAL(KIND=dp), DIMENSION(3, 3)             :: mtrx = 0.0_dp
       REAL(KIND=dp), DIMENSION(3, 3)             :: rot_matrix = 0.0_dp
@@ -95,6 +96,7 @@ CONTAINS
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cell_create(cell_env%ref_cell)
       CALL cell_clone(cell, cell_env%ref_cell, tag="REF_CELL_OPT")
+      CALL section_vals_val_get(geo_section, "KEEP_VOLUME", l_val=cell_env%keep_volume)
       CALL section_vals_val_get(geo_section, "KEEP_ANGLES", l_val=cell_env%keep_angles)
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
@@ -121,6 +123,13 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,F20.1)") &
             "CELL_OPT| Pressure tolerance [bar]: ", cp_unit_from_cp2k(cell_env%pres_tol, "bar")
+         IF (cell_env%keep_volume) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep volume of cell: ", "YES"
+         ELSE
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               "CELL_OPT| Keep volume of cell: ", " NO"
+         END IF
          IF (cell_env%keep_angles) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
                "CELL_OPT| Keep angles between the cell vectors: ", "YES"

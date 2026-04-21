@@ -1013,26 +1013,32 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       CALL create_geoopt_section(section, __LOCATION__, label="CELL_OPT", &
-                                 description="This section sets the environment for the optimization of the simulation cell."// &
-                                 " Two possible schemes are available: (1) Zero temperature optimization;"// &
-                                 " (2) Finite temperature optimization.", &
-                                 just_optimizers=.TRUE., &
-                                 use_model_hessian=.FALSE.)
+                                 description="This section sets the environment for the optimization "// &
+                                 "of the simulation cell. As is noted in FORCE_EVAL/SUBSYS/CELL, the "// &
+                                 "program convention is that the first cell vector A lies along the "// &
+                                 "X-axis and the second cell vector B is in the XY plane, such that "// &
+                                 "the cell vector matrix is a lower triangle. The algorithm support "// &
+                                 "for updating the three upper triangular components during a cell "// &
+                                 "optimization is not complete or tested, so the input structure has "// &
+                                 "to be prepared accordingly with these three components precisely 0 "// &
+                                 "even for cases like the primitive rhombohedral cell of the FCC lattice.", &
+                                 just_optimizers=.TRUE., use_model_hessian=.FALSE.)
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
          keyword, __LOCATION__, name="TYPE", &
          description="Specify which kind of method to use for the optimization of the simulation cell", &
-         usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
-         enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
+         usage="TYPE (DIRECT_CELL_OPT|GEO_OPT|MD)", &
+         enum_c_vals=s2a("DIRECT_CELL_OPT", "GEO_OPT", "MD"), &
          enum_desc=s2a( &
-         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps."// &
-         " The stress tensor is computed at the optimized geometry.", &
-         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor"// &
-         " used for the cell optimization.", &
-         "Performs a geometry and cell optimization at the same time."// &
-         " The stress tensor is computed at every step"), &
-         enum_i_vals=[default_cell_geo_opt_id, default_cell_md_id, default_cell_direct_id], &
+         "Performs a geometry and cell optimization at the same time. "// &
+         "The stress tensor is computed at every step", &
+         "Performs a geometry optimization between cell optimization steps. "// &
+         "The MOTION/GEO_OPT section must be defined. "// &
+         "The stress tensor is computed at the optimized geometry.", &
+         "Performs a molecular dynamics run for computing the stress tensor "// &
+         "used for the cell optimization. The MOTION/MD section must be defined."), &
+         enum_i_vals=[default_cell_direct_id, default_cell_geo_opt_id, default_cell_md_id], &
          default_i_val=default_cell_direct_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1048,19 +1054,34 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="KEEP_ANGLES", &
-         description="Keep angles between the cell vectors constant, but allow the lengths of the"// &
-         " cell vectors to change independently."// &
-         " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.", &
-         usage="KEEP_ANGLES TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="KEEP_VOLUME", &
+                          description="Keep the volume of the cell constant during cell optimization. "// &
+                          "This is implemented by comparing the cell volumes and scaling the new "// &
+                          "cell vectors just before updating the cell information, and can be "// &
+                          "used together with KEEP_ANGLES or KEEP_SYMMETRY.", &
+                          usage="KEEP_VOLUME TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KEEP_ANGLES", &
+                          description="Keep angles between the cell vectors constant, but "// &
+                          "allow the lengths of the cell vectors to change independently "// &
+                          "during cell optimization. This is implemented by projecting out "// &
+                          "the components of angles in the cell gradient before the cell "// &
+                          "is updated. Albeit general, this is most useful for triclinic "// &
+                          "cells; to enforce higher symmetry, see KEEP_SYMMETRY.", &
+                          usage="KEEP_ANGLES TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="KEEP_SYMMETRY", &
-                          description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "// &
-                          "The initial symmetry must be specified in the &CELL section.", &
-                          usage="KEEP_SYMMETRY yes", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          description="Keep the requested initial cell symmetry as specified "// &
+                          "in the FORCE_EVAL/SUBSYS/CELL section during cell optimization. "// &
+                          "This is implemented by removing symmetry-breaking components and "// &
+                          "taking averages of components if necessary in the cell gradient "// &
+                          "before the cell is updated. To enforce the space group (which "// &
+                          "requires spglib package), see KEEP_SPACE_GROUP.", &
+                          usage="KEEP_SYMMETRY TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
