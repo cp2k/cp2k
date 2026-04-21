@@ -101,7 +101,7 @@ if [ ! -f "${TOOLCHAIN_INSTALL_DIR}/setup" ]; then
 fi
 
 # Disallow combination of installing toolchain outside the source tree and CP2K under the source tree
-if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}/setup" ] && [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
+if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}"/install ] && [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   echo
   echo "You toolchain installation is outside the source tree but the install"
   echo "prefix of CP2K is under the source tree. This is disallowed by this"
