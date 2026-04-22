@@ -280,10 +280,10 @@ CONTAINS
          ELSE
             CALL pbe_lda_info(functional, reference, shortform, needs, max_deriv)
          END IF
-      CASE ("SKALA")
+      CASE ("GAUXC")
          CALL skala_info(functional, lsd, reference, shortform, needs, max_deriv)
-!          Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
-!          when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
+         ! Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
+         ! when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_info(reference, shortform, needs, max_deriv)
@@ -505,7 +505,7 @@ CONTAINS
          ELSE
             CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
-      CASE ("SKALA")
+      CASE ("GAUXC")
          CPABORT(abort_message_skala)
       CASE ("XWPBE")
          IF (lsd) THEN

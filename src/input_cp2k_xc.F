@@ -1290,8 +1290,8 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="SKALA", &
-                          description="Uses the Skala functional via GauXC", &
+      CALL section_create(section, __LOCATION__, name="GAUXC", &
+                          description="Use GauXC-provided functionals, e.g. Skala", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1303,7 +1303,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="functional", &
-                          description="Underlying functional name to use in GauXC", &
+                          description="Underlying functional name to use in GauXC. For Skala, a path to the Skala checkpoint to be used.", &
                           default_c_val="PBE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

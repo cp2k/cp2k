@@ -203,8 +203,8 @@ CONTAINS
          ifun = ifun + 1
          xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
          IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-         IF (xc_fun%section%name /= "SKALA" .OR. ifun > 1) THEN
-            CPABORT("SKALA functional is mutually exclusive with any other functional.")
+         IF (xc_fun%section%name /= "GAUXC" .OR. ifun > 1) THEN
+            CPABORT("GauXC functionals are mutually exclusive with any other functional.")
          END IF
          gauxc_functional_section => xc_fun
       END DO

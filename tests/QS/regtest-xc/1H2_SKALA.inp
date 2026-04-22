@@ -3,7 +3,7 @@
 &FORCE_EVAL
   &DFT
     &MGRID
-      CUTOFF 200
+      CUTOFF 1200
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -18,9 +18,9 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &SKALA
+        &GAUXC
           FUNCTIONAL PBE
-        &END SKALA
+        &END GAUXC
       &END XC_FUNCTIONAL
     &END XC
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
