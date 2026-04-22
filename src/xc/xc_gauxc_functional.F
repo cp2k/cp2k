@@ -273,7 +273,7 @@ CONTAINS
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
-      TYPE(dbcsr_p_type)                                 :: vxc_scalar_tmp, vxc_zeta_tmp
+      TYPE(dbcsr_p_type)                                 :: vxc_zeta_tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -324,13 +324,11 @@ CONTAINS
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
-                  natom, &
                   gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       gauxc_basis = gauxc_create_basisset( &
                     qs_kind_set, &
                     particle_set, &
-                    natom, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       gauxc_grid_result = gauxc_create_grid( &
@@ -404,10 +402,10 @@ CONTAINS
             CPASSERT(nspins == 2)
             ! rho_ao(1, :) = (scalar + zeta) / 2
             ! rho_ao(2, :) = (scalar - zeta) / 2
-            vxc_zeta_tmp = dense_to_dbcsr(0.5_dp * gauxc_xc_result%vxc_zeta, rho_ao(1, img))
+            vxc_zeta_tmp = dense_to_dbcsr(0.5_dp*gauxc_xc_result%vxc_zeta, rho_ao(1, img))
             IF (img == 1) THEN
                DO ispin = 1, 2
-                  matrix_vxc(ispin) = dense_to_dbcsr(0.5_dp * gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
+                  matrix_vxc(ispin) = dense_to_dbcsr(0.5_dp*gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
                   CALL dbcsr_add( &
                      matrix_vxc(ispin)%matrix, &
                      vxc_zeta_tmp%matrix, &

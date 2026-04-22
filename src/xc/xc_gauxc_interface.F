@@ -42,7 +42,8 @@ MODULE xc_gauxc_interface
       basis_set_list_setup
    USE basis_set_types, ONLY: &
       gto_basis_set_p_type, &
-      gto_basis_set_type
+      gto_basis_set_type, &
+      write_gto_basis_set
    USE periodic_table, ONLY: &
       get_ptable_info
    USE gauxc_status, ONLY: &
@@ -243,18 +244,18 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_molecule(particle_set, natoms, status) RESULT(res)
+   FUNCTION gauxc_create_molecule(particle_set, status) RESULT(res)
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      INTEGER, INTENT(IN)                                :: natoms
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_molecule_type)                       :: res
 
 #ifdef __GAUXC
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: atomic_number, i
+      INTEGER                                            :: atomic_number, i, natoms
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_atom_type), ALLOCATABLE, DIMENSION(:)   :: atoms
 
+      natoms = SIZE(particle_set)
       ALLOCATE (atoms(natoms))
 
       DO i = 1, natoms
@@ -287,18 +288,17 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_basisset(qs_kind_set, particle_set, natoms, status) RESULT(res)
+   FUNCTION gauxc_create_basisset(qs_kind_set, particle_set, status) RESULT(res)
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
-      INTEGER, INTENT(IN)                                :: natoms
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_basisset_type)                       :: res
 
 #ifdef __GAUXC
       INTEGER                                            :: iatom, ikind, iprim, iset, ishell, lval, &
                                                             nkind, npgf, nset, nshell, &
-                                                            nshell_total, shell_index
+                                                            nshell_total, shell_index, natoms
       REAL(c_double), DIMENSION(3)                       :: shell_origin
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(gauxc_shell_type), ALLOCATABLE, DIMENSION(:)  :: shells
@@ -306,9 +306,9 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis
 
       nkind = SIZE(qs_kind_set)
+      natoms = SIZE(particle_set)
 
       ALLOCATE (basis_set_list(nkind))
-      ! fixme: schreibe version dieser funktion, die als eingabe direkt die basis_set_list nimmt
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       nshell_total = 0
@@ -317,6 +317,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
          gto_basis => basis_set_list(ikind)%gto_basis_set
          CPASSERT(ASSOCIATED(gto_basis))
+         CALL write_gto_basis_set(gto_basis, 6, "–––––GAUXC-CREATE-BASISSET–––––")
          nshell_total = nshell_total + SUM(gto_basis%nshell)
       END DO
 
@@ -343,6 +344,8 @@ CONTAINS
                shell_index = shell_index + 1 ! global shell index, flattened over atoms and groups
                lval = gto_basis%l(ishell, iset)
                shells(shell_index)%l = INT(lval, c_int32_t)
+               ! FIXME hardcoded true param
+               ! pure=1: spherical Gaussians; pure=0: cartesian Gaussians
                shells(shell_index)%pure = .TRUE._c_bool
                shells(shell_index)%nprim = INT(npgf, c_int32_t)
                shells(shell_index)%origin = shell_origin
