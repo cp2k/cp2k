@@ -91,6 +91,25 @@ done
 
 # ====================== Pre-checks ======================
 # Require complete source tree
+# A minimum working environment for this script should be as follows (assuming out-of-tree build not required):
+# cp2k                                  <- variable ${CP2K_ROOT}; CMake option -S
+# ├── CMakeLists.txt                    <- file to be parsed for generating cmake options
+# ├── cmake                             <- directory containing CMake files
+# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR\
+# ├── build                             <- to-be-created; CMake option -B
+# ├── install                           <- to-be-created; CMake option -DCMAKE_INSTALL_PREFIX
+# ├── src                               <- CP2K source code directory
+# └── tools
+#     └── toolchain                     <- working directory; variable ${TOOLCHAIN_ROOTDIR}
+#         ├── build_cp2k.sh             <- this script
+#         ├── install_cp2k_toolchain.sh <- script being executed before calling this script
+#         ├── scripts                   <- directory with toolchain scripts; ${TOOLCHAIN_SCRIPTS_DIR}
+#         │   └── tool_kit.sh
+#         └── install                   <- directory with installed dependencies; ${TOOLCHAIN_INSTALL_DIR}
+#             ├── setup                 <- * file to be used for building CP2K
+#             ├── toolchain.conf        <- * file to be parsed for generating cmake options
+#             └── toolchain.env         <- * file to be parsed for generating cmake options (MPI_F08)
+#
 if [ -d "${CP2K_ROOT}/src" ]; then
   echo "Root directory of CP2K with source code is found as ${CP2K_ROOT}"
   echo "(path is exported to variable \${CP2K_ROOT})."
