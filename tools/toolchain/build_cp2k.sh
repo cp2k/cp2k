@@ -3,7 +3,24 @@
 # shellcheck disable=all
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
+
 TOOLCHAIN_ROOTDIR="${PWD}"
+# ------------------------------------------------------------------------
+# Exit this script if it is not called from the ./tools/toolchain directory
+# ------------------------------------------------------------------------
+if [ "${TOOLCHAIN_ROOTDIR}" != "${SCRIPT_DIR}" ]; then
+  cat << EOF
+ERROR: (${SCRIPT_NAME}, line ${LINENO}) Incorrect execution location.
+The absolute path of the build_cp2k.sh script is at:
+  ${SCRIPT_DIR}
+Actual working directory where it is currently called:
+  ${TOOLCHAIN_ROOTDIR}
+Please enter the absolute path above before executing the build_cp2k.sh script
+so that subsequent scripts can be found and files can be placed correctly.
+EOF
+  exit 1
+fi
 TOOLCHAIN_SCRIPTS_DIR="${TOOLCHAIN_ROOTDIR}/scripts"
 source "${TOOLCHAIN_ROOTDIR}/toolchain_settings"
 source "${TOOLCHAIN_SCRIPTS_DIR}/tool_kit.sh"
