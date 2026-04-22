@@ -14,7 +14,9 @@ Currently, CP2K offers two convenient ways for building CP2K from source with it
   [Spack](https://spack.readthedocs.io) to install the dependencies and subsequently build CP2K.
 
 ```{note}
-- The toolchain is deprecated and will possibly be removed or slimmed down in a future release.
+- The toolchain does not cover all optional dependencies due to their complicated source tree, such
+  as DLA-Future. SIRIUS with complete support (including DFT-D4 and NLCG) is also unavailable via
+  toolchain due to the same reason.
 - The latter approach with Spack is only available for the current
 [CP2K master branch](https://github.com/cp2k/cp2k) and CP2K release versions `2026.02` and newer.
 ```

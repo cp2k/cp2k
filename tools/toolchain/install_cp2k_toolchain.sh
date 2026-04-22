@@ -1,8 +1,9 @@
 #!/bin/bash -e
 
 # Disabled shellcheck items: SC1091 for external scripts, SC2034 for unused
-# variables, SC2124 for concatenating toolchain options with $@
-# shellcheck disable=SC1091,SC2034,SC2124
+# variables, SC2124 for concatenating toolchain options with $@, SC2129 for
+# individual redirects ">>".
+# shellcheck disable=SC1091,SC2034,SC2124,SC2129
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
@@ -1284,7 +1285,6 @@ write_toolchain_env "${INSTALLDIR}"
 
 # Write toolchain config
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
-echo "dry_run=\"${dry_run}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "enable_cuda=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "enable_hip=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
