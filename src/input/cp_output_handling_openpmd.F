@@ -80,7 +80,7 @@ MODULE cp_output_handling_openpmd
       ! TYPE(openpmd_mesh_type)             :: mesh             = openpmd_mesh_type()
       ! TYPE(openpmd_particle_species_type) :: particle_species = openpmd_particle_species_type()
       CHARACTER(len=default_string_length)  :: name_prefix = "" ! e.g. 'WFN_00008_1'
-      REAL(kind=dp), DIMENSION(7)           :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
+      INTEGER, DIMENSION(7)                 :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
       REAL(kind=dp)                         :: unit_si = 0
    END TYPE cp_openpmd_per_call_value_type
 
