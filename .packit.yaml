@@ -41,7 +41,7 @@ jobs:
     tmt_plan: .*/smoke
   - job: copr_build
     trigger: pull_request
-    manual_trigger: true
+    #manual_trigger: true
   - <<: *tests
     identifier: smoke
     trigger: pull_request
@@ -49,7 +49,7 @@ jobs:
   - <<: *tests
     identifier: full
     trigger: pull_request
-    manual_trigger: true
+    #manual_trigger: true
     tmt_plan: .*/full
   - job: propose_downstream
     trigger: release
