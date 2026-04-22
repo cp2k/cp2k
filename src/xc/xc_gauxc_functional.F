@@ -251,6 +251,10 @@ CONTAINS
 
    END SUBROUTINE skala_info
 
+! The matrix resulting from GauXC is no longer sparse.
+! Need to discuss how to proceed with that.
+#define SKIP_MATRIX_STOREBACK
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
@@ -390,8 +394,7 @@ CONTAINS
 
          energy%exc = energy%exc + gauxc_xc_result%exc
 
-         ! TODO Check if it is correct to convert from dense to sparse matrix by template
-         ! The zero regions might have been filled?
+#ifndef SKIP_MATRIX_STOREBACK
          IF (nspins == 1) THEN
             IF (img == 1) THEN
                matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
@@ -419,6 +422,7 @@ CONTAINS
             CALL dbcsr_release(vxc_zeta_tmp%matrix)
             DEALLOCATE (vxc_zeta_tmp%matrix)
          END IF
+#endif
       END DO
 
       DEALLOCATE (density_scalar)
@@ -426,10 +430,12 @@ CONTAINS
       DEALLOCATE (gauxc_xc_result%vxc_scalar)
       IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
 
+#ifndef SKIP_MATRIX_STOREBACK
       CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
       DO ispin = 1, nspins
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
+#endif
 
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
