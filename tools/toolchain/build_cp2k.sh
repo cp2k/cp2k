@@ -6,12 +6,10 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 TOOLCHAIN_ROOTDIR="${PWD}"
-# ------------------------------------------------------------------------
 # Exit this script if it is not called from the ./tools/toolchain directory
-# ------------------------------------------------------------------------
 if [ "${TOOLCHAIN_ROOTDIR}" != "${SCRIPT_DIR}" ]; then
   cat << EOF
-ERROR: (${SCRIPT_NAME}, line ${LINENO}) Incorrect execution location.
+ERROR: Incorrect execution location.
 The absolute path of the build_cp2k.sh script is at:
   ${SCRIPT_DIR}
 Actual working directory where it is currently called:
@@ -137,12 +135,14 @@ if [ ! -f "${TOOLCHAIN_INSTALL_DIR}/setup" ]; then
 fi
 
 # Disallow combination of installing toolchain outside the source tree and CP2K under the source tree
-if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}"/install ] && [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
+if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}"/install ] &&
+  [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   echo
-  echo "You toolchain installation is outside the source tree but the install"
-  echo "prefix of CP2K is under the source tree. This is disallowed by this"
-  echo "script. The script will now abort; please manually set \"--prefix\""
-  echo "to a proper path."
+  cat << EOF
+ERROR: You toolchain installation is outside the source tree but the install
+prefix of CP2K is under the source tree, which is disallowed by this script.
+The script will now abort; please manually set "--prefix" to a proper path.
+EOF
   exit 1
 fi
 
@@ -160,9 +160,12 @@ if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_INSTALL_DIR}/setup")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
-  for toolchain_option in $(grep -i "dontuse" "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf" | grep -vi "gcc" | cut -d'_' -f2 | cut -d'=' -f1); do
-    if [ "$(eval echo "\$with_${toolchain_option}")" != "__DONTUSE__" ]; then
-      ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" | grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
+  for toolchain_option in $(grep -i "dontuse" "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf" |
+    grep -Evi "gcc|amd|intel" | cut -d'_' -f2 | cut -d'=' -f1); do
+    var_name="with_${toolchain_option}"
+    if [ "${!var_name}" != "__DONTUSE__" ]; then
+      ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" |
+        grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
       # Use "if-then" below can avoid generating empty "-D=OFF" options
       if [ -n "${ADDED_CMAKE_OPTION}" ]; then
         CMAKE_OPTIONS+=" -D${ADDED_CMAKE_OPTION}=OFF"
@@ -171,19 +174,8 @@ if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_INSTALL_DIR}/setup")" ]; then
   done
 else
   # If MPI is used, set "CP2K_USE_MPI" to "ON"
-  if [ "${MPI_MODE}" != "no" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_MPI=ON"
-    if [ -n "$(grep "MPI_F08" "${TOOLCHAIN_INSTALL_DIR}/toolchain.env")" ]; then
-      CMAKE_OPTIONS+=" -DCP2K_USE_MPI_F08=ON"
-    fi
-  fi
-  # If GPU acceleration is used, add the option about GPU acceleration
-  if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${GPUVER}"
-  elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=${GPUVER}"
-  elif [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=OPENCL"
+  if [ "${mpi_mode}" != "no" ]; then
+    CMAKE_OPTIONS+=" -DCP2K_USE_MPI=ON -DCP2K_USE_MPI_F08=ON"
   fi
   # Some options that should be specially considered:
   # Intel MKL includes FFTW
@@ -196,15 +188,26 @@ else
   fi
   # Detect if any other dependencies is used and add the proper cmake option
   # Since "pugixml" and "gsl" are not mentioned in CMakeLists.txt, they will not be considered.
-  for toolchain_option in $(grep -vi "dry\|list\|dontuse\|gcc\|cmake\|fftw\|mkl\|dbcsr" "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf" | cut -d'_' -f2 | cut -d'=' -f1); do
-    if [ "$(eval echo "\$with_${toolchain_option}")" != "__DONTUSE__" ]; then
-      ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" | grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
+  for toolchain_option in $(grep "with" "${TOOLCHAIN_INSTALL_DIR}"/toolchain.conf |
+    grep -Evi "dontuse|gcc|amd|intel|cmake|fftw|mkl|dbcsr" | cut -d'_' -f2 | cut -d'=' -f1); do
+    var_name="with_${toolchain_option}"
+    if [ "${!var_name}" != "__DONTUSE__" ]; then
+      ADDED_CMAKE_OPTION=$(sed -n '/option(/,/)/p' "${CP2K_ROOT}/CMakeLists.txt" |
+        grep -i "${toolchain_option}" | awk '{print $1}' | cut -d'(' -f2 | head -n 1)
       # Use "if-then" below can avoid generating empty "-D=ON" options
       if [ -n "${ADDED_CMAKE_OPTION}" ]; then
         CMAKE_OPTIONS+=" -D${ADDED_CMAKE_OPTION}=ON"
       fi
     fi
   done
+fi
+# If GPU acceleration is used, add the option about GPU acceleration
+if [ "${enable_cuda}" = "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${gpu_ver}"
+elif [ "${enable_hip}" = "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=${gpu_ver}"
+elif [ "${enable_opencl}" = "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=OPENCL"
 fi
 
 # Set build directory
