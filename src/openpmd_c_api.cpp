@@ -149,9 +149,9 @@ int openPMD_attributable_set_attribute_vec_string(openPMD_Attributable attr,
 
 int openPMD_Attributable_series_flush(openPMD_Attributable attr, char const *);
 
-int openPMD_Attributable_setTimeUnitSI(
+int openPMD_Iteration_setTimeUnitSI(
     // in
-    openPMD_Attributable attr, double const timeUnitSI);
+    openPMD_Iteration iteration, double const timeUnitSI);
 
 /**********************
  * Iteration members. *
@@ -705,11 +705,11 @@ int openPMD_Attributable_series_flush(openPMD_Attributable attr,
   return 0;
 }
 
-int openPMD_Attributable_setTimeUnitSI(
+int openPMD_Iteration_setTimeUnitSI(
     // in
-    openPMD_Attributable attr_param, double const timeUnitSI) {
-  auto attributable = reinterpret_cast<openPMD::Attributable *>(attr_param);
-  attributable->setAttribute("timeUnitSI", timeUnitSI);
+    openPMD_Iteration iteration_param, double const timeUnitSI) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTimeUnitSI(timeUnitSI);
   return 0;
 }
 

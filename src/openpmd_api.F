@@ -83,7 +83,6 @@ MODULE openpmd_api
    CONTAINS
       PROCEDURE, PUBLIC :: set_attribute_vec_int => openpmd_attributable_set_attribute_vec_int
       PROCEDURE, PUBLIC :: series_flush => openpmd_attributable_series_flush
-      PROCEDURE, PUBLIC :: set_time_unit_SI => openpmd_attributable_set_time_unit_SI
    END TYPE openpmd_attributable_type
 
    TYPE openpmd_series_type
@@ -108,6 +107,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: close => openpmd_iteration_close
       PROCEDURE, PUBLIC :: open => openpmd_iteration_open
       PROCEDURE, PUBLIC :: closed => openpmd_iteration_closed
+      PROCEDURE, PUBLIC :: set_time_unit_SI => openpmd_iteration_set_time_unit_SI
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -576,21 +576,21 @@ MODULE openpmd_api
          CALL openpmd_c_attributable_series_flush(this%c_ptr, my_backendconfig//C_NULL_CHAR)
       END SUBROUTINE openpmd_attributable_series_flush
 
-      SUBROUTINE openpmd_attributable_set_time_unit_SI(this, timeUnitSI)
-         CLASS(openpmd_attributable_type) :: this
+      SUBROUTINE openpmd_iteration_set_time_unit_SI(this, timeUnitSI)
+         CLASS(openpmd_iteration_type) :: this
          REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: timeUnitSI
 
          INTERFACE
-            SUBROUTINE openpmd_c_attributable_set_time_unit_SI(attributable, timeUnitSI) &
-               BIND(C, NAME="openPMD_Attributable_setTimeUnitSI")
+            SUBROUTINE openpmd_c_iteration_set_time_unit_SI(iteration, timeUnitSI) &
+               BIND(C, NAME="openPMD_Iteration_setTimeUnitSI")
                IMPORT :: C_PTR, C_DOUBLE
-               TYPE(C_PTR), VALUE :: attributable
+               TYPE(C_PTR), VALUE :: iteration
                REAL(kind=C_DOUBLE), VALUE :: timeUnitSI
-            END SUBROUTINE openpmd_c_attributable_set_time_unit_SI
+            END SUBROUTINE openpmd_c_iteration_set_time_unit_SI
          END INTERFACE
 
-         CALL openpmd_c_attributable_set_time_unit_SI(this%c_ptr, timeUnitSI)
-      END SUBROUTINE openpmd_attributable_set_time_unit_SI
+         CALL openpmd_c_iteration_set_time_unit_SI(this%c_ptr, timeUnitSI)
+      END SUBROUTINE openpmd_iteration_set_time_unit_SI
 
       FUNCTION openpmd_json_merge(into, from, mpi_comm) RESULT(merged)
          CHARACTER(len=*), INTENT(IN)                       :: into, from

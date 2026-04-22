@@ -421,6 +421,7 @@ CONTAINS
       opened_new_iteration = cp_advance_iteration_number(logger, opmd)
 
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
+      CALL res%iteration%set_time_unit_SI(seconds)
       res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
@@ -483,12 +484,6 @@ CONTAINS
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=merged_config)
       END IF
-
-      BLOCK
-         TYPE(openpmd_attributable_type) :: attr
-         attr = emplace_new%output_series%as_attributable()
-         CALL attr%set_time_unit_SI(seconds)
-      END BLOCK
 
       DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
