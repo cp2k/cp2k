@@ -340,10 +340,29 @@ CONTAINS
 !> \param openpmd_basename ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_forward_print_key_unit_nr(self, logger, basis_section, print_key_path, extension, &
-                                         middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
-                                         file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                         fout, openpmd_basename) RESULT(res)
+   FUNCTION cp_forward_print_key_unit_nr( &
+      self, &
+      logger, &
+      basis_section, &
+      print_key_path, &
+      extension, &
+      middle_name, &
+      local, &
+      log_filename, &
+      ignore_should_output, &
+      file_form, &
+      file_position, &
+      file_action, &
+      file_status, &
+      do_backup, &
+      on_file, &
+      is_new_file, &
+      mpi_io, &
+      fout, &
+      openpmd_basename, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si) RESULT(res)
+
       CLASS(cp_section_key), INTENT(IN)                  :: self
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
@@ -359,6 +378,8 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      INTEGER, DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL :: openpmd_unit_si
       INTEGER                                            :: res
 
       IF (self%grid_output == grid_output_cubes) THEN
@@ -370,9 +391,17 @@ CONTAINS
                file_status=file_status, do_backup=do_backup, on_file=on_file, &
                is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
       ELSE
-         res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                            middle_name=middle_name, ignore_should_output=ignore_should_output, &
-                                            mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
+         res = cp_openpmd_print_key_unit_nr( &
+               logger, &
+               basis_section, &
+               print_key_path, &
+               middle_name=middle_name, &
+               ignore_should_output=ignore_should_output, &
+               mpi_io=mpi_io, &
+               fout=fout, &
+               openpmd_basename=openpmd_basename, &
+               openpmd_unit_dimension=openpmd_unit_dimension, &
+               openpmd_unit_si=openpmd_unit_si)
       END IF
    END FUNCTION cp_forward_print_key_unit_nr
 

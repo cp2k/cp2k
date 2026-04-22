@@ -41,7 +41,8 @@ MODULE cp_output_handling_openpmd
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: default_path_length, &
-                    default_string_length
+                    default_string_length, &
+                    dp
    USE machine, ONLY: m_mov
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_file_delete, &
@@ -74,11 +75,13 @@ MODULE cp_output_handling_openpmd
 
 #ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
-      TYPE(openpmd_series_type) :: series = openpmd_series_type()
-      TYPE(openpmd_iteration_type) :: iteration = openpmd_iteration_type()
-      ! TYPE(openpmd_mesh_type) :: mesh = openpmd_mesh_type()
+      TYPE(openpmd_series_type)             :: series = openpmd_series_type()
+      TYPE(openpmd_iteration_type)          :: iteration = openpmd_iteration_type()
+      ! TYPE(openpmd_mesh_type)             :: mesh             = openpmd_mesh_type()
       ! TYPE(openpmd_particle_species_type) :: particle_species = openpmd_particle_species_type()
-      CHARACTER(len=default_string_length) :: name_prefix = "" ! e.g. 'WFN_00008_1'
+      CHARACTER(len=default_string_length)  :: name_prefix = "" ! e.g. 'WFN_00008_1'
+      REAL(kind=dp), DIMENSION(7)           :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
+      REAL(kind=dp)                         :: unit_si = 0
    END TYPE cp_openpmd_per_call_value_type
 
    TYPE :: cp_openpmd_per_call_type
@@ -404,10 +407,17 @@ CONTAINS
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_create_unit_nr_entry(openpmd_file_index, middle_name, logger) RESULT(res)
+   FUNCTION cp_openpmd_create_unit_nr_entry( &
+      openpmd_file_index, &
+      middle_name, &
+      logger, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si) RESULT(res)
       INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER, DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
+      real(kind=dp), optional :: openpmd_unit_si
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
       LOGICAL, SAVE                                      :: opened_new_iteration = .FALSE.
@@ -423,6 +433,14 @@ CONTAINS
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
       CALL res%iteration%set_time_unit_SI(seconds)
       res%name_prefix = TRIM(middle_name)
+
+      IF (PRESENT(openpmd_unit_dimension)) THEN
+         res%unit_dimension = openpmd_unit_dimension
+      END IF
+
+      IF (PRESENT(openpmd_unit_si)) THEN
+         res%unit_si = openpmd_unit_si
+      END IF
 
       IF (opened_new_iteration) THEN
          attr = res%iteration%as_attributable()
@@ -543,10 +561,18 @@ CONTAINS
 !> \param use_openpmd ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                         middle_name, ignore_should_output, &
-                                         mpi_io, &
-                                         fout, openpmd_basename) RESULT(res)
+   FUNCTION cp_openpmd_print_key_unit_nr( &
+      logger, &
+      basis_section, &
+      print_key_path, &
+      middle_name, &
+      ignore_should_output, &
+      mpi_io, &
+      fout, &
+      openpmd_basename, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si) RESULT(res)
+
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -556,6 +582,8 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      INTEGER, DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
+      real(kind=dp), optional :: openpmd_unit_si
       INTEGER                                            :: res
 
 #ifdef __OPENPMD
@@ -615,10 +643,18 @@ CONTAINS
                               openpmd_basename, filename, openpmd_config, logger, my_mpi_io)
 
          OPEN (newunit=res, status='scratch', action='write')
-         openpmd_call_index = cp_openpmd_add_unit_nr( &
-                              res, &
-                              cp_openpmd_create_unit_nr_entry( &
-                              openpmd_file_index, middle_name, logger))
+         BLOCK
+            TYPE(cp_openpmd_per_call_value_type) :: output_info
+
+            output_info = cp_openpmd_create_unit_nr_entry( &
+                          openpmd_file_index, &
+                          middle_name, &
+                          logger, &
+                          openpmd_unit_dimension, &
+                          openpmd_unit_si)
+            openpmd_call_index = cp_openpmd_add_unit_nr( &
+                                 res, output_info)
+         END BLOCK
 
       ELSE
          res = -1
