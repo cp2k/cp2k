@@ -1286,14 +1286,11 @@ write_toolchain_env "${INSTALLDIR}"
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
 echo "dry_run=\"${dry_run}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
-if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
-  echo "enable_cuda=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_cuda=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_hip=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_opencl=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
+if [ "${ENABLE_CUDA}" == "__TRUE__" ] || [ "${ENABLE_HIP}" == "__TRUE__" ]; then
   echo "gpu_ver=\"${GPUVER}\"" >> "${INSTALLDIR}"/toolchain.conf
-elif [ "${ENABLE_HIP}" == "__TRUE__" ]; then
-  echo "enable_hip=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
-  echo "gpu_ver=\"${GPUVER}\"" >> "${INSTALLDIR}"/toolchain.conf
-elif [ "${ENABLE_OPENCL}" == "__TRUE__" ]; then
-  echo "enable_opencl=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
 fi
 for ii in ${package_list}; do
   install_mode=$(eval "echo \${with_${ii}}")

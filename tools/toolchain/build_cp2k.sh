@@ -258,20 +258,25 @@ prepend_path PATH "${CP2K_ROOT}/install/bin"
 prepend_path LD_LIBRARY_PATH "${CP2K_ROOT}/install/lib"
 prepend_path PKG_CONFIG_PATH "${CP2K_ROOT}/install/lib/pkgconfig"
 EOF
+  cat << EOF
+Done! Installed binaries are now available in: ${CP2K_ROOT}/install/bin
 
-  echo
-  echo "Done! Installed binaries are now available in: ${CP2K_ROOT}/install/bin"
-  echo
-  echo "It's suggested to run regtests after installation:"
-  echo "  ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp"
-  echo "Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for available options of regtesting."
-  echo
-  echo "Please always source the below script to load CP2K environment before running CP2K:"
-  echo "  source ${CMAKE_INSTALL_PREFIX}/cp2k_env"
+It's suggested to run regtests after installation:
+  ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
+Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for help message.
+
+Please always source this script to load CP2K environment before running CP2K:
+  source ${CMAKE_INSTALL_PREFIX}/cp2k_env
+
+If you want to clean the build cache (except cached CMake files) after
+installation, run:
+  cmake --build "${BUILD_DIR}" --target clean
+EOF
 else
-  echo "Since you run this script with \"--dry-run\", it now exits."
-  echo "To build CP2K, drop off this flag."
-  exit 0
+  cat << EOF
+Since you run this script with \"--dry-run\", it now exits.
+To build CP2K, drop off this flag and re-run this script.
+EOF
 fi
 
 #EOF
