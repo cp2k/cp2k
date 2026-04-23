@@ -80,8 +80,8 @@ MODULE cp_output_handling_openpmd
       ! TYPE(openpmd_mesh_type)             :: mesh             = openpmd_mesh_type()
       ! TYPE(openpmd_particle_species_type) :: particle_species = openpmd_particle_species_type()
       CHARACTER(len=default_string_length)  :: name_prefix = "" ! e.g. 'WFN_00008_1'
-      INTEGER, DIMENSION(7)                 :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
-      REAL(kind=dp)                         :: unit_si = 0
+      REAL(kind=dp), DIMENSION(7)           :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
+      REAL(kind=dp)                         :: unit_si = 1
    END TYPE cp_openpmd_per_call_value_type
 
    TYPE :: cp_openpmd_per_call_type
@@ -416,7 +416,7 @@ CONTAINS
       INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER, DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
+      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
       real(kind=dp), optional :: openpmd_unit_si
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
@@ -582,7 +582,7 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
-      INTEGER, DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
+      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
       real(kind=dp), optional :: openpmd_unit_si
       INTEGER                                            :: res
 

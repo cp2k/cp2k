@@ -120,6 +120,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: set_grid_spacing => openpmd_mesh_set_grid_spacing
       PROCEDURE, PUBLIC :: set_grid_unit_SI => openpmd_mesh_set_grid_unit_SI
       PROCEDURE, PUBLIC :: set_position => openpmd_mesh_set_position
+      PROCEDURE, PUBLIC :: set_unit_dimension => openpmd_mesh_set_unit_dimension
    END TYPE openpmd_mesh_type
 
    TYPE openpmd_particle_species_type
@@ -137,7 +138,6 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: make_constant_zero => openpmd_record_component_make_constant_zero
       PROCEDURE, PUBLIC :: reset_dataset => openpmd_record_component_reset_dataset
       PROCEDURE, PUBLIC :: set_unit_SI => openpmd_record_component_set_unit_SI
-      PROCEDURE, PUBLIC :: set_unit_dimension => openpmd_record_component_set_unit_dimension
       #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
          #:for dim in dimensions
             PROCEDURE, PRIVATE :: store_chunk_${dim}$d_${type_enum}$ &
@@ -177,6 +177,7 @@ MODULE openpmd_api
       CONTAINS
          PROCEDURE, PUBLIC :: as_record_component => openpmd_record_as_record_component
          PROCEDURE, PUBLIC :: get_component => openpmd_record_get_component
+         PROCEDURE, PUBLIC :: set_unit_dimension => openpmd_record_set_unit_dimension
       END TYPE openpmd_record_type
 
       #:for dim in dimensions
@@ -909,22 +910,6 @@ MODULE openpmd_api
          CALL openpmd_c_record_component_set_unit_SI(this%c_ptr, unitSI)
       END SUBROUTINE openpmd_record_component_set_unit_SI
 
-      SUBROUTINE openpmd_record_component_set_unit_dimension(this, unitDimension)
-         CLASS(openpmd_record_component_type) :: this
-         INTEGER, DIMENSION(7), TARGET :: unitDimension
-
-         INTERFACE
-            SUBROUTINE openpmd_c_record_component_set_unit_dimension(record_component, unitDimension) &
-               BIND(C, NAME="openPMD_RecordComponent_setUnitDimension")
-               IMPORT :: C_PTR, C_INT
-               TYPE(C_PTR), VALUE :: record_component
-               INTEGER(kind=C_INT), DIMENSION(*) :: unitDimension
-            END SUBROUTINE openpmd_c_record_component_set_unit_dimension
-         END INTERFACE
-
-         CALL openpmd_c_record_component_set_unit_dimension(this%c_ptr, unitDimension)
-      END SUBROUTINE openpmd_record_component_set_unit_dimension
-
       #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
          #:for dim in [1, 2, 3]
             ! e.g. ':,:,:'
@@ -1084,6 +1069,22 @@ MODULE openpmd_api
          CPASSERT(C_ASSOCIATED(record_component%c_ptr))
       END FUNCTION openpmd_record_get_component
 
+      SUBROUTINE openpmd_record_set_unit_dimension(this, unitDimension)
+         CLASS(openpmd_record_type) :: this
+         REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
+
+         INTERFACE
+            SUBROUTINE openpmd_c_record_set_unit_dimension(record, unitDimension) &
+               BIND(C, NAME="openPMD_Record_setUnitDimension")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: record
+               REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
+            END SUBROUTINE openpmd_c_record_set_unit_dimension
+         END INTERFACE
+
+         CALL openpmd_c_record_set_unit_dimension(this%c_ptr, unitDimension)
+      END SUBROUTINE openpmd_record_set_unit_dimension
+
       #:set f_routines = ["openpmd_mesh_set_grid_global_offset", "openpmd_mesh_set_grid_spacing", "openpmd_mesh_set_position"]
       #:set c_functions = ["openPMD_Mesh_setGridGlobalOffset", "openPMD_Mesh_setGridSpacing", "openPMD_Mesh_setPosition"]
       #:set f_vector_types = ["REAL(KIND=dp)" for _ in range(3)]
@@ -1125,6 +1126,22 @@ MODULE openpmd_api
 
             CALL openpmd_c_mesh_set_grid_unit_SI(this%c_ptr, gridUnitSI)
          END SUBROUTINE openpmd_mesh_set_grid_unit_SI
+
+         SUBROUTINE openpmd_mesh_set_unit_dimension(this, unitDimension)
+            CLASS(openpmd_mesh_type) :: this
+            REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
+
+            INTERFACE
+               SUBROUTINE openpmd_c_mesh_set_unit_dimension(mesh, unitDimension) &
+                  BIND(C, NAME="openPMD_Mesh_setUnitDimension")
+                  IMPORT :: C_PTR, C_DOUBLE
+                  TYPE(C_PTR), VALUE :: mesh
+                  REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
+               END SUBROUTINE openpmd_c_mesh_set_unit_dimension
+            END INTERFACE
+
+            CALL openpmd_c_mesh_set_unit_dimension(this%c_ptr, unitDimension)
+         END SUBROUTINE openpmd_mesh_set_unit_dimension
 
 #endif
          ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.

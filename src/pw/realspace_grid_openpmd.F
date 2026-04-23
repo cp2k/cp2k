@@ -407,9 +407,9 @@ CONTAINS
       CALL mesh%set_grid_global_offset([0._dp, 0._dp, 0._dp])
       CALL mesh%set_grid_spacing(grid_spacing)
       CALL mesh%set_grid_unit_SI(a_bohr)
+      CALL mesh%set_unit_dimension(openpmd_data%unit_dimension)
       scalar_mesh = mesh%as_record_component()
       CALL scalar_mesh%set_unit_SI(openpmd_data%unit_si)
-      CALL scalar_mesh%set_unit_dimension(openpmd_data%unit_dimension)
       CALL scalar_mesh%reset_dataset(openpmd_type_double, global_extent)
 
       ! shortcut

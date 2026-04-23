@@ -223,6 +223,10 @@ int openPMD_Mesh_setGridUnitSI(
     // in
     openPMD_Mesh mesh, double const gridUnitSI);
 
+int openPMD_Mesh_setUnitDimension(
+    // in
+    openPMD_Mesh mesh, double const *unitDimension);
+
 /***************************
  * RecordComponent members *
  ***************************/
@@ -250,10 +254,6 @@ int openPMD_RecordComponent_makeConstant(
 int openPMD_RecordComponent_setUnitSI(
     // in
     openPMD_RecordComponent rc, double const unitSI);
-
-int openPMD_RecordComponent_setUnitDimension(
-    // in
-    openPMD_RecordComponent rc, int const *unitDimension);
 
 int openPMD_RecordComponent_storeChunk(
     // in
@@ -309,6 +309,10 @@ int openPMD_Record_get_Component(
     // out
     openPMD_RecordComponent *rc);
 
+int openPMD_Record_setUnitDimension(
+    // in
+    openPMD_Record record, double const *unitDimension);
+
 /***********
  * Helpers *
  ***********/
@@ -332,6 +336,7 @@ char *openPMD_json_merge(char const *into, char const *from,
 #endif
 
 #include <any>
+#include <array>
 #include <cctype>
 #include <cstdio>
 #include <fstream>
@@ -824,6 +829,18 @@ int openPMD_Mesh_setGridUnitSI(
   return 0;
 }
 
+int openPMD_Mesh_setUnitDimension(
+    // in
+    openPMD_Mesh mesh_param, double const *unitDimension) {
+  auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+  std::array<double, 7> unitDim{};
+  for (int i = 0; i < 7; ++i) {
+    unitDim[i] = static_cast<double>(unitDimension[i]);
+  }
+  mesh->setUnitDimension(unitDim);
+  return 0;
+}
+
 int openPMD_MeshRecordComponent_upcast_to_RecordComponent(
     // in
     openPMD_MeshRecordComponent mrc,
@@ -883,18 +900,6 @@ int openPMD_RecordComponent_setUnitSI(
     openPMD_RecordComponent rc_param, double const unitSI) {
   auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
   rc->setUnitSI(unitSI);
-  return 0;
-}
-
-int openPMD_RecordComponent_setUnitDimension(
-    // in
-    openPMD_RecordComponent rc_param, int const *unitDimension) {
-  auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
-  std::array<double, 7> unitDim{};
-  for (int i = 0; i < 7; ++i) {
-    unitDim[i] = static_cast<double>(unitDimension[i]);
-  }
-  rc->setAttribute("unitDimension", unitDim);
   return 0;
 }
 
@@ -977,6 +982,18 @@ int openPMD_Record_get_Component(
   auto record = reinterpret_cast<openPMD::Record *>(record_param);
   auto &res = record->operator[](name);
   *reinterpret_cast<openPMD::RecordComponent **>(rc) = &res;
+  return 0;
+}
+
+int openPMD_Record_setUnitDimension(
+    // in
+    openPMD_Record record_param, double const *unitDimension) {
+  auto record = reinterpret_cast<openPMD::Record *>(record_param);
+  std::array<double, 7> unitDim{};
+  for (int i = 0; i < 7; ++i) {
+    unitDim[i] = static_cast<double>(unitDimension[i]);
+  }
+  record->setUnitDimension(unitDim);
   return 0;
 }
 
