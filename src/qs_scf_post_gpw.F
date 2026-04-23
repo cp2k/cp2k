@@ -369,7 +369,8 @@ CONTAINS
       fout, &
       openpmd_basename, &
       openpmd_unit_dimension, &
-      openpmd_unit_si) RESULT(res)
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
 
       CLASS(cp_section_key), INTENT(IN)                  :: self
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -386,8 +387,9 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
-      REAL(kind=dp), DIMENSION(7), OPTIONAL                    :: openpmd_unit_dimension
-      REAL(kind=dp), OPTIONAL :: openpmd_unit_si
+      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL                            :: sim_time
       INTEGER                                            :: res
 
       IF (self%grid_output == grid_output_cubes) THEN
@@ -409,7 +411,8 @@ CONTAINS
                fout=fout, &
                openpmd_basename=openpmd_basename, &
                openpmd_unit_dimension=openpmd_unit_dimension, &
-               openpmd_unit_si=openpmd_unit_si)
+               openpmd_unit_si=openpmd_unit_si, &
+               sim_time=sim_time)
       END IF
    END FUNCTION cp_forward_print_key_unit_nr
 
@@ -1490,7 +1493,8 @@ CONTAINS
                       mpi_io=mpi_io, &
                       openpmd_basename="dft-mo", &
                       openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
-                      openpmd_unit_si=openpmd_unit_si_wavefunction)
+                      openpmd_unit_si=openpmd_unit_si_wavefunction, &
+                      sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
@@ -1599,7 +1603,8 @@ CONTAINS
                       mpi_io=mpi_io, &
                       openpmd_basename="dft-mo", &
                       openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
-                      openpmd_unit_si=openpmd_unit_si_wavefunction)
+                      openpmd_unit_si=openpmd_unit_si_wavefunction, &
+                      sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
@@ -1952,7 +1957,8 @@ CONTAINS
                          fout=mpi_filename, &
                          openpmd_basename="dft-elf", &
                          openpmd_unit_dimension=openpmd_unit_dimension_dimensionless, &
-                         openpmd_unit_si=openpmd_unit_si_dimensionless)
+                         openpmd_unit_si=openpmd_unit_si_dimensionless, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2693,7 +2699,8 @@ CONTAINS
                       fout=mpi_filename, &
                       openpmd_basename="dft-total-electron-density", &
                       openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                      openpmd_unit_si=openpmd_unit_si_density)
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2747,7 +2754,8 @@ CONTAINS
                          fout=mpi_filename, &
                          openpmd_basename="dft-total-spin-density", &
                          openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                         openpmd_unit_si=openpmd_unit_si_density)
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2796,7 +2804,8 @@ CONTAINS
                          fout=mpi_filename, &
                          openpmd_basename="dft-electron-density", &
                          openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                         openpmd_unit_si=openpmd_unit_si_density)
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2827,7 +2836,8 @@ CONTAINS
                          fout=mpi_filename, &
                          openpmd_basename="dft-spin-density", &
                          openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                         openpmd_unit_si=openpmd_unit_si_density)
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2858,7 +2868,8 @@ CONTAINS
                          fout=mpi_filename, &
                          openpmd_basename="dft-electron-density", &
                          openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                         openpmd_unit_si=openpmd_unit_si_density)
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2918,7 +2929,8 @@ CONTAINS
                       fout=mpi_filename, &
                       openpmd_basename="dft-electron-density", &
                       openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                      openpmd_unit_si=openpmd_unit_si_density)
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2968,7 +2980,8 @@ CONTAINS
                       fout=mpi_filename, &
                       openpmd_basename="dft-spin-density", &
                       openpmd_unit_dimension=openpmd_unit_dimension_density, &
-                      openpmd_unit_si=openpmd_unit_si_density)
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)

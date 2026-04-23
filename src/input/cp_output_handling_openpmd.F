@@ -405,6 +405,7 @@ CONTAINS
 !> \param series ...
 !> \param middle_name ...
 !> \param logger ...
+!> \param sim_time Current simulation time in atomic units (used for timeOffset)
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_openpmd_create_unit_nr_entry( &
@@ -412,12 +413,14 @@ CONTAINS
       middle_name, &
       logger, &
       openpmd_unit_dimension, &
-      openpmd_unit_si) RESULT(res)
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
       INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
-      real(kind=dp), optional :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL                            :: sim_time
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
       LOGICAL, SAVE                                      :: opened_new_iteration = .FALSE.
@@ -432,6 +435,7 @@ CONTAINS
 
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
       CALL res%iteration%set_time_unit_SI(seconds)
+      IF (PRESENT(sim_time)) CALL res%iteration%set_time_offset(sim_time)
       res%name_prefix = TRIM(middle_name)
 
       IF (PRESENT(openpmd_unit_dimension)) THEN
@@ -559,6 +563,7 @@ CONTAINS
 !>               all MPI libraries.
 !> \param openpmd_basename Used to associate an identifier to each callsite of this module
 !> \param use_openpmd ...
+!> \param sim_time Current simulation time in atomic units (used for timeOffset)
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_openpmd_print_key_unit_nr( &
@@ -571,7 +576,8 @@ CONTAINS
       fout, &
       openpmd_basename, &
       openpmd_unit_dimension, &
-      openpmd_unit_si) RESULT(res)
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
@@ -583,7 +589,8 @@ CONTAINS
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
       REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
-      real(kind=dp), optional :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL                            :: sim_time
       INTEGER                                            :: res
 
 #ifdef __OPENPMD
@@ -651,7 +658,8 @@ CONTAINS
                           middle_name, &
                           logger, &
                           openpmd_unit_dimension, &
-                          openpmd_unit_si)
+                          openpmd_unit_si, &
+                          sim_time)
             openpmd_call_index = cp_openpmd_add_unit_nr( &
                                  res, output_info)
          END BLOCK

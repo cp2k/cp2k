@@ -108,6 +108,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: open => openpmd_iteration_open
       PROCEDURE, PUBLIC :: closed => openpmd_iteration_closed
       PROCEDURE, PUBLIC :: set_time_unit_SI => openpmd_iteration_set_time_unit_SI
+      PROCEDURE, PUBLIC :: set_time_offset => openpmd_iteration_set_time_offset
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -592,6 +593,22 @@ MODULE openpmd_api
 
          CALL openpmd_c_iteration_set_time_unit_SI(this%c_ptr, timeUnitSI)
       END SUBROUTINE openpmd_iteration_set_time_unit_SI
+
+      SUBROUTINE openpmd_iteration_set_time_offset(this, timeOffset)
+         CLASS(openpmd_iteration_type) :: this
+         REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: timeOffset
+
+         INTERFACE
+            SUBROUTINE openpmd_c_iteration_set_time_offset(iteration, timeOffset) &
+               BIND(C, NAME="openPMD_Iteration_setTimeOffset")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: iteration
+               REAL(kind=C_DOUBLE), VALUE :: timeOffset
+            END SUBROUTINE openpmd_c_iteration_set_time_offset
+         END INTERFACE
+
+         CALL openpmd_c_iteration_set_time_offset(this%c_ptr, timeOffset)
+      END SUBROUTINE openpmd_iteration_set_time_offset
 
       FUNCTION openpmd_json_merge(into, from, mpi_comm) RESULT(merged)
          CHARACTER(len=*), INTENT(IN)                       :: into, from
