@@ -1477,8 +1477,8 @@ CONTAINS
       DO iset = 1, 2
          CALL get_mo_set(mo_set=mos(iset), mo_coeff=mo_coeff, nmo=nmo)
          DO i = 1, nmo
-            CALL calculate_wavefunction(mo_coeff, i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                        cell, dft_control, particle_set, pw_env)
+            CALL calculate_wavefunction(i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env, mo_vectors=mo_coeff)
             IF (iset == 1) THEN
                WRITE (filename, '(A6,I3.3,A5,I2.2,a11)') "_NEXC_", istate, "_NTO_", i, "_Hole_State"
             ELSEIF (iset == 2) THEN

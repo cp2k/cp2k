@@ -1580,10 +1580,14 @@ CONTAINS
       END IF
 
       IF (method_nr == wfi_aspc_nr) THEN
-         CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct, set_zero=.TRUE.)
-         CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct, set_zero=.TRUE.)
-         CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct, set_zero=.TRUE.)
-         CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
+         CALL cp_cfm_set_all(cmos_new, (0.0_dp, 0.0_dp))
+         CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
+         CALL cp_cfm_set_all(cmos_1, (0.0_dp, 0.0_dp))
+         CALL cp_cfm_create(cmos_i, mo_coeff%matrix_struct)
+         CALL cp_cfm_set_all(cmos_i, (0.0_dp, 0.0_dp))
+         CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
+         CALL cp_cfm_set_all(cfm_nao_nmo_work, (0.0_dp, 0.0_dp))
       ELSE
          CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
          CALL cp_cfm_create(cmos_1, mo_coeff%matrix_struct)
@@ -1594,7 +1598,8 @@ CONTAINS
       CALL cp_fm_struct_create(nmo_nmo_struct, template_fmstruct=mo_coeff%matrix_struct, &
                                nrow_global=nmo, ncol_global=nmo)
       IF (method_nr == wfi_aspc_nr) THEN
-         CALL cp_cfm_create(csc_cfm, nmo_nmo_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
+         CALL cp_cfm_set_all(csc_cfm, (0.0_dp, 0.0_dp))
       ELSE
          CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
       END IF

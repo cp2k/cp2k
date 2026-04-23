@@ -19,8 +19,7 @@ MODULE rt_propagation_methods
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
-                                              cp_cfm_type,&
-                                              cp_cfm_write_formatted
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -896,8 +895,7 @@ CONTAINS
      TYPE(qs_environment_type), POINTER, INTENT(IN)  :: qs_env
      TYPE(rt_prop_type), POINTER, INTENT(IN)         :: rtp
 
-     CHARACTER(len=*), PARAMETER :: routineN = "rtp_localize", &
-        routineP = moduleN//":"//routineN
+     CHARACTER(len=*), PARAMETER :: routineN = "rtp_localize"
 
      INTEGER                                     :: handle, ispin, n_rep, nhomo, nlumo, output_unit
      LOGICAL                                     :: do_homo, do_mo_cubes, do_wannier_cubes, &

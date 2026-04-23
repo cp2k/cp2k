@@ -31,11 +31,9 @@ MODULE qs_localization_methods
    USE cp_cfm_types,                    ONLY: &
         cp_cfm_create, cp_cfm_get_element, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
         cp_cfm_release, cp_cfm_set_all, cp_cfm_set_element, cp_cfm_set_submatrix, cp_cfm_to_cfm, &
-        cp_cfm_to_fm, cp_cfm_type, cp_cfm_write_formatted, cp_fm_to_cfm
+        cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
-                                              copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_cfm_multiply,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
@@ -62,7 +60,8 @@ MODULE qs_localization_methods
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
-   USE mathconstants,                   ONLY: pi,&
+   USE mathconstants,                   ONLY: gaussi,&
+                                              pi,&
                                               twopi,&
                                               z_zero
    USE matrix_exp,                      ONLY: exp_pade_real,&
@@ -74,7 +73,7 @@ MODULE qs_localization_methods
    IMPLICIT NONE
    PUBLIC :: initialize_weights, crazy_rotations, &
              direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rotations, scdm_qrfact, zij_matrix, &
-             jacobi_cg_edf_ls
+             jacobi_cg_edf_ls, cardoso_souloumiac, cardoso_souloumiac_pipek
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
@@ -3107,20 +3106,18 @@ CONTAINS
 !> \author Lukas Schreder
 ! **************************************************************************************************
    SUBROUTINE cardoso_souloumiac(weights, zij, para_env, max_iter, eps_localization, sweeps, &
-                                 out_each, target_time, start_time, vectors)
+                                 out_each, vectors)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_cfm_p_type), INTENT(INOUT)                  :: zij(:, :)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: zij(:, :)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
       INTEGER, INTENT(IN)                                :: out_each
-      REAL(KIND=dp)                                      :: target_time, start_time
       TYPE(cp_cfm_type), POINTER                         :: vectors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac'
 
       INTEGER                                            :: handle
 
@@ -3130,10 +3127,10 @@ CONTAINS
 
       IF (para_env%num_pe >= 1) THEN
          CALL cardoso_souloumiac_serial(weights, zij, max_iter, eps_localization, sweeps, out_each, &
-                                        vectors, para_env)
+                                        vectors)
       ELSE
-         CALL cardoso_souloumiac_parallel(weights, zij, para_env, max_iter, eps_localization, &
-                                          sweeps, out_each, target_time, start_time, vectors)
+         !CALL cardoso_souloumiac_parallel(weights, zij, para_env, max_iter, eps_localization, &
+         !                                 sweeps, out_each, target_time, start_time, vectors)
       END IF
 
       CALL timestop(handle)
@@ -3154,27 +3151,24 @@ CONTAINS
 !> \author Lukas Schreder
 ! **************************************************************************************************
    SUBROUTINE cardoso_souloumiac_serial(weights, zij, max_iter, eps_localization, sweeps, &
-                                        out_each, vectors, para_env)
+                                        out_each, vectors)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_cfm_p_type), INTENT(INOUT)                 :: zij(:, :)
+      TYPE(cp_cfm_type), INTENT(INOUT)                 :: zij(:, :)
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
       INTEGER, INTENT(IN)                                :: out_each
       TYPE(cp_cfm_type), POINTER                         :: vectors
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac_serial', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac_serial'
 
-      COMPLEX(KIND=dp)                                   :: s, c_spread
-      COMPLEX(KIND=dp), POINTER                          :: mii(:), mij(:), mji(:), mjj(:)
-      INTEGER                                            :: dim1, dim2, handle, idim, jdim, &
-                                                            istate, jstate, nstate, unit_nr
-      REAL(KIND=dp)                                      :: t1, t2, tolerance, c, old_spread, spread
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
-      TYPE(cp_cfm_type), POINTER                         :: c_rmat
+      COMPLEX(KIND=dp)           :: s
+      COMPLEX(KIND=dp), POINTER  :: mii(:), mij(:), mji(:), mjj(:)
+      INTEGER                    :: dim1, dim2, handle, idim, jdim, istate, jstate, nstate, &
+                                    unit_nr
+      REAL(KIND=dp)              :: t1, t2, tolerance, c, old_spread, spread
+      TYPE(cp_cfm_type), POINTER :: c_zij(:), c_rmat
 
       CALL timeset(routineN, handle)
 
@@ -3183,16 +3177,14 @@ CONTAINS
       NULLIFY (c_rmat, c_zij, mii, mij, mji, mjj)
       ALLOCATE (c_zij(dim1*dim2), mii(dim1*dim2), mij(dim1*dim2), mji(dim1*dim2), mjj(dim1*dim2))
 
-      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix_struct)
       CALL cp_cfm_set_all(c_rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))  ! start with the identity transformation
       DO idim = 1, dim2
          DO jdim = 1, dim1
-            NULLIFY(c_zij((idim-1)*dim1+jdim)%matrix)
-            CALL cp_cfm_create(c_zij((idim-1)*dim1+jdim)%matrix, zij(jdim, idim)%matrix%matrix_struct)
-            CALL cp_cfm_to_cfm(zij(jdim, idim)%matrix, c_zij((idim-1)*dim1+jdim)%matrix)
+            CALL cp_cfm_create(c_zij((idim-1)*dim1+jdim), zij(jdim, idim)%matrix_struct)
+            CALL cp_cfm_to_cfm(zij(jdim, idim), c_zij((idim-1)*dim1+jdim))
          END DO
       END DO
-
 
       CALL cp_cfm_get_info(c_rmat, nrow_global=nstate)
       tolerance = 1.0e10_dp
@@ -3213,19 +3205,18 @@ CONTAINS
          DO jstate = 1, nstate
             DO istate = jstate+1, nstate
                DO idim = 1, dim1*dim2
-                  CALL cp_cfm_get_element(c_zij(idim)%matrix, istate, istate, mii(idim))
-                  CALL cp_cfm_get_element(c_zij(idim)%matrix, istate, jstate, mij(idim))
-                  CALL cp_cfm_get_element(c_zij(idim)%matrix, jstate, istate, mji(idim))
-                  CALL cp_cfm_get_element(c_zij(idim)%matrix, jstate, jstate, mjj(idim))
+                  CALL cp_cfm_get_element(c_zij(idim), istate, istate, mii(idim))
+                  CALL cp_cfm_get_element(c_zij(idim), istate, jstate, mij(idim))
+                  CALL cp_cfm_get_element(c_zij(idim), jstate, istate, mji(idim))
+                  CALL cp_cfm_get_element(c_zij(idim), jstate, jstate, mjj(idim))
                END DO
                CALL get_cardoso_angles(mii, mij, mji, mjj, c, s, vectors%matrix_struct)
                CALL rotate_cardoso_zij(istate, jstate, c, s, c_zij)
                CALL rotate_cardoso_rmat(istate, jstate, c, s, c_rmat)
             END DO
          END DO
-         CALL check_tolerance(c_zij, weights, spread, para_env)
-         CALL check_tolerance(c_zij, weights, tolerance, para_env)
-         CALL mp_max(spread, para_env%group)
+         CALL check_tolerance(c_zij, weights, spread)
+         CALL check_tolerance(c_zij, weights, tolerance)
          tolerance = ABS(spread - old_spread)
          old_spread = spread
 
@@ -3251,8 +3242,8 @@ CONTAINS
       DO idim = 1, dim2
          ! back to an interlaced matrix
          DO jdim = 1, dim1
-            CALL cp_cfm_to_cfm(c_zij((idim-1)*dim1+jdim)%matrix, zij(jdim, idim)%matrix)
-            CALL cp_cfm_release(c_zij((idim-1)*dim1+jdim)%matrix)
+            CALL cp_cfm_to_cfm(c_zij((idim-1)*dim1+jdim), zij(jdim, idim))
+            CALL cp_cfm_release(c_zij((idim-1)*dim1+jdim))
          END DO
       END DO
 
@@ -3284,628 +3275,623 @@ CONTAINS
 !>      2020-04 created [LS]
 !> \author Lukas Schreder
 ! **************************************************************************************************
-   SUBROUTINE cardoso_souloumiac_parallel(weights, zij, para_env, max_iter, eps_localization, &
-                                          sweeps, out_each, target_time, start_time, vectors)
-
-      REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_cfm_p_type), INTENT(INOUT)                 :: zij(:, :)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: max_iter
-      REAL(KIND=dp), INTENT(IN)                          :: eps_localization
-      INTEGER                                            :: sweeps
-      INTEGER, INTENT(IN)                                :: out_each
-      REAL(KIND=dp)                                      :: target_time, start_time
-      TYPE(cp_cfm_type), POINTER                         :: vectors
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac_parallel', &
-         routineP = moduleN//':'//routineN
-
-      COMPLEX(KIND=dp)              :: zi, zj, zk, ri, rj, st
-      COMPLEX(KIND=dp), ALLOCATABLE :: z_ij_loc_cos(:, :), z_ij_loc_sin(:, :), rotmat(:, :), &
-           c_array_me(:, :, :), gmat(:, :), rmat_recv(:, :), rmat_send(:, :), rmat_recv_all(:, :, :), &
-           rmat_loc(:, :), c_array_partner(:, :, :)
-      COMPLEX(KIND=dp), POINTER     :: mii(:), mij(:), mji(:), mjj(:)
-      INTEGER                       :: dim1, dim2, dim3, group, handle, idim, ip, nblock, &
-           nblock_max, npair, nperm, nstate, num_pe, pe, output_unit, i, j, ns_me, ii, ilow2, iup2, &
-           il1, il2, ilow1, ip_partner, ipair, iperm, iu1, iup1, n1, n2, ns_partner, iu2, istate, jstate, &
-           k, ik, il_recv, il_recv_partner, ip_has_i, ip_recv_from, ip_recv_partner, jj, kk, ns_recv_from, &
-           ns_recv_partner, istat
-      INTEGER, ALLOCATABLE          :: list_pair(:, :), ns_bound(:, :), rcount(:), rdispl(:)
-      LOGICAL                       :: should_stop
-      REAL(KIND=dp)                 :: tol, xlow, xstate, xup, t1, t2, ct, func, gmax, grad, zr, zc, old_tol
-      TYPE(cp_cfm_type), POINTER    :: c_rmat
-      TYPE(set_c_1d_type), POINTER  :: zdiag_all(:), zdiag_me(:)
-      TYPE(set_c_2d_type), POINTER  :: cz_ij_loc(:), xyz_mix(:), xyz_mix_ns(:)
-
-      CALL timeset(routineN, handle)
-
-      output_unit = cp_logger_get_default_io_unit()
-
-      ! parallel environment
-      pe = para_env%mepos
-      num_pe = para_env%num_pe
-      group = para_env%group
-      
-      dim1 = SIZE(zij, 1)
-      dim2 = SIZE(zij, 2)
-      dim3 = dim1 * dim2
-      ALLOCATE (mii(dim3), mij(dim3), mji(dim3), mjj(dim3))
-
-      ! prepare rotation matrix
-      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_cfm_set_all(c_rmat, (0.0_dp, 0.0_dp), (1.0_dp, 1.0_dp))
-
-      CALL cp_cfm_get_info(c_rmat, nrow_global=nstate)
-
-      ALLOCATE (rcount(para_env%num_pe), STAT=istat)
-      ALLOCATE (rdispl(para_env%num_pe), STAT=istat)
-
-      old_tol = 1.0e10_dp
-      tol = 1.0e10_dp
-      sweeps = 0
-
-      ! processors pairs and permutations
-      npair = (num_pe + 1) / 2
-      nperm = num_pe - MOD(num_pe + 1, 2)
-      ALLOCATE (list_pair(2, npair))
-
-      ! distribute the states
-      xstate = REAL(nstate, dp) / REAL(num_pe, dp)
-      nblock_max = 0
-      ALLOCATE(ns_bound(0:num_pe - 1, 2))
-      xlow = 0.0d0
-      xup = 0.0d0
-      DO ip = 1, num_pe
-         xup = xlow + xstate
-         ns_bound(ip - 1, 1) = NINT(xlow) + 1
-         ns_bound(ip - 1, 2) = NINT(xup)
-         IF (NINT(xup) > nstate) THEN
-            ns_bound(ip - 1, 2) = nstate
-         END IF
-         IF (NINT(xlow) > nstate) THEN
-            ns_bound(ip - 1, 1) = nstate + 1
-         END IF
-         xlow = xup
-      END DO
-      DO ip = 0, num_pe - 1
-         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
-         nblock_max = MAX(nblock_max, nblock)
-      END DO
-      
-      ! get the portion of the matrix local to this processor
-      ALLOCATE(z_ij_loc_cos(nstate, nblock_max), z_ij_loc_sin(nstate, nblock_max), cz_ij_loc(dim3))
-      DO idim = 1, dim2
-         DO ip = 0, num_pe - 1
-            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
-            CALL cp_cfm_get_submatrix(zij(1, idim)%matrix, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
-            CALL cp_cfm_get_submatrix(zij(2, idim)%matrix, z_ij_loc_sin, 1, ns_bound(ip, 1), nstate, nblock)
-            IF (pe == ip) THEN
-               ns_me = nblock
-               ALLOCATE (cz_ij_loc(2*idim-1)%c_array(nstate, ns_me), &
-                    cz_ij_loc(2*idim)%c_array(nstate, ns_me))
-               DO i = 1, ns_me
-                  DO j = 1, nstate
-                     cz_ij_loc(2*idim-1)%c_array(j, i) = z_ij_loc_cos(j, i)
-                     cz_ij_loc(2*idim)%c_array(j, i) = z_ij_loc_sin(j, i)
-                  END DO
-               END DO
-            END IF
-         END DO
-      END DO
-      DEALLOCATE (z_ij_loc_cos, z_ij_loc_sin)
-
-      ! initialise rotation matrix to the identity transform
-      ALLOCATE (rotmat(nstate, 2*nblock_max))
-      rotmat = (0.0_dp, 0.0_dp)
-      DO i = ns_bound(pe, 1), ns_bound(pe, 2)
-         ii = i - ns_bound(pe, 1) + 1
-         rotmat(i, ii) = (1.0_dp, 0.0_dp)
-      END DO
-      
-      ALLOCATE (xyz_mix(dim3), xyz_mix_ns(dim3), zdiag_me(dim3), zdiag_all(dim3))
-
-      ns_me = ns_bound(pe, 2) - ns_bound(pe, 1) + 1
-      IF (ns_me /= 0) THEN
-         ALLOCATE (c_array_me(nstate, ns_me, dim3))
-         DO idim = 1, dim3
-            ALLOCATE(xyz_mix_ns(idim)%c_array(nstate, ns_me))
-         END DO
-         ALLOCATE (gmat(nstate, ns_me))
-      END IF
-      
-      DO idim = 1, dim3
-         ALLOCATE (zdiag_me(idim)%c_array(nblock_max))
-         zdiag_me(idim)%c_array = (0.0_dp, 0.0_dp)
-         ALLOCATE (zdiag_all(idim)%c_array(num_pe * nblock_max))
-         zdiag_all(idim)%c_array = (0.0_dp, 0.0_dp)
-      END DO
-      ALLOCATE (rmat_recv(nblock_max*2, nblock_max), rmat_send(nblock_max*2, nblock_max))
-      ALLOCATE (rmat_recv_all(nblock_max*2, nblock_max, 0:num_pe-1))
-
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, '(T4,A )') " Localization by iterative distributed Jacobi rotation with"
-         WRITE (output_unit, '(T4,A )') " Cardoso-Souloumiac angles"
-         WRITE (output_unit, '(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance", " Time "
-      END IF
-
-      DO sweeps = 1, max_iter + 1
-         IF (sweeps == max_iter + 1) THEN
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, *) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
-               WRITE (output_unit, *) '               Present  Max. gradient = ', tol
-            END IF
-            EXIT
-         ENDIF
-         t1 = m_walltime()
-
-         DO iperm = 1, nperm
-
-            ! fix partners for this permutation, and get the number of states
-            CALL eberlein(iperm, para_env, list_pair)
-            ip_partner = -1
-            ns_partner = 0
-            DO ipair = 1, npair
-               IF (list_pair(1, ipair) == pe) THEN
-                  ip_partner = list_pair(2, ipair)
-                  EXIT
-               ELSE IF (list_pair(2, ipair) == pe) THEN
-                  ip_partner = list_pair(1, ipair)
-                  EXIT
-               END IF
-            END DO
-            IF (ip_partner >= 0) THEN
-               ns_partner = ns_bound(ip_partner, 2) - ns_bound(ip_partner, 1) + 1
-            ELSE
-               ns_partner = 0
-            END IF
-
-            ! if there is a non-zero block connecting two partners, jacobi-sweep it.
-            IF (ns_partner*ns_me /= 0) THEN
-
-               ALLOCATE (rmat_loc(ns_me + ns_partner, ns_me + ns_partner))
-               rmat_loc = 0.0_dp
-               DO i = 1, ns_me + ns_partner
-                  rmat_loc(i, i) = (1.0_dp, 0.0_dp)
-               END DO
-
-               ALLOCATE (c_array_partner(nstate, ns_partner, dim3))
-            
-               DO idim = 1, dim3
-                  ALLOCATE (xyz_mix(idim)%c_array(ns_me + ns_partner, ns_me + ns_partner))
-                  DO i = 1, ns_me
-                     c_array_me(1:nstate, i, idim) = cz_ij_loc(idim)%c_array(1:nstate, i)
-                  END DO
-               END DO
-               
-               CALL mp_sendrecv(msgin=c_array_me, dest=ip_partner, &
-                                msgout=c_array_partner, source=ip_partner, comm=group)
-
-               n1 = ns_me
-               n2 = ns_partner
-               ilow1 = ns_bound(para_env%mepos, 1)
-               iup1 = ns_bound(para_env%mepos, 1) + n1 - 1
-               ilow2 = ns_bound(ip_partner, 1)
-               iup2 = ns_bound(ip_partner, 1) + n2 - 1
-               IF (ns_bound(para_env%mepos, 1) < ns_bound(ip_partner, 1)) THEN
-                  il1 = 1
-                  iu1 = n1
-                  iu1 = n1
-                  il2 = 1 + n1
-                  iu2 = n1 + n2
-               ELSE
-                  il1 = 1 + n2
-                  iu1 = n1 + n2
-                  iu1 = n1 + n2
-                  il2 = 1
-                  iu2 = n2
-               END IF
-               
-               DO idim = 1, dim3
-                  DO i = 1, n1
-                     xyz_mix(idim)%c_array(il1:iu1, il1 + i - 1) = c_array_me(ilow1:iup1, i, idim)
-                     xyz_mix(idim)%c_array(il2:iu2, il1 + i - 1) = c_array_me(ilow2:iup2, i, idim)
-                  END DO
-                  DO i = 1, n2
-                     xyz_mix(idim)%c_array(il2:iu2, il2 + i - 1) = c_array_partner(ilow2:iup2, i, idim)
-                     xyz_mix(idim)%c_array(il1:iu1, il2 + i - 1) = c_array_partner(ilow1:iup1, i, idim)
-                  END DO
-               END DO
-
-               DO istate = 1, n1 + n2
-                  DO jstate = istate + 1, n1 + n2
-                     DO idim = 1, dim3
-                        mii(idim) = xyz_mix(idim)%c_array(istate, istate)
-                        mij(idim) = xyz_mix(idim)%c_array(istate, jstate)
-                        mji(idim) = xyz_mix(idim)%c_array(jstate, istate)
-                        mjj(idim) = xyz_mix(idim)%c_array(jstate, jstate)
-                     END DO
-                     !CALL get_cardoso_angles(mii, mij, mji, mjj, ct, st)
-                     DO idim = 1, dim3
-                        DO i = 1, n1 + n2
-                           zi = ct*xyz_mix(idim)%c_array(i, istate) + st*xyz_mix(idim)%c_array(i, jstate)
-                           zj = -CONJG(st)*xyz_mix(idim)%c_array(i, istate) + ct*xyz_mix(idim)%c_array(i, jstate)
-                           xyz_mix(idim)%c_array(i, istate) = zi
-                           xyz_mix(idim)%c_array(i, jstate) = zj
-                        END DO
-                        DO i = 1, n1 + n2
-                           zi = ct*xyz_mix(idim)%c_array(istate, i) + CONJG(st)*xyz_mix(idim)%c_array(jstate, i)
-                           zj = -st*xyz_mix(idim)%c_array(istate, i) + ct*xyz_mix(idim)%c_array(jstate, i)
-                           xyz_mix(idim)%c_array(istate, i) = zi
-                           xyz_mix(idim)%c_array(jstate, i) = zj
-                        END DO
-                     END DO
-
-                     DO i = 1, n1 + n2
-                        ri = ct*rmat_loc(i, istate) + st*rmat_loc(i, jstate)
-                        rj = -CONJG(st)*rmat_loc(i, istate) + ct*rmat_loc(i, jstate)
-                        rmat_loc(i, istate) = ri
-                        rmat_loc(i, jstate) = rj
-                     END DO
-                  END DO
-               END DO
-
-               k = nblock_max + 1
-               CALL mp_sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
-                                rotmat(1:nstate, k:k + n2 - 1), ip_partner, para_env%group)
-
-               IF (ilow1 < ilow2) THEN
-                  CALL zgemm("N", "N", nstate, n1, n2, (1.0_dp, 0.0_dp), rotmat(1, k), nstate, &
-                       rmat_loc(1 + n1, 1), n1 + n2, (0.0_dp, 0.0_dp), gmat, nstate)
-                  CALL zgemm("N", "N", nstate, n1, n1, (1.0_dp, 0.0_dp), rotmat(1, 1), nstate, &
-                       rmat_loc(1, 1), n1 + n2, (1.0_dp, 0.0_dp), gmat, nstate)
-               ELSE
-                  CALL zgemm("N", "N", nstate, n1, n2, (1.0_dp, 0.0_dp), rotmat(1, k), nstate, &
-                       rmat_loc(1, n2 + 1), n1 + n2, (0.0_dp, 0.0_dp), gmat, nstate)
-                  CALL zgemm("N", "N", nstate, n1, n1, (1.0_dp, 0.0_dp), rotmat(1, 1), nstate, &
-                             rmat_loc(n2 + 1, n2 + 1), n1 + n2, (1.0_dp, 0.0_dp), gmat, nstate)
-               END IF
-
-               CALL zcopy(nstate*n1, gmat(1, 1), 1, rotmat(1, 1), 1)
-
-               DO idim = 1, dim3
-                  DO i = 1, n1
-                     xyz_mix_ns(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
-                  END DO
-
-                  DO istate = 1, n1
-                     DO jstate = 1, nstate
-                        DO i = 1, n2
-                           xyz_mix_ns(idim)%c_array(jstate, istate) = &
-                              xyz_mix_ns(idim)%c_array(jstate, istate) + &
-                              c_array_partner(jstate, i, idim)*rmat_loc(il2 + i - 1, il1 + istate - 1)
-                        END DO
-                     END DO
-                  END DO
-                  DO istate = 1, n1
-                     DO jstate = 1, nstate
-                        DO i = 1, n1
-                           xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate) + &
-                                                                 c_array_me(jstate, i, idim)*rmat_loc(il1 + i - 1, il1 + istate - 1)
-                        END DO
-                     END DO
-                  END DO
-               END DO ! idim
-
-               DEALLOCATE (c_array_partner)
-               
-            ELSE ! save my data
-               DO idim = 1, dim3
-                  DO i = 1, ns_me
-                     xyz_mix_ns(idim)%c_array(1:nstate, i) = cz_ij_loc(idim)%c_array(1:nstate, i)
-                  END DO
-               END DO
-            END IF
-
-            DO idim = 1, dim3
-               DO i = 1, ns_me
-                  cz_ij_loc(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
-               END DO
-            END DO
-
-            IF (ns_partner*ns_me /= 0) THEN
-               ! conjugate transpose rotation matrix rmat_loc
-               DO i = 1, ns_me + ns_partner
-                  DO j = i + 1, ns_me + ns_partner
-                     ri = rmat_loc(i, j)
-                     rmat_loc(i, j) = CONJG(rmat_loc(j, i))
-                     rmat_loc(j, i) = CONJG(ri)
-                  END DO
-               END DO
-
-               ! prepare for distribution
-               DO i = 1, n1
-                  rmat_send(1:n1, i) = rmat_loc(il1:iu1, il1 + i - 1)
-               END DO
-               ik = nblock_max
-               DO i = 1, n2
-                  rmat_send(ik + 1:ik + n1, i) = rmat_loc(il1:iu1, il2 + i - 1)
-               END DO
-            ELSE
-               rmat_send = 0.0_dp
-            END IF
-
-            ! collect data from all tasks (this takes some significant time)
-            CALL mp_allgather(rmat_send, rmat_recv_all, para_env%group)
-
-            ! update blocks everywhere
-            DO ip = 0, num_pe - 1
-
-               ip_recv_from = MOD(pe - IP + num_pe, num_pe)
-               rmat_recv(:, :) = rmat_recv_all(:, :, ip_recv_from)
-
-               ns_recv_from = ns_bound(ip_recv_from, 2) - ns_bound(ip_recv_from, 1) + 1
-
-               IF (ns_me /= 0) THEN
-                  IF (ns_recv_from /= 0) THEN
-                     !look for the partner of ip_recv_from
-                     ip_recv_partner = -1
-                     ns_recv_partner = 0
-                     DO ipair = 1, npair
-                        IF (list_pair(1, ipair) == ip_recv_from) THEN
-                           ip_recv_partner = list_pair(2, ipair)
-                           EXIT
-                        ELSE IF (list_pair(2, ipair) == ip_recv_from) THEN
-                           ip_recv_partner = list_pair(1, ipair)
-                           EXIT
-                        END IF
-                     END DO
-
-                     IF (ip_recv_partner >= 0) THEN
-                        ns_recv_partner = ns_bound(ip_recv_partner, 2) - ns_bound(ip_recv_partner, 1) + 1
-                     END IF
-                     IF (ns_recv_partner > 0) THEN
-                        il1 = ns_bound(para_env%mepos, 1)
-                        il_recv = ns_bound(ip_recv_from, 1)
-                        il_recv_partner = ns_bound(ip_recv_partner, 1)
-                        ik = nblock_max
-
-                        DO idim = 1, dim3
-                           DO i = 1, ns_recv_from
-                              ii = il_recv + i - 1
-                              DO j = 1, ns_me
-                                 jj = j
-                                 DO k = 1, ns_recv_from
-                                    kk = il_recv + k - 1
-                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
-                                                                      rmat_recv(i, k)*xyz_mix_ns(idim)%c_array(kk, j)
-                                 END DO
-                              END DO
-                           END DO
-                           DO i = 1, ns_recv_from
-                              ii = il_recv + i - 1
-                              DO j = 1, ns_me
-                                 jj = j
-                                 DO k = 1, ns_recv_partner
-                                    kk = il_recv_partner + k - 1
-                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
-                                                                      rmat_recv(ik + i, k)*xyz_mix_ns(idim)%c_array(kk, j)
-                                 END DO
-                              END DO
-                           END DO
-                        END DO ! idim
-                     ELSE
-                        il1 = ns_bound(para_env%mepos, 1)
-                        il_recv = ns_bound(ip_recv_from, 1)
-                        DO idim = 1, dim3
-                           DO j = 1, ns_me
-                              jj = j
-                              DO i = 1, ns_recv_from
-                                 ii = il_recv + i - 1
-                                 cz_ij_loc(idim)%c_array(ii, jj) = xyz_mix_ns(idim)%c_array(ii, j)
-                              END DO
-                           END DO
-                        END DO ! idim
-                     END IF
-                  END IF
-               END IF  ! ns_me
-            END DO ! ip
-
-            IF (ns_partner*ns_me /= 0) THEN
-               DEALLOCATE (rmat_loc)
-               DO idim = 1, dim2
-                  DEALLOCATE (xyz_mix(idim)%c_array)
-               END DO
-            END IF
-
-         END DO  ! iperm
-
-         ! calculate the max gradient
-         DO idim = 1, dim3
-            DO i = ns_bound(pe, 1), ns_bound(pe, 2)
-               ii = i - ns_bound(pe, 1) + 1
-               zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
-               zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
-            END DO
-            rcount(:) = SIZE(zdiag_me(idim)%c_array)
-            rdispl(1) = 0
-            DO ip = 2, num_pe
-               rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
-            ENDDO
-            ! collect all the diagonal elements in a replicated 1d array
-            CALL mp_allgather(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl, para_env%group)
-         END DO
-
-         gmax = 0.0_dp
-         DO j = ns_bound(pe, 1), ns_bound(pe, 2)
-            k = j - ns_bound(pe, 1) + 1
-            DO i = 1, j - 1
-               ! find the location of the diagonal element (i,i)
-               DO ip = 0, num_pe - 1
-                  IF (i >= ns_bound(ip, 1) .AND. i <= ns_bound(ip, 2)) THEN
-                     ip_has_i = ip
-                     EXIT
-                  END IF
-               END DO
-               ii = nblock_max*ip_has_i + i - ns_bound(ip_has_i, 1) + 1
-               ! mepos has the diagonal element (j,j), as well as the off diagonal (i,j)
-               jj = nblock_max*pe + j - ns_bound(pe, 1) + 1
-               grad = 0.0_dp
-               DO idim = 1, dim2
-                  zi = zdiag_all(2*idim-1)%c_array(ii) + gaussi * zdiag_all(2*idim)%c_array(ii)
-                  zj = zdiag_all(2*idim-1)%c_array(jj) + gaussi * zdiag_all(2*idim)%c_array(jj)
-                  zk = cz_ij_loc(2*idim-1)%c_array(i, k) + gaussi * cz_ij_loc(2*idim)%c_array(i, k)
-                  grad = grad + weights(idim) * REAL(4.0_dp * CONJG(zk) * (zj - zi), dp)
-               END DO
-               gmax = MAX(gmax, ABS(grad))
-            END DO
-         END DO
-
-         CALL mp_max(gmax, group)
-         tol = ABS(gmax - old_tol)
-         old_tol = gmax 
-
-         func = 0.0_dp
-         DO i = ns_bound(pe, 1), ns_bound(pe, 2)
-            k = i - ns_bound(pe, 1) + 1
-            DO idim = 1, dim2
-               zi = cz_ij_loc(2*idim-1)%c_array(i, k) + gaussi * cz_ij_loc(2*idim)%c_array(i, k)
-               zr = REAL(zi, dp)
-               zc = AIMAG(zi)
-               func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
-            END DO
-         END DO
-         CALL mp_sum(func, group)
-
-         t2 = m_walltime()
-
-         IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
-            WRITE (output_unit, '(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps, func, tol, t2 - t1
-            CALL m_flush(output_unit)
-         END IF
-         IF (tol < eps_localization) EXIT
-         CALL external_control(should_stop, "LOC", target_time=target_time, start_time=start_time)
-         IF (should_stop) EXIT
-
-      END DO  ! sweeps
-
-      ! buffer for message passing
-      DEALLOCATE (rmat_recv_all)
-
-      DEALLOCATE (rmat_recv)
-      DEALLOCATE (rmat_send)
-      IF (ns_me > 0) THEN
-         DEALLOCATE (c_array_me)
-      ENDIF
-      DO idim = 1, dim3
-         DEALLOCATE (zdiag_me(idim)%c_array)
-         DEALLOCATE (zdiag_all(idim)%c_array)
-      END DO
-      DEALLOCATE (zdiag_me)
-      DEALLOCATE (zdiag_all)
-      DEALLOCATE (xyz_mix)
-      DO idim = 1, dim3
-         IF (ns_me /= 0) THEN
-            DEALLOCATE (xyz_mix_ns(idim)%c_array)
-         ENDIF
-      END DO
-      DEALLOCATE (xyz_mix_ns)
-      IF (ns_me /= 0) THEN
-         DEALLOCATE (gmat)
-      ENDIF
-      DEALLOCATE (mii)
-      DEALLOCATE (mij)
-      DEALLOCATE (mji)
-      DEALLOCATE (mjj)
-
-      ilow1 = ns_bound(pe, 1)
-      ns_me = ns_bound(pe, 2) - ns_bound(pe, 1) + 1
-      ALLOCATE (z_ij_loc_cos(nstate, nblock_max))
-      ALLOCATE (z_ij_loc_sin(nstate, nblock_max))
-      DO idim = 1, dim2
-         DO ip = 0, num_pe - 1
-            z_ij_loc_cos = (0.0_dp, 0.0_dp)
-            z_ij_loc_sin = (0.0_dp, 0.0_dp)
-            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
-            IF (ip == pe) THEN
-               ns_me = nblock
-               DO i = 1, ns_me
-                  ii = ilow1 + i - 1
-                  DO j = 1, nstate
-                     z_ij_loc_cos(j, i) = cz_ij_loc(2*idim-1)%c_array(j, i)
-                     z_ij_loc_sin(j, i) = cz_ij_loc(2*idim)%c_array(j, i)
-                  END DO
-               END DO
-            END IF
-            CALL mp_bcast(z_ij_loc_cos, ip, group)
-            CALL mp_bcast(z_ij_loc_sin, ip, group)
-            CALL cp_cfm_set_submatrix(zij(1, idim)%matrix, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
-            CALL cp_cfm_set_submatrix(zij(2, idim)%matrix, z_ij_loc_sin, 1, ns_bound(ip, 1), nstate, nblock)
-         END DO ! ip
-      END DO
-      
-      DO ip = 0, num_pe - 1
-         z_ij_loc_cos = (0.0_dp, 0.0_dp)
-         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
-         IF (ip == pe) THEN
-            ns_me = nblock
-            DO i = 1, ns_me
-               ii = ilow1 + i - 1
-               DO j = 1, nstate
-                  z_ij_loc_cos(j, i) = rotmat(j, i)
-               END DO
-            END DO
-         END IF
-         CALL mp_bcast(z_ij_loc_cos, ip, group)
-         CALL cp_cfm_set_submatrix(c_rmat, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
-      END DO
-
-      DEALLOCATE (z_ij_loc_cos)
-      DEALLOCATE (z_ij_loc_sin)
-      DO idim = 1, dim3
-         DEALLOCATE (cz_ij_loc(idim)%c_array)
-      END DO
-      DEALLOCATE (cz_ij_loc)
-
-      CALL mp_sync(group)
-      CALL rotate_complex_orbitals(c_rmat, vectors)
-      CALL cp_cfm_release(c_rmat)
-
-      DEALLOCATE (rotmat, ns_bound, list_pair)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cardoso_souloumiac_parallel
+!   SUBROUTINE cardoso_souloumiac_parallel(weights, zij, para_env, max_iter, eps_localization, &
+!                                          sweeps, out_each, target_time, start_time, vectors)
+!
+!      REAL(KIND=dp), INTENT(IN)                          :: weights(:)
+!      TYPE(cp_cfm_p_type), INTENT(INOUT)                 :: zij(:, :)
+!      TYPE(mp_para_env_type), POINTER                    :: para_env
+!      INTEGER, INTENT(IN)                                :: max_iter
+!      REAL(KIND=dp), INTENT(IN)                          :: eps_localization
+!      INTEGER                                            :: sweeps
+!      INTEGER, INTENT(IN)                                :: out_each
+!      REAL(KIND=dp)                                      :: target_time, start_time
+!      TYPE(cp_cfm_type), POINTER                         :: vectors
+!
+!      CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac_parallel', &
+!         routineP = moduleN//':'//routineN
+!
+!      COMPLEX(KIND=dp)              :: zi, zj, zk, ri, rj, st
+!      COMPLEX(KIND=dp), ALLOCATABLE :: z_ij_loc_cos(:, :), z_ij_loc_sin(:, :), rotmat(:, :), &
+!           c_array_me(:, :, :), gmat(:, :), rmat_recv(:, :), rmat_send(:, :), rmat_recv_all(:, :, :), &
+!           rmat_loc(:, :), c_array_partner(:, :, :)
+!      COMPLEX(KIND=dp), POINTER     :: mii(:), mij(:), mji(:), mjj(:)
+!      INTEGER                       :: dim1, dim2, dim3, group, handle, idim, ip, nblock, &
+!           nblock_max, npair, nperm, nstate, num_pe, pe, output_unit, i, j, ns_me, ii, ilow2, iup2, &
+!           il1, il2, ilow1, ip_partner, ipair, iperm, iu1, iup1, n1, n2, ns_partner, iu2, istate, jstate, &
+!           k, ik, il_recv, il_recv_partner, ip_has_i, ip_recv_from, ip_recv_partner, jj, kk, ns_recv_from, &
+!           ns_recv_partner, istat
+!      INTEGER, ALLOCATABLE          :: list_pair(:, :), ns_bound(:, :), rcount(:), rdispl(:)
+!      LOGICAL                       :: should_stop
+!      REAL(KIND=dp)                 :: tol, xlow, xstate, xup, t1, t2, ct, func, gmax, grad, zr, zc, old_tol
+!      TYPE(cp_cfm_type), POINTER    :: c_rmat
+!      TYPE(set_c_1d_type), POINTER  :: zdiag_all(:), zdiag_me(:)
+!      TYPE(set_c_2d_type), POINTER  :: cz_ij_loc(:), xyz_mix(:), xyz_mix_ns(:)
+!
+!      CALL timeset(routineN, handle)
+!
+!      output_unit = cp_logger_get_default_io_unit()
+!
+!      ! parallel environment
+!      pe = para_env%mepos
+!      num_pe = para_env%num_pe
+!      group = para_env%group
+!      
+!      dim1 = SIZE(zij, 1)
+!      dim2 = SIZE(zij, 2)
+!      dim3 = dim1 * dim2
+!      ALLOCATE (mii(dim3), mij(dim3), mji(dim3), mjj(dim3))
+!
+!      ! prepare rotation matrix
+!      CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix%matrix_struct)
+!      CALL cp_cfm_set_all(c_rmat, (0.0_dp, 0.0_dp), (1.0_dp, 1.0_dp))
+!
+!      CALL cp_cfm_get_info(c_rmat, nrow_global=nstate)
+!
+!      ALLOCATE (rcount(para_env%num_pe), STAT=istat)
+!      ALLOCATE (rdispl(para_env%num_pe), STAT=istat)
+!
+!      old_tol = 1.0e10_dp
+!      tol = 1.0e10_dp
+!      sweeps = 0
+!
+!      ! processors pairs and permutations
+!      npair = (num_pe + 1) / 2
+!      nperm = num_pe - MOD(num_pe + 1, 2)
+!      ALLOCATE (list_pair(2, npair))
+!
+!      ! distribute the states
+!      xstate = REAL(nstate, dp) / REAL(num_pe, dp)
+!      nblock_max = 0
+!      ALLOCATE(ns_bound(0:num_pe - 1, 2))
+!      xlow = 0.0d0
+!      xup = 0.0d0
+!      DO ip = 1, num_pe
+!         xup = xlow + xstate
+!         ns_bound(ip - 1, 1) = NINT(xlow) + 1
+!         ns_bound(ip - 1, 2) = NINT(xup)
+!         IF (NINT(xup) > nstate) THEN
+!            ns_bound(ip - 1, 2) = nstate
+!         END IF
+!         IF (NINT(xlow) > nstate) THEN
+!            ns_bound(ip - 1, 1) = nstate + 1
+!         END IF
+!         xlow = xup
+!      END DO
+!      DO ip = 0, num_pe - 1
+!         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
+!         nblock_max = MAX(nblock_max, nblock)
+!      END DO
+!      
+!      ! get the portion of the matrix local to this processor
+!      ALLOCATE(z_ij_loc_cos(nstate, nblock_max), z_ij_loc_sin(nstate, nblock_max), cz_ij_loc(dim3))
+!      DO idim = 1, dim2
+!         DO ip = 0, num_pe - 1
+!            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
+!            CALL cp_cfm_get_submatrix(zij(1, idim)%matrix, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
+!            CALL cp_cfm_get_submatrix(zij(2, idim)%matrix, z_ij_loc_sin, 1, ns_bound(ip, 1), nstate, nblock)
+!            IF (pe == ip) THEN
+!               ns_me = nblock
+!               ALLOCATE (cz_ij_loc(2*idim-1)%c_array(nstate, ns_me), &
+!                    cz_ij_loc(2*idim)%c_array(nstate, ns_me))
+!               DO i = 1, ns_me
+!                  DO j = 1, nstate
+!                     cz_ij_loc(2*idim-1)%c_array(j, i) = z_ij_loc_cos(j, i)
+!                     cz_ij_loc(2*idim)%c_array(j, i) = z_ij_loc_sin(j, i)
+!                  END DO
+!               END DO
+!            END IF
+!         END DO
+!      END DO
+!      DEALLOCATE (z_ij_loc_cos, z_ij_loc_sin)
+!
+!      ! initialise rotation matrix to the identity transform
+!      ALLOCATE (rotmat(nstate, 2*nblock_max))
+!      rotmat = (0.0_dp, 0.0_dp)
+!      DO i = ns_bound(pe, 1), ns_bound(pe, 2)
+!         ii = i - ns_bound(pe, 1) + 1
+!         rotmat(i, ii) = (1.0_dp, 0.0_dp)
+!      END DO
+!      
+!      ALLOCATE (xyz_mix(dim3), xyz_mix_ns(dim3), zdiag_me(dim3), zdiag_all(dim3))
+!
+!      ns_me = ns_bound(pe, 2) - ns_bound(pe, 1) + 1
+!      IF (ns_me /= 0) THEN
+!         ALLOCATE (c_array_me(nstate, ns_me, dim3))
+!         DO idim = 1, dim3
+!            ALLOCATE(xyz_mix_ns(idim)%c_array(nstate, ns_me))
+!         END DO
+!         ALLOCATE (gmat(nstate, ns_me))
+!      END IF
+!      
+!      DO idim = 1, dim3
+!         ALLOCATE (zdiag_me(idim)%c_array(nblock_max))
+!         zdiag_me(idim)%c_array = (0.0_dp, 0.0_dp)
+!         ALLOCATE (zdiag_all(idim)%c_array(num_pe * nblock_max))
+!         zdiag_all(idim)%c_array = (0.0_dp, 0.0_dp)
+!      END DO
+!      ALLOCATE (rmat_recv(nblock_max*2, nblock_max), rmat_send(nblock_max*2, nblock_max))
+!      ALLOCATE (rmat_recv_all(nblock_max*2, nblock_max, 0:num_pe-1))
+!
+!      IF (output_unit > 0) THEN
+!         WRITE (output_unit, '(T4,A )') " Localization by iterative distributed Jacobi rotation with"
+!         WRITE (output_unit, '(T4,A )') " Cardoso-Souloumiac angles"
+!         WRITE (output_unit, '(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance", " Time "
+!      END IF
+!
+!      DO sweeps = 1, max_iter + 1
+!         IF (sweeps == max_iter + 1) THEN
+!            IF (output_unit > 0) THEN
+!               WRITE (output_unit, *) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
+!               WRITE (output_unit, *) '               Present  Max. gradient = ', tol
+!            END IF
+!            EXIT
+!         ENDIF
+!         t1 = m_walltime()
+!
+!         DO iperm = 1, nperm
+!
+!            ! fix partners for this permutation, and get the number of states
+!            CALL eberlein(iperm, para_env, list_pair)
+!            ip_partner = -1
+!            ns_partner = 0
+!            DO ipair = 1, npair
+!               IF (list_pair(1, ipair) == pe) THEN
+!                  ip_partner = list_pair(2, ipair)
+!                  EXIT
+!               ELSE IF (list_pair(2, ipair) == pe) THEN
+!                  ip_partner = list_pair(1, ipair)
+!                  EXIT
+!               END IF
+!            END DO
+!            IF (ip_partner >= 0) THEN
+!               ns_partner = ns_bound(ip_partner, 2) - ns_bound(ip_partner, 1) + 1
+!            ELSE
+!               ns_partner = 0
+!            END IF
+!
+!            ! if there is a non-zero block connecting two partners, jacobi-sweep it.
+!            IF (ns_partner*ns_me /= 0) THEN
+!
+!               ALLOCATE (rmat_loc(ns_me + ns_partner, ns_me + ns_partner))
+!               rmat_loc = 0.0_dp
+!               DO i = 1, ns_me + ns_partner
+!                  rmat_loc(i, i) = (1.0_dp, 0.0_dp)
+!               END DO
+!
+!               ALLOCATE (c_array_partner(nstate, ns_partner, dim3))
+!            
+!               DO idim = 1, dim3
+!                  ALLOCATE (xyz_mix(idim)%c_array(ns_me + ns_partner, ns_me + ns_partner))
+!                  DO i = 1, ns_me
+!                     c_array_me(1:nstate, i, idim) = cz_ij_loc(idim)%c_array(1:nstate, i)
+!                  END DO
+!               END DO
+!               
+!               CALL mp_sendrecv(msgin=c_array_me, dest=ip_partner, &
+!                                msgout=c_array_partner, source=ip_partner, comm=group)
+!
+!               n1 = ns_me
+!               n2 = ns_partner
+!               ilow1 = ns_bound(para_env%mepos, 1)
+!               iup1 = ns_bound(para_env%mepos, 1) + n1 - 1
+!               ilow2 = ns_bound(ip_partner, 1)
+!               iup2 = ns_bound(ip_partner, 1) + n2 - 1
+!               IF (ns_bound(para_env%mepos, 1) < ns_bound(ip_partner, 1)) THEN
+!                  il1 = 1
+!                  iu1 = n1
+!                  iu1 = n1
+!                  il2 = 1 + n1
+!                  iu2 = n1 + n2
+!               ELSE
+!                  il1 = 1 + n2
+!                  iu1 = n1 + n2
+!                  iu1 = n1 + n2
+!                  il2 = 1
+!                  iu2 = n2
+!               END IF
+!               
+!               DO idim = 1, dim3
+!                  DO i = 1, n1
+!                     xyz_mix(idim)%c_array(il1:iu1, il1 + i - 1) = c_array_me(ilow1:iup1, i, idim)
+!                     xyz_mix(idim)%c_array(il2:iu2, il1 + i - 1) = c_array_me(ilow2:iup2, i, idim)
+!                  END DO
+!                  DO i = 1, n2
+!                     xyz_mix(idim)%c_array(il2:iu2, il2 + i - 1) = c_array_partner(ilow2:iup2, i, idim)
+!                     xyz_mix(idim)%c_array(il1:iu1, il2 + i - 1) = c_array_partner(ilow1:iup1, i, idim)
+!                  END DO
+!               END DO
+!
+!               DO istate = 1, n1 + n2
+!                  DO jstate = istate + 1, n1 + n2
+!                     DO idim = 1, dim3
+!                        mii(idim) = xyz_mix(idim)%c_array(istate, istate)
+!                        mij(idim) = xyz_mix(idim)%c_array(istate, jstate)
+!                        mji(idim) = xyz_mix(idim)%c_array(jstate, istate)
+!                        mjj(idim) = xyz_mix(idim)%c_array(jstate, jstate)
+!                     END DO
+!                     !CALL get_cardoso_angles(mii, mij, mji, mjj, ct, st)
+!                     DO idim = 1, dim3
+!                        DO i = 1, n1 + n2
+!                           zi = ct*xyz_mix(idim)%c_array(i, istate) + st*xyz_mix(idim)%c_array(i, jstate)
+!                           zj = -CONJG(st)*xyz_mix(idim)%c_array(i, istate) + ct*xyz_mix(idim)%c_array(i, jstate)
+!                           xyz_mix(idim)%c_array(i, istate) = zi
+!                           xyz_mix(idim)%c_array(i, jstate) = zj
+!                        END DO
+!                        DO i = 1, n1 + n2
+!                           zi = ct*xyz_mix(idim)%c_array(istate, i) + CONJG(st)*xyz_mix(idim)%c_array(jstate, i)
+!                           zj = -st*xyz_mix(idim)%c_array(istate, i) + ct*xyz_mix(idim)%c_array(jstate, i)
+!                           xyz_mix(idim)%c_array(istate, i) = zi
+!                           xyz_mix(idim)%c_array(jstate, i) = zj
+!                        END DO
+!                     END DO
+!
+!                     DO i = 1, n1 + n2
+!                        ri = ct*rmat_loc(i, istate) + st*rmat_loc(i, jstate)
+!                        rj = -CONJG(st)*rmat_loc(i, istate) + ct*rmat_loc(i, jstate)
+!                        rmat_loc(i, istate) = ri
+!                        rmat_loc(i, jstate) = rj
+!                     END DO
+!                  END DO
+!               END DO
+!
+!               k = nblock_max + 1
+!               CALL mp_sendrecv(rotmat(1:nstate, 1:ns_me), ip_partner, &
+!                                rotmat(1:nstate, k:k + n2 - 1), ip_partner, para_env%group)
+!
+!               IF (ilow1 < ilow2) THEN
+!                  CALL zgemm("N", "N", nstate, n1, n2, (1.0_dp, 0.0_dp), rotmat(1, k), nstate, &
+!                       rmat_loc(1 + n1, 1), n1 + n2, (0.0_dp, 0.0_dp), gmat, nstate)
+!                  CALL zgemm("N", "N", nstate, n1, n1, (1.0_dp, 0.0_dp), rotmat(1, 1), nstate, &
+!                       rmat_loc(1, 1), n1 + n2, (1.0_dp, 0.0_dp), gmat, nstate)
+!               ELSE
+!                  CALL zgemm("N", "N", nstate, n1, n2, (1.0_dp, 0.0_dp), rotmat(1, k), nstate, &
+!                       rmat_loc(1, n2 + 1), n1 + n2, (0.0_dp, 0.0_dp), gmat, nstate)
+!                  CALL zgemm("N", "N", nstate, n1, n1, (1.0_dp, 0.0_dp), rotmat(1, 1), nstate, &
+!                             rmat_loc(n2 + 1, n2 + 1), n1 + n2, (1.0_dp, 0.0_dp), gmat, nstate)
+!               END IF
+!
+!               CALL zcopy(nstate*n1, gmat(1, 1), 1, rotmat(1, 1), 1)
+!
+!               DO idim = 1, dim3
+!                  DO i = 1, n1
+!                     xyz_mix_ns(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
+!                  END DO
+!
+!                  DO istate = 1, n1
+!                     DO jstate = 1, nstate
+!                        DO i = 1, n2
+!                           xyz_mix_ns(idim)%c_array(jstate, istate) = &
+!                              xyz_mix_ns(idim)%c_array(jstate, istate) + &
+!                              c_array_partner(jstate, i, idim)*rmat_loc(il2 + i - 1, il1 + istate - 1)
+!                        END DO
+!                     END DO
+!                  END DO
+!                  DO istate = 1, n1
+!                     DO jstate = 1, nstate
+!                        DO i = 1, n1
+!                           xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate) + &
+!                                                                 c_array_me(jstate, i, idim)*rmat_loc(il1 + i - 1, il1 + istate - 1)
+!                        END DO
+!                     END DO
+!                  END DO
+!               END DO ! idim
+!
+!               DEALLOCATE (c_array_partner)
+!               
+!            ELSE ! save my data
+!               DO idim = 1, dim3
+!                  DO i = 1, ns_me
+!                     xyz_mix_ns(idim)%c_array(1:nstate, i) = cz_ij_loc(idim)%c_array(1:nstate, i)
+!                  END DO
+!               END DO
+!            END IF
+!
+!            DO idim = 1, dim3
+!               DO i = 1, ns_me
+!                  cz_ij_loc(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
+!               END DO
+!            END DO
+!
+!            IF (ns_partner*ns_me /= 0) THEN
+!               ! conjugate transpose rotation matrix rmat_loc
+!               DO i = 1, ns_me + ns_partner
+!                  DO j = i + 1, ns_me + ns_partner
+!                     ri = rmat_loc(i, j)
+!                     rmat_loc(i, j) = CONJG(rmat_loc(j, i))
+!                     rmat_loc(j, i) = CONJG(ri)
+!                  END DO
+!               END DO
+!
+!               ! prepare for distribution
+!               DO i = 1, n1
+!                  rmat_send(1:n1, i) = rmat_loc(il1:iu1, il1 + i - 1)
+!               END DO
+!               ik = nblock_max
+!               DO i = 1, n2
+!                  rmat_send(ik + 1:ik + n1, i) = rmat_loc(il1:iu1, il2 + i - 1)
+!               END DO
+!            ELSE
+!               rmat_send = 0.0_dp
+!            END IF
+!
+!            ! collect data from all tasks (this takes some significant time)
+!            CALL mp_allgather(rmat_send, rmat_recv_all, para_env%group)
+!
+!            ! update blocks everywhere
+!            DO ip = 0, num_pe - 1
+!
+!               ip_recv_from = MOD(pe - IP + num_pe, num_pe)
+!               rmat_recv(:, :) = rmat_recv_all(:, :, ip_recv_from)
+!
+!               ns_recv_from = ns_bound(ip_recv_from, 2) - ns_bound(ip_recv_from, 1) + 1
+!
+!               IF (ns_me /= 0) THEN
+!                  IF (ns_recv_from /= 0) THEN
+!                     !look for the partner of ip_recv_from
+!                     ip_recv_partner = -1
+!                     ns_recv_partner = 0
+!                     DO ipair = 1, npair
+!                        IF (list_pair(1, ipair) == ip_recv_from) THEN
+!                           ip_recv_partner = list_pair(2, ipair)
+!                           EXIT
+!                        ELSE IF (list_pair(2, ipair) == ip_recv_from) THEN
+!                           ip_recv_partner = list_pair(1, ipair)
+!                           EXIT
+!                        END IF
+!                     END DO
+!
+!                     IF (ip_recv_partner >= 0) THEN
+!                        ns_recv_partner = ns_bound(ip_recv_partner, 2) - ns_bound(ip_recv_partner, 1) + 1
+!                     END IF
+!                     IF (ns_recv_partner > 0) THEN
+!                        il1 = ns_bound(para_env%mepos, 1)
+!                        il_recv = ns_bound(ip_recv_from, 1)
+!                        il_recv_partner = ns_bound(ip_recv_partner, 1)
+!                        ik = nblock_max
+!
+!                        DO idim = 1, dim3
+!                           DO i = 1, ns_recv_from
+!                              ii = il_recv + i - 1
+!                              DO j = 1, ns_me
+!                                 jj = j
+!                                 DO k = 1, ns_recv_from
+!                                    kk = il_recv + k - 1
+!                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
+!                                                                      rmat_recv(i, k)*xyz_mix_ns(idim)%c_array(kk, j)
+!                                 END DO
+!                              END DO
+!                           END DO
+!                           DO i = 1, ns_recv_from
+!                              ii = il_recv + i - 1
+!                              DO j = 1, ns_me
+!                                 jj = j
+!                                 DO k = 1, ns_recv_partner
+!                                    kk = il_recv_partner + k - 1
+!                                    cz_ij_loc(idim)%c_array(ii, jj) = cz_ij_loc(idim)%c_array(ii, jj) + &
+!                                                                      rmat_recv(ik + i, k)*xyz_mix_ns(idim)%c_array(kk, j)
+!                                 END DO
+!                              END DO
+!                           END DO
+!                        END DO ! idim
+!                     ELSE
+!                        il1 = ns_bound(para_env%mepos, 1)
+!                        il_recv = ns_bound(ip_recv_from, 1)
+!                        DO idim = 1, dim3
+!                           DO j = 1, ns_me
+!                              jj = j
+!                              DO i = 1, ns_recv_from
+!                                 ii = il_recv + i - 1
+!                                 cz_ij_loc(idim)%c_array(ii, jj) = xyz_mix_ns(idim)%c_array(ii, j)
+!                              END DO
+!                           END DO
+!                        END DO ! idim
+!                     END IF
+!                  END IF
+!               END IF  ! ns_me
+!            END DO ! ip
+!
+!            IF (ns_partner*ns_me /= 0) THEN
+!               DEALLOCATE (rmat_loc)
+!               DO idim = 1, dim2
+!                  DEALLOCATE (xyz_mix(idim)%c_array)
+!               END DO
+!            END IF
+!
+!         END DO  ! iperm
+!
+!         ! calculate the max gradient
+!         DO idim = 1, dim3
+!            DO i = ns_bound(pe, 1), ns_bound(pe, 2)
+!               ii = i - ns_bound(pe, 1) + 1
+!               zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
+!               zdiag_me(idim)%c_array(ii) = cz_ij_loc(idim)%c_array(i, ii)
+!            END DO
+!            rcount(:) = SIZE(zdiag_me(idim)%c_array)
+!            rdispl(1) = 0
+!            DO ip = 2, num_pe
+!               rdispl(ip) = rdispl(ip - 1) + rcount(ip - 1)
+!            ENDDO
+!            ! collect all the diagonal elements in a replicated 1d array
+!            CALL mp_allgather(zdiag_me(idim)%c_array, zdiag_all(idim)%c_array, rcount, rdispl, para_env%group)
+!         END DO
+!
+!         gmax = 0.0_dp
+!         DO j = ns_bound(pe, 1), ns_bound(pe, 2)
+!            k = j - ns_bound(pe, 1) + 1
+!            DO i = 1, j - 1
+!               ! find the location of the diagonal element (i,i)
+!               DO ip = 0, num_pe - 1
+!                  IF (i >= ns_bound(ip, 1) .AND. i <= ns_bound(ip, 2)) THEN
+!                     ip_has_i = ip
+!                     EXIT
+!                  END IF
+!               END DO
+!               ii = nblock_max*ip_has_i + i - ns_bound(ip_has_i, 1) + 1
+!               ! mepos has the diagonal element (j,j), as well as the off diagonal (i,j)
+!               jj = nblock_max*pe + j - ns_bound(pe, 1) + 1
+!               grad = 0.0_dp
+!               DO idim = 1, dim2
+!                  zi = zdiag_all(2*idim-1)%c_array(ii) + gaussi * zdiag_all(2*idim)%c_array(ii)
+!                  zj = zdiag_all(2*idim-1)%c_array(jj) + gaussi * zdiag_all(2*idim)%c_array(jj)
+!                  zk = cz_ij_loc(2*idim-1)%c_array(i, k) + gaussi * cz_ij_loc(2*idim)%c_array(i, k)
+!                  grad = grad + weights(idim) * REAL(4.0_dp * CONJG(zk) * (zj - zi), dp)
+!               END DO
+!               gmax = MAX(gmax, ABS(grad))
+!            END DO
+!         END DO
+!
+!         CALL mp_max(gmax, group)
+!         tol = ABS(gmax - old_tol)
+!         old_tol = gmax 
+!
+!         func = 0.0_dp
+!         DO i = ns_bound(pe, 1), ns_bound(pe, 2)
+!            k = i - ns_bound(pe, 1) + 1
+!            DO idim = 1, dim2
+!               zi = cz_ij_loc(2*idim-1)%c_array(i, k) + gaussi * cz_ij_loc(2*idim)%c_array(i, k)
+!               zr = REAL(zi, dp)
+!               zc = AIMAG(zi)
+!               func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
+!            END DO
+!         END DO
+!         CALL mp_sum(func, group)
+!
+!         t2 = m_walltime()
+!
+!         IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
+!            WRITE (output_unit, '(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps, func, tol, t2 - t1
+!            CALL m_flush(output_unit)
+!         END IF
+!         IF (tol < eps_localization) EXIT
+!         CALL external_control(should_stop, "LOC", target_time=target_time, start_time=start_time)
+!         IF (should_stop) EXIT
+!
+!      END DO  ! sweeps
+!
+!      ! buffer for message passing
+!      DEALLOCATE (rmat_recv_all)
+!
+!      DEALLOCATE (rmat_recv)
+!      DEALLOCATE (rmat_send)
+!      IF (ns_me > 0) THEN
+!         DEALLOCATE (c_array_me)
+!      ENDIF
+!      DO idim = 1, dim3
+!         DEALLOCATE (zdiag_me(idim)%c_array)
+!         DEALLOCATE (zdiag_all(idim)%c_array)
+!      END DO
+!      DEALLOCATE (zdiag_me)
+!      DEALLOCATE (zdiag_all)
+!      DEALLOCATE (xyz_mix)
+!      DO idim = 1, dim3
+!         IF (ns_me /= 0) THEN
+!            DEALLOCATE (xyz_mix_ns(idim)%c_array)
+!         ENDIF
+!      END DO
+!      DEALLOCATE (xyz_mix_ns)
+!      IF (ns_me /= 0) THEN
+!         DEALLOCATE (gmat)
+!      ENDIF
+!      DEALLOCATE (mii)
+!      DEALLOCATE (mij)
+!      DEALLOCATE (mji)
+!      DEALLOCATE (mjj)
+!
+!      ilow1 = ns_bound(pe, 1)
+!      ns_me = ns_bound(pe, 2) - ns_bound(pe, 1) + 1
+!      ALLOCATE (z_ij_loc_cos(nstate, nblock_max))
+!      ALLOCATE (z_ij_loc_sin(nstate, nblock_max))
+!      DO idim = 1, dim2
+!         DO ip = 0, num_pe - 1
+!            z_ij_loc_cos = (0.0_dp, 0.0_dp)
+!            z_ij_loc_sin = (0.0_dp, 0.0_dp)
+!            nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
+!            IF (ip == pe) THEN
+!               ns_me = nblock
+!               DO i = 1, ns_me
+!                  ii = ilow1 + i - 1
+!                  DO j = 1, nstate
+!                     z_ij_loc_cos(j, i) = cz_ij_loc(2*idim-1)%c_array(j, i)
+!                     z_ij_loc_sin(j, i) = cz_ij_loc(2*idim)%c_array(j, i)
+!                  END DO
+!               END DO
+!            END IF
+!            CALL mp_bcast(z_ij_loc_cos, ip, group)
+!            CALL mp_bcast(z_ij_loc_sin, ip, group)
+!            CALL cp_cfm_set_submatrix(zij(1, idim)%matrix, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
+!            CALL cp_cfm_set_submatrix(zij(2, idim)%matrix, z_ij_loc_sin, 1, ns_bound(ip, 1), nstate, nblock)
+!         END DO ! ip
+!      END DO
+!      
+!      DO ip = 0, num_pe - 1
+!         z_ij_loc_cos = (0.0_dp, 0.0_dp)
+!         nblock = ns_bound(ip, 2) - ns_bound(ip, 1) + 1
+!         IF (ip == pe) THEN
+!            ns_me = nblock
+!            DO i = 1, ns_me
+!               ii = ilow1 + i - 1
+!               DO j = 1, nstate
+!                  z_ij_loc_cos(j, i) = rotmat(j, i)
+!               END DO
+!            END DO
+!         END IF
+!         CALL mp_bcast(z_ij_loc_cos, ip, group)
+!         CALL cp_cfm_set_submatrix(c_rmat, z_ij_loc_cos, 1, ns_bound(ip, 1), nstate, nblock)
+!      END DO
+!
+!      DEALLOCATE (z_ij_loc_cos)
+!      DEALLOCATE (z_ij_loc_sin)
+!      DO idim = 1, dim3
+!         DEALLOCATE (cz_ij_loc(idim)%c_array)
+!      END DO
+!      DEALLOCATE (cz_ij_loc)
+!
+!      CALL mp_sync(group)
+!      CALL rotate_complex_orbitals(c_rmat, vectors)
+!      CALL cp_cfm_release(c_rmat)
+!
+!      DEALLOCATE (rotmat, ns_bound, list_pair)
+!
+!      CALL timestop(handle)
+!
+!   END SUBROUTINE cardoso_souloumiac_parallel
       
 
 ! **************************************************************************************************
 ! **************************************************************************************************
-   SUBROUTINE cardoso_souloumiac_pipek(zij, vec, sweeps, max_iter, eps, out_each, states)
+   SUBROUTINE cardoso_souloumiac_pipek(zij, vec, sweeps, max_iter, eps, out_each)
 
-     type(cp_cfm_p_type), pointer   :: zij(:,:)
-     type(cp_cfm_type), pointer     :: vec
+     type(cp_cfm_type), pointer   :: zij(:,:), vec
      integer                        :: sweeps, max_iter, out_each
      real(dp)                       :: eps
-     integer, allocatable, optional :: states(:)
+     character(*), parameter :: routineN = 'cardoso_souloumiac_pipek'
 
-     character(*), parameter :: routineN = 'cardoso_souloumiac_pipek', &
-                                routineP = moduleN//':'//routineN
-
-     complex(dp)                  :: s, c_spread, q, qi, vl, vr
+     complex(dp)                  :: s, c_spread
      complex(dp), pointer         :: qii(:), qij(:), qji(:), qjj(:)
-     integer                      :: handle, output_unit, n_dim, i, j, k, n_states, l, m
+     integer                      :: handle, output_unit, n_dim, i, j, k, n_states
      real(dp)                     :: t1, t2, tol, spread, old_spread, c
-     type(cp_cfm_p_type), pointer :: c_zij(:)
-     type(cp_cfm_type), pointer   :: rmat
+     type(cp_cfm_type), pointer   :: c_zij(:), rmat
 
      call timeset(routineN, handle)
 
      n_dim = size(zij)
-     call cp_cfm_create(rmat, zij(1, 1)%matrix%matrix_struct)
+     call cp_cfm_create(rmat, zij(1, 1)%matrix_struct)
      call cp_cfm_set_all(rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))
      allocate(c_zij(n_dim), qii(n_dim), qij(n_dim), qji(n_dim), qjj(n_dim))
 
      ! build Qij matrix
      do k = 1, n_dim
-        c_zij(k)%matrix => zij(k, 1)%matrix
+        c_zij(k) = zij(k, 1)
      end do
 
-     call cp_cfm_get_info(c_zij(1)%matrix, ncol_global=n_states)
+     call cp_cfm_get_info(c_zij(1), ncol_global=n_states)
 
      tol = 1.0e10_dp
      c_spread = (0.0_dp, 0.0_dp)
      do k = 1, n_dim
         do i = 1, n_states
-           call cp_cfm_get_element(c_zij(k)%matrix, i, i, s)
+           call cp_cfm_get_element(c_zij(k), i, i, s)
            c_spread = c_spread + s * s
         end do
      end do
@@ -3930,10 +3916,10 @@ CONTAINS
         do i = 1, n_states
            do j = i + 1, n_states
               do k = 1, n_dim
-                 call cp_cfm_get_element(c_zij(k)%matrix, i, i, qii(k))
-                 call cp_cfm_get_element(c_zij(k)%matrix, i, j, qij(k))
-                 call cp_cfm_get_element(c_zij(k)%matrix, j, i, qji(k))
-                 call cp_cfm_get_element(c_zij(k)%matrix, j, j, qjj(k))
+                 call cp_cfm_get_element(c_zij(k), i, i, qii(k))
+                 call cp_cfm_get_element(c_zij(k), i, j, qij(k))
+                 call cp_cfm_get_element(c_zij(k), j, i, qji(k))
+                 call cp_cfm_get_element(c_zij(k), j, j, qjj(k))
               end do
               call get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
               call rotate_cardoso_zij(i, j, c, s, c_zij)
@@ -3944,7 +3930,7 @@ CONTAINS
         c_spread = (0.0_dp, 0.0_dp)
         do i = 1, n_states
            do k = 1, n_dim
-              call cp_cfm_get_element(c_zij(k)%matrix, i, i, s)
+              call cp_cfm_get_element(c_zij(k), i, i, s)
               c_spread = c_spread + s * s
            end do
         end do
@@ -3986,7 +3972,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(out)                      :: s
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
 
-      INTEGER :: i, i_max, handle, dim_m
+      INTEGER :: i, i_max, dim_m
       REAL(KIND=dp) :: x, y, z, r
       REAL(KIND=dp), DIMENSION(3)                        :: evals
       TYPE(cp_cfm_type), POINTER                         :: c_Gmat, hmat
@@ -4052,33 +4038,32 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rotate_cardoso_zij(istate, jstate, c, s, zij)
 
-      INTEGER, INTENT(IN)                :: istate, jstate
-      REAL(kind=dp), INTENT(INOUT)       :: c
-      COMPLEX(kind=dp), INTENT(INOUT)    :: s
-      TYPE(cp_cfm_p_type), DIMENSION(:)  :: zij
+      INTEGER, INTENT(IN)             :: istate, jstate
+      REAL(kind=dp), INTENT(INOUT)    :: c
+      COMPLEX(kind=dp), INTENT(INOUT) :: s
+      TYPE(cp_cfm_type), POINTER    :: zij(:)
 
-      INTEGER                            :: i, nstate
+      INTEGER               :: i, nstate
 #if defined(__SCALAPACK)
-      INTEGER, DIMENSION(9)              :: desc
+      INTEGER, DIMENSION(9) :: desc
 #else
-      INTEGER                            :: stride
+      INTEGER               :: stride
 #endif
 
-      CALL cp_cfm_get_info(zij(1)%matrix, nrow_global=nstate)
+      CALL cp_cfm_get_info(zij(1), nrow_global=nstate)
 
       DO i = 1, SIZE(zij)
 #if defined(__SCALAPACK)
-         desc(:) = zij(i)%matrix%matrix_struct%descriptor(:)
-         CALL pzrot(nstate, zij(i)%matrix%local_data(1, 1), 1, istate, desc, 1, &
-                    zij(i)%matrix%local_data(1, 1), 1, jstate, desc, 1, c, s)
-         CALL pzrot(nstate, zij(i)%matrix%local_data(1, 1), istate, 1, desc, nstate, &
-                    zij(i)%matrix%local_data(1, 1), jstate, 1, desc, nstate, c, CONJG(s))
+         desc(:) = zij(i)%matrix_struct%descriptor(:)
+         CALL pzrot(nstate, zij(i)%local_data(1, 1), 1, istate, desc, 1, zij(i)%local_data(1, 1), &
+              1, jstate, desc, 1, c, s)
+         CALL pzrot(nstate, zij(i)%local_data(1, 1), istate, 1, desc, nstate, &
+              zij(i)%matrix%local_data(1, 1), jstate, 1, desc, nstate, c, CONJG(s))
 #else
-         CALL zrot(nstate, zij(i)%matrix%local_data(1, istate), 1, &
-                   zij(i)%matrix%local_data(1, jstate), 1, c, s)
-         stride = SIZE(zij(i)%matrix%local_data, 1)
-         CALL zrot(nstate, zij(i)%matrix%local_data(istate, 1), stride, &
-                   zij(i)%matrix%local_data(jstate, 1), stride, c, CONJG(s))
+         CALL zrot(nstate, zij(i)%local_data(1, istate), 1, zij(i)%local_data(1, jstate), 1, c, s)
+         stride = SIZE(zij(i)%local_data, 1)
+         CALL zrot(nstate, zij(i)%local_data(istate, 1), stride, zij(i)%local_data(jstate, 1), &
+              stride, c, CONJG(s))
 #endif
       END DO
    END SUBROUTINE rotate_cardoso_zij

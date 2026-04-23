@@ -1359,8 +1359,7 @@ CONTAINS
 !> \param sab_orb_external ...
 !> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec, sab_orb_external, basis_type, &
-        q)
+   SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec, sab_orb_external, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
@@ -1368,7 +1367,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_external
       CHARACTER(len=*), OPTIONAL                         :: basis_type
-      LOGICAL, OPTIONAL                                  :: q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix'
 
@@ -2482,13 +2480,6 @@ CONTAINS
             END DO
             mmom(i) = strace
          END DO
-
-         do i = 1, 3
-            call integer_to_string(i, tag)
-            call open_file("m_"//trim(tag)//".dat", unit_number=file_unit, file_action="WRITE", file_status="REPLACE") 
-            call dbcsr_print(magmom(i)%matrix, matlab_format=.true., unit_nr=file_unit)
-            call close_file(file_unit)
-         end do
 
          CALL dbcsr_deallocate_matrix_set(magmom)
       END IF

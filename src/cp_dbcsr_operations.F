@@ -32,8 +32,6 @@ MODULE cp_dbcsr_operations
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
-                                              cp_cfm_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -62,8 +60,7 @@ MODULE cp_dbcsr_operations
 
    ! CP2K API emulation
    PUBLIC :: copy_fm_to_dbcsr, copy_dbcsr_to_fm, &
-             cp_dbcsr_sm_fm_multiply, cp_dbcsr_sm_cfm_multiply, &
-             cp_dbcsr_plus_fm_fm_t, &
+             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t, &
              copy_dbcsr_to_fm_bc, copy_fm_to_dbcsr_bc, cp_fm_to_dbcsr_row_template, &
              cp_dbcsr_m_by_n_from_template, cp_dbcsr_m_by_n_from_row_template, &
              dbcsr_create_dist_r_unrot
@@ -639,91 +636,6 @@ CONTAINS
       CALL timestop(timing_handle)
 
    END SUBROUTINE cp_dbcsr_sm_fm_multiply
-
-! **************************************************************************************************
-!> \brief multiply a dbcsr with a complex full matrix (cfm)
-!>
-!> \param[in]  matrix         DBCSR matrix
-!> \param fm_in complex full matrix input
-!> \param fm_out complex full matrix output
-!> \param[in]  ncol           nbr of columns
-!> \param[in]  alpha          alpha
-!> \param[in]  beta           beta
-!>
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_sm_cfm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(cp_cfm_type), INTENT(IN)                      :: fm_in
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: fm_out
-      INTEGER, INTENT(IN)                                :: ncol
-      COMPLEX(dp), INTENT(IN), OPTIONAL                  :: alpha, beta
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_sm_cfm_multiply'
-
-      INTEGER                                            :: a_ncol, a_nrow, b_ncol, b_nrow, c_ncol, &
-                                                            c_nrow, k_in, k_out, timing_handle, &
-                                                            timing_handle_mult
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_blk_size_right_in, &
-                                                            col_blk_size_right_out, col_dist, &
-                                                            row_blk_size, row_dist
-      TYPE(dbcsr_type)                                   :: in, out
-      TYPE(dbcsr_distribution_type)                      :: dist, dist_right_in, product_dist
-      COMPLEX(dp)                                        :: my_alpha, my_beta
-
-      CALL timeset(routineN, timing_handle)
-
-      my_alpha = (1.0_dp, 0.0_dp)
-      my_beta = (0.0_dp, 0.0_dp)
-      IF (PRESENT(alpha)) my_alpha = alpha
-      IF (PRESENT(beta)) my_beta = beta
-
-      CALL cp_cfm_get_info(fm_in, ncol_global=b_ncol, nrow_global=b_nrow)
-      CALL cp_cfm_get_info(fm_out, ncol_global=c_ncol, nrow_global=c_nrow)
-      CALL dbcsr_get_info(matrix, nfullrows_total=a_nrow, nfullcols_total=a_ncol)
-
-      CALL cp_cfm_get_info(fm_out, ncol_global=k_out)
-      CALL cp_cfm_get_info(fm_in, ncol_global=k_in)
-
-      IF (ncol > 0 .AND. k_out > 0 .AND. k_in > 0) THEN
-         CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size, distribution=dist)
-         CALL dbcsr_create_dist_r_unrot(dist_right_in, dist, k_in, col_blk_size_right_in)
-
-         CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
-                           col_blk_size, col_blk_size_right_in)
-
-         CALL dbcsr_distribution_get(dist, row_dist=row_dist)
-         CALL dbcsr_distribution_get(dist_right_in, col_dist=col_dist)
-         CALL dbcsr_distribution_new(product_dist, template=dist, &
-                                     row_dist=row_dist, col_dist=col_dist)
-         ALLOCATE (col_blk_size_right_out(SIZE(col_blk_size_right_in)))
-         col_blk_size_right_out = col_blk_size_right_in
-         CALL match_col_sizes(col_blk_size_right_out, col_blk_size_right_in, k_out)
-
-         CALL dbcsr_create(out, "D", product_dist, dbcsr_type_no_symmetry, &
-                           row_blk_size, col_blk_size_right_out)
-
-         CALL copy_cfm_to_dbcsr(fm_in, in)
-         IF (ncol /= k_out .OR. REAL(my_beta) /= 0.0_dp .OR. AIMAG(my_beta) /= 0.0_dp) &
-            CALL copy_cfm_to_dbcsr(fm_out, out)
-
-         CALL timeset(routineN//'_core', timing_handle_mult)
-         CALL dbcsr_multiply("N", "N", my_alpha, matrix, in, my_beta, out, &
-                             last_column=ncol)
-         CALL timestop(timing_handle_mult)
-
-         CALL copy_dbcsr_to_cfm(out, fm_out)
-
-         CALL dbcsr_release(in)
-         CALL dbcsr_release(out)
-         DEALLOCATE (col_blk_size_right_in, col_blk_size_right_out)
-         CALL dbcsr_distribution_release(dist_right_in)
-         CALL dbcsr_distribution_release(product_dist)
-
-      END IF
-
-      CALL timestop(timing_handle)
-
-   END SUBROUTINE cp_dbcsr_sm_cfm_multiply
 
 ! **************************************************************************************************
 !> \brief ...

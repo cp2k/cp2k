@@ -2620,8 +2620,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_wavefunction(ivector, rho, rho_gspace, &
                                      atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                     pw_env, mo_vectors, c_mo_vectors, basis_type, external_vector, &
-                                     c_external_vector)
+                                     pw_env, mo_vectors, basis_type, external_vector)
       INTEGER, INTENT(IN)                                :: ivector
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_gspace
@@ -2632,10 +2631,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: mo_vectors
-      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: c_mo_vectors
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: external_vector
-      COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL :: c_external_vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 

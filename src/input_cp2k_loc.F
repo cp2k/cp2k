@@ -12,7 +12,7 @@ MODULE input_cp2k_loc
                                               high_print_level,&
                                               low_print_level
    USE input_constants,                 ONLY: &
-        do_loc_both, do_loc_cardoso, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
+        do_loc_both, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
         do_loc_cpo_space_nmo, do_loc_cpo_space_wan, do_loc_crazy, do_loc_direct, do_loc_gapo, &
         do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
         do_loc_mixed, do_loc_none, do_loc_scdm, do_loc_cs, op_loc_berry, op_loc_boys, op_loc_pipek

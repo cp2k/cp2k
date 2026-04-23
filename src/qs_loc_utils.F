@@ -320,7 +320,7 @@ CONTAINS
             ub = localized_wfn_control%lu_bound_states(2, ispin)
 
             IF (PRESENT(loc_coeff)) THEN
-               mat_ptr => loc_coeff(ispin)
+               mat_ptr = loc_coeff(ispin)
             ELSE
                mat_ptr => mo_coeff
             END IF

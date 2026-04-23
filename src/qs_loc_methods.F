@@ -36,7 +36,6 @@ MODULE qs_loc_methods
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
-                                              cp_cfm_write_formatted,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
@@ -75,7 +74,7 @@ MODULE qs_loc_methods
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        do_loc_cardoso, do_loc_crazy, do_loc_direct, do_loc_gapo, do_loc_jacobi, &
+        do_loc_cs, do_loc_crazy, do_loc_direct, do_loc_gapo, do_loc_jacobi, &
         do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, dump_dcd, dump_dcd_aligned_cell, dump_xmol
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
@@ -198,18 +197,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
-      INTEGER                                            :: file_unit, handle, max_iter, nao, nmoloc, &
+      INTEGER                                            :: handle, idim1, idim2, &
+                                                            max_iter, nao, nmoloc, &
                                                             out_each, output_unit, sweeps
       LOGICAL                                            :: converged, crazy_use_diag, &
                                                             do_jacobi_refinement, my_do_mixed
       REAL(dp)                                           :: crazy_scale, eps_localization, &
                                                             max_crazy_angle, start_time, &
                                                             target_time
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: my_zij_cfm_set
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)     :: my_zij_cfm_set
       TYPE(cp_cfm_type), POINTER                         :: complex_vectors
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      NULLIFY (complex_vectors, my_zij_cfm_set)
+      NULLIFY (complex_vectors)
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -310,18 +310,30 @@ CONTAINS
             ! here we need to set zij for the computation of the centers and spreads
             CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
          END IF
-      CASE (do_loc_cardoso)
-
-         call open_file("c.dat", unit_number=file_unit, file_action="WRITE", file_position="APPEND")
-         call cp_cfm_write_formatted(complex_vectors, file_unit)
-         call close_file(file_unit)
+      CASE (do_loc_cs)
+         ALLOCATE (my_zij_cfm_set(SIZE(zij_fm_set, 1), SIZE(zij_fm_set, 2)))
+         DO idim1 = 1, SIZE(zij_fm_set, 1)
+            DO idim2 = 1, SIZE(zij_fm_set, 2)
+               CALL cp_cfm_create(my_zij_cfm_set(idim1, idim2), zij_fm_set(idim1, idim2)%matrix_struct)
+               CALL cp_fm_to_cfm(msourcer=zij_fm_set(idim1, idim2), mtarget=my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         ALLOCATE (complex_vectors)
+         CALL cp_cfm_create(complex_vectors, vectors%matrix_struct)
+         CALL cp_fm_to_cfm(msourcer=vectors, mtarget=complex_vectors)
 
          CALL cardoso_souloumiac(weights, my_zij_cfm_set, para_env, max_iter, eps_localization, &
-                                 sweeps, out_each, target_time, start_time, complex_vectors)
+                                 sweeps, out_each, complex_vectors)
 
-         call open_file("c_loc.dat", unit_number=file_unit, file_action="WRITE", file_position="APPEND")
-         call cp_cfm_write_formatted(complex_vectors, file_unit)
-         call close_file(file_unit)
+         CALL cp_cfm_to_fm(complex_vectors, mtargetr=vectors)
+         CALL cp_cfm_release(complex_vectors)
+         DEALLOCATE (complex_vectors)
+         DO idim1 = 1, SIZE(my_zij_cfm_set, 1)
+            DO idim2 = 1, SIZE(my_zij_cfm_set, 2)
+               CALL cp_cfm_release(my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         DEALLOCATE (my_zij_cfm_set)
 
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
@@ -369,11 +381,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek'
 
-      INTEGER                                            :: file_unit, handle, iatom, isgf, ldz, &
+      INTEGER                                            :: handle, iatom, isgf, ldz, &
                                                             max_iter, nao, natom, ncol, nmoloc, &
                                                             out_each, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
-      LOGICAL                                            :: do_complex, do_fragment, do_sequential
+      LOGICAL                                            :: do_fragment, do_sequential
       REAL(dp)                                           :: eps
       TYPE(atom_type), DIMENSION(:), POINTER             :: atoms
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: c_zij
@@ -464,7 +476,7 @@ CONTAINS
          CPABORT("L1 norm and Pipek not implemented.")
       CASE (do_loc_direct)
          CPABORT("Direct and Pipek not implemented.")
-      CASE (do_loc_cardoso)
+      CASE (do_loc_cs)
          CPABORT("Cardoso-Souloumiac with Pipek spread functional is not yet implemented")
 
       CASE (do_loc_none)
@@ -665,7 +677,7 @@ CONTAINS
       IF (PRESENT(zij)) THEN
          zij_is_complex = .FALSE.
          CPASSERT(.NOT. PRESENT(c_zij))
-         CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nstates)
+         CALL cp_fm_get_info(zij(1, 1), nrow_global=nstates)
       ELSE
          zij_is_complex = .TRUE.
          CPASSERT(PRESENT(c_zij))

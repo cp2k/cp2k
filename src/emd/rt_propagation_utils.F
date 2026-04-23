@@ -851,14 +851,14 @@ CONTAINS
             ! density_r contains the density of the MOs
             CALL pw_zero(density_r)
             mo_coeff => mos_new(2*ispin - 1)!Real coeff
-            CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                        cell, dft_control, particle_set, pw_env)
+            CALL calculate_wavefunction(ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env, mo_vectors=mo_coeff)
             ! Adding the real part
             CALL pw_multiply(density_r, wf_r, wf_r, 1.0_dp)
 
             mo_coeff => mos_new(2*ispin) !Im coeff
-            CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                        cell, dft_control, particle_set, pw_env)
+            CALL calculate_wavefunction(ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                        cell, dft_control, particle_set, pw_env, mo_vectors=mo_coeff)
             ! Adding the im part
             CALL pw_multiply(density_r, wf_r, wf_r, 1.0_dp)
 

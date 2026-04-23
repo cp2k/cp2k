@@ -355,7 +355,7 @@ CONTAINS
 
       NULLIFY (logger, dft_control, energy, rtp, rtp_control, input, rtp_section)
       logger => cp_get_default_logger()
-      IF (logger%para_env%ionode) THEN
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
