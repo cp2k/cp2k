@@ -22,7 +22,7 @@ MODULE realspace_grid_openpmd
       file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
       mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
       mpi_character_size
-   USE physcon, ONLY: a_bohr, seconds
+   USE physcon, ONLY: a_bohr, e_charge, seconds
 #if defined(__parallel)
 #if defined(__MPI_F08)
    USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
@@ -173,11 +173,14 @@ CONTAINS
 
       position_offset = species%get_record("positionOffset")
       position = species%get_record("position")
+      CALL position%set_unit_dimension([1.0_dp, 0, 0, 0, 0, 0, 0])
       DO k = 1, SIZE(dims)
          position_offset_component = position_offset%get_component(dims(k))
          CALL position_offset_component%make_constant_zero(openpmd_type_int, global_extent)
+         CALL position_offset_component%set_unit_SI(1.0_dp)
          position_component = position%get_component(dims(k))
          CALL position_component%reset_dataset(openpmd_type_double, global_extent)
+         CALL position_component%set_unit_SI(a_bohr)
          unresolved_write_buffers(k) = &
             position_component%store_chunk_span_1d_double(global_offset, local_extent)
          write_buffers(k)%buffer => unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.FALSE.)
@@ -186,7 +189,9 @@ CONTAINS
       IF (PRESENT(particles_zeff)) THEN
          charge = species%get_record("charge")
          charge_component = charge%as_record_component()
+         CALL charge%set_unit_dimension([0, 0, 1, 0, 0, 0, 0])
          CALL charge_component%reset_dataset(openpmd_type_double, global_extent)
+         CALL charge_component%set_unit_SI(e_charge)
          unresolved_charge_write_buffer = charge_component%store_chunk_span_1d_double(global_offset, local_extent)
          charge_write_buffer%buffer => unresolved_charge_write_buffer%resolve_double(DEALLOCATE=.FALSE.)
       END IF

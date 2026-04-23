@@ -233,8 +233,10 @@ MODULE qs_scf_post_gpw
 
    REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_density = [-3, 0, 0, 0, 0, 0, 0]
    REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_dimensionless = [0, 0, 0, 0, 0, 0, 0]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_wavefunction = [-1.5_dp, 0, 0, 0, 0, 0, 0]
    REAL(kind=dp), PARAMETER :: openpmd_unit_si_density = 1.0_dp/a_bohr**3
    REAL(kind=dp), PARAMETER :: openpmd_unit_si_dimensionless = 1.0_dp
+   REAL(kind=dp), PARAMETER :: openpmd_unit_si_wavefunction = a_bohr**(-1.5_dp)
 
    ! Generic information on whether a certain output section has been activated
    ! or not, and on whether it has been activated in the Cube or openPMD variant.
@@ -1487,8 +1489,8 @@ CONTAINS
                       log_filename=.FALSE., &
                       mpi_io=mpi_io, &
                       openpmd_basename="dft-mo", &
-                      openpmd_unit_dimension=openpmd_unit_dimension_dimensionless, &
-                      openpmd_unit_si=openpmd_unit_si_dimensionless)
+                      openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
+                      openpmd_unit_si=openpmd_unit_si_wavefunction)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
@@ -1596,8 +1598,8 @@ CONTAINS
                       log_filename=.FALSE., &
                       mpi_io=mpi_io, &
                       openpmd_basename="dft-mo", &
-                      openpmd_unit_dimension=openpmd_unit_dimension_dimensionless, &
-                      openpmd_unit_si=openpmd_unit_si_dimensionless)
+                      openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
+                      openpmd_unit_si=openpmd_unit_si_wavefunction)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
