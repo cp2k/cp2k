@@ -173,11 +173,12 @@ CONTAINS
 
       position_offset = species%get_record("positionOffset")
       position = species%get_record("position")
-      CALL position%set_unit_dimension([1.0_dp, 0, 0, 0, 0, 0, 0])
+      ! length
+      CALL position%set_unit_dimension([1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
       DO k = 1, SIZE(dims)
          position_offset_component = position_offset%get_component(dims(k))
          CALL position_offset_component%make_constant_zero(openpmd_type_int, global_extent)
-         CALL position_offset_component%set_unit_SI(1.0_dp)
+         CALL position_offset_component%set_unit_SI(a_bohr) ! doesnt really matter as it is zero
          position_component = position%get_component(dims(k))
          CALL position_component%reset_dataset(openpmd_type_double, global_extent)
          CALL position_component%set_unit_SI(a_bohr)
@@ -189,7 +190,8 @@ CONTAINS
       IF (PRESENT(particles_zeff)) THEN
          charge = species%get_record("charge")
          charge_component = charge%as_record_component()
-         CALL charge%set_unit_dimension([0, 0, 1, 0, 0, 0, 0])
+         ! charge ~ time x current
+         CALL charge%set_unit_dimension([0.0_dp, 0.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
          CALL charge_component%reset_dataset(openpmd_type_double, global_extent)
          CALL charge_component%set_unit_SI(e_charge)
          unresolved_charge_write_buffer = charge_component%store_chunk_span_1d_double(global_offset, local_extent)

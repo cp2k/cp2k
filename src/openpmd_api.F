@@ -894,6 +894,13 @@ MODULE openpmd_api
                   this%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, my_config//C_NULL_CHAR)
       END SUBROUTINE openpmd_record_component_reset_dataset
 
+      ! L = 0, //!< length
+      ! M, //!< mass
+      ! T, //!< time
+      ! I, //!< electric current
+      ! theta, //!< thermodynamic temperature
+      ! N, //!< amount of substance
+      ! J //!< luminous intensity
       SUBROUTINE openpmd_record_component_set_unit_SI(this, unitSI)
          CLASS(openpmd_record_component_type) :: this
          REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: unitSI
@@ -1069,6 +1076,13 @@ MODULE openpmd_api
          CPASSERT(C_ASSOCIATED(record_component%c_ptr))
       END FUNCTION openpmd_record_get_component
 
+      ! L = 0, //!< length
+      ! M, //!< mass
+      ! T, //!< time
+      ! I, //!< electric current
+      ! theta, //!< thermodynamic temperature
+      ! N, //!< amount of substance
+      ! J //!< luminous intensity
       SUBROUTINE openpmd_record_set_unit_dimension(this, unitDimension)
          CLASS(openpmd_record_type) :: this
          REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
