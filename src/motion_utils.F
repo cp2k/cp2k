@@ -419,7 +419,7 @@ CONTAINS
             WRITE (UNIT=etot_str, FMT="(F20.10)") etot
             WRITE (UNIT=title, FMT="(A)") &
                'Lattice="'//TRIM(ADJUSTL(cell_str))//'"'// &
-               ' Properties="species:S:1:'//TRIM(id_extxyz)//':R:3"'// &
+               ' Properties=species:S:1:'//TRIM(id_extxyz)//':R:3'// &
                ' Step='//TRIM(ADJUSTL(step_str))// &
                ' Time='//TRIM(ADJUSTL(time_str))// &
                ' Energy='//TRIM(ADJUSTL(etot_str))
