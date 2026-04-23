@@ -413,7 +413,7 @@ CONTAINS
             END IF
          CASE (dump_extxyz)
             CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_KIND", l_val=print_kind)
-            WRITE (UNIT=cell_str, FMT="(9(1X,F10.3))") cell%hmat(:, 1)*angstrom, cell%hmat(:, 2)*angstrom, cell%hmat(:, 3)*angstrom
+            WRITE (UNIT=cell_str, FMT="(9(1X,F19.10))") cell%hmat(:, 1)*angstrom, cell%hmat(:, 2)*angstrom, cell%hmat(:, 3)*angstrom
             WRITE (UNIT=step_str, FMT="(I8)") it
             WRITE (UNIT=time_str, FMT="(F12.3)") time
             WRITE (UNIT=etot_str, FMT="(F20.10)") etot
