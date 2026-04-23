@@ -153,6 +153,10 @@ int openPMD_Iteration_setTimeUnitSI(
     // in
     openPMD_Iteration iteration, double const timeUnitSI);
 
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration, double const time);
+
 /**********************
  * Iteration members. *
  **********************/
@@ -715,6 +719,14 @@ int openPMD_Iteration_setTimeUnitSI(
     openPMD_Iteration iteration_param, double const timeUnitSI) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
   iteration->setTimeUnitSI(timeUnitSI);
+  return 0;
+}
+
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration_param, double const time) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTime(time);
   return 0;
 }
 

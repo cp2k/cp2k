@@ -435,18 +435,23 @@ CONTAINS
 
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
       CALL res%iteration%set_time_unit_SI(seconds)
-      IF (PRESENT(sim_time)) CALL res%iteration%set_time_offset(sim_time)
       res%name_prefix = TRIM(middle_name)
 
-      IF (PRESENT(openpmd_unit_dimension)) THEN
-         res%unit_dimension = openpmd_unit_dimension
-      END IF
-
-      IF (PRESENT(openpmd_unit_si)) THEN
-         res%unit_si = openpmd_unit_si
-      END IF
 
       IF (opened_new_iteration) THEN
+
+         IF (PRESENT(sim_time)) THEN
+            CALL res%iteration%set_time(sim_time)
+         END IF
+
+         IF (PRESENT(openpmd_unit_dimension)) THEN
+            res%unit_dimension = openpmd_unit_dimension
+         END IF
+
+         IF (PRESENT(openpmd_unit_si)) THEN
+            res%unit_si = openpmd_unit_si
+         END IF
+
          attr = res%iteration%as_attributable()
          CALL attr%set_attribute_vec_int( &
             "ndim_iteration_index", &
