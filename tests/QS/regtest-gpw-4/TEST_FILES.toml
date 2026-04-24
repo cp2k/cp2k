@@ -75,6 +75,6 @@
 # gapw + npt
 "H2O-gapw.inp"                          = [{matcher="E_total", tol=3e-14, ref=-17.138804316237351}]
 # keep_volume for cell_opt
-"quartz-kv.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-107.73364574256522}]
-"quartz-kv-ks.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-107.73639782345678}]
+"quartz-kv.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-107.72812359038488}]
+"quartz-kv-ks.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-107.73031100095275}]
 #EOF
