@@ -9,7 +9,7 @@
 !> \brief Creates the EIP section of the input
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE input_cp2k_eip
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
@@ -41,7 +41,7 @@ CONTAINS
 !> \param section the section to create
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE create_eip_section(section)
       TYPE(section_type), POINTER                        :: section
@@ -83,7 +83,7 @@ CONTAINS
 !> \param section the section to create
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE create_eip_print_section(section)
       TYPE(section_type), POINTER                        :: section

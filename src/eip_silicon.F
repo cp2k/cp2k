@@ -12,7 +12,7 @@
 !>      empirical interatomic potentials for Silicon.
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE eip_silicon
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -68,7 +68,7 @@ CONTAINS
 !>                    using OpenMP; CPC 148, 1 (2002)
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_bazant(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -234,7 +234,7 @@ CONTAINS
 !>                    using OpenMP; CPC 148, 1 (2002)
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_lenosky(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -398,7 +398,7 @@ CONTAINS
 !>      Computer simulation of local order in condensed phases of silicon;
 !>      Phys. Rev. B 31, 5262 (1985)
 !> \par History
-!>      04.2026 added [codex]
+!>      04.2026 added [Thomas D. Kuehne, tkuehne@cp2k.org]
 ! **************************************************************************************************
    SUBROUTINE eip_stillinger_weber(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -560,7 +560,7 @@ CONTAINS
 !>      Modeling solid-state chemistry: Interatomic potentials for multicomponent systems;
 !>      Phys. Rev. B 39, 5566 (1989)
 !> \par History
-!>      04.2026 added [codex]
+!>      04.2026 added [Thomas D. Kuehne, tkuehne@cp2k.org]
 ! **************************************************************************************************
    SUBROUTINE eip_tersoff(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -717,7 +717,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 !> \note
 !>      As usual the EIP energies differ from the DFT energies!
 !>      Only the relative energy differences are correctly reproduced.
@@ -743,7 +743,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_print_energy_var(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -772,7 +772,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_print_forces(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -811,7 +811,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_print_coord_avg(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -840,7 +840,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_print_coord_var(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -869,7 +869,7 @@ CONTAINS
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_print_count(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -919,7 +919,7 @@ CONTAINS
 !>                    using OpenMP; CPC 148, 1 (2002)
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_bazant_silicon(nat, alat, rxyz0, fxyz, ener, coord, ener_var, &
                                  coord_var, count)
@@ -2084,7 +2084,7 @@ CONTAINS
 !>                    using OpenMP; CPC 148, 1 (2002)
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_lenosky_silicon(nat, alat, rxyz0, fxyz, ener, coord, ener_var, &
                                   coord_var, count)
