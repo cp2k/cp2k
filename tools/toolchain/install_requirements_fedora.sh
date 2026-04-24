@@ -13,6 +13,7 @@ dnf -qy install \
   bzip2 \
   ca-certificates \
   diffutils \
+  fmt-devel \
   g++ \
   gcc \
   gfortran \

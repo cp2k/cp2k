@@ -23,6 +23,7 @@ apt-get install -qq --no-install-recommends \
   gfortran \
   git \
   less \
+  libfmt-dev \
   libtool \
   libtool-bin \
   make \
