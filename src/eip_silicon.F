@@ -4441,7 +4441,7 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
         integer Ipt3,Jpt3,Nppt3,Nppt6
         integer Ki,Kj
         integer Nptot, NNtot
-        integer IJ, IJpt3, IJpt6, IK, IKpt6
+        integer :: ij, ijpt3, ijpt6, ik, ikpt6
         integer Ipb, Ipe
         integer Kpt3
         integer Nkpt3
@@ -4932,7 +4932,7 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
         rxyz(3,il)=rxyz(3,i)-alat(3)
         enddo
 
-2345    nnbrx=3*nnbrx/2 
+        nnbrx=3*nnbrx/2
         allocate(rel(5,nnbrx*nat))
         indlstx=0
 
@@ -5138,7 +5138,7 @@ subroutine tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRr
       real(8),dimension(1:3*NNmax)           ::dkEij
       integer i
       integer Ki
-      integer IJ, IJpt3, IJpt6, IK, IKpt6
+      integer :: ij, ijpt3, ijpt6, ik, ikpt6
       integer Ipb, Ipe
       integer Ipt3, Jpt3, Kpt3
       integer Nkpt3
