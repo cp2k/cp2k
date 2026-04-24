@@ -132,6 +132,10 @@ int openPMD_Series_upcast_to_Attributable(
 
 int openPMD_Series_present(openPMD_Series series);
 
+int openPMD_Series_setSoftware(
+    // in
+    openPMD_Series series, char const *name, char const *version);
+
 char const *openPMD_get_default_extension();
 
 /*************************
@@ -673,6 +677,14 @@ int openPMD_Series_present(openPMD_Series series_param) {
   auto series = reinterpret_cast<openPMD::Series *>(series_param);
   bool res = series && *series;
   return res ? 1 : 0;
+}
+
+int openPMD_Series_setSoftware(openPMD_Series series_param, char const *name,
+                               char const *version) {
+  auto series = reinterpret_cast<openPMD::Series *>(series_param);
+  std::string version_str = version ? std::string(version) : std::string();
+  series->setSoftware(std::string(name), version_str);
+  return 0;
 }
 
 char const *openPMD_get_default_extension() {

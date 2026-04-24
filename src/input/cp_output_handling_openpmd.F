@@ -50,6 +50,7 @@ MODULE cp_output_handling_openpmd
                               mp_file_type
 #ifdef __OPENPMD
    USE physcon, ONLY: seconds
+   USE cp2k_info, ONLY: cp2k_version
    USE openpmd_api, ONLY: &
       openpmd_access_create, &
       openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
@@ -510,6 +511,8 @@ CONTAINS
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=merged_config)
       END IF
+
+      CALL emplace_new%output_series%set_software("CP2K", cp2k_version)
 
       DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)

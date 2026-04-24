@@ -93,6 +93,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: as_attributable => openpmd_series_as_attributable
       PROCEDURE, PUBLIC :: close => openpmd_series_close
       PROCEDURE, PUBLIC :: present => openpmd_series_present
+      PROCEDURE, PUBLIC :: set_software => openpmd_series_set_software
       PROCEDURE, PUBLIC :: write_iteration => openpmd_series_write_iteration
       PROCEDURE, PUBLIC :: get_iteration => openpmd_series_get_iteration
    END TYPE openpmd_series_type
@@ -427,6 +428,35 @@ MODULE openpmd_api
          CALL openpmd_c_series_close(series=series%c_ptr)
          series%c_ptr = C_NULL_PTR
       END SUBROUTINE openpmd_series_close
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param name ...
+!> \param version ...
+! **************************************************************************************************
+      SUBROUTINE openpmd_series_set_software(this, name, version)
+         CLASS(openpmd_series_type), INTENT(IN)           :: this
+         CHARACTER(len=*), INTENT(IN)                     :: name
+         CHARACTER(len=*), INTENT(IN), OPTIONAL           :: version
+
+         INTERFACE
+            SUBROUTINE openpmd_c_series_set_software(series, name, version) &
+               BIND(C, name="openPMD_Series_setSoftware")
+               IMPORT :: C_PTR, C_CHAR
+               TYPE(C_PTR), VALUE :: series
+               CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+               CHARACTER(kind=C_CHAR), DIMENSION(*) :: version
+            END SUBROUTINE openpmd_c_series_set_software
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(this%c_ptr))
+         IF (PRESENT(version)) THEN
+            CALL openpmd_c_series_set_software(this%c_ptr, name//C_NULL_CHAR, version//C_NULL_CHAR)
+         ELSE
+            CALL openpmd_c_series_set_software(this%c_ptr, name//C_NULL_CHAR, C_NULL_CHAR)
+         END IF
+      END SUBROUTINE openpmd_series_set_software
 
 ! **************************************************************************************************
 !> \brief ...
