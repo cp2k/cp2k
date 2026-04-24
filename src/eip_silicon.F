@@ -3369,23 +3369,31 @@ subroutine eip_stillinger_weber_silicon(nat,alat, rxyz0, fxyz, etot, count)
 !*****************************************************************************************
 
         implicit real(8) (a-h,o-z)
-        real*8                :: rxyz0(3,nat)
-	real*8                :: fxyz(3,nat),etot
-	real*8                :: x(nat),y(nat),z(nat), fx(nat), fy(nat), fz(nat), fx3(nat), fy3(nat), fz3(nat)
-	real*8                :: lx,ly,lz, gam, ramda, aa, ra, raa, bb, xij, yij, zij, vl,f,pe, p, p3
-	real*8                :: xjj, yjj, zjj,rij,xik,yik,zik, xkk,ykk,zkk,force
-	real*8                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
-	real*8                :: rija, rika, rjka, refi, refj, refk
-	real*8                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0,  hixik, HKXIK1
-	real*8                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik, hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj, hiyij0, hiyij1
-	real*8                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
-	real*8                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
-	real*8                :: HIZIJ0,HIZIJ1,HIZIJ,HIZIK0,HIZIK1,HIZIK,HJZIJ0,HJZIJ1,HJZIJ,HKZIK0,HKZIK1,HKZIK
-	real*8                :: HJZJK0,HJZJK1,HJZJK,HKZKJ0,HKZKJ1,HKZKJ,PV3
-	real*8                :: c, d, uc
-	real*8                :: xbar, ybar, zbar, xmax, ymax, zmax, xmin, ymin, zmin,xx, yy,zz
-        real*8                :: alat(3), count,sigma,eps,esigma,isigma,c4,crainv
-        real*8                :: invrij, invrik, invrjk, invrija, invrika, invrjka
+        integer                                  :: nat, nnbrx
+        integer                                  :: i, ii, j, nij, k
+        integer                                  :: iam, iat, il, in, indlst, indlstx
+        integer                                  :: ipb, l1, l2, l3, laymx
+        integer                                  :: ll1, ll2, ll3, myspace, myspaceout
+        integer                                  :: ncx, ndat, nn, npjkx, npjx, npr
+        real(8)               :: rxyz0(3,nat)
+        real(8)               :: fxyz(3,nat), etot
+        real(8)               :: x(nat), y(nat), z(nat), fx(nat), fy(nat), fz(nat), fx3(nat), fy3(nat), fz3(nat)
+        real(8)               :: lx, ly, lz, gam, ramda, aa, ra, raa, bb, xij, yij, zij, vl, f, pe, p, p3
+        real(8)               :: xjj, yjj, zjj, rij, xik, yik, zik, xkk, ykk, zkk, force
+        real(8)               :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
+        real(8)               :: rija, rika, rjka, refi, refj, refk
+        real(8)               :: hi, hj, hk, hixij0, hixij1, hixij, hixik0, hixik, HKXIK1
+        real(8)               :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik
+        real(8)               :: hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj
+        real(8)               :: hiyij0, hiyij1
+        real(8)               :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
+        real(8)               :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
+        real(8)               :: HIZIJ0, HIZIJ1, HIZIJ, HIZIK0, HIZIK1, HIZIK, HJZIJ0, HJZIJ1, HJZIJ, HKZIK0, HKZIK1, HKZIK
+        real(8)               :: HJZJK0, HJZJK1, HJZJK, HKZKJ0, HKZKJ1, HKZKJ, PV3
+        real(8)               :: c, d, uc
+        real(8)               :: xbar, ybar, zbar, xmax, ymax, zmax, xmin, ymin, zmin, xx, yy, zz
+        real(8)               :: alat(3), count, sigma, eps, esigma, isigma, c4, crainv
+        real(8)               :: invrij, invrik, invrjk, invrija, invrika, invrjka
         real(8), ALLOCATABLE, DIMENSION(:,:)     :: rxyz
         real(8), ALLOCATABLE, DIMENSION(:,:)     :: rel
         real(8), ALLOCATABLE, DIMENSION(:,:)     :: txyz
@@ -3394,8 +3402,6 @@ subroutine eip_stillinger_weber_silicon(nat,alat, rxyz0, fxyz, etot, count)
         integer, ALLOCATABLE, DIMENSION(:)       :: lstb
         integer, ALLOCATABLE, DIMENSION(:)       :: lay
         integer, ALLOCATABLE, DIMENSION(:,:,:,:) :: icell
-        integer                                  :: nat,nnbrx
-        integer                                  :: i, ii, j, nij, k
         parameter(gam=1.2d0,ramda=21.0d0,aa=7.049556277d0)
         parameter(ra=1.8d0,bb=0.6022245584d0)
         parameter(uc=4.5d0)
@@ -3890,7 +3896,7 @@ subroutine eip_stillinger_weber_silicon(nat,alat, rxyz0, fxyz, etot, count)
 !set all variables to zero
         p=0.0d0
         p3=0.0d0
-	pv3=0.0d0
+        pv3=0.0d0
         fx(:)=0.0d0
         fy(:)=0.0d0
         fz(:)=0.0d0
@@ -3927,11 +3933,10 @@ subroutine eip_stillinger_weber_silicon(nat,alat, rxyz0, fxyz, etot, count)
 end
 !End of the force calculation-------------------------------------------------------------
 
-    REAL*8  FUNCTION f(c)
-        real*8 :: c,fm,ra, bb, aa,c4,crainv
+    REAL(8) FUNCTION f(c)
+        real(8) :: c, fm, ra, bb, aa, c4, crainv
         parameter(aa=7.049556277d0)
         parameter(ra=1.8d0,bb=0.6022245584d0)
-        parameter(sigma=2.0951d0,eps=2.167239428587d0)
 
         if((c-ra).lt.0.d0) then
         crainv=1.0d0/(c-ra)
@@ -3944,12 +3949,11 @@ end
         return
         end function f
 
-     REAL*8  function pe(d)
-	real*8, parameter :: aa=7.049556277d0
-	real*8, parameter :: bb=0.6022245584d0
-        parameter(ra=1.8d0)
-        parameter(sigma=2.0951d0,eps=2.167239428587d0)
-        real*8::d
+     REAL(8) function pe(d)
+        real(8), parameter :: aa=7.049556277d0
+        real(8), parameter :: bb=0.6022245584d0
+        real(8), parameter :: ra=1.8d0
+        real(8) :: d
 
         if((d-ra).lt.0.d0) then  
           pe=aa*(bb/(d*d*d*d)-1.0d0)*dexp(1.0d0/(d-ra))
@@ -3966,8 +3970,10 @@ end
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
         implicit real(8) (a-h,o-z)
-        dimension rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
-                  lstb(0:myspace-1),rel(5,0:myspace-1)
+        integer :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
+        integer :: jat, jj, k1, k2, k3
+        integer :: lay(nn), icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), lstb(0:myspace-1)
+        real(8) :: rxyz(3,nn), rel(5,0:myspace-1), cut2
 
         do 6363,k3=l3-1,l3+1
         do 6363,k2=l2-1,l2+1
@@ -4002,18 +4008,20 @@ subroutine sw_subfeniat_l(i,nat,nnbrx,rel,cut2,p,p3,fx,fy,fz,fx3,fy3,fz3,lstb,ls
 implicit none
         integer, intent(IN)   :: i,nat,nnbrx,lsta(2,nat),lstb(nnbrx*nat)
         integer               :: Ipb,Ipe,k,m,l,j,nij
-	real*8, intent(IN)    :: rel(5,nnbrx*nat),cut2,isigma,sigma
-        real*8, intent(INOUT) :: fx(nat),fy(nat),fz(nat),fx3(nat),fy3(nat),fz3(nat),p3,p
-        real*8                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0,  hixik, HKXIK1
-	real*8                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik, hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj, hiyij0, hiyij1
-	real*8                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
-	real*8                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
-	real*8                :: HIZIJ0,HIZIJ1,HIZIJ,HIZIK0,HIZIK1,HIZIK,HJZIJ0,HJZIJ1,HJZIJ,HKZIK0,HKZIK1,HKZIK
-	real*8                :: HJZJK0,HJZJK1,HJZJK,HKZKJ0,HKZKJ1,HKZKJ,PV3
-	real*8                :: rij,xik,yik,zik,xij, yij, zij,f,pe
-	real*8                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
-	real*8                :: rija, rika, rjka, refi, refj, refk
-        real*8                :: invrik,invrjk,invrij,gam,ramda,aa,ra,bb,uc,invrika,invrjka,invrija,force,c4,crainv
+        real(8), intent(IN)    :: rel(5,nnbrx*nat), cut2, isigma, sigma
+        real(8), intent(INOUT) :: fx(nat), fy(nat), fz(nat), fx3(nat), fy3(nat), fz3(nat), p3, p
+        real(8)                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0, hixik, HKXIK1
+        real(8)                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik
+        real(8)                :: hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj
+        real(8)                :: hiyij0, hiyij1
+        real(8)                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
+        real(8)                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
+        real(8)                :: HIZIJ0, HIZIJ1, HIZIJ, HIZIK0, HIZIK1, HIZIK, HJZIJ0, HJZIJ1, HJZIJ, HKZIK0, HKZIK1, HKZIK
+        real(8)                :: HJZJK0, HJZJK1, HJZJK, HKZKJ0, HKZKJ1, HKZKJ, PV3
+        real(8)                :: rij, xik, yik, zik, xij, yij, zij, f, pe
+        real(8)                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
+        real(8)                :: rija, rika, rjka, refi, refj, refk
+        real(8)                :: invrik, invrjk, invrij, gam, ramda, aa, ra, bb, uc, invrika, invrjka, invrija, force, c4, crainv
 
         parameter(gam=1.2d0,ramda=21.0d0,aa=7.049556277d0)
         parameter(ra=1.8d0,bb=0.6022245584d0)
@@ -4412,6 +4420,7 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
                            Pn,Co_bcd,bcsq,dsq,h,F,Uatot,dkEij,count)
         implicit real(8) (a-h,o-z)
         integer, intent(in)                       :: Nmol, Npmax, NNmax
+        integer, intent(inout)                    :: nnbrx
         real(8), intent(in)                       :: xbox, ybox, zbox,count
         integer, intent(in),  dimension(1:Nmol)   :: Kinds
         real(8), intent(in),  dimension(1:3*Nmol) :: R
@@ -4426,6 +4435,9 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
         real(8), intent(out)                      :: Uatot
         
         integer i,j
+        integer :: iam, iat, ii, il, in, indlst, indlstx, istopg
+        integer :: jat, l1, l2, l3, laymx, ll1, ll2, ll3
+        integer :: myspace, myspaceout, nat, ncx, ndat, nn, npjkx, npjx, npr
         integer Ipt3,Jpt3,Nppt3,Nppt6
         integer Ki,Kj
         integer Nptot, NNtot
@@ -4993,8 +5005,10 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
         implicit real(8) (a-h,o-z)
-        dimension rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
-                  lstb(0:myspace-1),rel(5,0:myspace-1)
+        integer :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
+        integer :: jat, jj, k1, k2, k3
+        integer :: lay(nn), icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), lstb(0:myspace-1)
+        real(8) :: rxyz(3,nn), rel(5,0:myspace-1), cut2
 
         do 6363,k3=l3-1,l3+1
         do 6363,k2=l2-1,l2+1
@@ -5026,9 +5040,9 @@ subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
 
 subroutine tersoff_subeniat_l(i,Nmol,Npmax,NNmax,Kinds,X,R,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
       implicit none
-      integer::lsta(2,Nmol),lstb(nnbrx*Nmol)
-      real(8), DIMENSION(:,:) :: rel(5,nnbrx*Nmol)
-      integer, intent(in)                       :: Nmol, Npmax, NNmax
+      integer, intent(in)                       :: Nmol, Npmax, NNmax, nnbrx
+      integer, intent(in)                       :: lsta(2,Nmol), lstb(nnbrx*Nmol)
+      real(8), intent(in)                       :: rel(5,nnbrx*Nmol)
       integer, intent(in),  dimension(1:Nmol)   :: Kinds
       real(8), intent(in),  dimension(1:3*Nmol) :: R
       real(8), intent(in),  dimension(1:2,1:2)  :: R1, R2 
@@ -5038,7 +5052,7 @@ subroutine tersoff_subeniat_l(i,Nmol,Npmax,NNmax,Kinds,X,R,R1,R2,Cr,Ca,alr,ala,X
       real(8), intent(inout), dimension(1:3*Npmax):: UadUrdf
       real(8), intent(inout):: Urtot
       real(8) Ur, Ua
-      integer i,j,l,nnbrx
+      integer i, j, l
       integer Ipt3,Jpt3,Nppt3,Nppt6
       integer Ki,Kj
       integer Nptot, NNtot, nat
@@ -5143,8 +5157,8 @@ subroutine tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRr
       real(8) dFxj, dFyj, dFzj
       real(8) dFxk, dFyk, dFzk
       real(8) Ua
-      integer::nnbrx
-      integer::lsta(2,Nmol),lstb(nnbrx*Nmol)
+      integer, intent(in)                      :: nnbrx
+      integer, intent(in)                      :: lsta(2,Nmol), lstb(nnbrx*Nmol)
 
          Ipb = lsta(1,i) 
          Ipe = lsta(2,i)
