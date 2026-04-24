@@ -22,10 +22,12 @@ MODULE libint_wrapper
 ! maximum angular momentum to be supported in CP2K-LIBINT interface
    #:set libint_max_am_supported = 8
 
-   USE ISO_C_BINDING, ONLY: C_F_POINTER, &
+   USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
+                            C_F_POINTER, &
                             C_F_PROCPOINTER, &
                             C_NULL_PTR, &
                             C_FUNPTR
+   USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
 #if(__LIBINT)
    USE libint_f, ONLY: &
@@ -362,9 +364,18 @@ CONTAINS
       INTEGER                                            :: a_mysize(1)
 
 #if(__LIBINT)
+      CHARACTER(LEN=160)                                 :: error_msg
       PROCEDURE(libint2_build), POINTER                  :: pbuild
+      TYPE(C_FUNPTR)                                     :: build_funptr
 
-      CALL C_F_PROCPOINTER(libint2_build_3eri(n_c, n_b, n_a), pbuild)
+      build_funptr = libint2_build_3eri(n_c, n_b, n_a)
+      IF (.NOT. C_ASSOCIATED(build_funptr)) THEN
+         error_msg = "LIBINT has no 3-center ERI kernel for (lc,lb,la)=("// &
+                     TRIM(cp_to_string(n_c))//","//TRIM(cp_to_string(n_b))//","// &
+                     TRIM(cp_to_string(n_a))//")"
+         CALL cp_abort(__LOCATION__, TRIM(error_msg))
+      END IF
+      CALL C_F_PROCPOINTER(build_funptr, pbuild)
       CALL pbuild(lib%prv)
 
       CALL C_F_POINTER(lib%prv(1)%targets(1), p_work, SHAPE=a_mysize)
