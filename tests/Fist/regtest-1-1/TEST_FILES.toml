@@ -5,7 +5,10 @@
 #      for details see cp2k/tools/do_regtest
 #
 # EIP
-"Si_1000.inp"                           = [{matcher="M002", tol=1.0E-14, ref=-0.170183162315E+03}]
+"Si_1000_bazant.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.170183162315E+03}]
+"Si_1000_lenosky.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.780798471651E+02}]
+"Si_1000_stillinger_weber.inp"         = [{matcher="M002", tol=1.0E-14, ref=-0.158634664291E+03}]
+"Si_1000_tersoff.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.169526339303E+03}]
 # CHARMM INTRA Forces Test
 "pot_input.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.427871243040E-01}]
 "pot_bond.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.183201063777E-01}]

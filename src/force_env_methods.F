@@ -60,7 +60,9 @@ MODULE force_env_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE eip_environment_types,           ONLY: eip_environment_type
    USE eip_silicon,                     ONLY: eip_bazant,&
-                                              eip_lenosky
+                                             eip_lenosky,&
+                                             eip_stillinger_weber,&
+                                             eip_tersoff
    USE embed_types,                     ONLY: embed_env_type,&
                                               opt_dmfet_pot_type,&
                                               opt_embed_pot_type
@@ -87,7 +89,8 @@ MODULE force_env_methods
    USE grrm_utils,                      ONLY: write_grrm
    USE input_constants,                 ONLY: &
         debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
-        mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip
+        mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip, &
+        use_stillinger_weber_eip, use_tersoff_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
@@ -271,11 +274,18 @@ CONTAINS
             e_gap = force_env%pwdft_env%energy%band_gap
             e_entropy = force_env%pwdft_env%energy%entropy
          CASE (use_eip_force)
-            IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
+            SELECT CASE (force_env%eip_env%eip_model)
+            CASE (use_lenosky_eip)
                CALL eip_lenosky(force_env%eip_env)
-            ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
+            CASE (use_bazant_eip)
                CALL eip_bazant(force_env%eip_env)
-            END IF
+            CASE (use_stillinger_weber_eip)
+               CALL eip_stillinger_weber(force_env%eip_env)
+            CASE (use_tersoff_eip)
+               CALL eip_tersoff(force_env%eip_env)
+            CASE DEFAULT
+               CPABORT("Unknown EIP model.")
+            END SELECT
          CASE (use_qmmm)
             CALL qmmm_calc_energy_force(force_env%qmmm_env, &
                                         calculate_forces, energy_consistency, linres=linres_run)

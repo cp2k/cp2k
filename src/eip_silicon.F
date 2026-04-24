@@ -42,13 +42,12 @@ MODULE eip_silicon
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
 
-   IMPLICIT NONE
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_silicon'
 
    ! *** Public subroutines ***
-   PUBLIC :: eip_bazant, eip_lenosky
+   PUBLIC :: eip_bazant, eip_lenosky, eip_stillinger_weber, eip_tersoff
 
 !***
 
@@ -390,6 +389,327 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE eip_lenosky
+
+! **************************************************************************************************
+!> \brief Interface routine of the Stillinger-Weber force field to CP2K
+!> \param eip_env ...
+!> \par Literature
+!>      F.H. Stillinger and T.A. Weber:
+!>      Computer simulation of local order in condensed phases of silicon;
+!>      Phys. Rev. B 31, 5262 (1985)
+!> \par History
+!>      04.2026 added [codex]
+! **************************************************************************************************
+   SUBROUTINE eip_stillinger_weber(eip_env)
+      TYPE(eip_environment_type), POINTER                :: eip_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_stillinger_weber'
+
+      INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
+                                                            iparticle_local, iw, natom, &
+                                                            nparticle_kind, nparticle_local
+      REAL(KIND=dp)                                      :: ekin, ener, mass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rxyz
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: eip_section
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell, particle_set, eip_section, logger, atomic_kinds, &
+               atomic_kind, local_particles, subsys, atomic_kind_set, para_env)
+
+      ekin = 0.0_dp
+
+      logger => cp_get_default_logger()
+
+      CPASSERT(ASSOCIATED(eip_env))
+
+      CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
+                       subsys=subsys, local_particles=local_particles, &
+                       atomic_kind_set=atomic_kind_set)
+      CALL get_cell(cell=cell, abc=abc)
+
+      eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP")
+      natom = SIZE(particle_set)
+
+      ALLOCATE (rxyz(3, natom))
+
+      DO i = 1, natom
+         rxyz(:, i) = particle_set(i)%r(:)*angstrom
+      END DO
+
+      CALL eip_stillinger_weber_silicon(nat=natom, alat=abc*angstrom, &
+                                             rxyz0=rxyz, fxyz=eip_env%eip_forces, &
+                                             etot=ener, count=eip_env%count)
+
+      eip_env%coord_avg = 0.0_dp
+      eip_env%coord_var = 0.0_dp
+
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+
+      nparticle_kind = atomic_kinds%n_els
+
+      DO iparticle_kind = 1, nparticle_kind
+         atomic_kind => atomic_kind_set(iparticle_kind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+         nparticle_local = local_particles%n_el(iparticle_kind)
+         DO iparticle_local = 1, nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            ekin = ekin + 0.5_dp*mass* &
+                   (particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
+                    + particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
+         END DO
+      END DO
+
+      CALL cp_subsys_get(subsys=subsys, para_env=para_env)
+      CALL para_env%sum(ekin)
+      eip_env%eip_kinetic_energy = ekin
+
+      eip_env%eip_potential_energy = ener/evolt
+      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
+      eip_env%eip_energy_var = 0.0_dp
+
+      DO i = 1, natom
+         particle_set(i)%f(:) = eip_env%eip_forces(:, i)/evolt*angstrom
+      END DO
+
+      DEALLOCATE (rxyz)
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%ENERGIES"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
+                                   extension=".mmLog")
+
+         CALL eip_print_energies(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%ENERGIES")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%ENERGIES_VAR"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
+                                   extension=".mmLog")
+
+         CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%ENERGIES_VAR")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%FORCES"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
+                                   extension=".mmLog")
+
+         CALL eip_print_forces(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%FORCES")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COORD_AVG"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
+                                   extension=".mmLog")
+
+         CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COORD_AVG")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COORD_VAR"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
+                                   extension=".mmLog")
+
+         CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COORD_VAR")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COUNT"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
+                                   extension=".mmLog")
+
+         CALL eip_print_count(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COUNT")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eip_stillinger_weber
+
+! **************************************************************************************************
+!> \brief Interface routine of the Tersoff force field to CP2K
+!> \param eip_env ...
+!> \par Literature
+!>      J. Tersoff:
+!>      New empirical approach for the structure and energy of covalent systems;
+!>      Phys. Rev. Lett. 61, 2879 (1988)
+!>      J. Tersoff:
+!>      Modeling solid-state chemistry: Interatomic potentials for multicomponent systems;
+!>      Phys. Rev. B 39, 5566 (1989)
+!> \par History
+!>      04.2026 added [codex]
+! **************************************************************************************************
+   SUBROUTINE eip_tersoff(eip_env)
+      TYPE(eip_environment_type), POINTER                :: eip_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_tersoff'
+
+      INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
+                                                            iparticle_local, iw, natom, &
+                                                            nparticle_kind, nparticle_local
+      REAL(KIND=dp)                                      :: ekin, ener, mass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rxyz
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: eip_section
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell, particle_set, eip_section, logger, atomic_kinds, &
+               atomic_kind, local_particles, subsys, atomic_kind_set, para_env)
+
+      ekin = 0.0_dp
+
+      logger => cp_get_default_logger()
+
+      CPASSERT(ASSOCIATED(eip_env))
+
+      CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
+                       subsys=subsys, local_particles=local_particles, &
+                       atomic_kind_set=atomic_kind_set)
+      CALL get_cell(cell=cell, abc=abc)
+
+      eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP")
+      natom = SIZE(particle_set)
+
+      ALLOCATE (rxyz(3, natom))
+
+      DO i = 1, natom
+         rxyz(:, i) = particle_set(i)%r(:)*angstrom
+      END DO
+
+      CALL eip_tersoff_silicon(nat=natom, alat=abc*angstrom, rxyz=rxyz, &
+                                    fxyz=eip_env%eip_forces, etot=ener, &
+                                    count=eip_env%count)
+
+      eip_env%coord_avg = 0.0_dp
+      eip_env%coord_var = 0.0_dp
+
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+
+      nparticle_kind = atomic_kinds%n_els
+
+      DO iparticle_kind = 1, nparticle_kind
+         atomic_kind => atomic_kind_set(iparticle_kind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+         nparticle_local = local_particles%n_el(iparticle_kind)
+         DO iparticle_local = 1, nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            ekin = ekin + 0.5_dp*mass* &
+                   (particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
+                    + particle_set(iparticle)%v(2)*particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)*particle_set(iparticle)%v(3))
+         END DO
+      END DO
+
+      CALL cp_subsys_get(subsys=subsys, para_env=para_env)
+      CALL para_env%sum(ekin)
+      eip_env%eip_kinetic_energy = ekin
+
+      eip_env%eip_potential_energy = ener/evolt
+      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
+      eip_env%eip_energy_var = 0.0_dp
+
+      DO i = 1, natom
+         particle_set(i)%f(:) = eip_env%eip_forces(:, i)/evolt*angstrom
+      END DO
+
+      DEALLOCATE (rxyz)
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%ENERGIES"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
+                                   extension=".mmLog")
+
+         CALL eip_print_energies(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%ENERGIES")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%ENERGIES_VAR"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
+                                   extension=".mmLog")
+
+         CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%ENERGIES_VAR")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%FORCES"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
+                                   extension=".mmLog")
+
+         CALL eip_print_forces(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%FORCES")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COORD_AVG"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
+                                   extension=".mmLog")
+
+         CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COORD_AVG")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COORD_VAR"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
+                                   extension=".mmLog")
+
+         CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COORD_VAR")
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           eip_section, "PRINT%COUNT"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
+                                   extension=".mmLog")
+
+         CALL eip_print_count(eip_env=eip_env, output_unit=iw)
+         CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                           "PRINT%COUNT")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE eip_tersoff
 
 ! **************************************************************************************************
 !> \brief Print routine for the EIP energies
@@ -2999,5 +3319,1979 @@ CONTAINS
       END IF
       RETURN
    END SUBROUTINE splint
+
+
+
+! **************************************************************************************************
+!> Additional EIP kernels consolidated here to match the original Bazant/Lenosky layout.
+! **************************************************************************************************
+
+subroutine eip_stillinger_weber_silicon(nat,alat, rxyz0, fxyz, etot, count)
+!*****************************************************************************************
+! This subroutine evaluates the Stillinger Weber Silicon potential with linear scaling
+! COPYRIGHT
+!    Copyright (C) 2009 AIST, UNIBAS
+!    This file is distributed under the terms of the
+!    GNU General Public License, see 
+!    http://www.gnu.org/copyleft/gpl.txt .
+!
+! Implementation: Original version was written by Tetsuya Morishita, AIST Tsukuba (JP) 
+!                 Improved by M. Amsler, S. Goedecker, Basel University (CH), 2009
+!
+! Note:
+!
+!     aa is the parameter A  given on page 5263 of PRB 31, 5262 (1985).
+!     bb is the parameter B  given on page 5263 of PRB 31, 5262 (1985).
+!     ra is the parameter a  given on page 5263 of PRB 31, 5262 (1985).
+!     gam and ramda are the parameters gamma and lambda 
+!     for the 3-body term, respectively (see Eq. (2.5) in the paper).
+!    
+! Input:
+!     nat, integer: the number of atoms
+!     alat,  real(8), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
+!                                and atoms outside the cell will be brought back into the box
+!     rxyz, real(8), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem    
+!                                
+! Output:
+!     fxyz,  real(8), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A  
+!     etot, real(8)            : total potential energy, 2-body and 3-body, in eV
+!     count, real(8)           : increased by 1.d0 at each call of this subroutine,
+!                                needs to be initialized to 0.d0 before calling this routine for the first time
+!
+! Other variables:
+!     p:  the 2-body potential energy
+!     p3: the 3-body potential energy 
+!     fx(i) , fy(i) , fz(i)  are the 2-body forces on atom i.
+!     fx3(i), fy3(i), fz3(i) are the 3-body forces on atom i.
+!     fxyz(3,nat) contains both 2-body and 3-body forces  
+!
+!     All units follow the description in PRB 31, 5262 (1985).
+!*****************************************************************************************
+
+        implicit real(8) (a-h,o-z)
+        real*8                :: rxyz0(3,nat)
+	real*8                :: fxyz(3,nat),etot
+	real*8                :: x(nat),y(nat),z(nat), fx(nat), fy(nat), fz(nat), fx3(nat), fy3(nat), fz3(nat)
+	real*8                :: lx,ly,lz, gam, ramda, aa, ra, raa, bb, xij, yij, zij, vl,f,pe, p, p3
+	real*8                :: xjj, yjj, zjj,rij,xik,yik,zik, xkk,ykk,zkk,force
+	real*8                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
+	real*8                :: rija, rika, rjka, refi, refj, refk
+	real*8                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0,  hixik, HKXIK1
+	real*8                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik, hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj, hiyij0, hiyij1
+	real*8                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
+	real*8                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
+	real*8                :: HIZIJ0,HIZIJ1,HIZIJ,HIZIK0,HIZIK1,HIZIK,HJZIJ0,HJZIJ1,HJZIJ,HKZIK0,HKZIK1,HKZIK
+	real*8                :: HJZJK0,HJZJK1,HJZJK,HKZKJ0,HKZKJ1,HKZKJ,PV3
+	real*8                :: c, d, uc
+	real*8                :: xbar, ybar, zbar, xmax, ymax, zmax, xmin, ymin, zmin,xx, yy,zz
+        real*8                :: alat(3), count,sigma,eps,esigma,isigma,c4,crainv
+        real*8                :: invrij, invrik, invrjk, invrija, invrika, invrjka
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: rxyz
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: rel
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: txyz
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: f2ij,f3ij,f3ik
+        integer, ALLOCATABLE, DIMENSION(:,:)     :: lsta
+        integer, ALLOCATABLE, DIMENSION(:)       :: lstb
+        integer, ALLOCATABLE, DIMENSION(:)       :: lay
+        integer, ALLOCATABLE, DIMENSION(:,:,:,:) :: icell
+        integer                                  :: nat,nnbrx
+        integer                                  :: i, ii, j, nij, k
+        parameter(gam=1.2d0,ramda=21.0d0,aa=7.049556277d0)
+        parameter(ra=1.8d0,bb=0.6022245584d0)
+        parameter(uc=4.5d0)
+        parameter(sigma=2.0951d0,eps=2.167239428587d0)
+
+        count=count+1.d0
+        cut=sigma*ra*2.d0
+        isigma=1.d0/sigma
+        esigma=eps*isigma
+
+! linear scaling calculation of verlet list, only serial 
+        ll1=int(alat(1)/cut)
+        if (ll1.lt.1) stop 'alat(1) too small'
+        ll2=int(alat(2)/cut)
+        if (ll2.lt.1) stop 'alat(2) too small'
+        ll3=int(alat(3)/cut)
+        if (ll3.lt.1) stop 'alat(3) too small'
+
+        npr=1
+        ncx=29
+1234    ncx=ncx*2
+        allocate(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+        do 984,l3=-1,ll3
+        do 984,l2=-1,ll2
+        do 984,l1=-1,ll1
+984     icell(0,l1,l2,l3)=0
+        rlc1i=ll1/alat(1)
+        rlc2i=ll2/alat(2)
+        rlc3i=ll3/alat(3)
+
+        do 983,iat=1,nat
+        rxyz0(1,iat)=modulo(modulo(rxyz0(1,iat),alat(1)),alat(1))
+        rxyz0(2,iat)=modulo(modulo(rxyz0(2,iat),alat(2)),alat(2))
+        rxyz0(3,iat)=modulo(modulo(rxyz0(3,iat),alat(3)),alat(3))
+        l1=int(rxyz0(1,iat)*rlc1i)
+        l2=int(rxyz0(2,iat)*rlc2i)
+        l3=int(rxyz0(3,iat)*rlc3i)
+
+        ii=icell(0,l1,l2,l3)
+        ii=ii+1
+        icell(0,l1,l2,l3)=ii
+        if (ii.gt.ncx) then
+        write(10,*) count,'NCX too small',ncx
+        deallocate(icell)
+        goto 1234
+        endif
+        icell(ii,l1,l2,l3)=iat
+983     continue
+
+
+! duplicate all atoms within boundary layer
+        laymx=ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
+        nn=nat+laymx
+        allocate(rxyz(3,nn),lay(nn))
+        do  iat=1,nat
+        lay(iat)=iat
+        rxyz(1,iat)=rxyz0(1,iat)
+        rxyz(2,iat)=rxyz0(2,iat)
+        rxyz(3,iat)=rxyz0(3,iat)
+        enddo
+        il=nat
+! xy plane
+        do l2=0,ll2-1
+        do l1=0,ll1-1
+
+        in=icell(0,l1,l2,0)
+        icell(0,l1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,l2,ll3-1)
+        icell(0,l1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+        enddo
+
+
+! yz plane
+        do l3=0,ll3-1
+        do l2=0,ll2-1
+
+        in=icell(0,0,l2,l3)
+        icell(0,ll1,l2,l3)=in
+        do ii=1,in
+        i=icell(ii,0,l2,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,l2,l3)
+        icell(0,-1,l2,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+        enddo
+
+
+! xz plane
+        do l3=0,ll3-1
+        do l1=0,ll1-1
+
+        in=icell(0,l1,0,l3)
+        icell(0,l1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,l1,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,l1,ll2-1,l3)
+        icell(0,l1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+        enddo
+
+
+! x axis
+        do l1=0,ll1-1
+
+        in=icell(0,l1,0,0)
+        icell(0,l1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,0,ll3-1)
+        icell(0,l1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,l1,ll2-1,0)
+        icell(0,l1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,ll2-1,ll3-1)
+        icell(0,l1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+
+
+! y axis
+        do l2=0,ll2-1
+
+        in=icell(0,0,l2,0)
+        icell(0,ll1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,l2,ll3-1)
+        icell(0,ll1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,0,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,ll1-1,l2,0)
+        icell(0,-1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,l2,ll3-1)
+        icell(0,-1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+
+
+! z axis
+        do l3=0,ll3-1
+
+        in=icell(0,0,0,l3)
+        icell(0,ll1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,0,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,0,l3)
+        icell(0,-1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,0,ll2-1,l3)
+        icell(0,ll1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,l3)
+        icell(0,-1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+
+
+! corners
+        in=icell(0,0,0,0)
+        icell(0,ll1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,0,0)
+        icell(0,-1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,ll2-1,0)
+        icell(0,ll1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,0)
+        icell(0,-1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,0,ll3-1)
+        icell(0,ll1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,0,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+        
+        in=icell(0,ll1-1,0,ll3-1)
+        icell(0,-1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,0,ll2-1,ll3-1)
+        icell(0,ll1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,ll3-1)
+        icell(0,-1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+
+
+        allocate(lsta(2,nat))
+        nnbrx=300
+2345    nnbrx=3*nnbrx/2
+        allocate(lstb(nnbrx*nat),rel(5,nnbrx*nat))
+
+        indlstx=0
+
+
+        npr=1
+        iam=0
+
+        cut2=cut**2
+! assign contiguous portions of the arrays lstb and rel to the threads (this version only contains one thread)
+        myspace=(nat*nnbrx)/npr  
+        if (iam.eq.0) myspaceout=myspace
+! Verlet list, relative positions
+        indlst=0
+      do 6000,l3=0,ll3-1
+      do 6000,l2=0,ll2-1
+      do 6000,l1=0,ll1-1
+      do 6600,ii=1,icell(0,l1,l2,l3)
+        iat=icell(ii,l1,l2,l3)
+        if ( ((iat-1)*npr)/nat .eq. iam) then
+        lsta(1,iat)=iam*myspace+indlst+1
+        call sw_sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+             rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
+        lsta(2,iat)=iam*myspace+indlst
+        ipb=lsta(1,iat)
+        ndat=lsta(2,iat)-lsta(1,iat)+1
+        endif
+
+6600    continue
+6000    continue
+        indlstx=max(indlstx,indlst)
+
+           if (indlstx.ge.myspaceout) then
+               write(10,*) count,'NNBRX too  small', nnbrx
+               deallocate(lstb,rel)
+               goto 2345
+           endif
+
+        npr=1
+        iam=0
+        npjx=300 ; npjkx=6000
+!end of creating pairlist part------------------------------------------------------------
+
+!start energy and force calculation-------------------------------------------------------
+!set all variables to zero
+        p=0.0d0
+        p3=0.0d0
+	pv3=0.0d0
+        fx(:)=0.0d0
+        fy(:)=0.0d0
+        fz(:)=0.0d0
+        fx3(:)=0.0d0
+        fy3(:)=0.0d0
+        fz3(:)=0.0d0
+!-----------------------------------------------------------------------------------------
+!     triple loop for the 2 and 3-body forces
+!     do 20 i
+!     do 30 j
+!     do 40 k
+!     the pairlists lsta and lstb are used for the perodic boundary conditions
+!-----------------------------------------------------------------------------------------
+
+      do 20 i=1,nat       !DO 20
+      call sw_subfeniat_l(i,nat,nnbrx,rel,cut2,p,p3,fx,fy,fz,fx3,fy3,fz3,lstb,lsta,isigma,sigma)
+   20 continue
+!-----------------------------------------------------------------------------------------
+!*****if necessary,********
+      do i=1,nat
+        fx(i)=fx(i)+fx3(i)
+        fy(i)=fy(i)+fy3(i)
+        fz(i)=fz(i)+fz3(i)
+      end do
+!-----------------------------------------------------------------------------------------
+
+        do i=1,nat
+           fxyz(1,i)=fx(i)*esigma
+           fxyz(2,i)=fy(i)*esigma
+           fxyz(3,i)=fz(i)*esigma
+         enddo
+         etot=(p+p3)*eps
+         deallocate(rxyz,icell,lay,lsta,lstb,rel)
+end
+!End of the force calculation-------------------------------------------------------------
+
+    REAL*8  FUNCTION f(c)
+        real*8 :: c,fm,ra, bb, aa,c4,crainv
+        parameter(aa=7.049556277d0)
+        parameter(ra=1.8d0,bb=0.6022245584d0)
+        parameter(sigma=2.0951d0,eps=2.167239428587d0)
+
+        if((c-ra).lt.0.d0) then
+        crainv=1.0d0/(c-ra)
+        c4=c*c*c*c
+        f=aa*bb*4.0d0/(c4*c)*dexp(crainv)+aa*(bb/(c4)-1.0d0)*dexp(crainv)*crainv*crainv
+        else
+        f=0.d0
+        endif
+
+        return
+        end function f
+
+     REAL*8  function pe(d)
+	real*8, parameter :: aa=7.049556277d0
+	real*8, parameter :: bb=0.6022245584d0
+        parameter(ra=1.8d0)
+        parameter(sigma=2.0951d0,eps=2.167239428587d0)
+        real*8::d
+
+        if((d-ra).lt.0.d0) then  
+          pe=aa*(bb/(d*d*d*d)-1.0d0)*dexp(1.0d0/(d-ra))
+        else
+          pe=0.d0
+        endif
+        return
+      end function pe
+
+
+!------------------------------------------------------------------------------------------
+        subroutine sw_sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
+                   rxyz,icell,lstb,lay,rel,cut2,indlst)
+! finds the neighbours of atom iat (specified by lsta and lstb) and and
+! the relative position rel of iat with respect to these neighbours
+        implicit real(8) (a-h,o-z)
+        dimension rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
+                  lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        do 6363,k3=l3-1,l3+1
+        do 6363,k2=l2-1,l2+1
+        do 6363,k1=l1-1,l1+1
+        do 6363,jj=1,icell(0,k1,k2,k3)
+          jat=icell(jj,k1,k2,k3)
+          if (jat.eq.iat) goto 6363
+          xrel= rxyz(1,iat)-rxyz(1,jat)
+          yrel= rxyz(2,iat)-rxyz(2,jat)
+          zrel= rxyz(3,iat)-rxyz(3,jat)
+          rr2=xrel**2 + yrel**2 + zrel**2
+          if ( rr2 .le. cut2 ) then
+           indlst=min(indlst,myspace-1)
+           lstb(indlst)=lay(jat)
+!        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
+           tt=sqrt(rr2)
+           tti=1.d0/tt
+           rel(1,indlst)=xrel*tti
+           rel(2,indlst)=yrel*tti
+           rel(3,indlst)=zrel*tti
+           rel(4,indlst)=tt
+           rel(5,indlst)=tti
+           indlst= indlst+1
+          endif
+6363    continue
+
+        return
+        end
+
+
+subroutine sw_subfeniat_l(i,nat,nnbrx,rel,cut2,p,p3,fx,fy,fz,fx3,fy3,fz3,lstb,lsta,isigma,sigma)
+implicit none
+        integer, intent(IN)   :: i,nat,nnbrx,lsta(2,nat),lstb(nnbrx*nat)
+        integer               :: Ipb,Ipe,k,m,l,j,nij
+	real*8, intent(IN)    :: rel(5,nnbrx*nat),cut2,isigma,sigma
+        real*8, intent(INOUT) :: fx(nat),fy(nat),fz(nat),fx3(nat),fy3(nat),fz3(nat),p3,p
+        real*8                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0,  hixik, HKXIK1
+	real*8                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik, hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj, hiyij0, hiyij1
+	real*8                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
+	real*8                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
+	real*8                :: HIZIJ0,HIZIJ1,HIZIJ,HIZIK0,HIZIK1,HIZIK,HJZIJ0,HJZIJ1,HJZIJ,HKZIK0,HKZIK1,HKZIK
+	real*8                :: HJZJK0,HJZJK1,HJZJK,HKZKJ0,HKZKJ1,HKZKJ,PV3
+	real*8                :: rij,xik,yik,zik,xij, yij, zij,f,pe
+	real*8                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
+	real*8                :: rija, rika, rjka, refi, refj, refk
+        real*8                :: invrik,invrjk,invrij,gam,ramda,aa,ra,bb,uc,invrika,invrjka,invrija,force,c4,crainv
+
+        parameter(gam=1.2d0,ramda=21.0d0,aa=7.049556277d0)
+        parameter(ra=1.8d0,bb=0.6022245584d0)
+        parameter(uc=4.5d0)
+        
+         Ipb = lsta(1,i)
+         Ipe = lsta(2,i)
+
+      do 30 l=Ipb,Ipe,+1 !DO 30
+            j=lstb(l)
+         if (j.le.i) go to 30
+         nij=0
+         rij=rel(4,l)*isigma
+         invrij=rel(5,l)*sigma
+         xij=rel(1,l)*rij
+         yij=rel(2,l)*rij
+         zij=rel(3,l)*rij
+
+
+        if(rij.ge.2.d0*ra) go to 30
+        if(rij.ge.ra) go to 31
+        
+        crainv=1.0d0/(rij-ra)
+        c4=rij*rij*rij*rij
+        force=aa*bb*4.0d0/(c4*rij)*dexp(crainv)+aa*(bb/(c4)-1.0d0)*dexp(crainv)*crainv*crainv
+
+        fx(i)=force*xij*invrij+fx(i)
+        fy(i)=force*yij*invrij+fy(i)
+        fz(i)=force*zij*invrij+fz(i)
+
+        fx(j)=-force*xij*invrij+fx(j)
+        fy(j)=-force*yij*invrij+fy(j)
+        fz(j)=-force*zij*invrij+fz(j)
+
+        p=p+aa*(bb/(rij*rij*rij*rij)-1.0d0)*dexp(1.0d0/(rij-ra))
+
+        nij=1
+
+   31   continue
+
+         do 40 m=Ipb,Ipe,+1 !DO 40
+         k=lstb(m)
+         if (k.le.j) goto 40
+         invrik=rel(5,m)*sigma
+         rik=rel(4,m)*isigma
+         xik=rel(1,m)*rik
+         yik=rel(2,m)*rik
+         zik=rel(3,m)*rik
+
+        if((rik.ge.ra).and.(nij.eq.0)) go to 40
+
+        xjk=xik-xij
+        yjk=yik-yij
+        zjk=zik-zij
+
+        rjk=sqrt(xjk*xjk+yjk*yjk+zjk*zjk)
+        invrjk=1.d0/rjk
+
+        if((rjk.ge.ra).and.(nij.eq.0)) go to 40
+        cosjik=(xij*xik+yij*yik+zij*zik)*(invrij*invrik)
+        cosijk=(-xij*xjk-yij*yjk-zij*zjk)*(invrij*invrjk)
+        cosikj=(xik*xjk+yik*yjk+zik*zjk)*(invrik*invrjk)
+        cosjik3=cosjik+1.0d0/3.0d0
+        cosijk3=cosijk+1.0d0/3.0d0
+        cosikj3=cosikj+1.0d0/3.0d0
+
+        rija=rij-ra
+        rika=rik-ra
+        rjka=rjk-ra
+
+        invrija=1.d0/rija
+        invrika=1.d0/rika
+        invrjka=1.d0/rjka
+
+      if(rija.ge.0.0d0) then
+      refi=0.0d0
+      refj=0.0d0
+      refk=ramda*exp(gam*invrika+gam*invrjka)
+      else if((rija.lt.0.0d0).and.(rika.lt.0.0d0)) then
+       if(rjka.lt.0.0d0) then
+       refi=ramda*exp(gam*invrija+gam*invrika)
+       refj=ramda*exp(gam*invrija+gam*invrjka)
+       refk=ramda*exp(gam*invrika+gam*invrjka)
+       else
+       refi=ramda*exp(gam*invrija+gam*invrika)
+       refj=0.0d0
+       refk=0.0d0
+       end if
+      else if((rija.lt.0.0d0).and.(rjka.lt.0.0d0)) then
+      refi=0.0d0
+      refj=ramda*exp(gam*invrija+gam*invrjka)
+      refk=0.0d0
+else
+goto 40
+      refi=0.0d0
+      refj=0.0d0
+      refk=0.0d0
+      end if
+
+      hi=refi*cosjik3*cosjik3
+      hj=refj*cosijk3*cosijk3
+      hk=refk*cosikj3*cosikj3
+      p3=p3+hi+hj+hk
+
+      hixij0=2.0d0*(xik*invrik-xij*cosjik*invrij)
+      hixij1=gam*xij*cosjik3*(invrija*invrija)
+      hixij=refi*cosjik3*(hixij0-hixij1)*invrij
+      hixik0=2.0d0*(xij*invrij-xik*cosjik*invrik)
+      hixik1=gam*xik*cosjik3*(invrika*invrika)
+      hixik=refi*cosjik3*(hixik0-hixik1)*invrik
+      hjxij0=2.0d0*(-xjk*invrjk-xij*cosijk*invrij)
+      hjxij1=gam*xij*cosijk3*(invrija*invrija)
+      hjxij=refj*cosijk3*(hjxij0-hjxij1)*invrij
+      hkxik0=2.0d0*(xjk*invrjk-xik*cosikj*invrik)
+      hkxik1=gam*xik*cosikj3*(invrika*invrika)
+      hkxik=refk*cosikj3*(hkxik0-hkxik1)*invrik
+      hjxjk0=2.0d0*(-xij*invrij-xjk*cosijk*invrjk)
+      hjxjk1=gam*xjk*cosijk3*(invrjka*invrjka)
+      hjxjk=refj*cosijk3*(hjxjk0-hjxjk1)*invrjk
+      hkxkj0=2.0d0*(-xik*invrik+xjk*cosikj*invrjk)
+      hkxkj1=gam*xjk*cosikj3*(invrjka*invrjka)
+      hkxkj=refk*cosikj3*(hkxkj0+hkxkj1)*invrjk
+
+
+      hiyij0=2.0d0*(yik*invrik-yij*cosjik*invrij)
+      hiyij1=gam*yij*cosjik3*(invrija*invrija)
+      hiyij=refi*cosjik3*(hiyij0-hiyij1)*invrij
+      hiyik0=2.0d0*(yij*invrij-yik*cosjik*invrik)
+      hiyik1=gam*yik*cosjik3*(invrika*invrika)
+      hiyik=refi*cosjik3*(hiyik0-hiyik1)*invrik
+      hjyij0=2.0d0*(-yjk*invrjk-yij*cosijk*invrij)
+      hjyij1=gam*yij*cosijk3*(invrija*invrija)
+      hjyij=refj*cosijk3*(hjyij0-hjyij1)*invrij
+      hkyik0=2.0d0*(yjk*invrjk-yik*cosikj*invrik)
+      hkyik1=gam*yik*cosikj3*(invrika*invrika)
+      hkyik=refk*cosikj3*(hkyik0-hkyik1)*invrik
+      hjyjk0=2.0d0*(-yij*invrij-yjk*cosijk*invrjk)
+      hjyjk1=gam*yjk*cosijk3*(invrjka*invrjka)
+      hjyjk=refj*cosijk3*(hjyjk0-hjyjk1)*invrjk
+      hkykj0=2.0d0*(-yik*invrik+yjk*cosikj*invrjk)
+      hkykj1=gam*yjk*cosikj3*(invrjka*invrjka)
+      hkykj=refk*cosikj3*(hkykj0+hkykj1)*invrjk
+
+      hizij0=2.0d0*(zik*invrik-zij*cosjik*invrij)
+      hizij1=gam*zij*cosjik3*(invrija*invrija)
+      hizij=refi*cosjik3*(hizij0-hizij1)*invrij
+      hizik0=2.0d0*(zij*invrij-zik*cosjik*invrik)
+      hizik1=gam*zik*cosjik3*(invrika*invrika)
+      hizik=refi*cosjik3*(hizik0-hizik1)*invrik
+      hjzij0=2.0d0*(-zjk*invrjk-zij*cosijk*invrij)
+      hjzij1=gam*zij*cosijk3*(invrija*invrija)
+      hjzij=refj*cosijk3*(hjzij0-hjzij1)*invrij
+      hkzik0=2.0d0*(zjk*invrjk-zik*cosikj*invrik)
+      hkzik1=gam*zik*cosikj3*(invrika*invrika)
+      hkzik=refk*cosikj3*(hkzik0-hkzik1)*invrik
+      hjzjk0=2.0d0*(-zij*invrij-zjk*cosijk*invrjk)
+      hjzjk1=gam*zjk*cosijk3*(invrjka*invrjka)
+      hjzjk=refj*cosijk3*(hjzjk0-hjzjk1)*invrjk
+      hkzkj0=2.0d0*(-zik*invrik+zjk*cosikj*invrjk)
+      hkzkj1=gam*zjk*cosikj3*(invrjka*invrjka)
+      hkzkj=refk*cosikj3*(hkzkj0+hkzkj1)*invrjk
+
+        fx3(i)=fx3(i)-hixij-hixik-hjxij-hkxik
+        fy3(i)=fy3(i)-hiyij-hiyik-hjyij-hkyik
+        fz3(i)=fz3(i)-hizij-hizik-hjzij-hkzik
+
+        fx3(j)=fx3(j)+hixij+hjxij-hjxjk+hkxkj
+        fy3(j)=fy3(j)+hiyij+hjyij-hjyjk+hkykj
+        fz3(j)=fz3(j)+hizij+hjzij-hjzjk+hkzkj
+
+        fx3(k)=fx3(k)+hixik+hkxik-hkxkj+hjxjk
+        fy3(k)=fy3(k)+hiyik+hkyik-hkykj+hjyjk
+        fz3(k)=fz3(k)+hizik+hkzik-hkzkj+hjzjk
+   40   continue
+   30   continue
+end subroutine
+
+subroutine eip_tersoff_silicon(nat,alat,rxyz,fxyz,etot,count)
+!*****************************************************************************************
+! This subroutine evaluates the Tersoff Silicon potential with linear scaling
+! COPYRIGHT
+!    Copyright (C) 2009 AIST, UNIBAS
+!    This file is distributed under the terms of the
+!    GNU General Public License, see 
+!    http://www.gnu.org/copyleft/gpl.txt .
+!
+! Implementation: Original version was written by Kengo Nishio, AIST Tsukuba (JP) 
+!                 Improved by M. Amsler, S. Goedecker, Basel University (CH), 2009
+!
+! Note:
+!     Parameters and functional form from PRL 61, 2879 (1988) and PRB 39, 5566 (1989)
+!     
+! Input:
+!     nat, integer: the number of atoms
+!     alat,  real(8), dim(3)   : the three edges of the orthoromic simulation cell, periodic boundaries are applied
+!                                and atoms outside the cell will be brought back into the box
+!     rxyz, real(8), dim(3,nat) : the xyz cartesian components of the atomic positions in Angstroem    
+!                                
+! Output:
+!     fxyz,  real(8), dim(3,nat): the xyz cartesian forces in on the corresponding atomic components n eV/A  
+!     etot, real(8)            : total potential energy, 2-body and 3-body, in eV
+!     count, real(8)           : increased by 1.d0 at each call of this subroutine,
+!                                needs to be initialized to 0.d0 before calling this routine for the first time
+!*****************************************************************************************
+      implicit none
+      integer   :: nat, iat
+      real(8)   :: etot,count
+      real(8)                                   :: rxyz(3,nat),fxyz(3,nat), alat(3)
+      real(8),              dimension(1:2,1:2)  :: R1, R2
+      real(8),              dimension(1:2,1:2)  :: Cr, Ca, alr, ala, X
+      real(8),              dimension(1:2)      :: Pmass
+      integer                                   :: Nmol, Npmax, NNmax
+      real(8)                                   :: xbox, ybox, zbox
+      integer,allocatable,  dimension(:)        :: Kinds
+      real(8),allocatable,  dimension(:)        :: XYZRrefdf
+      real(8),allocatable,  dimension(:)        :: UadUrdf
+      real(8)                                   :: Urtot
+      real(8),              dimension(1:2)      :: Pn, Co_bcd, bcsq, dsq, h
+      real(8)                                   :: Uatot
+      real(8),allocatable,  dimension(:)        :: dkEij
+      integer,allocatable,  dimension(:,:)      :: lsta
+      integer,allocatable,  dimension(:)        :: lstb
+      integer:: nnbrx,nnbrxt
+      integer i,j
+      integer Nptot, NNtot
+      real(8) pi
+      real(8) Xi, Yi, Zi
+      real(8) Xij, Yij, Zij, Rij, Rreij
+      real(8) R1ij, R2ij
+      real(8) PL1, PL2
+
+      real(8) Crij, Caij, alrij, alaij
+      real(8) fij, dfij
+      real(8) xhalf, yhalf, zhalf
+
+      real(8) COSijk, Gi, dGi, fdG, fdGcos
+      real(8) Co_pa, Co_mb1, Co_mb2
+      real(8) Co_cdi, Co_hcosi, Co_dhcosi
+      real(8) Pni, bcsqi, dsqi, hi
+
+      real(8) Bij, Eij
+      real(8) djEij
+      real(8) dXjEij2, dYjEij2, dZjEij2
+      real(8) Co1_dkEij, Co2_dkEij
+
+      real(8), parameter :: C_Cr = 1.3936d3    !Parameter for carbon, not used in this version       
+      real(8), parameter :: C_Ca = 3.4674d2    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_alr= 3.4879d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_ala= 2.2119d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_b  = 1.5724d-7   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_n  = 7.2751d-1   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_c  = 3.8049d4    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_d  = 4.3484d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_h  =-5.7058d-1   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_R1 = 1.8d0       !Parameter for carbon, not used in this version 
+      real(8), parameter :: C_R2 = 2.1d0       !Parameter for carbon, not used in this version 
+      real(8), parameter :: C_mass = 12.0d0    !Parameter for carbon, not used in this version 
+
+      real(8), parameter :: Si_Cr = 1.8308d3
+      real(8), parameter :: Si_Ca = 4.7118d2
+      real(8), parameter :: Si_alr= 2.4799d0
+      real(8), parameter :: Si_ala= 1.7322d0
+      real(8), parameter :: Si_b  = 1.1000d-6
+      real(8), parameter :: Si_n  = 7.8734d-1
+      real(8), parameter :: Si_c  = 1.0039d5
+      real(8), parameter :: Si_d  = 1.6217d1
+      real(8), parameter :: Si_h  =-5.9825d-1
+      real(8), parameter :: Si_R1 = 2.7d0
+      real(8), parameter :: Si_R2 = 3.3d0       !Increased Cutoff, originally 3.0d0
+      real(8), parameter :: Si_mass = 28.0855d0
+
+        count=count+1.d0
+
+        do iat=1,nat
+        rxyz(1,iat)=modulo(modulo(rxyz(1,iat),alat(1)),alat(1))
+        rxyz(2,iat)=modulo(modulo(rxyz(2,iat),alat(2)),alat(2))
+        rxyz(3,iat)=modulo(modulo(rxyz(3,iat),alat(3)),alat(3))
+        enddo
+
+        allocate(Kinds(1:nat))
+
+        nnbrx=24
+        nnbrxt=3*nnbrx/2
+        nnmax=nnbrxt*nat
+        npmax=nnbrxt*nat
+        allocate(lsta(2,nat),lstb(nnbrxt*nat))
+        allocate(XYZRrefdf(1:6*Npmax), UadUrdf(1:3*Npmax), dkEij(1:3*NNmax))
+
+        do i=1,nat
+          kinds(i)=2                             !Since all atoms are Si, all of kind 2
+        enddo
+        fxyz=0.0d0
+        xbox=alat(1); ybox=alat(2); zbox=alat(3)
+        call tersoff_parameters(R1,R2,Cr,Ca,alr,ala,X,Pn,Co_bcd,bcsq,dsq,h,Pmass)
+        call tersoff_pairlist_energy_forces(nat,Npmax,NNmax,xbox,ybox,zbox,Kinds,rxyz,R1,R2,Cr,Ca,alr,ala,X, XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,&
+                           Pn,Co_bcd,bcsq,dsq,h,fxyz,Uatot,dkEij,count)
+        etot=Urtot+Uatot
+        deallocate(Kinds,XYZRrefdf,UadUrdf,dkEij,lsta,lstb)
+        end
+!-----------------------------------------------------------------------------------------
+      Subroutine tersoff_parameters(R1,R2,Cr,Ca,alr,ala,X,Pn,Co_bcd,bcsq,dsq,h,Pmass)
+      implicit none
+
+      real(8), intent(out), dimension(1:2,1:2) :: R1, R2
+      real(8), intent(out), dimension(1:2,1:2) :: Cr, Ca, alr, ala, X
+      real(8), intent(out), dimension(1:2) :: Pn, Co_bcd, bcsq, dsq, h
+      real(8), intent(out), dimension(1:2) :: Pmass
+
+      real(8), parameter :: C_Cr = 1.3936d3    !Parameter for carbon, not used in this version       
+      real(8), parameter :: C_Ca = 3.4674d2    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_alr= 3.4879d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_ala= 2.2119d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_b  = 1.5724d-7   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_n  = 7.2751d-1   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_c  = 3.8049d4    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_d  = 4.3484d0    !Parameter for carbon, not used in this version
+      real(8), parameter :: C_h  =-5.7058d-1   !Parameter for carbon, not used in this version
+      real(8), parameter :: C_R1 = 1.8d0       !Parameter for carbon, not used in this version 
+      real(8), parameter :: C_R2 = 2.1d0       !Parameter for carbon, not used in this version 
+      real(8), parameter :: C_mass = 12.0d0    !Parameter for carbon, not used in this version 
+
+      real(8), parameter :: Si_Cr = 1.8308d3
+      real(8), parameter :: Si_Ca = 4.7118d2
+      real(8), parameter :: Si_alr= 2.4799d0
+      real(8), parameter :: Si_ala= 1.7322d0
+      real(8), parameter :: Si_b  = 1.1000d-6
+      real(8), parameter :: Si_n  = 7.8734d-1
+      real(8), parameter :: Si_c  = 1.0039d5
+      real(8), parameter :: Si_d  = 1.6217d1
+      real(8), parameter :: Si_h  =-5.9825d-1
+      real(8), parameter :: Si_R1 = 2.7d0
+      real(8), parameter :: Si_R2 = 3.3d0      !Increased Cutoff, originally 3.0d0
+      real(8), parameter :: Si_mass = 28.0855d0
+
+
+      Cr(1,1) =  C_Cr
+      Cr(2,2) = Si_Cr
+      Cr(1,2) = dsqrt( Cr(1,1)*Cr(2,2) )
+      Cr(2,1) = Cr(1,2)
+
+      Ca(1,1) =  C_Ca
+      Ca(2,2) = Si_Ca
+      Ca(1,2) = dsqrt( Ca(1,1)*Ca(2,2) )
+      Ca(2,1) = Ca(1,2)
+
+      R1(1,1) =  C_R1
+      R1(2,2) = Si_R1
+      R1(1,2) = dsqrt( R1(1,1)*R1(2,2) )
+      R1(2,1) = R1(1,2)
+
+      R2(1,1) =  C_R2
+      R2(2,2) = Si_R2
+      R2(1,2) = dsqrt( R2(1,1)*R2(2,2) )
+      R2(2,1) = R2(1,2)
+
+      X(1,1)  = 1.0d0
+      X(2,2)  = 1.0d0
+      X(1,2)  = 0.9776d0
+      X(2,1)  = 0.9776d0
+
+      alr(1,1) =  C_alr
+      alr(2,2) = Si_alr
+      alr(1,2) = 0.5d0*( alr(1,1)+alr(2,2) )
+      alr(2,1) = alr(1,2)
+
+      ala(1,1) =  C_ala
+      ala(2,2) = Si_ala
+      ala(1,2) = 0.5d0*( ala(1,1)+ala(2,2) )
+      ala(2,1) = ala(1,2)
+
+      Pn(1) =  C_n
+      Pn(2) = Si_n
+
+      Co_bcd(1) =  C_b*( 1.0d0 + C_c*C_c  /(C_d*C_d)   )
+      Co_bcd(2) = Si_b*( 1.0d0 + Si_c*Si_c/(Si_d*Si_d) )
+
+      bcsq(1) = C_b  * C_c  * C_c
+      bcsq(2) = Si_b * Si_c * Si_c
+
+      dsq(1) =  C_d *  C_d
+      dsq(2) = Si_d * Si_d
+
+      h(1) =  C_h
+      h(2) = Si_h
+
+      Pmass(1)=C_mass
+      Pmass(2)=Si_mass
+
+
+      RETURN
+
+      STOP
+      END
+!-----------------------------------------------------------------------------------------
+      Subroutine tersoff_pairlist_energy_forces(Nmol,Npmax,NNmax,xbox,ybox,zbox,Kinds,R,R1,R2,Cr,Ca,alr,ala,X,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,&
+                           Pn,Co_bcd,bcsq,dsq,h,F,Uatot,dkEij,count)
+        implicit real(8) (a-h,o-z)
+        integer, intent(in)                       :: Nmol, Npmax, NNmax
+        real(8), intent(in)                       :: xbox, ybox, zbox,count
+        integer, intent(in),  dimension(1:Nmol)   :: Kinds
+        real(8), intent(in),  dimension(1:3*Nmol) :: R
+        real(8), intent(in),  dimension(1:2,1:2)  :: R1, R2 
+        real(8), intent(in),  dimension(1:2,1:2)  :: Cr, Ca, alr, ala
+        real(8), intent(in),  dimension(1:2,1:2)  :: X
+        real(8), intent(in),  dimension(1:2)      ::Pn, Co_bcd, bcsq, dsq, h
+        real(8), intent(out), dimension(1:6*Npmax):: XYZRrefdf
+        real(8), intent(out), dimension(1:3*Npmax):: UadUrdf
+        real(8), intent(out)                      :: Urtot
+        real(8), intent(out), dimension(1:3*Nmol) :: F
+        real(8), intent(out)                      :: Uatot
+        
+        integer i,j
+        integer Ipt3,Jpt3,Nppt3,Nppt6
+        integer Ki,Kj
+        integer Nptot, NNtot
+        integer IJ, IJpt3, IJpt6, IK, IKpt6
+        integer Ipb, Ipe
+        integer Kpt3
+        integer Nkpt3
+        integer                                  :: lsta(2,Nmol),lstb(nnbrx*Nmol)
+        integer, ALLOCATABLE, DIMENSION(:)       :: lay
+        integer, ALLOCATABLE, DIMENSION(:,:,:,:) :: icell
+  
+        real(8) Ur, Ua
+        real(8) pi
+        real(8) Xi, Yi, Zi
+        real(8) Xij, Yij, Zij, Rij
+        real(8) R1ij, R2ij
+        real(8) PL1, PL2
+        real(8) Crij, Caij, alrij, alaij
+        real(8) fij, dfij
+        real(8) xhalf, yhalf, zhalf
+        real(8) XRreik, YRreik,  ZRreik, Rreik, fik, dfik
+        real(8) COSijk, Gi, dGi, fdG, fdGcos
+        real(8) Co_pa, Co_mb1, Co_mb2
+        real(8) Co_cdi, Co_hcosi, Co_dhcosi
+        real(8) Pni, bcsqi, dsqi, hi
+        real(8) Bij, Eij
+        real(8) djEij
+        real(8) dXjEij2, dYjEij2, dZjEij2
+        real(8) Co1_dkEij, Co2_dkEij
+        real(8) dFxi, dFyi, dFzi
+        real(8) dFxj, dFyj, dFzj
+        real(8) dFxk, dFyk, dFzk
+        real(8), dimension(1:3*NNmax)::dkEij
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: rxyz
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: rel
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: txyz
+        real(8), ALLOCATABLE, DIMENSION(:,:)     :: f2ij,f3ij,f3ik
+        dimension rxyz0(3,Nmol),fxyz(3,Nmol),alat(3)
+
+
+      pi=dacos(-1.0d0)
+
+      xhalf=0.5d0*xbox
+      yhalf=0.5d0*ybox
+      zhalf=0.5d0*zbox
+      
+      nat=Nmol
+      
+      alat(1)=xbox
+      alat(2)=ybox
+      alat(3)=zbox
+      
+      
+      do iat=1,nat
+      jat=3*(iat-1)
+      rxyz0(1,iat)=R(jat+1)
+      rxyz0(2,iat)=R(jat+2)
+      rxyz0(3,iat)=R(jat+3)        
+      enddo
+
+      cut=R2(2,2)-1.d-9
+
+
+! linear scaling calculation of verlet list
+        ll1=int(alat(1)/cut)
+        if (ll1.lt.1) stop 'alat(1) too small'
+        ll2=int(alat(2)/cut)
+        if (ll2.lt.1) stop 'alat(2) too small'
+        ll3=int(alat(3)/cut)
+        if (ll3.lt.1) stop 'alat(3) too small'
+
+! determine number of threadsi (this version is only singlethreaded)
+        npr=1
+! linear scaling calculation of verlet list
+
+        ncx=8
+1234    ncx=ncx*2
+        allocate(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+        do 984,l3=-1,ll3
+        do 984,l2=-1,ll2
+        do 984,l1=-1,ll1
+984     icell(0,l1,l2,l3)=0
+        rlc1i=ll1/alat(1)
+        rlc2i=ll2/alat(2)
+        rlc3i=ll3/alat(3)
+
+        do 983,iat=1,nat
+        l1=int(rxyz0(1,iat)*rlc1i)
+        l2=int(rxyz0(2,iat)*rlc2i)
+        l3=int(rxyz0(3,iat)*rlc3i)
+
+        ii=icell(0,l1,l2,l3)
+        ii=ii+1
+        icell(0,l1,l2,l3)=ii
+        if (ii.gt.ncx) then
+        write(10,*) count,'NCX too small',ncx
+        deallocate(icell)
+        goto 1234
+        endif
+        icell(ii,l1,l2,l3)=iat
+983     continue
+
+! duplicate all atoms within boundary layer
+        laymx=ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
+        nn=nat+laymx
+        allocate(rxyz(3,nn),lay(nn))
+        do  iat=1,nat
+        lay(iat)=iat
+        rxyz(1,iat)=rxyz0(1,iat)
+        rxyz(2,iat)=rxyz0(2,iat)
+        rxyz(3,iat)=rxyz0(3,iat)
+        enddo
+        il=nat
+! xy plane
+        do l2=0,ll2-1
+        do l1=0,ll1-1
+
+        in=icell(0,l1,l2,0)
+        icell(0,l1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,l2,ll3-1)
+        icell(0,l1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+        enddo
+
+
+! yz plane
+        do l3=0,ll3-1
+        do l2=0,ll2-1
+
+        in=icell(0,0,l2,l3)
+        icell(0,ll1,l2,l3)=in
+        do ii=1,in
+        i=icell(ii,0,l2,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,l2,l3)
+        icell(0,-1,l2,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+        enddo
+
+
+! xz plane
+        do l3=0,ll3-1
+        do l1=0,ll1-1
+
+        in=icell(0,l1,0,l3)
+        icell(0,l1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,l1,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,l1,ll2-1,l3)
+        icell(0,l1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+        enddo
+
+
+! x axis
+        do l1=0,ll1-1
+
+        in=icell(0,l1,0,0)
+        icell(0,l1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,0,ll3-1)
+        icell(0,l1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,l1,ll2-1,0)
+        icell(0,l1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,l1,ll2-1,ll3-1)
+        icell(0,l1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,l1,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,l1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+
+
+! y axis
+        do l2=0,ll2-1
+
+        in=icell(0,0,l2,0)
+        icell(0,ll1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,l2,ll3-1)
+        icell(0,ll1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,0,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,ll1-1,l2,0)
+        icell(0,-1,l2,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,l2,ll3-1)
+        icell(0,-1,l2,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,l2,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,l2,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        enddo
+
+
+! z axis
+        do l3=0,ll3-1
+
+        in=icell(0,0,0,l3)
+        icell(0,ll1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,0,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,0,l3)
+        icell(0,-1,ll2,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,0,ll2-1,l3)
+        icell(0,ll1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,l3)
+        icell(0,-1,-1,l3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,l3)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,l3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)
+        enddo
+
+        enddo
+
+
+! corners
+        in=icell(0,0,0,0)
+        icell(0,ll1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,0,0)
+        icell(0,-1,ll2,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,ll2-1,0)
+        icell(0,ll1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,0)
+        icell(0,-1,-1,ll3)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,0)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,ll3)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)+alat(3)
+        enddo
+
+        in=icell(0,0,0,ll3-1)
+        icell(0,ll1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,0,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+        
+        in=icell(0,ll1-1,0,ll3-1)
+        icell(0,-1,ll2,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,0,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,ll2,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)+alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,0,ll2-1,ll3-1)
+        icell(0,ll1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,0,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,ll1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)+alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+        in=icell(0,ll1-1,ll2-1,ll3-1)
+        icell(0,-1,-1,-1)=in
+        do ii=1,in
+        i=icell(ii,ll1-1,ll2-1,ll3-1)
+        il=il+1
+        if (il.gt.nn) stop 'enlarge laymx'
+        lay(il)=i
+        icell(ii,-1,-1,-1)=il
+        rxyz(1,il)=rxyz(1,i)-alat(1)
+        rxyz(2,il)=rxyz(2,i)-alat(2)
+        rxyz(3,il)=rxyz(3,i)-alat(3)
+        enddo
+
+2345    nnbrx=3*nnbrx/2 
+        allocate(rel(5,nnbrx*nat))
+        indlstx=0
+
+        npr=1
+        iam=0
+
+        cut2=cut**2
+! assign contiguous portions of the arrays lstb and rel to the threads
+        myspace=(nat*nnbrx)/npr  
+        if (iam.eq.0) myspaceout=myspace
+! Verlet list, relative positions
+        indlst=0
+      do 6000,l3=0,ll3-1
+      do 6000,l2=0,ll2-1
+      do 6000,l1=0,ll1-1
+      do 6600,ii=1,icell(0,l1,l2,l3)
+        iat=icell(ii,l1,l2,l3)
+        if ( ((iat-1)*npr)/nat .eq. iam) then
+!       write(6,*) 'sublstiat:iam,iat',iam,iat
+        lsta(1,iat)=iam*myspace+indlst+1
+        call tersoff_sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+             rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
+        lsta(2,iat)=iam*myspace+indlst
+        ipb=lsta(1,iat)
+        ndat=lsta(2,iat)-lsta(1,iat)+1
+        endif
+
+6600    continue
+6000    continue
+        indlstx=max(indlstx,indlst)
+
+           if (indlstx.ge.myspaceout) stop 'NNBRX too small'
+        npr=1
+        iam=0
+
+        npjx=300 ; npjkx=6000
+        istopg=0
+!end of creating pairlist part------------------------------------------------------------
+!Energy-----------------------------------------------------------------------------------
+      Urtot=0.0d0
+      Nptot=0
+      
+      F=0.0d0
+      Uatot=0.0d0
+      DO_I:DO i=1, Nmol
+         call tersoff_subeniat_l(i,Nmol,Npmax,NNmax,Kinds,X,R,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
+      END DO DO_I
+      
+      Urtot = 0.5d0*Urtot
+!Force------------------------------------------------------------------------------------
+      F=0.0d0
+      Uatot=0.0d0
+
+      DO_If:DO i=1, Nmol
+         call tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+      END DO DO_If
+
+      F     = 0.5d0*F
+      Uatot = 0.5d0*Uatot
+!-----------------------------------------------------------------------------------------
+      deallocate(rxyz,icell,lay,rel)
+      RETURN
+      STOP 
+      END
+
+
+!-----------------------------------------------------------------------------------------
+        subroutine tersoff_sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, & 
+                   rxyz,icell,lstb,lay,rel,cut2,indlst)
+! finds the neighbours of atom iat (specified by lsta and lstb) and and
+! the relative position rel of iat with respect to these neighbours
+        implicit real(8) (a-h,o-z)
+        dimension rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
+                  lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        do 6363,k3=l3-1,l3+1
+        do 6363,k2=l2-1,l2+1
+        do 6363,k1=l1-1,l1+1
+        do 6363,jj=1,icell(0,k1,k2,k3)
+          jat=icell(jj,k1,k2,k3)
+          if (jat.eq.iat) goto 6363
+          xrel= rxyz(1,iat)-rxyz(1,jat)
+          yrel= rxyz(2,iat)-rxyz(2,jat)
+          zrel= rxyz(3,iat)-rxyz(3,jat)  
+          rr2=xrel**2 + yrel**2 + zrel**2
+          if ( rr2 .le. cut2 ) then
+           indlst=min(indlst,myspace-1)
+           lstb(indlst)=lay(jat)
+!        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
+           tt=sqrt(rr2)
+           tti=1.d0/tt
+           rel(1,indlst)=xrel*tti
+           rel(2,indlst)=yrel*tti
+           rel(3,indlst)=zrel*tti
+           rel(4,indlst)=tt
+           rel(5,indlst)=tti
+           indlst= indlst+1
+          endif
+6363        continue
+
+        return
+        end
+
+subroutine tersoff_subeniat_l(i,Nmol,Npmax,NNmax,Kinds,X,R,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
+      implicit none
+      integer::lsta(2,Nmol),lstb(nnbrx*Nmol)
+      real(8), DIMENSION(:,:) :: rel(5,nnbrx*Nmol)
+      integer, intent(in)                       :: Nmol, Npmax, NNmax
+      integer, intent(in),  dimension(1:Nmol)   :: Kinds
+      real(8), intent(in),  dimension(1:3*Nmol) :: R
+      real(8), intent(in),  dimension(1:2,1:2)  :: R1, R2 
+      real(8), intent(in),  dimension(1:2,1:2)  :: Cr, Ca, alr, ala
+      real(8), intent(in),  dimension(1:2,1:2)  :: X
+      real(8), intent(inout), dimension(1:6*Npmax):: XYZRrefdf
+      real(8), intent(inout), dimension(1:3*Npmax):: UadUrdf
+      real(8), intent(inout):: Urtot
+      real(8) Ur, Ua
+      integer i,j,l,nnbrx
+      integer Ipt3,Jpt3,Nppt3,Nppt6
+      integer Ki,Kj
+      integer Nptot, NNtot, nat
+      real(8) pi
+      real(8) Xi, Yi, Zi
+      real(8) Xij, Yij, Zij, Rij, Rreij
+      real(8) R1ij, R2ij
+      real(8) PL1, PL2
+      real(8) Crij, Caij, alrij, alaij
+      real(8) fij, dfij
+      real(8) xhalf, yhalf, zhalf
+      real(8) XRreik, YRreik,  ZRreik, Rreik, fik, dfik
+
+!     #######################################
+!     # Calculate XYZRrefdf, UadUrdf, Urtot #
+!     #######################################
+         nat=Nmol
+         Ki=Kinds(i)
+         Ipt3=3*(i-1)
+         Xi=R(Ipt3+1)
+         Yi=R(Ipt3+2)
+         Zi=R(Ipt3+3)
+
+      DO_J:  do l=lsta(1,i),lsta(2,i)
+         j=lstb(l)
+
+         Kj=Kinds(j)
+         R2ij=R2(Ki,Kj)
+         Jpt3=3*(j-1)
+         Rij=rel(4,l)
+         Xij=rel(1,l)
+         Yij=rel(2,l)
+         Zij=rel(3,l)
+         Nptot=l
+ 
+         Nppt3=3*(Nptot-1)
+         Nppt6=6*(Nptot-1)
+         Rreij=rel(5,l)
+
+         XYZRrefdf(Nppt6+1)=Xij
+         XYZRrefdf(Nppt6+2)=Yij
+         XYZRrefdf(Nppt6+3)=Zij
+         XYZRrefdf(Nppt6+4)=Rreij
+
+         alrij = alr(Ki,Kj)
+         alaij = ala(Ki,Kj)
+
+         Ur= Cr(Ki,Kj)*dexp(-alrij*Rij)
+         Ua=-Ca(Ki,Kj)*dexp(-alaij*Rij) * X(Ki,Kj)
+         R1ij=R1(Ki,Kj)
+
+      IF (Rij <= R1ij) THEN
+          XYZRrefdf(Nppt6+5)=1.0d0
+          XYZRrefdf(Nppt6+6)=0.0d0
+          Urtot=Urtot+Ur
+          UadUrdf(Nppt3+1)=Ua
+          UadUrdf(Nppt3+2)=-alrij*Ur
+          UadUrdf(Nppt3+3)=-alaij*Ua
+      ELSE
+          PL1=pi/(R2ij-R1ij)
+          PL2=PL1*(Rij-R1ij)
+          fij =0.5d0+0.5d0    *dcos(PL2)
+          dfij=     -0.5d0*PL1*dsin(PL2)
+          XYZRrefdf(Nppt6+5)=fij
+          XYZRrefdf(Nppt6+6)=dfij
+          Urtot=Urtot+fij*Ur
+          UadUrdf(Nppt3+1)=fij*Ua
+          UadUrdf(Nppt3+2)=(dfij-alrij*fij)*Ur
+          UadUrdf(Nppt3+3)=(dfij-alaij*fij)*Ua
+      END IF
+      END DO DO_J
+end subroutine
+
+subroutine tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+      implicit none
+      integer,intent(in)                     ::Nmol, Npmax, NNmax
+      integer,intent(in),dimension(1:Nmol)   ::Kinds
+      real(8),intent(in),dimension(1:2)      ::Pn, Co_bcd, bcsq, dsq, h
+      real(8),intent(in),dimension(1:6*Npmax)::XYZRrefdf
+      real(8),intent(in),dimension(1:3*Npmax)::UadUrdf
+      real(8),intent(inout),dimension(1:3*Nmol)::F
+      real(8),intent(inout)                    ::Uatot
+      real(8),dimension(1:3*NNmax)           ::dkEij
+      integer i
+      integer Ki
+      integer IJ, IJpt3, IJpt6, IK, IKpt6
+      integer Ipb, Ipe
+      integer Ipt3, Jpt3, Kpt3
+      integer Nkpt3
+
+      real(8) XRreij, YRreij,  ZRreij, Rreij, fij, dfij 
+      real(8) XRreik, YRreik,  ZRreik, Rreik, fik, dfik
+      real(8) COSijk, Gi, dGi, fdG, fdGcos
+      real(8) Co_pa, Co_mb1, Co_mb2
+      real(8) Co_cdi, Co_hcosi, Co_dhcosi
+      real(8) Pni, bcsqi, dsqi, hi
+      real(8) Bij, Eij
+      real(8) djEij
+      real(8) dXjEij2, dYjEij2, dZjEij2
+      real(8) Co1_dkEij, Co2_dkEij
+      real(8) dFxi, dFyi, dFzi
+      real(8) dFxj, dFyj, dFzj
+      real(8) dFxk, dFyk, dFzk
+      real(8) Ua
+      integer::nnbrx
+      integer::lsta(2,Nmol),lstb(nnbrx*Nmol)
+
+         Ipb = lsta(1,i) 
+         Ipe = lsta(2,i)
+
+         Ki=Kinds(i)
+         bcsqi=bcsq(Ki)
+         dsqi=dsq(Ki)
+         hi  =h(Ki)
+         Pni =Pn(Ki)
+
+         Co_cdi=Co_bcd(Ki) 
+
+         dFxi=0.0d0
+         dFyi=0.0d0
+         dFzi=0.0d0
+
+      DO_J:DO ij=Ipb,Ipe,+1
+
+         IJpt3=3*(ij-1)
+         IJpt6=6*(ij-1)
+
+         XRreij = XYZRrefdf(IJpt6+1)
+         YRreij = XYZRrefdf(IJpt6+2)
+         ZRreij = XYZRrefdf(IJpt6+3)
+         Rreij  = XYZRrefdf(IJpt6+4)
+         fij    = XYZRrefdf(IJpt6+5)
+         dfij   = XYZRrefdf(IJpt6+6)
+
+         Eij     = 0.0d0
+         djEij   = 0.0d0
+         dXjEij2 = 0.0d0
+         dYjEij2 = 0.0d0
+         dZjEij2 = 0.0d0
+
+         Nkpt3=-3
+      DO_K:DO ik=Ipb,Ipe,+1
+
+         Nkpt3=Nkpt3+3
+
+      IKIJ:IF (ik /= ij ) THEN
+
+         IKpt6=6*(ik-1)
+
+         XRreik = XYZRrefdf(IKpt6+1)
+         YRreik = XYZRrefdf(IKpt6+2)
+         ZRreik = XYZRrefdf(IKpt6+3)
+         Rreik  = XYZRrefdf(IKpt6+4)
+         fik    = XYZRrefdf(IKpt6+5)
+         dfik   = XYZRrefdf(IKpt6+6)
+
+         COSijk = XRreij*XRreik + YRreij*YRreik + ZRreij*ZRreik
+
+         Co_hcosi  = hi - COSijk
+         Co_dhcosi = 1.0d0 / ( dsqi + Co_hcosi*Co_hcosi )
+         Gi        = -bcsqi*Co_dhcosi
+         dGi       = 2.0d0*Co_hcosi*Co_dhcosi*Gi
+         Gi        = Gi + Co_cdi
+
+         Eij = Eij + fik*Gi
+
+         fdG    = fik * dGi
+         fdGcos = fdG * COSijk
+
+         djEij    = djEij   + fdGcos
+
+         dXjEij2 = dXjEij2 + fdG*XRreik
+         dYjEij2 = dYjEij2 + fdG*YRreik
+         dZjEij2 = dZjEij2 + fdG*ZRreik
+
+
+         Co1_dkEij = -dfik*Gi + fdGcos*Rreik
+         Co2_dkEij = -fdG*Rreik
+
+         dkEij(Nkpt3+1) = Co1_dkEij * XRreik + Co2_dkEij * XRreij
+         dkEij(Nkpt3+2) = Co1_dkEij * YRreik + Co2_dkEij * YRreij
+         dkEij(Nkpt3+3) = Co1_dkEij * ZRreik + Co2_dkEij * ZRreij
+
+      ELSE 
+         dkEij(Nkpt3+1) = 0.0d0
+         dkEij(Nkpt3+2) = 0.0d0
+         dkEij(Nkpt3+3) = 0.0d0
+      END IF IKIJ
+
+      END DO DO_K
+
+
+      Bij  = 1.0d0 + Eij**Pni
+      Ua   = UadUrdf(IJpt3+1) * Bij**(-0.5d0/Pni)
+      Uatot = Uatot + Ua
+
+      Co_pa  = UadUrdf(IJpt3+2) + UadUrdf(IJpt3+3)*Bij**(-0.5d0/Pni)
+
+
+      CEij:IF ( Nkpt3 > 0 ) THEN 
+
+         Co_mb1 = Ua * 0.5d0*Eij**(Pni-1.0d0) / Bij
+         Co_mb2 = Co_mb1*Rreij
+
+            Nkpt3=-3
+         DO ik=Ipb,Ipe,+1
+
+            Nkpt3=Nkpt3+3
+            dFxk = Co_mb1 * dkEij(Nkpt3+1)
+            dFyk = Co_mb1 * dkEij(Nkpt3+2)
+            dFzk = Co_mb1 * dkEij(Nkpt3+3)
+
+            Kpt3=3*(lstb(ik)-1)
+            F(Kpt3+1) = F(Kpt3+1) + dFxk
+            F(Kpt3+2) = F(Kpt3+2) + dFyk
+            F(Kpt3+3) = F(Kpt3+3) + dFzk
+
+            dFxi = dFxi + dFxk
+            dFyi = dFyi + dFyk
+            dFzi = dFzi + dFzk
+
+         END DO
+
+         dFxj = Co_pa*XRreij + Co_mb2*( XRreij*djEij - dXjEij2 )
+         dFyj = Co_pa*YRreij + Co_mb2*( YRreij*djEij - dYjEij2 )
+         dFzj = Co_pa*ZRreij + Co_mb2*( ZRreij*djEij - dZjEij2 )
+
+      ELSE 
+
+         dFxj = Co_pa*XRreij 
+         dFyj = Co_pa*YRreij 
+         dFzj = Co_pa*ZRreij 
+
+      END IF CEij
+
+
+
+      Jpt3=3*(lstb(ij)-1)
+
+      F(Jpt3+1) = F(Jpt3+1) + dFxj
+      F(Jpt3+2) = F(Jpt3+2) + dFyj
+      F(Jpt3+3) = F(Jpt3+3) + dFzj
+
+      dFxi = dFxi + dFxj
+      dFyi = dFyi + dFyj
+      dFzi = dFzi + dFzj
+
+      END DO DO_J
+
+         Ipt3 = 3*(i-1)
+         F(Ipt3+1) = F(Ipt3+1) - dFxi
+         F(Ipt3+2) = F(Ipt3+2) - dFyi
+         F(Ipt3+3) = F(Ipt3+3) - dFzi
+end subroutine
 
 END MODULE eip_silicon

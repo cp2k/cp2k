@@ -15,8 +15,6 @@ MODULE input_cp2k_eip
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               high_print_level,&
                                               medium_print_level
-   USE input_constants,                 ONLY: use_bazant_eip,&
-                                              use_lenosky_eip
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -25,8 +23,7 @@ MODULE input_cp2k_eip
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: enum_t
-   USE string_utilities,                ONLY: s2a
+   USE input_val_types,                 ONLY: char_t
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -63,15 +60,15 @@ CONTAINS
       NULLIFY (subsection, keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EIP_MODEL", &
-                          description="Selects the empirical interaction potential model", &
-                          usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
+                          description="Selects the empirical interaction potential model. "// &
+                          "EDIP is accepted as an alias of BAZANT and uses the identical "// &
+                          "implementation. EIP is currently supported only for a single "// &
+                          "MPI rank. BAZANT and LENOSKY retain OpenMP parallelization, "// &
+                          "while STILLINGER_WEBER and TERSOFF currently run without "// &
+                          "OpenMP parallelization.", &
+                          usage="EIP_MODEL BAZANT", type_of_var=char_t, &
                           n_var=1, repeats=.FALSE., variants=["EIP-MODEL"], &
-                          enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
-                          enum_i_vals=[use_bazant_eip, use_bazant_eip, use_lenosky_eip], &
-                          enum_desc=s2a("Bazant potentials", &
-                                        "Environment-Dependent Interatomic Potential", &
-                                        "Lenosky potentials"), &
-                          default_i_val=use_lenosky_eip)
+                          default_c_val="LENOSKY")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
