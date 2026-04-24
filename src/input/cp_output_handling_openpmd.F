@@ -424,9 +424,11 @@ CONTAINS
       REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
-      LOGICAL                                            :: opened_new_iteration = .FALSE.
+      LOGICAL                                            :: opened_new_iteration
       TYPE(openpmd_attributable_type)                    :: attr
       TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: opmd
+
+      opened_new_iteration = .FALSE.
 
       opmd => cp_openpmd_per_callsite(openpmd_file_index)%value
 
@@ -470,7 +472,7 @@ CONTAINS
       INTEGER                                  :: file_index
       CHARACTER(:), ALLOCATABLE                :: merged_config
 
-      CHARACTER(len=default_string_length)     :: basename_copied = ' '
+      CHARACTER(len=default_string_length)     :: basename_copied
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
       INTEGER                                  :: handle
@@ -478,6 +480,7 @@ CONTAINS
       TYPE(openpmd_iteration_type)             :: iteration
       INTEGER                                  :: i
 
+      basename_copied = ' '
       basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
 
       file_index = cp_openpmd_get_index_filedata(basename_copied)
@@ -683,6 +686,9 @@ CONTAINS
       MARK_USED(mpi_io)
       MARK_USED(fout)
       MARK_USED(openpmd_basename)
+      MARK_USED(openpmd_basename)
+      MARK_USED(openpmd_unit_dimension)
+      MARK_USED(openpmd_unit_si)
       res = 0
       CPABORT("CP2K compiled without the openPMD-api")
 #endif

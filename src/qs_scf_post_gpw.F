@@ -231,9 +231,12 @@ MODULE qs_scf_post_gpw
 
    INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
 
-   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_density = [-3, 0, 0, 0, 0, 0, 0]
-   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_dimensionless = [0, 0, 0, 0, 0, 0, 0]
-   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_wavefunction = [-1.5_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_density = &
+                                             [-3, 0, 0, 0, 0, 0, 0]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_dimensionless = &
+                                             [0, 0, 0, 0, 0, 0, 0]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_wavefunction = &
+                                             [-1.5_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
    REAL(kind=dp), PARAMETER :: openpmd_unit_si_density = a_bohr**(-3)
    REAL(kind=dp), PARAMETER :: openpmd_unit_si_dimensionless = 1.0_dp
    REAL(kind=dp), PARAMETER :: openpmd_unit_si_wavefunction = a_bohr**(-1.5_dp)
