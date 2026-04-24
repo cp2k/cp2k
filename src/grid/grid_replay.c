@@ -276,19 +276,24 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   const int o2 = parse_int("o2", fp);
   const int n1 = parse_int("n1", fp);
   const int n2 = parse_int("n2", fp);
+  const size_t n12 = (size_t)n1 * (size_t)n2;
 
-  double pab_mutable[n2][n1];
+  double *pab_storage = malloc(n12 * sizeof(double));
+  if (pab_storage == NULL) {
+    fprintf(stderr, "Error: Could not allocate pab buffer.\n");
+    abort();
+  }
+  double(*pab)[n1] = (double(*)[n1])pab_storage;
   char line[100], format[100];
   for (int i = 0; i < n2; i++) {
     for (int j = 0; j < n1; j++) {
       read_next_line(line, sizeof(line), fp);
       snprintf(format, sizeof(format), "pab %i %i %%lf", i, j);
-      if (sscanf(line, format, &pab_mutable[i][j]) != 1) {
+      if (sscanf(line, format, &pab[i][j]) != 1) {
         assert(!"parse_pab failed");
       }
     }
   }
-  const double(*pab)[n1] = (const double(*)[n1])pab_mutable;
 
   const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
   offload_buffer *grid_ref = NULL;
@@ -307,8 +312,12 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
                           j * npts_local[0] + i] = value;
   }
 
-  double hab_ref[n2][n1];
-  memset(hab_ref, 0, n2 * n1 * sizeof(double));
+  double *hab_ref_storage = calloc(n12, sizeof(double));
+  if (hab_ref_storage == NULL) {
+    fprintf(stderr, "Error: Could not allocate hab_ref buffer.\n");
+    abort();
+  }
+  double(*hab_ref)[n1] = (double(*)[n1])hab_ref_storage;
   for (int i = o2; i < ncoset(lb_max) + o2; i++) {
     for (int j = o1; j < ncoset(la_max) + o1; j++) {
       read_next_line(line, sizeof(line), fp);
@@ -340,7 +349,12 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
 
   offload_buffer *grid_test = NULL;
   offload_create_buffer(npts_local_total, &grid_test);
-  double hab_test[n2][n1];
+  double *hab_test_storage = calloc(n12, sizeof(double));
+  if (hab_test_storage == NULL) {
+    fprintf(stderr, "Error: Could not allocate hab_test buffer.\n");
+    abort();
+  }
+  double(*hab_test)[n1] = (double(*)[n1])hab_test_storage;
   double forces_test[2][3];
   double virial_test[3][3];
   double start_time, end_time;
@@ -405,7 +419,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       }
     } else {
       // integrate
-      memset(hab_test, 0, n2 * n1 * sizeof(double));
+      memset(hab_test_storage, 0, n12 * sizeof(double));
       memset(forces_test, 0, 2 * 3 * sizeof(double));
       double virials_test[2][3][3] = {0};
       for (int i = 0; i < cycles; i++) {
@@ -493,6 +507,9 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
 
   offload_free_buffer(grid_ref);
   offload_free_buffer(grid_test);
+  free(pab_storage);
+  free(hab_ref_storage);
+  free(hab_test_storage);
 
   // Check floating point exceptions.
   if (fetestexcept(FE_DIVBYZERO) != 0) {
