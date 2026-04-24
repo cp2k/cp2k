@@ -15,6 +15,10 @@ MODULE input_cp2k_eip
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               high_print_level,&
                                               medium_print_level
+   USE input_constants,                 ONLY: use_bazant_eip,&
+                                              use_lenosky_eip,&
+                                              use_stillinger_weber_eip,&
+                                              use_tersoff_eip
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -23,7 +27,8 @@ MODULE input_cp2k_eip
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: char_t
+   USE input_val_types,                 ONLY: enum_t
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -66,9 +71,18 @@ CONTAINS
                           "MPI rank. BAZANT and LENOSKY retain OpenMP parallelization, "// &
                           "while STILLINGER_WEBER and TERSOFF currently run without "// &
                           "OpenMP parallelization.", &
-                          usage="EIP_MODEL BAZANT", type_of_var=char_t, &
+                          usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
                           n_var=1, repeats=.FALSE., variants=["EIP-MODEL"], &
-                          default_c_val="LENOSKY")
+                          enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY", &
+                                          "STILLINGER_WEBER", "TERSOFF"), &
+                          enum_i_vals=[use_bazant_eip, use_bazant_eip, use_lenosky_eip, &
+                                       use_stillinger_weber_eip, use_tersoff_eip], &
+                          enum_desc=s2a("Bazant potentials", &
+                                        "Environment-Dependent Interatomic Potential", &
+                                        "Lenosky potentials", &
+                                        "Stillinger-Weber potentials", &
+                                        "Tersoff potentials"), &
+                          default_i_val=use_lenosky_eip)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -22,10 +22,6 @@ MODULE eip_environment
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE eip_environment_types,           ONLY: eip_env_set,&
                                               eip_environment_type
-   USE input_constants,                 ONLY: use_bazant_eip,&
-                                              use_lenosky_eip,&
-                                              use_stillinger_weber_eip,&
-                                              use_tersoff_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -39,7 +35,6 @@ MODULE eip_environment
                                               write_particle_distances,&
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
-   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -198,7 +193,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init_model'
 
-      CHARACTER(LEN=default_string_length)               :: eip_atomic_kind_name, eip_model_name
+      CHARACTER(LEN=default_string_length)               :: eip_atomic_kind_name
       INTEGER                                            :: handle, i
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_ptr
@@ -224,20 +219,7 @@ CONTAINS
          CASE ("SI", "Si")
             CALL section_vals_val_get(section_vals=eip_section, &
                                       keyword_name="EIP-Model", &
-                                      c_val=eip_model_name)
-            CALL uppercase(eip_model_name)
-            SELECT CASE (TRIM(ADJUSTL(eip_model_name)))
-            CASE ("BAZANT", "EDIP")
-               eip_env%eip_model = use_bazant_eip
-            CASE ("LENOSKY")
-               eip_env%eip_model = use_lenosky_eip
-            CASE ("STILLINGER_WEBER")
-               eip_env%eip_model = use_stillinger_weber_eip
-            CASE ("TERSOFF")
-               eip_env%eip_model = use_tersoff_eip
-            CASE DEFAULT
-               CPABORT("Unknown EIP_MODEL: "//TRIM(ADJUSTL(eip_model_name)))
-            END SELECT
+                                      i_val=eip_env%eip_model)
          CASE DEFAULT
             CPABORT("EIP models for other elements than Si isn't implemented yet.")
          END SELECT
