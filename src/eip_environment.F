@@ -76,7 +76,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init'
 
-      CHARACTER(len=default_string_length)               :: abort_message
       INTEGER                                            :: handle
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: colvar_section, eip_section
@@ -86,10 +85,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(eip_env))
 
       IF (para_env%num_pe > 1) THEN
-         abort_message = "EIP requires a single MPI rank. "// &
-                         "BAZANT/LENOSKY keep their OpenMP implementation; "// &
-                         "STILLINGER_WEBER/TERSOFF currently do not use OpenMP."
-         CPABORT(TRIM(abort_message))
+         CPABORT("EIP requires one MPI rank; SW/TERSOFF are currently serial.")
       END IF
 
       ! nullifying  pointers

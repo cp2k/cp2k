@@ -3321,7 +3321,7 @@ CONTAINS
    END SUBROUTINE splint
 
 ! **************************************************************************************************
-!> Additional EIP kernels consolidated here to match the original Bazant/Lenosky layout.
+! Additional EIP kernels consolidated here to match the original Bazant/Lenosky layout.
 ! **************************************************************************************************
 
    SUBROUTINE eip_stillinger_weber_silicon(nat, alat, rxyz0, fxyz, etot, count)
@@ -3402,17 +3402,15 @@ CONTAINS
 
       npr = 1
       ncx = 29
-1234  ncx = ncx*2
-      ALLOCATE (icell(0:ncx, -1:ll1, -1:ll2, -1:ll3))
-      DO 984, l3 = -1, ll3
-      DO 984, l2 = -1, ll2
-      DO 984, l1 = -1, ll1
-984      icell(0, l1, l2, l3) = 0
+      DO
+         ncx = ncx*2
+         ALLOCATE (icell(0:ncx, -1:ll1, -1:ll2, -1:ll3))
+         icell(0, :, :, :) = 0
          rlc1i = ll1/alat(1)
          rlc2i = ll2/alat(2)
          rlc3i = ll3/alat(3)
 
-         DO 983, iat = 1, nat
+         DO iat = 1, nat
             rxyz0(1, iat) = MODULO(MODULO(rxyz0(1, iat), alat(1)), alat(1))
             rxyz0(2, iat) = MODULO(MODULO(rxyz0(2, iat), alat(2)), alat(2))
             rxyz0(3, iat) = MODULO(MODULO(rxyz0(3, iat), alat(3)), alat(3))
@@ -3426,453 +3424,456 @@ CONTAINS
             IF (ii > ncx) THEN
                WRITE (10, *) count, 'NCX too small', ncx
                DEALLOCATE (icell)
-               GOTO 1234
+               EXIT
             END IF
             icell(ii, l1, l2, l3) = iat
-983         CONTINUE
+         END DO
+         IF (ALLOCATED(icell)) EXIT
+      END DO
 
 ! duplicate all atoms within boundary layer
-            laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
-            nn = nat + laymx
-            ALLOCATE (rxyz(3, nn), lay(nn))
-            DO iat = 1, nat
-               lay(iat) = iat
-               rxyz(1, iat) = rxyz0(1, iat)
-               rxyz(2, iat) = rxyz0(2, iat)
-               rxyz(3, iat) = rxyz0(3, iat)
-            END DO
-            il = nat
+      laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
+      nn = nat + laymx
+      ALLOCATE (rxyz(3, nn), lay(nn))
+      DO iat = 1, nat
+         lay(iat) = iat
+         rxyz(1, iat) = rxyz0(1, iat)
+         rxyz(2, iat) = rxyz0(2, iat)
+         rxyz(3, iat) = rxyz0(3, iat)
+      END DO
+      il = nat
 ! xy plane
-            DO l2 = 0, ll2 - 1
-            DO l1 = 0, ll1 - 1
+      DO l2 = 0, ll2 - 1
+      DO l1 = 0, ll1 - 1
 
-               in = icell(0, l1, l2, 0)
-               icell(0, l1, l2, ll3) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, l2, 0)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, l2, ll3) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) + alat(3)
-               END DO
+         in = icell(0, l1, l2, 0)
+         icell(0, l1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-               in = icell(0, l1, l2, ll3 - 1)
-               icell(0, l1, l2, -1) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, l2, ll3 - 1)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, l2, -1) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) - alat(3)
-               END DO
+         in = icell(0, l1, l2, ll3 - 1)
+         icell(0, l1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-            END DO
-            END DO
+      END DO
+      END DO
 
 ! yz plane
-            DO l3 = 0, ll3 - 1
-            DO l2 = 0, ll2 - 1
+      DO l3 = 0, ll3 - 1
+      DO l2 = 0, ll2 - 1
 
-               in = icell(0, 0, l2, l3)
-               icell(0, ll1, l2, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, 0, l2, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, ll1, l2, l3) = il
-                  rxyz(1, il) = rxyz(1, i) + alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, 0, l2, l3)
+         icell(0, ll1, l2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-               in = icell(0, ll1 - 1, l2, l3)
-               icell(0, -1, l2, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, ll1 - 1, l2, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, -1, l2, l3) = il
-                  rxyz(1, il) = rxyz(1, i) - alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, ll1 - 1, l2, l3)
+         icell(0, -1, l2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-            END DO
-            END DO
+      END DO
+      END DO
 
 ! xz plane
-            DO l3 = 0, ll3 - 1
-            DO l1 = 0, ll1 - 1
+      DO l3 = 0, ll3 - 1
+      DO l1 = 0, ll1 - 1
 
-               in = icell(0, l1, 0, l3)
-               icell(0, l1, ll2, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, 0, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, ll2, l3) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) + alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, l1, 0, l3)
+         icell(0, l1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-               in = icell(0, l1, ll2 - 1, l3)
-               icell(0, l1, -1, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, ll2 - 1, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, -1, l3) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) - alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, l1, ll2 - 1, l3)
+         icell(0, l1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-            END DO
-            END DO
+      END DO
+      END DO
 
 ! x axis
-            DO l1 = 0, ll1 - 1
+      DO l1 = 0, ll1 - 1
 
-               in = icell(0, l1, 0, 0)
-               icell(0, l1, ll2, ll3) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, 0, 0)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, ll2, ll3) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) + alat(2)
-                  rxyz(3, il) = rxyz(3, i) + alat(3)
-               END DO
+         in = icell(0, l1, 0, 0)
+         icell(0, l1, ll2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-               in = icell(0, l1, 0, ll3 - 1)
-               icell(0, l1, ll2, -1) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, 0, ll3 - 1)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, ll2, -1) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) + alat(2)
-                  rxyz(3, il) = rxyz(3, i) - alat(3)
-               END DO
+         in = icell(0, l1, 0, ll3 - 1)
+         icell(0, l1, ll2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-               in = icell(0, l1, ll2 - 1, 0)
-               icell(0, l1, -1, ll3) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, ll2 - 1, 0)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, -1, ll3) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) - alat(2)
-                  rxyz(3, il) = rxyz(3, i) + alat(3)
-               END DO
+         in = icell(0, l1, ll2 - 1, 0)
+         icell(0, l1, -1, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-               in = icell(0, l1, ll2 - 1, ll3 - 1)
-               icell(0, l1, -1, -1) = in
-               DO ii = 1, in
-                  i = icell(ii, l1, ll2 - 1, ll3 - 1)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, l1, -1, -1) = il
-                  rxyz(1, il) = rxyz(1, i)
-                  rxyz(2, il) = rxyz(2, i) - alat(2)
-                  rxyz(3, il) = rxyz(3, i) - alat(3)
-               END DO
+         in = icell(0, l1, ll2 - 1, ll3 - 1)
+         icell(0, l1, -1, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-            END DO
+      END DO
 
 ! y axis
-            DO l2 = 0, ll2 - 1
+      DO l2 = 0, ll2 - 1
 
-               in = icell(0, 0, l2, 0)
-               icell(0, ll1, l2, ll3) = in
-               DO ii = 1, in
-                  i = icell(ii, 0, l2, 0)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, ll1, l2, ll3) = il
-                  rxyz(1, il) = rxyz(1, i) + alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) + alat(3)
-               END DO
+         in = icell(0, 0, l2, 0)
+         icell(0, ll1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-               in = icell(0, 0, l2, ll3 - 1)
-               icell(0, ll1, l2, -1) = in
-               DO ii = 1, in
-                  i = icell(ii, 0, l2, ll3 - 1)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, ll1, l2, -1) = il
-                  rxyz(1, il) = rxyz(1, i) + alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) - alat(3)
-               END DO
+         in = icell(0, 0, l2, ll3 - 1)
+         icell(0, ll1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-               in = icell(0, ll1 - 1, l2, 0)
-               icell(0, -1, l2, ll3) = in
-               DO ii = 1, in
-                  i = icell(ii, ll1 - 1, l2, 0)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, -1, l2, ll3) = il
-                  rxyz(1, il) = rxyz(1, i) - alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) + alat(3)
-               END DO
+         in = icell(0, ll1 - 1, l2, 0)
+         icell(0, -1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-               in = icell(0, ll1 - 1, l2, ll3 - 1)
-               icell(0, -1, l2, -1) = in
-               DO ii = 1, in
-                  i = icell(ii, ll1 - 1, l2, ll3 - 1)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, -1, l2, -1) = il
-                  rxyz(1, il) = rxyz(1, i) - alat(1)
-                  rxyz(2, il) = rxyz(2, i)
-                  rxyz(3, il) = rxyz(3, i) - alat(3)
-               END DO
+         in = icell(0, ll1 - 1, l2, ll3 - 1)
+         icell(0, -1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-            END DO
+      END DO
 
 ! z axis
-            DO l3 = 0, ll3 - 1
+      DO l3 = 0, ll3 - 1
 
-               in = icell(0, 0, 0, l3)
-               icell(0, ll1, ll2, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, 0, 0, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, ll1, ll2, l3) = il
-                  rxyz(1, il) = rxyz(1, i) + alat(1)
-                  rxyz(2, il) = rxyz(2, i) + alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, 0, 0, l3)
+         icell(0, ll1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-               in = icell(0, ll1 - 1, 0, l3)
-               icell(0, -1, ll2, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, ll1 - 1, 0, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, -1, ll2, l3) = il
-                  rxyz(1, il) = rxyz(1, i) - alat(1)
-                  rxyz(2, il) = rxyz(2, i) + alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, ll1 - 1, 0, l3)
+         icell(0, -1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-               in = icell(0, 0, ll2 - 1, l3)
-               icell(0, ll1, -1, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, 0, ll2 - 1, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, ll1, -1, l3) = il
-                  rxyz(1, il) = rxyz(1, i) + alat(1)
-                  rxyz(2, il) = rxyz(2, i) - alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, 0, ll2 - 1, l3)
+         icell(0, ll1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-               in = icell(0, ll1 - 1, ll2 - 1, l3)
-               icell(0, -1, -1, l3) = in
-               DO ii = 1, in
-                  i = icell(ii, ll1 - 1, ll2 - 1, l3)
-                  il = il + 1
-                  IF (il > nn) STOP 'enlarge laymx'
-                  lay(il) = i
-                  icell(ii, -1, -1, l3) = il
-                  rxyz(1, il) = rxyz(1, i) - alat(1)
-                  rxyz(2, il) = rxyz(2, i) - alat(2)
-                  rxyz(3, il) = rxyz(3, i)
-               END DO
+         in = icell(0, ll1 - 1, ll2 - 1, l3)
+         icell(0, -1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-            END DO
+      END DO
 
 ! corners
-            in = icell(0, 0, 0, 0)
-            icell(0, ll1, ll2, ll3) = in
-            DO ii = 1, in
-               i = icell(ii, 0, 0, 0)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, ll1, ll2, ll3) = il
-               rxyz(1, il) = rxyz(1, i) + alat(1)
-               rxyz(2, il) = rxyz(2, i) + alat(2)
-               rxyz(3, il) = rxyz(3, i) + alat(3)
-            END DO
+      in = icell(0, 0, 0, 0)
+      icell(0, ll1, ll2, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, 0, 0, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, ll2, ll3) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-            in = icell(0, ll1 - 1, 0, 0)
-            icell(0, -1, ll2, ll3) = in
-            DO ii = 1, in
-               i = icell(ii, ll1 - 1, 0, 0)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, -1, ll2, ll3) = il
-               rxyz(1, il) = rxyz(1, i) - alat(1)
-               rxyz(2, il) = rxyz(2, i) + alat(2)
-               rxyz(3, il) = rxyz(3, i) + alat(3)
-            END DO
+      in = icell(0, ll1 - 1, 0, 0)
+      icell(0, -1, ll2, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, 0, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, ll2, ll3) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-            in = icell(0, 0, ll2 - 1, 0)
-            icell(0, ll1, -1, ll3) = in
-            DO ii = 1, in
-               i = icell(ii, 0, ll2 - 1, 0)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, ll1, -1, ll3) = il
-               rxyz(1, il) = rxyz(1, i) + alat(1)
-               rxyz(2, il) = rxyz(2, i) - alat(2)
-               rxyz(3, il) = rxyz(3, i) + alat(3)
-            END DO
+      in = icell(0, 0, ll2 - 1, 0)
+      icell(0, ll1, -1, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, 0, ll2 - 1, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, -1, ll3) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-            in = icell(0, ll1 - 1, ll2 - 1, 0)
-            icell(0, -1, -1, ll3) = in
-            DO ii = 1, in
-               i = icell(ii, ll1 - 1, ll2 - 1, 0)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, -1, -1, ll3) = il
-               rxyz(1, il) = rxyz(1, i) - alat(1)
-               rxyz(2, il) = rxyz(2, i) - alat(2)
-               rxyz(3, il) = rxyz(3, i) + alat(3)
-            END DO
+      in = icell(0, ll1 - 1, ll2 - 1, 0)
+      icell(0, -1, -1, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, ll2 - 1, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, -1, ll3) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-            in = icell(0, 0, 0, ll3 - 1)
-            icell(0, ll1, ll2, -1) = in
-            DO ii = 1, in
-               i = icell(ii, 0, 0, ll3 - 1)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, ll1, ll2, -1) = il
-               rxyz(1, il) = rxyz(1, i) + alat(1)
-               rxyz(2, il) = rxyz(2, i) + alat(2)
-               rxyz(3, il) = rxyz(3, i) - alat(3)
-            END DO
+      in = icell(0, 0, 0, ll3 - 1)
+      icell(0, ll1, ll2, -1) = in
+      DO ii = 1, in
+         i = icell(ii, 0, 0, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, ll2, -1) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-            in = icell(0, ll1 - 1, 0, ll3 - 1)
-            icell(0, -1, ll2, -1) = in
-            DO ii = 1, in
-               i = icell(ii, ll1 - 1, 0, ll3 - 1)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, -1, ll2, -1) = il
-               rxyz(1, il) = rxyz(1, i) - alat(1)
-               rxyz(2, il) = rxyz(2, i) + alat(2)
-               rxyz(3, il) = rxyz(3, i) - alat(3)
-            END DO
+      in = icell(0, ll1 - 1, 0, ll3 - 1)
+      icell(0, -1, ll2, -1) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, 0, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, ll2, -1) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-            in = icell(0, 0, ll2 - 1, ll3 - 1)
-            icell(0, ll1, -1, -1) = in
-            DO ii = 1, in
-               i = icell(ii, 0, ll2 - 1, ll3 - 1)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, ll1, -1, -1) = il
-               rxyz(1, il) = rxyz(1, i) + alat(1)
-               rxyz(2, il) = rxyz(2, i) - alat(2)
-               rxyz(3, il) = rxyz(3, i) - alat(3)
-            END DO
+      in = icell(0, 0, ll2 - 1, ll3 - 1)
+      icell(0, ll1, -1, -1) = in
+      DO ii = 1, in
+         i = icell(ii, 0, ll2 - 1, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, -1, -1) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-            in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
-            icell(0, -1, -1, -1) = in
-            DO ii = 1, in
-               i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
-               il = il + 1
-               IF (il > nn) STOP 'enlarge laymx'
-               lay(il) = i
-               icell(ii, -1, -1, -1) = il
-               rxyz(1, il) = rxyz(1, i) - alat(1)
-               rxyz(2, il) = rxyz(2, i) - alat(2)
-               rxyz(3, il) = rxyz(3, i) - alat(3)
-            END DO
+      in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
+      icell(0, -1, -1, -1) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, -1, -1) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-            ALLOCATE (lsta(2, nat))
-            nnbrx = 300
-2345        nnbrx = 3*nnbrx/2
-            ALLOCATE (lstb(nnbrx*nat), rel(5, nnbrx*nat))
+      ALLOCATE (lsta(2, nat))
+      nnbrx = 300
+      DO
+         nnbrx = 3*nnbrx/2
+         ALLOCATE (lstb(nnbrx*nat), rel(5, nnbrx*nat))
 
-            indlstx = 0
+         indlstx = 0
 
-            npr = 1
-            iam = 0
+         npr = 1
+         iam = 0
 
-            cut2 = cut**2
+         cut2 = cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads (this version only contains one thread)
-            myspace = (nat*nnbrx)/npr
-            IF (iam == 0) myspaceout = myspace
+         myspace = (nat*nnbrx)/npr
+         IF (iam == 0) myspaceout = myspace
 ! Verlet list, relative positions
-            indlst = 0
-            DO 6000, l3 = 0, ll3 - 1
-            DO 6000, l2 = 0, ll2 - 1
-            DO 6000, l1 = 0, ll1 - 1
-            DO 6600, ii = 1, icell(0, l1, l2, l3)
-               iat = icell(ii, l1, l2, l3)
-               IF (((iat - 1)*npr)/nat == iam) THEN
-                  lsta(1, iat) = iam*myspace + indlst + 1
-                  CALL sw_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                      rxyz, icell, lstb(iam*myspace + 1), lay, rel(1, iam*myspace + 1), cut2, indlst)
-                  lsta(2, iat) = iam*myspace + indlst
-                  ipb = lsta(1, iat)
-                  ndat = lsta(2, iat) - lsta(1, iat) + 1
-               END IF
+         indlst = 0
+         DO l3 = 0, ll3 - 1
+         DO l2 = 0, ll2 - 1
+         DO l1 = 0, ll1 - 1
+         DO ii = 1, icell(0, l1, l2, l3)
+            iat = icell(ii, l1, l2, l3)
+            IF (((iat - 1)*npr)/nat == iam) THEN
+               lsta(1, iat) = iam*myspace + indlst + 1
+               CALL sw_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
+                                   rxyz, icell, lstb(iam*myspace + 1), lay, rel(1, iam*myspace + 1), cut2, indlst)
+               lsta(2, iat) = iam*myspace + indlst
+               ipb = lsta(1, iat)
+               ndat = lsta(2, iat) - lsta(1, iat) + 1
+            END IF
+         END DO
+         END DO
+         END DO
+         END DO
+         indlstx = MAX(indlstx, indlst)
 
-6600           CONTINUE
-6000           CONTINUE
-               indlstx = MAX(indlstx, indlst)
+         IF (indlstx < myspaceout) EXIT
+         WRITE (10, *) count, 'NNBRX too  small', nnbrx
+         DEALLOCATE (lstb, rel)
+      END DO
 
-               IF (indlstx >= myspaceout) THEN
-                  WRITE (10, *) count, 'NNBRX too  small', nnbrx
-                  DEALLOCATE (lstb, rel)
-                  GOTO 2345
-               END IF
-
-               npr = 1
-               iam = 0
-               npjx = 300; npjkx = 6000
+      npr = 1
+      iam = 0
+      npjx = 300; npjkx = 6000
 !end of creating pairlist part------------------------------------------------------------
 
 !start energy and force calculation-------------------------------------------------------
 !set all variables to zero
-               p = 0.0d0
-               p3 = 0.0d0
-               pv3 = 0.0d0
-               fx(:) = 0.0d0
-               fy(:) = 0.0d0
-               fz(:) = 0.0d0
-               fx3(:) = 0.0d0
-               fy3(:) = 0.0d0
-               fz3(:) = 0.0d0
+      p = 0.0d0
+      p3 = 0.0d0
+      pv3 = 0.0d0
+      fx(:) = 0.0d0
+      fy(:) = 0.0d0
+      fz(:) = 0.0d0
+      fx3(:) = 0.0d0
+      fy3(:) = 0.0d0
+      fz3(:) = 0.0d0
 !-----------------------------------------------------------------------------------------
 !     triple loop for the 2 and 3-body forces
 !     do 20 i
@@ -3881,290 +3882,290 @@ CONTAINS
 !     the pairlists lsta and lstb are used for the perodic boundary conditions
 !-----------------------------------------------------------------------------------------
 
-               DO 20 i = 1, nat       !DO 20
-                  CALL sw_subfeniat_l(i, nat, nnbrx, rel, p, p3, fx, fy, fz, fx3, fy3, fz3, lstb, lsta, isigma, sigma)
-20                CONTINUE
+      DO i = 1, nat
+         CALL sw_subfeniat_l(i, nat, nnbrx, rel, p, p3, fx, fy, fz, fx3, fy3, fz3, lstb, lsta, isigma, sigma)
+      END DO
 !-----------------------------------------------------------------------------------------
 !*****if necessary,********
-                  DO i = 1, nat
-                     fx(i) = fx(i) + fx3(i)
-                     fy(i) = fy(i) + fy3(i)
-                     fz(i) = fz(i) + fz3(i)
-                  END DO
+      DO i = 1, nat
+         fx(i) = fx(i) + fx3(i)
+         fy(i) = fy(i) + fy3(i)
+         fz(i) = fz(i) + fz3(i)
+      END DO
 !-----------------------------------------------------------------------------------------
 
-                  DO i = 1, nat
-                     fxyz(1, i) = fx(i)*esigma
-                     fxyz(2, i) = fy(i)*esigma
-                     fxyz(3, i) = fz(i)*esigma
-                  END DO
-                  etot = (p + p3)*eps
-                  DEALLOCATE (rxyz, icell, lay, lsta, lstb, rel)
-               END SUBROUTINE eip_stillinger_weber_silicon
+      DO i = 1, nat
+         fxyz(1, i) = fx(i)*esigma
+         fxyz(2, i) = fy(i)*esigma
+         fxyz(3, i) = fz(i)*esigma
+      END DO
+      etot = (p + p3)*eps
+      DEALLOCATE (rxyz, icell, lay, lsta, lstb, rel)
+   END SUBROUTINE eip_stillinger_weber_silicon
 !End of the force calculation-------------------------------------------------------------
 
-               REAL(8) FUNCTION f(c)
-                  REAL(8) :: c, ra, bb, aa, c4, crainv
-                  PARAMETER(aa=7.049556277d0)
-                  PARAMETER(ra=1.8d0, bb=0.6022245584d0)
+   REAL(8) FUNCTION f(c)
+      REAL(8)                                            :: c
 
-                  IF ((c - ra) < 0.d0) THEN
-                     crainv = 1.0d0/(c - ra)
-                     c4 = c*c*c*c
-                     f = aa*bb*4.0d0/(c4*c)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
-                  ELSE
-                     f = 0.d0
-                  END IF
+      REAL(8)                                            :: aa, bb, c4, crainv, ra
 
-                  RETURN
-               END FUNCTION f
+      PARAMETER(aa=7.049556277d0)
+      PARAMETER(ra=1.8d0, bb=0.6022245584d0)
 
-               REAL(8) FUNCTION pe(d)
+      IF ((c - ra) < 0.d0) THEN
+         crainv = 1.0d0/(c - ra)
+         c4 = c*c*c*c
+         f = aa*bb*4.0d0/(c4*c)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
+      ELSE
+         f = 0.d0
+      END IF
+
+      RETURN
+   END FUNCTION f
+
+   REAL(8) FUNCTION pe(d)
       REAL(8)                                            :: d
 
       REAL(8), PARAMETER                                 :: aa = 7.049556277d0, bb = 0.6022245584d0, &
                                                             ra = 1.8d0
 
-                  IF ((d - ra) < 0.d0) THEN
-                     pe = aa*(bb/(d*d*d*d) - 1.0d0)*dexp(1.0d0/(d - ra))
-                  ELSE
-                     pe = 0.d0
-                  END IF
-                  RETURN
-               END FUNCTION pe
+      IF ((d - ra) < 0.d0) THEN
+         pe = aa*(bb/(d*d*d*d) - 1.0d0)*dexp(1.0d0/(d - ra))
+      ELSE
+         pe = 0.d0
+      END IF
+      RETURN
+   END FUNCTION pe
 
 !------------------------------------------------------------------------------------------
-               SUBROUTINE sw_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                         rxyz, icell, lstb, lay, rel, cut2, indlst)
+   SUBROUTINE sw_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
+                             rxyz, icell, lstb, lay, rel, cut2, indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-                  IMPLICIT REAL(8) (a - h, o - z)
-                  INTEGER :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
-                  INTEGER :: jat, jj, k1, k2, k3
-                  INTEGER :: lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1)
-                  REAL(8) :: rxyz(3, nn), rel(5, 0:myspace - 1), cut2
+      IMPLICIT REAL(8) (a - h, o - z)
+      INTEGER :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
+      INTEGER :: jat, jj, k1, k2, k3
+      INTEGER :: lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1)
+      REAL(8) :: rxyz(3, nn), rel(5, 0:myspace - 1), cut2
 
-                  DO 6363, k3 = l3 - 1, l3 + 1
-                  DO 6363, k2 = l2 - 1, l2 + 1
-                  DO 6363, k1 = l1 - 1, l1 + 1
-                  DO 6363, jj = 1, icell(0, k1, k2, k3)
-                     jat = icell(jj, k1, k2, k3)
-                     IF (jat == iat) GOTO 6363
-                     xrel = rxyz(1, iat) - rxyz(1, jat)
-                     yrel = rxyz(2, iat) - rxyz(2, jat)
-                     zrel = rxyz(3, iat) - rxyz(3, jat)
-                     rr2 = xrel**2 + yrel**2 + zrel**2
-                     IF (rr2 <= cut2) THEN
-                        indlst = MIN(indlst, myspace - 1)
-                        lstb(indlst) = lay(jat)
+      DO k3 = l3 - 1, l3 + 1
+      DO k2 = l2 - 1, l2 + 1
+      DO k1 = l1 - 1, l1 + 1
+      DO jj = 1, icell(0, k1, k2, k3)
+         jat = icell(jj, k1, k2, k3)
+         IF (jat == iat) CYCLE
+         xrel = rxyz(1, iat) - rxyz(1, jat)
+         yrel = rxyz(2, iat) - rxyz(2, jat)
+         zrel = rxyz(3, iat) - rxyz(3, jat)
+         rr2 = xrel**2 + yrel**2 + zrel**2
+         IF (rr2 <= cut2) THEN
+            indlst = MIN(indlst, myspace - 1)
+            lstb(indlst) = lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
-                        tt = SQRT(rr2)
-                        tti = 1.d0/tt
-                        rel(1, indlst) = xrel*tti
-                        rel(2, indlst) = yrel*tti
-                        rel(3, indlst) = zrel*tti
-                        rel(4, indlst) = tt
-                        rel(5, indlst) = tti
-                        indlst = indlst + 1
-                     END IF
-6363                 CONTINUE
+            tt = SQRT(rr2)
+            tti = 1.d0/tt
+            rel(1, indlst) = xrel*tti
+            rel(2, indlst) = yrel*tti
+            rel(3, indlst) = zrel*tti
+            rel(4, indlst) = tt
+            rel(5, indlst) = tti
+            indlst = indlst + 1
+         END IF
+      END DO
+      END DO
+      END DO
+      END DO
 
-                     RETURN
-                  END SUBROUTINE sw_sublstiat_l
+      RETURN
+   END SUBROUTINE sw_sublstiat_l
 
-                  SUBROUTINE sw_subfeniat_l(i, nat, nnbrx, rel, p, p3, fx, fy, fz, fx3, fy3, fz3, lstb, lsta, isigma, sigma)
-                     IMPLICIT NONE
-                     INTEGER, INTENT(IN)   :: i, nat, nnbrx, lsta(2, nat), lstb(nnbrx*nat)
-                     INTEGER               :: Ipb, Ipe, k, m, l, j, nij
-                     REAL(8), INTENT(IN)    :: rel(5, nnbrx*nat), isigma, sigma
-                     REAL(8), INTENT(INOUT) :: fx(nat), fy(nat), fz(nat), fx3(nat), fy3(nat), fz3(nat), p3, p
-                     REAL(8)                :: hi, hj, hk, hixij0, hixij1, hixij, hixik0, hixik, HKXIK1
-                     REAL(8)                :: hjxij0, hjxij1, hjxij, hkxik0, hixik1, hkxik
-                     REAL(8)                :: hjxjk0, hjxjk1, hjxjk, hkxkj0, hkxkj1, hkxkj
-                     REAL(8)                :: hiyij0, hiyij1
-                     REAL(8)                :: hiyij, hiyik0, hiyik1, hiyik, hjyij0, hjyij1, hjyij
-                     REAL(8)                :: hkyik0, hkyik1, hkyik, hjyjk0, hjyjk1, hjyjk, hkykj0, hkykj1, hkykj
-                REAL(8)                :: HIZIJ0, HIZIJ1, HIZIJ, HIZIK0, HIZIK1, HIZIK, HJZIJ0, HJZIJ1, HJZIJ, HKZIK0, HKZIK1, HKZIK
-                     REAL(8)                :: HJZJK0, HJZJK1, HJZJK, HKZKJ0, HKZKJ1, HKZKJ
-                     REAL(8)                :: rij, xik, yik, zik, xij, yij, zij
-                     REAL(8)                :: rik, xjk, yjk, zjk, rjk, cosjik, cosijk, cosikj, cosjik3, cosijk3, cosikj3
-                     REAL(8)                :: rija, rika, rjka, refi, refj, refk
-              REAL(8)                :: invrik, invrjk, invrij, gam, ramda, aa, ra, bb, invrika, invrjka, invrija, force, c4, crainv
+   SUBROUTINE sw_subfeniat_l(i, nat, nnbrx, rel, p, p3, fx, fy, fz, fx3, fy3, fz3, lstb, lsta, isigma, sigma)
+      INTEGER, INTENT(IN)                                :: i, nat, nnbrx
+      REAL(8), INTENT(IN)                                :: rel(5, nnbrx*nat)
+      REAL(8), INTENT(INOUT)                             :: p, p3, fx(nat), fy(nat), fz(nat), &
+                                                            fx3(nat), fy3(nat), fz3(nat)
+      INTEGER, INTENT(IN)                                :: lstb(nnbrx*nat), lsta(2, nat)
+      REAL(8), INTENT(IN)                                :: isigma, sigma
 
-                     PARAMETER(gam=1.2d0, ramda=21.0d0, aa=7.049556277d0)
-                     PARAMETER(ra=1.8d0, bb=0.6022245584d0)
+      INTEGER                                            :: Ipb, Ipe, j, k, l, m, nij
+      REAL(8) :: aa, bb, c4, cosijk, cosijk3, cosikj, cosikj3, cosjik, cosjik3, crainv, force, &
+         gam, hi, hixij, hixij0, hixij1, hixik, hixik0, hixik1, hiyij, hiyij0, hiyij1, hiyik, &
+         hiyik0, hiyik1, HIZIJ, HIZIJ0, HIZIJ1, HIZIK, HIZIK0, HIZIK1, hj, hjxij, hjxij0, hjxij1, &
+         hjxjk, hjxjk0, hjxjk1, hjyij, hjyij0, hjyij1, hjyjk, hjyjk0, hjyjk1, HJZIJ, HJZIJ0, &
+         HJZIJ1, HJZJK, HJZJK0, HJZJK1, hk, hkxik, hkxik0, HKXIK1, hkxkj, hkxkj0, hkxkj1, hkyik, &
+         hkyik0, hkyik1, hkykj, hkykj0, hkykj1, HKZIK, HKZIK0, HKZIK1, HKZKJ, HKZKJ0, HKZKJ1, &
+         invrij, invrija, invrik, invrika, invrjk, invrjka, ra, ramda, refi, refj
+      REAL(8) :: refk, rij, rija, rik, rika, rjk, rjka, xij, xik, xjk, yij, yik, yjk, zij, zik, zjk
 
-                     Ipb = lsta(1, i)
-                     Ipe = lsta(2, i)
+      PARAMETER(gam=1.2d0, ramda=21.0d0, aa=7.049556277d0)
+      PARAMETER(ra=1.8d0, bb=0.6022245584d0)
 
-                     DO 30 l = Ipb, Ipe, +1 !DO 30
-                        j = lstb(l)
-                        IF (j <= i) go to 30
-                        nij = 0
-                        rij = rel(4, l)*isigma
-                        invrij = rel(5, l)*sigma
-                        xij = rel(1, l)*rij
-                        yij = rel(2, l)*rij
-                        zij = rel(3, l)*rij
+      Ipb = lsta(1, i)
+      Ipe = lsta(2, i)
 
-                        IF (rij >= 2.d0*ra) go to 30
-                        IF (rij >= ra) go to 31
+      DO l = Ipb, Ipe
+         j = lstb(l)
+         IF (j <= i) CYCLE
+         nij = 0
+         rij = rel(4, l)*isigma
+         invrij = rel(5, l)*sigma
+         xij = rel(1, l)*rij
+         yij = rel(2, l)*rij
+         zij = rel(3, l)*rij
 
-                        crainv = 1.0d0/(rij - ra)
-                        c4 = rij*rij*rij*rij
-                        force = aa*bb*4.0d0/(c4*rij)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
+         IF (rij >= 2.d0*ra) CYCLE
+         IF (rij < ra) THEN
+            crainv = 1.0d0/(rij - ra)
+            c4 = rij*rij*rij*rij
+            force = aa*bb*4.0d0/(c4*rij)*dexp(crainv) + aa*(bb/(c4) - 1.0d0)*dexp(crainv)*crainv*crainv
 
-                        fx(i) = force*xij*invrij + fx(i)
-                        fy(i) = force*yij*invrij + fy(i)
-                        fz(i) = force*zij*invrij + fz(i)
+            fx(i) = force*xij*invrij + fx(i)
+            fy(i) = force*yij*invrij + fy(i)
+            fz(i) = force*zij*invrij + fz(i)
 
-                        fx(j) = -force*xij*invrij + fx(j)
-                        fy(j) = -force*yij*invrij + fy(j)
-                        fz(j) = -force*zij*invrij + fz(j)
+            fx(j) = -force*xij*invrij + fx(j)
+            fy(j) = -force*yij*invrij + fy(j)
+            fz(j) = -force*zij*invrij + fz(j)
 
-                        p = p + aa*(bb/(rij*rij*rij*rij) - 1.0d0)*dexp(1.0d0/(rij - ra))
+            p = p + aa*(bb/(rij*rij*rij*rij) - 1.0d0)*dexp(1.0d0/(rij - ra))
 
-                        nij = 1
+            nij = 1
+         END IF
 
-31                      CONTINUE
+         DO m = Ipb, Ipe
+            k = lstb(m)
+            IF (k <= j) CYCLE
+            invrik = rel(5, m)*sigma
+            rik = rel(4, m)*isigma
+            xik = rel(1, m)*rik
+            yik = rel(2, m)*rik
+            zik = rel(3, m)*rik
 
-                        DO 40 m = Ipb, Ipe, +1 !DO 40
-                           k = lstb(m)
-                           IF (k <= j) GOTO 40
-                           invrik = rel(5, m)*sigma
-                           rik = rel(4, m)*isigma
-                           xik = rel(1, m)*rik
-                           yik = rel(2, m)*rik
-                           zik = rel(3, m)*rik
+            IF ((rik >= ra) .AND. (nij == 0)) CYCLE
 
-                           IF ((rik >= ra) .AND. (nij == 0)) go to 40
+            xjk = xik - xij
+            yjk = yik - yij
+            zjk = zik - zij
 
-                           xjk = xik - xij
-                           yjk = yik - yij
-                           zjk = zik - zij
+            rjk = SQRT(xjk*xjk + yjk*yjk + zjk*zjk)
+            invrjk = 1.d0/rjk
 
-                           rjk = SQRT(xjk*xjk + yjk*yjk + zjk*zjk)
-                           invrjk = 1.d0/rjk
+            IF ((rjk >= ra) .AND. (nij == 0)) CYCLE
+            cosjik = (xij*xik + yij*yik + zij*zik)*(invrij*invrik)
+            cosijk = (-xij*xjk - yij*yjk - zij*zjk)*(invrij*invrjk)
+            cosikj = (xik*xjk + yik*yjk + zik*zjk)*(invrik*invrjk)
+            cosjik3 = cosjik + 1.0d0/3.0d0
+            cosijk3 = cosijk + 1.0d0/3.0d0
+            cosikj3 = cosikj + 1.0d0/3.0d0
 
-                           IF ((rjk >= ra) .AND. (nij == 0)) go to 40
-                           cosjik = (xij*xik + yij*yik + zij*zik)*(invrij*invrik)
-                           cosijk = (-xij*xjk - yij*yjk - zij*zjk)*(invrij*invrjk)
-                           cosikj = (xik*xjk + yik*yjk + zik*zjk)*(invrik*invrjk)
-                           cosjik3 = cosjik + 1.0d0/3.0d0
-                           cosijk3 = cosijk + 1.0d0/3.0d0
-                           cosikj3 = cosikj + 1.0d0/3.0d0
+            rija = rij - ra
+            rika = rik - ra
+            rjka = rjk - ra
 
-                           rija = rij - ra
-                           rika = rik - ra
-                           rjka = rjk - ra
+            invrija = 1.d0/rija
+            invrika = 1.d0/rika
+            invrjka = 1.d0/rjka
 
-                           invrija = 1.d0/rija
-                           invrika = 1.d0/rika
-                           invrjka = 1.d0/rjka
+            IF (rija >= 0.0d0) THEN
+               refi = 0.0d0
+               refj = 0.0d0
+               refk = ramda*EXP(gam*invrika + gam*invrjka)
+            ELSE IF ((rija < 0.0d0) .AND. (rika < 0.0d0)) THEN
+               IF (rjka < 0.0d0) THEN
+                  refi = ramda*EXP(gam*invrija + gam*invrika)
+                  refj = ramda*EXP(gam*invrija + gam*invrjka)
+                  refk = ramda*EXP(gam*invrika + gam*invrjka)
+               ELSE
+                  refi = ramda*EXP(gam*invrija + gam*invrika)
+                  refj = 0.0d0
+                  refk = 0.0d0
+               END IF
+            ELSE IF ((rija < 0.0d0) .AND. (rjka < 0.0d0)) THEN
+               refi = 0.0d0
+               refj = ramda*EXP(gam*invrija + gam*invrjka)
+               refk = 0.0d0
+            ELSE
+               CYCLE
+            END IF
 
-                           IF (rija >= 0.0d0) THEN
-                              refi = 0.0d0
-                              refj = 0.0d0
-                              refk = ramda*EXP(gam*invrika + gam*invrjka)
-                           ELSE IF ((rija < 0.0d0) .AND. (rika < 0.0d0)) THEN
-                              IF (rjka < 0.0d0) THEN
-                                 refi = ramda*EXP(gam*invrija + gam*invrika)
-                                 refj = ramda*EXP(gam*invrija + gam*invrjka)
-                                 refk = ramda*EXP(gam*invrika + gam*invrjka)
-                              ELSE
-                                 refi = ramda*EXP(gam*invrija + gam*invrika)
-                                 refj = 0.0d0
-                                 refk = 0.0d0
-                              END IF
-                           ELSE IF ((rija < 0.0d0) .AND. (rjka < 0.0d0)) THEN
-                              refi = 0.0d0
-                              refj = ramda*EXP(gam*invrija + gam*invrjka)
-                              refk = 0.0d0
-                           ELSE
-                              GOTO 40
-                              refi = 0.0d0
-                              refj = 0.0d0
-                              refk = 0.0d0
-                           END IF
+            hi = refi*cosjik3*cosjik3
+            hj = refj*cosijk3*cosijk3
+            hk = refk*cosikj3*cosikj3
+            p3 = p3 + hi + hj + hk
 
-                           hi = refi*cosjik3*cosjik3
-                           hj = refj*cosijk3*cosijk3
-                           hk = refk*cosikj3*cosikj3
-                           p3 = p3 + hi + hj + hk
+            hixij0 = 2.0d0*(xik*invrik - xij*cosjik*invrij)
+            hixij1 = gam*xij*cosjik3*(invrija*invrija)
+            hixij = refi*cosjik3*(hixij0 - hixij1)*invrij
+            hixik0 = 2.0d0*(xij*invrij - xik*cosjik*invrik)
+            hixik1 = gam*xik*cosjik3*(invrika*invrika)
+            hixik = refi*cosjik3*(hixik0 - hixik1)*invrik
+            hjxij0 = 2.0d0*(-xjk*invrjk - xij*cosijk*invrij)
+            hjxij1 = gam*xij*cosijk3*(invrija*invrija)
+            hjxij = refj*cosijk3*(hjxij0 - hjxij1)*invrij
+            hkxik0 = 2.0d0*(xjk*invrjk - xik*cosikj*invrik)
+            hkxik1 = gam*xik*cosikj3*(invrika*invrika)
+            hkxik = refk*cosikj3*(hkxik0 - hkxik1)*invrik
+            hjxjk0 = 2.0d0*(-xij*invrij - xjk*cosijk*invrjk)
+            hjxjk1 = gam*xjk*cosijk3*(invrjka*invrjka)
+            hjxjk = refj*cosijk3*(hjxjk0 - hjxjk1)*invrjk
+            hkxkj0 = 2.0d0*(-xik*invrik + xjk*cosikj*invrjk)
+            hkxkj1 = gam*xjk*cosikj3*(invrjka*invrjka)
+            hkxkj = refk*cosikj3*(hkxkj0 + hkxkj1)*invrjk
 
-                           hixij0 = 2.0d0*(xik*invrik - xij*cosjik*invrij)
-                           hixij1 = gam*xij*cosjik3*(invrija*invrija)
-                           hixij = refi*cosjik3*(hixij0 - hixij1)*invrij
-                           hixik0 = 2.0d0*(xij*invrij - xik*cosjik*invrik)
-                           hixik1 = gam*xik*cosjik3*(invrika*invrika)
-                           hixik = refi*cosjik3*(hixik0 - hixik1)*invrik
-                           hjxij0 = 2.0d0*(-xjk*invrjk - xij*cosijk*invrij)
-                           hjxij1 = gam*xij*cosijk3*(invrija*invrija)
-                           hjxij = refj*cosijk3*(hjxij0 - hjxij1)*invrij
-                           hkxik0 = 2.0d0*(xjk*invrjk - xik*cosikj*invrik)
-                           hkxik1 = gam*xik*cosikj3*(invrika*invrika)
-                           hkxik = refk*cosikj3*(hkxik0 - hkxik1)*invrik
-                           hjxjk0 = 2.0d0*(-xij*invrij - xjk*cosijk*invrjk)
-                           hjxjk1 = gam*xjk*cosijk3*(invrjka*invrjka)
-                           hjxjk = refj*cosijk3*(hjxjk0 - hjxjk1)*invrjk
-                           hkxkj0 = 2.0d0*(-xik*invrik + xjk*cosikj*invrjk)
-                           hkxkj1 = gam*xjk*cosikj3*(invrjka*invrjka)
-                           hkxkj = refk*cosikj3*(hkxkj0 + hkxkj1)*invrjk
+            hiyij0 = 2.0d0*(yik*invrik - yij*cosjik*invrij)
+            hiyij1 = gam*yij*cosjik3*(invrija*invrija)
+            hiyij = refi*cosjik3*(hiyij0 - hiyij1)*invrij
+            hiyik0 = 2.0d0*(yij*invrij - yik*cosjik*invrik)
+            hiyik1 = gam*yik*cosjik3*(invrika*invrika)
+            hiyik = refi*cosjik3*(hiyik0 - hiyik1)*invrik
+            hjyij0 = 2.0d0*(-yjk*invrjk - yij*cosijk*invrij)
+            hjyij1 = gam*yij*cosijk3*(invrija*invrija)
+            hjyij = refj*cosijk3*(hjyij0 - hjyij1)*invrij
+            hkyik0 = 2.0d0*(yjk*invrjk - yik*cosikj*invrik)
+            hkyik1 = gam*yik*cosikj3*(invrika*invrika)
+            hkyik = refk*cosikj3*(hkyik0 - hkyik1)*invrik
+            hjyjk0 = 2.0d0*(-yij*invrij - yjk*cosijk*invrjk)
+            hjyjk1 = gam*yjk*cosijk3*(invrjka*invrjka)
+            hjyjk = refj*cosijk3*(hjyjk0 - hjyjk1)*invrjk
+            hkykj0 = 2.0d0*(-yik*invrik + yjk*cosikj*invrjk)
+            hkykj1 = gam*yjk*cosikj3*(invrjka*invrjka)
+            hkykj = refk*cosikj3*(hkykj0 + hkykj1)*invrjk
 
-                           hiyij0 = 2.0d0*(yik*invrik - yij*cosjik*invrij)
-                           hiyij1 = gam*yij*cosjik3*(invrija*invrija)
-                           hiyij = refi*cosjik3*(hiyij0 - hiyij1)*invrij
-                           hiyik0 = 2.0d0*(yij*invrij - yik*cosjik*invrik)
-                           hiyik1 = gam*yik*cosjik3*(invrika*invrika)
-                           hiyik = refi*cosjik3*(hiyik0 - hiyik1)*invrik
-                           hjyij0 = 2.0d0*(-yjk*invrjk - yij*cosijk*invrij)
-                           hjyij1 = gam*yij*cosijk3*(invrija*invrija)
-                           hjyij = refj*cosijk3*(hjyij0 - hjyij1)*invrij
-                           hkyik0 = 2.0d0*(yjk*invrjk - yik*cosikj*invrik)
-                           hkyik1 = gam*yik*cosikj3*(invrika*invrika)
-                           hkyik = refk*cosikj3*(hkyik0 - hkyik1)*invrik
-                           hjyjk0 = 2.0d0*(-yij*invrij - yjk*cosijk*invrjk)
-                           hjyjk1 = gam*yjk*cosijk3*(invrjka*invrjka)
-                           hjyjk = refj*cosijk3*(hjyjk0 - hjyjk1)*invrjk
-                           hkykj0 = 2.0d0*(-yik*invrik + yjk*cosikj*invrjk)
-                           hkykj1 = gam*yjk*cosikj3*(invrjka*invrjka)
-                           hkykj = refk*cosikj3*(hkykj0 + hkykj1)*invrjk
+            hizij0 = 2.0d0*(zik*invrik - zij*cosjik*invrij)
+            hizij1 = gam*zij*cosjik3*(invrija*invrija)
+            hizij = refi*cosjik3*(hizij0 - hizij1)*invrij
+            hizik0 = 2.0d0*(zij*invrij - zik*cosjik*invrik)
+            hizik1 = gam*zik*cosjik3*(invrika*invrika)
+            hizik = refi*cosjik3*(hizik0 - hizik1)*invrik
+            hjzij0 = 2.0d0*(-zjk*invrjk - zij*cosijk*invrij)
+            hjzij1 = gam*zij*cosijk3*(invrija*invrija)
+            hjzij = refj*cosijk3*(hjzij0 - hjzij1)*invrij
+            hkzik0 = 2.0d0*(zjk*invrjk - zik*cosikj*invrik)
+            hkzik1 = gam*zik*cosikj3*(invrika*invrika)
+            hkzik = refk*cosikj3*(hkzik0 - hkzik1)*invrik
+            hjzjk0 = 2.0d0*(-zij*invrij - zjk*cosijk*invrjk)
+            hjzjk1 = gam*zjk*cosijk3*(invrjka*invrjka)
+            hjzjk = refj*cosijk3*(hjzjk0 - hjzjk1)*invrjk
+            hkzkj0 = 2.0d0*(-zik*invrik + zjk*cosikj*invrjk)
+            hkzkj1 = gam*zjk*cosikj3*(invrjka*invrjka)
+            hkzkj = refk*cosikj3*(hkzkj0 + hkzkj1)*invrjk
 
-                           hizij0 = 2.0d0*(zik*invrik - zij*cosjik*invrij)
-                           hizij1 = gam*zij*cosjik3*(invrija*invrija)
-                           hizij = refi*cosjik3*(hizij0 - hizij1)*invrij
-                           hizik0 = 2.0d0*(zij*invrij - zik*cosjik*invrik)
-                           hizik1 = gam*zik*cosjik3*(invrika*invrika)
-                           hizik = refi*cosjik3*(hizik0 - hizik1)*invrik
-                           hjzij0 = 2.0d0*(-zjk*invrjk - zij*cosijk*invrij)
-                           hjzij1 = gam*zij*cosijk3*(invrija*invrija)
-                           hjzij = refj*cosijk3*(hjzij0 - hjzij1)*invrij
-                           hkzik0 = 2.0d0*(zjk*invrjk - zik*cosikj*invrik)
-                           hkzik1 = gam*zik*cosikj3*(invrika*invrika)
-                           hkzik = refk*cosikj3*(hkzik0 - hkzik1)*invrik
-                           hjzjk0 = 2.0d0*(-zij*invrij - zjk*cosijk*invrjk)
-                           hjzjk1 = gam*zjk*cosijk3*(invrjka*invrjka)
-                           hjzjk = refj*cosijk3*(hjzjk0 - hjzjk1)*invrjk
-                           hkzkj0 = 2.0d0*(-zik*invrik + zjk*cosikj*invrjk)
-                           hkzkj1 = gam*zjk*cosikj3*(invrjka*invrjka)
-                           hkzkj = refk*cosikj3*(hkzkj0 + hkzkj1)*invrjk
+            fx3(i) = fx3(i) - hixij - hixik - hjxij - hkxik
+            fy3(i) = fy3(i) - hiyij - hiyik - hjyij - hkyik
+            fz3(i) = fz3(i) - hizij - hizik - hjzij - hkzik
 
-                           fx3(i) = fx3(i) - hixij - hixik - hjxij - hkxik
-                           fy3(i) = fy3(i) - hiyij - hiyik - hjyij - hkyik
-                           fz3(i) = fz3(i) - hizij - hizik - hjzij - hkzik
+            fx3(j) = fx3(j) + hixij + hjxij - hjxjk + hkxkj
+            fy3(j) = fy3(j) + hiyij + hjyij - hjyjk + hkykj
+            fz3(j) = fz3(j) + hizij + hjzij - hjzjk + hkzkj
 
-                           fx3(j) = fx3(j) + hixij + hjxij - hjxjk + hkxkj
-                           fy3(j) = fy3(j) + hiyij + hjyij - hjyjk + hkykj
-                           fz3(j) = fz3(j) + hizij + hjzij - hjzjk + hkzkj
+            fx3(k) = fx3(k) + hixik + hkxik - hkxkj + hjxjk
+            fy3(k) = fy3(k) + hiyik + hkyik - hkykj + hjyjk
+            fz3(k) = fz3(k) + hizik + hkzik - hkzkj + hjzjk
+         END DO
+      END DO
+   END SUBROUTINE sw_subfeniat_l
 
-                           fx3(k) = fx3(k) + hixik + hkxik - hkxkj + hjxjk
-                           fy3(k) = fy3(k) + hiyik + hkyik - hkykj + hjyjk
-                           fz3(k) = fz3(k) + hizik + hkzik - hkzkj + hjzjk
-40                         CONTINUE
-30                         CONTINUE
-                           END SUBROUTINE sw_subfeniat_l
-
-                           SUBROUTINE eip_tersoff_silicon(nat, alat, rxyz, fxyz, etot, count)
+   SUBROUTINE eip_tersoff_silicon(nat, alat, rxyz, fxyz, etot, count)
 !*****************************************************************************************
 ! This subroutine evaluates the Tersoff Silicon potential with linear scaling
 ! COPYRIGHT
@@ -4203,794 +4204,782 @@ CONTAINS
       REAL(8), DIMENSION(1:2)                            :: bcsq, Co_bcd, dsq, h, Pmass, Pn
       REAL(8), DIMENSION(1:2, 1:2)                       :: ala, alr, Ca, Cr, R1, R2, X
 
-                              INTEGER:: nnbrx, nnbrxt
-                              INTEGER :: i
+      INTEGER:: nnbrx, nnbrxt
+      INTEGER :: i
 
-                              count = count + 1.d0
+      count = count + 1.d0
 
-                              DO iat = 1, nat
-                                 rxyz(1, iat) = MODULO(MODULO(rxyz(1, iat), alat(1)), alat(1))
-                                 rxyz(2, iat) = MODULO(MODULO(rxyz(2, iat), alat(2)), alat(2))
-                                 rxyz(3, iat) = MODULO(MODULO(rxyz(3, iat), alat(3)), alat(3))
-                              END DO
+      DO iat = 1, nat
+         rxyz(1, iat) = MODULO(MODULO(rxyz(1, iat), alat(1)), alat(1))
+         rxyz(2, iat) = MODULO(MODULO(rxyz(2, iat), alat(2)), alat(2))
+         rxyz(3, iat) = MODULO(MODULO(rxyz(3, iat), alat(3)), alat(3))
+      END DO
 
-                              ALLOCATE (Kinds(1:nat))
+      ALLOCATE (Kinds(1:nat))
 
-                              nnbrx = 24
-                              nnbrxt = 3*nnbrx/2
-                              nnmax = nnbrxt*nat
-                              npmax = nnbrxt*nat
-                              ALLOCATE (lsta(2, nat), lstb(nnbrxt*nat))
-                              ALLOCATE (XYZRrefdf(1:6*Npmax), UadUrdf(1:3*Npmax), dkEij(1:3*NNmax))
+      nnbrx = 24
+      nnbrxt = 3*nnbrx/2
+      nnmax = nnbrxt*nat
+      npmax = nnbrxt*nat
+      ALLOCATE (lsta(2, nat), lstb(nnbrxt*nat))
+      ALLOCATE (XYZRrefdf(1:6*Npmax), UadUrdf(1:3*Npmax), dkEij(1:3*NNmax))
 
-                              DO i = 1, nat
-                                 kinds(i) = 2                             !Since all atoms are Si, all of kind 2
-                              END DO
-                              fxyz = 0.0d0
-                              xbox = alat(1); ybox = alat(2); zbox = alat(3)
-                              CALL tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
-                              CALL tersoff_pairlist_energy_forces(nat, Npmax, NNmax, xbox, ybox, zbox, Kinds, rxyz, R1, R2, Cr, &
-                                                                  Ca, alr, ala, X, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, &
-                                                                  Pn, Co_bcd, bcsq, dsq, h, fxyz, Uatot, dkEij, count)
-                              etot = Urtot + Uatot
-                              DEALLOCATE (Kinds, XYZRrefdf, UadUrdf, dkEij, lsta, lstb)
-                           END SUBROUTINE eip_tersoff_silicon
+      DO i = 1, nat
+         kinds(i) = 2                             !Since all atoms are Si, all of kind 2
+      END DO
+      fxyz = 0.0d0
+      xbox = alat(1); ybox = alat(2); zbox = alat(3)
+      CALL tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
+      CALL tersoff_pairlist_energy_forces(nat, Npmax, NNmax, xbox, ybox, zbox, Kinds, rxyz, R1, R2, Cr, &
+                                          Ca, alr, ala, X, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, &
+                                          Pn, Co_bcd, bcsq, dsq, h, fxyz, Uatot, dkEij, count)
+      etot = Urtot + Uatot
+      DEALLOCATE (Kinds, XYZRrefdf, UadUrdf, dkEij, lsta, lstb)
+   END SUBROUTINE eip_tersoff_silicon
 !-----------------------------------------------------------------------------------------
-                           SUBROUTINE tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
-                              IMPLICIT NONE
+   SUBROUTINE tersoff_parameters(R1, R2, Cr, Ca, alr, ala, X, Pn, Co_bcd, bcsq, dsq, h, Pmass)
 
-                              REAL(8), INTENT(out), DIMENSION(1:2, 1:2) :: R1, R2
-                              REAL(8), INTENT(out), DIMENSION(1:2, 1:2) :: Cr, Ca, alr, ala, X
-                              REAL(8), INTENT(out), DIMENSION(1:2) :: Pn, Co_bcd, bcsq, dsq, h
-                              REAL(8), INTENT(out), DIMENSION(1:2) :: Pmass
+      REAL(8), DIMENSION(1:2, 1:2), INTENT(out)          :: R1, R2, Cr, Ca, alr, ala, X
+      REAL(8), DIMENSION(1:2), INTENT(out)               :: Pn, Co_bcd, bcsq, dsq, h, Pmass
 
-                              REAL(8), PARAMETER :: C_Cr = 1.3936d3    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_Ca = 3.4674d2    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_alr = 3.4879d0    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_ala = 2.2119d0    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_b = 1.5724d-7   !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_n = 7.2751d-1   !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_c = 3.8049d4    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_d = 4.3484d0    !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_h = -5.7058d-1   !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_R1 = 1.8d0       !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_R2 = 2.1d0       !Parameter for carbon, not used in this version
-                              REAL(8), PARAMETER :: C_mass = 12.0d0    !Parameter for carbon, not used in this version
+      REAL(8), PARAMETER :: C_ala = 2.2119d0, C_alr = 3.4879d0, C_b = 1.5724d-7, C_c = 3.8049d4, &
+         C_Ca = 3.4674d2, C_Cr = 1.3936d3, C_d = 4.3484d0, C_h = -5.7058d-1, C_mass = 12.0d0, &
+         C_n = 7.2751d-1, C_R1 = 1.8d0, C_R2 = 2.1d0, Si_ala = 1.7322d0, Si_alr = 2.4799d0, &
+         Si_b = 1.1000d-6, Si_c = 1.0039d5, Si_Ca = 4.7118d2, Si_Cr = 1.8308d3, Si_d = 1.6217d1, &
+         Si_h = -5.9825d-1, Si_mass = 28.0855d0, Si_n = 7.8734d-1, Si_R1 = 2.7d0, Si_R2 = 3.3d0
 
-                              REAL(8), PARAMETER :: Si_Cr = 1.8308d3
-                              REAL(8), PARAMETER :: Si_Ca = 4.7118d2
-                              REAL(8), PARAMETER :: Si_alr = 2.4799d0
-                              REAL(8), PARAMETER :: Si_ala = 1.7322d0
-                              REAL(8), PARAMETER :: Si_b = 1.1000d-6
-                              REAL(8), PARAMETER :: Si_n = 7.8734d-1
-                              REAL(8), PARAMETER :: Si_c = 1.0039d5
-                              REAL(8), PARAMETER :: Si_d = 1.6217d1
-                              REAL(8), PARAMETER :: Si_h = -5.9825d-1
-                              REAL(8), PARAMETER :: Si_R1 = 2.7d0
-                              REAL(8), PARAMETER :: Si_R2 = 3.3d0      !Increased Cutoff, originally 3.0d0
-                              REAL(8), PARAMETER :: Si_mass = 28.0855d0
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Parameter for carbon, not used in this version
+!Increased Cutoff, originally 3.0d0
 
-                              Cr(1, 1) = C_Cr
-                              Cr(2, 2) = Si_Cr
-                              Cr(1, 2) = dsqrt(Cr(1, 1)*Cr(2, 2))
-                              Cr(2, 1) = Cr(1, 2)
+      Cr(1, 1) = C_Cr
+      Cr(2, 2) = Si_Cr
+      Cr(1, 2) = dsqrt(Cr(1, 1)*Cr(2, 2))
+      Cr(2, 1) = Cr(1, 2)
 
-                              Ca(1, 1) = C_Ca
-                              Ca(2, 2) = Si_Ca
-                              Ca(1, 2) = dsqrt(Ca(1, 1)*Ca(2, 2))
-                              Ca(2, 1) = Ca(1, 2)
+      Ca(1, 1) = C_Ca
+      Ca(2, 2) = Si_Ca
+      Ca(1, 2) = dsqrt(Ca(1, 1)*Ca(2, 2))
+      Ca(2, 1) = Ca(1, 2)
 
-                              R1(1, 1) = C_R1
-                              R1(2, 2) = Si_R1
-                              R1(1, 2) = dsqrt(R1(1, 1)*R1(2, 2))
-                              R1(2, 1) = R1(1, 2)
+      R1(1, 1) = C_R1
+      R1(2, 2) = Si_R1
+      R1(1, 2) = dsqrt(R1(1, 1)*R1(2, 2))
+      R1(2, 1) = R1(1, 2)
 
-                              R2(1, 1) = C_R2
-                              R2(2, 2) = Si_R2
-                              R2(1, 2) = dsqrt(R2(1, 1)*R2(2, 2))
-                              R2(2, 1) = R2(1, 2)
+      R2(1, 1) = C_R2
+      R2(2, 2) = Si_R2
+      R2(1, 2) = dsqrt(R2(1, 1)*R2(2, 2))
+      R2(2, 1) = R2(1, 2)
 
-                              X(1, 1) = 1.0d0
-                              X(2, 2) = 1.0d0
-                              X(1, 2) = 0.9776d0
-                              X(2, 1) = 0.9776d0
+      X(1, 1) = 1.0d0
+      X(2, 2) = 1.0d0
+      X(1, 2) = 0.9776d0
+      X(2, 1) = 0.9776d0
 
-                              alr(1, 1) = C_alr
-                              alr(2, 2) = Si_alr
-                              alr(1, 2) = 0.5d0*(alr(1, 1) + alr(2, 2))
-                              alr(2, 1) = alr(1, 2)
+      alr(1, 1) = C_alr
+      alr(2, 2) = Si_alr
+      alr(1, 2) = 0.5d0*(alr(1, 1) + alr(2, 2))
+      alr(2, 1) = alr(1, 2)
 
-                              ala(1, 1) = C_ala
-                              ala(2, 2) = Si_ala
-                              ala(1, 2) = 0.5d0*(ala(1, 1) + ala(2, 2))
-                              ala(2, 1) = ala(1, 2)
+      ala(1, 1) = C_ala
+      ala(2, 2) = Si_ala
+      ala(1, 2) = 0.5d0*(ala(1, 1) + ala(2, 2))
+      ala(2, 1) = ala(1, 2)
 
-                              Pn(1) = C_n
-                              Pn(2) = Si_n
+      Pn(1) = C_n
+      Pn(2) = Si_n
 
-                              Co_bcd(1) = C_b*(1.0d0 + C_c*C_c/(C_d*C_d))
-                              Co_bcd(2) = Si_b*(1.0d0 + Si_c*Si_c/(Si_d*Si_d))
+      Co_bcd(1) = C_b*(1.0d0 + C_c*C_c/(C_d*C_d))
+      Co_bcd(2) = Si_b*(1.0d0 + Si_c*Si_c/(Si_d*Si_d))
 
-                              bcsq(1) = C_b*C_c*C_c
-                              bcsq(2) = Si_b*Si_c*Si_c
+      bcsq(1) = C_b*C_c*C_c
+      bcsq(2) = Si_b*Si_c*Si_c
 
-                              dsq(1) = C_d*C_d
-                              dsq(2) = Si_d*Si_d
+      dsq(1) = C_d*C_d
+      dsq(2) = Si_d*Si_d
 
-                              h(1) = C_h
-                              h(2) = Si_h
+      h(1) = C_h
+      h(2) = Si_h
 
-                              Pmass(1) = C_mass
-                              Pmass(2) = Si_mass
+      Pmass(1) = C_mass
+      Pmass(2) = Si_mass
 
-                              RETURN
-                           END SUBROUTINE tersoff_parameters
+      RETURN
+   END SUBROUTINE tersoff_parameters
 !-----------------------------------------------------------------------------------------
-      SUBROUTINE tersoff_pairlist_energy_forces(Nmol, Npmax, NNmax, xbox, ybox, zbox, Kinds, R, R1, R2, Cr, Ca, alr, ala, X, &
-                                                                     XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, &
-                                                                     Pn, Co_bcd, bcsq, dsq, h, F, Uatot, dkEij, count)
-                              IMPLICIT REAL(8) (a - h, o - z)
-                              INTEGER, INTENT(in)                       :: Nmol, Npmax, NNmax
-                              INTEGER, INTENT(inout)                    :: nnbrx
-                              REAL(8), INTENT(in)                       :: xbox, ybox, zbox, count
-                              INTEGER, INTENT(in), DIMENSION(1:Nmol)   :: Kinds
-                              REAL(8), INTENT(in), DIMENSION(1:3*Nmol) :: R
-                              REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: R1, R2
-                              REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: Cr, Ca, alr, ala
-                              REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: X
-                              REAL(8), INTENT(in), DIMENSION(1:2)      ::Pn, Co_bcd, bcsq, dsq, h
-                              REAL(8), INTENT(out), DIMENSION(1:6*Npmax):: XYZRrefdf
-                              REAL(8), INTENT(out), DIMENSION(1:3*Npmax):: UadUrdf
-                              REAL(8), INTENT(out)                      :: Urtot
-                              REAL(8), INTENT(out), DIMENSION(1:3*Nmol) :: F
-                              REAL(8), INTENT(out)                      :: Uatot
+   SUBROUTINE tersoff_pairlist_energy_forces(Nmol, Npmax, NNmax, xbox, ybox, zbox, Kinds, R, R1, R2, Cr, Ca, alr, ala, X, &
+                                             XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, &
+                                             Pn, Co_bcd, bcsq, dsq, h, F, Uatot, dkEij, count)
+      IMPLICIT REAL(8) (a - h, o - z)
+      INTEGER, INTENT(in)                       :: Nmol, Npmax, NNmax
+      INTEGER, INTENT(inout)                    :: nnbrx
+      REAL(8), INTENT(in)                       :: xbox, ybox, zbox, count
+      INTEGER, INTENT(in), DIMENSION(1:Nmol)   :: Kinds
+      REAL(8), INTENT(in), DIMENSION(1:3*Nmol) :: R
+      REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: R1, R2
+      REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: Cr, Ca, alr, ala
+      REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: X
+      REAL(8), INTENT(in), DIMENSION(1:2)      ::Pn, Co_bcd, bcsq, dsq, h
+      REAL(8), INTENT(out), DIMENSION(1:6*Npmax):: XYZRrefdf
+      REAL(8), INTENT(out), DIMENSION(1:3*Npmax):: UadUrdf
+      REAL(8), INTENT(out)                      :: Urtot
+      REAL(8), INTENT(out), DIMENSION(1:3*Nmol) :: F
+      REAL(8), INTENT(out)                      :: Uatot
 
-                              INTEGER :: i
-                              INTEGER :: iam, iat, ii, il, in, indlst, indlstx, istopg
-                              INTEGER :: jat, l1, l2, l3, laymx, ll1, ll2, ll3
-                              INTEGER :: myspace, myspaceout, nat, ncx, ndat, nn, npjkx, npjx, npr
-                              INTEGER :: Nptot
-                              INTEGER :: Ipb
-                              INTEGER                                  :: lsta(2, Nmol), lstb(nnbrx*Nmol)
-                              INTEGER, ALLOCATABLE, DIMENSION(:)       :: lay
-                              INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :) :: icell
+      INTEGER :: i
+      INTEGER :: iam, iat, ii, il, in, indlst, indlstx, istopg
+      INTEGER :: jat, l1, l2, l3, laymx, ll1, ll2, ll3
+      INTEGER :: myspace, myspaceout, nat, ncx, ndat, nn, npjkx, npjx, npr
+      INTEGER :: Nptot
+      INTEGER :: Ipb
+      INTEGER                                  :: lsta(2, Nmol), lstb(nnbrx*Nmol)
+      INTEGER, ALLOCATABLE, DIMENSION(:)       :: lay
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :) :: icell
 
-                              REAL(8) :: pi
-                              REAL(8) :: xhalf, yhalf, zhalf
-                              REAL(8), DIMENSION(1:3*NNmax)::dkEij
-                              REAL(8), ALLOCATABLE, DIMENSION(:, :)     :: rxyz
-                              REAL(8), ALLOCATABLE, DIMENSION(:, :)     :: rel
-                              DIMENSION rxyz0(3, Nmol), alat(3)
+      REAL(8) :: pi
+      REAL(8) :: xhalf, yhalf, zhalf
+      REAL(8), DIMENSION(1:3*NNmax)::dkEij
+      REAL(8), ALLOCATABLE, DIMENSION(:, :)     :: rxyz
+      REAL(8), ALLOCATABLE, DIMENSION(:, :)     :: rel
+      DIMENSION rxyz0(3, Nmol), alat(3)
 
-                              pi = dacos(-1.0d0)
+      pi = dacos(-1.0d0)
 
-                              xhalf = 0.5d0*xbox
-                              yhalf = 0.5d0*ybox
-                              zhalf = 0.5d0*zbox
+      xhalf = 0.5d0*xbox
+      yhalf = 0.5d0*ybox
+      zhalf = 0.5d0*zbox
 
-                              nat = Nmol
+      nat = Nmol
 
-                              alat(1) = xbox
-                              alat(2) = ybox
-                              alat(3) = zbox
+      alat(1) = xbox
+      alat(2) = ybox
+      alat(3) = zbox
 
-                              DO iat = 1, nat
-                                 jat = 3*(iat - 1)
-                                 rxyz0(1, iat) = R(jat + 1)
-                                 rxyz0(2, iat) = R(jat + 2)
-                                 rxyz0(3, iat) = R(jat + 3)
-                              END DO
+      DO iat = 1, nat
+         jat = 3*(iat - 1)
+         rxyz0(1, iat) = R(jat + 1)
+         rxyz0(2, iat) = R(jat + 2)
+         rxyz0(3, iat) = R(jat + 3)
+      END DO
 
-                              cut = R2(2, 2) - 1.d-9
+      cut = R2(2, 2) - 1.d-9
 
 ! linear scaling calculation of verlet list
-                              ll1 = INT(alat(1)/cut)
-                              IF (ll1 < 1) STOP 'alat(1) too small'
-                              ll2 = INT(alat(2)/cut)
-                              IF (ll2 < 1) STOP 'alat(2) too small'
-                              ll3 = INT(alat(3)/cut)
-                              IF (ll3 < 1) STOP 'alat(3) too small'
+      ll1 = INT(alat(1)/cut)
+      IF (ll1 < 1) STOP 'alat(1) too small'
+      ll2 = INT(alat(2)/cut)
+      IF (ll2 < 1) STOP 'alat(2) too small'
+      ll3 = INT(alat(3)/cut)
+      IF (ll3 < 1) STOP 'alat(3) too small'
 
 ! determine number of threadsi (this version is only singlethreaded)
-                              npr = 1
+      npr = 1
 ! linear scaling calculation of verlet list
 
-                              ncx = 8
-1234                          ncx = ncx*2
-                              ALLOCATE (icell(0:ncx, -1:ll1, -1:ll2, -1:ll3))
-                              DO 984, l3 = -1, ll3
-                              DO 984, l2 = -1, ll2
-                              DO 984, l1 = -1, ll1
-984                              icell(0, l1, l2, l3) = 0
-                                 rlc1i = ll1/alat(1)
-                                 rlc2i = ll2/alat(2)
-                                 rlc3i = ll3/alat(3)
+      ncx = 8
+      DO
+         ncx = ncx*2
+         ALLOCATE (icell(0:ncx, -1:ll1, -1:ll2, -1:ll3))
+         icell(0, :, :, :) = 0
+         rlc1i = ll1/alat(1)
+         rlc2i = ll2/alat(2)
+         rlc3i = ll3/alat(3)
 
-                                 DO 983, iat = 1, nat
-                                    l1 = INT(rxyz0(1, iat)*rlc1i)
-                                    l2 = INT(rxyz0(2, iat)*rlc2i)
-                                    l3 = INT(rxyz0(3, iat)*rlc3i)
+         DO iat = 1, nat
+            l1 = INT(rxyz0(1, iat)*rlc1i)
+            l2 = INT(rxyz0(2, iat)*rlc2i)
+            l3 = INT(rxyz0(3, iat)*rlc3i)
 
-                                    ii = icell(0, l1, l2, l3)
-                                    ii = ii + 1
-                                    icell(0, l1, l2, l3) = ii
-                                    IF (ii > ncx) THEN
-                                       WRITE (10, *) count, 'NCX too small', ncx
-                                       DEALLOCATE (icell)
-                                       GOTO 1234
-                                    END IF
-                                    icell(ii, l1, l2, l3) = iat
-983                                 CONTINUE
+            ii = icell(0, l1, l2, l3)
+            ii = ii + 1
+            icell(0, l1, l2, l3) = ii
+            IF (ii > ncx) THEN
+               WRITE (10, *) count, 'NCX too small', ncx
+               DEALLOCATE (icell)
+               EXIT
+            END IF
+            icell(ii, l1, l2, l3) = iat
+         END DO
+         IF (ALLOCATED(icell)) EXIT
+      END DO
 
 ! duplicate all atoms within boundary layer
-                                    laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
-                                    nn = nat + laymx
-                                    ALLOCATE (rxyz(3, nn), lay(nn))
-                                    DO iat = 1, nat
-                                       lay(iat) = iat
-                                       rxyz(1, iat) = rxyz0(1, iat)
-                                       rxyz(2, iat) = rxyz0(2, iat)
-                                       rxyz(3, iat) = rxyz0(3, iat)
-                                    END DO
-                                    il = nat
+      laymx = ncx*(2*ll1*ll2 + 2*ll1*ll3 + 2*ll2*ll3 + 4*ll1 + 4*ll2 + 4*ll3 + 8)
+      nn = nat + laymx
+      ALLOCATE (rxyz(3, nn), lay(nn))
+      DO iat = 1, nat
+         lay(iat) = iat
+         rxyz(1, iat) = rxyz0(1, iat)
+         rxyz(2, iat) = rxyz0(2, iat)
+         rxyz(3, iat) = rxyz0(3, iat)
+      END DO
+      il = nat
 ! xy plane
-                                    DO l2 = 0, ll2 - 1
-                                    DO l1 = 0, ll1 - 1
+      DO l2 = 0, ll2 - 1
+      DO l1 = 0, ll1 - 1
 
-                                       in = icell(0, l1, l2, 0)
-                                       icell(0, l1, l2, ll3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, l2, 0)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, l2, ll3) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) + alat(3)
-                                       END DO
+         in = icell(0, l1, l2, 0)
+         icell(0, l1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-                                       in = icell(0, l1, l2, ll3 - 1)
-                                       icell(0, l1, l2, -1) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, l2, ll3 - 1)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, l2, -1) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) - alat(3)
-                                       END DO
+         in = icell(0, l1, l2, ll3 - 1)
+         icell(0, l1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-                                    END DO
-                                    END DO
+      END DO
+      END DO
 
 ! yz plane
-                                    DO l3 = 0, ll3 - 1
-                                    DO l2 = 0, ll2 - 1
+      DO l3 = 0, ll3 - 1
+      DO l2 = 0, ll2 - 1
 
-                                       in = icell(0, 0, l2, l3)
-                                       icell(0, ll1, l2, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, 0, l2, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, ll1, l2, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) + alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, 0, l2, l3)
+         icell(0, ll1, l2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                       in = icell(0, ll1 - 1, l2, l3)
-                                       icell(0, -1, l2, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, ll1 - 1, l2, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, -1, l2, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) - alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, ll1 - 1, l2, l3)
+         icell(0, -1, l2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                    END DO
-                                    END DO
+      END DO
+      END DO
 
 ! xz plane
-                                    DO l3 = 0, ll3 - 1
-                                    DO l1 = 0, ll1 - 1
+      DO l3 = 0, ll3 - 1
+      DO l1 = 0, ll1 - 1
 
-                                       in = icell(0, l1, 0, l3)
-                                       icell(0, l1, ll2, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, 0, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, ll2, l3) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) + alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, l1, 0, l3)
+         icell(0, l1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                       in = icell(0, l1, ll2 - 1, l3)
-                                       icell(0, l1, -1, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, ll2 - 1, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, -1, l3) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) - alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, l1, ll2 - 1, l3)
+         icell(0, l1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                    END DO
-                                    END DO
+      END DO
+      END DO
 
 ! x axis
-                                    DO l1 = 0, ll1 - 1
+      DO l1 = 0, ll1 - 1
 
-                                       in = icell(0, l1, 0, 0)
-                                       icell(0, l1, ll2, ll3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, 0, 0)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, ll2, ll3) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) + alat(2)
-                                          rxyz(3, il) = rxyz(3, i) + alat(3)
-                                       END DO
+         in = icell(0, l1, 0, 0)
+         icell(0, l1, ll2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-                                       in = icell(0, l1, 0, ll3 - 1)
-                                       icell(0, l1, ll2, -1) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, 0, ll3 - 1)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, ll2, -1) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) + alat(2)
-                                          rxyz(3, il) = rxyz(3, i) - alat(3)
-                                       END DO
+         in = icell(0, l1, 0, ll3 - 1)
+         icell(0, l1, ll2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, 0, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, ll2, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-                                       in = icell(0, l1, ll2 - 1, 0)
-                                       icell(0, l1, -1, ll3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, ll2 - 1, 0)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, -1, ll3) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) - alat(2)
-                                          rxyz(3, il) = rxyz(3, i) + alat(3)
-                                       END DO
+         in = icell(0, l1, ll2 - 1, 0)
+         icell(0, l1, -1, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, ll3) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-                                       in = icell(0, l1, ll2 - 1, ll3 - 1)
-                                       icell(0, l1, -1, -1) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, l1, ll2 - 1, ll3 - 1)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, l1, -1, -1) = il
-                                          rxyz(1, il) = rxyz(1, i)
-                                          rxyz(2, il) = rxyz(2, i) - alat(2)
-                                          rxyz(3, il) = rxyz(3, i) - alat(3)
-                                       END DO
+         in = icell(0, l1, ll2 - 1, ll3 - 1)
+         icell(0, l1, -1, -1) = in
+         DO ii = 1, in
+            i = icell(ii, l1, ll2 - 1, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, l1, -1, -1) = il
+            rxyz(1, il) = rxyz(1, i)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-                                    END DO
+      END DO
 
 ! y axis
-                                    DO l2 = 0, ll2 - 1
+      DO l2 = 0, ll2 - 1
 
-                                       in = icell(0, 0, l2, 0)
-                                       icell(0, ll1, l2, ll3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, 0, l2, 0)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, ll1, l2, ll3) = il
-                                          rxyz(1, il) = rxyz(1, i) + alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) + alat(3)
-                                       END DO
+         in = icell(0, 0, l2, 0)
+         icell(0, ll1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-                                       in = icell(0, 0, l2, ll3 - 1)
-                                       icell(0, ll1, l2, -1) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, 0, l2, ll3 - 1)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, ll1, l2, -1) = il
-                                          rxyz(1, il) = rxyz(1, i) + alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) - alat(3)
-                                       END DO
+         in = icell(0, 0, l2, ll3 - 1)
+         icell(0, ll1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, 0, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-                                       in = icell(0, ll1 - 1, l2, 0)
-                                       icell(0, -1, l2, ll3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, ll1 - 1, l2, 0)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, -1, l2, ll3) = il
-                                          rxyz(1, il) = rxyz(1, i) - alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) + alat(3)
-                                       END DO
+         in = icell(0, ll1 - 1, l2, 0)
+         icell(0, -1, l2, ll3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, 0)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, ll3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) + alat(3)
+         END DO
 
-                                       in = icell(0, ll1 - 1, l2, ll3 - 1)
-                                       icell(0, -1, l2, -1) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, ll1 - 1, l2, ll3 - 1)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, -1, l2, -1) = il
-                                          rxyz(1, il) = rxyz(1, i) - alat(1)
-                                          rxyz(2, il) = rxyz(2, i)
-                                          rxyz(3, il) = rxyz(3, i) - alat(3)
-                                       END DO
+         in = icell(0, ll1 - 1, l2, ll3 - 1)
+         icell(0, -1, l2, -1) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, l2, ll3 - 1)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, l2, -1) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i)
+            rxyz(3, il) = rxyz(3, i) - alat(3)
+         END DO
 
-                                    END DO
+      END DO
 
 ! z axis
-                                    DO l3 = 0, ll3 - 1
+      DO l3 = 0, ll3 - 1
 
-                                       in = icell(0, 0, 0, l3)
-                                       icell(0, ll1, ll2, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, 0, 0, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, ll1, ll2, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) + alat(1)
-                                          rxyz(2, il) = rxyz(2, i) + alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, 0, 0, l3)
+         icell(0, ll1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                       in = icell(0, ll1 - 1, 0, l3)
-                                       icell(0, -1, ll2, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, ll1 - 1, 0, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, -1, ll2, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) - alat(1)
-                                          rxyz(2, il) = rxyz(2, i) + alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, ll1 - 1, 0, l3)
+         icell(0, -1, ll2, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, 0, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, ll2, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) + alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                       in = icell(0, 0, ll2 - 1, l3)
-                                       icell(0, ll1, -1, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, 0, ll2 - 1, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, ll1, -1, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) + alat(1)
-                                          rxyz(2, il) = rxyz(2, i) - alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, 0, ll2 - 1, l3)
+         icell(0, ll1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, 0, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, ll1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i) + alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                       in = icell(0, ll1 - 1, ll2 - 1, l3)
-                                       icell(0, -1, -1, l3) = in
-                                       DO ii = 1, in
-                                          i = icell(ii, ll1 - 1, ll2 - 1, l3)
-                                          il = il + 1
-                                          IF (il > nn) STOP 'enlarge laymx'
-                                          lay(il) = i
-                                          icell(ii, -1, -1, l3) = il
-                                          rxyz(1, il) = rxyz(1, i) - alat(1)
-                                          rxyz(2, il) = rxyz(2, i) - alat(2)
-                                          rxyz(3, il) = rxyz(3, i)
-                                       END DO
+         in = icell(0, ll1 - 1, ll2 - 1, l3)
+         icell(0, -1, -1, l3) = in
+         DO ii = 1, in
+            i = icell(ii, ll1 - 1, ll2 - 1, l3)
+            il = il + 1
+            IF (il > nn) STOP 'enlarge laymx'
+            lay(il) = i
+            icell(ii, -1, -1, l3) = il
+            rxyz(1, il) = rxyz(1, i) - alat(1)
+            rxyz(2, il) = rxyz(2, i) - alat(2)
+            rxyz(3, il) = rxyz(3, i)
+         END DO
 
-                                    END DO
+      END DO
 
 ! corners
-                                    in = icell(0, 0, 0, 0)
-                                    icell(0, ll1, ll2, ll3) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, 0, 0, 0)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, ll1, ll2, ll3) = il
-                                       rxyz(1, il) = rxyz(1, i) + alat(1)
-                                       rxyz(2, il) = rxyz(2, i) + alat(2)
-                                       rxyz(3, il) = rxyz(3, i) + alat(3)
-                                    END DO
+      in = icell(0, 0, 0, 0)
+      icell(0, ll1, ll2, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, 0, 0, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, ll2, ll3) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-                                    in = icell(0, ll1 - 1, 0, 0)
-                                    icell(0, -1, ll2, ll3) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, ll1 - 1, 0, 0)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, -1, ll2, ll3) = il
-                                       rxyz(1, il) = rxyz(1, i) - alat(1)
-                                       rxyz(2, il) = rxyz(2, i) + alat(2)
-                                       rxyz(3, il) = rxyz(3, i) + alat(3)
-                                    END DO
+      in = icell(0, ll1 - 1, 0, 0)
+      icell(0, -1, ll2, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, 0, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, ll2, ll3) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-                                    in = icell(0, 0, ll2 - 1, 0)
-                                    icell(0, ll1, -1, ll3) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, 0, ll2 - 1, 0)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, ll1, -1, ll3) = il
-                                       rxyz(1, il) = rxyz(1, i) + alat(1)
-                                       rxyz(2, il) = rxyz(2, i) - alat(2)
-                                       rxyz(3, il) = rxyz(3, i) + alat(3)
-                                    END DO
+      in = icell(0, 0, ll2 - 1, 0)
+      icell(0, ll1, -1, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, 0, ll2 - 1, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, -1, ll3) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-                                    in = icell(0, ll1 - 1, ll2 - 1, 0)
-                                    icell(0, -1, -1, ll3) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, ll1 - 1, ll2 - 1, 0)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, -1, -1, ll3) = il
-                                       rxyz(1, il) = rxyz(1, i) - alat(1)
-                                       rxyz(2, il) = rxyz(2, i) - alat(2)
-                                       rxyz(3, il) = rxyz(3, i) + alat(3)
-                                    END DO
+      in = icell(0, ll1 - 1, ll2 - 1, 0)
+      icell(0, -1, -1, ll3) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, ll2 - 1, 0)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, -1, ll3) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) + alat(3)
+      END DO
 
-                                    in = icell(0, 0, 0, ll3 - 1)
-                                    icell(0, ll1, ll2, -1) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, 0, 0, ll3 - 1)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, ll1, ll2, -1) = il
-                                       rxyz(1, il) = rxyz(1, i) + alat(1)
-                                       rxyz(2, il) = rxyz(2, i) + alat(2)
-                                       rxyz(3, il) = rxyz(3, i) - alat(3)
-                                    END DO
+      in = icell(0, 0, 0, ll3 - 1)
+      icell(0, ll1, ll2, -1) = in
+      DO ii = 1, in
+         i = icell(ii, 0, 0, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, ll2, -1) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-                                    in = icell(0, ll1 - 1, 0, ll3 - 1)
-                                    icell(0, -1, ll2, -1) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, ll1 - 1, 0, ll3 - 1)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, -1, ll2, -1) = il
-                                       rxyz(1, il) = rxyz(1, i) - alat(1)
-                                       rxyz(2, il) = rxyz(2, i) + alat(2)
-                                       rxyz(3, il) = rxyz(3, i) - alat(3)
-                                    END DO
+      in = icell(0, ll1 - 1, 0, ll3 - 1)
+      icell(0, -1, ll2, -1) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, 0, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, ll2, -1) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) + alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-                                    in = icell(0, 0, ll2 - 1, ll3 - 1)
-                                    icell(0, ll1, -1, -1) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, 0, ll2 - 1, ll3 - 1)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, ll1, -1, -1) = il
-                                       rxyz(1, il) = rxyz(1, i) + alat(1)
-                                       rxyz(2, il) = rxyz(2, i) - alat(2)
-                                       rxyz(3, il) = rxyz(3, i) - alat(3)
-                                    END DO
+      in = icell(0, 0, ll2 - 1, ll3 - 1)
+      icell(0, ll1, -1, -1) = in
+      DO ii = 1, in
+         i = icell(ii, 0, ll2 - 1, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, ll1, -1, -1) = il
+         rxyz(1, il) = rxyz(1, i) + alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-                                    in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
-                                    icell(0, -1, -1, -1) = in
-                                    DO ii = 1, in
-                                       i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
-                                       il = il + 1
-                                       IF (il > nn) STOP 'enlarge laymx'
-                                       lay(il) = i
-                                       icell(ii, -1, -1, -1) = il
-                                       rxyz(1, il) = rxyz(1, i) - alat(1)
-                                       rxyz(2, il) = rxyz(2, i) - alat(2)
-                                       rxyz(3, il) = rxyz(3, i) - alat(3)
-                                    END DO
+      in = icell(0, ll1 - 1, ll2 - 1, ll3 - 1)
+      icell(0, -1, -1, -1) = in
+      DO ii = 1, in
+         i = icell(ii, ll1 - 1, ll2 - 1, ll3 - 1)
+         il = il + 1
+         IF (il > nn) STOP 'enlarge laymx'
+         lay(il) = i
+         icell(ii, -1, -1, -1) = il
+         rxyz(1, il) = rxyz(1, i) - alat(1)
+         rxyz(2, il) = rxyz(2, i) - alat(2)
+         rxyz(3, il) = rxyz(3, i) - alat(3)
+      END DO
 
-                                    nnbrx = 3*nnbrx/2
-                                    ALLOCATE (rel(5, nnbrx*nat))
-                                    indlstx = 0
+      nnbrx = 3*nnbrx/2
+      ALLOCATE (rel(5, nnbrx*nat))
+      indlstx = 0
 
-                                    npr = 1
-                                    iam = 0
+      npr = 1
+      iam = 0
 
-                                    cut2 = cut**2
+      cut2 = cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads
-                                    myspace = (nat*nnbrx)/npr
-                                    IF (iam == 0) myspaceout = myspace
+      myspace = (nat*nnbrx)/npr
+      IF (iam == 0) myspaceout = myspace
 ! Verlet list, relative positions
-                                    indlst = 0
-                                    DO 6000, l3 = 0, ll3 - 1
-                                    DO 6000, l2 = 0, ll2 - 1
-                                    DO 6000, l1 = 0, ll1 - 1
-                                    DO 6600, ii = 1, icell(0, l1, l2, l3)
-                                       iat = icell(ii, l1, l2, l3)
-                                       IF (((iat - 1)*npr)/nat == iam) THEN
+      indlst = 0
+      DO l3 = 0, ll3 - 1
+      DO l2 = 0, ll2 - 1
+      DO l1 = 0, ll1 - 1
+      DO ii = 1, icell(0, l1, l2, l3)
+         iat = icell(ii, l1, l2, l3)
+         IF (((iat - 1)*npr)/nat == iam) THEN
 !       write(6,*) 'sublstiat:iam,iat',iam,iat
-                                          lsta(1, iat) = iam*myspace + indlst + 1
-                                          CALL tersoff_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                                     rxyz, icell, lstb(iam*myspace + 1), lay, rel(1, iam*myspace + 1), cut2, indlst)
-                                          lsta(2, iat) = iam*myspace + indlst
-                                          ipb = lsta(1, iat)
-                                          ndat = lsta(2, iat) - lsta(1, iat) + 1
-                                       END IF
+            lsta(1, iat) = iam*myspace + indlst + 1
+            CALL tersoff_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
+                                     rxyz, icell, lstb(iam*myspace + 1), lay, rel(1, iam*myspace + 1), cut2, indlst)
+            lsta(2, iat) = iam*myspace + indlst
+            ipb = lsta(1, iat)
+            ndat = lsta(2, iat) - lsta(1, iat) + 1
+         END IF
 
-6600                                   CONTINUE
-6000                                   CONTINUE
-                                       indlstx = MAX(indlstx, indlst)
+      END DO
+      END DO
+      END DO
+      END DO
+      indlstx = MAX(indlstx, indlst)
 
-                                       IF (indlstx >= myspaceout) STOP 'NNBRX too small'
-                                       npr = 1
-                                       iam = 0
+      IF (indlstx >= myspaceout) STOP 'NNBRX too small'
+      npr = 1
+      iam = 0
 
-                                       npjx = 300; npjkx = 6000
-                                       istopg = 0
+      npjx = 300; npjkx = 6000
+      istopg = 0
 !end of creating pairlist part------------------------------------------------------------
 !Energy-----------------------------------------------------------------------------------
-                                       Urtot = 0.0d0
-                                       Nptot = 0
+      Urtot = 0.0d0
+      Nptot = 0
 
-                                       F = 0.0d0
-                                       Uatot = 0.0d0
-                                       DO_I: DO i = 1, Nmol
+      F = 0.0d0
+      Uatot = 0.0d0
+      DO_I: DO i = 1, Nmol
   CALL tersoff_subeniat_l(i, Nmol, Npmax, Kinds, X, R1, R2, Cr, Ca, alr, ala, XYZRrefdf, UadUrdf, Urtot, lsta, lstb, nnbrx, rel, pi)
-                                       END DO DO_I
+      END DO DO_I
 
-                                       Urtot = 0.5d0*Urtot
+      Urtot = 0.5d0*Urtot
 !Force------------------------------------------------------------------------------------
-                                       F = 0.0d0
-                                       Uatot = 0.0d0
+      F = 0.0d0
+      Uatot = 0.0d0
 
-                                       DO_If: DO i = 1, Nmol
-               CALL tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
-                                       END DO DO_If
+      DO_If: DO i = 1, Nmol
+         CALL tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+      END DO DO_If
 
-                                       F = 0.5d0*F
-                                       Uatot = 0.5d0*Uatot
+      F = 0.5d0*F
+      Uatot = 0.5d0*Uatot
 !-----------------------------------------------------------------------------------------
-                                       DEALLOCATE (rxyz, icell, lay, rel)
-                                       RETURN
-                                    END SUBROUTINE tersoff_pairlist_energy_forces
+      DEALLOCATE (rxyz, icell, lay, rel)
+      RETURN
+   END SUBROUTINE tersoff_pairlist_energy_forces
 
 !-----------------------------------------------------------------------------------------
-                                    SUBROUTINE tersoff_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
-                                                                   rxyz, icell, lstb, lay, rel, cut2, indlst)
+   SUBROUTINE tersoff_sublstiat_l(iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, &
+                                  rxyz, icell, lstb, lay, rel, cut2, indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-                                       IMPLICIT REAL(8) (a - h, o - z)
-                                       INTEGER :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
-                                       INTEGER :: jat, jj, k1, k2, k3
-                                       INTEGER :: lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1)
-                                       REAL(8) :: rxyz(3, nn), rel(5, 0:myspace - 1), cut2
+      IMPLICIT REAL(8) (a - h, o - z)
+      INTEGER :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, myspace, indlst
+      INTEGER :: jat, jj, k1, k2, k3
+      INTEGER :: lay(nn), icell(0:ncx, -1:ll1, -1:ll2, -1:ll3), lstb(0:myspace - 1)
+      REAL(8) :: rxyz(3, nn), rel(5, 0:myspace - 1), cut2
 
-                                       DO 6363, k3 = l3 - 1, l3 + 1
-                                       DO 6363, k2 = l2 - 1, l2 + 1
-                                       DO 6363, k1 = l1 - 1, l1 + 1
-                                       DO 6363, jj = 1, icell(0, k1, k2, k3)
-                                          jat = icell(jj, k1, k2, k3)
-                                          IF (jat == iat) GOTO 6363
-                                          xrel = rxyz(1, iat) - rxyz(1, jat)
-                                          yrel = rxyz(2, iat) - rxyz(2, jat)
-                                          zrel = rxyz(3, iat) - rxyz(3, jat)
-                                          rr2 = xrel**2 + yrel**2 + zrel**2
-                                          IF (rr2 <= cut2) THEN
-                                             indlst = MIN(indlst, myspace - 1)
-                                             lstb(indlst) = lay(jat)
+      DO k3 = l3 - 1, l3 + 1
+      DO k2 = l2 - 1, l2 + 1
+      DO k1 = l1 - 1, l1 + 1
+      DO jj = 1, icell(0, k1, k2, k3)
+         jat = icell(jj, k1, k2, k3)
+         IF (jat == iat) CYCLE
+         xrel = rxyz(1, iat) - rxyz(1, jat)
+         yrel = rxyz(2, iat) - rxyz(2, jat)
+         zrel = rxyz(3, iat) - rxyz(3, jat)
+         rr2 = xrel**2 + yrel**2 + zrel**2
+         IF (rr2 <= cut2) THEN
+            indlst = MIN(indlst, myspace - 1)
+            lstb(indlst) = lay(jat)
 !        write(6,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
-                                             tt = SQRT(rr2)
-                                             tti = 1.d0/tt
-                                             rel(1, indlst) = xrel*tti
-                                             rel(2, indlst) = yrel*tti
-                                             rel(3, indlst) = zrel*tti
-                                             rel(4, indlst) = tt
-                                             rel(5, indlst) = tti
-                                             indlst = indlst + 1
-                                          END IF
-6363                                      CONTINUE
+            tt = SQRT(rr2)
+            tti = 1.d0/tt
+            rel(1, indlst) = xrel*tti
+            rel(2, indlst) = yrel*tti
+            rel(3, indlst) = zrel*tti
+            rel(4, indlst) = tt
+            rel(5, indlst) = tti
+            indlst = indlst + 1
+         END IF
+      END DO
+      END DO
+      END DO
+      END DO
 
-                                          RETURN
-                                       END SUBROUTINE tersoff_sublstiat_l
+      RETURN
+   END SUBROUTINE tersoff_sublstiat_l
 
-              SUBROUTINE tersoff_subeniat_l(i,Nmol,Npmax,Kinds,X,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
-                                          IMPLICIT NONE
-                                          INTEGER, INTENT(in)                       :: Nmol, Npmax, nnbrx
-                                          INTEGER, INTENT(in)                       :: lsta(2, Nmol), lstb(nnbrx*Nmol)
-                                          REAL(8), INTENT(in)                       :: rel(5, nnbrx*Nmol)
-                                          INTEGER, INTENT(in), DIMENSION(1:Nmol)   :: Kinds
-                                          REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: R1, R2
-                                          REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: Cr, Ca, alr, ala
-                                          REAL(8), INTENT(in), DIMENSION(1:2, 1:2)  :: X
-                                          REAL(8), INTENT(inout), DIMENSION(1:6*Npmax):: XYZRrefdf
-                                          REAL(8), INTENT(inout), DIMENSION(1:3*Npmax):: UadUrdf
-                                          REAL(8), INTENT(inout):: Urtot
-                                          REAL(8) :: Ur, Ua
-                                          INTEGER :: i, j, l
-                                          INTEGER :: Nppt3, Nppt6
-                                          INTEGER :: Ki, Kj
-                                          INTEGER :: Nptot
-                                          REAL(8) :: pi
-                                          REAL(8) :: Xij, Yij, Zij, Rij, Rreij
-                                          REAL(8) :: R1ij, R2ij
-                                          REAL(8) :: PL1, PL2
-                                          REAL(8) :: alrij, alaij
-                                          REAL(8) :: fij, dfij
+   SUBROUTINE tersoff_subeniat_l(i,Nmol,Npmax,Kinds,X,R1,R2,Cr,Ca,alr,ala,XYZRrefdf,UadUrdf,Urtot,lsta,lstb,nnbrx,rel,pi)
+      INTEGER                                            :: i
+      INTEGER, INTENT(in)                                :: Nmol, Npmax
+      INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
+      REAL(8), DIMENSION(1:2, 1:2), INTENT(in)           :: X, R1, R2, Cr, Ca, alr, ala
+      REAL(8), DIMENSION(1:6*Npmax), INTENT(inout)       :: XYZRrefdf
+      REAL(8), DIMENSION(1:3*Npmax), INTENT(inout)       :: UadUrdf
+      REAL(8), INTENT(inout)                             :: Urtot
+      INTEGER, INTENT(in)                                :: lsta(2, Nmol), nnbrx, lstb(nnbrx*Nmol)
+      REAL(8), INTENT(in)                                :: rel(5, nnbrx*Nmol)
+      REAL(8)                                            :: pi
+
+      INTEGER                                            :: j, Ki, Kj, l, Nppt3, Nppt6, Nptot
+      REAL(8)                                            :: alaij, alrij, dfij, fij, PL1, PL2, R1ij, &
+                                                            R2ij, Rij, Rreij, Ua, Ur, Xij, Yij, Zij
 
 !     #######################################
 !     # Calculate XYZRrefdf, UadUrdf, Urtot #
 !     #######################################
-                                          Ki = Kinds(i)
+      Ki = Kinds(i)
 
-                                          DO_J: DO l = lsta(1, i), lsta(2, i)
-                                             j = lstb(l)
+      DO_J: DO l = lsta(1, i), lsta(2, i)
+         j = lstb(l)
 
-                                             Kj = Kinds(j)
-                                             R2ij = R2(Ki, Kj)
-                                             Rij = rel(4, l)
-                                             Xij = rel(1, l)
-                                             Yij = rel(2, l)
-                                             Zij = rel(3, l)
-                                             Nptot = l
+         Kj = Kinds(j)
+         R2ij = R2(Ki, Kj)
+         Rij = rel(4, l)
+         Xij = rel(1, l)
+         Yij = rel(2, l)
+         Zij = rel(3, l)
+         Nptot = l
 
-                                             Nppt3 = 3*(Nptot - 1)
-                                             Nppt6 = 6*(Nptot - 1)
-                                             Rreij = rel(5, l)
+         Nppt3 = 3*(Nptot - 1)
+         Nppt6 = 6*(Nptot - 1)
+         Rreij = rel(5, l)
 
-                                             XYZRrefdf(Nppt6 + 1) = Xij
-                                             XYZRrefdf(Nppt6 + 2) = Yij
-                                             XYZRrefdf(Nppt6 + 3) = Zij
-                                             XYZRrefdf(Nppt6 + 4) = Rreij
+         XYZRrefdf(Nppt6 + 1) = Xij
+         XYZRrefdf(Nppt6 + 2) = Yij
+         XYZRrefdf(Nppt6 + 3) = Zij
+         XYZRrefdf(Nppt6 + 4) = Rreij
 
-                                             alrij = alr(Ki, Kj)
-                                             alaij = ala(Ki, Kj)
+         alrij = alr(Ki, Kj)
+         alaij = ala(Ki, Kj)
 
-                                             Ur = Cr(Ki, Kj)*dexp(-alrij*Rij)
-                                             Ua = -Ca(Ki, Kj)*dexp(-alaij*Rij)*X(Ki, Kj)
-                                             R1ij = R1(Ki, Kj)
+         Ur = Cr(Ki, Kj)*dexp(-alrij*Rij)
+         Ua = -Ca(Ki, Kj)*dexp(-alaij*Rij)*X(Ki, Kj)
+         R1ij = R1(Ki, Kj)
 
-                                             IF (Rij <= R1ij) THEN
-                                                XYZRrefdf(Nppt6 + 5) = 1.0d0
-                                                XYZRrefdf(Nppt6 + 6) = 0.0d0
-                                                Urtot = Urtot + Ur
-                                                UadUrdf(Nppt3 + 1) = Ua
-                                                UadUrdf(Nppt3 + 2) = -alrij*Ur
-                                                UadUrdf(Nppt3 + 3) = -alaij*Ua
-                                             ELSE
-                                                PL1 = pi/(R2ij - R1ij)
-                                                PL2 = PL1*(Rij - R1ij)
-                                                fij = 0.5d0 + 0.5d0*dcos(PL2)
-                                                dfij = -0.5d0*PL1*dsin(PL2)
-                                                XYZRrefdf(Nppt6 + 5) = fij
-                                                XYZRrefdf(Nppt6 + 6) = dfij
-                                                Urtot = Urtot + fij*Ur
-                                                UadUrdf(Nppt3 + 1) = fij*Ua
-                                                UadUrdf(Nppt3 + 2) = (dfij - alrij*fij)*Ur
-                                                UadUrdf(Nppt3 + 3) = (dfij - alaij*fij)*Ua
-                                             END IF
-                                          END DO DO_J
-                                       END SUBROUTINE tersoff_subeniat_l
+         IF (Rij <= R1ij) THEN
+            XYZRrefdf(Nppt6 + 5) = 1.0d0
+            XYZRrefdf(Nppt6 + 6) = 0.0d0
+            Urtot = Urtot + Ur
+            UadUrdf(Nppt3 + 1) = Ua
+            UadUrdf(Nppt3 + 2) = -alrij*Ur
+            UadUrdf(Nppt3 + 3) = -alaij*Ua
+         ELSE
+            PL1 = pi/(R2ij - R1ij)
+            PL2 = PL1*(Rij - R1ij)
+            fij = 0.5d0 + 0.5d0*dcos(PL2)
+            dfij = -0.5d0*PL1*dsin(PL2)
+            XYZRrefdf(Nppt6 + 5) = fij
+            XYZRrefdf(Nppt6 + 6) = dfij
+            Urtot = Urtot + fij*Ur
+            UadUrdf(Nppt3 + 1) = fij*Ua
+            UadUrdf(Nppt3 + 2) = (dfij - alrij*fij)*Ur
+            UadUrdf(Nppt3 + 3) = (dfij - alaij*fij)*Ua
+         END IF
+      END DO DO_J
+   END SUBROUTINE tersoff_subeniat_l
 
-         SUBROUTINE tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
+   SUBROUTINE tersoff_subfiat_l(i,Nmol,Npmax,NNmax,Kinds,Pn,Co_bcd,bcsq,dsq,h,XYZRrefdf,UadUrdf,F,Uatot,dkEij,lsta,lstb,nnbrx)
       INTEGER                                            :: i
       INTEGER, INTENT(in)                                :: Nmol, Npmax, NNmax
       INTEGER, DIMENSION(1:Nmol), INTENT(in)             :: Kinds
@@ -5009,147 +4998,147 @@ CONTAINS
          djEij, dsqi, dXjEij2, dYjEij2, dZjEij2, Eij, fdG, fdGcos, fij, fik, Gi, hi, Pni, Rreij, &
          Rreik, Ua, XRreij, XRreik, YRreij, YRreik, ZRreij, ZRreik
 
-                                          Ipb = lsta(1, i)
-                                          Ipe = lsta(2, i)
+      Ipb = lsta(1, i)
+      Ipe = lsta(2, i)
 
-                                          Ki = Kinds(i)
-                                          bcsqi = bcsq(Ki)
-                                          dsqi = dsq(Ki)
-                                          hi = h(Ki)
-                                          Pni = Pn(Ki)
+      Ki = Kinds(i)
+      bcsqi = bcsq(Ki)
+      dsqi = dsq(Ki)
+      hi = h(Ki)
+      Pni = Pn(Ki)
 
-                                          Co_cdi = Co_bcd(Ki)
+      Co_cdi = Co_bcd(Ki)
 
-                                          dFxi = 0.0d0
-                                          dFyi = 0.0d0
-                                          dFzi = 0.0d0
+      dFxi = 0.0d0
+      dFyi = 0.0d0
+      dFzi = 0.0d0
 
-                                          DO_J: DO ij = Ipb, Ipe, +1
+      DO_J: DO ij = Ipb, Ipe, +1
 
-                                             IJpt3 = 3*(ij - 1)
-                                             IJpt6 = 6*(ij - 1)
+         IJpt3 = 3*(ij - 1)
+         IJpt6 = 6*(ij - 1)
 
-                                             XRreij = XYZRrefdf(IJpt6 + 1)
-                                             YRreij = XYZRrefdf(IJpt6 + 2)
-                                             ZRreij = XYZRrefdf(IJpt6 + 3)
-                                             Rreij = XYZRrefdf(IJpt6 + 4)
-                                             fij = XYZRrefdf(IJpt6 + 5)
-                                             dfij = XYZRrefdf(IJpt6 + 6)
+         XRreij = XYZRrefdf(IJpt6 + 1)
+         YRreij = XYZRrefdf(IJpt6 + 2)
+         ZRreij = XYZRrefdf(IJpt6 + 3)
+         Rreij = XYZRrefdf(IJpt6 + 4)
+         fij = XYZRrefdf(IJpt6 + 5)
+         dfij = XYZRrefdf(IJpt6 + 6)
 
-                                             Eij = 0.0d0
-                                             djEij = 0.0d0
-                                             dXjEij2 = 0.0d0
-                                             dYjEij2 = 0.0d0
-                                             dZjEij2 = 0.0d0
+         Eij = 0.0d0
+         djEij = 0.0d0
+         dXjEij2 = 0.0d0
+         dYjEij2 = 0.0d0
+         dZjEij2 = 0.0d0
 
-                                             Nkpt3 = -3
-                                             DO_K: DO ik = Ipb, Ipe, +1
+         Nkpt3 = -3
+         DO_K: DO ik = Ipb, Ipe, +1
 
-                                                Nkpt3 = Nkpt3 + 3
+            Nkpt3 = Nkpt3 + 3
 
-                                                IKIJ: IF (ik /= ij) THEN
+            IKIJ: IF (ik /= ij) THEN
 
-                                                   IKpt6 = 6*(ik - 1)
+               IKpt6 = 6*(ik - 1)
 
-                                                   XRreik = XYZRrefdf(IKpt6 + 1)
-                                                   YRreik = XYZRrefdf(IKpt6 + 2)
-                                                   ZRreik = XYZRrefdf(IKpt6 + 3)
-                                                   Rreik = XYZRrefdf(IKpt6 + 4)
-                                                   fik = XYZRrefdf(IKpt6 + 5)
-                                                   dfik = XYZRrefdf(IKpt6 + 6)
+               XRreik = XYZRrefdf(IKpt6 + 1)
+               YRreik = XYZRrefdf(IKpt6 + 2)
+               ZRreik = XYZRrefdf(IKpt6 + 3)
+               Rreik = XYZRrefdf(IKpt6 + 4)
+               fik = XYZRrefdf(IKpt6 + 5)
+               dfik = XYZRrefdf(IKpt6 + 6)
 
-                                                   COSijk = XRreij*XRreik + YRreij*YRreik + ZRreij*ZRreik
+               COSijk = XRreij*XRreik + YRreij*YRreik + ZRreij*ZRreik
 
-                                                   Co_hcosi = hi - COSijk
-                                                   Co_dhcosi = 1.0d0/(dsqi + Co_hcosi*Co_hcosi)
-                                                   Gi = -bcsqi*Co_dhcosi
-                                                   dGi = 2.0d0*Co_hcosi*Co_dhcosi*Gi
-                                                   Gi = Gi + Co_cdi
+               Co_hcosi = hi - COSijk
+               Co_dhcosi = 1.0d0/(dsqi + Co_hcosi*Co_hcosi)
+               Gi = -bcsqi*Co_dhcosi
+               dGi = 2.0d0*Co_hcosi*Co_dhcosi*Gi
+               Gi = Gi + Co_cdi
 
-                                                   Eij = Eij + fik*Gi
+               Eij = Eij + fik*Gi
 
-                                                   fdG = fik*dGi
-                                                   fdGcos = fdG*COSijk
+               fdG = fik*dGi
+               fdGcos = fdG*COSijk
 
-                                                   djEij = djEij + fdGcos
+               djEij = djEij + fdGcos
 
-                                                   dXjEij2 = dXjEij2 + fdG*XRreik
-                                                   dYjEij2 = dYjEij2 + fdG*YRreik
-                                                   dZjEij2 = dZjEij2 + fdG*ZRreik
+               dXjEij2 = dXjEij2 + fdG*XRreik
+               dYjEij2 = dYjEij2 + fdG*YRreik
+               dZjEij2 = dZjEij2 + fdG*ZRreik
 
-                                                   Co1_dkEij = -dfik*Gi + fdGcos*Rreik
-                                                   Co2_dkEij = -fdG*Rreik
+               Co1_dkEij = -dfik*Gi + fdGcos*Rreik
+               Co2_dkEij = -fdG*Rreik
 
-                                                   dkEij(Nkpt3 + 1) = Co1_dkEij*XRreik + Co2_dkEij*XRreij
-                                                   dkEij(Nkpt3 + 2) = Co1_dkEij*YRreik + Co2_dkEij*YRreij
-                                                   dkEij(Nkpt3 + 3) = Co1_dkEij*ZRreik + Co2_dkEij*ZRreij
+               dkEij(Nkpt3 + 1) = Co1_dkEij*XRreik + Co2_dkEij*XRreij
+               dkEij(Nkpt3 + 2) = Co1_dkEij*YRreik + Co2_dkEij*YRreij
+               dkEij(Nkpt3 + 3) = Co1_dkEij*ZRreik + Co2_dkEij*ZRreij
 
-                                                ELSE
-                                                   dkEij(Nkpt3 + 1) = 0.0d0
-                                                   dkEij(Nkpt3 + 2) = 0.0d0
-                                                   dkEij(Nkpt3 + 3) = 0.0d0
-                                                END IF IKIJ
+            ELSE
+               dkEij(Nkpt3 + 1) = 0.0d0
+               dkEij(Nkpt3 + 2) = 0.0d0
+               dkEij(Nkpt3 + 3) = 0.0d0
+            END IF IKIJ
 
-                                             END DO DO_K
+         END DO DO_K
 
-                                             Bij = 1.0d0 + Eij**Pni
-                                             Ua = UadUrdf(IJpt3 + 1)*Bij**(-0.5d0/Pni)
-                                             Uatot = Uatot + Ua
+         Bij = 1.0d0 + Eij**Pni
+         Ua = UadUrdf(IJpt3 + 1)*Bij**(-0.5d0/Pni)
+         Uatot = Uatot + Ua
 
-                                             Co_pa = UadUrdf(IJpt3 + 2) + UadUrdf(IJpt3 + 3)*Bij**(-0.5d0/Pni)
+         Co_pa = UadUrdf(IJpt3 + 2) + UadUrdf(IJpt3 + 3)*Bij**(-0.5d0/Pni)
 
-                                             CEij: IF (Nkpt3 > 0) THEN
+         CEij: IF (Nkpt3 > 0) THEN
 
-                                                Co_mb1 = Ua*0.5d0*Eij**(Pni - 1.0d0)/Bij
-                                                Co_mb2 = Co_mb1*Rreij
+            Co_mb1 = Ua*0.5d0*Eij**(Pni - 1.0d0)/Bij
+            Co_mb2 = Co_mb1*Rreij
 
-                                                Nkpt3 = -3
-                                                DO ik = Ipb, Ipe, +1
+            Nkpt3 = -3
+            DO ik = Ipb, Ipe, +1
 
-                                                   Nkpt3 = Nkpt3 + 3
-                                                   dFxk = Co_mb1*dkEij(Nkpt3 + 1)
-                                                   dFyk = Co_mb1*dkEij(Nkpt3 + 2)
-                                                   dFzk = Co_mb1*dkEij(Nkpt3 + 3)
+               Nkpt3 = Nkpt3 + 3
+               dFxk = Co_mb1*dkEij(Nkpt3 + 1)
+               dFyk = Co_mb1*dkEij(Nkpt3 + 2)
+               dFzk = Co_mb1*dkEij(Nkpt3 + 3)
 
-                                                   Kpt3 = 3*(lstb(ik) - 1)
-                                                   F(Kpt3 + 1) = F(Kpt3 + 1) + dFxk
-                                                   F(Kpt3 + 2) = F(Kpt3 + 2) + dFyk
-                                                   F(Kpt3 + 3) = F(Kpt3 + 3) + dFzk
+               Kpt3 = 3*(lstb(ik) - 1)
+               F(Kpt3 + 1) = F(Kpt3 + 1) + dFxk
+               F(Kpt3 + 2) = F(Kpt3 + 2) + dFyk
+               F(Kpt3 + 3) = F(Kpt3 + 3) + dFzk
 
-                                                   dFxi = dFxi + dFxk
-                                                   dFyi = dFyi + dFyk
-                                                   dFzi = dFzi + dFzk
+               dFxi = dFxi + dFxk
+               dFyi = dFyi + dFyk
+               dFzi = dFzi + dFzk
 
-                                                END DO
+            END DO
 
-                                                dFxj = Co_pa*XRreij + Co_mb2*(XRreij*djEij - dXjEij2)
-                                                dFyj = Co_pa*YRreij + Co_mb2*(YRreij*djEij - dYjEij2)
-                                                dFzj = Co_pa*ZRreij + Co_mb2*(ZRreij*djEij - dZjEij2)
+            dFxj = Co_pa*XRreij + Co_mb2*(XRreij*djEij - dXjEij2)
+            dFyj = Co_pa*YRreij + Co_mb2*(YRreij*djEij - dYjEij2)
+            dFzj = Co_pa*ZRreij + Co_mb2*(ZRreij*djEij - dZjEij2)
 
-                                             ELSE
+         ELSE
 
-                                                dFxj = Co_pa*XRreij
-                                                dFyj = Co_pa*YRreij
-                                                dFzj = Co_pa*ZRreij
+            dFxj = Co_pa*XRreij
+            dFyj = Co_pa*YRreij
+            dFzj = Co_pa*ZRreij
 
-                                             END IF CEij
+         END IF CEij
 
-                                             Jpt3 = 3*(lstb(ij) - 1)
+         Jpt3 = 3*(lstb(ij) - 1)
 
-                                             F(Jpt3 + 1) = F(Jpt3 + 1) + dFxj
-                                             F(Jpt3 + 2) = F(Jpt3 + 2) + dFyj
-                                             F(Jpt3 + 3) = F(Jpt3 + 3) + dFzj
+         F(Jpt3 + 1) = F(Jpt3 + 1) + dFxj
+         F(Jpt3 + 2) = F(Jpt3 + 2) + dFyj
+         F(Jpt3 + 3) = F(Jpt3 + 3) + dFzj
 
-                                             dFxi = dFxi + dFxj
-                                             dFyi = dFyi + dFyj
-                                             dFzi = dFzi + dFzj
+         dFxi = dFxi + dFxj
+         dFyi = dFyi + dFyj
+         dFzi = dFzi + dFzj
 
-                                          END DO DO_J
+      END DO DO_J
 
-                                          Ipt3 = 3*(i - 1)
-                                          F(Ipt3 + 1) = F(Ipt3 + 1) - dFxi
-                                          F(Ipt3 + 2) = F(Ipt3 + 2) - dFyi
-                                          F(Ipt3 + 3) = F(Ipt3 + 3) - dFzi
-                                       END SUBROUTINE tersoff_subfiat_l
+      Ipt3 = 3*(i - 1)
+      F(Ipt3 + 1) = F(Ipt3 + 1) - dFxi
+      F(Ipt3 + 2) = F(Ipt3 + 2) - dFyi
+      F(Ipt3 + 3) = F(Ipt3 + 3) - dFzi
+   END SUBROUTINE tersoff_subfiat_l
 
-                                       END MODULE eip_silicon
+END MODULE eip_silicon
