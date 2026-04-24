@@ -63,7 +63,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="mpich",
                 feature_flags="-ef openpmd",
-                testopts=testopts,
+                testopts="",
             )
         )
 
@@ -173,7 +173,7 @@ def main() -> None:
         )
 
     with OutputFile(f"Dockerfile.test_spack_sdbg", args.check) as f:
-        f.write(install_cp2k_spack(version="sdbg", mpi_mode="no", testopts=testopts))
+        f.write(install_cp2k_spack(version="sdbg", mpi_mode="no", testopts=""))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
         f.write(install_cp2k_spack(version="ssmp", mpi_mode="no", testopts=testopts))

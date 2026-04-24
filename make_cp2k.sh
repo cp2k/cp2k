@@ -1457,7 +1457,8 @@ export LAUNCH_SCRIPT
 cat << *** > "${LAUNCH_SCRIPT}"
 #!/bin/bash
 ulimit -c 0 -s unlimited
-export LSAN_OPTIONS=suppressions=${INSTALL_PREFIX}/bin/lsan.supp
+export ASAN_OPTIONS="detect_leaks=1"
+export LSAN_OPTIONS="suppressions=${INSTALL_PREFIX}/bin/lsan.supp"
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
@@ -1469,10 +1470,18 @@ chmod 750 "${LAUNCH_SCRIPT}"
 
 # Create shortcut for launching the regression tests
 cat << *** > "${INSTALL_PREFIX}"/bin/run_tests
+#!/bin/bash
+if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
+  echo "ASAN_OPTIONS = \${ASAN_OPTIONS}"
+  echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
+fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests
+
+# Set image tag if available
+export IMAGE_TAG=${IMAGE_TAG:-<IMAGE ID>}
 
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
@@ -1492,14 +1501,14 @@ else
     fi
     echo ""
     echo "*** A regression test run can be launched with"
-    echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> run_tests"
+    echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} run_tests"
     echo ""
     if [[ "${VERSION}" == "ssmp" ]]; then
       echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
-      echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-      echo "    podman run -it${DEVICE_FLAG} --rm <IMAGE ID> mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
+      echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     fi
     echo ""
   else
