@@ -11,7 +11,7 @@
     MAX_ITER 3
     OPTIMIZER BFGS
     &BFGS
-      TRUST_RADIUS 1.5E-1
+      TRUST_RADIUS 1.0E-1
     &END BFGS
   &END CELL_OPT
   &PRINT
@@ -36,7 +36,7 @@
     &END POISSON
     &SCF
       EPS_SCF 1.E-5
-      MAX_SCF 10
+      MAX_SCF 6
       SCF_GUESS ATOMIC
       &OT T
         MINIMIZER CG
