@@ -84,10 +84,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(eip_env))
 
-      IF (para_env%num_pe > 1) THEN
-         CPABORT("EIP requires one MPI rank; SW/TERSOFF are currently serial.")
-      END IF
-
       ! nullifying  pointers
       NULLIFY (colvar_section, eip_section, subsys)
 
