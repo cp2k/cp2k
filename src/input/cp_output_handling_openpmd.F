@@ -418,12 +418,12 @@ CONTAINS
       INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
-      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
-      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
-      REAL(kind=dp), OPTIONAL                            :: sim_time
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
-      LOGICAL, SAVE                                      :: opened_new_iteration = .FALSE.
+      LOGICAL                                            :: opened_new_iteration = .FALSE.
       TYPE(openpmd_attributable_type)                    :: attr
       TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: opmd
 
@@ -436,7 +436,6 @@ CONTAINS
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
       CALL res%iteration%set_time_unit_SI(seconds)
       res%name_prefix = TRIM(middle_name)
-
 
       IF (opened_new_iteration) THEN
 
@@ -470,7 +469,7 @@ CONTAINS
       INTEGER                                  :: file_index
       CHARACTER(:), ALLOCATABLE                :: merged_config
 
-      CHARACTER(len=default_string_length), SAVE :: basename_copied = ' '
+      CHARACTER(len=default_string_length)     :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
       INTEGER                                  :: handle
@@ -593,9 +592,9 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
-      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
-      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
-      REAL(kind=dp), OPTIONAL                            :: sim_time
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       INTEGER                                            :: res
 
 #ifdef __OPENPMD

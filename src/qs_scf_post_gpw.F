@@ -387,9 +387,9 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
-      REAL(kind=dp), DIMENSION(7), OPTIONAL              :: openpmd_unit_dimension
-      REAL(kind=dp), OPTIONAL                            :: openpmd_unit_si
-      REAL(kind=dp), OPTIONAL                            :: sim_time
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       INTEGER                                            :: res
 
       IF (self%grid_output == grid_output_cubes) THEN
