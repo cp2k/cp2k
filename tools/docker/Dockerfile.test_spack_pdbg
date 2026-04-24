@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_pdbg ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_pdbg -f ./Dockerfile.test_spack_pdbg ../../
 #
 
 ARG BASE_IMAGE="ubuntu:24.04"
@@ -34,6 +34,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     zstd \
     && rm -rf /var/lib/apt/lists/*
+
+ARG IMAGE_TAG
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_pdbg}
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
