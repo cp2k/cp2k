@@ -754,6 +754,9 @@ endif()
 # Libint
 if(CP2K_USE_LIBINT2)
   find_package(Libint2 REQUIRED)
+  # Prefer the headers and Fortran module that match the selected libint
+  # library. System include paths can otherwise shadow a locally built libint.
+  include_directories(BEFORE ${CP2K_LIBINT2_INCLUDE_DIRS})
 endif()
 
 # Spglib
