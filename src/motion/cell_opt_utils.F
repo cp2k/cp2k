@@ -48,7 +48,8 @@ MODULE cell_opt_utils
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: sqrt3
-   USE mathlib,                         ONLY: angle
+   USE mathlib,                         ONLY: angle,&
+                                              det_3x3
    USE message_passing,                 ONLY: mp_para_env_type
 #include "../base/base_uses.f90"
 
@@ -60,7 +61,7 @@ MODULE cell_opt_utils
 
    PUBLIC :: get_dg_dh, gopt_new_logger_create, &
              gopt_new_logger_release, read_external_press_tensor, &
-             apply_cell_constraints
+             apply_cell_constraints, rescale_new_cell_volume
 
 CONTAINS
 
@@ -459,5 +460,45 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE apply_cell_constraints
+
+! **************************************************************************************************
+!> \brief Rescale x(idg+1:idg+6) according to vol
+!> \param vol ...
+!> \param x ...
+!> \param idg ...
+! **************************************************************************************************
+   SUBROUTINE rescale_new_cell_volume(vol, x, idg)
+
+      REAL(KIND=dp), INTENT(IN)                          :: vol
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: x
+      INTEGER, INTENT(IN)                                :: idg
+
+      INTEGER                                            :: i, j, my_idg
+      REAL(KIND=dp)                                      :: ratio
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_tmp
+
+      CPASSERT((SIZE(x) == idg + 6))
+      my_idg = idg
+
+      hmat_tmp(:, :) = 0.0_dp
+      DO i = 1, 3
+         DO j = 1, i
+            my_idg = my_idg + 1
+            hmat_tmp(j, i) = x(my_idg)
+         END DO
+      END DO
+
+      ratio = vol/ABS(det_3x3(hmat_tmp))
+      ratio = ratio**(1.0_dp/3.0_dp) ! no need to use EXP(LOG(ratio)/3) for cube root
+
+      my_idg = idg
+      DO i = 1, 3
+         DO j = 1, i
+            my_idg = my_idg + 1
+            x(my_idg) = x(my_idg)*ratio
+         END DO
+      END DO
+
+   END SUBROUTINE rescale_new_cell_volume
 
 END MODULE cell_opt_utils
