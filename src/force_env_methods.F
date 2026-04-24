@@ -60,9 +60,9 @@ MODULE force_env_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE eip_environment_types,           ONLY: eip_environment_type
    USE eip_silicon,                     ONLY: eip_bazant,&
-                                             eip_lenosky,&
-                                             eip_stillinger_weber,&
-                                             eip_tersoff
+                                              eip_lenosky,&
+                                              eip_stillinger_weber,&
+                                              eip_tersoff
    USE embed_types,                     ONLY: embed_env_type,&
                                               opt_dmfet_pot_type,&
                                               opt_embed_pot_type

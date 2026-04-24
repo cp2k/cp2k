@@ -1656,7 +1656,8 @@ add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   set_source_files_properties(
     ${CMAKE_CURRENT_BINARY_DIR}/eip_silicon.F
-    PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS} -ffree-line-length-none -std=legacy")
+    PROPERTIES COMPILE_FLAGS
+               "${COMPILE_FLAGS} -ffree-line-length-none -std=legacy")
 endif()
 
 # Intel oneAPI workarounds for known compiler optimization bugs

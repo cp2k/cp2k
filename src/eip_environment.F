@@ -76,7 +76,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_init'
 
-      CHARACTER(len=default_string_length)              :: abort_message
+      CHARACTER(len=default_string_length)               :: abort_message
       INTEGER                                            :: handle
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: colvar_section, eip_section
