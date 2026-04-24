@@ -976,7 +976,7 @@ class OutputFile:
             self.image_tag = filename.removeprefix("Dockerfile.test_")
             usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -t {self.image_tag} -f ./{filename} ../../"
         else:
-            self.image_tag = None
+            self.image_tag = ""
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"
         self.content.write(f"# Usage: {usage}\n#\n")
 
