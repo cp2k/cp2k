@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_psmp-opensuse ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_psmp-opensuse -f ./Dockerfile.test_spack_psmp-opensuse ../../
 #
 
 ARG BASE_IMAGE="opensuse/leap:15.6"
@@ -33,6 +33,9 @@ RUN zypper --non-interactive --quiet ref && \
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -sf /usr/bin/python3.11 /usr/local/bin/python
+
+ARG IMAGE_TAG
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-opensuse}
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 

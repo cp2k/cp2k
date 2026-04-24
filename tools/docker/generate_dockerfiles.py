@@ -64,6 +64,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 feature_flags="-ef openpmd",
                 testopts="",
+                image_tag=f.image_tag,
             )
         )
 
@@ -74,6 +75,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -90,6 +92,7 @@ def main() -> None:
                     base_image=base_image,
                     feature_flags="-ef openpmd",
                     testopts=testopts,
+                    image_tag=f.image_tag,
                 )
             )
 
@@ -101,6 +104,7 @@ def main() -> None:
                 base_image="fedora:rawhide",
                 gcc_version=16,
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -113,6 +117,7 @@ def main() -> None:
                 gcc_version=16,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -125,6 +130,7 @@ def main() -> None:
                 gcc_version=15,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -137,6 +143,7 @@ def main() -> None:
                 gcc_version=14,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -149,6 +156,7 @@ def main() -> None:
                 gcc_version=14,
                 feature_flags="-df libxsmm -ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -159,6 +167,7 @@ def main() -> None:
                 mpi_mode="mpich",
                 feature_flags="-ef openpmd",
                 testopts=f"--keepalive --mpiranks=4 --ompthreads=2",
+                image_tag=f.image_tag,
             )
         )
 
@@ -169,6 +178,7 @@ def main() -> None:
                 mpi_mode="openmpi",
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -176,12 +186,20 @@ def main() -> None:
         f.write(install_cp2k_spack(version="sdbg", mpi_mode="no", testopts=""))
 
     with OutputFile(f"Dockerfile.test_spack_ssmp", args.check) as f:
-        f.write(install_cp2k_spack(version="ssmp", mpi_mode="no", testopts=testopts))
+        f.write(
+            install_cp2k_spack(
+                version="ssmp", mpi_mode="no", testopts=testopts, image_tag=f.image_tag
+            )
+        )
 
     with OutputFile(f"Dockerfile.test_spack_ssmp-static", args.check) as f:
         f.write(
             install_cp2k_spack(
-                version="ssmp-static", mpi_mode="no", gcc_version=14, testopts=testopts
+                version="ssmp-static",
+                mpi_mode="no",
+                gcc_version=14,
+                testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -194,6 +212,7 @@ def main() -> None:
                 gcc_version=13,
                 gpu_model="P100",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -207,6 +226,7 @@ def main() -> None:
                 gpu_model="P100",
                 feature_flags="-ef openpmd",
                 testopts=testopts,
+                image_tag=f.image_tag,
             )
         )
 
@@ -685,6 +705,7 @@ def install_cp2k_spack(
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
+    image_tag: str = "",
 ) -> str:
     # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
     if gcc_version == 15 or "fedora" in base_image:
@@ -711,6 +732,9 @@ def install_cp2k_spack(
             base_image=rf"{base_image}", gcc_compilers=gcc_compilers, stage="build"
         )
         + rf"""
+ARG IMAGE_TAG
+ENV IMAGE_TAG=${{IMAGE_TAG:-{image_tag}}}
+
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
 # Copy CP2K repository into container
@@ -949,13 +973,18 @@ class OutputFile:
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
         if "_spack_" in filename:
-            usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./{filename} ../../"
+            self.image_tag = filename.removeprefix("Dockerfile.test_")
+            usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -t {self.image_tag} -f ./{filename} ../../"
         else:
+            self.image_tag = None
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"
         self.content.write(f"# Usage: {usage}\n#\n")
 
-    def __enter__(self) -> io.StringIO:
-        return self.content
+    def __enter__(self) -> "OutputFile":
+        return self
+
+    def write(self, text: str) -> None:
+        self.content.write(text)
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         output_path = Path(__file__).parent / self.filename

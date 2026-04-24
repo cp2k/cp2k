@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -f ./Dockerfile.test_spack_ssmp-P100 ../../
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_ssmp-P100 -f ./Dockerfile.test_spack_ssmp-P100 ../../
 #
 
 ARG BASE_IMAGE="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04"
@@ -41,6 +41,9 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 # Disable JIT cache as there seems to be an issue with file locking on overlayfs
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
+
+ARG IMAGE_TAG
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_ssmp-P100}
 
 ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
 
