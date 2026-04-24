@@ -31,7 +31,8 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                            cite_reference
    USE cell_opt_utils, ONLY: get_dg_dh, &
                              gopt_new_logger_create, &
-                             gopt_new_logger_release
+                             gopt_new_logger_release, &
+                             rescale_new_cell_volume
    USE cell_types, ONLY: cell_type
    USE cell_methods, ONLY: write_cell
    USE message_passing, ONLY: mp_para_env_type
@@ -184,6 +185,16 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
          CALL cp_abort(__LOCATION__, &
                        "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "// &
                        "Activate the evaluation of the stress tensor for cell optimization!")
+      IF (gopt_env%cell_env%keep_volume) THEN
+         nparticle = force_env_get_nparticle(gopt_env%force_env)
+         SELECT CASE (gopt_env%cell_method_id)
+         CASE (default_cell_direct_id)
+            idg = 3*nparticle
+         CASE (default_cell_geo_opt_id, default_cell_md_id)
+            idg = 0
+         END SELECT
+         CALL rescale_new_cell_volume(cell%deth, x, idg)
+      END IF
       SELECT CASE (gopt_env%cell_method_id)
       CASE (default_cell_direct_id)
          CALL apply_cell_change(gopt_env, cell, x, update_forces=.FALSE.)
