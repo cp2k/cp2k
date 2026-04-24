@@ -149,14 +149,6 @@ int openPMD_attributable_set_attribute_vec_string(openPMD_Attributable attr,
 
 int openPMD_Attributable_series_flush(openPMD_Attributable attr, char const *);
 
-int openPMD_Iteration_setTimeUnitSI(
-    // in
-    openPMD_Iteration iteration, double const timeUnitSI);
-
-int openPMD_Iteration_setTime(
-    // in
-    openPMD_Iteration iteration, double const time);
-
 /**********************
  * Iteration members. *
  **********************/
@@ -190,6 +182,14 @@ int openPMD_Iteration_close(
 int openPMD_Iteration_closed(
     // in
     openPMD_Iteration iteration);
+
+int openPMD_Iteration_setTimeUnitSI(
+    // in
+    openPMD_Iteration iteration, double const timeUnitSI);
+
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration, double const time);
 
 /****************
  * Mesh members *
@@ -714,22 +714,6 @@ int openPMD_Attributable_series_flush(openPMD_Attributable attr,
   return 0;
 }
 
-int openPMD_Iteration_setTimeUnitSI(
-    // in
-    openPMD_Iteration iteration_param, double const timeUnitSI) {
-  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
-  iteration->setTimeUnitSI(timeUnitSI);
-  return 0;
-}
-
-int openPMD_Iteration_setTime(
-    // in
-    openPMD_Iteration iteration_param, double const time) {
-  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
-  iteration->setTime(time);
-  return 0;
-}
-
 int openPMD_Iteration_upcast_to_Attributable(
     // in
     openPMD_Iteration iteration,
@@ -763,7 +747,6 @@ int openPMD_Iteration_get_particle_species(
 
 int openPMD_Iteration_open(openPMD_Iteration iteration_param) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
-  std::cout << "OPENING ITERATION" << std::endl;
   iteration->open();
   return 0;
 }
@@ -777,6 +760,22 @@ int openPMD_Iteration_close(openPMD_Iteration iteration_param) {
 int openPMD_Iteration_closed(openPMD_Iteration iteration_param) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
   return iteration->closed();
+}
+
+int openPMD_Iteration_setTimeUnitSI(
+    // in
+    openPMD_Iteration iteration_param, double const timeUnitSI) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTimeUnitSI(timeUnitSI);
+  return 0;
+}
+
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration_param, double const time) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTime(time);
+  return 0;
 }
 
 int openPMD_Mesh_upcast_to_RecordComponent(
@@ -846,9 +845,7 @@ int openPMD_Mesh_setUnitDimension(
     openPMD_Mesh mesh_param, double const *unitDimension) {
   auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
   std::array<double, 7> unitDim{};
-  for (int i = 0; i < 7; ++i) {
-    unitDim[i] = static_cast<double>(unitDimension[i]);
-  }
+  std::copy_n(unitDimension, 7, unitDim.begin());
   mesh->setUnitDimension(unitDim);
   return 0;
 }
@@ -1002,9 +999,7 @@ int openPMD_Record_setUnitDimension(
     openPMD_Record record_param, double const *unitDimension) {
   auto record = reinterpret_cast<openPMD::Record *>(record_param);
   std::array<double, 7> unitDim{};
-  for (int i = 0; i < 7; ++i) {
-    unitDim[i] = static_cast<double>(unitDimension[i]);
-  }
+  std::copy_n(unitDimension, 7, unitDim.begin());
   record->setUnitDimension(unitDim);
   return 0;
 }
