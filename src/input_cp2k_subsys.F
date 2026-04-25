@@ -1251,15 +1251,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LEBEDEV_GRID", &
-                          description="The number of points for the angular part of "// &
-                          "the local grid (GAPW)", &
+                          description="GAPW: maximum size of the angular Lebedev grid used for "// &
+                          "atom-centered integrations for this kind.", &
                           usage="LEBEDEV_GRID 40", default_i_val=50)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RADIAL_GRID", &
-                          description="The number of points for the radial part of "// &
-                          "the local grid (GAPW)", &
+                          description="GAPW: number of radial grid points used for atom-centered "// &
+                          "integrations for this kind.", &
                           usage="RADIAL_GRID 70", default_i_val=50)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
