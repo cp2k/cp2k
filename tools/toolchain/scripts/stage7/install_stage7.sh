@@ -8,5 +8,6 @@
 ./scripts/stage7/install_spglib.sh
 ./scripts/stage7/install_libvori.sh
 ./scripts/stage7/install_libsmeagol.sh
+./scripts/stage7/install_fmt.sh
 
 #EOF
