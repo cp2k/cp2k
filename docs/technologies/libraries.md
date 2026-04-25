@@ -128,12 +128,13 @@ A library for finding and handling crystal symmetries
 
 ## SIRIUS (plane wave calculations)
 
-SIRIUS is a domain specific library for electronic structure calculations.
+SIRIUS is a domain specific library for electronic structure calculations with plane wave method.
 
 - The code is available at <https://github.com/electronic-structure/SIRIUS>
 - For building CP2K with SIRIUS pass `-DCP2K_USE_SIRIUS=ON` to CMake.
 - Pass `-DCP2K_USE_LIBVDWXC=ON` if support is activated in SIRIUS.
-- Pass `-DCP2K_USE_SIRIUS_DFTD4=ON` when sirius is compiled with dftd3 and dftd4 support.
+- Pass `-DCP2K_USE_SIRIUS_DFTD3=ON` when sirius is compiled with dftd3 support.
+- Pass `-DCP2K_USE_SIRIUS_DFTD4=ON` when sirius is compiled with dftd4 support.
 - Pass `-DCP2K_USE_SIRIUS_NLCG=ON` when sirius is compiled with nlcg support.
 - Pass `-DCP2K_USE_SIRIUS_VCSQNM=ON` when sirius is compiled with variable cell relaxation support.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.

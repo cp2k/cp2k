@@ -264,16 +264,17 @@ CONTAINS
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
       END IF
 
+#if defined(__SIRIUS_DFTD3)
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "dftd3")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "dftd3")
+      END IF
+#endif
 #if defined(__SIRIUS_DFTD4)
       ! import dftd3 and dftd4 section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "dftd4")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "dftd4")
-      END IF
-
-      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "dftd3")
-      IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "dftd3")
       END IF
 #endif
 

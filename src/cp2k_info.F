@@ -206,6 +206,9 @@ CONTAINS
 #if defined(__SIRIUS_NLCG)
       flags = TRIM(flags)//" sirius_nlcg"
 #endif
+#if defined(__SIRIUS_DFTD3)
+      flags = TRIM(flags)//" sirius_dftd3"
+#endif
 #if defined(__SIRIUS_DFTD4)
       flags = TRIM(flags)//" sirius_dftd4"
 #endif
