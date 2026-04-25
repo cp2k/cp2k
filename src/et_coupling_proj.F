@@ -1351,9 +1351,8 @@ CONTAINS
       ! Calculate the grid values
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       cell=cell, dft_control=dft_control, particle_set=particle_set)
-      CALL calculate_wavefunction(im, wf_r, wf_g, atomic_kind_set, &
-                                  qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                  mo_vectors=mo%mo_coeff)
+      CALL calculate_wavefunction(mo%mo_coeff, im, wf_r, wf_g, atomic_kind_set, &
+                                  qs_kind_set, cell, dft_control, particle_set, pw_env)
       CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                          stride=section_get_ivals(input, 'MO_CUBES%STRIDE'))
 

@@ -1046,8 +1046,8 @@ CONTAINS
                   iw = cp_print_key_unit_nr(logger, print_section, "", extension=".cube", &
                                             middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                             mpi_io=mpi_io)
-                  CALL calculate_wavefunction(ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                              cell, dft_control, particle_set, pw_env, mo_vectors=iao_coef(ispin))
+                  CALL calculate_wavefunction(iao_coef(ispin), ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                              cell, dft_control, particle_set, pw_env)
                   CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(iw, logger, print_section, "", mpi_io=mpi_io)
                END DO
@@ -1128,8 +1128,8 @@ CONTAINS
                iw = cp_print_key_unit_nr(logger, print_section, "", extension=".cube", &
                                          middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                          mpi_io=mpi_io)
-               CALL calculate_wavefunction(j, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                           cell, dft_control, particle_set, pw_env, mo_vectors=ibo_coef(ispin))
+               CALL calculate_wavefunction(ibo_coef(ispin), j, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                           cell, dft_control, particle_set, pw_env)
                CALL cp_pw_to_cube(wf_r, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                CALL cp_print_key_finished_output(iw, logger, print_section, "", mpi_io=mpi_io)
             END DO

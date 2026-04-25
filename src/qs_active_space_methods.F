@@ -1647,9 +1647,8 @@ CONTAINS
             DO i1 = 1, SIZE(orbitals, 1)
                iwfn = orbitals(i1, ispin)
                CALL auxbas_pw_pool%create_pw(wfn_a(iwfn, ispin))
-               CALL calculate_wavefunction(iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                           mo_vectors=mo_coeff)
+               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
                   WRITE (iw, "(T2,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
                END IF
@@ -1689,9 +1688,8 @@ CONTAINS
             IF (eri_env%eri_gpw%store_wfn) THEN
                wfn1 => wfn_a(iwa1, isp1)
             ELSE
-               CALL calculate_wavefunction(iwa1, wfn1, rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                           mo_vectors=fm_mo_coeff_as(isp1))
+               CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwa1, wfn1, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
             END IF
             DO i2 = i1, SIZE(orbitals, 1)
                iwa2 = orbitals(i2, isp1)
@@ -1702,9 +1700,8 @@ CONTAINS
                IF (eri_env%eri_gpw%store_wfn) THEN
                   wfn2 => wfn_a(iwa2, isp1)
                ELSE
-                  CALL calculate_wavefunction(iwa2, wfn2, rho_g, atomic_kind_set, &
-                                              qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                              mo_vectors=fm_mo_coeff_as(isp1))
+                  CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwa2, wfn2, rho_g, atomic_kind_set, &
+                                              qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                END IF
                ! calculate charge distribution and potential
                CALL pw_zero(rho_r)
@@ -1782,9 +1779,8 @@ CONTAINS
                         IF (eri_env%eri_gpw%store_wfn) THEN
                            wfn3 => wfn_a(iwb1, isp2)
                         ELSE
-                           CALL calculate_wavefunction(iwb1, wfn3, rho_g, atomic_kind_set, &
-                                                       qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                                       mo_vectors=fm_mo_coeff_as(isp1))
+                           CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwb1, wfn3, rho_g, atomic_kind_set, &
+                                                       qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                         END IF
                         CALL pw_zero(wfn_r)
                         CALL pw_multiply(wfn_r, rho_r, wfn3)
@@ -1795,9 +1791,8 @@ CONTAINS
                            IF (eri_env%eri_gpw%store_wfn) THEN
                               wfn4 => wfn_a(iwb2, isp2)
                            ELSE
-                              CALL calculate_wavefunction(iwb2, wfn4, rho_g, atomic_kind_set, &
-                                                          qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                                          mo_vectors=fm_mo_coeff_as(isp1))
+                              CALL calculate_wavefunction(fm_mo_coeff_as(isp1), iwb2, wfn4, rho_g, atomic_kind_set, &
+                                                          qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                            END IF
                            ! We reduce the amount of communication by collecting the local sums first and sum globally later
                            erint = pw_integral_ab(wfn_r, wfn4, local_only=.TRUE.)
@@ -2258,9 +2253,8 @@ CONTAINS
                do_mo = .TRUE.
             END IF
             IF (.NOT. do_mo) CYCLE
-            CALL calculate_wavefunction(imo, wf_r, wf_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env, &
-                                        mo_vectors=mo_coeff)
+            CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
+                                        qs_kind_set, cell, dft_control, particle_set, pw_env)
             IF (para_env%is_source()) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"
                CALL open_file(filename, unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE")

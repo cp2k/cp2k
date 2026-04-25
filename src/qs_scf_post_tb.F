@@ -1626,8 +1626,8 @@ CONTAINS
                DO i = 1, nlist
                   ivector = list_index(i)
                   IF (ivector > homo) CYCLE
-                  CALL calculate_wavefunction(ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
-                                              cell, dft_control, particle_set, pw_env, mo_vectors=mo_coeff)
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                                              cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.
                   unit_nr = cp_print_key_unit_nr(logger, cube_section, '', extension=".cube", &
@@ -1656,8 +1656,8 @@ CONTAINS
                   ilast = MIN(nmo, ilast)
                END IF
                DO ivector = ifirst, ilast
-                  CALL calculate_wavefunction(ivector, wf_r, wf_g, atomic_kind_set, &
-                                              qs_kind_set, cell, dft_control, particle_set, pw_env, mo_vectors=mo_coeff)
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                                              qs_kind_set, cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.
                   unit_nr = cp_print_key_unit_nr(logger, cube_section, '', extension=".cube", &
