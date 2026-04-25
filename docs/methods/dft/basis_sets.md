@@ -47,8 +47,8 @@ together. For example, `DZVP-MOLOPT-GTH` for oxygen is normally paired with `GTH
 calculation, while UZH protocol basis sets from `BASIS_MOLOPT_UZH` are paired with corresponding
 entries from `POTENTIAL_UZH`. For new GPW production inputs, these UZH protocol pairs are the
 preferred starting point where available; the older MOLOPT/GTH libraries remain useful for
-compatibility and comparison with established inputs. The same `BASIS_MOLOPT_UZH` file also
-contains all-electron MOLOPT basis sets for GAPW simulations, such as `SVP-MOLOPT-GGA-ae`,
+compatibility and comparison with established inputs. The same `BASIS_MOLOPT_UZH` file also contains
+all-electron MOLOPT basis sets for GAPW simulations, such as `SVP-MOLOPT-GGA-ae`,
 `TZVPP-MOLOPT-GGA-ae`, and `QZVPP-MOLOPT-GGA-ae`, to be used with `POTENTIAL ALL`.
 
 ## Basis Set Roles
