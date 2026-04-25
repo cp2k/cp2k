@@ -49,8 +49,8 @@ For example:
 
 ## Choosing the Auxiliary Basis
 
-The auxiliary basis should be chosen for the primary basis family and for the intended accuracy.
-For MOLOPT-style calculations, the `BASIS_ADMM_MOLOPT` family provides compact auxiliary bases. The
+The auxiliary basis should be chosen for the primary basis family and for the intended accuracy. For
+MOLOPT-style calculations, the `BASIS_ADMM_MOLOPT` family provides compact auxiliary bases. The
 newer UZH basis-set collection includes `BASIS_ADMM_UZH` and related basis files for correlation
 consistent setups. All-electron calculations can use all-electron auxiliary basis sets when
 available.

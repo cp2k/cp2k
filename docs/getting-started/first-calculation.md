@@ -65,7 +65,7 @@ Save the following input as `h2o.inp`. The same file is also available as [](h2o
 Run the calculation with one of the installed CP2K binaries:
 
 ```bash
-cp2k.psmp -i h2o.inp -o h2o.out
+OMP_NUM_THREADS=1 cp2k.psmp -i h2o.inp -o h2o.out
 ```
 
 The executable name depends on how CP2K was built:
@@ -80,8 +80,12 @@ The executable name depends on how CP2K was built:
 For MPI-parallel runs, launch CP2K through the MPI launcher used on your system, for example:
 
 ```bash
-mpirun -np 2 cp2k.psmp -i h2o.inp -o h2o.out
+mpirun -np 2 -x OMP_NUM_THREADS=1 cp2k.psmp -i h2o.inp -o h2o.out
 ```
+
+`cp2k.psmp` supports both MPI and OpenMP. Setting `OMP_NUM_THREADS=1` keeps this first example in a
+simple MPI-only layout. To see the output on screen while also saving it, replace `-o h2o.out` with
+`| tee h2o.out`.
 
 ## What the Input Does
 

@@ -34,6 +34,8 @@ Many CP2K basis sets encode their purpose in the name:
 
 - `SZV`, `DZVP`, `TZVP`, `TZV2P`, and `QZVPP` indicate increasing basis quality.
 - `MOLOPT` basis sets are molecularly optimized Gaussian basis sets commonly used with GPW.
+- `SR` indicates short-range MOLOPT variants. They are less diffuse and often more efficient for
+  large condensed-phase systems when the target property does not require diffuse functions.
 - `GTH` basis sets are intended for GTH pseudopotential calculations.
 - `q1`, `q4`, `q6`, and similar suffixes indicate the number of valence electrons represented by the
   matching pseudopotential.
@@ -43,7 +45,9 @@ Many CP2K basis sets encode their purpose in the name:
 For production calculations, use basis sets and pseudopotentials that were designed to work
 together. For example, `DZVP-MOLOPT-GTH` for oxygen is normally paired with `GTH-PBE-q6` in a PBE
 calculation, while UZH protocol basis sets from `BASIS_MOLOPT_UZH` are paired with corresponding
-entries from `POTENTIAL_UZH`.
+entries from `POTENTIAL_UZH`. For new GPW production inputs, these UZH protocol pairs are the
+preferred starting point where available; the older MOLOPT/GTH libraries remain useful for
+compatibility and comparison with established inputs.
 
 ## Basis Set Roles
 
@@ -76,8 +80,10 @@ The method-specific documentation usually states which auxiliary basis is requir
 
 Start with a basis set that is appropriate for the target accuracy, then converge the grid
 parameters. For many routine condensed-phase GPW calculations, double-zeta or triple-zeta MOLOPT
-basis sets are common starting points. Accurate energy differences, weak interactions, response
-properties, and post-Hartree-Fock methods may require larger or more specialized basis sets.
+basis sets are common starting points. For new setups, first check whether a matching UZH protocol
+basis and pseudopotential pair is available. Accurate energy differences, weak interactions,
+response properties, and post-Hartree-Fock methods may require larger or more specialized basis
+sets.
 
 Diffuse basis functions can improve accuracy for molecular anions, excited states, polarizabilities,
 and weak interactions, but they also increase the cost and may make the overlap matrix more

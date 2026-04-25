@@ -46,6 +46,11 @@ The CP2K data directory contains several pseudopotential libraries:
 - `NLCC_POTENTIALS` and `GTH_SOC_POTENTIALS` contain more specialized potentials.
 - `ECP_POTENTIALS` contains effective core potentials for Gaussian integral based calculations.
 
+For new GPW production inputs, prefer a matching UZH protocol pair from `POTENTIAL_UZH` and
+`BASIS_MOLOPT_UZH` when it is available for the element and functional family. The older
+`GTH_POTENTIALS` library remains important for reproducing established calculations and for cases
+where a matching UZH setup is not available.
+
 For all-electron calculations, use `POTENTIAL ALL` together with an all-electron basis set and the
 GAPW method:
 
