@@ -562,9 +562,9 @@ CONTAINS
          my_pos = "APPEND"
       END IF
 
-      CALL qs_print_cubes(qs_env, ncubes, list_cubes, centers, &
+      CALL qs_print_cubes(qs_env, moloc_coeff(ispin), ncubes, list_cubes, centers, &
                           print_key, "loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)), &
-                          mo_coeff=moloc_coeff(ispin), ispin=ispin, file_position=my_pos)
+                          ispin=ispin, file_position=my_pos)
 
       DEALLOCATE (centers)
       DEALLOCATE (list_cubes)

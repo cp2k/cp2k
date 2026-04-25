@@ -2783,10 +2783,9 @@ CONTAINS
             END IF
 
             IF (do_cubes) THEN
-               CALL qs_print_cubes(qs_env, ncubes, state_list, centers, &
-                                   print_key=print_key, root=xas_mittle, &
-                                   mo_coeff=mo_set%mo_coeff, ispin=ispin, &
-                                   file_position=pos)
+               CALL qs_print_cubes(qs_env, mo_set%mo_coeff, ncubes, state_list, centers, &
+                                   print_key, xas_mittle, &
+                                   ispin=ispin, file_position=pos)
             END IF
 
             !clean-up

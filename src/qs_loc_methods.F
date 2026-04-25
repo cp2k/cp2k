@@ -880,16 +880,16 @@ CONTAINS
 !> \note
 !>      This routine should not be in this module
 ! **************************************************************************************************
-   SUBROUTINE qs_print_cubes(qs_env, nstates, state_list, centers, &
-                             print_key, root, mo_coeff, ispin, idir, state0, file_position)
+   SUBROUTINE qs_print_cubes(qs_env, mo_coeff, nstates, state_list, centers, &
+                             print_key, root, ispin, idir, state0, file_position)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nstates
       INTEGER, DIMENSION(:), POINTER                     :: state_list
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       TYPE(section_vals_type), POINTER                   :: print_key
       CHARACTER(LEN=*)                                   :: root
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: mo_coeff
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin, idir
       INTEGER, OPTIONAL                                  :: state0
       CHARACTER(LEN=default_string_length), OPTIONAL     :: file_position
@@ -905,7 +905,6 @@ CONTAINS
       LOGICAL                                            :: add_idir, add_spin, mpi_io
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_ptr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
@@ -918,8 +917,6 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      NULLIFY (auxbas_pw_pool, pw_env, logger, mo_coeff_ptr)
-      IF (PRESENT(mo_coeff)) mo_coeff_ptr => mo_coeff
       logger => cp_get_default_logger()
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
@@ -955,7 +952,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, cell=cell, &
                          dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
 
-         CALL calculate_wavefunction(mo_coeff_ptr, ivector, wf_r, wf_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env)
 
          ! Formatting the middle part of the name
@@ -1026,7 +1023,7 @@ CONTAINS
          squaredmat%local_data = REAL(CONJG(complex_mo_coeff%local_data) &
                                       * complex_mo_coeff%local_data, dp)
       END IF
-      CALL qs_print_cubes(qs_env, nstates, state_list, centers, print_key, root, mo_coeff=squaredmat, &
+      CALL qs_print_cubes(qs_env, squaredmat, nstates, state_list, centers, print_key, root, &
                           ispin=ispin, file_position=file_position)
       CALL cp_fm_release(squaredmat)
 
