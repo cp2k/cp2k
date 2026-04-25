@@ -32,7 +32,7 @@ case "${with_spfft}" in
       if [ "${MATH_MODE}" = "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
       else
-        EXTRA_CMAKE_FLAGS=""
+        EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=OFF -DSPFFT_FFTW_LIB=FFTW"
       fi
 
       [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
