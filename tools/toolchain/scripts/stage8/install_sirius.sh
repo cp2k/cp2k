@@ -74,8 +74,6 @@ case "$with_sirius" in
       fi
       if [ "${MATH_MODE}" == "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON -DSIRIUS_USE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
-      elif [ "${with_scalapack}" != "__DONTUSE__" ]; then
-        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       if [ "${with_tblite}" != "__DONTUSE__" ]; then
         # tblite includes s-dftd3
