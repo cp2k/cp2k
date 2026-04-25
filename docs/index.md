@@ -28,7 +28,6 @@ caption: Methods
 titlesonly:
 maxdepth: 1
 ---
-Methods Overview <methods/index>
 methods/dft/index
 methods/post_hartree_fock/index
 methods/semiempiricals/index

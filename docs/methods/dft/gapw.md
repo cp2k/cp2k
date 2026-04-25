@@ -75,8 +75,8 @@ When setting up a GAPW calculation:
 ## See Also
 
 - [](#Lippert1999)
-- [](#VandeVondele2006)
-- [The CP2K Program Package Made Simple](https://doi.org/10.1021/acs.jpcb.5c05851)
+- [](#Krack2000)
+- [](#Iannuzzi2026)
 
 ```{youtube} L0hKLjvjIFU
 ---

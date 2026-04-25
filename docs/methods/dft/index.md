@@ -28,6 +28,11 @@ cutoffs and the SCF settings for the target property. The pages in this section 
 Quickstep ingredients: GPW/GAPW, hybrid functionals and ADMM, local RI, constraints, k-points, basis
 sets, pseudopotentials, and grid convergence.
 
+## References
+
+- [](#Kühne2020)
+- [](#Iannuzzi2026)
+
 ```{youtube} 3Cw4h3MrZ8k
 ---
 align: center

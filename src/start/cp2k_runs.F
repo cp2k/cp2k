@@ -8,8 +8,9 @@
 ! **************************************************************************************************
 MODULE cp2k_runs
    USE atom,                            ONLY: atom_code
-   USE bibliography,                    ONLY: Hutter2014,&
-                                              cite_reference
+   USE bibliography,                    ONLY: Iannuzzi2026,&
+                                              cite_reference,&
+                                              cp2kqs2020
    USE bsse,                            ONLY: do_bsse_calculation
    USE cell_opt,                        ONLY: cp_cell_opt
    USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
@@ -205,7 +206,8 @@ CONTAINS
 
       NULLIFY (globenv, force_env)
 
-      CALL cite_reference(Hutter2014)
+      CALL cite_reference(Iannuzzi2026)
+      CALL cite_reference(cp2kqs2020)
 
       ! Parse the input
       input_file => read_input(input_declaration, input_file_name, &
