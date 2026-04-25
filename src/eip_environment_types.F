@@ -9,7 +9,7 @@
 !> \brief The environment for the empirical interatomic potential methods.
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE eip_environment_types
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
@@ -78,7 +78,7 @@ MODULE eip_environment_types
 !> \param virial Dummy virial pointer
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    TYPE eip_environment_type
       INTEGER                                          :: eip_model = 0
@@ -104,7 +104,7 @@ CONTAINS
 !> \param eip_env The eip environment to release
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_env_release(eip_env)
 
@@ -162,7 +162,7 @@ CONTAINS
 !>      eip_environment_type
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_env_get(eip_env, eip_model, eip_energy, eip_energy_var, &
                           eip_forces, coord_avg, coord_var, count, subsys, &
@@ -265,7 +265,7 @@ CONTAINS
 !> \param eip_potential_energy The EIP potential energy
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 !> \note
 !>   For possible missing arguments see the attributes of eip_environment_type
 ! **************************************************************************************************
@@ -367,7 +367,7 @@ CONTAINS
 !> \param eip_env The eip environment to be reinitialized
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_env_clear(eip_env)
 
@@ -403,7 +403,7 @@ CONTAINS
 !> \param eip_env The eip environment to be created
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_env_create(eip_env)
 

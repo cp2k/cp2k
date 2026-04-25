@@ -9,14 +9,22 @@
 !> \brief Creates the EIP section of the input
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE input_cp2k_eip
+   USE bibliography,                    ONLY: Bazant1996,&
+                                              Bazant1997,&
+                                              Goedecker2002,&
+                                              Lenosky2000,&
+                                              Stillinger1985,&
+                                              Tersoff1988
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               high_print_level,&
                                               medium_print_level
    USE input_constants,                 ONLY: use_bazant_eip,&
-                                              use_lenosky_eip
+                                              use_lenosky_eip,&
+                                              use_stillinger_weber_eip,&
+                                              use_tersoff_eip
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -44,7 +52,7 @@ CONTAINS
 !> \param section the section to create
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE create_eip_section(section)
       TYPE(section_type), POINTER                        :: section
@@ -58,19 +66,30 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="EIP", &
                           description="This section contains all information to run an "// &
                           "Empirical Interatomic Potential (EIP) calculation.", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=1, repeats=.FALSE., &
+                          citations=[Bazant1996, Bazant1997, Goedecker2002, Lenosky2000, &
+                                     Stillinger1985, Tersoff1988])
 
       NULLIFY (subsection, keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EIP_MODEL", &
-                          description="Selects the empirical interaction potential model", &
+                          description="Selects the empirical interaction potential model. "// &
+                          "EDIP is accepted as an alias of BAZANT and uses the identical "// &
+                          "implementation. EIP is currently supported only for a single "// &
+                          "MPI rank. BAZANT and LENOSKY retain OpenMP parallelization, "// &
+                          "while STILLINGER_WEBER and TERSOFF currently run without "// &
+                          "OpenMP parallelization.", &
                           usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
                           n_var=1, repeats=.FALSE., variants=["EIP-MODEL"], &
-                          enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
-                          enum_i_vals=[use_bazant_eip, use_bazant_eip, use_lenosky_eip], &
+                          enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY", &
+                                          "STILLINGER_WEBER", "TERSOFF"), &
+                          enum_i_vals=[use_bazant_eip, use_bazant_eip, use_lenosky_eip, &
+                                       use_stillinger_weber_eip, use_tersoff_eip], &
                           enum_desc=s2a("Bazant potentials", &
                                         "Environment-Dependent Interatomic Potential", &
-                                        "Lenosky potentials"), &
+                                        "Lenosky potentials", &
+                                        "Stillinger-Weber potentials", &
+                                        "Tersoff potentials"), &
                           default_i_val=use_lenosky_eip)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -86,7 +105,7 @@ CONTAINS
 !> \param section the section to create
 !> \par History
 !>      03.2006 created
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE create_eip_print_section(section)
       TYPE(section_type), POINTER                        :: section

@@ -725,7 +725,9 @@ MODULE input_constants
 
    ! EIP models
    INTEGER, PARAMETER, PUBLIC               :: use_bazant_eip = 1, &
-                                               use_lenosky_eip = 2
+                                               use_lenosky_eip = 2, &
+                                               use_stillinger_weber_eip = 3, &
+                                               use_tersoff_eip = 4
 
    ! ddapc restraint forms
    INTEGER, PARAMETER, PUBLIC               :: do_ddapc_restraint = 773, &

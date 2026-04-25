@@ -9,7 +9,7 @@
 !> \brief Methods and functions on the EIP environment
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE eip_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -60,7 +60,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_init(eip_env, root_section, para_env, force_env_section, &
                        subsys_section)
@@ -107,7 +107,7 @@ CONTAINS
 !> \param subsys_section ...
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_init_subsys(eip_env, subsys, subsys_section)
       TYPE(eip_environment_type), POINTER                :: eip_env
@@ -186,7 +186,7 @@ CONTAINS
 !> \param eip_env The eip environment to retain
 !> \par History
 !>      03.2006 initial create [tdk]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
    SUBROUTINE eip_init_model(eip_env)
       TYPE(eip_environment_type), POINTER                :: eip_env

@@ -44,7 +44,8 @@ MODULE bibliography
                             VandeVondele2007, Ortiz1994, Becke1988, Perdew1996, Zhang1998, &
                             Perdew2008, Lee1988, Heyd2006, Vydrov2006, Heyd2003, Heyd2004, &
                             Vosko1980, Aguado2003, Essmann1995, Ewald1921, Darden1993, &
-                            Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000, &
+                            Bazant1996, Bazant1997, Goedecker2002, Lenosky2000, Siepmann1995, &
+                            Stillinger1985, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000, &
                             Dudarev1997, Dudarev1998, Dewar1977, Dewar1985, Rocha2006, &
                             Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008, &
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
@@ -327,11 +328,42 @@ CONTAINS
                          source="J. Phys. Chem. Solids", volume="25", pages="45-52", &
                          year=1964, doi="10.1016/0022-3697(64)90160-X")
 
+      CALL add_reference(key=Stillinger1985, &
+                         authors=s2a("F. H. Stillinger", "T. A. Weber"), &
+                         title="Computer simulation of local order in condensed phases of silicon", &
+                         source="Phys. Rev. B", volume="31", pages="5262-5271", &
+                         year=1985, doi="10.1103/PhysRevB.31.5262")
+
       CALL add_reference(key=Tersoff1988, &
                          authors=s2a("J. Tersoff"), &
                          title="Empirical interatomic potential for silicon with improved elastic properties", &
                          source="Phys. Rev. B", volume="38", pages="9902-9905", &
                          year=1988, doi="10.1103/PhysRevB.38.9902")
+
+      CALL add_reference(key=Bazant1996, &
+                         authors=s2a("M. Z. Bazant", "E. Kaxiras"), &
+                         title="Modeling of covalent bonding in solids by inversion of cohesive energy curves", &
+                         source="Phys. Rev. Lett.", volume="77", pages="4370-4373", &
+                         year=1996, doi="10.1103/PhysRevLett.77.4370")
+
+      CALL add_reference(key=Bazant1997, &
+                         authors=s2a("M. Z. Bazant", "E. Kaxiras", "J. F. Justo"), &
+                         title="Environment-dependent interatomic potential for bulk silicon", &
+                         source="Phys. Rev. B", volume="56", pages="8542-8552", &
+                         year=1997, doi="10.1103/PhysRevB.56.8542")
+
+      CALL add_reference(key=Lenosky2000, &
+                         authors=s2a("T. J. Lenosky", "B. Sadigh", "E. Alonso", "V. V. Bulatov", &
+                                     "T. Diaz de la Rubia", "J. Kim", "A. F. Voter", "J. D. Kress"), &
+                         title="Highly optimized empirical potential model of silicon", &
+                         source="Model. Simul. Mater. Sci. Eng.", volume="8", pages="825-841", &
+                         year=2000, doi="10.1088/0965-0393/8/6/305")
+
+      CALL add_reference(key=Goedecker2002, &
+                         authors=s2a("S. Goedecker"), &
+                         title="Optimization and parallelization of a force field for silicon using OpenMP", &
+                         source="Comput. Phys. Commun.", volume="148", pages="124-135", &
+                         year=2002, doi="10.1016/S0010-4655(02)00466-6")
 
       CALL add_reference(key=Siepmann1995, &
                          authors=s2a("J. I. Siepmann", "M. Sprik"), &
