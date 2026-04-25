@@ -12,6 +12,12 @@
 !> \author Thomas D. Kuehne (tkuehne@cp2k.org)
 ! **************************************************************************************************
 MODULE input_cp2k_eip
+   USE bibliography,                    ONLY: Bazant1996,&
+                                              Bazant1997,&
+                                              Goedecker2002,&
+                                              Lenosky2000,&
+                                              Stillinger1985,&
+                                              Tersoff1988
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               high_print_level,&
                                               medium_print_level
@@ -60,7 +66,9 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="EIP", &
                           description="This section contains all information to run an "// &
                           "Empirical Interatomic Potential (EIP) calculation.", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=1, repeats=.FALSE., &
+                          citations=[Bazant1996, Bazant1997, Goedecker2002, Lenosky2000, &
+                                     Stillinger1985, Tersoff1988])
 
       NULLIFY (subsection, keyword)
 
