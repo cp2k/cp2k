@@ -74,7 +74,4 @@
 "ND3_meta_welltemp.inp"                 = [{matcher="E_total", tol=2e-14, ref=-11.80921591725154}]
 # gapw + npt
 "H2O-gapw.inp"                          = [{matcher="E_total", tol=3e-14, ref=-17.138804316237351}]
-# keep_volume for cell_opt
-"quartz-kv.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-107.70387055880444}]
-"quartz-kv-ks.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-107.70392333887267}]
 #EOF

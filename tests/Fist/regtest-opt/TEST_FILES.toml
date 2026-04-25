@@ -58,4 +58,7 @@
 "cell_opt_constraint_none.inp"          = [{matcher="M011", tol=1.0E-10, ref=-1210.562919201514887}]
 "cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}]
 "cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
+# Cell optimisation with fixed volume
+"cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.136338299528141}]
+"cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.136338299344466}]
 #EOF

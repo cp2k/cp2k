@@ -5,5 +5,4 @@
 #      for details see cp2k/tools/do_regtest
 "copper.inp"                            = [{matcher="M093", tol=0, ref=225}]
 "quartz.inp"                            = [{matcher="M093", tol=0, ref=154}]
-"quartz-kv-ksg.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-107.70393571049345}]
 #EOF
