@@ -13,14 +13,19 @@
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER) &&                         \
     !defined(__INTEL_LLVM_COMPILER) && __GNUC__ < 6
 #define GRID_PRAGMA_SIMD(OBJS, N)
+#define GRID_PRAGMA_SIMD_LOOP
 // Intel added the simd pragma with version 19.00.
 #elif defined(__INTEL_COMPILER) && __INTEL_COMPILER < 1900
 #define GRID_PRAGMA_SIMD(OBJS, N)
+#define GRID_PRAGMA_SIMD_LOOP
 // All compilers support the same syntax defined by the OpenMP standard.
 #else
 #define GRID_PRAGMA_SIMD(OBJS, N)                                              \
   _Pragma(GRID_STRINGIFY(omp simd linear OBJS simdlen(N)))
+#define GRID_PRAGMA_SIMD_LOOP _Pragma(GRID_STRINGIFY(omp simd))
 #endif
+
+#define GRID_OMP_MIN_ITERATIONS 1024
 
 // GCC added the unroll pragma with version 8 and...
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER) &&                         \
