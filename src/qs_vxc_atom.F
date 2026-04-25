@@ -2679,9 +2679,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dgaVtaudgb'
 
       INTEGER                                            :: dir, handle, ipgf, iset, iso, ispin, &
-                                                            jpgf, jset, jso, l, maxso, na, nr, &
-                                                            nset, starti, startj
+                                                            iterm, jpgf, jset, jso, l, maxso, na, &
+                                                            nr, nset, nterm, starti, startj
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gexp
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fga, fgr, r1, r2, work
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: a1, a2, intso_h, intso_s
       REAL(dp), DIMENSION(:, :), POINTER                 :: slm, zet
@@ -2702,6 +2703,7 @@ CONTAINS
 
       ! Separate the functions into purely r and purely angular parts and precompute them all
       ! Not memory intensive since 1D arrays
+      ALLOCATE (gexp(nr))
       ALLOCATE (a1(na, nset*maxso, 3), a2(na, nset*maxso, 3))
       ALLOCATE (r1(nr, nset*maxso), r2(nr, nset*maxso))
       a1 = 0.0_dp; a2 = 0.0_dp
@@ -2710,6 +2712,7 @@ CONTAINS
       DO iset = 1, nset
          DO ipgf = 1, npgf(iset)
             starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+            gexp(1:nr) = EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
             DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                l = indso(1, iso)
 
@@ -2717,11 +2720,11 @@ CONTAINS
                ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm *  d/dx(exp-al*r^2)
 
                ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y,z)
-               r1(1:nr, starti + iso) = grid_atom%rad(1:nr)**(l - 1)*EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+               r1(1:nr, starti + iso) = grid_atom%rad(1:nr)**(l - 1)*gexp(1:nr)
 
                ! the purely radial part of r^l Y_lm * d/dx(exp-al*r^2) (same for y,z)
-               r2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(1:nr)**(l + 1) &
-                                        *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+               r2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad2(1:nr)* &
+                                        r1(1:nr, starti + iso)
 
                DO dir = 1, 3
                   ! the purely angular part of d/dx(r^l Y_lm) * exp(-al*r^2)
@@ -2735,14 +2738,13 @@ CONTAINS
          END DO !ipgf
       END DO !iset
 
-      !Do the integration in terms of matrix-matrix multiplications
       ALLOCATE (intso_h(nset*maxso, nset*maxso, nspins))
       ALLOCATE (intso_s(nset*maxso, nset*maxso, nspins))
       intso_h = 0.0_dp; intso_s = 0.0_dp
 
-      ALLOCATE (fga(na, 1))
-      ALLOCATE (fgr(nr, 1))
-      ALLOCATE (work(na, 1))
+      ALLOCATE (fga(na, 12))
+      ALLOCATE (fgr(nr, 12))
+      ALLOCATE (work(na, 12))
       fga = 0.0_dp; fgr = 0.0_dp; work = 0.0_dp
 
       DO iset = 1, nset
@@ -2755,79 +2757,48 @@ CONTAINS
                   DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
                      DO jso = nsoset(lmin(jset) - 1) + 1, nsoset(lmax(jset))
 
-                        !Two component per function => 4 terms in total
-
-                        ! take 0.5*r1*a1(dir) * V * r1*a1(dir)
-                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                        nterm = 0
                         DO dir = 1, 3
-                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
-
-                           DO ispin = 1, nspins
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_h(starti + iso:, startj + jso, ispin), 1)
-
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_s(starti + iso:, startj + jso, ispin), 1)
-                           END DO
+                           nterm = nterm + 1
+                           fgr(1:nr, nterm) = r1(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                           fga(1:na, nterm) = a1(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
                         END DO !dir
 
-                        ! add 0.5*r1*a1(dir) * V * r2*a2(dir)
-                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
                         DO dir = 1, 3
-                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
-
-                           DO ispin = 1, nspins
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_h(starti + iso:, startj + jso, ispin), 1)
-
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_s(starti + iso:, startj + jso, ispin), 1)
-                           END DO
+                           nterm = nterm + 1
+                           fgr(1:nr, nterm) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                           fga(1:na, nterm) = a1(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
                         END DO !dir
 
-                        ! add 0.5*r2*a2(dir) * V * r1*a1(dir)
-                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
                         DO dir = 1, 3
-                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
-
-                           DO ispin = 1, nspins
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_h(starti + iso:, startj + jso, ispin), 1)
-
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_s(starti + iso:, startj + jso, ispin), 1)
-                           END DO
+                           nterm = nterm + 1
+                           fgr(1:nr, nterm) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                           fga(1:na, nterm) = a2(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
                         END DO !dir
 
-                        ! add the last term: 0.5*r2*a2(dir) * V * r2*a2(dir)
-                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
                         DO dir = 1, 3
-                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
-
-                           DO ispin = 1, nspins
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_h(starti + iso:, startj + jso, ispin), 1)
-
-                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
-                                         nr, 0.0_dp, work, na)
-                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
-                                         intso_s(starti + iso:, startj + jso, ispin), 1)
-                           END DO
+                           nterm = nterm + 1
+                           fgr(1:nr, nterm) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                           fga(1:na, nterm) = a2(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
                         END DO !dir
+
+                        DO ispin = 1, nspins
+                           CALL dgemm('N', 'N', na, nterm, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
+                                      nr, 0.0_dp, work, na)
+                           DO iterm = 1, nterm
+                              intso_h(starti + iso, startj + jso, ispin) = &
+                                 intso_h(starti + iso, startj + jso, ispin) + &
+                                 SUM(work(1:na, iterm)*fga(1:na, iterm))
+                           END DO
+
+                           CALL dgemm('N', 'N', na, nterm, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
+                                      nr, 0.0_dp, work, na)
+                           DO iterm = 1, nterm
+                              intso_s(starti + iso, startj + jso, ispin) = &
+                                 intso_s(starti + iso, startj + jso, ispin) + &
+                                 SUM(work(1:na, iterm)*fga(1:na, iterm))
+                           END DO
+                        END DO
 
                      END DO !jso
                   END DO !iso
@@ -2842,6 +2813,8 @@ CONTAINS
          int_hh(ispin)%r_coef(:, :) = int_hh(ispin)%r_coef(:, :) + intso_h(:, :, ispin)
          int_ss(ispin)%r_coef(:, :) = int_ss(ispin)%r_coef(:, :) + intso_s(:, :, ispin)
       END DO
+
+      DEALLOCATE (a1, a2, fga, fgr, gexp, intso_h, intso_s, r1, r2, work)
 
       CALL timestop(handle)
 
