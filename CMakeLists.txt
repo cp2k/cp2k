@@ -183,8 +183,6 @@ cmake_dependent_option(
   "CP2K_USE_SIRIUS" OFF)
 cmake_dependent_option(CP2K_USE_SIRIUS_NLCG "Enable nlcg method in SIRIUS" OFF
                        "CP2K_USE_SIRIUS" OFF)
-cmake_dependent_option(CP2K_USE_SpFFT "Enable spare FFT in SIRIUS" OFF
-                       "CP2K_USE_SIRIUS" OFF)
 
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
