@@ -206,8 +206,8 @@ CONTAINS
 
       NULLIFY (globenv, force_env)
 
-      CALL cite_reference(Iannuzzi2026)
       CALL cite_reference(cp2kqs2020)
+      CALL cite_reference(Iannuzzi2026)
 
       ! Parse the input
       input_file => read_input(input_declaration, input_file_name, &
