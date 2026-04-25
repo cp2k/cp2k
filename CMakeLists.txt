@@ -175,9 +175,9 @@ cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
 
 # do not turn it on if sirius is built with the toolchain
 cmake_dependent_option(CP2K_USE_SIRIUS_DFTD3 "Enable dftd3 sirius support" OFF
-  "CP2K_USE_SIRIUS" OFF)
+                       "CP2K_USE_SIRIUS" OFF)
 cmake_dependent_option(CP2K_USE_SIRIUS_DFTD4 "Enable dftd4 sirius support" OFF
-  "CP2K_USE_SIRIUS" OFF)
+                       "CP2K_USE_SIRIUS" OFF)
 cmake_dependent_option(
   CP2K_USE_SIRIUS_VCSQNM "Enable variable cell shape relaxation in SIRIUS" OFF
   "CP2K_USE_SIRIUS" OFF)

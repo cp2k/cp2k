@@ -69,7 +69,7 @@ case "$with_sirius" in
       rm -Rf build
       mkdir build
       cd build
-      if [ "${with_elpa}" != "__DONTUSE__" ] ; then
+      if [ "${with_elpa}" != "__DONTUSE__" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_ELPA=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       if [ "${MATH_MODE}" == "mkl" ]; then
