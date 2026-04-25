@@ -135,6 +135,7 @@ CONTAINS
       LOGICAL                                            :: dista, distb, found, is_entry_null, &
                                                             is_task_valid, my_tddft, paw_atom, &
                                                             use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_intac, paw_kind
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
@@ -271,13 +272,19 @@ CONTAINS
       END ASSOCIATE
 
       ALLOCATE (basis_set_list(nkind))
+      ALLOCATE (paw_kind(nkind), has_intac(nkind*nkind))
+      paw_kind(:) = .FALSE.
+      has_intac(:) = .FALSE.
       DO ikind = 1, nkind
-         CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_set_a)
+         CALL get_qs_kind(my_kind_set(ikind), basis_set=basis_set_a, paw_atom=paw_kind(ikind))
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
+      END DO
+      DO ikind = 1, nkind*nkind
+         has_intac(ikind) = ASSOCIATED(my_oce%intac(ikind)%alist)
       END DO
 
       ! build the hash table in serial...
@@ -309,6 +316,7 @@ CONTAINS
 !$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
 !$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
 !$OMP                 , atom_of_kind, ldCPC, force, locks, force_fac &
+!$OMP                 , paw_kind, has_intac                          &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
@@ -317,7 +325,7 @@ CONTAINS
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
 !$OMP                 , found, next_task                             &
-!$OMP                 , kkind, paw_atom, lock_num                    &
+!$OMP                 , kkind, lock_num                              &
 !$OMP                 , iac, alist_ac, kac, n_cont_a, list_a         &
 !$OMP                 , ibc, alist_bc, kbc, n_cont_b, list_b         &
 !$OMP                 , katom, rho_at, nsoctot                       &
@@ -411,14 +419,12 @@ CONTAINS
                END DO
 
                DO kkind = 1, nkind
-                  CALL get_qs_kind(my_kind_set(kkind), paw_atom=paw_atom)
-
-                  IF (.NOT. paw_atom) CYCLE
+                  IF (.NOT. paw_kind(kkind)) CYCLE
 
                   iac = ikind + nkind*(kkind - 1)
                   ibc = jkind + nkind*(kkind - 1)
-                  IF (.NOT. ASSOCIATED(my_oce%intac(iac)%alist)) CYCLE
-                  IF (.NOT. ASSOCIATED(my_oce%intac(ibc)%alist)) CYCLE
+                  IF (.NOT. has_intac(iac)) CYCLE
+                  IF (.NOT. has_intac(ibc)) CYCLE
 
                   CALL get_alist(my_oce%intac(iac), alist_ac, iatom)
                   CALL get_alist(my_oce%intac(ibc), alist_bc, jatom)
@@ -570,7 +576,7 @@ CONTAINS
 
       CALL nl_hash_table_release(nl_hash_table)
 
-      DEALLOCATE (basis_set_list)
+      DEALLOCATE (basis_set_list, paw_kind, has_intac)
 
       CALL timestop(handle)
 

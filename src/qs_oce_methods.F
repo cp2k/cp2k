@@ -524,6 +524,7 @@ CONTAINS
                                                             nprjla, nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: local, paw_atom_b, sgf_soft_only
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_1c_basis, has_orb_basis, paw_kind
       REAL(KIND=dp)                                      :: dab, rcprj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
@@ -564,6 +565,21 @@ CONTAINS
             intac(i)%nalist = 0
          END DO
 
+         ALLOCATE (has_orb_basis(nkind), paw_kind(nkind), has_1c_basis(nkind))
+         has_orb_basis(:) = .FALSE.
+         paw_kind(:) = .FALSE.
+         has_1c_basis(:) = .FALSE.
+         DO ikind = 1, nkind
+            NULLIFY (orb_basis_set)
+            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=orb_basis_set)
+            has_orb_basis(ikind) = ASSOCIATED(orb_basis_set)
+            NULLIFY (paw_proj_b)
+            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), paw_proj_set=paw_proj_b, paw_atom=paw_kind(ikind))
+            NULLIFY (orb_basis_paw)
+            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=orb_basis_paw, basis_type="GAPW_1C")
+            has_1c_basis(ikind) = ASSOCIATED(orb_basis_paw)
+         END DO
+
          ! Allocate memory list
          DO slot = 1, sap_oce(1)%nl_size
             ikind = sap_oce(1)%nlist_task(slot)%ikind
@@ -575,15 +591,9 @@ CONTAINS
 
             iac = ikind + nkind*(jkind - 1)
 
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set)
-            IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
-            qs_kind => qs_kind_set(jkind)
-            NULLIFY (paw_proj_b)
-            CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj_b, paw_atom=paw_atom_b)
-            IF (.NOT. paw_atom_b) CYCLE
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_paw, basis_type="GAPW_1C")
-            IF (.NOT. ASSOCIATED(orb_basis_paw)) CYCLE
+            IF (.NOT. has_orb_basis(ikind)) CYCLE
+            IF (.NOT. paw_kind(jkind)) CYCLE
+            IF (.NOT. has_1c_basis(jkind)) CYCLE
             IF (.NOT. ASSOCIATED(intac(iac)%alist)) THEN
                intac(iac)%a_kind = ikind
                intac(iac)%p_kind = jkind
@@ -607,7 +617,8 @@ CONTAINS
 
          !calculate the overlap integrals <a|p>
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (intac, ldsab, ldai, nder, nkind, maxder, ncoset, sap_oce, qs_kind_set, eps_fit) &
+!$OMP SHARED (intac, ldsab, ldai, nder, nkind, maxder, ncoset, sap_oce, qs_kind_set, eps_fit, &
+!$OMP         has_orb_basis, paw_kind, has_1c_basis, maxsgf) &
 !$OMP PRIVATE (sab, work, ai_work, oceh, oces, slot, ikind, jkind, atom_a, atom_b, ilist, jneighbor, rab, cell_b, &
 !$OMP          iac, dab, qs_kind, orb_basis_set, first_sgfa, la_max, la_min, ncoa_sum, maxsoa, npgfa, nseta, &
 !$OMP          nsgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta, paw_proj_b, paw_atom_b, orb_basis_paw, &
@@ -619,6 +630,7 @@ CONTAINS
          ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
          ai_work = 0.0_dp
          ALLOCATE (oceh(maxder), oces(maxder))
+         ALLOCATE (sgf_list(maxsgf))
 
 !$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sap_oce(1)%nl_size
@@ -633,6 +645,10 @@ CONTAINS
 
             iac = ikind + nkind*(jkind - 1)
             dab = SQRT(SUM(rab*rab))
+
+            IF (.NOT. has_orb_basis(ikind)) CYCLE
+            IF (.NOT. paw_kind(jkind)) CYCLE
+            IF (.NOT. has_1c_basis(jkind)) CYCLE
 
             qs_kind => qs_kind_set(ikind)
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set)
@@ -683,8 +699,6 @@ CONTAINS
             clist%maxac = 0.0_dp
             clist%maxach = 0.0_dp
             NULLIFY (clist%acint, clist%achint, clist%sgf_list)
-
-            ALLOCATE (sgf_list(nsgfa))
 
             at_a => qs_kind_set(jkind)
             at_b => qs_kind_set(ikind)
@@ -741,16 +755,17 @@ CONTAINS
                END DO
             END IF
 
-            DEALLOCATE (sgf_list)
-
          END DO
 
          DEALLOCATE (sab, work, ai_work)
+         DEALLOCATE (sgf_list)
          DEALLOCATE (oceh, oces)
 !$OMP END PARALLEL
 
          ! Setup sort index
          CALL sap_sort(intac)
+
+         DEALLOCATE (has_orb_basis, paw_kind, has_1c_basis)
 
       END IF
 
