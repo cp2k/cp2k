@@ -1533,9 +1533,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TDDFPT", &
-                          description="Parameters needed to set up the Time-Dependent "// &
-                          "Density Functional Perturbation Theory. "// &
-                          "Current implementation works for hybrid functionals. ", &
+                          description="Controls time-dependent density functional perturbation theory "// &
+                          "(TDDFPT) calculations for electronic excitations and related properties.", &
                           n_keywords=14, n_subsections=4, repeats=.FALSE., &
                           citations=[Iannuzzi2005, Hanasaki2025, Hernandez2025])
 
@@ -1543,7 +1542,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
-                          description="Controls the activation of the TDDFPT procedure", &
+                          description="Activates the TDDFPT procedure.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1582,7 +1581,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC_STATE", &
                           description="Number of MPI processes to be used per excited state. "// &
-                          "Default is to use all processors (0).", &
+                          "Default is to use all MPI processes (0).", &
                           n_var=1, type_of_var=integer_t, &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)

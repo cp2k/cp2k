@@ -71,9 +71,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xas", &
-                          description="Sets the method of choice to calculate core-level excitation spectra. "// &
-                          "The occupied states from  which we calculate the "// &
-                          "excitation should be specified. "// &
+                       description="Controls transition-potential and delta-SCF calculations of core-level excitation spectra. "// &
+                          "The occupied states from which the excitations are calculated should be specified. "// &
                           "Localization of the orbitals may be useful.", &
                           n_keywords=10, n_subsections=1, repeats=.FALSE., &
                           citations=[Iannuzzi2007])
@@ -381,7 +380,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="XAS_TDP", &
                           description="XAS simulations using linear-response TDDFT. Excitation from "// &
-                          "specified core orbitals are considered one at a time. In case of high "// &
+                          "specified core orbitals is considered one at a time. In case of high "// &
                           "symmetry structures, donor core orbitals should be localized.", &
                           n_keywords=19, n_subsections=4, repeats=.FALSE.)
 
@@ -423,7 +422,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="EXCITATIONS", &
                           variants=["EXCITATION"], &
                           description="Specify the type of excitation to consider. In case of a "// &
-                          "resctricted closed-shell ground state calculation, "// &
+                          "restricted closed-shell ground state calculation, "// &
                           "RCS_SINGLET or/and RCS_TRIPLET can be chosen. In case of a "// &
                           "open-shell ground state calculation (either UKS or ROKS), "// &
                           "standard spin conserving excitation (OS_SPIN_CONS) or/and "// &
@@ -442,7 +441,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_PGF_XAS", &
                           variants=s2a("EPS_PGF", "EPS_PGF_XAS_TDP"), &
-                          description="The threshold used to determine the spacial extent of all "// &
+                          description="The threshold used to determine the spatial extent of all "// &
                           "primitive Gaussian functions used for the construction "// &
                           "of neighbor lists in the XAS_TDP method. "// &
                           "By default, takes the value of QS%EPS_PGF_ORB. Useful if "// &
@@ -865,7 +864,7 @@ CONTAINS
                           description="A threshold to determine which primitive 3-center integrals "// &
                           "are kept for contraction, as the latter operation can be "// &
                           "expensive (especially for large basis sets ). "// &
-                          "If |(ab|c)| < EPS_SCREENNING, it is discarded.", &
+                          "If |(ab|c)| < EPS_SCREENING, it is discarded.", &
                           default_r_val=1.0E-8_dp, &
                           repeats=.FALSE.)
       CALL section_add_keyword(subsubsection, keyword)
@@ -957,7 +956,7 @@ CONTAINS
                           "XAS TDP calculations", repeats=.FALSE.)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
-                                       description="Controles the dumping of the XAS TDP spectrum in output files", &
+                                       description="Controls the dumping of the XAS TDP spectrum in output files", &
                                        print_level=low_print_level, filename="", common_iter_levels=3)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)

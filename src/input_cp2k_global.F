@@ -390,8 +390,8 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="RUN_TYPE", &
-         description="Type of run that you want to perform Geometry "// &
-         "optimization, md, montecarlo,...", &
+         description="Selects the top-level task CP2K should run, such as an energy, "// &
+         "energy-and-force, molecular dynamics, geometry optimization, or response calculation.", &
          usage="RUN_TYPE MD", &
          default_i_val=energy_force_run, &
          citations=[Ceriotti2014, Schonherr2014], &

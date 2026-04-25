@@ -61,7 +61,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RESP", &
-                          description="Requests a RESP fit of charges. When using a periodic "// &
+                          description="Requests a restrained electrostatic potential (RESP) fit of atomic charges. "// &
+                          "When using a periodic "// &
                           "Poisson solver and a periodic cell, the periodic RESP routines are "// &
                           "used. If the Hartree potential matches with the one of an isolated "// &
                           "system (i.e. isolated Poisson solver and big, nonperiodic cells), "// &

@@ -95,22 +95,23 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="qmmm", &
-                          description="Input for QM/MM calculations.", &
+                          description="Controls QM/MM calculations, including mechanical, electrostatic, "// &
+                          "Gaussian-expanded, and periodic embedding options.", &
                           n_keywords=6, n_subsections=3, repeats=.FALSE., &
                           citations=[Laino2005, Laino2006])
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="E_COUPL", &
                           variants=s2a("QMMM_COUPLING", "ECOUPL"), &
-                          description="Specifies the type of the QM - MM electrostatic coupling.", &
+                          description="Selects the QM-MM coupling model used for the electrostatic interaction.", &
                           usage="E_COUPL GAUSS", &
                           enum_c_vals=s2a("NONE", "COULOMB", "GAUSS", "S-WAVE", "POINT_CHARGE"), &
                           enum_i_vals=[do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave, do_qmmm_pcharge], &
                           enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
                                         "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW", &
-                                        "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r) "// &
+                                        "Using fast Gaussian expansion of the electrostatic potential (Erf(r/rc)/r) "// &
                                         "- not available for DFTB.", &
-                                        "Using fast gaussian expansion of the s-wave electrostatic potential", &
+                                        "Using fast Gaussian expansion of the s-wave electrostatic potential", &
                                         "Using quantum mechanics derived point charges interacting with MM charges"), &
                           default_i_val=do_qmmm_none)
       CALL section_add_keyword(section, keyword)

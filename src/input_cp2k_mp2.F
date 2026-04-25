@@ -82,8 +82,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="WF_CORRELATION", &
-                          description="Sets up the wavefunction-based correlation methods as MP2, "// &
-                          "RI-MP2, RI-SOS-MP2, RI-RPA and GW (inside RI-RPA). ", &
+                          description="Controls wavefunction-based correlation methods such as MP2, "// &
+                          "RI-MP2, RI-SOS-MP2, RI-RPA, and GW inside RI-RPA.", &
                           n_keywords=4, n_subsections=7, repeats=.TRUE., &
                           citations=[DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, &
                                      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, &
@@ -94,7 +94,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="MEMORY", &
-         description="Maximum allowed total memory usage during MP2 methods [MiB].", &
+         description="Maximum allowed total memory usage during MP2 and related WF_CORRELATION methods [MiB].", &
          usage="MEMORY 1500 ", &
          default_r_val=1.024E+3_dp)
       CALL section_add_keyword(section, keyword)
@@ -228,13 +228,13 @@ CONTAINS
          keyword, __LOCATION__, &
          name="METHOD", &
          citations=[DelBen2012, DelBen2013], &
-         description="Method that is used to compute the MP2 energy.", &
+         description="Selects the implementation used to compute the canonical MP2 energy.", &
          usage="METHOD MP2_GPW", &
          enum_c_vals=s2a("NONE", "DIRECT_CANONICAL", "MP2_GPW"), &
          enum_i_vals=[mp2_method_none, mp2_method_direct, mp2_method_gpw], &
          enum_desc=s2a("Skip MP2 calculation.", &
-                       "Use the direct mp2 canonical approach.", &
-                       "Use the GPW approach to MP2."), &
+                       "Use the direct canonical MP2 approach.", &
+                       "Use the GPW approach to MP2 integrals."), &
          default_i_val=mp2_method_direct)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -269,7 +269,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Putting the &RI_MP2 section activates RI-MP2 calculation.", &
+                          description="Activates an RI-MP2 calculation.", &
                           usage="&RI_MP2 .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -512,13 +512,13 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_RPA", &
-                          description="Parameters influencing RI-RPA and GW.", &
+                          description="Controls RI-RPA and GW calculations.", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE., &
                           citations=[DelBen2013, DelBen2015])
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Putting the &RI_RPA section activates RI-RPA calculation.", &
+                          description="Activates an RI-RPA calculation.", &
                           usage="&RI_RPA .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -543,7 +543,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE_POINTS", &
                           variants=["RPA_NUM_QUAD_POINTS"], &
-                          description="Number of quadrature points for the numerical integration in the RI-RPA method.", &
+                          description="Number of quadrature points for the RI-RPA numerical integration.", &
                           usage="QUADRATURE_POINTS 60", &
                           default_i_val=40)
       CALL section_add_keyword(section, keyword)
@@ -575,8 +575,8 @@ CONTAINS
          keyword, __LOCATION__, &
          name="MINIMAX_QUADRATURE", &
          variants=["MINIMAX"], &
-         description="Use the Minimax quadrature scheme for performing the numerical integration. "// &
-         "Maximum number of quadrature point limited to 20.", &
+         description="Use the Minimax quadrature scheme for the numerical integration. "// &
+         "It usually needs fewer quadrature points than Clenshaw-Curtis but is limited to 20 points.", &
          usage="MINIMAX_QUADRATURE", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -597,11 +597,10 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="ADMM", &
-         description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
+         description="Decide whether to use ADMM in the exact-exchange calculation for RPA and/or GW. "// &
          "The ADMM XC correction is governed by the AUXILIARY_DENSITY_MATRIX_METHOD section in &DFT. "// &
-         "In most cases, the Hartree-Fock exchange is not too expensive and there is no need for ADMM, "// &
-         "ADMM can however provide significant speedup and memory savings in case of diffuse basis sets. "// &
-         "If it is a GW bandgap calculations, RI_SIGMA_X can also be used. ", &
+         "ADMM can provide significant speedup and memory savings, especially with diffuse basis sets. "// &
+         "For GW band-gap calculations, RI_SIGMA_X can also be used. ", &
          usage="ADMM", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
