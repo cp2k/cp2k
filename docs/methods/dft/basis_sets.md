@@ -100,4 +100,4 @@ For a simple tested example, see [](../../getting-started/first-calculation).
 - <https://www.cp2k.org/basis_sets>
 - <https://www.cp2k.org/tools:cp2k-basis>
 - [](#VandeVondele2007)
-- [The CP2K Program Package Made Simple](https://doi.org/10.1021/acs.jpcb.5c05851)
+- [](#Iannuzzi2026)

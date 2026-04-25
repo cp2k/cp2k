@@ -88,7 +88,7 @@ When using ADMM:
 - [](#Guidon2009)
 - [](#Guidon2010)
 - [](#Merlot2014)
-- [The CP2K Program Package Made Simple](https://doi.org/10.1021/acs.jpcb.5c05851)
+- [](#Iannuzzi2026)
 
 ```{youtube} snG4fbpI0_g
 ---

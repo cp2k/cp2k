@@ -37,7 +37,7 @@ e -- "Integrate"        --> f
 - <https://www.cp2k.org/gpw>
 - <https://www.cp2k.org/quickstep>
 - [](#Lippert1997)
-- [](#Kühne2020)
+- [](#K%C3%BChne2020)
 
 ```{youtube} v2vnZbhNEpw
 ---

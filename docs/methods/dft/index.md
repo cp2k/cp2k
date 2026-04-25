@@ -30,7 +30,7 @@ sets, pseudopotentials, and grid convergence.
 
 ## References
 
-- [](#Kühne2020)
+- [](#K%C3%BChne2020)
 - [](#Iannuzzi2026)
 
 ```{youtube} 3Cw4h3MrZ8k

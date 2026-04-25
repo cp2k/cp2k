@@ -82,4 +82,4 @@ For a tested minimal GPW input using GTH pseudopotentials, see
 - [](#Goedecker1996)
 - [](#Hartwigsen1998)
 - [](#Krack2005)
-- [The CP2K Program Package Made Simple](https://doi.org/10.1021/acs.jpcb.5c05851)
+- [](#Iannuzzi2026)

@@ -133,8 +133,7 @@ is spent in grid operations, sparse matrix operations, diagonalization, or commu
   [](../methods/dft/pseudopotentials)
 - Build or install CP2K: [](build-from-source), [](build-with-spack), [](distributions)
 - Explore more complete examples: <https://github.com/cp2k/cp2k-examples>
-- Read the practical CP2K overview paper:
-  [The CP2K Program Package Made Simple](https://doi.org/10.1021/acs.jpcb.5c05851)
+- Read the practical CP2K overview paper: [](#Iannuzzi2026)
 
 ```{youtube} qMR-NAaUheg
 ---
