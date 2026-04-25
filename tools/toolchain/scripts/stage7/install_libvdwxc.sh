@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 libvdwxc_ver="0.5.0"
-libvdwxc_sha256="283321723afe70de7bd718533bda00fe719b97da13d91a9837a99bbe268603f1"
+libvdwxc_sha256="29fb70efd58aff51524d2172a87e8f88e760b696b0ddb9aa5878432bdffa3c2f"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -37,12 +37,11 @@ case "$with_libvdwxc" in
       echo "libvdwxc-${libvdwxc_ver} is already installed, skipping it."
     else
       #retrieve_package "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
-      download_pkg_from_urlpath "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz" https://gitlab.com/libvdwxc/libvdwxc/-/archive/0.5.0
+      download_pkg_from_urlpath "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz" https://launchpad.net/libvdwxc/stable/0.5.0/+download
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz
       cd libvdwxc-${libvdwxc_ver}
-      ./autogen.sh > autogen.log 2>&1 || tail_excerpt autogen.log
 
       if [ "$(uname -s)" = "Darwin" ]; then
         LDFLAGS="${LDFLAGS} -ld_classic"
