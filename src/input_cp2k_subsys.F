@@ -1186,9 +1186,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL", &
                           variants=["POT"], &
-                          description="Selects the potential for this kind. Use GTH potentials for most GPW calculations, "// &
-                          "ECP for Gaussian-integral effective core potentials, and ALL for all-electron calculations.", &
-                          usage="POTENTIAL [type] <POTENTIAL-NAME>", type_of_var=char_t, default_c_vals=[" ", " "], &
+                          description= &
+                          "The type (ECP, ALL, GTH, UPS) and name of the "// &
+                          "pseudopotential for the defined kind. Use GTH potentials "// &
+                          "for most GPW calculations, ECP for Gaussian-integral effective core "// &
+                          "potentials, and ALL for all-electron calculations.", &
+                          usage="POTENTIAL [type] <POTENTIAL-NAME>", type_of_var=char_t, &
+                          default_c_vals=[" ", " "], &
                           citations=[Goedecker1996, Hartwigsen1998, Krack2005], n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1253,7 +1257,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LEBEDEV_GRID", &
-                          description="GAPW: maximum size of the angular Lebedev grid used for "// &
+                          description="GAPW: size of the angular Lebedev grid used for "// &
                           "atom-centered integrations for this kind.", &
                           usage="LEBEDEV_GRID 40", default_i_val=50)
       CALL section_add_keyword(section, keyword)

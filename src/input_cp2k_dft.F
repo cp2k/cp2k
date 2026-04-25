@@ -1247,11 +1247,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="cutoff", &
-                          description="Plane-wave cutoff of the finest real-space grid level. Increasing this "// &
-                          "improves the grid representation, but it is not a substitute for converging the "// &
-                          "Gaussian basis set.", &
-                          usage="cutoff 300", default_r_val=cp_unit_to_cp2k(value=280.0_dp, &
-                                                                            unit_str="Ry"), n_var=1, unit_str="Ry")
+                          description= &
+                          "Plane-wave cutoff of the finest real-space grid level. "// &
+                          "Increasing this value improves the grid representation, but it is "// &
+                          "not a substitute for converging the Gaussian basis set. "// &
+                          "Default value for SE or DFTB calculation is 1.0 [Ry].", &
+                          usage="cutoff 300", &
+                          default_r_val=cp_unit_to_cp2k(value=280.0_dp, unit_str="Ry"), &
+                          n_var=1, unit_str="Ry")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
