@@ -76,9 +76,8 @@ case "$with_sirius" in
       fi
       if [ "${with_tblite}" != "__DONTUSE__" ]; then
         # tblite includes s-dftd3
-        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_DFTD3=ON ${EXTRA_CMAKE_FLAGS}"
-      fi
-      if [ "${with_tblite}" != "__DONTUSE__" ] || [ "${with_dftd4}" != "__DONTUSE__" ]; then
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_DFTD3=ON -DSIRIUS_USE_DFTD4=ON ${EXTRA_CMAKE_FLAGS}"
+      elif [ "${with_dftd4}" != "__DONTUSE__" ]; then
         EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_DFTD4=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       cmake \
