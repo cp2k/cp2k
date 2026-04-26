@@ -9,6 +9,7 @@
 module localized_moments
 
    use atomic_kind_types
+   use bibliography
    use basis_set_types
    use cell_types
    use cp_cfm_basic_linalg
@@ -124,6 +125,9 @@ contains
 
       call timeset(routineN, handle)
 
+      call cite_reference(Schreder2021)
+      call cite_reference(Schreder2024a)
+      
       logger => cp_get_default_logger()
       iteration = iteration + 1
 

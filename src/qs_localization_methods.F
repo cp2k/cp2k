@@ -16,6 +16,8 @@
 !> \author CJM (04.2003)
 ! **************************************************************************************************
 MODULE qs_localization_methods
+   USE bibliography,                    ONLY: cite_reference,&
+                                              Schreder2024b
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
@@ -3874,6 +3876,8 @@ CONTAINS
      type(cp_cfm_type), pointer   :: c_zij(:), rmat
 
      call timeset(routineN, handle)
+
+     call cite_reference(Schreder2024b)
 
      n_dim = size(zij)
      call cp_cfm_create(rmat, zij(1, 1)%matrix_struct)
