@@ -135,12 +135,14 @@ CONTAINS
       CALL section_release(subsection)
 #endif
 
-#if defined(__SIRIUS_DFTD4)
-      CALL create_sirius_section(subsection, "dftd4")
+#if defined(__SIRIUS_DFTD3)
+      CALL create_sirius_section(subsection, "dftd3")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+#endif
 
-      CALL create_sirius_section(subsection, "dftd3")
+#if defined(__SIRIUS_DFTD4)
+      CALL create_sirius_section(subsection, "dftd4")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 #endif
@@ -244,9 +246,14 @@ CONTAINS
          ! it is a minor inconvenience from the api.
          name = TRIM(ADJUSTL(name))
 
+#if defined(__SIRIUS_DFTD3)
+         IF ((section_name == 'dftd3') .AND. (name == 'parameters')) THEN
+            CYCLE
+         END IF
+#endif
 #if defined(__SIRIUS_DFTD4)
          ! need to implement the object case within a section
-         IF (((section_name == 'dftd3') .OR. (section_name == 'dftd4')) .AND. (name == 'parameters')) THEN
+         IF ((section_name == 'dftd4') .AND. (name == 'parameters')) THEN
             CYCLE
          END IF
 #endif

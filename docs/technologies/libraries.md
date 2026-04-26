@@ -128,12 +128,13 @@ A library for finding and handling crystal symmetries
 
 ## SIRIUS (plane wave calculations)
 
-SIRIUS is a domain specific library for electronic structure calculations.
+SIRIUS is a domain specific library for electronic structure calculations with plane wave method.
 
 - The code is available at <https://github.com/electronic-structure/SIRIUS>
 - For building CP2K with SIRIUS pass `-DCP2K_USE_SIRIUS=ON` to CMake.
 - Pass `-DCP2K_USE_LIBVDWXC=ON` if support is activated in SIRIUS.
-- Pass `-DCP2K_USE_SIRIUS_DFTD4=ON` when sirius is compiled with dftd3 and dftd4 support.
+- Pass `-DCP2K_USE_SIRIUS_DFTD3=ON` when sirius is compiled with dftd3 support.
+- Pass `-DCP2K_USE_SIRIUS_DFTD4=ON` when sirius is compiled with dftd4 support.
 - Pass `-DCP2K_USE_SIRIUS_NLCG=ON` when sirius is compiled with nlcg support.
 - Pass `-DCP2K_USE_SIRIUS_VCSQNM=ON` when sirius is compiled with variable cell relaxation support.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
@@ -155,13 +156,6 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - LibVori also enables support for the BQB file format for compressed trajectories, please see
   <https://brehm-research.de/bqb> for more information as well as the `bqbtool` to inspect BQB
   files.
-
-## SpFFT (Sparse 3D FFT)
-
-- SpFFT is a 3D FFT library for sparse frequency domain data written in C++ with support for MPI,
-  OpenMP, CUDA and ROCm.
-- Pass `-DCP2K_USE_SpFFT=ON` to CMake to enable support for SpFFT.
-- See <https://github.com/eth-cscs/SpFFT> for more information.
 
 ## Torch (Machine Learning Framework needed for NequIP)
 

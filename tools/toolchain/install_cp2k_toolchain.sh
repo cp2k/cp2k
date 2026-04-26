@@ -287,6 +287,8 @@ Specific options of --with-PKG:
   --with-gsl              Enable the GNU scientific library (GSL).
                           This package is required for PLUMED and SIRIUS.
                           Default = install
+  --with-fmt              Enable the formatting C/C++ library.
+                          This package is required for SIRIUS.
   --with-libtorch         Enable libtorch as a machine learning framework.
                           This package is required for NequIP and Allegro, and
                           also for installing DeePMD-kit.
@@ -464,7 +466,7 @@ math_list="mkl acml openblas"
 lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
-          trexio greenx gmp mcl"
+          fmt trexio greenx gmp mcl"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -489,6 +491,7 @@ with_libxc="__INSTALL__"
 with_scalapack="__INSTALL__"
 with_sirius="__INSTALL__"
 with_gsl="__DONTUSE__"
+with_fmt="__DONTUSE__"
 with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_trexio="__DONTUSE__"
@@ -866,6 +869,9 @@ Otherwise use option no."
     --with-gsl*)
       with_gsl=$(read_with "${1}")
       ;;
+    --with-fmt*)
+      with_fmt=$(read_with "${1}")
+      ;;
     --with-spglib*)
       with_spglib=$(read_with "${1}")
       ;;
@@ -1103,6 +1109,7 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_spfft}" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
   [ "${with_spla}" = "__DONTUSE__" ] && with_spla="__INSTALL__"
   [ "${with_gsl}" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+  [ "${with_fmt}" = "__DONTUSE__" ] && with_fmt="__INSTALL__"
   [ "${with_libxc}" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
   [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
   [ "${with_spglib}" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
