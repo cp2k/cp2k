@@ -80,7 +80,8 @@ CONTAINS
       NULLIFY (subsection)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Which method should be used to compute forces", &
+                          description="Selects the method used by this FORCE_EVAL section to compute energies, "// &
+                          "forces, and related properties.", &
                           usage="METHOD <STRING>", &
                           enum_c_vals=s2a("QS", &
                                           "SIRIUS", &
@@ -97,11 +98,11 @@ CONTAINS
                                         "Molecular Mechanics", &
                                         "Hybrid quantum classical", &
                                         "Empirical Interatomic Potential", &
-                                        "Electronic structure methods (DFT, ...)", &
+                                        "Electronic structure methods in the Quickstep module, including GPW and GAPW DFT.", &
                                         "Neural Network Potentials", &
                                         "Use a combination of two of the above", &
                                         "Perform an embedded calculation", &
-                                        "Recieve forces from i–PI client"), &
+                                        "Receive forces from an i-PI client"), &
                           enum_i_vals=[do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_nnp, do_mixed, do_embed, do_ipi], &
                           default_i_val=do_qs)
       CALL section_add_keyword(section, keyword)

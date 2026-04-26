@@ -81,7 +81,7 @@ MODULE bibliography
                             Clabaut2021, Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
-                            cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
+                            cp2kqs2020, Iannuzzi2026, Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
@@ -835,7 +835,7 @@ CONTAINS
                          title="Efficient and accurate Car-Parrinello-like approach to "// &
                          "Born-Oppenheimer molecular dynamics", &
                          source="Phys. Rev. Lett.", volume="98", pages="066401", &
-                         year=2007, doi="10.1103/PhysRevLett.98.066401")
+                         year=2007, doi="10.1103/PhysRevLett.98.066401", citation_key="Kühne2007")
 
       CALL add_reference(key=Rengaraj2020, &
                          authors=s2a("V. Rengaraj", "M. Lass", "C. Plessl", "T. D. Kuhne"), &
@@ -1520,7 +1520,7 @@ CONTAINS
                          year=2021)
 
       CALL add_reference(key=Richters2018, &
-                         authors=s2a("D. Richters", "M. Lass", "A. Walther", "C. Plessl", "T. D. Kuehne"), &
+                         authors=s2a("D. Richters", "M. Lass", "A. Walther", "C. Plessl", "T. D. Kühne"), &
                          title="A General Algorithm to Calculate the Inverse Principal p-th Root of "// &
                          "Symmetric Positive Definite Matrices", &
                          source="Commun. Comput. Phys.", volume="25", pages="564-585", &
@@ -1623,27 +1623,39 @@ CONTAINS
                          year=2021, doi="10.1021/acs.jctc.0c01282")
 
       CALL add_reference(key=Lass2018, &
-                         authors=s2a("M. Lass", "S. Mohr", "H. Wiebeler", "T. D. Kuehne", "C. Plessl"), &
+                         authors=s2a("M. Lass", "S. Mohr", "H. Wiebeler", "T. D. Kühne", "C. Plessl"), &
                          title="A Massively Parallel Algorithm for the Approximate Calculation of "// &
                          "Inverse P-Th Roots of Large Sparse Matrices", &
                          source="Proceedings of the Platform for Advanced Scientific Computing (PASC) Conference", &
                          year=2018, doi="10.1145/3218176.3218231")
 
       CALL add_reference(key=cp2kqs2020, &
-                         authors=s2a("T. D. Kuehne", "M. Iannuzzi", "M. Del Ben", "V. V. Rybkin", &
+                         authors=s2a("T. D. Kühne", "M. Iannuzzi", "M. Del Ben", "V. V. Rybkin", &
                                      "P. Seewald", "F. Stein", "T. Laino", "R. Z. Khaliullin", &
-                                     "O. Schuett", "F. Schiffmann", "D. Golze", "J. Wilhelm", &
+                                     "O. Schütt", "F. Schiffmann", "D. Golze", "J. Wilhelm", &
                                      "S. Chulkov", "M. H. Bani-Hashemian", "V. Weber", &
                                      "U. Borstnik", "M. Taillefumier", "A. S. Jakobovits", &
-                                     "A. Lazzaro", "H. Pabst", "T. Mueller", "R. Schade", "M. Guidon", &
+                                     "A. Lazzaro", "H. Pabst", "T. Müller", "R. Schade", "M. Guidon", &
                                      "S. Andermatt", "N. Holmberg", "G. K. Schenter", "A. Hehn", &
-                                     "A. Bussy", "F. Belleflamme", "G. Tabacchi", "A. Gloess", &
+                                     "A. Bussy", "F. Belleflamme", "G. Tabacchi", "A. Glöß", &
                                      "M. Lass", "I. Bethune", "C. J. Mundy", "C. Plessl", &
                                      "M. Watkins", "J. VandeVondele", "M. Krack", "J. Hutter"), &
                          title="CP2K: An electronic structure and molecular dynamics software package - Quickstep: "// &
                          "Efficient and accurate electronic structure calculations", &
                          source="J. Chem. Phys.", volume="152", pages="194103", &
-                         year=2020, doi="10.1063/5.0007045")
+                         year=2020, doi="10.1063/5.0007045", citation_key="Kühne2020")
+
+      CALL add_reference(key=Iannuzzi2026, &
+                         authors=s2a("M. Iannuzzi", "J. Wilhelm", "F. Stein", "A. Bussy", &
+                                     "H. Elgabarty", "D. Golze", "A. Hehn", "M. Graml", &
+                                     "S. Marek", "B. Sertcan Gökmen", "C. Schran", "H. Forbert", &
+                                     "R. Z. Khaliullin", "A. Kozhevnikov", "M. Taillefumier", &
+                                     "R. Meli", "V. V. Rybkin", "M. Brehm", "R. Schade", "O. Schütt", &
+                                     "J. V. Pototschnig", "H. Mirhosseini", "A. Knüpfer", "D. Marx", &
+                                     "M. Krack", "J. Hutter", "T. D. Kühne"), &
+                         title="The CP2K Program Package Made Simple", &
+                         source="J. Phys. Chem. B", volume="130", pages="1237-1310", &
+                         year=2026, doi="10.1021/acs.jpcb.5c05851")
 
       CALL add_reference(key=Rycroft2009, &
                          authors=s2a("C. H. Rycroft"), &

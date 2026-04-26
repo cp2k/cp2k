@@ -66,12 +66,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="KPOINTS", &
-                          description="Sets up the kpoints.", &
+                          description="Controls Brillouin-zone sampling with k-points.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCHEME", &
-                          description="Kpoint scheme to be used. Available options are:"//newline// &
+                          description="K-point generation scheme. Available options are:"//newline// &
                           "- `NONE`"//newline// &
                           "- `GAMMA`"//newline// &
                           "- `MONKHORST-PACK`"//newline// &
@@ -96,7 +96,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Special k-points are defined either in units"// &
-                          " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
+                          " of reciprocal lattice vectors or in Cartesian coordinates in units of 2Pi/len."// &
                           " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
                           " CART_ANGSTROM: In units of 2*Pi/Angstrom."// &
                           " CART_BOHR: In units of 2*Pi/Bohr.", &
@@ -112,7 +112,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FULL_GRID", &
-                          description="Use full non-reduced kpoint grid.", &
+                          description="Use the full, non-symmetry-reduced k-point grid.", &
                           usage="FULL_GRID <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -133,7 +133,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_GROUP_SIZE", &
-                          description="Number of processors to be used for a single kpoint."// &
+                          description="Number of MPI processes to be used for a single k-point."// &
                           " This number must divide the total number of processes."// &
                           " The number of groups must divide the total number of kpoints."// &
                           " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."// &
@@ -145,7 +145,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WAVEFUNCTIONS", &
-                          description="Use real/complex wavefunctions if possible.", &
+                          description="Select whether real or complex wavefunctions should be used "// &
+                          "when allowed by the k-point set.", &
                           usage="WAVEFUNCTIONS REAL", &
                           default_i_val=use_complex_wfn, &
                           enum_c_vals=s2a("REAL", "COMPLEX"), &
@@ -196,7 +197,7 @@ CONTAINS
       !
       CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
                           description="Special k-points are defined either in units"// &
-                          " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
+                          " of reciprocal lattice vectors or in Cartesian coordinates in units of 2Pi/len."// &
                           " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
                           " CART_ANGSTROM: In units of 2*Pi/Angstrom."// &
                           " CART_BOHR: In units of 2*Pi/Bohr.", &

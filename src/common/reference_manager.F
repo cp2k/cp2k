@@ -121,22 +121,23 @@ CONTAINS
 !> \param pages ...
 !> \param year ...
 !> \param doi ...
+!> \param citation_key ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
 !>      07.2024 complete rewrite [Ole Schuett]
 !> \note
 !>      - see bibliography.F for it use.
 ! **************************************************************************************************
-   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, doi)
+   SUBROUTINE add_reference(key, authors, title, source, volume, pages, year, doi, citation_key)
       INTEGER, INTENT(OUT)                               :: key
       CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: authors
       CHARACTER(LEN=*), INTENT(IN)                       :: title, source
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: volume, pages
       INTEGER, INTENT(IN)                                :: year
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: doi, citation_key
 
       CHARACTER                                          :: tmp
-      CHARACTER(LEN=default_string_length)               :: author, citation_key, key_a, key_b
+      CHARACTER(LEN=default_string_length)               :: author, citation_key_, key_a, key_b
       INTEGER                                            :: i, ires, match, mylen, periodloc
 
       IF (nbib + 1 > max_reference) CPABORT("increase max_reference")
@@ -168,29 +169,35 @@ CONTAINS
          thebib(key)%ref%doi = TRIM(doi)
       END IF
 
-      ! construct a citation_key
-      author = authors(1)
-      periodloc = INDEX(author, '.', back=.TRUE.)
-      IF (periodloc > 0) author = author(periodloc + 1:)
-      CPASSERT(LEN_TRIM(author) > 0)
-      WRITE (citation_key, '(A,I4)') TRIM(author), year
+      IF (PRESENT(citation_key)) THEN
+         citation_key_ = citation_key
+         CPASSERT(LEN_TRIM(citation_key_) > 4)
+      ELSE
+         ! construct a citation_key
+         author = authors(1)
+         periodloc = INDEX(author, '.', back=.TRUE.)
+         IF (periodloc > 0) author = author(periodloc + 1:)
+         CPASSERT(LEN_TRIM(author) > 0)
+         WRITE (citation_key_, '(A,I4)') TRIM(author), year
 
-      ! avoid special characters in names, just remove them
-      mylen = LEN_TRIM(citation_key)
-      ires = 0
-      DO I = 1, mylen
-         IF (INDEX("0123456789thequickbrownfoxjumpsoverthelazydogTHEQUICKBROWNFOXJUMPSOVERTHELAZYDOG", citation_key(i:i)) /= 0) THEN
-            ires = ires + 1
-            tmp = citation_key(i:i)
-            citation_key(ires:ires) = tmp
-         END IF
-      END DO
-      citation_key(ires + 1:) = ""
-      CPASSERT(LEN_TRIM(citation_key) > 4) ! At least one character of the author should be left.
+         ! avoid special characters in names, just remove them
+         mylen = LEN_TRIM(citation_key_)
+         ires = 0
+         DO I = 1, mylen
+            IF (INDEX("0123456789thequickbrownfoxjumpsoverthelazydogTHEQUICKBROWNFOXJUMPSOVERTHELAZYDOG", &
+                      citation_key_(i:i)) /= 0) THEN
+               ires = ires + 1
+               tmp = citation_key_(i:i)
+               citation_key_(ires:ires) = tmp
+            END IF
+         END DO
+         citation_key_(ires + 1:) = ""
+         CPASSERT(LEN_TRIM(citation_key_) > 4) ! At least one character of the author should be left.
+      END IF
 
       ! avoid duplicates, search through the list for matches (case-insensitive)
-      mylen = LEN_TRIM(citation_key)
-      key_a = citation_key(1:mylen)
+      mylen = LEN_TRIM(citation_key_)
+      key_a = citation_key_(1:mylen)
       CALL uppercase(key_a)
       match = 0
       DO I = 1, nbib - 1
@@ -198,10 +205,16 @@ CONTAINS
          CALL uppercase(key_b)
          IF (key_a == key_b) match = match + 1
       END DO
-      IF (match > 0) citation_key = citation_key(1:mylen)//CHAR(ICHAR('a') + match)
+      IF (match > 0) THEN
+         IF (PRESENT(citation_key)) THEN
+            CPABORT("explicit citation key already exists")
+         ELSE
+            citation_key_ = citation_key_(1:mylen)//CHAR(ICHAR('a') + match)
+         END IF
+      END IF
 
       ! finally store it
-      thebib(key)%ref%citation_key = citation_key
+      thebib(key)%ref%citation_key = citation_key_
 
    END SUBROUTINE add_reference
 

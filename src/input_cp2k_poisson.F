@@ -108,7 +108,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="poisson", &
-                          description="Sets up the poisson resolutor.", &
+                          description="Controls the Poisson solver and electrostatic boundary conditions used by DFT.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
@@ -137,10 +137,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
-                          description="Specify the directions in which PBC apply. Important notice,"// &
-                          " this only applies to the electrostatics."// &
-                          " See the CELL section to specify the periodicity used for e.g. the pair lists."// &
-                          " Typically the settings should be the same.", &
+                          description="Specifies the directions in which periodic boundary conditions apply to electrostatics. "// &
+                          "See the CELL section for the periodicity used by geometry and pair lists; "// &
+                          "the settings are usually the same.", &
                           usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)", &
                           enum_c_vals=s2a("x", "y", "z", "xy", "xz", "yz", "xyz", "none"), &
                           enum_i_vals=[use_perd_x, use_perd_y, use_perd_z, &

@@ -169,7 +169,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPSFIT", &
                           variants=["EPS_FIT"], &
-                          description="GAPW: precision to give the extension of a hard gaussian ", &
+                          description="GAPW: tolerance controlling the split of Gaussian basis functions "// &
+                          "into hard atom-centered and soft grid-expanded parts. Smaller values include "// &
+                          "harder Gaussians in the soft density and can require a larger MGRID cutoff.", &
                           usage="EPSFIT real", default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -183,14 +185,16 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPSSVD", &
                           variants=["EPS_SVD"], &
-                          description="GAPW: tolerance used in the singular value decomposition of the projector matrix", &
+                          description="GAPW: tolerance used in the singular value decomposition of the "// &
+                          "projector matrix. Smaller values can improve numerical accuracy at increased cost.", &
                           usage="EPS_SVD real", default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPSRHO0", &
                           variants=s2a("EPSVRHO0", "EPS_VRHO0"), &
-                          description="GAPW : precision to determine the range of V(rho0-rho0soft)", &
+                          description="GAPW: tolerance used to determine the range of the "// &
+                          "V(rho0-rho0_soft) compensation contribution.", &
                           usage="EPSRHO0 real", default_r_val=1.0E-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
