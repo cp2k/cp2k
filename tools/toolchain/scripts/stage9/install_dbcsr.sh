@@ -44,10 +44,7 @@ case "${with_dbcsr}" in
       if [ "${MPI_MODE}" == "no" ]; then
         CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=OFF"
       else
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=ON"
-        if [ -n "$(grep "MPI_F08" "${INSTALLDIR}"/toolchain.env)" ]; then
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI_F08=ON"
-        fi
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_MPI=ON -DUSE_MPI_F08=ON"
       fi
       cmake \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \

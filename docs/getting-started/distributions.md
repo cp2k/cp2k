@@ -2,6 +2,12 @@
 
 The easiest way to get started with CP2K is to install it from a distribution.
 
+```{note}
+The pre-compiled package from distributions may not performs as well as package
+built from source, as it usually adopts a conservative compilation strategy to
+ensure broad compatibility.
+```
+
 ## Arch
 
 ```shell

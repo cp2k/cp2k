@@ -62,8 +62,7 @@ this behavior using `-j N` option, where `N` specifies the number of processors 
 
 ### The script failed at a tarball downloading stage
 
-Try run again with `--no-check-certificate` option. See the help section for this option for
-details.
+Simply try run again. The toolchain scripts will delete the broken tarball and re-download.
 
 ### I've used `--with-XYZ=system` but the XYZ library cannot be found
 

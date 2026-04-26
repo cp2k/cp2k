@@ -1,8 +1,9 @@
 #!/bin/bash -e
 
 # Disabled shellcheck items: SC1091 for external scripts, SC2034 for unused
-# variables, SC2124 for concatenating toolchain options with $@
-# shellcheck disable=SC1091,SC2034,SC2124
+# variables, SC2124 for concatenating toolchain options with $@, SC2129 for
+# individual redirects ">>".
+# shellcheck disable=SC1091,SC2034,SC2124,SC2129
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
@@ -32,6 +33,7 @@ export SCRIPTDIR="${ROOTDIR}/scripts"
 export BUILDDIR="${ROOTDIR}/build"
 export INSTALLDIR="${ROOTDIR}/install"
 export SETUPFILE="${INSTALLDIR}/setup"
+export TOOLKIT_SCRIPT="${SCRIPTDIR}/tool_kit.sh"
 
 # ------------------------------------------------------------------------
 # Make a copy of all options for $SETUPFILE
@@ -85,6 +87,9 @@ OPTIONS:
                           If omitted, the script will automatically try to
                           determine the number of available processors and use
                           all of them by default.
+  --install-dir           Set the directory you want to installed toolchain
+                          dependencies to. Default is the "install" directory
+                          in current path.
   --no-check-certificate  Bypass verification of server's certificate while
                           downloading anything from internet via wget command.
                           In case wget errors about "certificate verification"
@@ -553,7 +558,6 @@ else
 fi
 
 # default enable options
-list_cmake_options="__TRUE__"
 dry_run="__FALSE__"
 enable_tsan="__FALSE__"
 enable_opencl="__FALSE__"
@@ -618,6 +622,16 @@ while [ $# -ge 1 ]; do
       ;;
     -j[0-9]*)
       export NPROCS_OVERWRITE="${1#-j}"
+      ;;
+    --install-dir=*)
+      if [[ "${1#--install-dir=}" != /* ]]; then
+        report_error "The path for --install-dir must be an absolute path."
+        exit 1
+      fi
+      export INSTALLDIR="${1#--install-dir=}"
+      export SETUPFILE="${INSTALLDIR}/setup"
+      cp "${SCRIPTDIR}"/tool_kit.sh "${INSTALLDIR}"/
+      export TOOLKIT_SCRIPT="${INSTALLDIR}/tool_kit.sh"
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="--no-check-certificate"
@@ -718,13 +732,6 @@ Otherwise use option no."
       ;;
     --dry-run)
       dry_run="__TRUE__"
-      ;;
-    --list-cmake-options*)
-      list_cmake_options=$(read_enable "${1}")
-      if [ "${list_cmake_options}" = "__INVALID__" ]; then
-        report_error "invalid value for --list-cmake-options, please use yes or no"
-        exit 1
-      fi
       ;;
     --enable-tsan*)
       enable_tsan=$(read_enable "${1}")
@@ -1260,11 +1267,17 @@ fi
 # Installing tools required for building CP2K and associated libraries
 # ------------------------------------------------------------------------
 
+# Write toolchain configurations
+cat << EOF > "${ROOTDIR}/toolchain_settings"
+#!/bin/bash
+export TOOLCHAIN_INSTALL_DIR="${INSTALLDIR}"
+export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
+EOF
+
 # Write head of setup file
 cat << EOF > "$SETUPFILE"
 #!/bin/bash
-source "${SCRIPTDIR}/tool_kit.sh"
-export CP2K_TOOLCHAIN_OPTIONS="${TOOLCHAIN_OPTIONS}"
+source "${TOOLKIT_SCRIPT}"
 EOF
 
 # Write toolchain environment
@@ -1272,7 +1285,13 @@ write_toolchain_env "${INSTALLDIR}"
 
 # Write toolchain config
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
-echo "dry_run=\"${dry_run}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "mpi_mode=\"${MPI_MODE}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_cuda=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_hip=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
+echo "enable_opencl=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
+if [ "${ENABLE_CUDA}" == "__TRUE__" ] || [ "${ENABLE_HIP}" == "__TRUE__" ]; then
+  echo "gpu_ver=\"${GPUVER}\"" >> "${INSTALLDIR}"/toolchain.conf
+fi
 for ii in ${package_list}; do
   install_mode=$(eval "echo \${with_${ii}}")
   echo "with_${ii}=\"${install_mode}\"" >> "${INSTALLDIR}"/toolchain.conf
@@ -1314,9 +1333,18 @@ else
   "${SCRIPTDIR}"/stage7/install_stage7.sh
   "${SCRIPTDIR}"/stage8/install_stage8.sh
   "${SCRIPTDIR}"/stage9/install_stage9.sh
+  echo
+  cat << EOF
+========================== Epilogue =========================
+Done! To build CP2K with dependencies you installed via toolchain, simply run
+this script:
+
+  ./build_cp2k.sh -j $(get_nprocs)
+
+It will source the file "install/setup", generate proper CMake flags based on
+toolchain options, and then build and install CP2K. For available options
+with the script, run "./build_cp2k.sh -h".
+EOF
 fi
 
-# Generate CMake options
-if [ "${list_cmake_options}" = "__TRUE__" ]; then
-  "${SCRIPTDIR}"/generate_cmake_options.sh
-fi
+#EOF
