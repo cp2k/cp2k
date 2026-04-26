@@ -385,7 +385,6 @@ CONTAINS
                                                             max_iter, nao, natom, ncol, nmoloc, &
                                                             out_each, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
-      LOGICAL                                            :: do_fragment, do_sequential
       REAL(dp)                                           :: eps
       TYPE(atom_type), DIMENSION(:), POINTER             :: atoms
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: c_zij
@@ -422,8 +421,6 @@ CONTAINS
       max_iter = qs_loc_env%localized_wfn_control%max_iter
       eps = qs_loc_env%localized_wfn_control%eps_localization
       out_each = qs_loc_env%localized_wfn_control%out_each
-      do_fragment = qs_loc_env%localized_wfn_control%fragment
-      do_sequential = qs_loc_env%localized_wfn_control%sequential
 
       natom = SIZE(particle_set, 1)
       ALLOCATE (first_sgf(natom))

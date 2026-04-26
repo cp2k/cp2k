@@ -153,7 +153,6 @@ MODULE qs_loc_types
       LOGICAL                              :: use_history = .FALSE.
       INTEGER, POINTER, DIMENSION(:, :)    :: loc_states => NULL()
       TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set = cp_2d_r_p_type()
-      LOGICAL                              :: fragment = .FALSE., sequential = .FALSE.
    END TYPE localized_wfn_control_type
 
 ! *** Public ***
@@ -278,8 +277,6 @@ CONTAINS
       NULLIFY (localized_wfn_control%loc_states)
       NULLIFY (localized_wfn_control%centers_set(1)%array)
       NULLIFY (localized_wfn_control%centers_set(2)%array)
-      localized_wfn_control%fragment = .FALSE.
-      localized_wfn_control%sequential = .FALSE.
    END SUBROUTINE localized_wfn_control_create
 
 ! **************************************************************************************************

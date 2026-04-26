@@ -364,12 +364,11 @@ CONTAINS
                                    "cannot be rotated together")
                END IF
                nmosub = localized_wfn_control%nloc_states(ispin)
-               ! TODO enable submatrix selection for the complex case
+
                IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
                   CALL cp_fm_to_fm(loc_coeff(2*ispin - 1), moloc_coeff(2*ispin - 1))
                   CALL cp_fm_to_fm(loc_coeff(2*ispin), moloc_coeff(2*ispin))
-                  CALL cp_fm_to_cfm(mat_ptr, loc_coeff(2*ispin), &
-                                    complex_moloc_coeff(ispin)%matrix)
+                  CALL cp_fm_to_cfm(mat_ptr, loc_coeff(2*ispin), complex_moloc_coeff(ispin)%matrix)
                ELSE
                   CALL cp_fm_to_fm(mat_ptr, moloc_coeff(ispin), nmosub, lb, 1)
                END IF
@@ -1400,10 +1399,6 @@ CONTAINS
                                    l_val=localized_wfn_control%loc_restart)
          CALL section_vals_val_get(loc_section, "USE_HISTORY", &
                                    l_val=localized_wfn_control%use_history)
-         CALL section_vals_val_get(loc_section, "FRAGMENT", &
-                                   l_val=localized_wfn_control%fragment)
-         CALL section_vals_val_get(loc_section, "SEQUENTIAL", &
-                                   l_val=localized_wfn_control%sequential)
          CALL section_vals_val_get(loc_section, "NEXTRA", &
                                    i_val=localized_wfn_control%nextra)
          CALL section_vals_val_get(loc_section, "CPO_GUESS", &
