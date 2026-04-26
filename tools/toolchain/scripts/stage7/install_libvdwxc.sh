@@ -36,8 +36,7 @@ case "$with_libvdwxc" in
     if verify_checksums "${install_lock_file}"; then
       echo "libvdwxc-${libvdwxc_ver} is already installed, skipping it."
     else
-      #retrieve_package "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
-      download_pkg_from_urlpath "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz" https://launchpad.net/libvdwxc/stable/0.5.0/+download
+      retrieve_package "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz

@@ -28,8 +28,7 @@ case "$with_fmt" in
     if verify_checksums "${install_lock_file}"; then
       echo "fmt-${fmt_ver} is already installed, skipping it."
     else
-      #retrieve_package "${fmt_sha256}" "fmt-${fmt_ver}.zip"
-      download_pkg_from_urlpath "${fmt_sha256}" "fmt-${fmt_ver}.zip" https://github.com/fmtlib/fmt/releases/download/12.1.0
+      retrieve_package "${fmt_sha256}" "fmt-${fmt_ver}.zip"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d fmt-${fmt_ver} ] && rm -rf fmt-${fmt_ver}
       unzip -q fmt-${fmt_ver}.zip
