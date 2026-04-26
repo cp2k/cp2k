@@ -65,7 +65,8 @@ MODULE rt_propagation_methods
                                               rtp_localize_once
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
@@ -897,10 +898,10 @@ CONTAINS
 
      CHARACTER(len=*), PARAMETER :: routineN = "rtp_localize"
 
-     INTEGER                                     :: handle, ispin, n_rep, nhomo, nlumo, output_unit
+     INTEGER                                     :: handle, ispin, nhomo, output_unit
      LOGICAL                                     :: do_homo, do_mo_cubes, do_wannier_cubes, &
                                                     loc_explicit, loc_print_explicit, p_loc, &
-                                                    p_loc_homo, p_loc_lumo
+                                                    p_loc_homo
      TYPE(pw_r3d_rs_type)                             :: wf_r
      TYPE(pw_c1d_gs_type)                             :: wf_g
      INTEGER, DIMENSION(:, :, :), POINTER             :: marked_states
@@ -929,7 +930,7 @@ CONTAINS
      loc_print_explicit = .TRUE.
 
      IF (output_unit > 0) THEN
-        WRITE (unit=output_unit, fmt="(A)") "LOCALIZE| Localising propagated orbitals"
+        WRITE (unit=output_unit, fmt="(A)") "LOCALIZE| Localizing propagated orbitals"
      END IF
 
      ! get section properties
@@ -943,6 +944,7 @@ CONTAINS
      ! what properties to print out
      print_key => section_vals_get_subs_vals(loc_print_section, "MOLECULAR_DIPOLES")
      p_loc = BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+
      print_key => section_vals_get_subs_vals(loc_print_section, "TOTAL_DIPOLE")
      p_loc = p_loc &
              .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
@@ -965,27 +967,16 @@ CONTAINS
      p_loc = p_loc &
              .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
 
-     ! localize occupied or unoccupied orbitals, or both
      IF (loc_explicit) THEN
         p_loc_homo = (section_get_ival(loc_section, "STATES") == do_loc_homo .OR. &
                       section_get_ival(loc_section, "STATES") == do_loc_both) .AND. p_loc
-        p_loc_lumo = (section_get_ival(loc_section, "STATES") == do_loc_lumo .OR. &
-                      section_get_ival(loc_section, "STATES") == do_loc_both) .AND. p_loc
-        ! CALL section_vals_val_get(loc_section, "LIST_UNOCCUPIED", n_rep_val=n_rep)
      ELSE
         p_loc_homo = .FALSE.
-        p_loc_lumo = .FALSE.
-        n_rep = 0
      END IF
 
-     IF (n_rep == 0 .AND. p_loc_lumo) THEN
-        CALL cp_abort(__LOCATION__, "Specify LIST_UNOCCUPIED to localise unoccupied orbitals")
-        p_loc_lumo = .FALSE.
-     END IF
      print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
      p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
 
-     ! write Wannier cubes?
      IF (loc_print_explicit) THEN
         do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                  "WANNIER_CUBES"), cp_p_file)
@@ -993,15 +984,12 @@ CONTAINS
         do_wannier_cubes = .FALSE.
      END IF
      nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
-     nlumo = section_get_ival(dft_section, "PRINT%MO_CUBES%NLUMO")
 
-     ! Setup grids to compute wavefunctions
      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
      CALL auxbas_pw_pool%create_pw(wf_r)
      CALL auxbas_pw_pool%create_pw(wf_g)
 
      IF (p_loc) THEN
-        ! localise occupied orbitals
         IF (p_loc_homo) THEN
            ALLOCATE(occupied_evals(dft_control%nspins))
            CALL get_rtp(rtp, mos_new=mo_coeff)
@@ -1013,24 +1001,16 @@ CONTAINS
               CALL cp_fm_to_fm(mo_coeff(ispin), homo_localized(ispin))
            END DO
 
-           ! perform localization
            do_homo = .TRUE.
            CALL qs_loc_env_create(qs_loc_env_homo)
            CALL qs_loc_control_init(qs_loc_env_homo, loc_section, do_homo=do_homo)
            CALL qs_loc_init(qs_env, qs_loc_env_homo, loc_section, homo_localized, do_homo, &
                             do_mo_cubes)
-           !IF (output_unit > 0) THEN
-           !   CALL cp_fm_write_formatted(homo_localized(1)%matrix, output_unit)
-           !END IF
            CALL get_localization_info(qs_env, qs_loc_env_homo, loc_section, homo_localized, &
                                       wf_r, wf_g, particles, occupied_orbs, occupied_evals, &
                                       marked_states)
-           !IF (output_unit > 0) THEN
-           !   CALL cp_fm_write_formatted(homo_localized(1)%matrix, output_unit)
-           !END IF
            CALL loc_dipole(input, dft_control, qs_loc_env_homo, logger, qs_env)
            
-           ! memory cleanup
            DO ispin = 1, SIZE(homo_localized)
               CALL cp_fm_release(homo_localized(ispin))
            END DO
