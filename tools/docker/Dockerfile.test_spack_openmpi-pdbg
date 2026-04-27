@@ -1,0 +1,91 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_openmpi-pdbg -f ./Dockerfile.test_spack_openmpi-pdbg ../../
+#
+
+ARG BASE_IMAGE="ubuntu:24.04"
+
+###### Stage 1: Build CP2K dependencies ######
+
+FROM "${BASE_IMAGE}" AS build_deps
+
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    bzip2 \
+    ca-certificates \
+    cmake \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
+    git \
+    gnupg \
+    libssh-dev \
+    libssl-dev \
+    libtool \
+    libtool-bin \
+    lsb-release \
+    make \
+    patch \
+    pkgconf \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    unzip \
+    wget \
+    xxd \
+    xz-utils \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG IMAGE_TAG
+ENV IMAGE_TAG=${IMAGE_TAG:-spack_openmpi-pdbg}
+
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+
+# Copy CP2K repository into container
+WORKDIR /opt
+COPY . cp2k/
+
+# Build CP2K dependencies
+WORKDIR /opt/cp2k
+RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none -gv 13 -mpi openmpi -ue -ef openpmd
+
+###### Stage 2: Build CP2K ######
+
+FROM build_deps AS build_cp2k
+
+RUN ./make_cp2k.sh -cv pdbg -gv 13 -gpu none -mpi openmpi -ef openpmd
+
+###### Stage 3: Install CP2K ######
+
+FROM "${BASE_IMAGE}" AS install_cp2k
+
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    g++ g++-13 gcc gcc-13 gfortran gfortran-13 \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
+
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
+
+# Run CP2K regression test
+RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests --keepalive
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]
