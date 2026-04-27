@@ -32,6 +32,14 @@ case "${with_dbcsr}" in
       [ -d dbcsr-${dbcsr_ver} ] && rm -rf dbcsr-${dbcsr_ver}
       tar -xzf dbcsr-${dbcsr_ver}.tar.gz
       cd dbcsr-${dbcsr_ver}
+      if [ "${ENABLE_CUDA}" == "__TRUE__" ] && [ "${GPUVER}" == "GB10" ]; then
+        # DBCSR 2.9.1 predates GB10. Build native sm_121 code while
+        # reusing the closest available libsmm_acc parameters.
+        sed -i "s/    H100)/    H100\\n    GB10)/" CMakeLists.txt
+        sed -i "/  set(GPU_ARCH_NUMBER_H100 90)/a\\  set(GPU_ARCH_NUMBER_GB10 121)" CMakeLists.txt
+        cp src/acc/libsmm_acc/parameters/parameters_H100.json \
+          src/acc/libsmm_acc/parameters/parameters_GB10.json
+      fi
       mkdir build-cpu
       cd build-cpu
       CMAKE_OPTIONS="-DBUILD_TESTING=NO -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON"
@@ -56,7 +64,11 @@ case "${with_dbcsr}" in
       if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
         mkdir build-cuda
         cd build-cuda
-        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda -DWITH_GPU=P100"
+        if [ "${GPUVER}" == "GB10" ]; then
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda -DWITH_GPU=GB10 -DWITH_GPU_PARAMS=GB10"
+        else
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda -DWITH_GPU=P100"
+        fi
         cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
           ${CMAKE_OPTIONS} .. \
