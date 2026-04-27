@@ -258,8 +258,16 @@ CONTAINS
                CALL get_rho_atom(rho_atom=rho_atom, cpc_h=cpc_h, cpc_s=cpc_s)
                nspins = SIZE(cpc_h)
                nsotot = SIZE(mpole_gau%Qlm_gg, 1)
+               IF (ALLOCATED(cpc_ah)) THEN
+                  IF (SIZE(cpc_ah, 1) /= nsotot .OR. SIZE(cpc_ah, 2) /= nsotot .OR. &
+                      SIZE(cpc_ah, 3) /= nspins) DEALLOCATE (cpc_ah)
+               END IF
                IF (.NOT. ALLOCATED(cpc_ah)) ALLOCATE (cpc_ah(nsotot, nsotot, nspins))
                cpc_ah = 0._dp
+               IF (ALLOCATED(cpc_as)) THEN
+                  IF (SIZE(cpc_as, 1) /= nsotot .OR. SIZE(cpc_as, 2) /= nsotot .OR. &
+                      SIZE(cpc_as, 3) /= nspins) DEALLOCATE (cpc_as)
+               END IF
                IF (.NOT. ALLOCATED(cpc_as)) ALLOCATE (cpc_as(nsotot, nsotot, nspins))
                cpc_as = 0._dp
                DO ispin = 1, nspins
@@ -270,10 +278,16 @@ CONTAINS
                IF (ASSOCIATED(cneo_potential)) THEN
                   IF (rhoz_cneo_set(iatom)%ready) THEN
                      nsotot_nuc = SIZE(cneo_potential%Qlm_gg, 1)
-                     IF (.NOT. ALLOCATED(cpc_h_nuc)) &
-                        ALLOCATE (cpc_h_nuc(nsotot_nuc, nsotot_nuc))
-                     IF (.NOT. ALLOCATED(cpc_s_nuc)) &
-                        ALLOCATE (cpc_s_nuc(nsotot_nuc, nsotot_nuc))
+                     IF (ALLOCATED(cpc_h_nuc)) THEN
+                        IF (SIZE(cpc_h_nuc, 1) /= nsotot_nuc .OR. &
+                            SIZE(cpc_h_nuc, 2) /= nsotot_nuc) DEALLOCATE (cpc_h_nuc)
+                     END IF
+                     IF (.NOT. ALLOCATED(cpc_h_nuc)) ALLOCATE (cpc_h_nuc(nsotot_nuc, nsotot_nuc))
+                     IF (ALLOCATED(cpc_s_nuc)) THEN
+                        IF (SIZE(cpc_s_nuc, 1) /= nsotot_nuc .OR. &
+                            SIZE(cpc_s_nuc, 2) /= nsotot_nuc) DEALLOCATE (cpc_s_nuc)
+                     END IF
+                     IF (.NOT. ALLOCATED(cpc_s_nuc)) ALLOCATE (cpc_s_nuc(nsotot_nuc, nsotot_nuc))
                      cpc_h_nuc = 0._dp
                      cpc_s_nuc = 0._dp
                      CALL cneo_scatter(rhoz_cneo_set(iatom)%cpc_h, cpc_h_nuc, cneo_potential%npsgf, &
