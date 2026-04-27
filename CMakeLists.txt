@@ -991,15 +991,19 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)
-  message(
-    "   - CUSolverMP: \n"
-    "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
-    "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n"
-    "     - CAL library: ${CP2K_CAL_LINK_LIBRARIES} \n"
-    "     - CAL include: ${CP2K_CAL_INCLUDE_DIRS} \n"
-    "     - ucc library: ${CP2K_UCC_LINK_LIBRARIES} \n"
-    "     - ucx library: ${CP2K_UCX_LINK_LIBRARIES} \n"
-    "     - ucc include: ${CP2K_UCC_INCLUDE_DIRS} \n")
+  message("   - CUSolverMP: \n"
+          "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
+          "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n")
+  if(CP2K_CUSOLVERMP_USE_NCCL)
+    message("     - NCCL library: ${CP2K_NCCL_LINK_LIBRARIES} \n"
+            "     - NCCL include: ${CP2K_NCCL_INCLUDE_DIRS} \n")
+  else()
+    message("     - CAL library: ${CP2K_CAL_LINK_LIBRARIES} \n"
+            "     - CAL include: ${CP2K_CAL_INCLUDE_DIRS} \n")
+  endif()
+  message("     - ucc library: ${CP2K_UCC_LINK_LIBRARIES} \n"
+          "     - ucx library: ${CP2K_UCX_LINK_LIBRARIES} \n"
+          "     - ucc include: ${CP2K_UCC_INCLUDE_DIRS} \n")
 endif()
 
 if(CP2K_USE_LIBXC)
