@@ -360,7 +360,10 @@ CONTAINS
          END DO
       END DO
 
-      res%basis = gauxc_basisset_new_from_shells(status%status, shells, INT(nshell_total, c_size_t))
+      res%basis = gauxc_basisset_new_from_shells( &
+                  status%status, &
+                  shells, &
+                  normalize=.TRUE.)
       GAUXC_RETURN_IF_ERROR(status)
 
       DEALLOCATE (shells)
