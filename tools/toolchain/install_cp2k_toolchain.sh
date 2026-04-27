@@ -845,7 +845,7 @@ Otherwise use option no."
       with_elpa=$(read_with "${1}")
       ;;
     --with-cusolvermp*)
-      with_cusolvermp=$(read_with "${1}")
+      with_cusolvermp=$(read_with "${1}" "__SYSTEM__")
       ;;
     --with-deepmd*)
       with_deepmd=$(read_with "${1}")

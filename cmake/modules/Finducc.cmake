@@ -11,6 +11,7 @@ include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
 cp2k_set_default_paths(UCC "ucc")
+cp2k_set_default_paths(UCX "ucx")
 
 cp2k_find_libraries(UCC "ucc")
 cp2k_find_libraries(UCX "ucs")
