@@ -137,7 +137,7 @@ CONTAINS
          CALL geoopt_cg(force_env, gopt_param, globenv, &
                         geo_section, gopt_env, x0)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid or not yet implemented method for optimization")
       END SELECT
 
    END SUBROUTINE cp_cell_opt_low

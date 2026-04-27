@@ -147,10 +147,10 @@ CONTAINS
                END DO
             END DO
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Invalid or not yet implemented type of cell optimization")
          END SELECT
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid or not yet implemented type of optimization")
       END SELECT
 
    END SUBROUTINE gopt_f_create_x0

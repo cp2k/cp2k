@@ -183,8 +183,10 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
       ! Check for VIRIAL
       IF (.NOT. virial%pv_availability) &
          CALL cp_abort(__LOCATION__, &
-                       "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "// &
-                       "Activate the evaluation of the stress tensor for cell optimization!")
+                       "For a cell optimization task with CELL_OPT/TYPE "// &
+                       "DIRECT_CELL_OPT, the FORCE_EVAL/STRESS_TENSOR "// &
+                       "keyword MUST be defined in the input file for the "// &
+                       "evaluation of the stress tensor, but none is found!")
       IF (gopt_env%cell_env%keep_volume) THEN
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          SELECT CASE (gopt_env%cell_method_id)
@@ -267,7 +269,11 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                   CALL section_vals_get(work, explicit=explicit)
                   IF (.NOT. explicit) &
                      CALL cp_abort(__LOCATION__, &
-                                   "Cell optimization at 0K was requested. GEO_OPT section MUST be provided in the input file!")
+                                   "For a cell optimization task with CELL_OPT/TYPE "// &
+                                   "GEO_OPT, besides the MOTION/CELL_OPT section, the "// &
+                                   "MOTION/GEO_OPT section MUST also be provided in "// &
+                                   "the input file for the evaluation of the stress "// &
+                                   "tensor, but none is found!")
                   ! Perform a geometry optimization
                   CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
                                               project_name, id_run=geo_opt_run)
@@ -280,14 +286,18 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                   avgs_section => section_vals_get_subs_vals(work, "AVERAGES")
                   CALL section_vals_get(work, explicit=explicit)
                   IF (.NOT. explicit) &
-                     CALL cp_abort( &
-                     __LOCATION__, &
-                     "Cell optimization at finite temperature was requested. MD section MUST be provided in the input file!")
+                     CALL cp_abort(__LOCATION__, &
+                                   "For a cell optimization task with CELL_OPT/TYPE MD, "// &
+                                   "besides the MOTION/CELL_OPT section, the MOTION/MD "// &
+                                   "section MUST also be provided in the input file for "// &
+                                   "the evaluation of the stress tensor, but none is found!")
                   ! Only NVT ensemble is allowed..
                   CALL section_vals_val_get(gopt_env%motion_section, "MD%ENSEMBLE", i_val=ensemble)
                   IF (ensemble /= nvt_ensemble) &
                      CALL cp_abort(__LOCATION__, &
-                                   "Cell optimization at finite temperature requires the NVT MD ensemble!")
+                                   "For a cell optimization task with CELL_OPT/TYPE MD, "// &
+                                   "the MOTION/MD/ENSEMBLE keyword MUST be set to NVT "// &
+                                   "and any other choice of ensemble is not supported!")
                   ! Perform a molecular dynamics
                   CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env, &
                                               project_name, id_run=mol_dyn_run)
@@ -299,7 +309,8 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                   virial_avg = averages%virial
                   CALL release_averages(averages)
                CASE DEFAULT
-                  CPABORT("")
+                  ! Should never reach this point
+                  CPABORT("Invalid or not yet implemented type of cell optimization")
                END SELECT
                CALL cp_rm_default_logger()
                CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name, &
@@ -338,7 +349,7 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
             END IF
          END BLOCK
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid or not yet implemented type of cell optimization")
       END SELECT
    CASE (default_shellcore_method_id)
       idg = 0
@@ -377,7 +388,7 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
          END IF
       END IF
    CASE DEFAULT
-      CPABORT("")
+      CPABORT("Invalid or not yet implemented type of optimization")
    END SELECT
 
    CALL timestop(handle)
