@@ -67,6 +67,7 @@ MODULE gw_large_cell_gamma
    USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
+                                              default_path_length,&
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
@@ -2368,7 +2369,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_unnecessary_files'
 
-      CHARACTER(LEN=default_string_length)               :: f_chi, f_W_t, prefix
+      CHARACTER(LEN=default_path_length)               :: f_chi, f_W_t, prefix
       INTEGER                                            :: handle, i_t
 
       CALL timeset(routineN, handle)
