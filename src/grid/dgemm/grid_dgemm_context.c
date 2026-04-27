@@ -220,18 +220,10 @@ void update_task_lists(const int nlevels, const int ntasks,
     ctx->tasks[i] = ctx->tasks[i - 1] + ctx->tasks_per_level[i - 1];
   }
 
-  int prev_block_num = -1;
-  int prev_iset = -1;
-  int prev_jset = -1;
-  int prev_level = -1;
-  _task *task = ctx->tasks[0];
+  _task *const tasks = ctx->tasks[0];
+#pragma omp parallel for schedule(static) if (ntasks > GRID_OMP_MIN_ITERATIONS)
   for (int i = 0; i < ntasks; i++) {
-    if (prev_level != (level_list[i] - 1)) {
-      prev_level = level_list[i] - 1;
-      prev_block_num = -1;
-      prev_iset = -1;
-      prev_jset = -1;
-    }
+    _task *const task = &tasks[i];
     task->level = level_list[i] - 1;
     task->iatom = iatom_list[i] - 1;
     task->jatom = jatom_list[i] - 1;
@@ -271,8 +263,6 @@ void update_task_lists(const int nlevels, const int ntasks,
     task->prefactor = exp(-task->zeta[0] * f * rab2);
     task->zetp = zetp;
 
-    const int block_num = task->block_num;
-
     for (int i = 0; i < 3; i++) {
       task->ra[i] = ra[i];
       task->rp[i] = ra[i] + f * task->rab[i];
@@ -284,19 +274,13 @@ void update_task_lists(const int nlevels, const int ntasks,
     task->lmin[0] = ibasis->lmin[iset];
     task->lmin[1] = jbasis->lmin[jset];
 
-    if ((block_num != prev_block_num) || (iset != prev_iset) ||
-        (jset != prev_jset)) {
-      task->update_block_ = true;
-      prev_block_num = block_num;
-      prev_iset = iset;
-      prev_jset = jset;
-    } else {
-      task->update_block_ = false;
-    }
+    task->update_block_ = i == 0 || level_list[i] != level_list[i - 1] ||
+                          block_num_list[i] != block_num_list[i - 1] ||
+                          iset_list[i] != iset_list[i - 1] ||
+                          jset_list[i] != jset_list[i - 1];
 
     task->offset[0] = ipgf * ncoseta;
     task->offset[1] = jpgf * ncosetb;
-    task++;
   }
 
   // Find largest Cartesian subblock size.

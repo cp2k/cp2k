@@ -100,6 +100,7 @@ void grid_ref_create_task_list(
   size = ntasks * sizeof(grid_ref_task);
   task_list->tasks = malloc(size);
   assert(task_list->tasks != NULL || size == 0);
+#pragma omp parallel for schedule(static) if (ntasks > GRID_OMP_MIN_ITERATIONS)
   for (int i = 0; i < ntasks; i++) {
     task_list->tasks[i].level = level_list[i];
     task_list->tasks[i].iatom = iatom_list[i];
@@ -142,7 +143,10 @@ void grid_ref_create_task_list(
   assert(task_list->first_level_block_task != NULL || size == 0);
   task_list->last_level_block_task = malloc(size);
   assert(task_list->last_level_block_task != NULL || size == 0);
-  for (int i = 0; i < nlevels * nblocks; i++) {
+  const int nlevel_blocks = nlevels * nblocks;
+#pragma omp parallel for schedule(static) if (nlevel_blocks >                  \
+                                                  GRID_OMP_MIN_ITERATIONS)
+  for (int i = 0; i < nlevel_blocks; i++) {
     task_list->first_level_block_task[i] = 0;
     task_list->last_level_block_task[i] = -1; // last < first means no tasks
   }
@@ -390,6 +394,7 @@ static void collocate_one_grid_level(
       const int lb = (npts_local_total * rank) / actual_group_size;
       const int ub = (npts_local_total * (rank + 1)) / actual_group_size;
       if (src_thread < nthreads) {
+        GRID_PRAGMA_SIMD_LOOP
         for (int i = lb; i < ub; i++) {
           task_list->threadlocals[dest_thread][i] +=
               task_list->threadlocals[src_thread][i];
@@ -401,6 +406,7 @@ static void collocate_one_grid_level(
     // Copy final result from first thread into shared grid.
     const int lb = (npts_local_total * ithread) / nthreads;
     const int ub = (npts_local_total * (ithread + 1)) / nthreads;
+    GRID_PRAGMA_SIMD_LOOP
     for (int i = lb; i < ub; i++) {
       grid->host_buffer[i] = task_list->threadlocals[0][i];
     }
