@@ -177,7 +177,7 @@ def main() -> None:
                 version="pdbg",
                 mpi_mode="openmpi",
                 feature_flags="-ef openpmd",
-                testopts=testopts,
+                testopts="",
                 image_tag=f.image_tag,
             )
         )
