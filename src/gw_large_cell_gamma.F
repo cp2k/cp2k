@@ -66,8 +66,7 @@ MODULE gw_large_cell_gamma
                                               time_to_freq
    USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              default_path_length,&
+   USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
@@ -348,7 +347,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_read'
 
-      CHARACTER(LEN=default_string_length)               :: f_chi
+      CHARACTER(LEN=default_path_length)                 :: f_chi
       INTEGER                                            :: handle, unit_nr
 
       CALL timeset(routineN, handle)
@@ -501,7 +500,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
          routineN = 'fm_write'
 
-      CHARACTER(LEN=default_string_length)               :: filename
+      CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input
@@ -2369,7 +2368,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_unnecessary_files'
 
-      CHARACTER(LEN=default_path_length)               :: f_chi, f_W_t, prefix
+      CHARACTER(LEN=default_path_length)                 :: f_chi, f_W_t, prefix
       INTEGER                                            :: handle, i_t
 
       CALL timeset(routineN, handle)
