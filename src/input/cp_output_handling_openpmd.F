@@ -689,6 +689,7 @@ CONTAINS
       MARK_USED(openpmd_basename)
       MARK_USED(openpmd_unit_dimension)
       MARK_USED(openpmd_unit_si)
+      MARK_USED(sim_time)
       res = 0
       CPABORT("CP2K compiled without the openPMD-api")
 #endif
