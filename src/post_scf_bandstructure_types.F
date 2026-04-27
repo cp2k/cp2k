@@ -23,7 +23,7 @@ MODULE post_scf_bandstructure_types
                                               dbt_type
    USE input_constants,                 ONLY: rtp_method_bse,&
                                               small_cell_full_kp
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
@@ -244,7 +244,7 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=7)                             :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
-      CHARACTER(LEN=default_string_length)         :: prefix = ""
+      CHARACTER(LEN=default_path_length)           :: prefix = ""
       INTEGER                                      :: unit_nr = -1, &
                                                       unit_nr_contract = -1
 
