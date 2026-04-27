@@ -93,6 +93,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: as_attributable => openpmd_series_as_attributable
       PROCEDURE, PUBLIC :: close => openpmd_series_close
       PROCEDURE, PUBLIC :: present => openpmd_series_present
+      PROCEDURE, PUBLIC :: set_software => openpmd_series_set_software
       PROCEDURE, PUBLIC :: write_iteration => openpmd_series_write_iteration
       PROCEDURE, PUBLIC :: get_iteration => openpmd_series_get_iteration
    END TYPE openpmd_series_type
@@ -107,6 +108,8 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: close => openpmd_iteration_close
       PROCEDURE, PUBLIC :: open => openpmd_iteration_open
       PROCEDURE, PUBLIC :: closed => openpmd_iteration_closed
+      PROCEDURE, PUBLIC :: set_time_unit_SI => openpmd_iteration_set_time_unit_SI
+      PROCEDURE, PUBLIC :: set_time => openpmd_iteration_set_time
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -117,7 +120,9 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: set_axis_labels => openpmd_mesh_set_axis_labels
       PROCEDURE, PUBLIC :: set_grid_global_offset => openpmd_mesh_set_grid_global_offset
       PROCEDURE, PUBLIC :: set_grid_spacing => openpmd_mesh_set_grid_spacing
+      PROCEDURE, PUBLIC :: set_grid_unit_SI => openpmd_mesh_set_grid_unit_SI
       PROCEDURE, PUBLIC :: set_position => openpmd_mesh_set_position
+      PROCEDURE, PUBLIC :: set_unit_dimension => openpmd_mesh_set_unit_dimension
    END TYPE openpmd_mesh_type
 
    TYPE openpmd_particle_species_type
@@ -134,6 +139,7 @@ MODULE openpmd_api
       PROCEDURE, PUBLIC :: make_empty => openpmd_record_component_make_empty
       PROCEDURE, PUBLIC :: make_constant_zero => openpmd_record_component_make_constant_zero
       PROCEDURE, PUBLIC :: reset_dataset => openpmd_record_component_reset_dataset
+      PROCEDURE, PUBLIC :: set_unit_SI => openpmd_record_component_set_unit_SI
       #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
          #:for dim in dimensions
             PROCEDURE, PRIVATE :: store_chunk_${dim}$d_${type_enum}$ &
@@ -173,6 +179,7 @@ MODULE openpmd_api
       CONTAINS
          PROCEDURE, PUBLIC :: as_record_component => openpmd_record_as_record_component
          PROCEDURE, PUBLIC :: get_component => openpmd_record_get_component
+         PROCEDURE, PUBLIC :: set_unit_dimension => openpmd_record_set_unit_dimension
       END TYPE openpmd_record_type
 
       #:for dim in dimensions
@@ -424,6 +431,35 @@ MODULE openpmd_api
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param this ...
+!> \param name ...
+!> \param version ...
+! **************************************************************************************************
+      SUBROUTINE openpmd_series_set_software(this, name, version)
+         CLASS(openpmd_series_type), INTENT(IN)           :: this
+         CHARACTER(len=*), INTENT(IN)                     :: name
+         CHARACTER(len=*), INTENT(IN), OPTIONAL           :: version
+
+         INTERFACE
+            SUBROUTINE openpmd_c_series_set_software(series, name, version) &
+               BIND(C, name="openPMD_Series_setSoftware")
+               IMPORT :: C_PTR, C_CHAR
+               TYPE(C_PTR), VALUE :: series
+               CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+               CHARACTER(kind=C_CHAR), DIMENSION(*) :: version
+            END SUBROUTINE openpmd_c_series_set_software
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(this%c_ptr))
+         IF (PRESENT(version)) THEN
+            CALL openpmd_c_series_set_software(this%c_ptr, name//C_NULL_CHAR, version//C_NULL_CHAR)
+         ELSE
+            CALL openpmd_c_series_set_software(this%c_ptr, name//C_NULL_CHAR, C_NULL_CHAR)
+         END IF
+      END SUBROUTINE openpmd_series_set_software
+
+! **************************************************************************************************
+!> \brief ...
 !> \param series ...
 !> \param index ...
 !> \return ...
@@ -571,6 +607,38 @@ MODULE openpmd_api
          IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
          CALL openpmd_c_attributable_series_flush(this%c_ptr, my_backendconfig//C_NULL_CHAR)
       END SUBROUTINE openpmd_attributable_series_flush
+
+      SUBROUTINE openpmd_iteration_set_time_unit_SI(this, timeUnitSI)
+         CLASS(openpmd_iteration_type) :: this
+         REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: timeUnitSI
+
+         INTERFACE
+            SUBROUTINE openpmd_c_iteration_set_time_unit_SI(iteration, timeUnitSI) &
+               BIND(C, NAME="openPMD_Iteration_setTimeUnitSI")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: iteration
+               REAL(kind=C_DOUBLE), VALUE :: timeUnitSI
+            END SUBROUTINE openpmd_c_iteration_set_time_unit_SI
+         END INTERFACE
+
+         CALL openpmd_c_iteration_set_time_unit_SI(this%c_ptr, timeUnitSI)
+      END SUBROUTINE openpmd_iteration_set_time_unit_SI
+
+      SUBROUTINE openpmd_iteration_set_time(this, time)
+         CLASS(openpmd_iteration_type) :: this
+         REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: time
+
+         INTERFACE
+            SUBROUTINE openpmd_c_iteration_set_time(iteration, time) &
+               BIND(C, NAME="openPMD_Iteration_setTime")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: iteration
+               REAL(kind=C_DOUBLE), VALUE :: time
+            END SUBROUTINE openpmd_c_iteration_set_time
+         END INTERFACE
+
+         CALL openpmd_c_iteration_set_time(this%c_ptr, time)
+      END SUBROUTINE openpmd_iteration_set_time
 
       FUNCTION openpmd_json_merge(into, from, mpi_comm) RESULT(merged)
          CHARACTER(len=*), INTENT(IN)                       :: into, from
@@ -873,6 +941,22 @@ MODULE openpmd_api
                   this%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, my_config//C_NULL_CHAR)
       END SUBROUTINE openpmd_record_component_reset_dataset
 
+      SUBROUTINE openpmd_record_component_set_unit_SI(this, unitSI)
+         CLASS(openpmd_record_component_type) :: this
+         REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: unitSI
+
+         INTERFACE
+            SUBROUTINE openpmd_c_record_component_set_unit_SI(record_component, unitSI) &
+               BIND(C, NAME="openPMD_RecordComponent_setUnitSI")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: record_component
+               REAL(kind=C_DOUBLE), VALUE :: unitSI
+            END SUBROUTINE openpmd_c_record_component_set_unit_SI
+         END INTERFACE
+
+         CALL openpmd_c_record_component_set_unit_SI(this%c_ptr, unitSI)
+      END SUBROUTINE openpmd_record_component_set_unit_SI
+
       #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
          #:for dim in [1, 2, 3]
             ! e.g. ':,:,:'
@@ -1032,6 +1116,29 @@ MODULE openpmd_api
          CPASSERT(C_ASSOCIATED(record_component%c_ptr))
       END FUNCTION openpmd_record_get_component
 
+      ! L = 0, //!< length
+      ! M, //!< mass
+      ! T, //!< time
+      ! I, //!< electric current
+      ! theta, //!< thermodynamic temperature
+      ! N, //!< amount of substance
+      ! J //!< luminous intensity
+      SUBROUTINE openpmd_record_set_unit_dimension(this, unitDimension)
+         CLASS(openpmd_record_type) :: this
+         REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
+
+         INTERFACE
+            SUBROUTINE openpmd_c_record_set_unit_dimension(record, unitDimension) &
+               BIND(C, NAME="openPMD_Record_setUnitDimension")
+               IMPORT :: C_PTR, C_DOUBLE
+               TYPE(C_PTR), VALUE :: record
+               REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
+            END SUBROUTINE openpmd_c_record_set_unit_dimension
+         END INTERFACE
+
+         CALL openpmd_c_record_set_unit_dimension(this%c_ptr, unitDimension)
+      END SUBROUTINE openpmd_record_set_unit_dimension
+
       #:set f_routines = ["openpmd_mesh_set_grid_global_offset", "openpmd_mesh_set_grid_spacing", "openpmd_mesh_set_position"]
       #:set c_functions = ["openPMD_Mesh_setGridGlobalOffset", "openPMD_Mesh_setGridSpacing", "openPMD_Mesh_setPosition"]
       #:set f_vector_types = ["REAL(KIND=dp)" for _ in range(3)]
@@ -1057,6 +1164,45 @@ MODULE openpmd_api
 
          END SUBROUTINE ${f_routine}$
          #:endfor
+
+         SUBROUTINE openpmd_mesh_set_grid_unit_SI(this, gridUnitSI)
+            CLASS(openpmd_mesh_type) :: this
+            REAL(kind=C_DOUBLE), INTENT(IN), VALUE :: gridUnitSI
+
+            INTERFACE
+               SUBROUTINE openpmd_c_mesh_set_grid_unit_SI(mesh, gridUnitSI) &
+                  BIND(C, NAME="openPMD_Mesh_setGridUnitSI")
+                  IMPORT :: C_PTR, C_DOUBLE
+                  TYPE(C_PTR), VALUE :: mesh
+                  REAL(kind=C_DOUBLE), VALUE :: gridUnitSI
+               END SUBROUTINE openpmd_c_mesh_set_grid_unit_SI
+            END INTERFACE
+
+            CALL openpmd_c_mesh_set_grid_unit_SI(this%c_ptr, gridUnitSI)
+         END SUBROUTINE openpmd_mesh_set_grid_unit_SI
+
+         ! L = 0, //!< length
+         ! M, //!< mass
+         ! T, //!< time
+         ! I, //!< electric current
+         ! theta, //!< thermodynamic temperature
+         ! N, //!< amount of substance
+         ! J //!< luminous intensity
+         SUBROUTINE openpmd_mesh_set_unit_dimension(this, unitDimension)
+            CLASS(openpmd_mesh_type) :: this
+            REAL(kind=C_DOUBLE), DIMENSION(7), TARGET :: unitDimension
+
+            INTERFACE
+               SUBROUTINE openpmd_c_mesh_set_unit_dimension(mesh, unitDimension) &
+                  BIND(C, NAME="openPMD_Mesh_setUnitDimension")
+                  IMPORT :: C_PTR, C_DOUBLE
+                  TYPE(C_PTR), VALUE :: mesh
+                  REAL(kind=C_DOUBLE), DIMENSION(*) :: unitDimension
+               END SUBROUTINE openpmd_c_mesh_set_unit_dimension
+            END INTERFACE
+
+            CALL openpmd_c_mesh_set_unit_dimension(this%c_ptr, unitDimension)
+         END SUBROUTINE openpmd_mesh_set_unit_dimension
 
 #endif
          ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.

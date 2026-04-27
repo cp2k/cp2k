@@ -41,13 +41,16 @@ MODULE cp_output_handling_openpmd
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: default_path_length, &
-                    default_string_length
+                    default_string_length, &
+                    dp
    USE machine, ONLY: m_mov
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_file_delete, &
                               mp_file_get_amode, &
                               mp_file_type
 #ifdef __OPENPMD
+   USE physcon, ONLY: seconds
+   USE cp2k_info, ONLY: cp2k_version
    USE openpmd_api, ONLY: &
       openpmd_access_create, &
       openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
@@ -73,11 +76,13 @@ MODULE cp_output_handling_openpmd
 
 #ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
-      TYPE(openpmd_series_type) :: series = openpmd_series_type()
-      TYPE(openpmd_iteration_type) :: iteration = openpmd_iteration_type()
-      ! TYPE(openpmd_mesh_type) :: mesh = openpmd_mesh_type()
+      TYPE(openpmd_series_type)             :: series = openpmd_series_type()
+      TYPE(openpmd_iteration_type)          :: iteration = openpmd_iteration_type()
+      ! TYPE(openpmd_mesh_type)             :: mesh             = openpmd_mesh_type()
       ! TYPE(openpmd_particle_species_type) :: particle_species = openpmd_particle_species_type()
-      CHARACTER(len=default_string_length) :: name_prefix = "" ! e.g. 'WFN_00008_1'
+      CHARACTER(len=default_string_length)  :: name_prefix = "" ! e.g. 'WFN_00008_1'
+      REAL(kind=dp), DIMENSION(7)           :: unit_dimension = [0, 0, 0, 0, 0, 0, 0]
+      REAL(kind=dp)                         :: unit_si = 1
    END TYPE cp_openpmd_per_call_value_type
 
    TYPE :: cp_openpmd_per_call_type
@@ -401,17 +406,29 @@ CONTAINS
 !> \param series ...
 !> \param middle_name ...
 !> \param logger ...
+!> \param sim_time Current simulation time in atomic units (used for timeOffset)
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_create_unit_nr_entry(openpmd_file_index, middle_name, logger) RESULT(res)
+   FUNCTION cp_openpmd_create_unit_nr_entry( &
+      openpmd_file_index, &
+      middle_name, &
+      logger, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
       INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
-      LOGICAL, SAVE                                      :: opened_new_iteration = .FALSE.
+      LOGICAL                                            :: opened_new_iteration
       TYPE(openpmd_attributable_type)                    :: attr
       TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: opmd
+
+      opened_new_iteration = .FALSE.
 
       opmd => cp_openpmd_per_callsite(openpmd_file_index)%value
 
@@ -420,9 +437,23 @@ CONTAINS
       opened_new_iteration = cp_advance_iteration_number(logger, opmd)
 
       res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
+      CALL res%iteration%set_time_unit_SI(seconds)
       res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
+
+         IF (PRESENT(sim_time)) THEN
+            CALL res%iteration%set_time(sim_time)
+         END IF
+
+         IF (PRESENT(openpmd_unit_dimension)) THEN
+            res%unit_dimension = openpmd_unit_dimension
+         END IF
+
+         IF (PRESENT(openpmd_unit_si)) THEN
+            res%unit_si = openpmd_unit_si
+         END IF
+
          attr = res%iteration%as_attributable()
          CALL attr%set_attribute_vec_int( &
             "ndim_iteration_index", &
@@ -441,7 +472,7 @@ CONTAINS
       INTEGER                                  :: file_index
       CHARACTER(:), ALLOCATABLE                :: merged_config
 
-      CHARACTER(len=default_string_length), SAVE :: basename_copied = ' '
+      CHARACTER(len=default_string_length)     :: basename_copied
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
       INTEGER                                  :: handle
@@ -449,6 +480,7 @@ CONTAINS
       TYPE(openpmd_iteration_type)             :: iteration
       INTEGER                                  :: i
 
+      basename_copied = ' '
       basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
 
       file_index = cp_openpmd_get_index_filedata(basename_copied)
@@ -482,6 +514,9 @@ CONTAINS
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=merged_config)
       END IF
+
+      CALL emplace_new%output_series%set_software("CP2K", cp2k_version)
+
       DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION cp_openpmd_get_openpmd_file_entry
@@ -538,12 +573,22 @@ CONTAINS
 !>               all MPI libraries.
 !> \param openpmd_basename Used to associate an identifier to each callsite of this module
 !> \param use_openpmd ...
+!> \param sim_time Current simulation time in atomic units (used for timeOffset)
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                         middle_name, ignore_should_output, &
-                                         mpi_io, &
-                                         fout, openpmd_basename) RESULT(res)
+   FUNCTION cp_openpmd_print_key_unit_nr( &
+      logger, &
+      basis_section, &
+      print_key_path, &
+      middle_name, &
+      ignore_should_output, &
+      mpi_io, &
+      fout, &
+      openpmd_basename, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
+
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -553,6 +598,9 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       INTEGER                                            :: res
 
 #ifdef __OPENPMD
@@ -612,10 +660,19 @@ CONTAINS
                               openpmd_basename, filename, openpmd_config, logger, my_mpi_io)
 
          OPEN (newunit=res, status='scratch', action='write')
-         openpmd_call_index = cp_openpmd_add_unit_nr( &
-                              res, &
-                              cp_openpmd_create_unit_nr_entry( &
-                              openpmd_file_index, middle_name, logger))
+         BLOCK
+            TYPE(cp_openpmd_per_call_value_type) :: output_info
+
+            output_info = cp_openpmd_create_unit_nr_entry( &
+                          openpmd_file_index, &
+                          middle_name, &
+                          logger, &
+                          openpmd_unit_dimension, &
+                          openpmd_unit_si, &
+                          sim_time)
+            openpmd_call_index = cp_openpmd_add_unit_nr( &
+                                 res, output_info)
+         END BLOCK
 
       ELSE
          res = -1
@@ -629,6 +686,10 @@ CONTAINS
       MARK_USED(mpi_io)
       MARK_USED(fout)
       MARK_USED(openpmd_basename)
+      MARK_USED(openpmd_basename)
+      MARK_USED(openpmd_unit_dimension)
+      MARK_USED(openpmd_unit_si)
+      MARK_USED(sim_time)
       res = 0
       CPABORT("CP2K compiled without the openPMD-api")
 #endif

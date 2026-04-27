@@ -132,6 +132,10 @@ int openPMD_Series_upcast_to_Attributable(
 
 int openPMD_Series_present(openPMD_Series series);
 
+int openPMD_Series_setSoftware(
+    // in
+    openPMD_Series series, char const *name, char const *version);
+
 char const *openPMD_get_default_extension();
 
 /*************************
@@ -183,6 +187,14 @@ int openPMD_Iteration_closed(
     // in
     openPMD_Iteration iteration);
 
+int openPMD_Iteration_setTimeUnitSI(
+    // in
+    openPMD_Iteration iteration, double const timeUnitSI);
+
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration, double const time);
+
 /****************
  * Mesh members *
  ****************/
@@ -215,6 +227,14 @@ int openPMD_Mesh_setPosition(
     // in
     openPMD_Mesh mesh, double const *labels, int len_labels, int invert);
 
+int openPMD_Mesh_setGridUnitSI(
+    // in
+    openPMD_Mesh mesh, double const gridUnitSI);
+
+int openPMD_Mesh_setUnitDimension(
+    // in
+    openPMD_Mesh mesh, double const *unitDimension);
+
 /***************************
  * RecordComponent members *
  ***************************/
@@ -238,6 +258,10 @@ int openPMD_RecordComponent_makeConstant(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
     int const *extent, int invert, void const *value);
+
+int openPMD_RecordComponent_setUnitSI(
+    // in
+    openPMD_RecordComponent rc, double const unitSI);
 
 int openPMD_RecordComponent_storeChunk(
     // in
@@ -293,6 +317,10 @@ int openPMD_Record_get_Component(
     // out
     openPMD_RecordComponent *rc);
 
+int openPMD_Record_setUnitDimension(
+    // in
+    openPMD_Record record, double const *unitDimension);
+
 /***********
  * Helpers *
  ***********/
@@ -316,6 +344,7 @@ char *openPMD_json_merge(char const *into, char const *from,
 #endif
 
 #include <any>
+#include <array>
 #include <cctype>
 #include <cstdio>
 #include <fstream>
@@ -650,6 +679,14 @@ int openPMD_Series_present(openPMD_Series series_param) {
   return res ? 1 : 0;
 }
 
+int openPMD_Series_setSoftware(openPMD_Series series_param, char const *name,
+                               char const *version) {
+  auto series = reinterpret_cast<openPMD::Series *>(series_param);
+  std::string version_str = version ? std::string(version) : std::string();
+  series->setSoftware(std::string(name), version_str);
+  return 0;
+}
+
 char const *openPMD_get_default_extension() {
   constexpr static char const *preferred_order[] = {"bp5", "bp4", "bp", "h5",
                                                     "json"};
@@ -722,7 +759,6 @@ int openPMD_Iteration_get_particle_species(
 
 int openPMD_Iteration_open(openPMD_Iteration iteration_param) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
-  std::cout << "OPENING ITERATION" << std::endl;
   iteration->open();
   return 0;
 }
@@ -736,6 +772,22 @@ int openPMD_Iteration_close(openPMD_Iteration iteration_param) {
 int openPMD_Iteration_closed(openPMD_Iteration iteration_param) {
   auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
   return iteration->closed();
+}
+
+int openPMD_Iteration_setTimeUnitSI(
+    // in
+    openPMD_Iteration iteration_param, double const timeUnitSI) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTimeUnitSI(timeUnitSI);
+  return 0;
+}
+
+int openPMD_Iteration_setTime(
+    // in
+    openPMD_Iteration iteration_param, double const time) {
+  auto iteration = reinterpret_cast<openPMD::Iteration *>(iteration_param);
+  iteration->setTime(time);
+  return 0;
 }
 
 int openPMD_Mesh_upcast_to_RecordComponent(
@@ -792,6 +844,24 @@ int openPMD_Mesh_setPosition(
   return 0;
 }
 
+int openPMD_Mesh_setGridUnitSI(
+    // in
+    openPMD_Mesh mesh_param, double const gridUnitSI) {
+  auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+  mesh->setGridUnitSI(gridUnitSI);
+  return 0;
+}
+
+int openPMD_Mesh_setUnitDimension(
+    // in
+    openPMD_Mesh mesh_param, double const *unitDimension) {
+  auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+  std::array<double, 7> unitDim{};
+  std::copy_n(unitDimension, 7, unitDim.begin());
+  mesh->setUnitDimension(unitDim);
+  return 0;
+}
+
 int openPMD_MeshRecordComponent_upcast_to_RecordComponent(
     // in
     openPMD_MeshRecordComponent mrc,
@@ -843,6 +913,14 @@ int openPMD_RecordComponent_makeConstant(
   openPMD::switchDatasetType<implementation::RecordComponent_makeConstant>(
       implementation::datatype_c_to_cxx(dt), *rc, value);
 
+  return 0;
+}
+
+int openPMD_RecordComponent_setUnitSI(
+    // in
+    openPMD_RecordComponent rc_param, double const unitSI) {
+  auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+  rc->setUnitSI(unitSI);
   return 0;
 }
 
@@ -925,6 +1003,16 @@ int openPMD_Record_get_Component(
   auto record = reinterpret_cast<openPMD::Record *>(record_param);
   auto &res = record->operator[](name);
   *reinterpret_cast<openPMD::RecordComponent **>(rc) = &res;
+  return 0;
+}
+
+int openPMD_Record_setUnitDimension(
+    // in
+    openPMD_Record record_param, double const *unitDimension) {
+  auto record = reinterpret_cast<openPMD::Record *>(record_param);
+  std::array<double, 7> unitDim{};
+  std::copy_n(unitDimension, 7, unitDim.begin());
+  record->setUnitDimension(unitDim);
   return 0;
 }
 

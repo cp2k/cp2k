@@ -100,7 +100,8 @@ MODULE qs_scf_post_gpw
    USE orbital_pointers,                ONLY: indso
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom,&
+   USE physcon,                         ONLY: a_bohr,&
+                                              angstrom,&
                                               evolt
    USE population_analyses,             ONLY: lowdin_population_analysis,&
                                               mulliken_population_analysis
@@ -230,6 +231,16 @@ MODULE qs_scf_post_gpw
 
    INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
 
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_density = &
+                                             [-3, 0, 0, 0, 0, 0, 0]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_dimensionless = &
+                                             [0, 0, 0, 0, 0, 0, 0]
+   REAL(kind=dp), DIMENSION(7), PARAMETER :: openpmd_unit_dimension_wavefunction = &
+                                             [-1.5_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+   REAL(kind=dp), PARAMETER :: openpmd_unit_si_density = a_bohr**(-3)
+   REAL(kind=dp), PARAMETER :: openpmd_unit_si_dimensionless = 1.0_dp
+   REAL(kind=dp), PARAMETER :: openpmd_unit_si_wavefunction = a_bohr**(-1.5_dp)
+
    ! Generic information on whether a certain output section has been activated
    ! or not, and on whether it has been activated in the Cube or openPMD variant.
    ! Create with function cube_or_openpmd(), see there for further details.
@@ -338,12 +349,35 @@ CONTAINS
 !> \param mpi_io ...
 !> \param fout ...
 !> \param openpmd_basename ...
+!> \param openpmd_unit_dimension ...
+!> \param openpmd_unit_si ...
+!> \param sim_time ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_forward_print_key_unit_nr(self, logger, basis_section, print_key_path, extension, &
-                                         middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
-                                         file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                         fout, openpmd_basename) RESULT(res)
+   FUNCTION cp_forward_print_key_unit_nr( &
+      self, &
+      logger, &
+      basis_section, &
+      print_key_path, &
+      extension, &
+      middle_name, &
+      local, &
+      log_filename, &
+      ignore_should_output, &
+      file_form, &
+      file_position, &
+      file_action, &
+      file_status, &
+      do_backup, &
+      on_file, &
+      is_new_file, &
+      mpi_io, &
+      fout, &
+      openpmd_basename, &
+      openpmd_unit_dimension, &
+      openpmd_unit_si, &
+      sim_time) RESULT(res)
+
       CLASS(cp_section_key), INTENT(IN)                  :: self
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
@@ -359,6 +393,9 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      REAL(kind=dp), DIMENSION(7), OPTIONAL, INTENT(IN)  :: openpmd_unit_dimension
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: openpmd_unit_si
+      REAL(kind=dp), OPTIONAL, INTENT(IN)                :: sim_time
       INTEGER                                            :: res
 
       IF (self%grid_output == grid_output_cubes) THEN
@@ -370,9 +407,18 @@ CONTAINS
                file_status=file_status, do_backup=do_backup, on_file=on_file, &
                is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
       ELSE
-         res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                            middle_name=middle_name, ignore_should_output=ignore_should_output, &
-                                            mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
+         res = cp_openpmd_print_key_unit_nr( &
+               logger, &
+               basis_section, &
+               print_key_path, &
+               middle_name=middle_name, &
+               ignore_should_output=ignore_should_output, &
+               mpi_io=mpi_io, &
+               fout=fout, &
+               openpmd_basename=openpmd_basename, &
+               openpmd_unit_dimension=openpmd_unit_dimension, &
+               openpmd_unit_si=openpmd_unit_si, &
+               sim_time=sim_time)
       END IF
    END FUNCTION cp_forward_print_key_unit_nr
 
@@ -1442,9 +1488,19 @@ CONTAINS
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
             mpi_io = .TRUE.
 
-            unit_nr = mo_section%print_key_unit_nr(logger, input, mo_section%absolute_section_key, extension=".cube", &
-                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                   mpi_io=mpi_io, openpmd_basename="dft-mo")
+            unit_nr = mo_section%print_key_unit_nr( &
+                      logger, &
+                      input, &
+                      mo_section%absolute_section_key, &
+                      extension=".cube", &
+                      middle_name=TRIM(filename), &
+                      file_position=my_pos_cube, &
+                      log_filename=.FALSE., &
+                      mpi_io=mpi_io, &
+                      openpmd_basename="dft-mo", &
+                      openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
+                      openpmd_unit_si=openpmd_unit_si_wavefunction, &
+                      sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
@@ -1542,9 +1598,19 @@ CONTAINS
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", index_mo, "_", ispin
             mpi_io = .TRUE.
 
-            unit_nr = mo_section%print_key_unit_nr(logger, input, mo_section%absolute_section_key, extension=".cube", &
-                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                   mpi_io=mpi_io, openpmd_basename="dft-mo")
+            unit_nr = mo_section%print_key_unit_nr( &
+                      logger, &
+                      input, &
+                      mo_section%absolute_section_key, &
+                      extension=".cube", &
+                      middle_name=TRIM(filename), &
+                      file_position=my_pos_cube, &
+                      log_filename=.FALSE., &
+                      mpi_io=mpi_io, &
+                      openpmd_basename="dft-mo", &
+                      openpmd_unit_dimension=openpmd_unit_dimension_wavefunction, &
+                      openpmd_unit_si=openpmd_unit_si_wavefunction, &
+                      sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
@@ -1886,9 +1952,19 @@ CONTAINS
                WRITE (title, *) "ELF spin ", ispin
                mpi_io = .TRUE.
                unit_nr = elf_section_key%print_key_unit_nr( &
-                         logger, input, elf_section_key%absolute_section_key, extension=".cube", &
-                         middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                         mpi_io=mpi_io, fout=mpi_filename, openpmd_basename="dft-elf")
+                         logger, &
+                         input, &
+                         elf_section_key%absolute_section_key, &
+                         extension=".cube", &
+                         middle_name=TRIM(filename), &
+                         file_position=my_pos_cube, &
+                         log_filename=.FALSE., &
+                         mpi_io=mpi_io, &
+                         fout=mpi_filename, &
+                         openpmd_basename="dft-elf", &
+                         openpmd_unit_dimension=openpmd_unit_dimension_dimensionless, &
+                         openpmd_unit_si=openpmd_unit_si_dimensionless, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2617,10 +2693,20 @@ CONTAINS
             rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                          extension=".cube", middle_name=TRIM(filename), &
-                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                          fout=mpi_filename, openpmd_basename="dft-total-electron-density")
+            unit_nr = e_density_section%print_key_unit_nr( &
+                      logger, &
+                      input, &
+                      e_density_section%absolute_section_key, &
+                      extension=".cube", &
+                      middle_name=TRIM(filename), &
+                      file_position=my_pos_cube, &
+                      log_filename=.FALSE., &
+                      mpi_io=mpi_io, &
+                      fout=mpi_filename, &
+                      openpmd_basename="dft-total-electron-density", &
+                      openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2662,10 +2748,20 @@ CONTAINS
                rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                             extension=".cube", middle_name=TRIM(filename), &
-                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                             fout=mpi_filename, openpmd_basename="dft-total-spin-density")
+               unit_nr = e_density_section%print_key_unit_nr( &
+                         logger, &
+                         input, &
+                         e_density_section%absolute_section_key, &
+                         extension=".cube", &
+                         middle_name=TRIM(filename), &
+                         file_position=my_pos_cube, &
+                         log_filename=.FALSE., &
+                         mpi_io=mpi_io, &
+                         fout=mpi_filename, &
+                         openpmd_basename="dft-total-spin-density", &
+                         openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2702,10 +2798,20 @@ CONTAINS
                CALL pw_axpy(rho_r(2), rho_elec_rspace)
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                             extension=".cube", middle_name=TRIM(filename), &
-                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                             fout=mpi_filename, openpmd_basename="dft-electron-density")
+               unit_nr = e_density_section%print_key_unit_nr( &
+                         logger, &
+                         input, &
+                         e_density_section%absolute_section_key, &
+                         extension=".cube", &
+                         middle_name=TRIM(filename), &
+                         file_position=my_pos_cube, &
+                         log_filename=.FALSE., &
+                         mpi_io=mpi_io, &
+                         fout=mpi_filename, &
+                         openpmd_basename="dft-electron-density", &
+                         openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2724,10 +2830,20 @@ CONTAINS
                CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
                filename = "SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                             extension=".cube", middle_name=TRIM(filename), &
-                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                             fout=mpi_filename, openpmd_basename="dft-spin-density")
+               unit_nr = e_density_section%print_key_unit_nr( &
+                         logger, &
+                         input, &
+                         e_density_section%absolute_section_key, &
+                         extension=".cube", &
+                         middle_name=TRIM(filename), &
+                         file_position=my_pos_cube, &
+                         log_filename=.FALSE., &
+                         mpi_io=mpi_io, &
+                         fout=mpi_filename, &
+                         openpmd_basename="dft-spin-density", &
+                         openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2746,10 +2862,20 @@ CONTAINS
             ELSE
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                             extension=".cube", middle_name=TRIM(filename), &
-                                                             file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                             fout=mpi_filename, openpmd_basename="dft-electron-density")
+               unit_nr = e_density_section%print_key_unit_nr( &
+                         logger, &
+                         input, &
+                         e_density_section%absolute_section_key, &
+                         extension=".cube", &
+                         middle_name=TRIM(filename), &
+                         file_position=my_pos_cube, &
+                         log_filename=.FALSE., &
+                         mpi_io=mpi_io, &
+                         fout=mpi_filename, &
+                         openpmd_basename="dft-electron-density", &
+                         openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                         openpmd_unit_si=openpmd_unit_si_density, &
+                         sim_time=qs_env%sim_time)
                IF (output_unit > 0) THEN
                   IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                      INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2797,10 +2923,20 @@ CONTAINS
 
             filename = "ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                          extension=".cube", middle_name=TRIM(filename), &
-                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                          fout=mpi_filename, openpmd_basename="dft-electron-density")
+            unit_nr = e_density_section%print_key_unit_nr( &
+                      logger, &
+                      input, &
+                      e_density_section%absolute_section_key, &
+                      extension=".cube", &
+                      middle_name=TRIM(filename), &
+                      file_position=my_pos_cube, &
+                      log_filename=.FALSE., &
+                      mpi_io=mpi_io, &
+                      fout=mpi_filename, &
+                      openpmd_basename="dft-electron-density", &
+                      openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -2838,10 +2974,20 @@ CONTAINS
 
             filename = "SPIN_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = e_density_section%print_key_unit_nr(logger, input, e_density_section%absolute_section_key, &
-                                                          extension=".cube", middle_name=TRIM(filename), &
-                                                          file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
-                                                          fout=mpi_filename, openpmd_basename="dft-spin-density")
+            unit_nr = e_density_section%print_key_unit_nr( &
+                      logger, &
+                      input, &
+                      e_density_section%absolute_section_key, &
+                      extension=".cube", &
+                      middle_name=TRIM(filename), &
+                      file_position=my_pos_cube, &
+                      log_filename=.FALSE., &
+                      mpi_io=mpi_io, &
+                      fout=mpi_filename, &
+                      openpmd_basename="dft-spin-density", &
+                      openpmd_unit_dimension=openpmd_unit_dimension_density, &
+                      openpmd_unit_si=openpmd_unit_si_density, &
+                      sim_time=qs_env%sim_time)
             IF (output_unit > 0) THEN
                IF (.NOT. mpi_io .AND. e_density_section%grid_output == grid_output_cubes) THEN
                   INQUIRE (UNIT=unit_nr, NAME=filename)
