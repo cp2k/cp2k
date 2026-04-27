@@ -495,7 +495,7 @@ CONTAINS
       CASE (use_perd_none)
          cell%perd = [0, 0, 0]
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid or not yet implemented cell periodicity")
       END SELECT
 
       ! Load requested cell symmetry
