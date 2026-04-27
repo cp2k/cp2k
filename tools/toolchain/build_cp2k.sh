@@ -252,14 +252,14 @@ if [ "${DRY_RUN}" != "__TRUE__" ]; then
   # Export variable for CMake options to cp2k_env file
   cat << EOF > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
 #!/bin/bash
-export CP2K_ROOT="${CP2K_ROOT}"
 source ${TOOLCHAIN_INSTALL_DIR}/setup
-prepend_path PATH "${CP2K_ROOT}/install/bin"
-prepend_path LD_LIBRARY_PATH "${CP2K_ROOT}/install/lib"
-prepend_path PKG_CONFIG_PATH "${CP2K_ROOT}/install/lib/pkgconfig"
+prepend_path PATH "${CMAKE_INSTALL_PREFIX}/bin"
+prepend_path LD_LIBRARY_PATH "${CMAKE_INSTALL_PREFIX}/lib"
+prepend_path PKG_CONFIG_PATH "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}"
 EOF
   cat << EOF
-Done! Installed binaries are now available in: ${CP2K_ROOT}/install/bin
+Done! Installed binaries are now available in: ${CMAKE_INSTALL_PREFIX}/bin
 
 It's suggested to run regtests after installation:
   ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
