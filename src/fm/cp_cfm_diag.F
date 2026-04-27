@@ -12,19 +12,27 @@
 !> \author Joost VandeVondele (2003-09)
 ! **************************************************************************************************
 MODULE cp_cfm_diag
+   USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_cfm_cholesky, ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_gemm, &
                                   cp_cfm_column_scale, &
                                   cp_cfm_scale, &
                                   cp_cfm_triangular_invert, &
                                   cp_cfm_triangular_multiply
-   USE cp_cfm_types, ONLY: cp_cfm_get_info, &
+   USE cp_cfm_types, ONLY: cp_cfm_create, &
+                           cp_cfm_get_info, &
+                           cp_cfm_release, &
                            cp_cfm_set_element, &
                            cp_cfm_to_cfm, &
                            cp_cfm_type
-   USE cp_fm_diag, ONLY: diag_type, &
+   USE cp_fm_diag, ONLY: diag_check_requested, &
+                         diag_check_warning_threshold, &
+                         diag_type, &
                          direct_generalized_diagonalization, &
+                         cusolver_n_min, &
+                         FM_DIAG_TYPE_CUSOLVER, &
                          FM_DIAG_TYPE_SCALAPACK
+   USE cp_fm_cusolver_api, ONLY: cp_cfm_general_cusolver
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
                               cp_cfm_diag_dlaf
@@ -32,7 +40,9 @@ MODULE cp_cfm_diag
    USE cp_fm_diag, ONLY: dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
 #endif
    USE cp_log_handling, ONLY: cp_to_string
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE machine, ONLY: default_output_unit
    USE mathconstants, ONLY: z_one, &
                             z_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -182,6 +192,109 @@ CONTAINS
    END SUBROUTINE cp_cfm_heevd_base
 
 ! **************************************************************************************************
+!> \brief   Check C^H*S*C = I for a generalized complex eigenvalue problem.
+!> \param overlap original overlap matrix S; used as work matrix and overwritten
+!> \param eigenvectors eigenvectors C to be checked
+!> \param scratch work matrix
+!> \param nvec ...
+! **************************************************************************************************
+   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: overlap, scratch
+      INTEGER, INTENT(IN)                                :: nvec
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_generalized_diag'
+
+      CHARACTER(LEN=default_string_length)               :: diag_type_name
+      COMPLEX(KIND=dp)                                   :: gold, test
+      INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
+      REAL(KIND=dp)                                      :: eps, eps_abort, eps_warning
+#if defined(__parallel)
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      INTEGER                                            :: il, jl, ipcol, iprow, &
+                                                            mypcol, myprow, npcol, nprow
+      INTEGER, DIMENSION(9)                              :: desca
+#endif
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. diag_check_requested()) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      output_unit = default_output_unit
+      eps_warning = diag_check_warning_threshold()
+      eps_abort = 10.0_dp*eps_warning
+
+      nrow = eigenvectors%matrix_struct%nrow_global
+      ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
+
+      CALL cp_cfm_gemm("N", "N", nrow, ncol, nrow, z_one, overlap, eigenvectors, z_zero, scratch)
+      CALL cp_cfm_gemm("C", "N", ncol, ncol, nrow, z_one, eigenvectors, scratch, z_zero, overlap)
+
+      gold = z_zero
+      test = z_zero
+      eps = 0.0_dp
+
+#if defined(__parallel)
+      context => overlap%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = overlap%matrix_struct%descriptor(:)
+      outer: DO j = 1, ncol
+         DO i = 1, ncol
+            CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
+            IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+               gold = MERGE(z_zero, z_one, i /= j)
+               test = overlap%local_data(il, jl)
+               eps = ABS(test - gold)
+               IF (eps > eps_warning) EXIT outer
+            END IF
+         END DO
+      END DO outer
+#else
+      outer: DO j = 1, ncol
+         DO i = 1, ncol
+            gold = MERGE(z_zero, z_one, i /= j)
+            test = overlap%local_data(i, j)
+            eps = ABS(test - gold)
+            IF (eps > eps_warning) EXIT outer
+         END DO
+      END DO outer
+#endif
+
+      IF (eps > eps_warning) THEN
+         IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
+            diag_type_name = "HEGVX"
+         ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
+            diag_type_name = "CUSOLVER"
+#if defined(__DLAF)
+         ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
+            diag_type_name = "DLAF"
+#endif
+         ELSE
+            diag_type_name = "generalized eigensolver"
+         END IF
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,ES10.3,/,T2,A,F0.0,A,ES10.3)") &
+            "The generalized eigenvectors returned by "//TRIM(diag_type_name)//" are not S-orthonormal", &
+            "Absolute deviation of matrix element (", i, ", ", j, ") is ", eps, &
+            "The deviation from the expected value ", REAL(gold, KIND=dp), " is", eps
+         IF (eps > eps_abort) THEN
+            CPABORT("ERROR in "//routineN//": Check of generalized matrix diagonalization failed")
+         ELSE
+            CPWARN("Check of generalized matrix diagonalization failed in routine "//routineN)
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_generalized_diag
+
+! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
 !>        Single option version: Cholesky decomposition of B
 !> \param amatrix ...
@@ -201,16 +314,34 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
+      LOGICAL                                            :: check_eigenvectors
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      TYPE(cp_cfm_type)                                  :: overlap_check, scratch_check
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_get_info(amatrix, nrow_global=nao)
       ALLOCATE (evals(nao))
       nmo = SIZE(eigenvalues)
+      check_eigenvectors = diag_check_requested()
 
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
+          nao >= cusolver_n_min) THEN
+         ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
+         ! Cholesky reduction.
+         IF (check_eigenvectors) THEN
+            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+         END IF
+         CALL cp_cfm_general_cusolver(amatrix, bmatrix, work, evals)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_cfm_release(scratch_check)
+            CALL cp_cfm_release(overlap_check)
+         END IF
 #if defined(__DLAF)
-      IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 
@@ -220,33 +351,47 @@ CONTAINS
          CALL cp_dlaf_create_grid(eigenvectors%matrix_struct%context%get_handle())
 
          ! Use DLA-Future generalized eigenvalue solver for large matrices
+         IF (check_eigenvectors) THEN
+            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+         END IF
          CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
-      ELSE
-#endif
-#if defined(__parallel)
-         IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
-            ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
-            ! Cholesky reduction.
-            CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals)
-         ELSE
-#endif
-            ! Cholesky decompose S=U(T)U
-            CALL cp_cfm_cholesky_decompose(bmatrix)
-            ! Invert to get U^(-1)
-            CALL cp_cfm_triangular_invert(bmatrix)
-            ! Reduce to get U^(-T) * H * U^(-1)
-            CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
-            CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
-            ! Diagonalize
-            CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
-            ! Restore vectors C = U^(-1) * C*
-            CALL cp_cfm_triangular_multiply(bmatrix, work)
-#if defined(__parallel)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_cfm_release(scratch_check)
+            CALL cp_cfm_release(overlap_check)
          END IF
 #endif
-#if defined(__DLAF)
-      END IF
+#if defined(__parallel)
+      ELSE IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
+         ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
+         ! Cholesky reduction.
+         IF (check_eigenvectors) THEN
+            CALL cp_cfm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_cfm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_cfm_to_cfm(bmatrix, overlap_check)
+         END IF
+         CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_cfm_release(scratch_check)
+            CALL cp_cfm_release(overlap_check)
+         END IF
 #endif
+      ELSE
+         ! Cholesky decompose S=U(T)U
+         CALL cp_cfm_cholesky_decompose(bmatrix)
+         ! Invert to get U^(-1)
+         CALL cp_cfm_triangular_invert(bmatrix)
+         ! Reduce to get U^(-T) * H * U^(-1)
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
+         ! Diagonalize
+         CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
+         ! Restore vectors C = U^(-1) * C*
+         CALL cp_cfm_triangular_multiply(bmatrix, work)
+      END IF
 
       CALL cp_cfm_to_cfm(work, eigenvectors, nmo)
       eigenvalues(1:nmo) = evals(1:nmo)

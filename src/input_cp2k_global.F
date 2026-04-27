@@ -143,7 +143,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           description="Request direct generalized eigenvalue problem diagonalization "// &
-                          "without a CP2K-side Cholesky reduction in supported dense matrix paths", &
+                          "without a CP2K-side Cholesky reduction in supported dense matrix paths. "// &
+                          "The eigensolver is still selected by PREFERRED_DIAG_LIBRARY.", &
                           usage="DIRECT_GENERALIZED_DIAGONALIZATION", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
