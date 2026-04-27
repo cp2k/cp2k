@@ -255,7 +255,7 @@ set_property(
            "NVHPCBlas"
            "CUSTOM")
 
-set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
+set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "NVPL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
     "auto"
     CACHE STRING "ScaLAPACK vendor/generic backend")
@@ -266,6 +266,17 @@ if(DEFINED CP2K_SCALAPACK_VENDOR)
   if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
     message(FATAL_ERROR "An invalid ScaLAPACK vendor backend was specified")
   endif()
+endif()
+
+set(CP2K_NVPL_SCALAPACK_MPI
+    "auto"
+    CACHE STRING "NVPL BLACS MPI interface")
+set(CP2K_NVPL_SCALAPACK_MPI_LIST "auto" "mpich" "openmpi3" "openmpi4"
+                                 "openmpi5")
+set_property(CACHE CP2K_NVPL_SCALAPACK_MPI
+             PROPERTY STRINGS ${CP2K_NVPL_SCALAPACK_MPI_LIST})
+if(NOT CP2K_NVPL_SCALAPACK_MPI IN_LIST CP2K_NVPL_SCALAPACK_MPI_LIST)
+  message(FATAL_ERROR "An invalid NVPL ScaLAPACK MPI interface was specified")
 endif()
 
 set(CP2K_DATA_DIR
