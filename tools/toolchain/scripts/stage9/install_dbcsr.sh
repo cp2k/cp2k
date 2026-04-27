@@ -64,10 +64,13 @@ case "${with_dbcsr}" in
       if [ "${ENABLE_CUDA}" == "__TRUE__" ]; then
         mkdir build-cuda
         cd build-cuda
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda"
+        # CUDA 13 deprecates APIs still used by DBCSR 2.9.1 under -Werror.
+        CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_CXX_FLAGS=-Wno-error=deprecated-declarations"
         if [ "${GPUVER}" == "GB10" ]; then
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda -DWITH_GPU=GB10 -DWITH_GPU_PARAMS=GB10"
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_GPU=GB10 -DWITH_GPU_PARAMS=GB10"
         else
-          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DUSE_ACCEL=cuda -DWITH_GPU=P100"
+          CMAKE_OPTIONS="${CMAKE_OPTIONS} -DWITH_GPU=P100"
         fi
         cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}-cuda \
