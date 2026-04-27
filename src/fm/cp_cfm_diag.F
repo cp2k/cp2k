@@ -22,12 +22,16 @@ MODULE cp_cfm_diag
                            cp_cfm_set_element, &
                            cp_cfm_to_cfm, &
                            cp_cfm_type
+   USE cp_fm_diag, ONLY: diag_type, &
+                         direct_generalized_diagonalization, &
+                         FM_DIAG_TYPE_SCALAPACK
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
                               cp_cfm_diag_dlaf
    USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
-   USE cp_fm_diag, ONLY: diag_type, dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
+   USE cp_fm_diag, ONLY: dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
 #endif
+   USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
    USE mathconstants, ONLY: z_one, &
                             z_zero
@@ -219,17 +223,27 @@ CONTAINS
          CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
       ELSE
 #endif
-         ! Cholesky decompose S=U(T)U
-         CALL cp_cfm_cholesky_decompose(bmatrix)
-         ! Invert to get U^(-1)
-         CALL cp_cfm_triangular_invert(bmatrix)
-         ! Reduce to get U^(-T) * H * U^(-1)
-         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
-         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
-         ! Diagonalize
-         CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
-         ! Restore vectors C = U^(-1) * C*
-         CALL cp_cfm_triangular_multiply(bmatrix, work)
+#if defined(__parallel)
+         IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
+            ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
+            ! Cholesky reduction.
+            CALL cp_cfm_geeig_scalapack(amatrix, bmatrix, work, evals)
+         ELSE
+#endif
+            ! Cholesky decompose S=U(T)U
+            CALL cp_cfm_cholesky_decompose(bmatrix)
+            ! Invert to get U^(-1)
+            CALL cp_cfm_triangular_invert(bmatrix)
+            ! Reduce to get U^(-T) * H * U^(-1)
+            CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
+            CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
+            ! Diagonalize
+            CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
+            ! Restore vectors C = U^(-1) * C*
+            CALL cp_cfm_triangular_multiply(bmatrix, work)
+#if defined(__parallel)
+         END IF
+#endif
 #if defined(__DLAF)
       END IF
 #endif
@@ -242,6 +256,123 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_geeig
+
+! **************************************************************************************************
+!> \brief General Eigenvalue Problem AX = BXE using ScaLAPACK PZHEGVX.
+!> \param amatrix ...
+!> \param bmatrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_geeig_scalapack(amatrix, bmatrix, eigenvectors, eigenvalues)
+
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig_scalapack'
+
+#if defined(__parallel)
+      REAL(KIND=dp), PARAMETER                           :: orfac = -1.0_dp, &
+                                                            vl = 0.0_dp, &
+                                                            vu = 0.0_dp
+
+      COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: work
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, z
+      INTEGER                                            :: handle, info, liwork, lwork, lrwork, &
+                                                            m, n, nb, neig, npcol, nprow, nz
+      INTEGER, DIMENSION(9)                              :: desca, descb, descz
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: iclustr, ifail, iwork
+      REAL(KIND=dp)                                      :: abstol
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: gap, rwork, w
+
+      INTEGER                                            :: mq0, nn, np0, npe
+      INTEGER, EXTERNAL                                  :: iceil, numroc
+      REAL(KIND=dp), EXTERNAL                            :: dlamch
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
+#else
+      INTEGER                                            :: handle
+#endif
+
+      CALL timeset(routineN, handle)
+
+#if defined(__parallel)
+      n = amatrix%matrix_struct%nrow_global
+      neig = MIN(SIZE(eigenvalues), n)
+
+      IF (neig == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      IF (amatrix%matrix_struct%nrow_block /= amatrix%matrix_struct%ncol_block) THEN
+         CPABORT("ERROR in "//routineN//": Invalid blocksize (no square blocks) found")
+      END IF
+
+      a => amatrix%local_data
+      b => bmatrix%local_data
+      z => eigenvectors%local_data
+      desca(:) = amatrix%matrix_struct%descriptor(:)
+      descb(:) = bmatrix%matrix_struct%descriptor(:)
+      descz(:) = eigenvectors%matrix_struct%descriptor(:)
+
+      nprow = amatrix%matrix_struct%context%num_pe(1)
+      npcol = amatrix%matrix_struct%context%num_pe(2)
+      npe = nprow*npcol
+      nb = amatrix%matrix_struct%nrow_block
+      nn = MAX(n, nb, 2)
+      np0 = numroc(nn, nb, 0, 0, nprow)
+      mq0 = MAX(numroc(nn, nb, 0, 0, npcol), nb)
+
+      lwork = n + (np0 + mq0 + nb)*nb
+      lrwork = 4*n + MAX(5*nn, np0*mq0) + iceil(neig, npe)*nn + MAX(0, neig - 1)*n
+      liwork = 6*MAX(n, npe + 1, 4)
+
+      ALLOCATE (gap(npe))
+      gap = 0.0_dp
+      ALLOCATE (iclustr(2*npe))
+      iclustr = 0
+      ALLOCATE (ifail(n))
+      ifail = 0
+      ALLOCATE (iwork(liwork))
+      ALLOCATE (rwork(lrwork))
+      ALLOCATE (w(n))
+      ALLOCATE (work(lwork))
+
+      abstol = 2.0_dp*dlamch("S")
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL pzhegvx(1, "V", "I", "U", n, a(1, 1), 1, 1, desca, b(1, 1), 1, 1, descb, &
+                   vl, vu, 1, neig, abstol, m, nz, w(1), orfac, z(1, 1), 1, 1, descz, &
+                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, ifail(1), &
+                   iclustr(1), gap(1), info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+
+      IF (info /= 0 .OR. m < neig .OR. nz < neig) THEN
+         CPABORT("ERROR in PZHEGVX (ScaLAPACK), info="//TRIM(cp_to_string(info)))
+      END IF
+
+      eigenvalues(:) = 0.0_dp
+      eigenvalues(1:neig) = w(1:neig)
+
+      DEALLOCATE (gap, iclustr, ifail, iwork, rwork, w, work)
+#else
+      MARK_USED(amatrix)
+      MARK_USED(bmatrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(eigenvalues)
+      CPABORT("ERROR in "//routineN//": PZHEGVX requested without ScaLAPACK support")
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_geeig_scalapack
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
