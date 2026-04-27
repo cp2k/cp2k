@@ -156,7 +156,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_one_stage
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
-      LOGICAL, INTENT(IN), OPTIONAL                      :: direct_generalized_diagonalization_input
+      LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
