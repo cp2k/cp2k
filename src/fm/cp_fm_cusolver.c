@@ -13,6 +13,7 @@
 #include <cusolverMp.h>
 #include <math.h>
 #include <mpi.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,6 +51,60 @@
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+/*******************************************************************************
+ * \brief Check that local MPI ranks can be mapped one-to-one to GPUs.
+ ******************************************************************************/
+static void check_nccl_rank_device_mapping(MPI_Comm comm,
+                                           const int local_device) {
+  int device_count = 0;
+  CUDA_CHECK(cudaGetDeviceCount(&device_count));
+
+  MPI_Comm node_comm;
+  MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &node_comm);
+
+  int rank, local_rank, local_nranks;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_rank(node_comm, &local_rank);
+  MPI_Comm_size(node_comm, &local_nranks);
+
+  if (device_count <= 0) {
+    if (local_rank == 0) {
+      fprintf(stderr,
+              "ERROR: cuSOLVERMp with NCCL requires at least one visible GPU "
+              "on every node. No CUDA device is visible on the node containing "
+              "MPI rank %d.\n",
+              rank);
+    }
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  if (local_device < 0 || local_device >= device_count) {
+    fprintf(stderr,
+            "ERROR: cuSOLVERMp with NCCL selected invalid CUDA device %d on "
+            "MPI rank %d; %d CUDA device(s) are visible on this node.\n",
+            local_device, rank, device_count);
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  if (local_nranks > device_count) {
+    if (local_rank == 0) {
+      fprintf(stderr,
+              "ERROR: cuSOLVERMp with NCCL in CP2K requires at most one local "
+              "MPI rank per visible GPU. This node has %d local MPI ranks and "
+              "%d visible GPU(s). Use fewer MPI ranks per node, expose more "
+              "GPUs with CUDA_VISIBLE_DEVICES, or choose another "
+              "PREFERRED_DIAG_LIBRARY.\n",
+              local_nranks, device_count);
+    }
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  MPI_Comm_free(&node_comm);
+}
 
 #else
 /*******************************************************************************
@@ -215,13 +270,17 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
                          const int mypcol, const int n, const double *matrix,
                          double *eigenvectors, double *eigenvalues) {
 
-  offload_activate_chosen_device();
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
   int rank, nranks;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
+
+#if defined(__CUSOLVERMP_NCCL)
+  check_nccl_rank_device_mapping(comm, local_device);
+#endif
+  offload_activate_chosen_device();
 
 #if defined(__CUSOLVERMP_NCCL)
   // Create NCCL communicator.
@@ -376,13 +435,17 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
                                const double *aMatrix, const double *bMatrix,
                                double *eigenvectors, double *eigenvalues) {
 
-  offload_activate_chosen_device();
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
   int rank, nranks;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
+
+#if defined(__CUSOLVERMP_NCCL)
+  check_nccl_rank_device_mapping(comm, local_device);
+#endif
+  offload_activate_chosen_device();
 
 #if defined(__CUSOLVERMP_NCCL)
   // Create NCCL communicator.
