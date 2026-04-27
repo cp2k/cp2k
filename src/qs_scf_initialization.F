@@ -29,9 +29,9 @@ MODULE qs_scf_initialization
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
                                               choose_eigv_solver,&
                                               cp_fm_power,&
-                                              direct_generalized_diagonalization,&
                                               cusolver_n_min,&
-                                              diag_type
+                                              diag_type,&
+                                              direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
