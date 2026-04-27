@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-fftw_ver="3.3.10"
-fftw_sha256="56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467"
+fftw_ver="3.3.11"
+fftw_sha256="5630c24cdeb33b131612f7eb4b1a9934234754f9f388ff8617458d0be6f239a1"
 fftw_pkg="fftw-${fftw_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
