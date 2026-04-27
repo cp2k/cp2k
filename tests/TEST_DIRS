@@ -21,6 +21,7 @@ QS/regtest-double-hybrid-stress-laplace                     libint libxc !ifx
 QS/regtest-rpa-sigma                                        libint greenx !ifx
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 QS/regtest-cusolver                                         cusolvermp
+QS/regtest-scalapack-generalized                            parallel scalapack
 QS/regtest-dlaf                                             dlaf
 QS/regtest-dlaf-2                                           dlaf libint !ifx
 QS/regtest-pao-2
