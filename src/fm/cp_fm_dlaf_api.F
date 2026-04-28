@@ -351,7 +351,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsyevd_dlaf', &
+      CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsygvd_dlaf', &
          routineN = 'cp_fm_diag_gen_dlaf_base'
       CHARACTER, PARAMETER                               :: uplo = 'L'
 
