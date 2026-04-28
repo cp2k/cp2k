@@ -20,6 +20,7 @@ leak:avx_component_op_query
 leak:check_components.constprop
 leak:event_process_active_single_queue
 leak:libnbc_comm_query
+leak:mca_btl_tcp_proc_create
 leak:mca_coll_base_comm_select
 leak:mca_coll_basic_comm_query
 leak:mca_pml_ob1_add_comm
@@ -30,11 +31,16 @@ leak:ompi_comm_init_mpi3
 leak:ompi_comm_set_nb
 leak:ompi_group_allocate
 leak:ompi_group_allocate_plist_w_procs
+leak:ompi_group_from_pset
 leak:ompi_mpi_instance_init_common
+leak:ompi_proc_self
 leak:opal_cstring_create_l
 leak:opal_hash_table_init2
 leak:opal_hash_table_set_value_ptr
 leak:opal_infosubscribe_subscribe
+leak:opal_reachable_allocate
 leak:opal_vasprintf
 leak:pmix_hash_fetch
 leak:PMIx_Value_create
+leak:__strdup
+leak:__vasprintf_internal
