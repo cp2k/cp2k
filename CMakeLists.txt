@@ -714,8 +714,39 @@ endif()
 if(CP2K_USE_DLAF)
   find_package(DLAFFortran 0.4.0 REQUIRED)
 
+  if(TARGET DLAF::Fortran)
+    set(CP2K_DLAF_FORTRAN_TARGET DLAF::Fortran)
+  elseif(TARGET DLAF::DLAF_Fortran)
+    set(CP2K_DLAF_FORTRAN_TARGET DLAF::DLAF_Fortran)
+  else()
+    message(FATAL_ERROR "Could not find a DLA-Future-Fortran CMake target")
+  endif()
+
   get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
                       INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_DLAF_FORTRAN_INCLUDE_DIRS
+                      ${CP2K_DLAF_FORTRAN_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+  if(CP2K_DLAF_FORTRAN_INCLUDE_DIRS)
+    list(APPEND CP2K_DLAF_INCLUDE_DIRS ${CP2K_DLAF_FORTRAN_INCLUDE_DIRS})
+  else()
+    get_target_property(CP2K_DLAF_FORTRAN_LIBRARY ${CP2K_DLAF_FORTRAN_TARGET}
+                        IMPORTED_LOCATION_RELEASE)
+    if(NOT CP2K_DLAF_FORTRAN_LIBRARY)
+      get_target_property(CP2K_DLAF_FORTRAN_LIBRARY ${CP2K_DLAF_FORTRAN_TARGET}
+                          IMPORTED_LOCATION)
+    endif()
+    if(CP2K_DLAF_FORTRAN_LIBRARY)
+      get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
+                             "${CP2K_DLAF_FORTRAN_LIBRARY}" DIRECTORY)
+      get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
+                             "${CP2K_DLAF_FORTRAN_PREFIX}" DIRECTORY)
+      if(EXISTS "${CP2K_DLAF_FORTRAN_PREFIX}/include/dlaf_fortran.mod")
+        list(APPEND CP2K_DLAF_INCLUDE_DIRS
+             "${CP2K_DLAF_FORTRAN_PREFIX}/include")
+      endif()
+    endif()
+  endif()
+  list(REMOVE_DUPLICATES CP2K_DLAF_INCLUDE_DIRS)
   get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::dlaf.prop
                       INTERFACE_LINK_LIBRARIES)
   message("${CP2K_DLAF_INCLUDE_DIRS} ${CP2K_DLAF_LINK_LIBRARIES}")
