@@ -209,14 +209,19 @@ CONTAINS
                                                             y_eval
       INTEGER, OPTIONAL                                  :: n_pade_opt
 #if defined (__GREENX)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'greenx_refine_ft'
+
       INTEGER                                            :: fit_start, &
                                                             fit_end, &
                                                             max_fit, &
                                                             n_fit, &
                                                             n_pade, &
                                                             n_eval, &
-                                                            i
+                                                            i, &
+                                                            handle
       TYPE(params)                                       :: pade_params
+
+      CALL timeset(routineN, handle)
 
       ! Get the sizes from arrays
       max_fit = SIZE(x_fit)
@@ -254,6 +259,7 @@ CONTAINS
       y_eval(1:n_eval) = evaluate_thiele_pade_at(pade_params, x_eval)
 
       CALL free_params(pade_params)
+      CALL timestop(handle)
 #else
       ! Mark used
       MARK_USED(fit_e_min)

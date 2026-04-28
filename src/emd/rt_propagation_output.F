@@ -1288,6 +1288,8 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtc
       INTEGER, OPTIONAL                                  :: info_opt
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_ft'
 
       CHARACTER(len=11), DIMENSION(2)                    :: file_extensions
       CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: headers
@@ -1298,7 +1300,7 @@ CONTAINS
                                                             pol_results, pol_results_pade, &
                                                             results, results_pade, value_series
       INTEGER                                            :: ft_unit, i, info_unit, k, n, n_elems, &
-                                                            n_pade, nspin
+                                                            n_pade, nspin, handle
       LOGICAL                                            :: do_moments_ft, do_polarizability
       REAL(kind=dp)                                      :: damping, t0
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: omegas, omegas_pade_real
@@ -1306,6 +1308,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: moment_ft_section, pol_section
 
+      CALL timeset(routineN, handle)
 ! For results, using spin * direction for first index, e.g. for nspin = 2
 ! results(1,:) = (spin=1 and direction=1,:),
 ! results(5,:) = (spin=2 and direction=2,:)
@@ -1559,6 +1562,9 @@ CONTAINS
          DEALLOCATE (results)
          DEALLOCATE (omegas)
       END IF
+
+      CALL timestop(handle)
+
    END SUBROUTINE print_ft
 
 ! **************************************************************************************************
