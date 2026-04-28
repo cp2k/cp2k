@@ -1,4 +1,5 @@
 # Leak suppressions
+# MPICH
 leak:MPIR_Find_local
 leak:MPIR_Find_external
 leak:MPIR_Csel_prune
@@ -6,6 +7,7 @@ leak:MPIDIU_avt_init
 leak:MPIR_Group_create
 leak:MPIDIU_alloc_lut
 leak:MPI_File_open
+# xrootd
 leak:getMyFQN
 # PEXSI
 leak:BcTree_Create
@@ -13,3 +15,26 @@ leak:MPIR_Type_contiguous_impl
 leak:MPIR_Typerep_init
 leak:symbfact_dist
 leak:yaksa_type_create_contig
+# OpenMPI
+leak:avx_component_op_query
+leak:check_components.constprop
+leak:event_process_active_single_queue
+leak:libnbc_comm_query
+leak:mca_coll_base_comm_select
+leak:mca_coll_basic_comm_query
+leak:mca_pml_ob1_add_comm
+leak:mca_pml_ob1_comm_init_size
+leak:mca_pml_ob1_peer_create
+leak:ompi_coll_tuned_comm_query
+leak:ompi_comm_init_mpi3
+leak:ompi_comm_set_nb
+leak:ompi_group_allocate
+leak:ompi_group_allocate_plist_w_procs
+leak:ompi_mpi_instance_init_common
+leak:opal_cstring_create_l
+leak:opal_hash_table_init2
+leak:opal_hash_table_set_value_ptr
+leak:opal_infosubscribe_subscribe
+leak:opal_vasprintf
+leak:pmix_hash_fetch
+leak:PMIx_Value_create

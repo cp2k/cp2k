@@ -171,6 +171,17 @@ def main() -> None:
             )
         )
 
+    with OutputFile(f"Dockerfile.test_spack_openmpi-pdbg", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="pdbg",
+                mpi_mode="openmpi",
+                feature_flags="-ef openpmd",
+                testopts="",
+                image_tag=f.image_tag,
+            )
+        )
+
     with OutputFile(f"Dockerfile.test_spack_openmpi-psmp", args.check) as f:
         f.write(
             install_cp2k_spack(
