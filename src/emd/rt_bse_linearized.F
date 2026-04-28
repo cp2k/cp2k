@@ -116,6 +116,8 @@ MODULE rt_bse_linearized
                                  cp_iterate
    USE rt_propagation_output, ONLY: print_ft
    USE rt_propagation_utils, ONLY: read_moments
+   USE physcon,                         ONLY: evolt, &
+   seconds
 
 #include "../base/base_uses.f90"
 
@@ -275,14 +277,26 @@ CONTAINS
    END SUBROUTINE run_propagation_linearized_bse
 
    ! **************************************************************************************************
-!> \brief Writes the header and basic info to the standard output
+!> \brief Writes the header and basic info (incl maximum timestep inside stability region) 
+!>        to the standard output
 !> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
    SUBROUTINE print_linrtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
+      REAL(kind=dp)                                      :: omega_max, maximum_timestep
 
       logger => cp_get_default_logger()
+
+      !Provide estimate of rk4 timestep based on t=2sqrt(2)/omega_max
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         ! G0W0 Hamiltonian
+         omega_max = MAXVAL(rtbse_env%bs_env%eigenval_G0W0(:,:,:))-MINVAL(rtbse_env%bs_env%eigenval_G0W0(:,:,:))
+      ELSE
+         ! KS Hamiltonian
+         omega_max = MAXVAL(rtbse_env%bs_env%eigenval_scf_Gamma(:,:))-MINVAL(rtbse_env%bs_env%eigenval_scf_Gamma(:,:))
+      END IF
+      maximum_timestep = 2.0_dp*SQRT(2.0_dp)/omega_max
 
       IF (rtbse_env%unit_nr > 0) THEN
          WRITE (rtbse_env%unit_nr, *) ''
@@ -303,6 +317,9 @@ CONTAINS
             rtbse_env%dft_control%rtp_control%apply_delta_pulse
 
          WRITE (rtbse_env%unit_nr, '(A)') ''
+
+         WRITE (rtbse_env%unit_nr, '(A,T65,F16.4)') ' Estimated maximum timestep within stability region [as]:', &
+            maximum_timestep*seconds*1e18_dp
       END IF
 
    END SUBROUTINE print_linrtbse_header_info
@@ -431,6 +448,12 @@ CONTAINS
    SUBROUTINE initialize_singleparticle_hamiltonian(rtbse_env)
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_singleparticle_hamiltonian"
+      !MG to remove - H2 energies from N^4 GW
+      ! REAL(KIND=dp), DIMENSION(12), PARAMETER      :: last_column = [ &
+      !    -15.7854_dp,   9.0657_dp,  21.3465_dp,  33.0050_dp, &
+      !     37.8467_dp,  37.8467_dp,  57.2756_dp,  56.9618_dp, &
+      !     56.9619_dp,  83.8232_dp,  99.2828_dp, 116.7532_dp  &
+      ! ]
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, ii,jj, handle, nrow_global, ncol_global, &
                                                       nrow_local, ncol_local, &
@@ -463,6 +486,9 @@ CONTAINS
                         ! KS Hamiltonian
                         rtbse_env%real_workspace(1)%local_data(ii, jj) = bs_env%eigenval_scf_Gamma(i_row_global, i)
                      END IF
+                     ! For testing purposes, use the hacked eigenvalues to check the correctness of the implementation
+                     !MG to remove
+                     !rtbse_env%real_workspace(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
                   END IF
             END DO
          END DO
@@ -527,6 +553,17 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! ****** START COHSEX REFERENCE CALCULATION
+      ! w_dbcsr and screened_dbt are needed for get_sigma routines
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         ! In a non-HF calculation, copy the actual correlation part of the interaction
+         CALL copy_fm_to_dbcsr(rtbse_env%bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
+      ELSE
+         ! In HF, correlation is set to zero
+         CALL dbcsr_set(rtbse_env%w_dbcsr, 0.0_dp)
+      END IF
+      ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
+      CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
+      CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the COHSEX starting energies
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
@@ -656,6 +693,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham_MO"
       LOGICAL, PARAMETER                                 :: debug_disable_sex = .FALSE.
       LOGICAL, PARAMETER                                 :: debug_disable_hartree = .FALSE.
+      LOGICAL, PARAMETER                                 :: debug_disable_coh = .FALSE.
       INTEGER                                            :: k, j, nspin, handle
 
       CALL timeset(routineN, handle)
@@ -695,7 +733,7 @@ CONTAINS
             ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
             !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END DO
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. .NOT. debug_disable_coh) THEN
             ! Add the COH part - so far static but can be dynamic in principle through the W updates
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(ispin), -0.5_dp, rtbse_env%S_inv_fm)
             ! Transform to MO basis
@@ -911,13 +949,13 @@ CONTAINS
             j_global = col_indices(j_local)
 
             IF (i_global <= n_occ .AND. j_global > n_occ) THEN
-               occ_factor = 1.0_dp
-            ELSE IF (i_global > n_occ .AND. j_global <= n_occ) THEN
                occ_factor = -1.0_dp
+            ELSE IF (i_global > n_occ .AND. j_global <= n_occ) THEN
+               occ_factor = 1.0_dp
             ELSE
                occ_factor = 0.0_dp
             END IF
-
+            
             local_data(i_local, j_local) = occ_factor*local_data(i_local, j_local)
          END DO
       END DO

@@ -1324,10 +1324,12 @@ CONTAINS
                WRITE (frmt, '(A)') '(3A,I1,A)'
                WRITE (f_S_p, frmt) TRIM(prefix), bs_env%Sigma_p_name, "_0", ind, ".matrix"
                WRITE (f_S_n, frmt) TRIM(prefix), bs_env%Sigma_n_name, "_0", ind, ".matrix"
-            ELSE IF (i_t_or_w < 100) THEN
+            ELSE IF (ind < 100) THEN
                WRITE (frmt, '(A)') '(3A,I2,A)'
                WRITE (f_S_p, frmt) TRIM(prefix), bs_env%Sigma_p_name, "_", ind, ".matrix"
                WRITE (f_S_n, frmt) TRIM(prefix), bs_env%Sigma_n_name, "_", ind, ".matrix"
+            ELSE
+               CPABORT('Please implement more than 99 combined spin+freq indices.')
             END IF
 
             INQUIRE (file=TRIM(f_S_p), exist=Sigma_pos_time_exists)

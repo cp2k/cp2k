@@ -378,3 +378,7 @@ tags
 # CLion directories
 /.idea/
 /cmake-build-*
+
+# Old arch files
+/arch/local*
+.gitignore
