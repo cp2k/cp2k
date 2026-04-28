@@ -1541,12 +1541,13 @@ CONTAINS
             CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
             CALL cp_fm_to_fm(bmatrix, overlap_check)
          END IF
-         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
+         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, work, eigenvalues)
          IF (check_eigenvectors) THEN
-            CALL check_generalized_diag(overlap_check, eigenvectors, scratch_check, nmo)
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
             CALL cp_fm_release(scratch_check)
             CALL cp_fm_release(overlap_check)
          END IF
+         CALL cp_fm_to_fm(work, eigenvectors, nmo)
 #endif
       ELSE
          ! Cholesky decompose S=U(T)U
