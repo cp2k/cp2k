@@ -21,19 +21,14 @@
 MODULE qs_loc_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               deallocate_atomic_kind_set,&
-                                              get_atomic_kind,&
                                               set_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_element,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_set_element,&
-                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -44,8 +39,6 @@ MODULE qs_loc_methods
                                               dbcsr_set
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_rot_cols,&
                                               cp_fm_rot_rows,&
                                               cp_fm_schur_product
@@ -61,8 +54,7 @@ MODULE qs_loc_methods
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type,&
-                                              cp_fm_write_formatted
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -74,8 +66,8 @@ MODULE qs_loc_methods
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        do_loc_cs, do_loc_crazy, do_loc_direct, do_loc_gapo, do_loc_jacobi, &
-        do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, dump_dcd, dump_dcd_aligned_cell, dump_xmol
+        do_loc_crazy, do_loc_cs, do_loc_direct, do_loc_gapo, do_loc_jacobi, do_loc_l1_norm_sd, &
+        do_loc_none, do_loc_scdm, dump_dcd, dump_dcd_aligned_cell, dump_xmol
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get_subs_vals,&
@@ -89,11 +81,7 @@ MODULE qs_loc_methods
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_para_env_type
-   USE molecule_kind_types,             ONLY: atom_type,&
-                                              get_molecule_kind,&
-                                              molecule_kind_type
-   USE molecule_types,                  ONLY: get_molecule,&
-                                              molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE motion_utils,                    ONLY: get_output_format
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -115,16 +103,9 @@ MODULE qs_loc_methods
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               qs_loc_env_type
-   USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
-                                              cardoso_souloumiac,&
-                                              cardoso_souloumiac_pipek,&
-                                              crazy_rotations,&
-                                              direct_mini,&
-                                              jacobi_cg_edf_ls,&
-                                              jacobi_rotations,&
-                                              rotate_orbitals,&
-                                              scdm_qrfact,&
-                                              zij_matrix
+   USE qs_localization_methods,         ONLY: &
+        approx_l1_norm_sd, cardoso_souloumiac, cardoso_souloumiac_pipek, crazy_rotations, &
+        direct_mini, jacobi_cg_edf_ls, jacobi_rotations, rotate_orbitals, scdm_qrfact, zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -156,6 +137,7 @@ CONTAINS
 !>       The centers files is appended if already exists
 !> \param method indicates localization algorithm
 !> \param qs_loc_env new environment for the localization calculations
+!> \param vectors ...
 !> \param op_sm_set sparse matrices containing the integrals of the kind <mi e{iGr} nu>
 !> \param zij_fm_set set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
 !>                    as defined by Silvestrelli et al
@@ -197,15 +179,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
-      INTEGER                                            :: handle, idim1, idim2, &
-                                                            max_iter, nao, nmoloc, &
-                                                            out_each, output_unit, sweeps
+      INTEGER                                            :: handle, idim1, idim2, max_iter, nao, &
+                                                            nmoloc, out_each, output_unit, sweeps
       LOGICAL                                            :: converged, crazy_use_diag, &
                                                             do_jacobi_refinement, my_do_mixed
       REAL(dp)                                           :: crazy_scale, eps_localization, &
                                                             max_crazy_angle, start_time, &
                                                             target_time
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)     :: my_zij_cfm_set
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: my_zij_cfm_set
       TYPE(cp_cfm_type), POINTER                         :: complex_vectors
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -322,8 +303,8 @@ CONTAINS
          CALL cp_cfm_create(complex_vectors, vectors%matrix_struct)
          CALL cp_fm_to_cfm(msourcer=vectors, mtarget=complex_vectors)
 
-         CALL cardoso_souloumiac(weights, my_zij_cfm_set, para_env, max_iter, eps_localization, &
-                                 sweeps, out_each, complex_vectors)
+         CALL cardoso_souloumiac(weights, my_zij_cfm_set, max_iter, eps_localization, sweeps, &
+                                 out_each, complex_vectors)
 
          CALL cp_cfm_to_fm(complex_vectors, mtargetr=vectors)
          CALL cp_cfm_release(complex_vectors)
@@ -381,26 +362,22 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek'
 
-      INTEGER                                            :: handle, iatom, idim1, idim2, isgf, &
-                                                            ldz, max_iter, nao, natom, ncol, &
-                                                            nmoloc, out_each, output_unit, sweeps
+      INTEGER                                            :: handle, iatom, idim1, idim2, isgf, ldz, &
+                                                            max_iter, nao, natom, ncol, nmoloc, &
+                                                            out_each, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
       REAL(dp)                                           :: eps
-      TYPE(atom_type), DIMENSION(:), POINTER             :: atoms
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: c_zij
-      TYPE(cp_cfm_type), POINTER                         :: c_opvec, c_ov, c_vec, &
-                                                            my_zij_cfm_set(:, :), complex_vectors
+      TYPE(cp_cfm_type), POINTER                         :: complex_vectors, my_zij_cfm_set(:, :)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_type)                                   :: opvec
-      TYPE(cp_fm_type), POINTER                          :: im_vectors, ov_fm
+      TYPE(cp_fm_type), POINTER                          :: ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(molecule_kind_type), POINTER                  :: molkind
       TYPE(molecule_type), DIMENSION(:), POINTER         :: mols
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (atoms, c_opvec, c_ov, c_vec, c_zij, im_vectors, molkind, mols, ov_fm)
+      NULLIFY (mols, ov_fm)
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -653,12 +630,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_loc_env ...
-!> \param zij ...
 !> \param nmoloc ...
 !> \param cell ...
 !> \param weights ...
 !> \param ispin ...
 !> \param print_loc_section ...
+!> \param zij ...
+!> \param c_zij ...
 !> \param only_initial_out ...
 !> \par History
 !>      04.2005 created [MI]
@@ -672,7 +650,8 @@ CONTAINS
       REAL(dp), DIMENSION(:)                             :: weights
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN), OPTIONAL :: zij
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: zij
       TYPE(cp_cfm_p_type), INTENT(INOUT), OPTIONAL       :: c_zij(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_initial_out
 
@@ -1013,10 +992,20 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prints the electronic density
+!> \param qs_env ...
+!> \param nstates ...
+!> \param state_list ...
+!> \param centers ...
+!> \param print_key ...
+!> \param root ...
+!> \param mo_coeff ...
+!> \param complex_mo_coeff ...
+!> \param ispin ...
+!> \param file_position ...
 ! **************************************************************************************************
 
    SUBROUTINE qs_print_density_cubes(qs_env, nstates, state_list, centers, print_key, root, &
-        mo_coeff, complex_mo_coeff, ispin, file_position)
+                                     mo_coeff, complex_mo_coeff, ispin, file_position)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nstates
@@ -1024,15 +1013,14 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       TYPE(section_vals_type), POINTER                   :: print_key
       CHARACTER(LEN=*)                                   :: root
-      TYPE(cp_fm_type), POINTER, OPTIONAL                :: mo_coeff
-      TYPE(cp_cfm_type), POINTER, OPTIONAL               :: complex_mo_coeff
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff
+      TYPE(cp_cfm_type), OPTIONAL, POINTER               :: complex_mo_coeff
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), OPTIONAL     :: file_position
 
       TYPE(cp_fm_type), POINTER                          :: squaredmat
-      
-      
-      IF(PRESENT(mo_coeff)) THEN
+
+      IF (PRESENT(mo_coeff)) THEN
          CPASSERT(.NOT. PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, mo_coeff%matrix_struct)
          squaredmat%local_data = mo_coeff%local_data**2.0
@@ -1040,14 +1028,14 @@ CONTAINS
          CPASSERT(PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, complex_mo_coeff%matrix_struct)
          squaredmat%local_data = REAL(CONJG(complex_mo_coeff%local_data) &
-                                      * complex_mo_coeff%local_data, dp)
+                                      *complex_mo_coeff%local_data, dp)
       END IF
       CALL qs_print_cubes(qs_env, squaredmat, nstates, state_list, centers, print_key, root, &
                           ispin=ispin, file_position=file_position)
       CALL cp_fm_release(squaredmat)
 
-    END SUBROUTINE qs_print_density_cubes
-    
+   END SUBROUTINE qs_print_density_cubes
+
 ! **************************************************************************************************
 !> \brief Prints wannier centers
 !> \param qs_loc_env ...

@@ -13,9 +13,9 @@ MODULE input_cp2k_loc
                                               low_print_level
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_cpo_atomic, do_loc_cpo_random, do_loc_cpo_restart, &
-        do_loc_cpo_space_nmo, do_loc_cpo_space_wan, do_loc_crazy, do_loc_direct, do_loc_gapo, &
-        do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
-        do_loc_mixed, do_loc_none, do_loc_scdm, do_loc_cs, op_loc_berry, op_loc_boys, op_loc_pipek
+        do_loc_cpo_space_nmo, do_loc_cpo_space_wan, do_loc_crazy, do_loc_cs, do_loc_direct, &
+        do_loc_gapo, do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, &
+        do_loc_min, do_loc_mixed, do_loc_none, do_loc_scdm, op_loc_berry, op_loc_boys, op_loc_pipek
    USE input_cp2k_mm,                   ONLY: create_dipoles_section
    USE input_cp2k_motion_print,         ONLY: add_format_keyword
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -104,8 +104,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EACH", &
-           description="localize each n steps", &
-           default_i_val=1)
+                          description="localize each n steps", &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

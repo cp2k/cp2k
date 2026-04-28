@@ -32,8 +32,7 @@ MODULE qs_loc_types
                                               cp_cfm_release
    USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_retain,&

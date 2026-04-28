@@ -33,9 +33,6 @@ MODULE qs_scf_post_gpw
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_to_cfm,&
-                                              cp_fm_to_cfm
    USE cp_ddapc_util,                   ONLY: get_ddapc
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -79,8 +76,7 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken, &
-        rtp_localize_none
+        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -171,8 +167,7 @@ MODULE qs_scf_post_gpw
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type,&
-                                              set_mo_set
+                                              mo_set_type
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                               qs_moment_kpoints,&
                                               qs_moment_locop
@@ -1599,7 +1594,7 @@ CONTAINS
                             pw_env=pw_env)
             CALL calculate_wavefunction(unoccupied_orbs, ivector, wf_r, wf_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
-                                        
+
             IF (ifirst == 1) THEN
                index_mo = homo + ivector
             ELSE
@@ -1653,7 +1648,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, max_nmo, maxmom, reference, &
                                                             unit_nr
-      LOGICAL                                            :: com_nl, do_kpoints, do_kg, magnetic, &
+      LOGICAL                                            :: com_nl, do_kg, do_kpoints, magnetic, &
                                                             periodic, second_ref_point, vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -1665,7 +1660,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
 
-         print *, "post moments"
+         PRINT *, "post moments"
          maxmom = section_get_ival(section_vals=input, &
                                    keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT")
          periodic = section_get_lval(section_vals=input, &

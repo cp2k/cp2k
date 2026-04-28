@@ -185,7 +185,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: handle, i, istep, md_stride, &
-                                                            run_type_id, output_unit
+                                                            output_unit, run_type_id
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: check, ehrenfest_md, save_mem, &
                                                             should_stop, write_binary_restart_file

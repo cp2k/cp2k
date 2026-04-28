@@ -2008,7 +2008,7 @@ CONTAINS
             zi = zi*xphase
          CASE (2)
             ! Quadrupole
-            CPABORT("Berry phase moments bigger than 1 not implemented") 
+            CPABORT("Berry phase moments bigger than 1 not implemented")
             DO i = 1, 3
                DO j = i, 3
                   kvec(:) = twopi*(cell%h_inv(i, :) + cell%h_inv(j, :))
@@ -2483,7 +2483,6 @@ CONTAINS
 
          CALL dbcsr_deallocate_matrix_set(magmom)
       END IF
-
 
       ! velocity representations
       IF (my_velreprs) THEN

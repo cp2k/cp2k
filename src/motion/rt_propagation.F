@@ -14,7 +14,6 @@ MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
@@ -45,8 +44,6 @@ MODULE rt_propagation
    USE global_types,                    ONLY: global_environment_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init
    USE input_constants,                 ONLY: real_time_propagation,&
-                                              rtp_localize_each,&
-                                              rtp_localize_once,&
                                               use_restart_wfn,&
                                               use_rt_restart,&
                                               use_scf_wfn
@@ -335,7 +332,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation'
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
-                                                            max_iter, max_steps, output_unit, unit_nr
+                                                            max_iter, max_steps, output_unit, &
+                                                            unit_nr
       LOGICAL                                            :: moments_read, should_stop
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time

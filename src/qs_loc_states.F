@@ -22,6 +22,7 @@ MODULE qs_loc_states
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE localized_moments,               ONLY: calculate_localized_moments
    USE molecular_dipoles,               ONLY: calculate_molecular_dipole
    USE molecular_moments,               ONLY: calculate_molecular_moments
    USE molecular_states,                ONLY: construct_molecular_states
@@ -160,9 +161,9 @@ CONTAINS
 
             ! Compute the wannier states
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                 "WANNIER_STATES"), cp_p_file) .OR. &
+                                                 "WANNIER_STATES"), cp_p_file) .OR. &
                 (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                 "WANNIER_MOMENTS"), cp_p_file))) THEN
+                                                  "WANNIER_MOMENTS"), cp_p_file))) THEN
                ns = SIZE(qs_loc_env%localized_wfn_control%loc_states, 1)
                IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
                   ALLOCATE (wc(ispin)%WannierHamDiag(ns))
@@ -223,6 +224,11 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "WANNIER_STATES"), cp_p_file)) THEN
          CALL set_qs_env(qs_env=qs_env, WannierCentres=wc)
+      END IF
+      !
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                           "LOCALIZED_MOMENTS"), cp_p_file)) THEN
+         CALL calculate_localized_moments(qs_env, mo_local)
       END IF
 
       CALL timestop(handle)

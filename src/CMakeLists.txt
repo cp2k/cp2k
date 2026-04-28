@@ -333,6 +333,7 @@ list(
   library_tests.F
   linesearch.F
   localization_tb.F
+  localized_moments.F
   lri_compression.F
   lri_environment_init.F
   lri_environment_methods.F
