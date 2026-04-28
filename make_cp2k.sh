@@ -1428,9 +1428,6 @@ cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 # Allow to run as root with OpenMPI
 if [[ "${MPI_MODE}" == "openmpi" ]]; then
   OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
-  if [[ "${IN_CONTAINER}" == "yes" ]]; then
-    OMPI_VARS="${OMPI_VARS} OMPI_MCA_mpi_yield_when_idle=1 OMPI_MCA_btl=self,sm OMPI_MCA_pml=ob1"
-  fi
 else
   OMPI_VARS=""
 fi
@@ -1462,7 +1459,7 @@ export LSAN_OPTIONS="suppressions=${INSTALL_PREFIX}/bin/lsan.supp"
 export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
-export OMP_STACKSIZE=256M
+export OMP_STACKSIZE=64M
 ${OMPI_VARS}
 exec "\$@"
 ***
