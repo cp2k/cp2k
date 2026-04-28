@@ -1126,12 +1126,12 @@ CONTAINS
                                        homo, virtual, &
                                        homo_red, virt_red, &
                                        homo_incl, virt_incl, &
-                                       mp2_env)
+                                       cutoff_occ, cutoff_empty)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo, virtual
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red, homo_incl, virt_incl
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_cutoff_indices'
 
@@ -1139,16 +1139,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-mp2_env%bse%bse_cutoff_occ,mp2_env%bse%bse_cutoff_empty)
-      IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
-         IF (-mp2_env%bse%bse_cutoff_occ < Eigenval(1) - Eigenval(homo) &
-             .OR. mp2_env%bse%bse_cutoff_occ < 0) THEN
+      ! Uses indices of outermost orbitals within energy range (-cutoff_occ,cutoff_empty)
+      IF (cutoff_occ > 0 .OR. cutoff_empty > 0) THEN
+         IF (-cutoff_occ < Eigenval(1) - Eigenval(homo) &
+             .OR. cutoff_occ < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
             homo_incl = 1
             DO i_homo = 1, homo
-               IF (Eigenval(i_homo) - Eigenval(homo) > -mp2_env%bse%bse_cutoff_occ) THEN
+               IF (Eigenval(i_homo) - Eigenval(homo) > -cutoff_occ) THEN
                   homo_incl = i_homo
                   EXIT
                END IF
@@ -1156,14 +1156,14 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (mp2_env%bse%bse_cutoff_empty > Eigenval(homo + virtual) - Eigenval(homo + 1) &
-             .OR. mp2_env%bse%bse_cutoff_empty < 0) THEN
+         IF (cutoff_empty > Eigenval(homo + virtual) - Eigenval(homo + 1) &
+             .OR. cutoff_empty < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) > mp2_env%bse%bse_cutoff_empty) THEN
+               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) > cutoff_empty) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF
@@ -1236,7 +1236,7 @@ CONTAINS
                                     homo, virtual, &
                                     homo_red, virt_red, &
                                     homo_incl, virt_incl, &
-                                    mp2_env)
+                                    mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
 
       IF (unit_nr > 0) THEN
          IF (mp2_env%bse%bse_cutoff_occ > 0) THEN

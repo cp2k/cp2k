@@ -591,7 +591,7 @@ CONTAINS
                                              homo, max_corr_lev_virt, &
                                              homo_reduced_bse, virtual_reduced_bse, &
                                              homo_startindex_bse, virtual_startindex_bse, &
-                                             mp2_env)
+                                             mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
                IF (gw_corr_lev_occ == -2) THEN
                   CPWARN("BSE cutoff overwrites user input for CORR_MOS_OCC")
                   gw_corr_lev_occ = homo_reduced_bse
