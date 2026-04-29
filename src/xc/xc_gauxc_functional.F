@@ -236,7 +236,7 @@ CONTAINS
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
 
       IF (PRESENT(reference)) THEN
-         reference = "Skala functional via GauXC (underlying: "//TRIM(xc_fun_name)//")"
+         reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
       END IF
       IF (PRESENT(shortform)) THEN
          shortform = "SKALA ("//TRIM(xc_fun_name)//")"
