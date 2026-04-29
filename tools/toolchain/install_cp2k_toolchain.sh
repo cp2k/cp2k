@@ -161,10 +161,6 @@ OPTIONS:
                           settings after resolving known conflicts, then exit
                           without actually downloading tarballs or building
                           packages.
-  --list-cmake-options    If yes, generate a list of CMake options for building
-                          CP2K with the toolchain configuration as well as some
-                          further instructions at the end of toolchain.
-                          Default = yes
 
 The --enable-FEATURE options follow the rules:
   --enable-FEATURE=yes    Enable this particular feature.
