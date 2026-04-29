@@ -18,11 +18,12 @@ MODULE qs_loc_states
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
-   USE input_section_types,             ONLY: section_get_lval,&
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE localized_moments,               ONLY: calculate_localized_moments
+   !USE localized_moments,               ONLY: calculate_localized_moments
    USE molecular_dipoles,               ONLY: calculate_molecular_dipole
    USE molecular_moments,               ONLY: calculate_molecular_moments
    USE molecular_states,                ONLY: construct_molecular_states
@@ -85,7 +86,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, mystate, ns, nspins, &
                                                             output_unit
-      INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
+      INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin, maxmom
       LOGICAL                                            :: do_homo, do_mixed
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -228,7 +229,8 @@ CONTAINS
       !
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "LOCALIZED_MOMENTS"), cp_p_file)) THEN
-         CALL calculate_localized_moments(qs_env, mo_local)
+         maxmom = section_get_ival(loc_print_section, "LOCALIZED_MOMENTS%MAX_MOMENT")
+         !CALL calculate_localized_moments(qs_env, maxmom, mo_local)
       END IF
 
       CALL timestop(handle)

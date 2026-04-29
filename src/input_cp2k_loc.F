@@ -331,16 +331,57 @@ CONTAINS
       !
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
-      ! localised Wannier moments
+      ! localized Wannier moments
       CALL cp_print_key_section_create(subsection, __LOCATION__, name="WANNIER_MOMENTS", &
                                        description="Section controlling the calculation of "// &
                                        "Wannier-based electric moments", &
                                        print_level=debug_print_level + 1, filename="__STD_OUT__")
-      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
-                          description="Maximum order of mulitpoles to be calculated.", &
-                          usage=" ORDER {integer}", default_i_val=1, type_of_var=integer_t)
+      !
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MAX_MOMENT", &
+                          description="Maximum moment to be calculated.", &
+                          usage="MAX_MOMENT {integer}", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MAGNETIC", &
+                          description="Calculate also magnetic moments.", &
+                          usage="MAGNETIC .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="VEL_REPRS", &
+                          description="Calculate expectation values of the el. multipole "// &
+                          "moments in their velocity representation during RTP. Implemented up "// &
+                          "to el. quadrupole moment.", &
+                          usage="VEL_REPRS .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="COM_NL", &
+                          description="Include non local commutator for velocity "// &
+                          "representations. Necessary for origin independent results.", &
+                          usage="COM_NL .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
       !
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)

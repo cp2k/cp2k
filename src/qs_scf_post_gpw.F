@@ -1707,9 +1707,9 @@ CONTAINS
             ELSE
                CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
             END IF
-            !IF (do_kg) THEN
-            !   CALL calculate_kg_moments(qs_env, maxmom, input)
-            !END IF
+            IF (do_kg) THEN
+               !CALL calculate_kg_moments(qs_env, maxmom, input)
+            END IF
          END IF
 
          CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &

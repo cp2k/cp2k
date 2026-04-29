@@ -1222,7 +1222,7 @@ CONTAINS
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
       CALL keyword_create(keyword, __LOCATION__, name="KG", &
-                          description="Print the electronic moments separately for all KG subsystems", &
+                          description="Print the electronic moments separately for KG subsystems", &
                           usage="KG .TRUE.", &
                           repeats=.FALSE., &
                           n_var=1, &
