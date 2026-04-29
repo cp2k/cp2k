@@ -1121,6 +1121,7 @@ elif [ "${with_sirius}" = "__DONTUSE__" ]; then
   with_pugixml="__DONTUSE__"
   with_spfft="__DONTUSE__"
   with_libvdwxc="__DONTUSE__"
+  with_fmt="__DONTUSE__"
   [ "${GPUVER}" = "no" ] && with_spla="__DONTUSE__"
 fi
 
