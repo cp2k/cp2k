@@ -44,12 +44,13 @@ MODULE qs_grid_atom
    TYPE grid_atom_type
       INTEGER                         :: quadrature = -1
       INTEGER                         :: nr = -1, ng_sphere = -1
+      REAL(dp)                        :: gapw_weight_alpha = -1.0_dp
       REAL(dp), DIMENSION(:), POINTER :: rad => NULL(), rad2 => NULL(), &
                                          wr => NULL(), wa => NULL(), &
                                          azi => NULL(), cos_azi => NULL(), sin_azi => NULL(), &
                                          pol => NULL(), cos_pol => NULL(), sin_pol => NULL(), usin_azi => NULL()
       REAL(dp), DIMENSION(:, :), &
-         POINTER :: rad2l => NULL(), oorad2l => NULL(), weight => NULL()
+         POINTER :: rad2l => NULL(), oorad2l => NULL(), weight => NULL(), gapw_weight_s => NULL()
    END TYPE grid_atom_type
 
    PUBLIC :: allocate_grid_atom, create_grid_atom, deallocate_grid_atom
@@ -82,6 +83,7 @@ CONTAINS
       NULLIFY (grid_atom%wr)
       NULLIFY (grid_atom%wa)
       NULLIFY (grid_atom%weight)
+      NULLIFY (grid_atom%gapw_weight_s)
       NULLIFY (grid_atom%azi)
       NULLIFY (grid_atom%cos_azi)
       NULLIFY (grid_atom%sin_azi)
@@ -124,6 +126,10 @@ CONTAINS
 
          IF (ASSOCIATED(grid_atom%weight)) THEN
             DEALLOCATE (grid_atom%weight)
+         END IF
+
+         IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
+            DEALLOCATE (grid_atom%gapw_weight_s)
          END IF
 
          IF (ASSOCIATED(grid_atom%azi)) THEN

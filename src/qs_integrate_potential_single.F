@@ -773,8 +773,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_one_center'
 
-      INTEGER :: atom_a, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, m1, maxco, &
-         maxsgf_set, my_pos, na1, natom_of_kind, ncoa, nkind, nseta, offset, sgfa
+      INTEGER :: atom_a, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, m1, &
+         max_npgf, maxco, maxsgf_set, my_pos, na1, natom_of_kind, ncoa, nkind, nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -856,6 +856,10 @@ CONTAINS
          ALLOCATE (hab(maxco, 1), pab(maxco, 1))
          hab = 0._dp
          pab(:, 1) = 0._dp
+         max_npgf = MAXVAL(npgfa(1:nseta))
+         ALLOCATE (map_it(max_npgf))
+         ALLOCATE (work_i(maxsgf_set, 1))
+         IF (calculate_forces) ALLOCATE (work_f(maxsgf_set, 1))
 
          DO iatom = 1, natom_of_kind
 
@@ -868,9 +872,6 @@ CONTAINS
             force_b(:) = 0._dp
             my_virial_a(:, :) = 0._dp
             my_virial_b(:, :) = 0._dp
-
-            m1 = MAXVAL(npgfa(1:nseta))
-            ALLOCATE (map_it(m1))
 
             DO iset = 1, nseta
                !
@@ -886,18 +887,15 @@ CONTAINS
                   sgfa = first_sgfa(1, iset)
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   hab(:, 1) = 0._dp
-                  ALLOCATE (work_i(nsgf_seta(iset), 1))
-                  work_i = 0.0_dp
+                  work_i(1:nsgf_seta(iset), 1) = 0.0_dp
 
                   ! get fit coefficients for forces
                   IF (calculate_forces) THEN
                      m1 = sgfa + nsgf_seta(iset) - 1
-                     ALLOCATE (work_f(nsgf_seta(iset), 1))
                      work_f(1:nsgf_seta(iset), 1) = int_res(ikind)%acoef(iatom, sgfa:m1)
                      CALL dgemm("N", "N", ncoa, 1, nsgf_seta(iset), 1.0_dp, sphi_a(1, sgfa), &
                                 SIZE(sphi_a, 1), work_f(1, 1), SIZE(work_f, 1), 0.0_dp, pab(1, 1), &
                                 SIZE(pab, 1))
-                     DEALLOCATE (work_f)
                   END IF
 
                   DO ipgf = 1, npgfa(iset)
@@ -939,7 +937,6 @@ CONTAINS
 
                   int_res(ikind)%v_int(iatom, sgfa:sgfa - 1 + nsgf_seta(iset)) = &
                      int_res(ikind)%v_int(iatom, sgfa:sgfa - 1 + nsgf_seta(iset)) + work_i(1:nsgf_seta(iset), 1)
-                  DEALLOCATE (work_i)
                END IF
             END DO
             !
@@ -951,10 +948,10 @@ CONTAINS
                END IF
             END IF
 
-            DEALLOCATE (map_it)
-
          END DO
 
+         IF (calculate_forces) DEALLOCATE (work_f)
+         DEALLOCATE (work_i, map_it)
          DEALLOCATE (hab, pab)
       END DO
 

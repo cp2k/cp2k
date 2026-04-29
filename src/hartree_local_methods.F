@@ -116,7 +116,7 @@ CONTAINS
       INTEGER                                            :: handle, ir, iso, ispin, l_ang, &
                                                             max_s_harm, nchannels, nr, nspins
       REAL(dp)                                           :: I1_down, I1_up, I2_down, I2_up, prefactor
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rho_1, rho_2
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rho_1, rho_2
       REAL(dp), DIMENSION(:), POINTER                    :: wr
       REAL(dp), DIMENSION(:, :), POINTER                 :: oor2l, r2l
 
@@ -131,41 +131,35 @@ CONTAINS
       oor2l => grid_atom%oorad2l
       wr => grid_atom%wr
 
-      ALLOCATE (rho_1(nr, max_s_harm), rho_2(nr, max_s_harm))
-      rho_1 = 0.0_dp
-      rho_2 = 0.0_dp
-
-      !   Case lm = 0
-      rho_1(:, 1) = rrad_z(:)
-      rho_2(:, 1) = rrad_0(:, 1)
-
-      DO iso = 2, nchannels
-         rho_2(:, iso) = rrad_0(:, iso)
-      END DO
+      ALLOCATE (rho_1(nr), rho_2(nr))
 
       DO iso = 1, max_s_harm
+         rho_1(:) = 0.0_dp
+         rho_2(:) = 0.0_dp
+         IF (iso == 1) rho_1(:) = rrad_z(:)
+         IF (iso <= nchannels) rho_2(:) = rrad_0(:, iso)
          DO ispin = 1, nspins
-            rho_1(:, iso) = rho_1(:, iso) + rrad_h(ispin)%r_coef(:, iso)
-            rho_2(:, iso) = rho_2(:, iso) + rrad_s(ispin)%r_coef(:, iso)
+            rho_1(:) = rho_1(:) + rrad_h(ispin)%r_coef(:, iso)
+            rho_2(:) = rho_2(:) + rrad_s(ispin)%r_coef(:, iso)
          END DO
 
          l_ang = indso(1, iso)
          prefactor = fourpi/(2._dp*l_ang + 1._dp)
 
-         rho_1(:, iso) = rho_1(:, iso)*wr(:)
-         rho_2(:, iso) = rho_2(:, iso)*wr(:)
+         rho_1(:) = rho_1(:)*wr(:)
+         rho_2(:) = rho_2(:)*wr(:)
 
          I1_up = 0.0_dp
          I1_down = 0.0_dp
          I2_up = 0.0_dp
          I2_down = 0.0_dp
 
-         I1_up = r2l(nr, l_ang)*rho_1(nr, iso)
-         I2_up = r2l(nr, l_ang)*rho_2(nr, iso)
+         I1_up = r2l(nr, l_ang)*rho_1(nr)
+         I2_up = r2l(nr, l_ang)*rho_2(nr)
 
          DO ir = nr - 1, 1, -1
-            I1_down = I1_down + oor2l(ir, l_ang + 1)*rho_1(ir, iso)
-            I2_down = I2_down + oor2l(ir, l_ang + 1)*rho_2(ir, iso)
+            I1_down = I1_down + oor2l(ir, l_ang + 1)*rho_1(ir)
+            I2_down = I2_down + oor2l(ir, l_ang + 1)*rho_2(ir)
          END DO
 
          vrad_h(nr, iso) = vrad_h(nr, iso) + prefactor* &
@@ -174,10 +168,10 @@ CONTAINS
                            (oor2l(nr, l_ang + 1)*I2_up + r2l(nr, l_ang)*I2_down)
 
          DO ir = nr - 1, 1, -1
-            I1_up = I1_up + r2l(ir, l_ang)*rho_1(ir, iso)
-            I1_down = I1_down - oor2l(ir, l_ang + 1)*rho_1(ir, iso)
-            I2_up = I2_up + r2l(ir, l_ang)*rho_2(ir, iso)
-            I2_down = I2_down - oor2l(ir, l_ang + 1)*rho_2(ir, iso)
+            I1_up = I1_up + r2l(ir, l_ang)*rho_1(ir)
+            I1_down = I1_down - oor2l(ir, l_ang + 1)*rho_1(ir)
+            I2_up = I2_up + r2l(ir, l_ang)*rho_2(ir)
+            I2_down = I2_down - oor2l(ir, l_ang + 1)*rho_2(ir)
 
             vrad_h(ir, iso) = vrad_h(ir, iso) + prefactor* &
                               (oor2l(ir, l_ang + 1)*I1_up + r2l(ir, l_ang)*I1_down)
