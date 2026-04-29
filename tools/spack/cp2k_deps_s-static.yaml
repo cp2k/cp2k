@@ -88,7 +88,7 @@ spack:
 
   repos:
     builtin:
-      commit: 44be6764da24c644c564a90d894a5803edf4aed7 # 2026-04-20
+      commit: 7e4ffe332499db579e8b50ab627a9555f15a7c23 # 2026-04-28
 
   specs:
     # Build tools
@@ -100,7 +100,7 @@ spack:
     # CP2K
     - "dbcsr@2.9.1"
 #   - "dftd4@4.0.2"
-    - "fftw@3.3.10"
+    - "fftw@3.3.11"
 #   - "hdf5@2.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
