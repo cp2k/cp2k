@@ -270,8 +270,8 @@ CONTAINS
                                                             nkind, nkp_grid(3)
       LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, &
          do_kpoints, do_linear_response, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
-         do_wfc_low_scaling, is_identical, is_semi, mp2_present, my_qmmm, qmmm_decoupl, &
-         same_except_frac, use_ref_cell
+         do_wfc_low_scaling, do_wfc_low_scaling_kpoints, is_identical, is_semi, mp2_present, &
+         my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -402,6 +402,7 @@ CONTAINS
          do_ri_sos_mp2 = .FALSE.
          do_ri_rpa = .FALSE.
          do_wfc_low_scaling = .FALSE.
+         do_wfc_low_scaling_kpoints = .FALSE.
          do_bse = .FALSE.
          mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
          CALL section_vals_get(mp2_section, explicit=mp2_present)
@@ -414,6 +415,8 @@ CONTAINS
                                       l_val=do_ri_rpa)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%_SECTION_PARAMETERS_", &
                                       l_val=do_wfc_low_scaling)
+            CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%DO_KPOINTS", &
+                                      l_val=do_wfc_low_scaling_kpoints)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%_SECTION_PARAMETERS_", &
                                       l_val=do_bse)
          END IF
@@ -421,7 +424,7 @@ CONTAINS
                                                           do_tddfpt, do_active_space, do_linear_response, &
                                                           do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
-                                                          do_wfc_low_scaling)
+                                                          do_wfc_low_scaling, do_wfc_low_scaling_kpoints)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
          dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
          CALL write_kpoint_info(kpoints, dft_section=dft_section)
@@ -642,16 +645,16 @@ CONTAINS
 !> \param do_rpa ...
 !> \param do_bse ...
 !> \param do_wfc_low_scaling ...
+!> \param do_wfc_low_scaling_kpoints ...
 ! **************************************************************************************************
    SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
-                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling)
+                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+                                                          do_wfc_low_scaling_kpoints)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                            do_active_space, do_linear_response, &
-                                                            do_mp2, do_rpa, do_bse, &
-                                                            do_wfc_low_scaling
+      LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
+         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
@@ -673,7 +676,8 @@ CONTAINS
 
       reason = unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, &
                                                          do_tddfpt, do_active_space, do_linear_response, &
-                                                         do_mp2, do_rpa, do_bse, do_wfc_low_scaling)
+                                                         do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+                                                         do_wfc_low_scaling_kpoints)
       IF (LEN_TRIM(reason) == 0) RETURN
 
       CALL cp_warn(__LOCATION__, &
@@ -727,17 +731,16 @@ CONTAINS
 !> \param do_rpa ...
 !> \param do_bse ...
 !> \param do_wfc_low_scaling ...
+!> \param do_wfc_low_scaling_kpoints ...
 !> \return reason
 ! **************************************************************************************************
    FUNCTION unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, do_tddfpt, &
                                                       do_active_space, do_linear_response, do_mp2, do_rpa, &
-                                                      do_bse, do_wfc_low_scaling) &
+                                                      do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints) &
       RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                            do_active_space, do_linear_response, &
-                                                            do_mp2, do_rpa, do_bse, &
-                                                            do_wfc_low_scaling
+      LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
+         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
@@ -762,6 +765,8 @@ CONTAINS
          reason = "LINEAR_RESPONSE/DFPT"
       ELSE IF (do_mp2) THEN
          reason = "MP2"
+      ELSE IF (do_rpa .AND. do_wfc_low_scaling_kpoints) THEN
+         reason = "LOW_SCALING RPA"
       ELSE IF (do_wfc_low_scaling) THEN
          reason = "LOW_SCALING WF_CORRELATION"
       ELSE IF (do_rpa) THEN
