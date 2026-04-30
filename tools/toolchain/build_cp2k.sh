@@ -202,11 +202,11 @@ else
   done
 fi
 # If GPU acceleration is used, add the option about GPU acceleration
-if [ "${enable_cuda}" = "__TRUE__" ]; then
-  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${gpu_ver}"
-elif [ "${enable_hip}" = "__TRUE__" ]; then
-  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=${gpu_ver}"
-elif [ "${enable_opencl}" = "__TRUE__" ]; then
+if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=CUDA -DCP2K_WITH_GPU=${GPU_VER}"
+elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=HIP -DCP2K_WITH_GPU=${GPU_VER}"
+elif [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_ACCEL=OPENCL"
 fi
 

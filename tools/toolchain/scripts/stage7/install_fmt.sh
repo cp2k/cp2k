@@ -39,6 +39,7 @@ case "$with_fmt" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DFMT_TEST=OFF \
         > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
