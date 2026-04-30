@@ -140,7 +140,8 @@ CONTAINS
                           description="Select the backend used to provide and apply atomic "// &
                           "k-point symmetry operations. K290 is the established default. "// &
                           "SPGLIB uses the symmetry operations returned by SPGLIB, including "// &
-                          "their fractional translations.", &
+                          "their fractional translations. If SYMMETRY_REDUCTION_METHOD is not "// &
+                          "specified, it follows the selected backend.", &
                           usage="SYMMETRY_BACKEND K290", type_of_var=enum_t, &
                           enum_c_vals=s2a("K290", "SPGLIB"), &
                           enum_i_vals=[use_k290_kpoint_backend, use_spglib_kpoint_backend], &
@@ -154,7 +155,8 @@ CONTAINS
                           description="Select the method used to reduce Monkhorst-Pack and MacDonald "// &
                           "k-point meshes when atomic symmetry is enabled. K290 is the established "// &
                           "default. SPGLIB uses the symmetry operations returned by SPGLIB for the "// &
-                          "k-point reduction.", &
+                          "k-point reduction. With SYMMETRY_BACKEND K290 this can be used as a "// &
+                          "comparison mode using K290 operations for SPGLIB-generated mappings.", &
                           usage="SYMMETRY_REDUCTION_METHOD K290", type_of_var=enum_t, &
                           enum_c_vals=s2a("K290", "SPGLIB"), &
                           enum_i_vals=[use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry], &
