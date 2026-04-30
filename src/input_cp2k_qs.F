@@ -243,9 +243,15 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAPW_ACCURATE_XCINT", &
-         description="Use a more accurate integration scheme for the soft XC energy in GAPW/GAPW_XC. "// &
-         "This opt-in mode is intended as the path towards making accurate XC integration "// &
-         "the GAPW default.", &
+         description="Use the accurate GAPW/GAPW_XC XC integration scheme for one-center hard/soft "// &
+         "density differences. This opt-in path covers regular GAPW/GAPW_XC XC energy, potential, "// &
+         "forces, mGGA/tau terms, NLCC, Fine-XC grids, local XC energy-density transfer, analytical "// &
+         "stress, TDDFPT/response forces, ADMM-GAPW response-force paths, and KG GAPW/GAPW_XC "// &
+         "EMBED, ATOMIC, and NONE cases. It is intentionally still limited: KG EMBED_RI remains "// &
+         "excluded, regular-grid GAPW/ADMM local energy and stress density output still contains "// &
+         "only the soft regular-grid contribution, and ADMM-GAPW stress has no dedicated "// &
+         "finite-difference coverage yet. The default remains off while this coverage is being "// &
+         "prepared for a future default change.", &
          usage="GAPW_ACCURATE_XCINT", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
