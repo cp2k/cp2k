@@ -17,6 +17,8 @@
 "c_dos.inp"                             = [{matcher="E_total", tol=2e-14, ref=-45.65703654036614}]
 "h_sym_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_sym_red_restart.inp"                 = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
+"h_fcc_sym_red.inp"                     = [{matcher="E_total", tol=1e-13, ref=-4.35025489265897},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_spglib_sym_red.inp"                  = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_spglib_sym_red_restart.inp"          = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
 "h_inv_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]

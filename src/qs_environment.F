@@ -661,10 +661,6 @@ CONTAINS
          SELECT CASE (method_id)
          CASE (do_method_dftb)
             reason = "DFTB"
-         CASE (do_method_gapw)
-            reason = "GAPW"
-         CASE (do_method_gapw_xc)
-            reason = "GAPW_XC"
          CASE (do_method_lrigpw)
             reason = "LRIGPW"
          CASE (do_method_rigpw)

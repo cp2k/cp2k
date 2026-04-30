@@ -821,7 +821,6 @@ CONTAINS
          kpop(i) = 1
 
          DO iop = 1, nc
-            IF (ANY(ABS(csym%vt(1:3, iop) - ANINT(csym%vt(1:3, iop))) > eps)) CYCLE
             DO ibsign = 1, MERGE(2, 1, add_inversion)
                kr = ib(iop)
                wcart(1:3) = alat*(xkp(1, i)*b1(1:3) + xkp(2, i)*b2(1:3) + xkp(3, i)*b3(1:3))
