@@ -729,12 +729,16 @@ CONTAINS
             IF (kpoint%inversion_symmetry_only) THEN
                WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Restrict symmetry to inversion', '   ON'
             END IF
-            SELECT CASE (kpoint%symmetry_reduction_method)
-            CASE (use_k290_kpoint_symmetry)
-               WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', '   K290'
-            CASE DEFAULT
-               WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', ' SPGLIB'
-            END SELECT
+            IF (kpoint%symmetry .AND. .NOT. kpoint%full_grid .AND. &
+                .NOT. kpoint%inversion_symmetry_only .AND. &
+                (kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD")) THEN
+               SELECT CASE (kpoint%symmetry_reduction_method)
+               CASE (use_k290_kpoint_symmetry)
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', '   K290'
+               CASE DEFAULT
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', ' SPGLIB'
+               END SELECT
+            END IF
             IF (kpoint%use_real_wfn) THEN
                WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Wavefunction type', ' REAL'
             ELSE
