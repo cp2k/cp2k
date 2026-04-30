@@ -599,12 +599,6 @@ CONTAINS
 
          IF (gapw .OR. gapw_xc) THEN
             CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
-            ! test for not implemented (bug) option
-            IF (use_virial .AND. calculate_forces) THEN
-               IF (ASSOCIATED(v_tau_rspace)) THEN
-                  CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
-               END IF
-            END IF
          END IF
 
       END IF
@@ -651,7 +645,6 @@ CONTAINS
       ! calculate KG correction
       IF (dft_control%qs_control%do_kg .AND. just_energy) THEN
 
-         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          CPASSERT(nimages == 1)
          ksmat => ks_matrix(:, 1)
          CALL kg_ekin_subset(qs_env, ksmat, ekin_mol, calculate_forces, do_kernel=.FALSE.)
@@ -739,7 +732,6 @@ CONTAINS
             virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
          END IF
          IF (dft_control%qs_control%do_kg) THEN
-            CPASSERT(.NOT. (gapw .OR. gapw_xc))
             CPASSERT(nimages == 1)
             ksmat => ks_matrix(:, 1)
 

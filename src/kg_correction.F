@@ -92,12 +92,18 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_ext
 
-      LOGICAL                                            :: lrigpw
+      LOGICAL                                            :: gapw, gapw_xc, lrigpw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
 
       CALL get_qs_env(qs_env, kg_env=kg_env, dft_control=dft_control)
       lrigpw = dft_control%qs_control%lrigpw
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
+
+      IF ((gapw .OR. gapw_xc) .AND. kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
+         CPABORT("KG_METHOD with GAPW/GAPW_XC is not implemented for TNADD_METHOD EMBED_RI")
+      END IF
 
       IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
          IF (lrigpw) THEN
@@ -140,8 +146,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_ekin_embed'
 
+      CHARACTER(LEN=10)                                  :: basis_type
       INTEGER                                            :: handle, iounit, ispin, isub, nspins
-      LOGICAL                                            :: use_virial
+      LOGICAL                                            :: gapw, gapw_xc, use_gapw_soft, use_virial
       REAL(KIND=dp)                                      :: alpha, ekin_imol
       REAL(KIND=dp), DIMENSION(3, 3)                     :: xcvirial
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -152,7 +159,8 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, vxc_rho, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho_struct
+      TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho1_use, rho1_xc, &
+                                                            rho_struct, rho_use, rho_xc
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(virial_type), POINTER                         :: virial
 
@@ -161,7 +169,8 @@ CONTAINS
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_unit_nr(logger)
 
-      NULLIFY (ks_env, dft_control, old_rho, pw_env, rho_struct, virial, vxc_rho, vxc_tau)
+      NULLIFY (ks_env, dft_control, old_rho, pw_env, rho1_use, rho1_xc, rho_struct, &
+               rho_use, rho_xc, virial, vxc_rho, vxc_tau)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -170,6 +179,14 @@ CONTAINS
                       virial=virial, &
                       pw_env=pw_env)
       nspins = dft_control%nspins
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
+      use_gapw_soft = gapw .OR. gapw_xc
+      IF (use_gapw_soft) THEN
+         basis_type = "ORB_SOFT"
+      ELSE
+         basis_type = "ORB"
+      END IF
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calc_force
 
@@ -191,10 +208,21 @@ CONTAINS
       ! set the density matrix to the blocked matrix
       CALL qs_rho_set(rho_struct, rho_ao=density_matrix) ! blocked_matrix
       CALL qs_rho_rebuild(rho_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+      IF (gapw_xc) THEN
+         ALLOCATE (rho_xc)
+         CALL qs_rho_create(rho_xc)
+         CALL qs_rho_rebuild(rho_xc, qs_env, rebuild_ao=.TRUE., rebuild_grids=.TRUE.)
+      END IF
       ! full density kinetic energy term
-      CALL qs_rho_update_rho(rho_struct, qs_env)
+      IF (gapw_xc) THEN
+         CALL qs_rho_update_rho(rho_struct, qs_env, rho_xc_external=rho_xc)
+         rho_use => rho_xc
+      ELSE
+         CALL qs_rho_update_rho(rho_struct, qs_env)
+         rho_use => rho_struct
+      END IF
       ! get blocked density that has been put on grid
-      CALL qs_rho_get(rho_struct, rho_r=rho_r)
+      CALL qs_rho_get(rho_use, rho_r=rho_r)
 
       ! If external density associated then it is needed either for
       ! 1) folding of second derivative while partially integrating, or
@@ -205,7 +233,16 @@ CONTAINS
          CALL qs_rho_create(rho1)
          CALL qs_rho_set(rho1, rho_ao=pmat_ext)
          CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
-         CALL qs_rho_update_rho(rho1, qs_env)
+         IF (gapw_xc) THEN
+            ALLOCATE (rho1_xc)
+            CALL qs_rho_create(rho1_xc)
+            CALL qs_rho_rebuild(rho1_xc, qs_env, rebuild_ao=.TRUE., rebuild_grids=.TRUE.)
+            CALL qs_rho_update_rho(rho1, qs_env, rho_xc_external=rho1_xc)
+            rho1_use => rho1_xc
+         ELSE
+            CALL qs_rho_update_rho(rho1, qs_env)
+            rho1_use => rho1
+         END IF
       END IF
 
       ! XC-section pointing to kinetic energy functional in KG environment
@@ -218,11 +255,11 @@ CONTAINS
       IF (do_kernel) THEN
          ! derivation wrt to rho_struct and evaluation at rho_struct
          IF (use_virial) virial%pv_xc = 0.0_dp
-         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
+         CALL qs_rho_get(rho1_use, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
          CALL create_kernel(qs_env, &
                             vxc=vxc_rho, &
                             vxc_tau=vxc_tau, &
-                            rho=rho_struct, &
+                            rho=rho_use, &
                             rho1_r=rho1_r, &
                             rho1_g=rho1_g, &
                             tau1_r=tau1_r, &
@@ -231,7 +268,7 @@ CONTAINS
                             virial_xc=virial%pv_xc)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, &
-                            rho_struct=rho_struct, &
+                            rho_struct=rho_use, &
                             xc_section=xc_section, &
                             vxc_rho=vxc_rho, &
                             vxc_tau=vxc_tau, &
@@ -244,7 +281,8 @@ CONTAINS
 
       ! Integrate xc-potential with external density for outer response forces
       IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
-         CALL qs_rho_get(rho1, rho_ao=density_matrix, rho_r=rho1_r)
+         CALL qs_rho_get(rho1, rho_ao=density_matrix)
+         CALL qs_rho_get(rho1_use, rho_r=rho1_r)
          ! Direct volume term of virial
          ! xc-potential is unscaled
          IF (use_virial) THEN
@@ -262,7 +300,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
                                  pmat=density_matrix(ispin), hmat=ks_matrix(ispin), &
-                                 qs_env=qs_env, calculate_forces=calc_force)
+                                 qs_env=qs_env, calculate_forces=calc_force, gapw=use_gapw_soft)
          CALL auxbas_pw_pool%give_back_pw(vxc_rho(ispin))
       END DO
       DEALLOCATE (vxc_rho)
@@ -276,12 +314,28 @@ CONTAINS
       DO isub = 1, kg_env%nsubsets
          ! calculate the densities for the given blocked density matrix
          ! pass the subset task_list
-         CALL qs_rho_update_rho(rho_struct, qs_env, &
-                                task_list_external=kg_env%subset(isub)%task_list)
+         IF (gapw_xc) THEN
+            CALL qs_rho_update_rho(rho_struct, qs_env, rho_xc_external=rho_xc, &
+                                   task_list_external=kg_env%subset(isub)%task_list, &
+                                   task_list_external_soft=kg_env%subset(isub)%task_list)
+            rho_use => rho_xc
+         ELSE
+            CALL qs_rho_update_rho(rho_struct, qs_env, &
+                                   task_list_external=kg_env%subset(isub)%task_list)
+            rho_use => rho_struct
+         END IF
          ! Same for external (response) density if present
          IF (PRESENT(pmat_ext)) THEN
-            CALL qs_rho_update_rho(rho1, qs_env, &
-                                   task_list_external=kg_env%subset(isub)%task_list)
+            IF (gapw_xc) THEN
+               CALL qs_rho_update_rho(rho1, qs_env, rho_xc_external=rho1_xc, &
+                                      task_list_external=kg_env%subset(isub)%task_list, &
+                                      task_list_external_soft=kg_env%subset(isub)%task_list)
+               rho1_use => rho1_xc
+            ELSE
+               CALL qs_rho_update_rho(rho1, qs_env, &
+                                      task_list_external=kg_env%subset(isub)%task_list)
+               rho1_use => rho1
+            END IF
          END IF
 
          ekin_imol = 0.0_dp
@@ -294,11 +348,11 @@ CONTAINS
          ! calculate xc-potential or kernel
          IF (do_kernel) THEN
             IF (use_virial) virial%pv_xc = 0.0_dp
-            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
+            CALL qs_rho_get(rho1_use, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
             CALL create_kernel(qs_env, &
                                vxc=vxc_rho, &
                                vxc_tau=vxc_tau, &
-                               rho=rho_struct, &
+                               rho=rho_use, &
                                rho1_r=rho1_r, &
                                rho1_g=rho1_g, &
                                tau1_r=tau1_r, &
@@ -307,7 +361,7 @@ CONTAINS
                                virial_xc=virial%pv_xc)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, &
-                               rho_struct=rho_struct, &
+                               rho_struct=rho_use, &
                                xc_section=xc_section, &
                                vxc_rho=vxc_rho, &
                                vxc_tau=vxc_tau, &
@@ -317,6 +371,7 @@ CONTAINS
          ! Integrate with response density for outer response forces
          IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
             CALL qs_rho_get(rho1, rho_ao=density_matrix)
+            CALL qs_rho_get(rho1_use, rho_r=rho1_r)
             ! Direct volume term of virial
             ! xc-potential is unscaled
             IF (use_virial) THEN
@@ -335,6 +390,7 @@ CONTAINS
                                     hmat=ks_matrix(ispin), &
                                     qs_env=qs_env, &
                                     calculate_forces=calc_force, &
+                                    basis_type=basis_type, &
                                     task_list_external=kg_env%subset(isub)%task_list)
             ! clean up vxc_rho
             CALL auxbas_pw_pool%give_back_pw(vxc_rho(ispin))
@@ -346,6 +402,7 @@ CONTAINS
                                        qs_env=qs_env, &
                                        compute_tau=.TRUE., &
                                        calculate_forces=calc_force, &
+                                       basis_type=basis_type, &
                                        task_list_external=kg_env%subset(isub)%task_list)
                ! clean up vxc_rho
                CALL auxbas_pw_pool%give_back_pw(vxc_tau(ispin))
@@ -369,10 +426,18 @@ CONTAINS
       CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
       DEALLOCATE (rho_struct)
+      IF (ASSOCIATED(rho_xc)) THEN
+         CALL qs_rho_release(rho_xc)
+         DEALLOCATE (rho_xc)
+      END IF
       IF (PRESENT(pmat_ext)) THEN
          CALL qs_rho_unset_rho_ao(rho1)
          CALL qs_rho_release(rho1)
          DEALLOCATE (rho1)
+         IF (ASSOCIATED(rho1_xc)) THEN
+            CALL qs_rho_release(rho1_xc)
+            DEALLOCATE (rho1_xc)
+         END IF
       END IF
 
       CALL timestop(handle)
