@@ -708,12 +708,12 @@ CONTAINS
       END SELECT
 
       IF (LEN_TRIM(reason) > 0) RETURN
-      IF (do_tddfpt) THEN
-         reason = "TDDFPT"
-      ELSE IF (do_linear_response) THEN
-         reason = "LINEAR_RESPONSE"
-      ELSE IF (do_bse) THEN
+      IF (do_bse) THEN
          reason = "BSE"
+      ELSE IF (do_tddfpt) THEN
+         reason = "TDDFPT/TDDFT"
+      ELSE IF (do_linear_response) THEN
+         reason = "LINEAR_RESPONSE/DFPT"
       ELSE IF (do_mp2) THEN
          reason = "MP2"
       ELSE IF (do_wfc_low_scaling) THEN
