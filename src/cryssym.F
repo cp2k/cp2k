@@ -297,9 +297,9 @@ CONTAINS
       END IF
       csym%spglib_backend = spglib_backend
 
-      IF (spglib_backend .NEQV. spglib_reduction) THEN
+      IF (spglib_backend .AND. .NOT. spglib_reduction) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Mixed k-point symmetry backends and reduction methods are not implemented yet")
+                       "SYMMETRY_BACKEND SPGLIB requires SYMMETRY_REDUCTION_METHOD SPGLIB")
       END IF
 
       csym%nkpoint = 0
@@ -344,7 +344,7 @@ CONTAINS
             IF (spglib_backend) THEN
                CALL kp_symmetry_spglib(csym, xkp, wkp, kpop)
             ELSE
-               CALL kp_symmetry(csym, xkp, wkp, kpop)
+               CALL kp_symmetry(csym, xkp, wkp, kpop, use_spglib_reduction=spglib_reduction)
             END IF
 
          END IF
@@ -430,18 +430,21 @@ CONTAINS
 !> \param wkp ...
 !> \param kpop ...
 ! **************************************************************************************************
-   SUBROUTINE kp_symmetry(csym, xkp, wkp, kpop)
+   SUBROUTINE kp_symmetry(csym, xkp, wkp, kpop, use_spglib_reduction)
       TYPE(csym_type)                                    :: csym
       REAL(KIND=dp), DIMENSION(:, :)                     :: xkp
       REAL(KIND=dp), DIMENSION(:)                        :: wkp
       INTEGER, DIMENSION(:)                              :: kpop
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_spglib_reduction
 
       INTEGER                                            :: i, ihc, ihg, indpg, iou, iq1, iq2, iq3, &
                                                             istriz, isy, li, nat, nc, nhash, &
-                                                            nkpoint, nsp, ntvec
+                                                            nkpoint, nrot, nsp, ntvec
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list, lwght, ty
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0, lrot
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: srot
       INTEGER, DIMENSION(48)                             :: ib
+      LOGICAL                                            :: spglib_reduction
       REAL(KIND=dp)                                      :: alat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl, xkapa
       REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, origin, wvk0
@@ -458,6 +461,11 @@ CONTAINS
       nkpoint = 10*iq1*iq2*iq3
       wvk0 = csym%wvk0
       istriz = csym%istriz
+      IF (PRESENT(use_spglib_reduction)) THEN
+         spglib_reduction = use_spglib_reduction
+      ELSE
+         spglib_reduction = .FALSE.
+      END IF
       a1(1:3) = hmat(1:3, 1)
       a2(1:3) = hmat(1:3, 2)
       a3(1:3) = hmat(1:3, 3)
@@ -480,6 +488,7 @@ CONTAINS
             "*******************************************************************************"
       END IF
       CALL cite_reference(Worlton1972)
+      IF (spglib_reduction) CALL cite_reference(Togo2018)
 
       CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, istriz, &
                  a1, a2, a3, alat, strain, xkapa, rx, tvec, &
@@ -511,7 +520,15 @@ CONTAINS
       END DO
       csym%ibrot(1:nc) = ib(1:nc)
 
-      CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
+      IF (spglib_reduction) THEN
+         ALLOCATE (srot(3, 3, csym%n_operations))
+         CALL setup_spglib_reduction_rotations(csym, srot, nrot)
+         CALL reduce_spglib_kpoint_mesh_k290(csym, xkp, wkp, kpop, srot, nrot, &
+                                             a1, a2, a3, b1, b2, b3, alat)
+         DEALLOCATE (srot)
+      ELSE
+         CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
+      END IF
       DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
       DEALLOCATE (wvkl, rlist, includ, list)
       DEALLOCATE (lrot, lwght)
@@ -644,6 +661,56 @@ CONTAINS
       IF (nrot == 0) CALL cp_abort(__LOCATION__, "SPGLIB did not return usable symmetry operations")
 
    END SUBROUTINE setup_spglib_operations
+
+! **************************************************************************************************
+!> \brief Store unique SPGLIB rotations for K290-backend diagnostic reduction
+!> \param csym ...
+!> \param srot integer rotations in fractional coordinates
+!> \param nrot number of stored rotations
+! **************************************************************************************************
+   SUBROUTINE setup_spglib_reduction_rotations(csym, srot, nrot)
+      TYPE(csym_type)                                    :: csym
+      INTEGER, DIMENSION(:, :, :), INTENT(OUT)           :: srot
+      INTEGER, INTENT(OUT)                               :: nrot
+
+      INTEGER                                            :: iop, jop, pass
+      INTEGER, DIMENSION(3, 3)                           :: eye, irot
+      LOGICAL                                            :: duplicate, identity
+
+      CPASSERT(csym%symlib)
+
+      srot = 0
+      eye = 0
+      eye(1, 1) = 1
+      eye(2, 2) = 1
+      eye(3, 3) = 1
+
+      nrot = 0
+      ! Keep the identity first, matching the representative k-point operation.
+      DO pass = 1, 2
+         DO iop = 1, csym%n_operations
+            irot(1:3, 1:3) = csym%rotations(1:3, 1:3, iop)
+            identity = ALL(irot == eye)
+            IF (pass == 1 .AND. .NOT. identity) CYCLE
+            IF (pass == 2 .AND. identity) CYCLE
+
+            duplicate = .FALSE.
+            DO jop = 1, nrot
+               IF (ALL(irot == srot(:, :, jop))) THEN
+                  duplicate = .TRUE.
+                  EXIT
+               END IF
+            END DO
+            IF (duplicate) CYCLE
+
+            nrot = nrot + 1
+            srot(1:3, 1:3, nrot) = irot(1:3, 1:3)
+         END DO
+      END DO
+
+      IF (nrot == 0) CALL cp_abort(__LOCATION__, "SPGLIB did not return usable symmetry rotations")
+
+   END SUBROUTINE setup_spglib_reduction_rotations
 
 ! **************************************************************************************************
 !> \brief Determine the atom permutation generated by a SPGLIB space-group operation
@@ -784,6 +851,151 @@ CONTAINS
       DEALLOCATE (kscore)
 
    END SUBROUTINE reduce_spglib_kpoint_mesh
+
+! **************************************************************************************************
+!> \brief Reduce a k-point mesh with SPGLIB rotations and K290 operations
+!> \param csym ...
+!> \param xkp full k-point mesh in reciprocal lattice coordinates
+!> \param wkp reduced k-point weights
+!> \param kpop K290 operation mapping the representative k-point to a mesh point
+!> \param srot SPGLIB integer rotations in fractional coordinates
+!> \param nrot number of stored rotations
+!> \param a1 first lattice vector
+!> \param a2 second lattice vector
+!> \param a3 third lattice vector
+!> \param b1 first reciprocal lattice vector
+!> \param b2 second reciprocal lattice vector
+!> \param b3 third reciprocal lattice vector
+!> \param alat lattice scaling used by K290
+! **************************************************************************************************
+   SUBROUTINE reduce_spglib_kpoint_mesh_k290(csym, xkp, wkp, kpop, srot, nrot, &
+                                             a1, a2, a3, b1, b2, b3, alat)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
+      REAL(KIND=dp), DIMENSION(:)                        :: wkp
+      INTEGER, DIMENSION(:)                              :: kpop
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: srot
+      INTEGER, INTENT(IN)                                :: nrot
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3, b1, b2, b3
+      REAL(KIND=dp), INTENT(IN)                          :: alat
+
+      INTEGER                                            :: i, iop, isign, j, k290_op, nkpts
+      INTEGER, DIMENSION(3, 3)                           :: krot
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: eps
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr
+
+      nkpts = SIZE(wkp)
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+
+      wkp = 0.0_dp
+      kpop = 0
+      csym%kplink(1, :) = 0
+
+      DO i = 1, nkpts
+         IF (csym%kplink(1, i) /= 0) CYCLE
+
+         csym%kplink(1, i) = i
+         wkp(i) = 1.0_dp
+         kpop(i) = 1
+
+         DO iop = 1, nrot
+            krot = reciprocal_rotation(srot(:, :, iop))
+            DO isign = 1, 2
+               rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp(1:3, i))
+               IF (isign == 2) rr(1:3) = -rr(1:3)
+
+               DO j = 1, nkpts
+                  diff(1:3) = xkp(1:3, j) - rr(1:3)
+                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
+                     IF (j == i) EXIT
+                     IF (csym%kplink(1, j) /= 0) THEN
+                        CPASSERT(csym%kplink(1, j) == i)
+                        EXIT
+                     END IF
+
+                     CALL find_k290_kpoint_operation(csym, xkp(1:3, i), xkp(1:3, j), &
+                                                     a1, a2, a3, b1, b2, b3, alat, &
+                                                     k290_op, valid)
+                     IF (.NOT. valid) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "SPGLIB k-point mapping is not represented by K290 backend")
+                     END IF
+                     csym%kplink(1, j) = i
+                     wkp(i) = wkp(i) + 1.0_dp
+                     kpop(j) = k290_op
+                     EXIT
+                  END IF
+               END DO
+               IF (j > nkpts) CYCLE
+            END DO
+         END DO
+      END DO
+
+      DO i = 1, nkpts
+         CPASSERT(csym%kplink(1, i) /= 0)
+         CPASSERT(kpop(i) /= 0)
+      END DO
+
+   END SUBROUTINE reduce_spglib_kpoint_mesh_k290
+
+! **************************************************************************************************
+!> \brief Find a K290 operation that maps one fractional k-point to another
+!> \param csym ...
+!> \param xref representative k-point
+!> \param xtarget target k-point
+!> \param a1 first lattice vector
+!> \param a2 second lattice vector
+!> \param a3 third lattice vector
+!> \param b1 first reciprocal lattice vector
+!> \param b2 second reciprocal lattice vector
+!> \param b3 third reciprocal lattice vector
+!> \param alat lattice scaling used by K290
+!> \param k290_op K290 operation identifier
+!> \param valid whether a matching K290 operation was found
+! **************************************************************************************************
+   SUBROUTINE find_k290_kpoint_operation(csym, xref, xtarget, a1, a2, a3, b1, b2, b3, alat, &
+                                         k290_op, valid)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xref, xtarget, a1, a2, a3, b1, b2, b3
+      REAL(KIND=dp), INTENT(IN)                          :: alat
+      INTEGER, INTENT(OUT)                               :: k290_op
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      INTEGER                                            :: ibsign, iop, kr
+      REAL(KIND=dp)                                      :: eps
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr, wcart
+
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      k290_op = 0
+      valid = .FALSE.
+
+      DO iop = 1, csym%nrtot
+         kr = csym%ibrot(iop)
+         IF (kr < 1 .OR. kr > SIZE(csym%rt, 3)) CYCLE
+         DO ibsign = 1, 2
+            wcart(1:3) = alat*(xref(1)*b1(1:3) + xref(2)*b2(1:3) + xref(3)*b3(1:3))
+            wcart(1:3) = kp_apply_operation(wcart(1:3), csym%rt(1:3, 1:3, kr))
+            IF (ibsign == 2) THEN
+               wcart(1:3) = -wcart(1:3)
+               kr = -kr
+            END IF
+            rr(1) = DOT_PRODUCT(a1(1:3), wcart(1:3))/alat
+            rr(2) = DOT_PRODUCT(a2(1:3), wcart(1:3))/alat
+            rr(3) = DOT_PRODUCT(a3(1:3), wcart(1:3))/alat
+
+            diff(1:3) = xtarget(1:3) - rr(1:3)
+            diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+            IF (ALL(ABS(diff(1:3)) < eps)) THEN
+               k290_op = kr
+               valid = .TRUE.
+               RETURN
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE find_k290_kpoint_operation
 
 ! **************************************************************************************************
 !> \brief Score SPGLIB operations to choose stable atom transformations

@@ -707,23 +707,12 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown k-point symmetry backend")
          END SELECT
-      ELSEIF (.NOT. backend_explicit .AND. reduction_explicit) THEN
-         SELECT CASE (kpoint%symmetry_reduction_method)
-         CASE (use_k290_kpoint_symmetry)
-            kpoint%symmetry_backend = use_k290_kpoint_backend
-         CASE (use_spglib_kpoint_symmetry)
-            kpoint%symmetry_backend = use_spglib_kpoint_backend
-         CASE DEFAULT
-            CPABORT("Unknown k-point symmetry reduction method")
-         END SELECT
       END IF
 
-      IF ((kpoint%symmetry_backend == use_k290_kpoint_backend .AND. &
-           kpoint%symmetry_reduction_method /= use_k290_kpoint_symmetry) .OR. &
-          (kpoint%symmetry_backend == use_spglib_kpoint_backend .AND. &
-           kpoint%symmetry_reduction_method /= use_spglib_kpoint_symmetry)) THEN
+      IF (kpoint%symmetry_backend == use_spglib_kpoint_backend .AND. &
+          kpoint%symmetry_reduction_method /= use_spglib_kpoint_symmetry) THEN
          CALL cp_abort(__LOCATION__, &
-                       "Mixed k-point symmetry backends and reduction methods are not implemented yet")
+                       "SYMMETRY_BACKEND SPGLIB requires SYMMETRY_REDUCTION_METHOD SPGLIB")
       END IF
 
    END SUBROUTINE resolve_kpoint_symmetry_settings
