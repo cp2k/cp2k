@@ -179,7 +179,9 @@ CONTAINS
          kpoint%atype = atype
          ! Match the periodic gauge used by the k-space matrices.
          ALLOCATE (agauge(3, natom))
-         agauge = -FLOOR(scoord + 0.5_dp - kpoint%eps_geo)
+         DO i = 1, natom
+            agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
+         END DO
 
          CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
          CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
@@ -1690,6 +1692,26 @@ CONTAINS
    END SUBROUTINE transform_dmat
 
 ! **************************************************************************************************
+!> \brief Allocate a dense work matrix with the requested shape
+!> \param work dense work matrix
+!> \param nrow number of rows
+!> \param ncol number of columns
+! **************************************************************************************************
+   SUBROUTINE ensure_work_matrix(work, nrow, ncol)
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: work
+      INTEGER, INTENT(IN)                                :: nrow, ncol
+
+      IF (ALLOCATED(work)) THEN
+         IF (SIZE(work, 1) == nrow .AND. SIZE(work, 2) == ncol) RETURN
+         DEALLOCATE (work)
+      END IF
+      ALLOCATE (work(nrow, ncol))
+
+   END SUBROUTINE ensure_work_matrix
+
+! **************************************************************************************************
 !> \brief Symmetrize a complex k-point matrix including Bloch phase shifts
 !> \param srpmat real part of transformed matrix
 !> \param scpmat imaginary part of transformed matrix
@@ -1724,7 +1746,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: shift
       LOGICAL                                            :: dorot, found, has_phase, perm, trans
       REAL(KIND=dp)                                      :: arg, coskl, dr, phase_sign, sinkl
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
       REAL(KIND=dp), DIMENSION(3, 3)                     :: eye, rot2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
                                                             srblock
@@ -1776,6 +1798,20 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, rpmat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
+         IF (.NOT. ALLOCATED(rwork)) THEN
+            ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
+         ELSEIF (SIZE(rwork, 1) /= SIZE(rblock, 1) .OR. SIZE(rwork, 2) /= SIZE(rblock, 2)) THEN
+            DEALLOCATE (rwork)
+            ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
+         END IF
+         IF (.NOT. real_only) THEN
+            IF (.NOT. ALLOCATED(cwork)) THEN
+               ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
+            ELSEIF (SIZE(cwork, 1) /= SIZE(rblock, 1) .OR. SIZE(cwork, 2) /= SIZE(rblock, 2)) THEN
+               DEALLOCATE (cwork)
+               ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
+            END IF
+         END IF
 
          ikind = atype(irow)
          jkind = atype(icol)
@@ -1790,21 +1826,21 @@ CONTAINS
             IF (ABS(sinkl) > 1.e-12_dp) THEN
                CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
             END IF
-            rwork = coskl*rblock
+            rwork(:, :) = coskl*rblock
          ELSE
             CALL dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
-            rwork = coskl*rblock
+            rwork(:, :) = coskl*rblock
             IF (time_reversal) THEN
-               cwork = -sinkl*rblock
+               cwork(:, :) = -sinkl*rblock
                IF (found) THEN
-                  rwork = rwork - sinkl*cblock
-                  cwork = cwork - coskl*cblock
+                  rwork(:, :) = rwork - sinkl*cblock
+                  cwork(:, :) = cwork - coskl*cblock
                END IF
             ELSE
-               cwork = -sinkl*rblock
+               cwork(:, :) = -sinkl*rblock
                IF (found) THEN
-                  rwork = rwork + sinkl*cblock
-                  cwork = cwork + coskl*cblock
+                  rwork(:, :) = rwork + sinkl*cblock
+                  cwork(:, :) = cwork + coskl*cblock
                END IF
             END IF
          END IF
@@ -1824,18 +1860,42 @@ CONTAINS
          CALL dbcsr_get_block_p(matrix=srpmat, row=jrow, col=jcol, block=srblock, found=found)
          CPASSERT(found)
          IF (trans) THEN
-            srblock = srblock + MATMUL(krotj, MATMUL(TRANSPOSE(rwork), TRANSPOSE(kroti)))
+            CALL ensure_work_matrix(twork, SIZE(krotj, 1), SIZE(rwork, 1))
+            CALL dgemm('N', 'T', SIZE(krotj, 1), SIZE(rwork, 1), SIZE(krotj, 2), &
+                       1.0_dp, krotj, SIZE(krotj, 1), rwork, SIZE(rwork, 1), &
+                       0.0_dp, twork, SIZE(twork, 1))
+            CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(kroti, 1), SIZE(twork, 2), &
+                       1.0_dp, twork, SIZE(twork, 1), kroti, SIZE(kroti, 1), &
+                       1.0_dp, srblock, SIZE(srblock, 1))
          ELSE
-            srblock = srblock + MATMUL(kroti, MATMUL(rwork, TRANSPOSE(krotj)))
+            CALL ensure_work_matrix(twork, SIZE(kroti, 1), SIZE(rwork, 2))
+            CALL dgemm('N', 'N', SIZE(kroti, 1), SIZE(rwork, 2), SIZE(kroti, 2), &
+                       1.0_dp, kroti, SIZE(kroti, 1), rwork, SIZE(rwork, 1), &
+                       0.0_dp, twork, SIZE(twork, 1))
+            CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(krotj, 1), SIZE(twork, 2), &
+                       1.0_dp, twork, SIZE(twork, 1), krotj, SIZE(krotj, 1), &
+                       1.0_dp, srblock, SIZE(srblock, 1))
          END IF
 
          IF (.NOT. real_only) THEN
             CALL dbcsr_get_block_p(matrix=scpmat, row=jrow, col=jcol, block=scblock, found=found)
             CPASSERT(found)
             IF (trans) THEN
-               scblock = scblock - MATMUL(krotj, MATMUL(TRANSPOSE(cwork), TRANSPOSE(kroti)))
+               CALL ensure_work_matrix(twork, SIZE(krotj, 1), SIZE(cwork, 1))
+               CALL dgemm('N', 'T', SIZE(krotj, 1), SIZE(cwork, 1), SIZE(krotj, 2), &
+                          1.0_dp, krotj, SIZE(krotj, 1), cwork, SIZE(cwork, 1), &
+                          0.0_dp, twork, SIZE(twork, 1))
+               CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(kroti, 1), SIZE(twork, 2), &
+                          -1.0_dp, twork, SIZE(twork, 1), kroti, SIZE(kroti, 1), &
+                          1.0_dp, scblock, SIZE(scblock, 1))
             ELSE
-               scblock = scblock + MATMUL(kroti, MATMUL(cwork, TRANSPOSE(krotj)))
+               CALL ensure_work_matrix(twork, SIZE(kroti, 1), SIZE(cwork, 2))
+               CALL dgemm('N', 'N', SIZE(kroti, 1), SIZE(cwork, 2), SIZE(kroti, 2), &
+                          1.0_dp, kroti, SIZE(kroti, 1), cwork, SIZE(cwork, 1), &
+                          0.0_dp, twork, SIZE(twork, 1))
+               CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(krotj, 1), SIZE(twork, 2), &
+                          1.0_dp, twork, SIZE(twork, 1), krotj, SIZE(krotj, 1), &
+                          1.0_dp, scblock, SIZE(scblock, 1))
             END IF
          END IF
       END DO
@@ -1869,6 +1929,7 @@ CONTAINS
                                                             jcol, jkind, jp, jrow, natom, numnodes
       LOGICAL                                            :: asym, dorot, found, perm, sym, trans
       REAL(KIND=dp)                                      :: dr, fsign
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kroti, krotj, pblock, sblock
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1933,9 +1994,21 @@ CONTAINS
                   krotj => kmat(jkind)%rmat
                   ! rotation
                   IF (trans) THEN
-                     sblock = fsign*MATMUL(TRANSPOSE(krotj), MATMUL(TRANSPOSE(pblock), kroti))
+                     CALL ensure_work_matrix(work, SIZE(krotj, 2), SIZE(pblock, 1))
+                     CALL dgemm('T', 'T', SIZE(krotj, 2), SIZE(pblock, 1), SIZE(krotj, 1), &
+                                1.0_dp, krotj, SIZE(krotj, 1), pblock, SIZE(pblock, 1), &
+                                0.0_dp, work, SIZE(work, 1))
+                     CALL dgemm('N', 'N', SIZE(work, 1), SIZE(kroti, 2), SIZE(work, 2), &
+                                fsign, work, SIZE(work, 1), kroti, SIZE(kroti, 1), &
+                                0.0_dp, sblock, SIZE(sblock, 1))
                   ELSE
-                     sblock = fsign*MATMUL(TRANSPOSE(kroti), MATMUL(pblock, krotj))
+                     CALL ensure_work_matrix(work, SIZE(kroti, 2), SIZE(pblock, 2))
+                     CALL dgemm('T', 'N', SIZE(kroti, 2), SIZE(pblock, 2), SIZE(kroti, 1), &
+                                1.0_dp, kroti, SIZE(kroti, 1), pblock, SIZE(pblock, 1), &
+                                0.0_dp, work, SIZE(work, 1))
+                     CALL dgemm('N', 'N', SIZE(work, 1), SIZE(krotj, 2), SIZE(work, 2), &
+                                fsign, work, SIZE(work, 1), krotj, SIZE(krotj, 1), &
+                                0.0_dp, sblock, SIZE(sblock, 1))
                   END IF
                END DO
                CALL dbcsr_iterator_stop(iter)
@@ -1968,9 +2041,21 @@ CONTAINS
                krotj => kmat(jkind)%rmat
                ! rotation
                IF (trans) THEN
-                  sblock = fsign*MATMUL(TRANSPOSE(krotj), MATMUL(TRANSPOSE(sblock), kroti))
+                  CALL ensure_work_matrix(work, SIZE(krotj, 2), SIZE(sblock, 1))
+                  CALL dgemm('T', 'T', SIZE(krotj, 2), SIZE(sblock, 1), SIZE(krotj, 1), &
+                             1.0_dp, krotj, SIZE(krotj, 1), sblock, SIZE(sblock, 1), &
+                             0.0_dp, work, SIZE(work, 1))
+                  CALL dgemm('N', 'N', SIZE(work, 1), SIZE(kroti, 2), SIZE(work, 2), &
+                             fsign, work, SIZE(work, 1), kroti, SIZE(kroti, 1), &
+                             0.0_dp, sblock, SIZE(sblock, 1))
                ELSE
-                  sblock = fsign*MATMUL(TRANSPOSE(kroti), MATMUL(sblock, krotj))
+                  CALL ensure_work_matrix(work, SIZE(kroti, 2), SIZE(sblock, 2))
+                  CALL dgemm('T', 'N', SIZE(kroti, 2), SIZE(sblock, 2), SIZE(kroti, 1), &
+                             1.0_dp, kroti, SIZE(kroti, 1), sblock, SIZE(sblock, 1), &
+                             0.0_dp, work, SIZE(work, 1))
+                  CALL dgemm('N', 'N', SIZE(work, 1), SIZE(krotj, 2), SIZE(work, 2), &
+                             fsign, work, SIZE(work, 1), krotj, SIZE(krotj, 1), &
+                             0.0_dp, sblock, SIZE(sblock, 1))
                END IF
             END DO
             CALL dbcsr_iterator_stop(iter)
