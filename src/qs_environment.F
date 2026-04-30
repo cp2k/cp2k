@@ -391,8 +391,16 @@ CONTAINS
             CALL section_vals_get(gw_section, explicit=do_gw)
          END IF
          do_tddfpt = .FALSE.
+         do_bse = .FALSE.
          tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
          CALL section_vals_get(tddfpt_section, explicit=do_tddfpt)
+         IF (do_tddfpt) THEN
+            CALL section_vals_val_get(tddfpt_section, "DO_BSE", l_val=do_bse)
+            IF (.NOT. do_bse) &
+               CALL section_vals_val_get(tddfpt_section, "DO_BSE_W_ONLY", l_val=do_bse)
+            IF (.NOT. do_bse) &
+               CALL section_vals_val_get(tddfpt_section, "DO_BSE_GW_ONLY", l_val=do_bse)
+         END IF
          do_active_space = .FALSE.
          active_space_section => section_vals_get_subs_vals(qs_env%input, "DFT%ACTIVE_SPACE")
          CALL section_vals_get(active_space_section, explicit=do_active_space)
@@ -408,7 +416,6 @@ CONTAINS
          do_ri_rpa = .FALSE.
          do_wfc_low_scaling = .FALSE.
          do_wfc_low_scaling_kpoints = .FALSE.
-         do_bse = .FALSE.
          mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
          CALL section_vals_get(mp2_section, explicit=mp2_present)
          IF (mp2_present) THEN
@@ -422,8 +429,10 @@ CONTAINS
                                       l_val=do_wfc_low_scaling)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%LOW_SCALING%DO_KPOINTS", &
                                       l_val=do_wfc_low_scaling_kpoints)
-            CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%_SECTION_PARAMETERS_", &
-                                      l_val=do_bse)
+            IF (.NOT. do_bse) &
+               CALL section_vals_val_get(qs_env%input, &
+                                         "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE%_SECTION_PARAMETERS_", &
+                                         l_val=do_bse)
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
@@ -668,7 +677,8 @@ CONTAINS
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
                                                             kpoint_symmetry
 
-      reason = unsupported_kpoint_method_reason(method_id, do_active_space, do_xtb_tblite)
+      reason = unsupported_kpoint_method_reason(method_id, do_active_space, do_tddfpt, &
+                                                do_linear_response, do_bse, do_xtb_tblite)
       IF (LEN_TRIM(reason) > 0) THEN
          CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
          IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE") THEN
@@ -699,17 +709,35 @@ CONTAINS
 !> \brief Return the reason why k-points are not enabled for a method
 !> \param method_id ...
 !> \param do_active_space ...
+!> \param do_tddfpt ...
+!> \param do_linear_response ...
+!> \param do_bse ...
 !> \param do_xtb_tblite ...
 !> \return reason
 ! **************************************************************************************************
-   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space, do_xtb_tblite) RESULT(reason)
+   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space, do_tddfpt, do_linear_response, &
+                                             do_bse, do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_active_space, do_xtb_tblite
+      LOGICAL, INTENT(IN)                                :: do_active_space, do_tddfpt, &
+                                                            do_linear_response, do_bse, &
+                                                            do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
       IF (do_active_space) THEN
          reason = "ACTIVE_SPACE"
+         RETURN
+      END IF
+      IF (do_bse) THEN
+         reason = "BSE"
+         RETURN
+      END IF
+      IF (do_tddfpt) THEN
+         reason = "TDDFPT/TDDFT"
+         RETURN
+      END IF
+      IF (do_linear_response) THEN
+         reason = "LINEAR_RESPONSE/DFPT"
          RETURN
       END IF
       IF (do_xtb_tblite) THEN
