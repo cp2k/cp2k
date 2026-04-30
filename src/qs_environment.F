@@ -677,14 +677,23 @@ CONTAINS
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
                                                             kpoint_symmetry
 
-      reason = unsupported_kpoint_method_reason(method_id, do_active_space, do_tddfpt, &
-                                                do_linear_response, do_bse, do_xtb_tblite)
+      reason = unsupported_kpoint_method_reason(method_id, do_tddfpt, do_linear_response, &
+                                                do_bse, do_xtb_tblite)
       IF (LEN_TRIM(reason) > 0) THEN
          CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
          IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE") THEN
             CALL cp_abort(__LOCATION__, &
                           "K-points are not supported with "//TRIM(reason)// &
                           "; remove DFT%KPOINTS for these calculations.")
+         END IF
+      END IF
+      IF (do_active_space) THEN
+         CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
+         IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE" .AND. &
+             TRIM(kp_scheme) /= "GAMMA") THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Only Gamma-point DFT%KPOINTS are supported with ACTIVE_SPACE; "// &
+                          "use SCHEME GAMMA, SCHEME NONE, or remove DFT%KPOINTS.")
          END IF
       END IF
 
@@ -708,26 +717,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Return the reason why k-points are not enabled for a method
 !> \param method_id ...
-!> \param do_active_space ...
 !> \param do_tddfpt ...
 !> \param do_linear_response ...
 !> \param do_bse ...
 !> \param do_xtb_tblite ...
 !> \return reason
 ! **************************************************************************************************
-   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space, do_tddfpt, do_linear_response, &
-                                             do_bse, do_xtb_tblite) RESULT(reason)
+   FUNCTION unsupported_kpoint_method_reason(method_id, do_tddfpt, do_linear_response, do_bse, &
+                                             do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_active_space, do_tddfpt, &
-                                                            do_linear_response, do_bse, &
+      LOGICAL, INTENT(IN)                                :: do_tddfpt, do_linear_response, do_bse, &
                                                             do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
-      IF (do_active_space) THEN
-         reason = "ACTIVE_SPACE"
-         RETURN
-      END IF
       IF (do_bse) THEN
          reason = "BSE"
          RETURN
