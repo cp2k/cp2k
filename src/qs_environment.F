@@ -641,24 +641,18 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
-      IF (do_hfx) THEN
-         reason = "Hartree-Fock exchange"
-      ELSEIF (do_exx) THEN
-         reason = "RPA/GW exact exchange"
-      ELSEIF (do_gw) THEN
-         reason = "GW"
-      ELSE
-         SELECT CASE (method_id)
-         CASE (do_method_dftb)
-            reason = "DFTB"
-         CASE (do_method_lrigpw)
-            reason = "LRIGPW"
-         CASE (do_method_rigpw)
-            reason = "RIGPW"
-         CASE DEFAULT
-            reason = ""
-         END SELECT
-      END IF
+      MARK_USED(do_hfx)
+      MARK_USED(do_exx)
+      MARK_USED(do_gw)
+
+      SELECT CASE (method_id)
+      CASE (do_method_dftb)
+         reason = "DFTB"
+      CASE (do_method_rigpw)
+         reason = "RIGPW"
+      CASE DEFAULT
+         reason = ""
+      END SELECT
 
    END FUNCTION unsupported_atomic_kpoint_symmetry_reason
 
