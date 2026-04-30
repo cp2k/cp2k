@@ -532,7 +532,8 @@ CONTAINS
       INTEGER                                            :: iop, jop, pass
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: perm
       INTEGER, DIMENSION(3, 3)                           :: eye, irot
-      LOGICAL                                            :: duplicate, identity, valid
+      LOGICAL                                            :: duplicate, identity, valid, &
+                                                            zero_translation
       REAL(KIND=dp)                                      :: eps
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, rfrac
 
@@ -557,13 +558,18 @@ CONTAINS
       eye(3, 3) = 1
 
       nrot = 0
-      DO pass = 1, 2
+      ! Operation 1 is used as the untransformed representative k-point.
+      ! Prefer integer translations before fractional alternatives with the same rotation.
+      DO pass = 1, 4
          DO iop = 1, csym%n_operations
             irot(1:3, 1:3) = csym%rotations(1:3, 1:3, iop)
             identity = ALL(irot == eye)
-            IF ((pass == 1 .AND. .NOT. identity) .OR. (pass == 2 .AND. identity)) CYCLE
-            IF (ANY(ABS(csym%translations(1:3, iop) - &
-                        ANINT(csym%translations(1:3, iop))) > eps)) CYCLE
+            zero_translation = ALL(ABS(csym%translations(1:3, iop) - &
+                                       ANINT(csym%translations(1:3, iop))) <= eps)
+            IF (pass == 1 .AND. (.NOT. identity .OR. .NOT. zero_translation)) CYCLE
+            IF (pass == 2 .AND. (identity .OR. .NOT. zero_translation)) CYCLE
+            IF (pass == 3 .AND. (.NOT. identity .OR. zero_translation)) CYCLE
+            IF (pass == 4 .AND. (identity .OR. zero_translation)) CYCLE
 
             duplicate = .FALSE.
             DO jop = 1, nrot
@@ -667,17 +673,20 @@ CONTAINS
       INTEGER, DIMENSION(3, 3, 48), INTENT(IN)           :: srot
       INTEGER, INTENT(IN)                                :: nrot
 
-      INTEGER                                            :: i, iop, isign, j, kr, nkpts
+      INTEGER                                            :: i, iop, isign, j, kr, nkpts, score
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kscore
       INTEGER, DIMENSION(3, 3)                           :: krot
       REAL(KIND=dp)                                      :: eps
       REAL(KIND=dp), DIMENSION(3)                        :: diff, rr
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      ALLOCATE (kscore(nkpts))
 
       wkp = 0.0_dp
       kpop = 0
       csym%kplink(1, :) = 0
+      kscore = HUGE(0)
 
       DO i = 1, nkpts
          IF (csym%kplink(1, i) /= 0) CYCLE
@@ -685,10 +694,12 @@ CONTAINS
          csym%kplink(1, i) = i
          wkp(i) = 1.0_dp
          kpop(i) = 1
+         kscore(i) = 0
 
          DO iop = 1, nrot
             kr = csym%ibrot(iop)
             krot = reciprocal_rotation(srot(:, :, kr))
+            score = spglib_operation_score(csym, iop, srot(:, :, kr))
             DO isign = 1, 2
                rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp(1:3, i))
                IF (isign == 2) THEN
@@ -706,8 +717,13 @@ CONTAINS
                         csym%kplink(1, j) = i
                         wkp(i) = wkp(i) + 1.0_dp
                         kpop(j) = kr
+                        kscore(j) = score
                      ELSE
                         CPASSERT(csym%kplink(1, j) == i)
+                        IF (score < kscore(j)) THEN
+                           kpop(j) = kr
+                           kscore(j) = score
+                        END IF
                      END IF
                      EXIT
                   END IF
@@ -721,8 +737,43 @@ CONTAINS
          CPASSERT(csym%kplink(1, i) /= 0)
          CPASSERT(kpop(i) /= 0)
       END DO
+      DEALLOCATE (kscore)
 
    END SUBROUTINE reduce_spglib_kpoint_mesh
+
+! **************************************************************************************************
+!> \brief Score SPGLIB operations to choose stable atom transformations
+!> \param csym ...
+!> \param iop operation index
+!> \param srot integer rotation in fractional coordinates
+!> \return score, lower values are preferred
+! **************************************************************************************************
+   FUNCTION spglib_operation_score(csym, iop, srot) RESULT(score)
+      TYPE(csym_type), INTENT(IN)                        :: csym
+      INTEGER, INTENT(IN)                                :: iop
+      INTEGER, DIMENSION(3, 3), INTENT(IN)               :: srot
+      INTEGER                                            :: score
+
+      INTEGER                                            :: i, nat
+      INTEGER, DIMENSION(3, 3)                           :: eye, r2
+      REAL(KIND=dp)                                      :: eps
+
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      nat = SIZE(csym%f0, 1)
+      score = 0
+      DO i = 1, nat
+         IF (csym%f0(i, iop) /= i) score = score + 100
+      END DO
+      IF (ANY(ABS(csym%vt(1:3, iop) - ANINT(csym%vt(1:3, iop))) > eps)) score = score + 100000000
+
+      eye = 0
+      eye(1, 1) = 1
+      eye(2, 2) = 1
+      eye(3, 3) = 1
+      r2(1:3, 1:3) = MATMUL(srot(1:3, 1:3), srot(1:3, 1:3))
+      IF (ANY(r2(1:3, 1:3) /= eye(1:3, 1:3))) score = score + 1
+
+   END FUNCTION spglib_operation_score
 
 ! **************************************************************************************************
 !> \brief Reciprocal-space rotation corresponding to a fractional direct-space rotation

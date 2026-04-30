@@ -57,7 +57,7 @@ CONTAINS
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
 !>      INVERSION_SYMMETRY_ONLY [on, off]
-!>      SYMMETRY_REDUCTION_METHOD [K290, SPGLIB]
+!>      SYMMETRY_BACKEND [K290, SPGLIB]
 !>      VERBOSE          [on, off]
 !>      EPS_SYMMETRY     value
 !>      PARALLEL_GROUP_SIZE   [-1,0,n]
@@ -132,13 +132,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_REDUCTION_METHOD", &
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_BACKEND", &
                           description="Select the backend used to reduce Monkhorst-Pack and MacDonald "// &
                           "k-point meshes when atomic symmetry is enabled. K290 is the established "// &
-                          "default. SPGLIB uses the symmetry operations returned by SPGLIB and is "// &
-                          "primarily intended for testing and benchmarking. Operations with "// &
-                          "fractional translations are not used for atomic k-point symmetry.", &
-                          usage="SYMMETRY_REDUCTION_METHOD K290", type_of_var=enum_t, &
+                          "default. SPGLIB uses the full symmetry operations returned by SPGLIB. "// &
+                          "SYMMETRY_REDUCTION_METHOD is accepted as a legacy alias.", &
+                          usage="SYMMETRY_BACKEND K290", type_of_var=enum_t, &
+                          variants=["SYMMETRY_REDUCTION_METHOD"], &
                           enum_c_vals=s2a("K290", "SPGLIB"), &
                           enum_i_vals=[use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry], &
                           enum_desc=s2a("Use the existing K290 k-point symmetry reduction backend.", &

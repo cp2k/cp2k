@@ -26,7 +26,8 @@ MODULE kpoint_types
                                               cp_print_key_unit_nr
    USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
                                               use_k290_kpoint_symmetry,&
-                                              use_real_wfn
+                                              use_real_wfn,&
+                                              use_spglib_kpoint_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -650,7 +651,7 @@ CONTAINS
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=kpoint%full_grid)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=kpoint%inversion_symmetry_only)
-         CALL section_vals_val_get(kpoint_section, "SYMMETRY_REDUCTION_METHOD", &
+         CALL section_vals_val_get(kpoint_section, "SYMMETRY_BACKEND", &
                                    i_val=kpoint%symmetry_reduction_method)
          CALL section_vals_val_get(kpoint_section, "EPS_SYMMETRY", r_val=kpoint%eps_geo)
          CALL section_vals_val_get(kpoint_section, "PARALLEL_GROUP_SIZE", &
@@ -737,8 +738,10 @@ CONTAINS
                SELECT CASE (kpoint%symmetry_reduction_method)
                CASE (use_k290_kpoint_symmetry)
                   WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', '   K290'
-               CASE DEFAULT
+               CASE (use_spglib_kpoint_symmetry)
                   WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', ' SPGLIB'
+               CASE DEFAULT
+                  CPABORT("Unknown k-point symmetry reduction backend")
                END SELECT
             END IF
             IF (kpoint%use_real_wfn) THEN
