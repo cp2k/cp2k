@@ -16,6 +16,7 @@ MODULE cryssym
    USE kinds,                           ONLY: dp
    USE kpsym,                           ONLY: group1s,&
                                               k290s
+   USE mathlib,                         ONLY: inv_3x3
    USE spglib_f08,                      ONLY: spg_get_international,&
                                               spg_get_major_version,&
                                               spg_get_micro_version,&
@@ -474,8 +475,7 @@ CONTAINS
       csym%ibrot = 0
       csym%ibrot(1:nc) = ib(1:nc)
 
-      CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, li, a1, a2, a3, b1, b2, b3, &
-                              alat)
+      CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
       DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
       DEALLOCATE (wvkl, rlist, includ, list)
       DEALLOCATE (lrot, lwght)
@@ -549,7 +549,7 @@ CONTAINS
       csym%f0 = 0
 
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
-      h_inv = inverse_3x3(csym%hmat)
+      h_inv = inv_3x3(csym%hmat)
       ALLOCATE (perm(csym%nat))
 
       eye = 0
@@ -786,38 +786,10 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rinv
 
-      rinv = inverse_3x3(REAL(rot(1:3, 1:3), KIND=dp))
+      rinv = inv_3x3(REAL(rot(1:3, 1:3), KIND=dp))
       krot(1:3, 1:3) = NINT(TRANSPOSE(rinv(1:3, 1:3)))
 
    END FUNCTION reciprocal_rotation
-
-! **************************************************************************************************
-!> \brief Invert a 3 x 3 matrix
-!> \param a matrix to invert
-!> \return inverse matrix
-! **************************************************************************************************
-   FUNCTION inverse_3x3(a) RESULT(ainv)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: ainv
-
-      REAL(KIND=dp)                                      :: det
-
-      det = a(1, 1)*(a(2, 2)*a(3, 3) - a(2, 3)*a(3, 2)) - &
-            a(1, 2)*(a(2, 1)*a(3, 3) - a(2, 3)*a(3, 1)) + &
-            a(1, 3)*(a(2, 1)*a(3, 2) - a(2, 2)*a(3, 1))
-      IF (ABS(det) < 1.e-14_dp) CALL cp_abort(__LOCATION__, "Cannot invert singular 3 x 3 matrix")
-
-      ainv(1, 1) = (a(2, 2)*a(3, 3) - a(2, 3)*a(3, 2))/det
-      ainv(1, 2) = (a(1, 3)*a(3, 2) - a(1, 2)*a(3, 3))/det
-      ainv(1, 3) = (a(1, 2)*a(2, 3) - a(1, 3)*a(2, 2))/det
-      ainv(2, 1) = (a(2, 3)*a(3, 1) - a(2, 1)*a(3, 3))/det
-      ainv(2, 2) = (a(1, 1)*a(3, 3) - a(1, 3)*a(3, 1))/det
-      ainv(2, 3) = (a(1, 3)*a(2, 1) - a(1, 1)*a(2, 3))/det
-      ainv(3, 1) = (a(2, 1)*a(3, 2) - a(2, 2)*a(3, 1))/det
-      ainv(3, 2) = (a(1, 2)*a(3, 1) - a(1, 1)*a(3, 2))/det
-      ainv(3, 3) = (a(1, 1)*a(2, 2) - a(1, 2)*a(2, 1))/det
-
-   END FUNCTION inverse_3x3
 
 ! **************************************************************************************************
 !> \brief Reduce a CP2K Monkhorst-Pack mesh using K290 symmetry operations
@@ -828,7 +800,6 @@ CONTAINS
 !> \param nc number of point group operations
 !> \param ib K290 operation identifiers
 !> \param r K290 rotation matrices
-!> \param li inversion symmetry indicator
 !> \param a1 first lattice vector
 !> \param a2 second lattice vector
 !> \param a3 third lattice vector
@@ -837,8 +808,7 @@ CONTAINS
 !> \param b3 third reciprocal lattice vector
 !> \param alat lattice scaling used by K290
 ! **************************************************************************************************
-   SUBROUTINE reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, li, a1, a2, a3, b1, b2, b3, &
-                                 alat)
+   SUBROUTINE reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
       TYPE(csym_type)                                    :: csym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       REAL(KIND=dp), DIMENSION(:)                        :: wkp
@@ -846,19 +816,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nc
       INTEGER, DIMENSION(48), INTENT(IN)                 :: ib
       REAL(KIND=dp), DIMENSION(3, 3, 48), INTENT(IN)     :: r
-      INTEGER, INTENT(IN)                                :: li
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3, b1, b2, b3
       REAL(KIND=dp), INTENT(IN)                          :: alat
 
       INTEGER                                            :: i, ibsign, iop, j, kr, nkpts
-      LOGICAL                                            :: add_inversion
       REAL(KIND=dp)                                      :: eps
       REAL(KIND=dp), DIMENSION(3)                        :: diff, rr, wcart
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
-      add_inversion = .TRUE.
-      MARK_USED(li)
 
       wkp = 0.0_dp
       kpop = 0
@@ -872,7 +838,7 @@ CONTAINS
          kpop(i) = 1
 
          DO iop = 1, nc
-            DO ibsign = 1, MERGE(2, 1, add_inversion)
+            DO ibsign = 1, 2
                kr = ib(iop)
                wcart(1:3) = alat*(xkp(1, i)*b1(1:3) + xkp(2, i)*b2(1:3) + xkp(3, i)*b3(1:3))
                wcart(1:3) = kp_apply_operation(wcart(1:3), r(1:3, 1:3, kr))
