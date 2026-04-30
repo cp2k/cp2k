@@ -652,7 +652,7 @@ CONTAINS
                                    l_val=kpoint%inversion_symmetry_only)
          CALL section_vals_val_get(kpoint_section, "SYMMETRY_REDUCTION_METHOD", &
                                    i_val=kpoint%symmetry_reduction_method)
-         CALL section_vals_val_get(kpoint_section, "EPS_GEO", r_val=kpoint%eps_geo)
+         CALL section_vals_val_get(kpoint_section, "EPS_SYMMETRY", r_val=kpoint%eps_geo)
          CALL section_vals_val_get(kpoint_section, "PARALLEL_GROUP_SIZE", &
                                    i_val=kpoint%parallel_group_size)
          SELECT CASE (wfntype)
@@ -709,12 +709,14 @@ CONTAINS
          CASE ("MONKHORST-PACK")
             WRITE (punit, '(A,T61,A20)') ' BRILLOUIN| K-point scheme ', '      Monkhorst-Pack'
             WRITE (punit, '(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kpoint%nkp_grid
-            WRITE (punit, '(A,T66,G15.6)') ' BRILLOUIN| Accuracy in Symmetry determination', kpoint%eps_geo
+            WRITE (punit, '(A,T66,G15.6)') &
+               ' BRILLOUIN| K-point symmetry accuracy', kpoint%eps_geo
          CASE ("MACDONALD")
             WRITE (punit, '(A,T71,A10)') ' BRILLOUIN| K-point scheme ', ' MacDonald'
             WRITE (punit, '(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kpoint%nkp_grid
             WRITE (punit, '(A,T51,3F10.4)') ' BRILLOUIN| K-Point shift', kpoint%kp_shift
-            WRITE (punit, '(A,T66,G15.6)') ' BRILLOUIN| Accuracy in Symmetry determination', kpoint%eps_geo
+            WRITE (punit, '(A,T66,G15.6)') &
+               ' BRILLOUIN| K-point symmetry accuracy', kpoint%eps_geo
          CASE ("GENERAL")
             WRITE (punit, '(A,T71,A10)') ' BRILLOUIN| K-point scheme ', '   General'
          CASE DEFAULT

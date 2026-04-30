@@ -59,7 +59,7 @@ CONTAINS
 !>      INVERSION_SYMMETRY_ONLY [on, off]
 !>      SYMMETRY_REDUCTION_METHOD [K290, SPGLIB]
 !>      VERBOSE          [on, off]
-!>      EPS_GEO          value
+!>      EPS_SYMMETRY     value
 !>      PARALLEL_GROUP_SIZE   [-1,0,n]
 !>
 !> \param section the section to create
@@ -154,9 +154,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_GEO", &
-                          description="Accuracy in symmetry determination.", &
-                          usage="EPS_GEO <real>", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SYMMETRY", variants=["EPS_GEO"], &
+                          description="Accuracy in k-point symmetry determination."//newline// &
+                          "EPS_GEO is accepted as an alias.", &
+                          usage="EPS_SYMMETRY <real>", &
                           default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
