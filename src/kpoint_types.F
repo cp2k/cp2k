@@ -140,7 +140,7 @@ MODULE kpoint_types
 !> \param symmetry            [input] use symmetry (atoms) to reduce kpoints
 !> \param full_grid           [input] don't reduce kpoints at all
 !> \param inversion_symmetry_only [input] reduce kpoints only by inversion symmetry
-!> \param symmetry_reduction_method [input] k-point symmetry reduction backend
+!> \param symmetry_reduction_method [input] k-point symmetry reduction method
 !> \param verbose             [input] more output information
 !> \param eps_geo             [input] accuracy of atom symmetry detection
 !> \param parallel_group_size [input] kpoint group size
@@ -373,7 +373,7 @@ CONTAINS
 !> \param sab_nl        neighbourlist that defines real space matrices
 !> \param sab_nl_nosym neighbourlist that defines real space matrices, non-symmetric
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
-!> \param symmetry_reduction_method k-point symmetry reduction backend
+!> \param symmetry_reduction_method k-point symmetry reduction method
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
@@ -481,7 +481,7 @@ CONTAINS
 !> \param sab_nl        neighbourlist that defines real space matrices
 !> \param sab_nl_nosym  neighbourlist that defines real space matrices
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
-!> \param symmetry_reduction_method k-point symmetry reduction backend
+!> \param symmetry_reduction_method k-point symmetry reduction method
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
@@ -651,7 +651,7 @@ CONTAINS
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=kpoint%full_grid)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=kpoint%inversion_symmetry_only)
-         CALL section_vals_val_get(kpoint_section, "SYMMETRY_BACKEND", &
+         CALL section_vals_val_get(kpoint_section, "SYMMETRY_REDUCTION_METHOD", &
                                    i_val=kpoint%symmetry_reduction_method)
          CALL section_vals_val_get(kpoint_section, "EPS_SYMMETRY", r_val=kpoint%eps_geo)
          CALL section_vals_val_get(kpoint_section, "PARALLEL_GROUP_SIZE", &
@@ -737,11 +737,11 @@ CONTAINS
                 (kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD")) THEN
                SELECT CASE (kpoint%symmetry_reduction_method)
                CASE (use_k290_kpoint_symmetry)
-                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', '   K290'
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction method', '   K290'
                CASE (use_spglib_kpoint_symmetry)
-                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction backend', ' SPGLIB'
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction method', ' SPGLIB'
                CASE DEFAULT
-                  CPABORT("Unknown k-point symmetry reduction backend")
+                  CPABORT("Unknown k-point symmetry reduction method")
                END SELECT
             END IF
             IF (kpoint%use_real_wfn) THEN

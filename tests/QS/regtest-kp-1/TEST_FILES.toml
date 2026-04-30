@@ -12,7 +12,7 @@
 "c_gapw.inp"                            = [{matcher="E_total", tol=2e-13, ref=-302.06260708591526}]
 "c_gapw_kpsym.inp"                      = [{matcher="E_total", tol=1e-8, ref=-302.06260708591526},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
-"c_gapw_spglib_backend.inp"             = [{matcher="E_total", tol=1e-8, ref=-302.06260708591526},
+"c_gapw_spglib_method.inp"              = [{matcher="E_total", tol=1e-8, ref=-302.06260708591526},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "c_gapwxc.inp"                          = [{matcher="E_total", tol=1e-12, ref=-45.66746891467081}]
 "c_gapwxc_kpsym.inp"                    = [{matcher="E_total", tol=1e-10, ref=-45.66746891467081},
@@ -23,7 +23,7 @@
 "h_sym_red_restart.inp"                 = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
 "h_fcc_sym_red.inp"                     = [{matcher="E_total", tol=1e-13, ref=-4.35025489265897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
-"h_fcc_spglib_backend.inp"              = [{matcher="E_total", tol=1e-13, ref=-4.35025489265897},
+"h_fcc_spglib_method.inp"               = [{matcher="E_total", tol=1e-13, ref=-4.35025489265897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_spglib_sym_red.inp"                  = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_spglib_sym_red_restart.inp"          = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
