@@ -269,7 +269,7 @@ CONTAINS
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
       LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, &
-         do_kpoints, do_linear_response, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
+         do_kpoints, do_linear_response, do_mp2, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
          do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, is_identical, is_semi, &
          mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
@@ -411,6 +411,7 @@ CONTAINS
          END IF
          do_linear_response = .FALSE.
          IF (PRESENT(globenv)) do_linear_response = globenv%run_type_id == linear_response_run
+         do_mp2 = .FALSE.
          do_ri_mp2 = .FALSE.
          do_ri_sos_mp2 = .FALSE.
          do_ri_rpa = .FALSE.
@@ -419,6 +420,8 @@ CONTAINS
          mp2_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION")
          CALL section_vals_get(mp2_section, explicit=mp2_present)
          IF (mp2_present) THEN
+            CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%MP2%_SECTION_PARAMETERS_", &
+                                      l_val=do_mp2)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_MP2%_SECTION_PARAMETERS_", &
                                       l_val=do_ri_mp2)
             CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_SOS_MP2%_SECTION_PARAMETERS_", &
@@ -436,7 +439,7 @@ CONTAINS
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
-                                                          do_ri_mp2 .OR. do_ri_sos_mp2, &
+                                                          do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
                                                           do_xtb_tblite)
@@ -677,14 +680,21 @@ CONTAINS
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
                                                             kpoint_symmetry
 
-      reason = unsupported_kpoint_method_reason(method_id, do_tddfpt, do_linear_response, &
-                                                do_bse, do_xtb_tblite)
+      reason = unsupported_kpoint_method_reason(method_id, do_gw, do_tddfpt, do_linear_response, &
+                                                do_mp2, do_bse, do_xtb_tblite)
       IF (LEN_TRIM(reason) > 0) THEN
          CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
          IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE") THEN
-            CALL cp_abort(__LOCATION__, &
-                          "K-points are not supported with "//TRIM(reason)// &
-                          "; remove DFT%KPOINTS for these calculations.")
+            IF (TRIM(reason) == "GW") THEN
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%KPOINTS are not supported with GW; use "// &
+                             "WF_CORRELATION%LOW_SCALING%KPOINTS and RI_RPA%GW%KPOINTS_SELF_ENERGY "// &
+                             "for GW k-point sampling.")
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%KPOINTS are not supported with "//TRIM(reason)// &
+                             "; remove DFT%KPOINTS for these calculations.")
+            END IF
          END IF
       END IF
       IF (do_active_space) THEN
@@ -717,17 +727,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Return the reason why k-points are not enabled for a method
 !> \param method_id ...
+!> \param do_gw ...
 !> \param do_tddfpt ...
 !> \param do_linear_response ...
+!> \param do_mp2 ...
 !> \param do_bse ...
 !> \param do_xtb_tblite ...
 !> \return reason
 ! **************************************************************************************************
-   FUNCTION unsupported_kpoint_method_reason(method_id, do_tddfpt, do_linear_response, do_bse, &
-                                             do_xtb_tblite) RESULT(reason)
+   FUNCTION unsupported_kpoint_method_reason(method_id, do_gw, do_tddfpt, do_linear_response, &
+                                             do_mp2, do_bse, do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_tddfpt, do_linear_response, do_bse, &
-                                                            do_xtb_tblite
+      LOGICAL, INTENT(IN)                                :: do_gw, do_tddfpt, do_linear_response, &
+                                                            do_mp2, do_bse, do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
@@ -741,6 +753,14 @@ CONTAINS
       END IF
       IF (do_linear_response) THEN
          reason = "LINEAR_RESPONSE/DFPT"
+         RETURN
+      END IF
+      IF (do_gw) THEN
+         reason = "GW"
+         RETURN
+      END IF
+      IF (do_mp2) THEN
+         reason = "MP2/SOS-MP2"
          RETURN
       END IF
       IF (do_xtb_tblite) THEN
