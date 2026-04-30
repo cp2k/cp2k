@@ -268,9 +268,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
-      LOGICAL :: do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, &
-         do_linear_response, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, &
-         is_identical, is_semi, mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
+      LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, &
+         do_kpoints, do_linear_response, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
+         do_wfc_low_scaling, is_identical, is_semi, mp2_present, my_qmmm, qmmm_decoupl, &
+         same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -289,8 +290,8 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER :: dft_section, ec_hfx_section, ec_section, &
-         et_coupling_section, gw_section, hfx_section, kpoint_section, mp2_section, &
+      TYPE(section_vals_type), POINTER :: active_space_section, dft_section, ec_hfx_section, &
+         ec_section, et_coupling_section, gw_section, hfx_section, kpoint_section, mp2_section, &
          rpa_hfx_section, tddfpt_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
@@ -392,6 +393,9 @@ CONTAINS
          do_tddfpt = .FALSE.
          tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
          CALL section_vals_get(tddfpt_section, explicit=do_tddfpt)
+         do_active_space = .FALSE.
+         active_space_section => section_vals_get_subs_vals(qs_env%input, "DFT%ACTIVE_SPACE")
+         CALL section_vals_get(active_space_section, explicit=do_active_space)
          do_linear_response = .FALSE.
          IF (PRESENT(globenv)) do_linear_response = globenv%run_type_id == linear_response_run
          do_ri_mp2 = .FALSE.
@@ -414,7 +418,7 @@ CONTAINS
                                       l_val=do_bse)
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
-                                                          do_tddfpt, do_linear_response, &
+                                                          do_tddfpt, do_active_space, do_linear_response, &
                                                           do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling)
@@ -632,6 +636,7 @@ CONTAINS
 !> \param do_exx ...
 !> \param do_gw ...
 !> \param do_tddfpt ...
+!> \param do_active_space ...
 !> \param do_linear_response ...
 !> \param do_mp2 ...
 !> \param do_rpa ...
@@ -639,25 +644,36 @@ CONTAINS
 !> \param do_wfc_low_scaling ...
 ! **************************************************************************************************
    SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
-                                                          do_tddfpt, do_linear_response, do_mp2, &
-                                                          do_rpa, do_bse, do_wfc_low_scaling)
+                                                          do_tddfpt, do_active_space, do_linear_response, &
+                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN)                                :: do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                            do_linear_response, do_mp2, do_rpa, &
-                                                            do_bse, do_wfc_low_scaling
+                                                            do_active_space, do_linear_response, &
+                                                            do_mp2, do_rpa, do_bse, &
+                                                            do_wfc_low_scaling
 
-      CHARACTER(LEN=default_string_length)               :: reason
+      CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
                                                             kpoint_symmetry
+
+      reason = unsupported_kpoint_method_reason(method_id, do_active_space)
+      IF (LEN_TRIM(reason) > 0) THEN
+         CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
+         IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE") THEN
+            CALL cp_abort(__LOCATION__, &
+                          "K-points are not supported with "//TRIM(reason)// &
+                          "; remove DFT%KPOINTS for these calculations.")
+         END IF
+      END IF
 
       CALL get_kpoint_info(kpoints, symmetry=kpoint_symmetry, full_grid=full_grid, &
                            inversion_symmetry_only=inversion_symmetry_only)
       IF (.NOT. (kpoint_symmetry .AND. .NOT. full_grid .AND. .NOT. inversion_symmetry_only)) RETURN
 
       reason = unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, &
-                                                         do_tddfpt, do_linear_response, do_mp2, &
-                                                         do_rpa, do_bse, do_wfc_low_scaling)
+                                                         do_tddfpt, do_active_space, do_linear_response, &
+                                                         do_mp2, do_rpa, do_bse, do_wfc_low_scaling)
       IF (LEN_TRIM(reason) == 0) RETURN
 
       CALL cp_warn(__LOCATION__, &
@@ -668,12 +684,42 @@ CONTAINS
    END SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry
 
 ! **************************************************************************************************
+!> \brief Return the reason why k-points are not enabled for a method
+!> \param method_id ...
+!> \param do_active_space ...
+!> \return reason
+! **************************************************************************************************
+   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space) RESULT(reason)
+      INTEGER, INTENT(IN)                                :: method_id
+      LOGICAL, INTENT(IN)                                :: do_active_space
+      CHARACTER(LEN=default_string_length)               :: reason
+
+      reason = ""
+      IF (do_active_space) THEN
+         reason = "ACTIVE_SPACE"
+         RETURN
+      END IF
+
+      SELECT CASE (method_id)
+      CASE (do_method_ofgpw)
+         reason = "OFGPW"
+      CASE (do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
+            do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_pnnl)
+         reason = "semiempirical methods"
+      CASE DEFAULT
+         reason = ""
+      END SELECT
+
+   END FUNCTION unsupported_kpoint_method_reason
+
+! **************************************************************************************************
 !> \brief Return the reason why atomic k-point symmetry is not enabled
 !> \param method_id ...
 !> \param do_hfx ...
 !> \param do_exx ...
 !> \param do_gw ...
 !> \param do_tddfpt ...
+!> \param do_active_space ...
 !> \param do_linear_response ...
 !> \param do_mp2 ...
 !> \param do_rpa ...
@@ -682,19 +728,19 @@ CONTAINS
 !> \return reason
 ! **************************************************************************************************
    FUNCTION unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                      do_linear_response, do_mp2, do_rpa, do_bse, &
-                                                      do_wfc_low_scaling) &
+                                                      do_active_space, do_linear_response, do_mp2, do_rpa, &
+                                                      do_bse, do_wfc_low_scaling) &
       RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN)                                :: do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                            do_linear_response, do_mp2, do_rpa, &
-                                                            do_bse, do_wfc_low_scaling
+                                                            do_active_space, do_linear_response, &
+                                                            do_mp2, do_rpa, do_bse, &
+                                                            do_wfc_low_scaling
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
       MARK_USED(do_hfx)
       MARK_USED(do_exx)
-      MARK_USED(do_gw)
 
       SELECT CASE (method_id)
       CASE (do_method_dftb)
@@ -710,8 +756,12 @@ CONTAINS
       IF (LEN_TRIM(reason) > 0) RETURN
       IF (do_bse) THEN
          reason = "BSE"
+      ELSE IF (do_gw) THEN
+         reason = "GW"
       ELSE IF (do_tddfpt) THEN
          reason = "TDDFPT/TDDFT"
+      ELSE IF (do_active_space) THEN
+         reason = "ACTIVE_SPACE"
       ELSE IF (do_linear_response) THEN
          reason = "LINEAR_RESPONSE/DFPT"
       ELSE IF (do_mp2) THEN
