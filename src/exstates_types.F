@@ -72,6 +72,7 @@ MODULE exstates_types
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rspace => NULL()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vtau_rspace => NULL()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vadmm_rspace => NULL()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vadmm_tau_rspace => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       TYPE(wfn_history_type)                             :: wfn_history = wfn_history_type()
@@ -177,6 +178,13 @@ CONTAINS
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
             NULLIFY (ex_env%vadmm_rspace)
+         END IF
+         IF (ASSOCIATED(ex_env%vadmm_tau_rspace)) THEN
+            DO iab = 1, SIZE(ex_env%vadmm_tau_rspace)
+               CALL ex_env%vadmm_tau_rspace(iab)%release()
+            END DO
+            DEALLOCATE (ex_env%vadmm_tau_rspace)
+            NULLIFY (ex_env%vadmm_tau_rspace)
          END IF
          IF (ASSOCIATED(ex_env%local_rho_set)) THEN
             CALL local_rho_set_release(ex_env%local_rho_set)

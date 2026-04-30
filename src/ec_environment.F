@@ -173,6 +173,7 @@ CONTAINS
       NULLIFY (ec_env%vxc_rspace)
       NULLIFY (ec_env%vtau_rspace)
       NULLIFY (ec_env%vadmm_rspace)
+      NULLIFY (ec_env%vadmm_tau_rspace)
       NULLIFY (ec_env%rhoout_r, ec_env%rhoz_r)
       NULLIFY (ec_env%x_data)
       ec_env%should_update = .TRUE.

@@ -32,27 +32,25 @@ MODULE accint_weights_forces
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                              pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_fxc,                          ONLY: qs_fxc_analytic
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               transfer_pw2rs
    USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_exc_pw_create,&
-                                              xc_prep_2nd_deriv,&
+   USE xc,                              ONLY: xc_exc_pw_create,&
                                               xc_vxc_pw_create
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -88,15 +86,15 @@ CONTAINS
       INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
                                                             natom_of_kind, nkind
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: lr_triplet, use_virial
+      LOGICAL                                            :: lr_triplet, uf_grid, use_virial
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: calpha, cvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aforce
       REAL(KIND=dp), DIMENSION(3, 3)                     :: avirial
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type)                               :: e_rspace
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: e_force_rspace, e_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(virial_type), POINTER                         :: virial
@@ -117,18 +115,44 @@ CONTAINS
          calpha(1:nkind) = dft_control%qs_control%gapw_control%aw(1:nkind)
 
          CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env)
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         CALL auxbas_pw_pool%create_pw(e_rspace)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, xc_pw_pool=xc_pw_pool)
+         uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
+         IF (uf_grid) THEN
+            CALL xc_pw_pool%create_pw(e_rspace)
+         ELSE
+            CALL auxbas_pw_pool%create_pw(e_rspace)
+         END IF
 
          lr_triplet = .FALSE.
          IF (PRESENT(triplet)) lr_triplet = triplet
 
          CALL xc_density(ks_env, rho, rho1, order, xc_section, lr_triplet, e_rspace)
-         CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
 
-         CALL gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)
+         IF (uf_grid) THEN
+            CALL auxbas_pw_pool%create_pw(e_force_rspace)
+            BLOCK
+               TYPE(pw_c1d_gs_type) :: e_g_aux, e_g_xc
+               CALL xc_pw_pool%create_pw(e_g_xc)
+               CALL auxbas_pw_pool%create_pw(e_g_aux)
+               CALL pw_transfer(e_rspace, e_g_xc)
+               CALL pw_transfer(e_g_xc, e_g_aux)
+               CALL pw_transfer(e_g_aux, e_force_rspace)
+               CALL auxbas_pw_pool%give_back_pw(e_g_aux)
+               CALL xc_pw_pool%give_back_pw(e_g_xc)
+            END BLOCK
+            CALL pw_scale(e_force_rspace, e_force_rspace%pw_grid%dvol)
+            CALL gauss_grid_force(e_force_rspace, qs_env, calpha, cvalue, aforce, avirial)
+            CALL auxbas_pw_pool%give_back_pw(e_force_rspace)
+         ELSE
+            CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
+            CALL gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)
+         END IF
 
-         CALL auxbas_pw_pool%give_back_pw(e_rspace)
+         IF (uf_grid) THEN
+            CALL xc_pw_pool%give_back_pw(e_rspace)
+         ELSE
+            CALL auxbas_pw_pool%give_back_pw(e_rspace)
+         END IF
 
          CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
          DO ikind = 1, nkind
@@ -144,7 +168,7 @@ CONTAINS
             virial%pv_virial = virial%pv_virial + avirial
          END IF
 
-         DEALLOCATE (aforce)
+         DEALLOCATE (aforce, calpha, cvalue)
 
       END IF
 
@@ -170,7 +194,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gauss_grid_force'
 
-      INTEGER                                            :: atom_a, handle, iatom, ikind, j, &
+      INTEGER                                            :: atom_a, handle, iatom, igrid, ikind, j, &
                                                             natom_of_kind, npme
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       LOGICAL                                            :: use_virial
@@ -183,6 +207,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: rs_grids
       TYPE(realspace_grid_type), POINTER                 :: rs_v
 
       CALL timeset(routineN, handle)
@@ -191,8 +217,19 @@ CONTAINS
       ALLOCATE (hab(1, 1))
       ALLOCATE (pab(1, 1))
 
+      NULLIFY (pw_pools, rs_grids, rs_v)
+
       CALL get_qs_env(qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_v)
+      CALL pw_env_get(pw_env, pw_pools=pw_pools, rs_grids=rs_grids)
+      DO igrid = 1, SIZE(pw_pools)
+         IF (pw_grid_compare(e_rspace%pw_grid, pw_pools(igrid)%pool%pw_grid)) THEN
+            rs_v => rs_grids(igrid)
+            EXIT
+         END IF
+      END DO
+      IF (.NOT. ASSOCIATED(rs_v)) THEN
+         CPABORT("No realspace grid for Accurate-XCINT weight force")
+      END IF
 
       CALL transfer_pw2rs(rs_v, e_rspace)
 
@@ -294,38 +331,37 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(IN)                                :: triplet
-      TYPE(pw_r3d_rs_type), INTENT(INOUT), TARGET        :: exc
+      TYPE(pw_r3d_rs_type)                               :: exc
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_density'
 
       INTEGER                                            :: handle, ispin, myfun, nspins
-      LOGICAL                                            :: exc_xc_created, rho1_g_valid, &
-                                                            rho_g_valid, tau1_g_valid, &
-                                                            tau1_r_valid, tau_g_valid, &
-                                                            tau_r_valid, uf_grid
+      LOGICAL                                            :: rho1_g_valid, rho1_tau_g_valid, &
+                                                            rho1_tau_valid, rho_g_valid, &
+                                                            rho_tau_g_valid, rho_tau_valid, uf_grid
       REAL(KIND=dp)                                      :: excint, factor
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_work, rho_g, rho_g_work, &
-                                                            tau1_g, tau_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_xc
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho1_g_base, rho_g, rho_g_base, &
+                                                            tau1_g, tau1_g_base, tau_g, tau_g_base
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_use, rho_nlcc_g_xc
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho1_r_work, rho_r, rho_r_work, &
-                                                            tau1_r, tau1_r_work, tau_r, &
-                                                            tau_r_work, vxc_rho, vxc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: exc_work, rho_nlcc, rho_nlcc_xc, weights
-      TYPE(pw_r3d_rs_type), TARGET                       :: exc_xc
-      TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type)                              :: rho_set
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho1_r_base, rho_r, rho_r_base, &
+                                                            tau1_r, tau1_r_base, tau_r, &
+                                                            tau_r_base, vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, rho_nlcc_use, rho_nlcc_xc, &
+                                                            weights
+      TYPE(qs_rho_type), POINTER                         :: rho_fxc
 
       CALL timeset(routineN, handle)
 
       ! we always get true exc (not integration weighted)
-      NULLIFY (exc_work, weights, rho_g_work, rho1_g, rho1_g_work, tau_g, tau1_g, rho_nlcc_xc, &
-               rho_nlcc_g_xc, rho1_r_work, rho_r_work, tau1_r_work, tau_r_work)
-      exc_xc_created = .FALSE.
+      NULLIFY (rho1_g, rho1_g_base, rho1_r, rho1_r_base, rho_fxc, tau1_g, tau1_g_base)
+      NULLIFY (rho_g, rho_g_base, rho_r, rho_r_base, tau_g, tau_g_base, tau_r, tau_r_base, &
+               tau1_r, tau1_r_base)
+      NULLIFY (rho_nlcc_use, rho_nlcc_xc, rho_nlcc_g_use, rho_nlcc_g_xc, weights)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
@@ -334,8 +370,13 @@ CONTAINS
                       rho_nlcc=rho_nlcc, &
                       rho_nlcc_g=rho_nlcc_g)
 
-      CALL qs_rho_get(rho_struct, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r, tau_g=tau_g, &
-                      rho_g_valid=rho_g_valid, tau_r_valid=tau_r_valid, tau_g_valid=tau_g_valid)
+      CALL qs_rho_get(rho_struct, rho_r=rho_r_base, rho_g=rho_g_base, tau_r=tau_r_base, &
+                      tau_g=tau_g_base, rho_g_valid=rho_g_valid, tau_g_valid=rho_tau_g_valid, &
+                      tau_r_valid=rho_tau_valid)
+      rho_r => rho_r_base
+      rho_g => rho_g_base
+      tau_r => tau_r_base
+      tau_g => tau_g_base
 
       nspins = dft_control%nspins
 
@@ -344,37 +385,39 @@ CONTAINS
       CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
       uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
       IF (uf_grid) THEN
-         CPASSERT(rho_g_valid)
-         CALL xc_pw_pool%create_pw(exc_xc)
-         exc_work => exc_xc
-         exc_xc_created = .TRUE.
-         ALLOCATE (rho_r_work(nspins), rho_g_work(nspins))
-         DO ispin = 1, nspins
-            CALL xc_pw_pool%create_pw(rho_g_work(ispin))
-            CALL pw_transfer(rho_g(ispin), rho_g_work(ispin))
-            CALL xc_pw_pool%create_pw(rho_r_work(ispin))
-            CALL pw_transfer(rho_g_work(ispin), rho_r_work(ispin))
-         END DO
-         IF (tau_r_valid) THEN
-            ALLOCATE (tau_r_work(nspins))
-            CALL transfer_rs_array_to_xc_grid(tau_r, tau_g, tau_g_valid, &
-                                              tau_r_work, auxbas_pw_pool, xc_pw_pool)
+         NULLIFY (rho_r, rho_g, tau_r, tau_g)
+         IF (rho_g_valid) THEN
+            CALL create_density_on_pool(xc_pw_pool, rho_g_base, rho_r, rho_g)
+         ELSEIF (ASSOCIATED(rho_r_base)) THEN
+            CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho_r_base, rho_r, rho_g)
+         ELSE
+            CPABORT("Fine Grid in xc_density requires rho_r or rho_g")
+         END IF
+         IF (rho_tau_valid) THEN
+            IF (rho_tau_g_valid) THEN
+               CALL create_density_on_pool(xc_pw_pool, tau_g_base, tau_r, tau_g)
+            ELSEIF (ASSOCIATED(tau_r_base)) THEN
+               CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau_r_base, tau_r, tau_g)
+            ELSE
+               CPABORT("Fine Grid in xc_density requires tau_r or tau_g")
+            END IF
          END IF
          IF (ASSOCIATED(rho_nlcc)) THEN
-            ALLOCATE (rho_nlcc_xc, rho_nlcc_g_xc)
+            ALLOCATE (rho_nlcc_g_xc, rho_nlcc_xc)
             CALL xc_pw_pool%create_pw(rho_nlcc_g_xc)
-            CALL pw_transfer(rho_nlcc_g, rho_nlcc_g_xc)
             CALL xc_pw_pool%create_pw(rho_nlcc_xc)
+            CALL pw_transfer(rho_nlcc_g, rho_nlcc_g_xc)
             CALL pw_transfer(rho_nlcc_g_xc, rho_nlcc_xc)
+            rho_nlcc_use => rho_nlcc_xc
+            rho_nlcc_g_use => rho_nlcc_g_xc
          END IF
-      ELSE
-         exc_work => exc
-         rho_r_work => rho_r
-         rho_g_work => rho_g
-         tau_r_work => tau_r
+      END IF
+      IF (.NOT. ASSOCIATED(rho_nlcc_use)) THEN
+         rho_nlcc_use => rho_nlcc
+         rho_nlcc_g_use => rho_nlcc_g
       END IF
 
-      CALL pw_zero(exc_work)
+      CALL pw_zero(exc)
 
       IF (myfun /= xc_none) THEN
 
@@ -382,72 +425,101 @@ CONTAINS
          CPASSERT(dft_control%sic_method_id == sic_none)
 
          ! add the nlcc densities
-         IF (ASSOCIATED(rho_nlcc) .AND. order <= 1) THEN
+         IF (ASSOCIATED(rho_nlcc_use) .AND. order <= 1) THEN
             factor = 1.0_dp
             DO ispin = 1, nspins
-               IF (ASSOCIATED(rho_nlcc_xc)) THEN
-                  CALL pw_axpy(rho_nlcc_xc, rho_r_work(ispin), factor)
-                  CALL pw_axpy(rho_nlcc_g_xc, rho_g_work(ispin), factor)
-               ELSE
-                  CALL pw_axpy(rho_nlcc, rho_r_work(ispin), factor)
-                  CALL pw_axpy(rho_nlcc_g, rho_g_work(ispin), factor)
-               END IF
+               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
             END DO
          END IF
 
          NULLIFY (vxc_rho, vxc_tau)
-         IF (order == 1 .OR. order == 2) THEN
-            CALL qs_rho_get(rho1_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r, tau_g=tau1_g, &
-                            rho_g_valid=rho1_g_valid, tau_r_valid=tau1_r_valid, tau_g_valid=tau1_g_valid)
-            IF (uf_grid) THEN
-               ALLOCATE (rho1_r_work(nspins))
-               CALL transfer_rs_array_to_xc_grid(rho1_r, rho1_g, rho1_g_valid, &
-                                                 rho1_r_work, auxbas_pw_pool, xc_pw_pool)
-               IF (tau1_r_valid) THEN
-                  ALLOCATE (tau1_r_work(nspins))
-                  CALL transfer_rs_array_to_xc_grid(tau1_r, tau1_g, tau1_g_valid, &
-                                                    tau1_r_work, auxbas_pw_pool, xc_pw_pool)
-               END IF
-            ELSE
-               rho1_r_work => rho1_r
-               tau1_r_work => tau1_r
-            END IF
-         END IF
          SELECT CASE (order)
          CASE (0)
             ! we could reduce to energy only here
-            CALL xc_exc_pw_create(rho_r_work, rho_g_work, tau_r_work, xc_section, weights, xc_pw_pool, exc_work)
+            CALL xc_exc_pw_create(rho_r, rho_g, tau_r, xc_section, weights, xc_pw_pool, exc)
          CASE (1)
-            CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r_work, &
-                                  rho_g=rho_g_work, tau=tau_r_work, exc=excint, &
+            CALL qs_rho_get(rho1_struct, rho_r=rho1_r_base, rho_g=rho1_g_base, tau_r=tau1_r_base, &
+                            tau_g=tau1_g_base, rho_g_valid=rho1_g_valid, &
+                            tau_g_valid=rho1_tau_g_valid, tau_r_valid=rho1_tau_valid)
+            rho1_r => rho1_r_base
+            tau1_g => tau1_g_base
+            tau1_r => tau1_r_base
+            IF (uf_grid) THEN
+               NULLIFY (rho1_r, rho1_g, tau1_r, tau1_g)
+               IF (rho1_g_valid) THEN
+                  CALL create_density_on_pool(xc_pw_pool, rho1_g_base, rho1_r, rho1_g)
+               ELSEIF (ASSOCIATED(rho1_r_base)) THEN
+                  CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho1_r_base, rho1_r, rho1_g)
+               ELSE
+                  CPABORT("Fine Grid in xc_density requires rho1_r or rho1_g")
+               END IF
+               IF (rho1_tau_valid) THEN
+                  IF (rho1_tau_g_valid) THEN
+                     CALL create_density_on_pool(xc_pw_pool, tau1_g_base, tau1_r, tau1_g)
+                  ELSEIF (ASSOCIATED(tau1_r_base)) THEN
+                     CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau1_r_base, tau1_r, tau1_g)
+                  ELSE
+                     CPABORT("Fine Grid in xc_density requires tau1_r or tau1_g")
+                  END IF
+               END IF
+            END IF
+            CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
+                                  rho_g=rho_g, tau=tau_r, exc=excint, &
                                   xc_section=xc_section, &
                                   weights=weights, pw_pool=xc_pw_pool, &
                                   compute_virial=.FALSE., &
                                   virial_xc=vdum)
          CASE (2)
-            CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r_work, xc_pw_pool, weights, &
-                                   xc_section=xc_section, tau_r=tau_r_work)
-            NULLIFY (rho1_g_work)
-            CALL xc_calc_2nd_deriv(vxc_rho, vxc_tau, deriv_set, rho_set, rho1_r_work, &
-                                   rho1_g_work, tau1_r_work, xc_pw_pool, weights, xc_section=xc_section, &
-                                   gapw=.FALSE., do_triplet=triplet)
-            CALL xc_dset_release(deriv_set)
-            CALL xc_rho_set_release(rho_set)
+            CALL qs_rho_get(rho1_struct, rho_r=rho1_r_base, rho_g=rho1_g_base, tau_r=tau1_r_base, &
+                            tau_g=tau1_g_base, rho_g_valid=rho1_g_valid, &
+                            tau_g_valid=rho1_tau_g_valid, tau_r_valid=rho1_tau_valid)
+            rho1_r => rho1_r_base
+            tau1_g => tau1_g_base
+            tau1_r => tau1_r_base
+            IF (uf_grid) THEN
+               NULLIFY (rho1_r, rho1_g, tau1_r, tau1_g)
+               IF (rho1_g_valid) THEN
+                  CALL create_density_on_pool(xc_pw_pool, rho1_g_base, rho1_r, rho1_g)
+               ELSEIF (ASSOCIATED(rho1_r_base)) THEN
+                  CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, rho1_r_base, rho1_r, rho1_g)
+               ELSE
+                  CPABORT("Fine Grid in xc_density requires rho1_r or rho1_g")
+               END IF
+               IF (rho1_tau_valid) THEN
+                  IF (rho1_tau_g_valid) THEN
+                     CALL create_density_on_pool(xc_pw_pool, tau1_g_base, tau1_r, tau1_g)
+                  ELSEIF (ASSOCIATED(tau1_r_base)) THEN
+                     CALL create_density_on_pool_from_r(auxbas_pw_pool, xc_pw_pool, tau1_r_base, tau1_r, tau1_g)
+                  ELSE
+                     CPABORT("Fine Grid in xc_density requires tau1_r or tau1_g")
+                  END IF
+               END IF
+               ALLOCATE (rho_fxc)
+               CALL qs_rho_create(rho_fxc)
+               IF (rho_tau_valid) THEN
+                  CALL qs_rho_set(rho_fxc, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r, &
+                                  rho_r_valid=.TRUE., rho_g_valid=.TRUE., tau_r_valid=.TRUE.)
+               ELSE
+                  CALL qs_rho_set(rho_fxc, rho_r=rho_r, rho_g=rho_g, &
+                                  rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+               END IF
+            ELSE
+               rho_fxc => rho_struct
+            END IF
+            CALL qs_fxc_analytic(rho_fxc, rho1_r, tau1_r, xc_section, weights, xc_pw_pool, &
+                                 triplet, vxc_rho, vxc_tau)
+            IF (uf_grid) DEALLOCATE (rho_fxc)
          CASE DEFAULT
             CPABORT("Derivative order not available in xc_density")
          END SELECT
 
          ! remove the nlcc densities (keep stuff in original state)
-         IF (ASSOCIATED(rho_nlcc) .AND. order <= 1) THEN
+         IF (ASSOCIATED(rho_nlcc_use) .AND. order <= 1) THEN
             factor = -1.0_dp
             DO ispin = 1, dft_control%nspins
-               IF (ASSOCIATED(rho_nlcc_xc)) THEN
-                  CALL pw_axpy(rho_nlcc_xc, rho_r_work(ispin), factor)
-                  CALL pw_axpy(rho_nlcc_g_xc, rho_g_work(ispin), factor)
-               ELSE
-                  CALL pw_axpy(rho_nlcc, rho_r_work(ispin), factor)
-                  CALL pw_axpy(rho_nlcc_g, rho_g_work(ispin), factor)
-               END IF
+               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
             END DO
          END IF
          !
@@ -455,19 +527,21 @@ CONTAINS
          CASE (0)
             !
          CASE (1, 2)
-            CALL pw_zero(exc_work)
+            CALL pw_zero(exc)
             IF (ASSOCIATED(vxc_rho)) THEN
                DO ispin = 1, nspins
-                  CALL pw_multiply_with(vxc_rho(ispin), rho1_r_work(ispin))
-                  CALL pw_axpy(vxc_rho(ispin), exc_work, 1.0_dp)
+                  CALL pw_multiply_with(vxc_rho(ispin), rho1_r(ispin))
+                  CALL pw_axpy(vxc_rho(ispin), exc, 1.0_dp)
                   CALL vxc_rho(ispin)%release()
                END DO
                DEALLOCATE (vxc_rho)
             END IF
             IF (ASSOCIATED(vxc_tau)) THEN
+               IF (.NOT. ASSOCIATED(tau1_r)) &
+                  CPABORT("Tau response density required for mGGA xc_density")
                DO ispin = 1, nspins
-                  CALL pw_multiply_with(vxc_tau(ispin), tau1_r_work(ispin))
-                  CALL pw_axpy(vxc_tau(ispin), exc_work, 1.0_dp)
+                  CALL pw_multiply_with(vxc_tau(ispin), tau1_r(ispin))
+                  CALL pw_axpy(vxc_tau(ispin), exc, 1.0_dp)
                   CALL vxc_tau(ispin)%release()
                END DO
                DEALLOCATE (vxc_tau)
@@ -477,36 +551,16 @@ CONTAINS
          END SELECT
 
          IF (order == 2) THEN
-            CALL pw_scale(exc_work, 0.5_dp)
+            CALL pw_scale(exc, 0.5_dp)
          END IF
 
       END IF
 
       IF (uf_grid) THEN
-         CALL transfer_xc_rspace_to_aux_grid(exc_work, exc, auxbas_pw_pool, xc_pw_pool)
-         DO ispin = 1, nspins
-            CALL xc_pw_pool%give_back_pw(rho_r_work(ispin))
-            CALL xc_pw_pool%give_back_pw(rho_g_work(ispin))
-         END DO
-         DEALLOCATE (rho_r_work, rho_g_work)
-         IF (ASSOCIATED(tau_r_work)) THEN
-            DO ispin = 1, nspins
-               CALL xc_pw_pool%give_back_pw(tau_r_work(ispin))
-            END DO
-            DEALLOCATE (tau_r_work)
-         END IF
-         IF (ASSOCIATED(rho1_r_work)) THEN
-            DO ispin = 1, nspins
-               CALL xc_pw_pool%give_back_pw(rho1_r_work(ispin))
-            END DO
-            DEALLOCATE (rho1_r_work)
-         END IF
-         IF (ASSOCIATED(tau1_r_work)) THEN
-            DO ispin = 1, nspins
-               CALL xc_pw_pool%give_back_pw(tau1_r_work(ispin))
-            END DO
-            DEALLOCATE (tau1_r_work)
-         END IF
+         CALL give_back_density_on_pool(xc_pw_pool, rho_r, rho_g)
+         IF (ASSOCIATED(tau_r)) CALL give_back_density_on_pool(xc_pw_pool, tau_r, tau_g)
+         IF (ASSOCIATED(rho1_r)) CALL give_back_density_on_pool(xc_pw_pool, rho1_r, rho1_g)
+         IF (ASSOCIATED(tau1_r)) CALL give_back_density_on_pool(xc_pw_pool, tau1_r, tau1_g)
          IF (ASSOCIATED(rho_nlcc_xc)) THEN
             CALL xc_pw_pool%give_back_pw(rho_nlcc_xc)
             DEALLOCATE (rho_nlcc_xc)
@@ -515,7 +569,6 @@ CONTAINS
             CALL xc_pw_pool%give_back_pw(rho_nlcc_g_xc)
             DEALLOCATE (rho_nlcc_g_xc)
          END IF
-         IF (exc_xc_created) CALL xc_pw_pool%give_back_pw(exc_xc)
       END IF
 
       CALL timestop(handle)
@@ -523,63 +576,96 @@ CONTAINS
    END SUBROUTINE xc_density
 
 ! **************************************************************************************************
-!> \brief Transfer auxiliary-grid real-space fields to the finer XC grid.
-!> \param aux_r ...
-!> \param aux_g ...
-!> \param aux_g_valid ...
-!> \param xc_r ...
-!> \param auxbas_pw_pool ...
-!> \param xc_pw_pool ...
+!> \brief transfers a g-space density to a given PW pool and creates its r-space representation
+!> \param pw_pool ...
+!> \param rho_g_in ...
+!> \param rho_r_out ...
+!> \param rho_g_out ...
 ! **************************************************************************************************
-   SUBROUTINE transfer_rs_array_to_xc_grid(aux_r, aux_g, aux_g_valid, xc_r, auxbas_pw_pool, xc_pw_pool)
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: aux_r
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: aux_g
-      LOGICAL, INTENT(IN)                                :: aux_g_valid
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: xc_r
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+   SUBROUTINE create_density_on_pool(pw_pool, rho_g_in, rho_r_out, rho_g_out)
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_in
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_out
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_out
+
+      INTEGER                                            :: ispin, nspins
+
+      CPASSERT(ASSOCIATED(pw_pool))
+      CPASSERT(ASSOCIATED(rho_g_in))
+
+      nspins = SIZE(rho_g_in)
+      ALLOCATE (rho_r_out(nspins), rho_g_out(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool%create_pw(rho_g_out(ispin))
+         CALL pw_pool%create_pw(rho_r_out(ispin))
+         CALL pw_transfer(rho_g_in(ispin), rho_g_out(ispin))
+         CALL pw_transfer(rho_g_out(ispin), rho_r_out(ispin))
+      END DO
+
+   END SUBROUTINE create_density_on_pool
+
+! **************************************************************************************************
+!> \brief transfers an r-space density to a given PW pool and creates its g-space representation
+!> \param source_pw_pool ...
+!> \param target_pw_pool ...
+!> \param rho_r_in ...
+!> \param rho_r_out ...
+!> \param rho_g_out ...
+! **************************************************************************************************
+   SUBROUTINE create_density_on_pool_from_r(source_pw_pool, target_pw_pool, rho_r_in, rho_r_out, rho_g_out)
+      TYPE(pw_pool_type), POINTER                        :: source_pw_pool, target_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_in, rho_r_out
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_out
+
+      INTEGER                                            :: ispin, nspins
+      TYPE(pw_c1d_gs_type)                               :: rho_g_in
+
+      CPASSERT(ASSOCIATED(source_pw_pool))
+      CPASSERT(ASSOCIATED(target_pw_pool))
+      CPASSERT(ASSOCIATED(rho_r_in))
+
+      nspins = SIZE(rho_r_in)
+      ALLOCATE (rho_r_out(nspins), rho_g_out(nspins))
+      DO ispin = 1, nspins
+         CALL source_pw_pool%create_pw(rho_g_in)
+         CALL target_pw_pool%create_pw(rho_g_out(ispin))
+         CALL target_pw_pool%create_pw(rho_r_out(ispin))
+         CALL pw_transfer(rho_r_in(ispin), rho_g_in)
+         CALL pw_transfer(rho_g_in, rho_g_out(ispin))
+         CALL pw_transfer(rho_g_out(ispin), rho_r_out(ispin))
+         CALL source_pw_pool%give_back_pw(rho_g_in)
+      END DO
+
+   END SUBROUTINE create_density_on_pool_from_r
+
+! **************************************************************************************************
+!> \brief returns temporary density arrays to the given PW pool
+!> \param pw_pool ...
+!> \param rho_r ...
+!> \param rho_g ...
+! **************************************************************************************************
+   SUBROUTINE give_back_density_on_pool(pw_pool, rho_r, rho_g)
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
       INTEGER                                            :: ispin
-      TYPE(pw_c1d_gs_type)                               :: aux_g_aux, aux_g_xc
 
-      CALL xc_pw_pool%create_pw(aux_g_xc)
-      IF (.NOT. aux_g_valid) CALL auxbas_pw_pool%create_pw(aux_g_aux)
-      DO ispin = 1, SIZE(xc_r)
-         IF (aux_g_valid) THEN
-            CALL pw_transfer(aux_g(ispin), aux_g_xc)
-         ELSE
-            CALL pw_transfer(aux_r(ispin), aux_g_aux)
-            CALL pw_transfer(aux_g_aux, aux_g_xc)
-         END IF
-         CALL xc_pw_pool%create_pw(xc_r(ispin))
-         CALL pw_transfer(aux_g_xc, xc_r(ispin))
-      END DO
-      IF (.NOT. aux_g_valid) CALL auxbas_pw_pool%give_back_pw(aux_g_aux)
-      CALL xc_pw_pool%give_back_pw(aux_g_xc)
+      CPASSERT(ASSOCIATED(pw_pool))
 
-   END SUBROUTINE transfer_rs_array_to_xc_grid
+      IF (ASSOCIATED(rho_r)) THEN
+         DO ispin = 1, SIZE(rho_r)
+            CALL pw_pool%give_back_pw(rho_r(ispin))
+         END DO
+         DEALLOCATE (rho_r)
+      END IF
+      IF (ASSOCIATED(rho_g)) THEN
+         DO ispin = 1, SIZE(rho_g)
+            CALL pw_pool%give_back_pw(rho_g(ispin))
+         END DO
+         DEALLOCATE (rho_g)
+      END IF
 
-! **************************************************************************************************
-!> \brief Transfer a finer-XC-grid real-space field back to the auxiliary grid.
-!> \param xc_field ...
-!> \param aux_field ...
-!> \param auxbas_pw_pool ...
-!> \param xc_pw_pool ...
-! **************************************************************************************************
-   SUBROUTINE transfer_xc_rspace_to_aux_grid(xc_field, aux_field, auxbas_pw_pool, xc_pw_pool)
-      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: xc_field
-      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: aux_field
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
-
-      TYPE(pw_c1d_gs_type)                               :: aux_g, xc_g
-
-      CALL xc_pw_pool%create_pw(xc_g)
-      CALL auxbas_pw_pool%create_pw(aux_g)
-      CALL pw_transfer(xc_field, xc_g)
-      CALL pw_transfer(xc_g, aux_g)
-      CALL pw_transfer(aux_g, aux_field)
-      CALL auxbas_pw_pool%give_back_pw(aux_g)
-      CALL xc_pw_pool%give_back_pw(xc_g)
-
-   END SUBROUTINE transfer_xc_rspace_to_aux_grid
+   END SUBROUTINE give_back_density_on_pool
 
 END MODULE accint_weights_forces
