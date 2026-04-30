@@ -34,6 +34,9 @@
 "h2o_gapw_2-2.inp"                      = [{matcher="E_total", tol=1e-12, ref=-76.011970410506123},
                                            {matcher="M092", tol=1e-8, ref=77.48403318}]
 
+"h2o_gpw_pade_gamma_kpoints.inp"         = [{matcher="E_total", tol=1e-12, ref=-17.15466408099030},
+                                           {matcher="M092", tol=1e-8, ref=28.21163259}]
+
 "ch2_gapw_2-3.inp"                      = [{matcher="E_total", tol=1e-12, ref=-38.91914381184247},
                                            {matcher="M092", tol=1e-8, ref=50.38752368}]
 
