@@ -270,8 +270,8 @@ CONTAINS
                                                             nkind, nkp_grid(3)
       LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, &
          do_kpoints, do_linear_response, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
-         do_wfc_low_scaling, do_wfc_low_scaling_kpoints, is_identical, is_semi, mp2_present, &
-         my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
+         do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, is_identical, is_semi, &
+         mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -396,6 +396,11 @@ CONTAINS
          do_active_space = .FALSE.
          active_space_section => section_vals_get_subs_vals(qs_env%input, "DFT%ACTIVE_SPACE")
          CALL section_vals_get(active_space_section, explicit=do_active_space)
+         do_xtb_tblite = .FALSE.
+         IF (method_id == do_method_xtb) THEN
+            CALL section_vals_val_get(qs_env%input, "DFT%QS%XTB%TBLITE%_SECTION_PARAMETERS_", &
+                                      l_val=do_xtb_tblite)
+         END IF
          do_linear_response = .FALSE.
          IF (PRESENT(globenv)) do_linear_response = globenv%run_type_id == linear_response_run
          do_ri_mp2 = .FALSE.
@@ -424,7 +429,8 @@ CONTAINS
                                                           do_tddfpt, do_active_space, do_linear_response, &
                                                           do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
-                                                          do_wfc_low_scaling, do_wfc_low_scaling_kpoints)
+                                                          do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
+                                                          do_xtb_tblite)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
          dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
          CALL write_kpoint_info(kpoints, dft_section=dft_section)
@@ -646,21 +652,23 @@ CONTAINS
 !> \param do_bse ...
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
+!> \param do_xtb_tblite ...
 ! **************************************************************************************************
    SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
                                                           do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-                                                          do_wfc_low_scaling_kpoints)
+                                                          do_wfc_low_scaling_kpoints, do_xtb_tblite)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
-         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints
+         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+         do_wfc_low_scaling_kpoints, do_xtb_tblite
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
       LOGICAL                                            :: full_grid, inversion_symmetry_only, &
                                                             kpoint_symmetry
 
-      reason = unsupported_kpoint_method_reason(method_id, do_active_space)
+      reason = unsupported_kpoint_method_reason(method_id, do_active_space, do_xtb_tblite)
       IF (LEN_TRIM(reason) > 0) THEN
          CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme)
          IF (LEN_TRIM(kp_scheme) > 0 .AND. TRIM(kp_scheme) /= "NONE") THEN
@@ -677,7 +685,7 @@ CONTAINS
       reason = unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, &
                                                          do_tddfpt, do_active_space, do_linear_response, &
                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-                                                         do_wfc_low_scaling_kpoints)
+                                                         do_wfc_low_scaling_kpoints, do_xtb_tblite)
       IF (LEN_TRIM(reason) == 0) RETURN
 
       CALL cp_warn(__LOCATION__, &
@@ -691,16 +699,21 @@ CONTAINS
 !> \brief Return the reason why k-points are not enabled for a method
 !> \param method_id ...
 !> \param do_active_space ...
+!> \param do_xtb_tblite ...
 !> \return reason
 ! **************************************************************************************************
-   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space) RESULT(reason)
+   FUNCTION unsupported_kpoint_method_reason(method_id, do_active_space, do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
-      LOGICAL, INTENT(IN)                                :: do_active_space
+      LOGICAL, INTENT(IN)                                :: do_active_space, do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
       IF (do_active_space) THEN
          reason = "ACTIVE_SPACE"
+         RETURN
+      END IF
+      IF (do_xtb_tblite) THEN
+         reason = "tblite xTB"
          RETURN
       END IF
 
@@ -732,15 +745,17 @@ CONTAINS
 !> \param do_bse ...
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
+!> \param do_xtb_tblite ...
 !> \return reason
 ! **************************************************************************************************
    FUNCTION unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, do_tddfpt, &
                                                       do_active_space, do_linear_response, do_mp2, do_rpa, &
-                                                      do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints) &
-      RESULT(reason)
+                                                      do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
+                                                      do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
-         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints
+         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+         do_wfc_low_scaling_kpoints, do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
@@ -757,6 +772,8 @@ CONTAINS
          reason = "BSE"
       ELSE IF (do_gw) THEN
          reason = "GW"
+      ELSE IF (do_xtb_tblite) THEN
+         reason = "tblite xTB"
       ELSE IF (do_tddfpt) THEN
          reason = "TDDFPT/TDDFT"
       ELSE IF (do_active_space) THEN
