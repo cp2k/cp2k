@@ -1,0 +1,73 @@
+@SET NREP 1
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &KPOINTS
+      EPS_SYMMETRY 1.e-8
+      FULL_GRID OFF
+      PARALLEL_GROUP_SIZE -1
+      SCHEME MONKHORST-PACK 4 4 4
+      SYMMETRY ON
+      SYMMETRY_BACKEND SPGLIB
+      VERBOSE T
+    &END KPOINTS
+    &POISSON
+      &EWALD
+        ALPHA 1.0
+        EWALD_TYPE SPME
+        GMAX 50
+      &END EWALD
+    &END POISSON
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD T
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS 100
+      EPS_SCF 1.e-6
+      MAX_SCF 100
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.40
+        METHOD BROYDEN_MIXING
+        NBUFFER 10
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+      &SMEAR
+        ELECTRONIC_TEMPERATURE 1000
+        METHOD FERMI_DIRAC
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.431 5.431 5.431
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    &COORD
+      SCALED
+      Si     0.000000    0.000000    0.000000
+      Si     0.500000    0.500000    0.000000
+      Si     0.500000    0.000000    0.500000
+      Si     0.000000    0.500000    0.500000
+      Si     0.250000    0.250000    0.250000
+      Si     0.250000    0.750000    0.750000
+      Si     0.750000    0.250000    0.750000
+      Si     0.750000    0.750000    0.250000
+    &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Si_spglib_backend
+  RUN_TYPE ENERGY
+&END GLOBAL

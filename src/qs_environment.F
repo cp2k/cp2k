@@ -701,6 +701,8 @@ CONTAINS
       END IF
 
       SELECT CASE (method_id)
+      CASE (do_method_rigpw)
+         reason = "RIGPW"
       CASE (do_method_ofgpw)
          reason = "OFGPW"
       CASE (do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
@@ -743,12 +745,6 @@ CONTAINS
       MARK_USED(do_exx)
 
       SELECT CASE (method_id)
-      CASE (do_method_dftb)
-         reason = "DFTB"
-      CASE (do_method_xtb)
-         reason = "xTB"
-      CASE (do_method_rigpw)
-         reason = "RIGPW"
       CASE DEFAULT
          reason = ""
       END SELECT
