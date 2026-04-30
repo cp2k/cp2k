@@ -46,6 +46,7 @@ MODULE cryssym
       LOGICAL                                     :: fullgrid = .FALSE.
       LOGICAL                                     :: inversion_only = .FALSE.
       LOGICAL                                     :: spglib_reduction = .FALSE.
+      LOGICAL                                     :: spglib_backend = .FALSE.
       INTEGER                                     :: plevel = 0
       INTEGER                                     :: punit = -1
       INTEGER                                     :: istriz = -1
@@ -71,11 +72,11 @@ MODULE cryssym
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE    :: rotations
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: translations
       !K290
-      REAL(KIND=dp), DIMENSION(3, 3, 48)          :: rt = 0.0_dp
-      REAL(KIND=dp), DIMENSION(3, 48)             :: vt = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: rt
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: vt
       INTEGER, ALLOCATABLE, DIMENSION(:, :)       :: f0
       INTEGER                                     :: nrtot = 0
-      INTEGER, DIMENSION(48)                      :: ibrot = 1
+      INTEGER, DIMENSION(:), ALLOCATABLE          :: ibrot
    END TYPE csym_type
 
 CONTAINS
@@ -114,8 +115,17 @@ CONTAINS
       IF (ALLOCATED(csym%kpop)) THEN
          DEALLOCATE (csym%kpop)
       END IF
+      IF (ALLOCATED(csym%rt)) THEN
+         DEALLOCATE (csym%rt)
+      END IF
+      IF (ALLOCATED(csym%vt)) THEN
+         DEALLOCATE (csym%vt)
+      END IF
       IF (ALLOCATED(csym%f0)) THEN
          DEALLOCATE (csym%f0)
+      END IF
+      IF (ALLOCATED(csym%ibrot)) THEN
+         DEALLOCATE (csym%ibrot)
       END IF
 
    END SUBROUTINE release_csym_type
@@ -225,22 +235,24 @@ CONTAINS
 !> \param full_grid ...
 !> \param inversion_symmetry_only ...
 !> \param use_spglib_reduction ...
+!> \param use_spglib_backend ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_gen(csym, nk, symm, shift, full_grid, inversion_symmetry_only, &
-                         use_spglib_reduction)
+                         use_spglib_reduction, use_spglib_backend)
       TYPE(csym_type)                                    :: csym
       INTEGER, INTENT(IN)                                :: nk(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: symm
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: shift(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_grid, inversion_symmetry_only, &
-                                                            use_spglib_reduction
+                                                            use_spglib_reduction, &
+                                                            use_spglib_backend
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_gen'
 
       INTEGER                                            :: handle, i, ik, j, nkp, nkpts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
       LOGICAL                                            :: fullmesh, inversion_only, &
-                                                            spglib_reduction
+                                                            spglib_backend, spglib_reduction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
 
@@ -278,8 +290,26 @@ CONTAINS
       END IF
       csym%spglib_reduction = spglib_reduction
 
+      IF (PRESENT(use_spglib_backend)) THEN
+         spglib_backend = use_spglib_backend
+      ELSE
+         spglib_backend = .FALSE.
+      END IF
+      csym%spglib_backend = spglib_backend
+
+      IF (spglib_backend .NEQV. spglib_reduction) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Mixed k-point symmetry backends and reduction methods are not implemented yet")
+      END IF
+
       csym%nkpoint = 0
       csym%mesh(1:3) = nk(1:3)
+      csym%nrtot = 0
+      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
+      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
+      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
+      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
+      ALLOCATE (csym%rt(3, 3, 0), csym%vt(3, 0), csym%ibrot(0), csym%f0(csym%nat, 0))
 
       nkpts = nk(1)*nk(2)*nk(3)
       ALLOCATE (xkp(3, nkpts), wkp(nkpts), kpop(nkpts))
@@ -311,7 +341,7 @@ CONTAINS
             END IF
 
             CALL full_grid_gen(nk, xkp, wkp, shift)
-            IF (spglib_reduction) THEN
+            IF (spglib_backend) THEN
                CALL kp_symmetry_spglib(csym, xkp, wkp, kpop)
             ELSE
                CALL kp_symmetry(csym, xkp, wkp, kpop)
@@ -467,14 +497,18 @@ CONTAINS
             "*******************************************************************************"
       END IF
 
-      csym%rt = r
-      csym%vt = vt
       csym%nrtot = nc
+      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
+      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
+      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
+      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
+      ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc))
+      csym%rt(1:3, 1:3, 1:nc) = r(1:3, 1:3, 1:nc)
+      csym%vt(1:3, 1:nc) = vt(1:3, 1:nc)
       ALLOCATE (csym%f0(nat, nc))
       DO i = 1, nc
          csym%f0(1:nat, i) = f0(i, 1:nat)
       END DO
-      csym%ibrot = 0
       csym%ibrot(1:nc) = ib(1:nc)
 
       CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
@@ -498,7 +532,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: kpop
 
       INTEGER                                            :: iou, nrot
-      INTEGER, DIMENSION(3, 3, 48)                       :: srot
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: srot
 
       iou = csym%punit
       IF (iou > 0) THEN
@@ -509,8 +543,10 @@ CONTAINS
       END IF
       CALL cite_reference(Togo2018)
 
+      ALLOCATE (srot(3, 3, csym%n_operations))
       CALL setup_spglib_operations(csym, srot, nrot)
       CALL reduce_spglib_kpoint_mesh(csym, xkp, wkp, kpop, srot, nrot)
+      DEALLOCATE (srot)
 
       IF (iou > 0) THEN
          WRITE (iou, '((T2,A79))') &
@@ -522,14 +558,14 @@ CONTAINS
    END SUBROUTINE kp_symmetry_spglib
 
 ! **************************************************************************************************
-!> \brief Store unique SPGLIB point operations in the K290-compatible symmetry fields
+!> \brief Store usable SPGLIB space-group operations for k-point symmetry
 !> \param csym ...
 !> \param srot integer rotations in fractional coordinates
 !> \param nrot number of stored rotations
 ! **************************************************************************************************
    SUBROUTINE setup_spglib_operations(csym, srot, nrot)
       TYPE(csym_type)                                    :: csym
-      INTEGER, DIMENSION(3, 3, 48), INTENT(OUT)          :: srot
+      INTEGER, DIMENSION(:, :, :), INTENT(OUT)           :: srot
       INTEGER, INTENT(OUT)                               :: nrot
 
       INTEGER                                            :: iop, jop, pass
@@ -543,12 +579,16 @@ CONTAINS
       CPASSERT(csym%symlib)
 
       srot = 0
+      csym%nrtot = 0
+      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
+      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
+      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
+      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
+      ALLOCATE (csym%rt(3, 3, csym%n_operations), csym%vt(3, csym%n_operations))
+      ALLOCATE (csym%ibrot(csym%n_operations), csym%f0(csym%nat, csym%n_operations))
       csym%rt = 0.0_dp
       csym%vt = 0.0_dp
       csym%ibrot = 0
-      csym%nrtot = 0
-      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
-      ALLOCATE (csym%f0(csym%nat, 48))
       csym%f0 = 0
 
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
@@ -576,7 +616,9 @@ CONTAINS
 
             duplicate = .FALSE.
             DO jop = 1, nrot
-               IF (ALL(irot == srot(:, :, jop))) THEN
+               IF (ALL(irot == srot(:, :, jop)) .AND. &
+                   ALL(ABS(csym%translations(1:3, iop) - csym%vt(1:3, jop) - &
+                           ANINT(csym%translations(1:3, iop) - csym%vt(1:3, jop))) <= eps)) THEN
                   duplicate = .TRUE.
                   EXIT
                END IF
@@ -587,7 +629,6 @@ CONTAINS
             IF (.NOT. valid) CYCLE
 
             nrot = nrot + 1
-            IF (nrot > 48) CALL cp_abort(__LOCATION__, "Too many SPGLIB point-group operations")
 
             srot(1:3, 1:3, nrot) = irot(1:3, 1:3)
             rfrac(1:3, 1:3) = REAL(irot(1:3, 1:3), KIND=dp)
@@ -673,7 +714,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       REAL(KIND=dp), DIMENSION(:)                        :: wkp
       INTEGER, DIMENSION(:)                              :: kpop
-      INTEGER, DIMENSION(3, 3, 48), INTENT(IN)           :: srot
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: srot
       INTEGER, INTENT(IN)                                :: nrot
 
       INTEGER                                            :: i, iop, isign, j, kr, nkpts, score
@@ -767,7 +808,7 @@ CONTAINS
       DO i = 1, nat
          IF (csym%f0(i, iop) /= i) score = score + 100
       END DO
-      IF (ANY(ABS(csym%vt(1:3, iop) - ANINT(csym%vt(1:3, iop))) > eps)) score = score + 100000000
+      IF (ANY(ABS(csym%vt(1:3, iop) - ANINT(csym%vt(1:3, iop))) > eps)) score = score + 10
 
       eye = 0
       eye(1, 1) = 1
@@ -1026,7 +1067,7 @@ CONTAINS
             WRITE (iunit, '(/,A)') "       Atom Transformation Table"
             nat = SIZE(csym%f0, 1)
             DO i = 1, csym%nrtot
-               WRITE (iunit, '(T10,A,I3,(T21,12I5))') " Rot=", csym%ibrot(i), csym%f0(1:nat, i)
+               WRITE (iunit, '(T10,A,I5,(T21,12I5))') " Rot=", csym%ibrot(i), csym%f0(1:nat, i)
             END DO
          END IF
       END IF

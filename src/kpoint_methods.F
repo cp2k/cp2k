@@ -54,7 +54,8 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_symmetry
+   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
+                                              use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -189,7 +190,8 @@ CONTAINS
                          full_grid=kpoint%full_grid, &
                          inversion_symmetry_only=kpoint%inversion_symmetry_only, &
                          use_spglib_reduction= &
-                         kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry)
+                         kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry, &
+                         use_spglib_backend=kpoint%symmetry_backend == use_spglib_kpoint_backend)
          kpoint%nkp = crys_sym%nkpoint
          ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
          wsum = SUM(crys_sym%wkpoint)

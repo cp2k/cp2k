@@ -37,12 +37,15 @@ MODULE input_cp2k_kpoints
    INTEGER, PARAMETER                      :: use_real_wfn = 101, &
                                               use_complex_wfn = 100, &
                                               use_k290_kpoint_symmetry = 200, &
-                                              use_spglib_kpoint_symmetry = 201
+                                              use_spglib_kpoint_symmetry = 201, &
+                                              use_k290_kpoint_backend = 300, &
+                                              use_spglib_kpoint_backend = 301
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
+   PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
 
 CONTAINS
 
@@ -57,6 +60,7 @@ CONTAINS
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
 !>      INVERSION_SYMMETRY_ONLY [on, off]
+!>      SYMMETRY_BACKEND [K290, SPGLIB]
 !>      SYMMETRY_REDUCTION_METHOD [K290, SPGLIB]
 !>      VERBOSE          [on, off]
 !>      EPS_SYMMETRY     value
@@ -129,6 +133,20 @@ CONTAINS
                           "(time-reversal) symmetry.", &
                           usage="INVERSION_SYMMETRY_ONLY <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_BACKEND", &
+                          description="Select the backend used to provide and apply atomic "// &
+                          "k-point symmetry operations. K290 is the established default. "// &
+                          "SPGLIB uses the symmetry operations returned by SPGLIB, including "// &
+                          "their fractional translations.", &
+                          usage="SYMMETRY_BACKEND K290", type_of_var=enum_t, &
+                          enum_c_vals=s2a("K290", "SPGLIB"), &
+                          enum_i_vals=[use_k290_kpoint_backend, use_spglib_kpoint_backend], &
+                          enum_desc=s2a("Use the existing K290 k-point symmetry backend.", &
+                                        "Use SPGLIB symmetry operations as k-point symmetry backend."), &
+                          default_i_val=use_k290_kpoint_backend)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
