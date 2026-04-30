@@ -388,7 +388,7 @@ CONTAINS
             gw_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BANDSTRUCTURE%GW")
             CALL section_vals_get(gw_section, explicit=do_gw)
          END IF
-         CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, para_env, method_id, do_hfx, do_exx, do_gw)
+         CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
          dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
          CALL write_kpoint_info(kpoints, dft_section=dft_section)
@@ -598,15 +598,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Restrict atomic k-point symmetry for methods not supporting it yet
 !> \param kpoints ...
-!> \param para_env ...
 !> \param method_id ...
 !> \param do_hfx ...
 !> \param do_exx ...
 !> \param do_gw ...
 ! **************************************************************************************************
-   SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, para_env, method_id, do_hfx, do_exx, do_gw)
+   SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw)
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN)                                :: do_hfx, do_exx, do_gw
 
@@ -617,14 +615,6 @@ CONTAINS
       CALL get_kpoint_info(kpoints, symmetry=kpoint_symmetry, full_grid=full_grid, &
                            inversion_symmetry_only=inversion_symmetry_only)
       IF (.NOT. (kpoint_symmetry .AND. .NOT. full_grid .AND. .NOT. inversion_symmetry_only)) RETURN
-
-      IF (para_env%num_pe > 1) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "Atomic k-point symmetry with atom permutations or phases currently requires "// &
-                      "local DBCSR matrices; restricting to inversion/time-reversal symmetry.")
-         CALL set_kpoint_info(kpoints, inversion_symmetry_only=.TRUE.)
-         RETURN
-      END IF
 
       reason = unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw)
       IF (LEN_TRIM(reason) == 0) RETURN

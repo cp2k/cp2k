@@ -25,11 +25,12 @@ MODULE kpoint_methods
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribute, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_replicate_all, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
@@ -1742,7 +1743,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans_phase'
 
       INTEGER                                            :: handle, iatom, icol, ikind, ip, irow, &
-                                                            jcol, jkind, jp, jrow, natom, numnodes
+                                                            jcol, jkind, jp, jrow, mynode, natom, &
+                                                            numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
       LOGICAL                                            :: dorot, found, has_phase, perm, trans
       REAL(KIND=dp)                                      :: arg, coskl, dr, phase_sign, sinkl
@@ -1786,10 +1788,10 @@ CONTAINS
       END IF
 
       CALL dbcsr_get_info(rpmat, distribution=dist)
-      CALL dbcsr_distribution_get(dist, numnodes=numnodes)
+      CALL dbcsr_distribution_get(dist, mynode=mynode, numnodes=numnodes)
       IF (numnodes /= 1 .AND. (perm .OR. has_phase)) THEN
-         CALL cp_abort(__LOCATION__, "Reduced k-point grids with atom permutations or phases "// &
-                       "require local DBCSR matrices")
+         CALL dbcsr_replicate_all(rpmat)
+         IF (.NOT. real_only) CALL dbcsr_replicate_all(cpmat)
       END IF
 
       CALL dbcsr_set(srpmat, 0.0_dp)
@@ -1858,7 +1860,11 @@ CONTAINS
          END IF
 
          CALL dbcsr_get_block_p(matrix=srpmat, row=jrow, col=jcol, block=srblock, found=found)
-         CPASSERT(found)
+         IF (.NOT. found) THEN
+            CALL dbcsr_get_stored_coordinates(srpmat, jrow, jcol, owner)
+            CPASSERT(owner /= mynode)
+            CYCLE
+         END IF
          IF (trans) THEN
             CALL ensure_work_matrix(twork, SIZE(krotj, 1), SIZE(rwork, 1))
             CALL dgemm('N', 'T', SIZE(krotj, 1), SIZE(rwork, 1), SIZE(krotj, 2), &
@@ -1900,6 +1906,10 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
+      IF (numnodes /= 1 .AND. (perm .OR. has_phase)) THEN
+         CALL dbcsr_distribute(rpmat)
+         IF (.NOT. real_only) CALL dbcsr_distribute(cpmat)
+      END IF
 
       CALL timestop(handle)
 
