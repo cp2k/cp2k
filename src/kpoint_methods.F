@@ -53,6 +53,7 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
+   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -122,9 +123,13 @@ CONTAINS
       INTEGER                                            :: handle, i, ic, ik, iounit, ir, ira, is, &
                                                             j, natom, nkind, nr, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: agauge
+      INTEGER, DIMENSION(3, 3)                           :: frot
       LOGICAL                                            :: spez
       REAL(KIND=dp)                                      :: wsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
+      REAL(KIND=dp), DIMENSION(3)                        :: srot
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
       TYPE(csym_type)                                    :: crys_sym
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
@@ -172,10 +177,16 @@ CONTAINS
          ! kind type list
          ALLOCATE (kpoint%atype(natom))
          kpoint%atype = atype
+         ! Match the periodic gauge used by the k-space matrices.
+         ALLOCATE (agauge(3, natom))
+         agauge = -FLOOR(scoord + 0.5_dp - kpoint%eps_geo)
 
          CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
          CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
-                         full_grid=kpoint%full_grid)
+                         full_grid=kpoint%full_grid, &
+                         inversion_symmetry_only=kpoint%inversion_symmetry_only, &
+                         use_spglib_reduction= &
+                         kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry)
          kpoint%nkp = crys_sym%nkpoint
          ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
          wsum = SUM(crys_sym%wkpoint)
@@ -194,7 +205,8 @@ CONTAINS
             NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
-            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid .AND. crys_sym%istriz == 1) THEN
+            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid .AND. crys_sym%istriz == 1 .AND. &
+                .NOT. crys_sym%inversion_only) THEN
                ! set up the symmetrization information
                kpsym%nwght = NINT(crys_sym%wkpoint(ik))
                ns = kpsym%nwght
@@ -206,6 +218,7 @@ CONTAINS
                   ALLOCATE (kpsym%xkp(3, ns))
                   ALLOCATE (kpsym%rotp(ns))
                   ALLOCATE (kpsym%f0(natom, ns))
+                  ALLOCATE (kpsym%fcell(3, natom, ns))
                   nr = 0
                   DO is = 1, SIZE(crys_sym%kplink, 2)
                      IF (crys_sym%kplink(2, is) == ik) THEN
@@ -213,15 +226,20 @@ CONTAINS
                         ir = crys_sym%kpop(is)
                         ira = ABS(ir)
                         kpsym%rotp(nr) = ir
-                        IF (ir > 0) THEN
-                           kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ira)
-                        ELSE
-                           kpsym%rot(1:3, 1:3, nr) = -crys_sym%rt(1:3, 1:3, ira)
-                        END IF
+                        kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ira)
+                        srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ira), cell%hmat))
+                        frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
                         kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
                         DO ic = 1, crys_sym%nrtot
                            IF (crys_sym%ibrot(ic) == ira) THEN
                               kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+                              DO j = 1, natom
+                                 srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+                                 kpsym%fcell(1:3, j, nr) = &
+                                    NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
+                                    MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
+                                    agauge(1:3, kpsym%f0(j, nr))
+                              END DO
                               EXIT
                            END IF
                         END DO
@@ -247,6 +265,7 @@ CONTAINS
 
          CALL release_csym_type(crys_sym)
          DEALLOCATE (scoord, atype)
+         DEALLOCATE (agauge)
 
       CASE ("GENERAL")
          ! default: no symmetry settings
@@ -1527,15 +1546,10 @@ CONTAINS
                   END DO
                   CPASSERT(ira > 0)
                   kind_rot => kpoint%kind_rotmat(ira, :)
-                  IF (real_only) THEN
-                     CALL symtrans(srpmat, rpmat, kind_rot, kpsym%rot(1:3, 1:3, is), &
-                                   kpsym%f0(:, is), kpoint%atype, symmetric=.TRUE.)
-                  ELSE
-                     CALL symtrans(srpmat, rpmat, kind_rot, kpsym%rot(1:3, 1:3, is), &
-                                   kpsym%f0(:, is), kpoint%atype, symmetric=.TRUE.)
-                     CALL symtrans(scpmat, cpmat, kind_rot, kpsym%rot(1:3, 1:3, is), &
-                                   kpsym%f0(:, is), kpoint%atype, antisymmetric=.TRUE.)
-                  END IF
+                  CALL symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kind_rot, &
+                                      kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
+                                      kpsym%fcell(:, :, is), kpoint%atype, kpsym%xkp(1:3, is), &
+                                      kpsym%rotp(is) < 0)
                   CALL transform_dmat(denmat, srpmat, scpmat, ispin, real_only, sab_nl, &
                                       cell_to_index, kpsym%xkp(1:3, is), wkpx)
                END DO
@@ -1674,6 +1688,162 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE transform_dmat
+
+! **************************************************************************************************
+!> \brief Symmetrize a complex k-point matrix including Bloch phase shifts
+!> \param srpmat real part of transformed matrix
+!> \param scpmat imaginary part of transformed matrix
+!> \param rpmat real part of reference matrix
+!> \param cpmat imaginary part of reference matrix
+!> \param real_only ...
+!> \param kmat kind type rotation matrix
+!> \param rot rotation matrix
+!> \param f0 atom permutation
+!> \param fcell atom cell shifts generated by the symmetry operation
+!> \param atype atom to kind pointer
+!> \param xkp target k-point coordinates
+!> \param time_reversal ...
+! **************************************************************************************************
+   SUBROUTINE symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kmat, rot, f0, fcell, atype, &
+                             xkp, time_reversal)
+
+      TYPE(dbcsr_type), POINTER                          :: srpmat, scpmat, rpmat, cpmat
+      LOGICAL, INTENT(IN)                                :: real_only
+      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kmat
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: f0
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: fcell
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      LOGICAL, INTENT(IN)                                :: time_reversal
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans_phase'
+
+      INTEGER                                            :: handle, iatom, icol, ikind, ip, irow, &
+                                                            jcol, jkind, jp, jrow, natom, numnodes
+      INTEGER, DIMENSION(3)                              :: shift
+      LOGICAL                                            :: dorot, found, has_phase, perm, trans
+      REAL(KIND=dp)                                      :: arg, coskl, dr, phase_sign, sinkl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye, rot2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
+                                                            srblock
+      TYPE(dbcsr_distribution_type)                      :: dist
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      natom = SIZE(f0)
+      perm = .FALSE.
+      DO iatom = 1, natom
+         IF (f0(iatom) == iatom) CYCLE
+         perm = .TRUE.
+         EXIT
+      END DO
+
+      dorot = .FALSE.
+      IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
+      dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
+      IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
+      eye = 0.0_dp
+      eye(1, 1) = 1.0_dp
+      eye(2, 2) = 1.0_dp
+      eye(3, 3) = 1.0_dp
+      rot2(1:3, 1:3) = MATMUL(rot(1:3, 1:3), rot(1:3, 1:3))
+      phase_sign = 1.0_dp
+      ! Non-self-inverse rotations need the inverse Bloch phase convention used by K290.
+      IF (ANY(ABS(rot2(1:3, 1:3) - eye(1:3, 1:3)) > 1.e-8_dp)) phase_sign = -1.0_dp
+
+      has_phase = ANY(fcell /= 0) .OR. time_reversal
+
+      IF (.NOT. (dorot .OR. perm .OR. has_phase)) THEN
+         CALL dbcsr_copy(srpmat, rpmat)
+         IF (.NOT. real_only) CALL dbcsr_copy(scpmat, cpmat)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL dbcsr_get_info(rpmat, distribution=dist)
+      CALL dbcsr_distribution_get(dist, numnodes=numnodes)
+      IF (numnodes /= 1 .AND. (perm .OR. has_phase)) THEN
+         CALL cp_abort(__LOCATION__, "Reduced k-point grids with atom permutations or phases "// &
+                       "require local DBCSR matrices")
+      END IF
+
+      CALL dbcsr_set(srpmat, 0.0_dp)
+      IF (.NOT. real_only) CALL dbcsr_set(scpmat, 0.0_dp)
+
+      CALL dbcsr_iterator_start(iter, rpmat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
+
+         ikind = atype(irow)
+         jkind = atype(icol)
+         kroti => kmat(ikind)%rmat
+         krotj => kmat(jkind)%rmat
+
+         shift = fcell(1:3, icol) - fcell(1:3, irow)
+         arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
+         coskl = COS(twopi*arg)
+         sinkl = phase_sign*SIN(twopi*arg)
+         IF (real_only) THEN
+            IF (ABS(sinkl) > 1.e-12_dp) THEN
+               CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
+            END IF
+            rwork = coskl*rblock
+         ELSE
+            CALL dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
+            rwork = coskl*rblock
+            IF (time_reversal) THEN
+               cwork = -sinkl*rblock
+               IF (found) THEN
+                  rwork = rwork - sinkl*cblock
+                  cwork = cwork - coskl*cblock
+               END IF
+            ELSE
+               cwork = -sinkl*rblock
+               IF (found) THEN
+                  rwork = rwork + sinkl*cblock
+                  cwork = cwork + coskl*cblock
+               END IF
+            END IF
+         END IF
+
+         ip = f0(irow)
+         jp = f0(icol)
+         IF (ip <= jp) THEN
+            jrow = ip
+            jcol = jp
+            trans = .FALSE.
+         ELSE
+            jrow = jp
+            jcol = ip
+            trans = .TRUE.
+         END IF
+
+         CALL dbcsr_get_block_p(matrix=srpmat, row=jrow, col=jcol, block=srblock, found=found)
+         CPASSERT(found)
+         IF (trans) THEN
+            srblock = srblock + MATMUL(krotj, MATMUL(TRANSPOSE(rwork), TRANSPOSE(kroti)))
+         ELSE
+            srblock = srblock + MATMUL(kroti, MATMUL(rwork, TRANSPOSE(krotj)))
+         END IF
+
+         IF (.NOT. real_only) THEN
+            CALL dbcsr_get_block_p(matrix=scpmat, row=jrow, col=jcol, block=scblock, found=found)
+            CPASSERT(found)
+            IF (trans) THEN
+               scblock = scblock - MATMUL(krotj, MATMUL(TRANSPOSE(cwork), TRANSPOSE(kroti)))
+            ELSE
+               scblock = scblock + MATMUL(kroti, MATMUL(cwork, TRANSPOSE(krotj)))
+            END IF
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE symtrans_phase
 
 ! **************************************************************************************************
 !> \brief Symmetrization of density matrix - transform to new k-point

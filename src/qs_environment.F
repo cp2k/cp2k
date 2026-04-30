@@ -267,8 +267,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
-      LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
-         mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
+      LOGICAL :: do_admm_rpa, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, full_grid, &
+         inversion_symmetry_only, is_identical, is_semi, kpoint_symmetry, mp2_present, my_qmmm, &
+         qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -288,8 +289,8 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER :: dft_section, ec_hfx_section, ec_section, &
-         et_coupling_section, hfx_section, kpoint_section, mp2_section, rpa_hfx_section, &
-         transport_section
+         et_coupling_section, gw_section, hfx_section, kpoint_section, mp2_section, &
+         rpa_hfx_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
@@ -374,6 +375,30 @@ CONTAINS
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
          kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
          CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
+         do_hfx = .FALSE.
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+         CALL section_vals_get(hfx_section, explicit=do_hfx)
+         do_exx = .FALSE.
+         rpa_hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+         CALL section_vals_get(rpa_hfx_section, explicit=do_exx)
+         do_gw = .FALSE.
+         gw_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW")
+         CALL section_vals_get(gw_section, explicit=do_gw)
+         IF (.NOT. do_gw) THEN
+            gw_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BANDSTRUCTURE%GW")
+            CALL section_vals_get(gw_section, explicit=do_gw)
+         END IF
+         CALL get_kpoint_info(kpoints, symmetry=kpoint_symmetry, full_grid=full_grid, &
+                              inversion_symmetry_only=inversion_symmetry_only)
+         IF ((do_hfx .OR. do_exx .OR. do_gw .OR. method_id == do_method_dftb .OR. &
+              method_id == do_method_gapw .OR. method_id == do_method_gapw_xc .OR. &
+              method_id == do_method_lrigpw .OR. method_id == do_method_rigpw) .AND. &
+             kpoint_symmetry .AND. .NOT. full_grid .AND. .NOT. inversion_symmetry_only) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "Atomic k-point symmetry is currently not used with this method; "// &
+                         "restricting to inversion/time-reversal symmetry.")
+            kpoints%inversion_symmetry_only = .TRUE.
+         END IF
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
          dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
          CALL write_kpoint_info(kpoints, dft_section=dft_section)
