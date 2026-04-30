@@ -12,6 +12,7 @@
 MODULE cryssym
 
    USE bibliography,                    ONLY: Togo2018,&
+                                              Worlton1972,&
                                               cite_reference
    USE kinds,                           ONLY: dp
    USE kpsym,                           ONLY: group1s,&
@@ -448,6 +449,7 @@ CONTAINS
             "**                      Special K-Point Generation by K290                   **", &
             "*******************************************************************************"
       END IF
+      CALL cite_reference(Worlton1972)
 
       CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, istriz, &
                  a1, a2, a3, alat, strain, xkapa, rx, tvec, &
@@ -505,6 +507,7 @@ CONTAINS
             "**                     Special K-Point Generation by SPGLIB                 **", &
             "*******************************************************************************"
       END IF
+      CALL cite_reference(Togo2018)
 
       CALL setup_spglib_operations(csym, srot, nrot)
       CALL reduce_spglib_kpoint_mesh(csym, xkp, wkp, kpop, srot, nrot)
