@@ -243,7 +243,9 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GAPW_ACCURATE_XCINT", &
-         description="Use a more accurate integration scheme for the soft XC energy in GAPW.", &
+         description="Use a more accurate integration scheme for the soft XC energy in GAPW/GAPW_XC. "// &
+         "This opt-in mode is intended as the path towards making accurate XC integration "// &
+         "the GAPW default.", &
          usage="GAPW_ACCURATE_XCINT", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
