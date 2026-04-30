@@ -1749,9 +1749,8 @@ CONTAINS
                                                             numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
       LOGICAL                                            :: dorot, found, has_phase, perm, trans
-      REAL(KIND=dp)                                      :: arg, coskl, dr, phase_sign, sinkl
+      REAL(KIND=dp)                                      :: arg, coskl, dr, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye, rot2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
                                                             srblock
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -1771,15 +1770,6 @@ CONTAINS
       IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
       dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
       IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
-      eye = 0.0_dp
-      eye(1, 1) = 1.0_dp
-      eye(2, 2) = 1.0_dp
-      eye(3, 3) = 1.0_dp
-      rot2(1:3, 1:3) = MATMUL(rot(1:3, 1:3), rot(1:3, 1:3))
-      phase_sign = 1.0_dp
-      ! Non-self-inverse rotations need the inverse Bloch phase convention used by K290.
-      IF (ANY(ABS(rot2(1:3, 1:3) - eye(1:3, 1:3)) > 1.e-8_dp)) phase_sign = -1.0_dp
-
       has_phase = ANY(fcell /= 0) .OR. time_reversal
 
       IF (.NOT. (dorot .OR. perm .OR. has_phase)) THEN
@@ -1824,8 +1814,9 @@ CONTAINS
 
          shift = fcell(1:3, icol) - fcell(1:3, irow)
          arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
+         ! The Bloch phase depends only on the mapped atom-cell shifts and the target k-point.
          coskl = COS(twopi*arg)
-         sinkl = phase_sign*SIN(twopi*arg)
+         sinkl = SIN(twopi*arg)
          IF (real_only) THEN
             IF (ABS(sinkl) > 1.e-12_dp) THEN
                CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
