@@ -54,7 +54,9 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
+   USE input_cp2k_kpoints,              ONLY: use_k290_kpoint_backend,&
+                                              use_k290_kpoint_symmetry,&
+                                              use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -274,6 +276,17 @@ CONTAINS
          DEALLOCATE (agauge)
 
       CASE ("GENERAL")
+         IF (kpoint%symmetry) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "KPOINTS%SYMMETRY is not supported with SCHEME GENERAL; "// &
+                          "explicit k-points are used as supplied.")
+         END IF
+         IF (kpoint%symmetry_backend /= use_k290_kpoint_backend .OR. &
+             kpoint%symmetry_reduction_method /= use_k290_kpoint_symmetry) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "KPOINTS%SYMMETRY_BACKEND and SYMMETRY_REDUCTION_METHOD are ignored with "// &
+                         "SCHEME GENERAL; explicit k-points are used as supplied.")
+         END IF
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp
