@@ -829,7 +829,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho1_set_h, rho1_set_s, rho_set_h, &
                                                             rho_set_s
-      TYPE(tau_basis_cache_type)                         :: tau_basis_cache
 
 ! -------------------------------------------------------------------------
 
