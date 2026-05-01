@@ -1114,7 +1114,8 @@ MODULE input_constants
                                                large_cell_Gamma = 32, &
                                                G0W0 = 35, &
                                                evGW0 = 36, &
-                                               evGW = 37
+                                               evGW = 37, &
+                                               large_cell_Gamma_ri_rs = 38
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

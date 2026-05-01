@@ -65,7 +65,7 @@ MODULE gw_utils
                                               ri_rpa_g0w0_crossing_newton,&
                                               rtp_method_bse,&
                                               small_cell_full_kp,&
-                                              xc_none
+                                              xc_none, large_cell_Gamma_ri_rs
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -189,7 +189,7 @@ CONTAINS
       CALL create_tensors(qs_env, bs_env)
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma)
+      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
 
          CALL allocate_GW_eigenvalues(bs_env)
 
@@ -499,7 +499,7 @@ CONTAINS
                nkp_grid_extra(i_dim) = 1
             CASE (1)
                SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-               CASE (large_cell_Gamma)
+               CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
                   nkp_grid(i_dim) = 4
                   nkp_grid_extra(i_dim) = 6
                CASE (small_cell_full_kp)
@@ -1252,12 +1252,13 @@ CONTAINS
 
       CHARACTER(LEN=9)                                   :: frmt
       CHARACTER(len=default_path_length)                 :: f_chi, f_s_n, f_s_p, f_s_x, f_w_t, &
-                                                            prefix, project_name
+                                                            prefix, project_name, Z_lP_name
       INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
                                                             num_time_freq_points
       LOGICAL                                            :: chi_exists, Sigma_neg_time_exists, &
                                                             Sigma_pos_time_exists, &
-                                                            Sigma_x_spin_exists, W_time_exists
+                                                            Sigma_x_spin_exists, W_time_exists, &
+                                                            Z_lP_exists
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input, print_key
 
@@ -1334,6 +1335,13 @@ CONTAINS
          INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
          bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists
       END IF
+
+      ! Check for Restart Z_lP file
+      IF(bs_env%do_gw_ri_rs) THEN
+         WRITE (Z_lP_name, '(3A)') TRIM(prefix), "Z_lP", ".matrix"
+         INQUIRE (file=TRIM(Z_lP_name), exist=Z_lP_exists)
+         bs_env%ri_rs%Z_lP_exists = Z_lP_exists
+      ENDIF
 
       IF (bs_env%all_W_exist) THEN
          bs_env%read_chi(:) = .FALSE.
@@ -1681,6 +1689,14 @@ CONTAINS
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
          WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
             bs_env%input_memory_per_proc_GB, ' GB'
+         IF (bs_env%do_gw_ri_rs) THEN
+             WRITE (u, FMT="(T2,A,ES44.1)") " "
+             WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
+             WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
+                                              bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
+             WRITE (u, FMT="(T2,A,I42)") "INPUT: Chunk size for DBCSR matrices ", bs_env%ri_rs%chunk_size_dbcsr
+             WRITE (u, FMT="(T2,A,ES44.1)") " "
+         ENDIF
       END IF
 
       CALL timestop(handle)
@@ -1738,7 +1754,7 @@ CONTAINS
       energy_ex = energy%ex
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma)
+      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
 
          NULLIFY (mat_ks_without_v_xc)
          CALL dbcsr_allocate_matrix_set(mat_ks_without_v_xc, bs_env%n_spin)
@@ -1857,7 +1873,7 @@ CONTAINS
       DO ispin = 1, bs_env%n_spin
          homo = bs_env%n_occ(ispin)
          SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-         CASE (large_cell_Gamma)
+         CASE (large_cell_Gamma, large_cell_Gamma_ri_rs)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
             E_max_ispin = bs_env%eigenval_scf_Gamma(n_mo, ispin) - &
@@ -3317,7 +3333,7 @@ CONTAINS
 
          fname = "bandstructure_SCF_and_G0W0"
 
-         IF (ikp_for_print == 1) THEN
+         IF (ikp_for_print == 1 .AND. ispin == 1) THEN
             CALL open_file(TRIM(fname), unit_number=iunit, file_status="REPLACE", &
                            file_action="WRITE")
          ELSE
@@ -3326,8 +3342,8 @@ CONTAINS
          END IF
 
          WRITE (iunit, "(A)") " "
-         WRITE (iunit, "(A10,I7,A25,3F10.4)") "kpoint: ", ikp_for_print, "coordinate: ", &
-            bs_env%kpoints_DOS%xkp(:, ikp)
+         WRITE (iunit, "(A10,I7,A25,3F10.4,T90,A7,I2)") "kpoint: ", ikp_for_print, "coordinate: ", &
+            bs_env%kpoints_DOS%xkp(:, ikp), "spin: ", ispin
          WRITE (iunit, "(A)") " "
          WRITE (iunit, "(A5,A12,3A17,A16,A18)") "n", "k", "ϵ_nk^DFT (eV)", "Σ^c_nk (eV)", &
             "Σ^x_nk (eV)", "v_nk^xc (eV)", "ϵ_nk^G0W0 (eV)"

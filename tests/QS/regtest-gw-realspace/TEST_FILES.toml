@@ -1,0 +1,29 @@
+"01_RIRS_G0W0_PBE_H2O.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=608},
+                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-11.781},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=1.987},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=13.767}]
+
+"02_RIRS_G0W0_PBE0_H2O.inp"              = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-11.804},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=1.803},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=13.607}]
+
+"03_RIRS_G0W0_PBE0_O2.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=672},
+                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-12.490},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=1.289},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=18.086}]
+
+"04_RIRS_G0W0_GPW_PBE_H2O.inp"           = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-11.819},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=20.445},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=32.264}]
+
+"05_RIRS_G0W0_PBE_H2_DIMER.inp"          = [{matcher="RIRS_Grid", tol=1e-03, ref=544},
+                                          {matcher="RIRS_CUTOFF", tol=1e-03, ref=7},
+                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-15.734},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=3.128},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=18.862}]
+
+"06_RIRS_RESTART_G0W0_PBE_H2O.inp"       = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-19.482},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=0.537},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=20.019}]
+
+#EOF

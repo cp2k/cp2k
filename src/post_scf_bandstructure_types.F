@@ -15,6 +15,7 @@ MODULE post_scf_bandstructure_types
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_type,&
                                               dbcsr_release
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
@@ -55,12 +56,38 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: data_3
    END TYPE data_3_type
 
+   ! data types for GW RI-RS code
+   TYPE rirs_grid_type
+      INTEGER                    :: npts
+      REAL(KIND=dp), ALLOCATABLE :: raw_points(:,:)
+   END TYPE rirs_grid_type
+
+   TYPE ri_rs_env
+
+     ! Input parameters for RI-RS
+     INTEGER                                          :: grid_select = 1  
+     INTEGER                                          :: chunk_size_dbcsr = 256  
+     REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp 
+     REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
+     
+     ! Data types for building grid points
+     TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
+
+     ! Data types for storing RI-RS matrices
+     TYPE(dbcsr_type)                                 :: mat_phi_mu_l
+     TYPE(dbcsr_type)                                 :: mat_Z_lP
+     REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:,:)
+     LOGICAL                                          :: Z_lP_exists = .FALSE.
+
+   END TYPE ri_rs_env
+
    TYPE post_scf_bandstructure_type
 
       ! decide which calculations will be done
       LOGICAL                                         :: do_gw = .FALSE., &
                                                          do_soc = .FALSE., &
-                                                         do_ldos = .FALSE.
+                                                         do_ldos = .FALSE., &
+                                                         do_gw_ri_rs = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -78,6 +105,9 @@ MODULE post_scf_bandstructure_types
 
       ! parameters that influence the GW flavor
       LOGICAL                                         :: do_hedin_shift = .FALSE.
+
+      ! parameters for RI-RS implementation of GW
+      TYPE(ri_rs_env)                                 :: ri_rs
 
       ! general parameters on molecular orbitals and basis sets
       INTEGER                                      :: n_ao = -1, &
@@ -456,6 +486,12 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(2))
       CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(3))
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
+
+      ! Deallocate RI-RS matrices
+      IF(bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
+      IF(bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
+      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE(bs_env%ri_rs%grid_cache)
 
       DEALLOCATE (bs_env)
 

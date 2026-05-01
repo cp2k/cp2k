@@ -97,7 +97,10 @@ MODULE gw_large_cell_gamma
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
 
    PUBLIC :: gw_calc_large_cell_Gamma, &
-             compute_3c_integrals
+             compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
+             fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, &
+             multiply_fm_W_MIC_time_with_Minv_Gamma, &
+             get_W_MIC, compute_QP_energies
 
 CONTAINS
 
