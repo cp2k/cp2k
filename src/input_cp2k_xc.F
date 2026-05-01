@@ -1359,7 +1359,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="fine_grid_factor", &
-                          description="Factor by which the XC grid cutoff is increased when USE_FINER_GRID is active", &
+                          description="Factor by which the XC grid cutoff is increased when USE_FINER_GRID is active. "// &
+                          "The default preserves the historical finer XC grid. A value of 2.0 can be a useful "// &
+                          "first test for lowering the finer-grid cost.", &
                           usage="FINE_GRID_FACTOR 4.0", default_r_val=4.0_dp, &
                           variants=["FINE_XC_FACTOR"])
       CALL section_add_keyword(subsection, keyword)

@@ -112,7 +112,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, mspin, myfun, &
                                                             nelec_spin(2), vdw
       LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, rho_g_valid, &
-         sic_scaling_b_zero, tau_r_valid, uf_grid, vdW_nl
+         sic_scaling_b_zero, tau_g_valid, tau_r_valid, uf_grid, vdW_nl, weights_xc_allocated
       REAL(KIND=dp)                                      :: exc_m, factor, &
                                                             my_adiabatic_rescale_factor, &
                                                             my_scaling, nelec_s_inv
@@ -120,13 +120,15 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rho_m_gspace, rho_struct_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, tmp_g, tmp_g2
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rho_m_gspace, rho_struct_g, &
+                                                            tau_struct_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_xc, tmp_g, tmp_g2
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: my_vxc_rho, my_vxc_tau, rho_m_rspace, &
                                                             rho_r, rho_struct_r, tau, tau_struct_r
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, tmp_pw, weights
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, rho_nlcc_xc, tmp_pw, weights, &
+                                                            weights_xc
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -135,7 +137,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(vxc_tau))
       NULLIFY (dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &
                tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
-               rho_m_gspace, rho_nlcc, rho_nlcc_g, rho_struct_r, rho_struct_g, tau_struct_r)
+               rho_m_gspace, rho_nlcc, rho_nlcc_g, rho_nlcc_xc, rho_nlcc_g_xc, rho_struct_r, &
+               rho_struct_g, tau_struct_r, tau_struct_g, weights_xc)
+      weights_xc_allocated = .FALSE.
 
       exc = 0.0_dp
       my_just_energy = .FALSE.
@@ -158,10 +162,12 @@ CONTAINS
 
       CALL qs_rho_get(rho_struct, &
                       tau_r_valid=tau_r_valid, &
+                      tau_g_valid=tau_g_valid, &
                       rho_g_valid=rho_g_valid, &
                       rho_r=rho_struct_r, &
                       rho_g=rho_struct_g, &
-                      tau_r=tau_struct_r)
+                      tau_r=tau_struct_r, &
+                      tau_g=tau_struct_g)
 
       compute_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
       IF (compute_virial) THEN
@@ -229,6 +235,7 @@ CONTAINS
 
          IF (.NOT. uf_grid) THEN
             rho_r => rho_struct_r
+            weights_xc => weights
 
             IF (tau_r_valid) THEN
                tau => tau_struct_r
@@ -252,11 +259,37 @@ CONTAINS
                CALL pw_transfer(rho_g(ispin), rho_r(ispin))
             END DO
             IF (tau_r_valid) THEN
-               ! tau with finer grids is not implemented (at least not correctly), which this asserts
-               CPABORT("Tau (MGGA) with finer grids not implemented")
+               ALLOCATE (tau(mspin))
+               BLOCK
+                  TYPE(pw_c1d_gs_type) :: tau_g_xc, tau_g_aux
+                  CALL xc_pw_pool%create_pw(tau_g_xc)
+                  IF (.NOT. tau_g_valid) CALL auxbas_pw_pool%create_pw(tau_g_aux)
+                  DO ispin = 1, mspin
+                     IF (tau_g_valid) THEN
+                        CALL pw_transfer(tau_struct_g(ispin), tau_g_xc)
+                     ELSE
+                        CALL pw_transfer(tau_struct_r(ispin), tau_g_aux)
+                        CALL pw_transfer(tau_g_aux, tau_g_xc)
+                     END IF
+                     CALL xc_pw_pool%create_pw(tau(ispin))
+                     CALL pw_transfer(tau_g_xc, tau(ispin))
+                  END DO
+                  IF (.NOT. tau_g_valid) CALL auxbas_pw_pool%give_back_pw(tau_g_aux)
+                  CALL xc_pw_pool%give_back_pw(tau_g_xc)
+               END BLOCK
             END IF
             IF (ASSOCIATED(weights)) THEN
-               CPABORT("Accurate integration with finer grids not implemented")
+               ALLOCATE (weights_xc)
+               CALL xc_pw_pool%create_pw(weights_xc)
+               CALL transfer_rspace_to_xc_grid(weights, weights_xc, auxbas_pw_pool, xc_pw_pool)
+               weights_xc_allocated = .TRUE.
+            END IF
+            IF (ASSOCIATED(rho_nlcc)) THEN
+               ALLOCATE (rho_nlcc_xc, rho_nlcc_g_xc)
+               CALL xc_pw_pool%create_pw(rho_nlcc_g_xc)
+               CALL pw_transfer(rho_nlcc_g, rho_nlcc_g_xc)
+               CALL xc_pw_pool%create_pw(rho_nlcc_xc)
+               CALL pw_transfer(rho_nlcc_g_xc, rho_nlcc_xc)
             END IF
          END IF
 
@@ -264,8 +297,13 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+               IF (ASSOCIATED(rho_nlcc_xc)) THEN
+                  CALL pw_axpy(rho_nlcc_xc, rho_r(ispin), factor)
+                  CALL pw_axpy(rho_nlcc_g_xc, rho_g(ispin), factor)
+               ELSE
+                  CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+                  CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+               END IF
             END DO
          END IF
 
@@ -276,13 +314,13 @@ CONTAINS
          IF (my_just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, tau=tau, &
                               rho_g=rho_g, xc_section=xc_section, &
-                              weights=weights, pw_pool=xc_pw_pool)
+                              weights=weights_xc, pw_pool=xc_pw_pool)
 
          ELSE
             CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                   rho_g=rho_g, tau=tau, exc=exc, &
                                   xc_section=xc_section, &
-                                  weights=weights, pw_pool=xc_pw_pool, &
+                                  weights=weights_xc, pw_pool=xc_pw_pool, &
                                   compute_virial=compute_virial, &
                                   virial_xc=virial%pv_xc)
          END IF
@@ -291,8 +329,13 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+               IF (ASSOCIATED(rho_nlcc_xc)) THEN
+                  CALL pw_axpy(rho_nlcc_xc, rho_r(ispin), factor)
+                  CALL pw_axpy(rho_nlcc_g_xc, rho_g(ispin), factor)
+               ELSE
+                  CALL pw_axpy(rho_nlcc, rho_r(ispin), factor)
+                  CALL pw_axpy(rho_nlcc_g, rho_g(ispin), factor)
+               END IF
             END DO
          END IF
 
@@ -381,14 +424,14 @@ CONTAINS
             IF (my_just_energy) THEN
                exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
                                    rho_g=rho_m_gspace, xc_section=xc_section, &
-                                   weights=weights, pw_pool=xc_pw_pool)
+                                   weights=weights_xc, pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
                                      rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                      xc_section=xc_section, &
-                                     weights=weights, pw_pool=xc_pw_pool, &
+                                     weights=weights_xc, pw_pool=xc_pw_pool, &
                                      compute_virial=.FALSE., &
                                      virial_xc=virial_xc_tmp)
             END IF
@@ -442,14 +485,14 @@ CONTAINS
                IF (my_just_energy) THEN
                   exc_m = xc_exc_calc(rho_r=rho_m_rspace, tau=tau, &
                                       rho_g=rho_m_gspace, xc_section=xc_section, &
-                                      weights=weights, pw_pool=xc_pw_pool)
+                                      weights=weights_xc, pw_pool=xc_pw_pool)
                ELSE
                   ! virial untested
                   CPASSERT(.NOT. compute_virial)
                   CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_m_rspace, &
                                         rho_g=rho_m_gspace, tau=tau, exc=exc_m, &
                                         xc_section=xc_section, &
-                                        weights=weights, pw_pool=xc_pw_pool, &
+                                        weights=weights_xc, pw_pool=xc_pw_pool, &
                                         compute_virial=.FALSE., &
                                         virial_xc=virial_xc_tmp)
                END IF
@@ -488,14 +531,14 @@ CONTAINS
             IF (my_just_energy) THEN
                exc_m = xc_exc_calc(rho_r=rho_r, tau=tau, &
                                    rho_g=rho_g, xc_section=xc_section, &
-                                   weights=weights, pw_pool=xc_pw_pool)
+                                   weights=weights_xc, pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
                CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                      rho_g=rho_g, tau=tau, exc=exc_m, &
                                      xc_section=xc_section, &
-                                     weights=weights, pw_pool=xc_pw_pool, &
+                                     weights=weights_xc, pw_pool=xc_pw_pool, &
                                      compute_virial=.FALSE., &
                                      virial_xc=virial_xc_tmp)
             END IF
@@ -553,12 +596,52 @@ CONTAINS
             END DO
             DEALLOCATE (tau)
          END IF
+         IF (weights_xc_allocated) THEN
+            CALL xc_pw_pool%give_back_pw(weights_xc)
+            DEALLOCATE (weights_xc)
+            NULLIFY (weights_xc)
+            weights_xc_allocated = .FALSE.
+         END IF
+         IF (ASSOCIATED(rho_nlcc_xc)) THEN
+            CALL xc_pw_pool%give_back_pw(rho_nlcc_xc)
+            DEALLOCATE (rho_nlcc_xc)
+            NULLIFY (rho_nlcc_xc)
+         END IF
+         IF (ASSOCIATED(rho_nlcc_g_xc)) THEN
+            CALL xc_pw_pool%give_back_pw(rho_nlcc_g_xc)
+            DEALLOCATE (rho_nlcc_g_xc)
+            NULLIFY (rho_nlcc_g_xc)
+         END IF
 
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE qs_vxc_create
+
+! **************************************************************************************************
+!> \brief Transfer an auxiliary-grid real-space field to the finer XC grid.
+!> \param aux_field ...
+!> \param xc_field ...
+!> \param auxbas_pw_pool ...
+!> \param xc_pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE transfer_rspace_to_xc_grid(aux_field, xc_field, auxbas_pw_pool, xc_pw_pool)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: aux_field
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: xc_field
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+
+      TYPE(pw_c1d_gs_type)                               :: aux_g, xc_g
+
+      CALL auxbas_pw_pool%create_pw(aux_g)
+      CALL xc_pw_pool%create_pw(xc_g)
+      CALL pw_transfer(aux_field, aux_g)
+      CALL pw_transfer(aux_g, xc_g)
+      CALL pw_transfer(xc_g, xc_field)
+      CALL xc_pw_pool%give_back_pw(xc_g)
+      CALL auxbas_pw_pool%give_back_pw(aux_g)
+
+   END SUBROUTINE transfer_rspace_to_xc_grid
 
 ! **************************************************************************************************
 !> \brief calculates the XC density: E_xc(r) - V_xc(r)*rho(r)  or  E_xc(r)/rho(r)

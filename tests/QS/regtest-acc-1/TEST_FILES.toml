@@ -19,4 +19,5 @@
 #
 "F2.inp"                                = []
 "h2o.inp"                               = [{matcher="E_total", tol=1e-12, ref=-17.26044915752584}]
+"h2o_fine_xc.inp"                       = [{matcher="E_total", tol=1e-12, ref=-17.26044827166014}]
 #EOF
