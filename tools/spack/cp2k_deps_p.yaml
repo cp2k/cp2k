@@ -192,7 +192,7 @@ spack:
     - "fftw@3.3.11"
     - "greenx@2.2"
     - "hdf5@2.1.0"
-    - "libfabric@2.4.0"
+    - "libfabric@2.5.1"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
