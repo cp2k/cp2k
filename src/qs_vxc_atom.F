@@ -828,6 +828,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho1_set_h, rho1_set_s, rho_set_h, &
                                                             rho_set_s
+      TYPE(tau_basis_cache_type)                         :: tau_basis_cache
 
 ! -------------------------------------------------------------------------
 
@@ -960,6 +961,7 @@ CONTAINS
          vxc_s = 0.0_dp
 
          IF (tau_f) THEN
+            CALL create_tau_basis_cache(tau_basis_cache, grid_atom, basis_1c, harmonics)
             ALLOCATE (tau_h(1:na, 1:nr, 1:nspins), tau1_h(1:na, 1:nr, 1:nspins), &
                       tau_s(1:na, 1:nr, 1:nspins), tau1_s(1:na, 1:nr, 1:nspins))
             ALLOCATE (vtau_h(1:na, 1:nr, 1:nspins), vtau_s(1:na, 1:nr, 1:nspins))
@@ -1026,8 +1028,8 @@ CONTAINS
                                      drho1_h, drho1_s)
             END DO
             IF (tau_f) THEN
-               CALL calc_tau_atom(tau_h, tau_s, rho_atom, my_kind_set(ikind), nspins)
-               CALL calc_tau_atom(tau1_h, tau1_s, rho1_atom, my_kind_set(ikind), nspins)
+               CALL calc_tau_atom(tau_h, tau_s, rho_atom, tau_basis_cache, nspins)
+               CALL calc_tau_atom(tau1_h, tau1_s, rho1_atom, tau_basis_cache, nspins)
             END IF
             IF (scale_rho) THEN
                rho_h = 2.0_dp*rho_h
@@ -1082,7 +1084,7 @@ CONTAINS
             END IF
             IF (tau_f) THEN
                CALL dgaVtaudgb(vtau_h, vtau_s, int_hh, int_ss, &
-                               grid_atom, basis_1c, harmonics, nspins)
+                               tau_basis_cache, nspins)
             END IF
 
             NULLIFY (r_h, r_s, dr_h, dr_s)
@@ -1096,6 +1098,7 @@ CONTAINS
          IF (tau_f) THEN
             DEALLOCATE (tau_h, tau_s, tau1_h, tau1_s)
             DEALLOCATE (vtau_h, vtau_s)
+            CALL release_tau_basis_cache(tau_basis_cache)
          END IF
 
          CALL xc_dset_release(deriv_set)
