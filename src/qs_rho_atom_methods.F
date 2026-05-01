@@ -446,6 +446,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: dista, distab, distb, found, paw_atom
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: has_intac, paw_kind
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: proj_work1, proj_work2
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: p_matrix
       REAL(KIND=dp)                                      :: eps_cpc, factor, pmax
       REAL(KIND=dp), DIMENSION(3)                        :: rab
@@ -557,7 +558,8 @@ CONTAINS
 !$OMP                 , paw_kind, nsatbas_kind, has_intac &
 !$OMP                 )                                   &
 !$OMP          PRIVATE( p_block_spin, ispin               &
-!$OMP                 , p_matrix, mepos                   &
+!$OMP                 , p_matrix, proj_work1, proj_work2  &
+!$OMP                 , mepos                             &
 !$OMP                 , ikind, jkind, iatom, jatom        &
 !$OMP                 , cell_b, rab                       &
 !$OMP                 , basis_set_a, basis_set_b          &
@@ -575,6 +577,7 @@ CONTAINS
 
       ALLOCATE (p_block_spin(nspins))
       ALLOCATE (p_matrix(max_nsgf, max_nsgf))
+      ALLOCATE (proj_work1(len_PC1), proj_work2(len_CPC))
 
 !$OMP SINGLE
 !$    number_of_locks = nspins*natom
@@ -698,12 +701,12 @@ CONTAINS
                            CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
-                                         len_PC1, len_CPC, factor, distab)
+                                         len_PC1, len_CPC, factor, distab, proj_work1, proj_work2)
                         ELSE
                            CALL proj_blk(C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                          C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
-                                         len_PC1, len_CPC, factor, distab)
+                                         len_PC1, len_CPC, factor, distab, proj_work1, proj_work2)
                         END IF
 !$                      CALL omp_unset_lock(locks((katom - 1)*nspins + ispin))
 
@@ -726,7 +729,7 @@ CONTAINS
 !$    DEALLOCATE (locks)
 !$OMP END SINGLE NOWAIT
 
-      DEALLOCATE (p_block_spin, p_matrix)
+      DEALLOCATE (p_block_spin, p_matrix, proj_work1, proj_work2)
 !$OMP END PARALLEL
 
       CALL neighbor_list_iterator_release(nl_iterator)

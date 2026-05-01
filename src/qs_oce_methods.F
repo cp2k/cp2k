@@ -791,11 +791,15 @@ CONTAINS
 !> \param len2 ...
 !> \param fac ...
 !> \param distab ...
+!> \param work1 ...
+!> \param work2 ...
 !> \par History
 !>      02.2009 created
 !>      09.2016 use automatic arrays [M Tucker]
+!>      05.2026 move work arrays to callers
 ! **************************************************************************************************
-   SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, len1, len2, fac, distab)
+   SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, len1, len2, fac, distab, &
+                       work1, work2)
 
       INTEGER, INTENT(IN)                                :: na
       REAL(KIND=dp), INTENT(IN)                          :: s_a(na, *), h_a(na, *)
@@ -808,8 +812,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: len1, len2
       REAL(KIND=dp), INTENT(IN)                          :: fac
       LOGICAL, INTENT(IN)                                :: distab
-
-      REAL(KIND=dp)                                      :: buf1(len1), buf2(len2)
+      REAL(KIND=dp), INTENT(INOUT)                       :: work1(len1), work2(len2)
 
       IF (na == 0 .OR. nb == 0 .OR. nso == 0) RETURN
 
@@ -822,18 +825,18 @@ CONTAINS
       ELSE
          IF (distab) THEN
             ! hard
-            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, buf1(1), na)
-            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, buf1(1), na, 0.0_dp, buf2(1), nso)
-            CALL daxpy(nso*nso, 1.0_dp, buf2(1), 1, proj_h(1, 1), 1)
+            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, work1(1), na)
+            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, work1(1), na, 0.0_dp, work2(1), nso)
+            CALL daxpy(nso*nso, 1.0_dp, work2(1), 1, proj_h(1, 1), 1)
             ! soft
-            CALL daxpy(nso*nso, 1.0_dp, buf2(1), 1, proj_s(1, 1), 1)
+            CALL daxpy(nso*nso, 1.0_dp, work2(1), 1, proj_s(1, 1), 1)
          ELSE
             ! hard
-            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, buf1(1), na)
-            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, buf1(1), na, 1.0_dp, proj_h(1, 1), nso)
+            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, work1(1), na)
+            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, work1(1), na, 1.0_dp, proj_h(1, 1), nso)
             ! soft
-            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, s_b(1, 1), nb, 0.0_dp, buf1(1), na)
-            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, s_a(1, 1), na, buf1(1), na, 1.0_dp, proj_s(1, 1), nso)
+            CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, s_b(1, 1), nb, 0.0_dp, work1(1), na)
+            CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, s_a(1, 1), na, work1(1), na, 1.0_dp, proj_s(1, 1), nso)
          END IF
       END IF
 
