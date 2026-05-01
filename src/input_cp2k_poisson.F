@@ -140,7 +140,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Specifies the directions in which periodic boundary conditions apply to electrostatics. "// &
                           "See the CELL section for the periodicity used by geometry and pair lists; "// &
-                          "the settings are usually the same.", &
+                          "the settings are usually the same. If not specified, this keyword defaults to "// &
+                          "the CELL periodicity where available.", &
                           usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)", &
                           enum_c_vals=s2a("x", "y", "z", "xy", "xz", "yz", "xyz", "none"), &
                           enum_i_vals=[use_perd_x, use_perd_y, use_perd_z, &

@@ -42,6 +42,7 @@
 "H2O_wavelet_free.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.59417144640717}]
 "H2O_wavelet_free2.inp"                 = [{matcher="E_total", tol=4e-13, ref=-16.58217277110943}]
 "H2O_wavelet_XY.inp"                    = [{matcher="E_total", tol=3e-14, ref=-16.59433276616355}]
+"H2O_wavelet_XY_default.inp"            = [{matcher="E_total", tol=3e-14, ref=-16.59433276616355}]
 "H2O_wavelet_XZ.inp"                    = [{matcher="E_total", tol=3e-14, ref=-16.59433276616355}]
 "H2O_wavelet_YZ.inp"                    = [{matcher="E_total", tol=3e-14, ref=-16.59433276616355}]
 #function to compute splined values - distributed grids
