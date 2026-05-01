@@ -65,6 +65,7 @@ MODULE cp_fm_diag
                     dp
    USE machine, ONLY: default_output_unit, &
                       m_memory
+   USE parallel_gemm_api, ONLY: parallel_gemm
 #if defined (__parallel)
    USE message_passing, ONLY: mp_comm_type
 #endif
@@ -459,8 +460,8 @@ CONTAINS
       nrow = eigenvectors%matrix_struct%nrow_global
       ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
 
-      CALL cp_fm_gemm("N", "N", nrow, ncol, nrow, 1.0_dp, overlap, eigenvectors, 0.0_dp, scratch)
-      CALL cp_fm_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, eigenvectors, scratch, 0.0_dp, overlap)
+      CALL parallel_gemm("N", "N", nrow, ncol, nrow, 1.0_dp, overlap, eigenvectors, 0.0_dp, scratch)
+      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, eigenvectors, scratch, 0.0_dp, overlap)
 
       gold = 0.0_dp
       test = 0.0_dp
