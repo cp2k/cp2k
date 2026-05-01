@@ -723,7 +723,13 @@ CONTAINS
                   CALL get_qs_env(qs_env, admm_env=admm_env)
                   xc_section => admm_env%xc_section_aux
                   CALL get_admm_env(admm_env, rho_aux_fit=rho_struct)
-                  CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
+                  vscale = 1.0_dp
+                  IF (admm_env%do_admmp) THEN
+                     vscale = admm_env%gsi(1)**2
+                  ELSE IF (admm_env%do_admms) THEN
+                     vscale = admm_env%gsi(1)**(2.0_dp/3.0_dp)
+                  END IF
+                  CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section, force_scale=vscale)
                END IF
             END IF
          END IF

@@ -32,7 +32,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 180
+      CUTOFF 120
       REL_CUTOFF 40
     &END MGRID
     &POISSON

@@ -73,13 +73,15 @@ CONTAINS
 !> \param order ...
 !> \param xc_section ...
 !> \param triplet ...
+!> \param force_scale ...
 ! **************************************************************************************************
-   SUBROUTINE accint_weight_force(qs_env, rho, rho1, order, xc_section, triplet)
+   SUBROUTINE accint_weight_force(qs_env, rho, rho1, order, xc_section, triplet, force_scale)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: triplet
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: force_scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'accint_weight_force'
 
@@ -87,6 +89,7 @@ CONTAINS
                                                             natom_of_kind, nkind
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: lr_triplet, uf_grid, use_virial
+      REAL(KIND=dp)                                      :: my_force_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: calpha, cvalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aforce
       REAL(KIND=dp), DIMENSION(3, 3)                     :: avirial
@@ -125,6 +128,8 @@ CONTAINS
 
          lr_triplet = .FALSE.
          IF (PRESENT(triplet)) lr_triplet = triplet
+         my_force_scale = 1.0_dp
+         IF (PRESENT(force_scale)) my_force_scale = force_scale
 
          CALL xc_density(ks_env, rho, rho1, order, xc_section, lr_triplet, e_rspace)
 
@@ -160,12 +165,12 @@ CONTAINS
             DO iatom = 1, natom_of_kind
                atom_a = atom_list(iatom)
                force(ikind)%rho_elec(1:3, iatom) = &
-                  force(ikind)%rho_elec(1:3, iatom) + aforce(1:3, atom_a)
+                  force(ikind)%rho_elec(1:3, iatom) + my_force_scale*aforce(1:3, atom_a)
             END DO
          END DO
          IF (use_virial) THEN
-            virial%pv_exc = virial%pv_exc + avirial
-            virial%pv_virial = virial%pv_virial + avirial
+            virial%pv_exc = virial%pv_exc + my_force_scale*avirial
+            virial%pv_virial = virial%pv_virial + my_force_scale*avirial
          END IF
 
          DEALLOCATE (aforce, calpha, cvalue)

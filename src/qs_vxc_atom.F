@@ -824,11 +824,11 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r1_h_d, r1_s_d, r_h_d, r_s_d
       TYPE(rho_atom_type), POINTER                       :: rho1_atom, rho_atom
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section
+      TYPE(tau_basis_cache_type)                         :: tau_basis_cache
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho1_set_h, rho1_set_s, rho_set_h, &
                                                             rho_set_s
-      TYPE(tau_basis_cache_type)                         :: tau_basis_cache
 
 ! -------------------------------------------------------------------------
 
