@@ -47,7 +47,13 @@ MODULE gopt_f_methods
                               default_minimization_method_id, &
                               default_shellcore_method_id, &
                               default_ts_method_id, &
-                              fix_none
+                              fix_none, &
+                              fix_x, &
+                              fix_xy, &
+                              fix_xz, &
+                              fix_y, &
+                              fix_yz, &
+                              fix_z
    USE input_cp2k_restarts, ONLY: write_restart
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get
@@ -61,7 +67,8 @@ MODULE gopt_f_methods
                            write_stress_tensor_to_file, &
                            write_trajectory
    USE particle_list_types, ONLY: particle_list_type
-   USE particle_methods, ONLY: write_structure_data
+   USE particle_methods, ONLY: write_final_cif, &
+                               write_structure_data
    USE particle_types, ONLY: particle_type
    USE qmmm_util, ONLY: apply_qmmm_translate
    USE qmmmx_util, ONLY: apply_qmmmx_translate
@@ -857,6 +864,9 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
+      CHARACTER(LEN=4)                                   :: constraint_label
+      LOGICAL                                            :: keep_angles, keep_symmetry, &
+                                                            keep_volume
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -866,6 +876,39 @@ CONTAINS
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL cp_subsys_get(subsys=subsys, particles=particles)
       particle_set => particles%els
+
+      ! Passing gopt_f_type pointer gopt_env to particle_methods where
+      ! write_final_cif is defined causes a circular dependency, so it
+      ! is necessary to get some flags by preprocessing...
+      keep_angles = .TRUE.
+      keep_symmetry = .TRUE.
+      keep_volume = .TRUE.
+      constraint_label = "NONE"
+      IF (gopt_env%type_id == default_cell_method_id) THEN
+         keep_angles = gopt_env%cell_env%keep_angles
+         keep_symmetry = gopt_env%cell_env%keep_symmetry
+         keep_volume = gopt_env%cell_env%keep_volume
+         SELECT CASE (gopt_env%cell_env%constraint_id)
+         CASE (fix_x)
+            constraint_label = "   X"
+         CASE (fix_y)
+            constraint_label = "   Y"
+         CASE (fix_z)
+            constraint_label = "   Z"
+         CASE (fix_xy)
+            constraint_label = "  XY"
+         CASE (fix_xz)
+            constraint_label = "  XZ"
+         CASE (fix_yz)
+            constraint_label = "  YZ"
+         CASE (fix_none)
+            constraint_label = "NONE"
+         END SELECT
+      END IF
+      CALL write_final_cif(particle_set, cell, motion_section, conv, &
+                           keep_angles, keep_symmetry, keep_volume, &
+                           gopt_env%label, constraint_label)
+
       IF (conv) THEN
          it = it + 1
          CALL write_structure_data(particle_set, cell, motion_section)

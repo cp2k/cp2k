@@ -144,6 +144,16 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_CIF", &
+                                       description="Controls the dumping of a CIF containing "// &
+                                       "the final geometry and cell for optimization tasks. "// &
+                                       "Currently the structure will always be dumped with "// &
+                                       "the space group `P 1` and a single symmetry-equivalent "// &
+                                       "position `x, y, z` for all of the atoms.", &
+                                       print_level=low_print_level, filename="FINAL")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, "FORCE_MIXING_LABELS", &
          description="Controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels", &
