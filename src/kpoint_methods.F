@@ -230,13 +230,13 @@ CONTAINS
                         nr = nr + 1
                         ir = crys_sym%kpop(is)
                         ira = ABS(ir)
-                        kpsym%rotp(nr) = ir
-                        kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ira)
-                        srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ira), cell%hmat))
-                        frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                        kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
                         DO ic = 1, crys_sym%nrtot
                            IF (crys_sym%ibrot(ic) == ira) THEN
+                              kpsym%rotp(nr) = ir
+                              kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                              kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
                               kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
                               DO j = 1, natom
                                  srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
@@ -248,6 +248,7 @@ CONTAINS
                               EXIT
                            END IF
                         END DO
+                        CPASSERT(ic <= crys_sym%nrtot)
                      END IF
                   END DO
                   ! Reduce inversion?

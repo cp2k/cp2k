@@ -513,10 +513,10 @@ CONTAINS
       IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
       IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
       ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc))
-      csym%rt(1:3, 1:3, 1:nc) = r(1:3, 1:3, 1:nc)
       csym%vt(1:3, 1:nc) = vt(1:3, 1:nc)
       ALLOCATE (csym%f0(nat, nc))
       DO i = 1, nc
+         csym%rt(1:3, 1:3, i) = r(1:3, 1:3, ib(i))
          csym%f0(1:nat, i) = f0(i, 1:nat)
       END DO
       csym%ibrot(1:nc) = ib(1:nc)

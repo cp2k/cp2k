@@ -743,6 +743,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
+      MARK_USED(do_gw)
+      MARK_USED(do_mp2)
+
       IF (do_bse) THEN
          reason = "BSE"
          RETURN
@@ -753,14 +756,6 @@ CONTAINS
       END IF
       IF (do_linear_response) THEN
          reason = "LINEAR_RESPONSE/DFPT"
-         RETURN
-      END IF
-      IF (do_gw) THEN
-         reason = "GW"
-         RETURN
-      END IF
-      IF (do_mp2) THEN
-         reason = "MP2/SOS-MP2"
          RETURN
       END IF
       IF (do_xtb_tblite) THEN
@@ -810,10 +805,19 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
-      MARK_USED(do_hfx)
-      MARK_USED(do_exx)
 
       SELECT CASE (method_id)
+      CASE (do_method_dftb)
+         reason = "DFTB"
+      CASE (do_method_lrigpw)
+         reason = "LRIGPW"
+      CASE (do_method_rigpw)
+         reason = "RIGPW"
+      CASE (do_method_xtb)
+         reason = "xTB"
+      CASE (do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
+            do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_pnnl)
+         reason = "semiempirical methods"
       CASE DEFAULT
          reason = ""
       END SELECT
@@ -823,6 +827,8 @@ CONTAINS
          reason = "BSE"
       ELSE IF (do_gw) THEN
          reason = "GW"
+      ELSE IF (do_hfx .OR. do_exx) THEN
+         reason = "HFX/HF"
       ELSE IF (do_xtb_tblite) THEN
          reason = "tblite xTB"
       ELSE IF (do_tddfpt) THEN
