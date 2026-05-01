@@ -14,7 +14,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 200
+      CUTOFF 120
       NGRIDS 4
       REL_CUTOFF 40
     &END MGRID
