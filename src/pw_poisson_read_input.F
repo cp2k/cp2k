@@ -51,19 +51,16 @@ CONTAINS
 !> \brief Reads the POISSON input-section and into pw_poisson_parameter_type.
 !> \param poisson_section ...
 !> \param params ...
-!> \param default_periodic ...
 !> \par History
 !>      01.2014 Code moved into separate module from pw_poisson_types,
 !>              pw_poisson_methods and ps_wavelet_types.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE pw_poisson_read_parameters(poisson_section, params, default_periodic)
+   SUBROUTINE pw_poisson_read_parameters(poisson_section, params)
       TYPE(section_vals_type), POINTER                   :: poisson_section
       TYPE(pw_poisson_parameter_type), INTENT(INOUT)     :: params
-      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: default_periodic
 
       INTEGER                                            :: periodic
-      LOGICAL                                            :: periodic_explicit
       TYPE(section_vals_type), POINTER                   :: mt_section, wavelet_section
 
       NULLIFY (mt_section, wavelet_section)
@@ -72,10 +69,7 @@ CONTAINS
 
       ! Decoding PERIODIC depending on chosen solver,
       ! because not all solvers support every possible periodicity
-      CALL section_vals_val_get(poisson_section, "PERIODIC", i_val=periodic, explicit=periodic_explicit)
-      IF ((.NOT. periodic_explicit) .AND. PRESENT(default_periodic)) THEN
-         periodic = encode_periodic(default_periodic)
-      END IF
+      CALL section_vals_val_get(poisson_section, "PERIODIC", i_val=periodic)
       SELECT CASE (params%solver)
       CASE (pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
             pw_poisson_implicit)
@@ -103,38 +97,6 @@ CONTAINS
       CALL ps_implicit_read_parameters(poisson_section, params)
 
    END SUBROUTINE pw_poisson_read_parameters
-
-! **************************************************************************************************
-!> \brief Encodes a periodicity mask as an input keyword enum.
-!> \param periodic_mask ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION encode_periodic(periodic_mask) RESULT(periodic)
-
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: periodic_mask
-      INTEGER                                            :: periodic
-
-      IF (ALL(periodic_mask == [1, 0, 0])) THEN
-         periodic = use_perd_x
-      ELSE IF (ALL(periodic_mask == [0, 1, 0])) THEN
-         periodic = use_perd_y
-      ELSE IF (ALL(periodic_mask == [0, 0, 1])) THEN
-         periodic = use_perd_z
-      ELSE IF (ALL(periodic_mask == [1, 1, 0])) THEN
-         periodic = use_perd_xy
-      ELSE IF (ALL(periodic_mask == [1, 0, 1])) THEN
-         periodic = use_perd_xz
-      ELSE IF (ALL(periodic_mask == [0, 1, 1])) THEN
-         periodic = use_perd_yz
-      ELSE IF (ALL(periodic_mask == [1, 1, 1])) THEN
-         periodic = use_perd_xyz
-      ELSE IF (ALL(periodic_mask == [0, 0, 0])) THEN
-         periodic = use_perd_none
-      ELSE
-         CPABORT("Invalid periodicity")
-      END IF
-
-   END FUNCTION encode_periodic
 
 ! **************************************************************************************************
 !> \brief Helper routien for pw_poisson_read_parameters

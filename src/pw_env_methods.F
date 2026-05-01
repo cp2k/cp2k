@@ -500,7 +500,7 @@ CONTAINS
       END IF
       ! poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
 
-      CALL pw_poisson_read_parameters(poisson_section, poisson_params, default_periodic=my_cell%perd)
+      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
       CALL pw_poisson_set(pw_env%poisson_env, cell_hmat=my_cell%hmat, pw_pools=pw_env%pw_pools, &
                           parameters=poisson_params, mt_super_ref_pw_grid=mt_super_ref_grid, &
                           dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
@@ -515,7 +515,7 @@ CONTAINS
             CALL pw_grid_change(cell%hmat, pw_pools(igrid_level)%pool%pw_grid)
          END DO
          IF (set_vdw_pool) CALL pw_grid_change(cell%hmat, pw_env%vdw_pw_pool%pw_grid)
-         CALL pw_poisson_read_parameters(poisson_section, poisson_params, default_periodic=cell%perd)
+         CALL pw_poisson_read_parameters(poisson_section, poisson_params)
          CALL pw_poisson_set(pw_env%poisson_env, cell_hmat=cell%hmat, pw_pools=pw_env%pw_pools, &
                              parameters=poisson_params, mt_super_ref_pw_grid=mt_super_ref_grid, &
                              dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
