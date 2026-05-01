@@ -711,11 +711,11 @@ CONTAINS
       ALLOCATE (sbuf(MAX(nsend, 1)), rbuf(MAX(nrecv, 1)))
       ALLOCATE (coord_sbuf(MAX(3*nsend, 1)), coord_rbuf(MAX(3*nrecv, 1)))
       ALLOCATE (coord_scount(nproc), coord_sdispl(nproc), coord_rcount(nproc), coord_rdispl(nproc))
-      coord_scount = 3*scount
-      coord_rcount = 3*rcount
-      coord_sdispl = 3*sdispl
-      coord_rdispl = 3*rdispl
-      send_pos = sdispl + 1
+      coord_scount(:) = 3*scount(:)
+      coord_rcount(:) = 3*rcount(:)
+      coord_sdispl(:) = 3*sdispl(:)
+      coord_rdispl(:) = 3*rdispl(:)
+      send_pos(:) = sdispl(:) + 1
 
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
@@ -807,11 +807,11 @@ CONTAINS
       ALLOCATE (sbuf(MAX(nsend, 1)), rbuf(MAX(nrecv, 1)))
       ALLOCATE (coord_sbuf(MAX(3*nsend, 1)), coord_rbuf(MAX(3*nrecv, 1)))
       ALLOCATE (coord_scount(nproc), coord_sdispl(nproc), coord_rcount(nproc), coord_rdispl(nproc))
-      coord_scount = 3*scount
-      coord_rcount = 3*rcount
-      coord_sdispl = 3*sdispl
-      coord_rdispl = 3*rdispl
-      send_pos = sdispl + 1
+      coord_scount(:) = 3*scount(:)
+      coord_rcount(:) = 3*rcount(:)
+      coord_sdispl(:) = 3*sdispl(:)
+      coord_rdispl(:) = 3*rdispl(:)
+      send_pos(:) = sdispl(:) + 1
 
       DO k = z_start, z_end
          DO j = 1, n2
