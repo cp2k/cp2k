@@ -635,8 +635,12 @@ CONTAINS
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                   "POISSON| Periodicity", "NONE"
             CASE (WAVELET2D)
+               string = ""
+               IF (poisson_params%periodic(1) == 1) string = TRIM(string)//"X"
+               IF (poisson_params%periodic(2) == 1) string = TRIM(string)//"Y"
+               IF (poisson_params%periodic(3) == 1) string = TRIM(string)//"Z"
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
-                  "POISSON| Periodicity", "XZ"
+                  "POISSON| Periodicity", ADJUSTR(string)
             CASE (WAVELET3D)
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                   "POISSON| Periodicity", "XYZ"
