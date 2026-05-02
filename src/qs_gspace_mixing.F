@@ -336,25 +336,6 @@ CONTAINS
 
       ALLOCATE (cc_mix(ng))
 
-      IF (nspin == 2) THEN
-         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
-         DO ig = 1, ng
-            mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
-         END DO
-         IF (gapw .AND. mixing_store%gmix_p) THEN
-            DO iatom = 1, natom
-               IF (mixing_store%paw(iatom)) THEN
-                  rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
-                  rho_atom(iatom)%cpc_s(2)%r_coef = rho_atom(iatom)%cpc_s(1)%r_coef - rho_atom(iatom)%cpc_s(2)%r_coef
-                  mixing_store%cpc_h_in(iatom, 2)%r_coef = mixing_store%cpc_h_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_h_in(iatom, 2)%r_coef
-                  mixing_store%cpc_s_in(iatom, 2)%r_coef = mixing_store%cpc_s_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_s_in(iatom, 2)%r_coef
-               END IF
-            END DO
-         END IF
-      END IF
-
       DO ispin = 1, nspin
          ! Select spin-channel-specific mixing parameters
          IF (ispin >= 2 .AND. nspin >= 2) THEN
@@ -543,26 +524,6 @@ CONTAINS
 
       DEALLOCATE (cc_mix)
 
-      IF (nspin == 2) THEN
-         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
-         DO ig = 1, ng
-            mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
-         END DO
-         IF (gapw .AND. mixing_store%gmix_p) THEN
-            DO iatom = 1, natom
-               IF (mixing_store%paw(iatom)) THEN
-                  rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
-                  rho_atom(iatom)%cpc_s(2)%r_coef = rho_atom(iatom)%cpc_s(1)%r_coef - rho_atom(iatom)%cpc_s(2)%r_coef
-                  mixing_store%cpc_h_in(iatom, 2)%r_coef = mixing_store%cpc_h_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_h_in(iatom, 2)%r_coef
-                  mixing_store%cpc_s_in(iatom, 2)%r_coef = mixing_store%cpc_s_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_s_in(iatom, 2)%r_coef
-               END IF
-            END DO
-         END IF
-
-      END IF
-
       CALL timestop(handle)
 
    END SUBROUTINE pulay_mixing
@@ -639,25 +600,6 @@ CONTAINS
          natom = SIZE(rho_atom)
       ELSE
          natom = 0
-      END IF
-
-      IF (nspin == 2) THEN
-         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
-         DO ig = 1, ng
-            mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
-         END DO
-         IF (gapw .AND. mixing_store%gmix_p) THEN
-            DO iatom = 1, natom
-               IF (mixing_store%paw(iatom)) THEN
-                  rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
-                  rho_atom(iatom)%cpc_s(2)%r_coef = rho_atom(iatom)%cpc_s(1)%r_coef - rho_atom(iatom)%cpc_s(2)%r_coef
-                  mixing_store%cpc_h_in(iatom, 2)%r_coef = mixing_store%cpc_h_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_h_in(iatom, 2)%r_coef
-                  mixing_store%cpc_s_in(iatom, 2)%r_coef = mixing_store%cpc_s_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_s_in(iatom, 2)%r_coef
-               END IF
-            END DO
-         END IF
       END IF
 
       DO ispin = 1, nspin
@@ -876,25 +818,6 @@ CONTAINS
          END IF
 
       END DO ! ispin
-      IF (nspin == 2) THEN
-         CALL pw_axpy(rho_g(1), rho_g(2), 1.0_dp, -1.0_dp)
-         DO ig = 1, ng
-            mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
-         END DO
-         IF (gapw .AND. mixing_store%gmix_p) THEN
-            DO iatom = 1, natom
-               IF (mixing_store%paw(iatom)) THEN
-                  rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
-                  rho_atom(iatom)%cpc_s(2)%r_coef = rho_atom(iatom)%cpc_s(1)%r_coef - rho_atom(iatom)%cpc_s(2)%r_coef
-                  mixing_store%cpc_h_in(iatom, 2)%r_coef = mixing_store%cpc_h_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_h_in(iatom, 2)%r_coef
-                  mixing_store%cpc_s_in(iatom, 2)%r_coef = mixing_store%cpc_s_in(iatom, 1)%r_coef - &
-                                                           mixing_store%cpc_s_in(iatom, 2)%r_coef
-               END IF
-            END DO
-         END IF
-
-      END IF
 
       DEALLOCATE (res_rho)
 
