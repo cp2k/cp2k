@@ -21,7 +21,7 @@ used to move towards making accurate XC integration the GAPW default in a future
 | TDDFPT forces              | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                     |
 | ADMM-GAPW TDDFPT response  | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                         |
 | XAS/RT response            | XAS_TDP and RTBSE coverage in `regtest-xastdp` and `regtest-rtbse`            | open-shell GAPW XAS_TDP and GAPW RTBSE smoke tests in `regtest-acc-3`                                                |
-| KG embedding               | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG and RI embedding                                                  |
+| KG embedding               | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG, meta-GGA/tau KG, and RI embedding                                |
 | KG atomic potential        | `regtest-kg/H2_KG-1.inp`                                                      | GAPW/GAPW_XC energy and stress checks for `TNADD_METHOD ATOMIC`                                                      |
 
 The new tests intentionally compare explicit reference energies, force-debug quantities, or
@@ -58,8 +58,9 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 - Fine-XC forces and diagonal stress: `regtest-acc-1/h2o-fine-tpss-force-1.inp`,
   `regtest-acc-1/h2o-fine-tpss-stress-debug-1.inp`, `regtest-acc-5/ft3_fine.inp`.
 - KG GAPW/GAPW_XC stress smoke checks: `regtest-kg/H2-libxc-gapw-stress.inp`,
-  `H2-libxc-gapw_xc-stress.inp`, `H2_KG-1-gapw-stress.inp`, `H2_KG-1-gapw_xc-stress.inp`,
-  `H2_H2O-kglri-gapw-stress.inp`, `H2_H2O-kglri-gapw_xc-stress.inp`.
+  `H2-libxc-gapw_xc-stress.inp`, `H2-kg-mgga-gapw-stress.inp`, `H2-kg-mgga-gapw_xc-stress.inp`,
+  `H2_KG-1-gapw-stress.inp`, `H2_KG-1-gapw_xc-stress.inp`, `H2_H2O-kglri-gapw-stress.inp`,
+  `H2_H2O-kglri-gapw_xc-stress.inp`.
 - DC-DFT/Energy Correction force-debug checks: `regtest-acc-2/HF-ec1.inp` through
   `regtest-acc-2/HF-ec7.inp`.
 
@@ -77,7 +78,9 @@ Existing method guards and print-key semantics that this PR intentionally does n
 - Low-spin ROKS with GAPW/GAPW_XC, and with ADMM, remains explicitly guarded as incompatible in
   `qs_ks_utils.F`. This is an inherited method guard, not a new `GAPW_ACCURATE_XCINT` restriction.
 - KG coverage added here covers the implemented GAPW/GAPW_XC `EMBED`, `EMBED_RI`, `ATOMIC`, and
-  `NONE` paths. KG meta-kinetic energy functionals still abort as not implemented.
+  `NONE` paths. Meta-kinetic-energy KG functionals are covered for the standard `EMBED` path. The
+  LRI/RI one-center meta-kinetic-energy KG variants remain guarded because the one-center
+  integration path does not yet support `vxc_tau`.
 - DC-DFT/Energy Correction GAPW cases are covered by `HF-ec1.inp` through `HF-ec7.inp`, including
   force-debug checks where applicable. Harris-functional GAPW and GAPW HFX-ADMM Energy Correction
   combinations remain independently guarded in `energy_corrections.F`.

@@ -9,6 +9,10 @@
 "H2-libxc-gapw_xc.inp"                  = [{matcher="M011", tol=4e-07, ref=-3.041149902880348}]
 "H2-libxc-gapw-stress.inp"              = [{matcher="M011", tol=4e-07, ref=-3.351366612179954}]
 "H2-libxc-gapw_xc-stress.inp"           = [{matcher="M011", tol=4e-07, ref=-3.041149902878971}]
+"H2-kg-mgga-gapw-stress.inp"            = [{matcher="M011", tol=4e-07, ref=-3.351471379617515},
+                                           {matcher="M031", tol=1e-05, ref=-1.62779133088E+04}]
+"H2-kg-mgga-gapw_xc-stress.inp"         = [{matcher="M011", tol=4e-07, ref=-3.041202618583545},
+                                           {matcher="M031", tol=1e-05, ref=-1.35539236087E+05}]
 "H2-libxc-ot.inp"                       = [{matcher="M011", tol=4e-07, ref=-3.0453523114395449}]
 "H2-libxc-diag.inp"                     = [{matcher="M011", tol=4e-07, ref=-3.0453523116522888}]
 "geo-phase-1.inp"                       = [{matcher="M011", tol=5e-07, ref=-2.229629661035424}]
