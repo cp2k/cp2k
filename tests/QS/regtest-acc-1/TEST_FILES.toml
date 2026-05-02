@@ -27,6 +27,9 @@
 "h2o-fine-tpss-force-1.inp"             = []
 "h2o-fine-tpss-stress-1.inp"            = [{matcher="E_total", tol=1e-12, ref=-17.267359232120793}]
 "h2o-fine-tpss-stress-debug-1.inp"      = []
+"h2o-gapw-pbe-full-stress-debug-1.inp"  = []
+"h2o-fine-tpss-full-stress-debug-1.inp" = []
 "h2o-gapw_xc-force-1.inp"               = []
 "h2o-gapw_xc-stress-debug-1.inp"        = []
+"h2o-gapw_xc-full-stress-debug-1.inp"   = []
 #EOF
