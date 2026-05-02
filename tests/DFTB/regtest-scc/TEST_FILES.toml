@@ -54,5 +54,7 @@
 "h2o-atprop3.inp"                       = [{matcher="E_total", tol=2e-08, ref=-131.33465894123017}]
 #
 "c_kp1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589}]
+"c_kp1_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=32}]
 "c_kp2.inp"                             = [{matcher="E_total", tol=7e-14, ref=-13.76786045921772}]
 #EOF

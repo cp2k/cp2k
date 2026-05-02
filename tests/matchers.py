@@ -98,6 +98,7 @@ registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128
 registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
+registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
 registry["M012"] = GenericMatcher(r"B2(T) =", col=4)
 registry["M013"] = GenericMatcher(r"sparseness function f2 =", col=5)
 registry["M014"] = GenericMatcher(r"CheckSum Shifts =", col=4)

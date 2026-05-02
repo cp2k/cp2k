@@ -16,5 +16,7 @@
 
 "07_G0W0_periodic_H2Te_kp_sampling_SCF.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.315}]
 
+"07_G0W0_periodic_H2Te_kp_sampling_SCF_kpsym.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.315}]
+
 "08_G0W0_periodic_H2Te_kp_sampling_SCF_FREQ_MAX_FIT_10_eV.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.780}]
 #EOF
