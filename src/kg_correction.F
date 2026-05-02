@@ -130,6 +130,7 @@ CONTAINS
 !> \brief Returns whether the KG XC section needs the kinetic energy density.
 !> \param kg_env Kim-Gordon environment
 !> \param lsd spin-polarized calculation flag
+!> \return ...
 ! **************************************************************************************************
    FUNCTION kg_uses_kinetic_energy_density(kg_env, lsd) RESULT(res)
       TYPE(kg_environment_type), POINTER                 :: kg_env
