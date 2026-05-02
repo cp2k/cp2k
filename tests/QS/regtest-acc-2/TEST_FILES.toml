@@ -20,4 +20,5 @@
 "h2o-admm-gapw-stress-debug-1.inp"      = []
 "h2o-admm-gapw-pbe-stress-debug-1.inp"  = []
 "h2o-admm-gapw-pbe-fine-full-stress-debug-1.inp" = []
+"O2-admmq-gapw-open-shell-accurate-stress.inp" = [{matcher="M031", tol=1e-8, ref=1.11572791711E+04}]
 #EOF

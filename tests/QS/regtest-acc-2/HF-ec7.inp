@@ -39,6 +39,7 @@
       POISSON_SOLVER MT
     &END POISSON
     &QS
+      GAPW_ACCURATE_XCINT T
       METHOD GAPW
     &END QS
     &SCF
