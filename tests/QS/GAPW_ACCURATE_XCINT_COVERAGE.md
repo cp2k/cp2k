@@ -7,14 +7,20 @@ used to move towards making accurate XC integration the GAPW default in a future
 | -------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | GAPW energy and forces     | `regtest-acc-1/h2o.inp`                                                       | `regtest-acc-1/h2o-fine-1.inp`, `h2o-fine-tpss-force-1.inp`                                                          |
 | Fine XC grid               | regular-grid GAPW tests in `regtest-acc-1`                                    | `h2o-fine-1.inp`, `h2o_f01_fine.inp`, `ft3_fine.inp`                                                                 |
+| nonlocal vdW               | rVV10 stress coverage in `regtest-dft-vdw-corr-3`                             | `regtest-acc-1/argon-rvv10-gapw-accurate.inp`                                                                        |
 | NLCC                       | NLCC potentials in non-accurate tests                                         | `regtest-acc-1/h2o-fine-nlcc-1.inp`                                                                                  |
 | mGGA / tau                 | GAPW_XC TPSS tests in `regtest-gapw_xc`                                       | `h2o-fine-tpss-1.inp`, `h2o-fine-tpss-force-1.inp`, `h2o-fine-tpss-stress-1.inp`, `h2o-fine-tpss-stress-debug-1.inp` |
 | GAPW_XC                    | regular GAPW_XC tests in `regtest-gapw_xc`, including `Be_GAPW_XC_stress.inp` | `regtest-acc-1/Ar-2.inp`, `Ar-4.inp`, `h2o-gapw_xc-force-1.inp`, `h2o-gapw_xc-stress-debug-1.inp`                    |
-| Analytical/full stress     | regular GAPW/GAPW_XC energy coverage, including `Be_GAPW_XC_stress.inp`       | diagonal and full-matrix stress checks for GAPW, GAPW_XC, Fine-XC/mGGA, and ADMM-GAPW/Fine-XC                        |
+| spin/open shell            | triplet GAPW tests in `regtest-acc-3`                                         | existing H2O/Ne triplets plus open-shell XAS_TDP and ADMM-GAPW O2 stress coverage                                    |
+| k-points                   | GAPW/GAPW_XC k-point tests in `regtest-kp-1` and `regtest-kp-2`               | `regtest-acc-1/Ar-kpoints-gapw-accurate.inp`, `C-kpoints-gapw_xc-accurate.inp`                                       |
+| Analytical/full stress     | regular GAPW/GAPW_XC energy coverage, including `Be_GAPW_XC_stress.inp`       | diagonal and full-matrix stress checks for GAPW, GAPW_XC, Fine-XC/mGGA, ADMM-GAPW/Fine-XC, and periodic/off-diagonal cases |
 | Local XC energy density    | regular local energy output                                                   | `regtest-acc-1/h2o-fine-local-energy-1.inp`                                                                          |
 | ADMM-GAPW stress FD check  | ADMM stress output in `regtest-admm-qps-2`                                    | diagonal stress checks plus `h2o-admm-gapw-pbe-fine-full-stress-debug-1.inp`                                         |
+| ADMM-GAPW open shell       | ADMM-GAPW O2 stress output in `regtest-admm-qps-2`                            | `regtest-acc-2/O2-admmq-gapw-open-shell-accurate-stress.inp`                                                         |
+| DC-DFT/Energy Correction   | `regtest-acc-2/HF-ec1.inp`, `HF-ec2.inp`, `HF-ec3.inp`                       | `HF-ec4.inp`, `HF-ec5.inp`, `HF-ec6.inp`, and `HF-ec7.inp` now also use explicit accurate integration                |
 | TDDFPT forces              | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                     |
 | ADMM-GAPW TDDFPT response  | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                         |
+| XAS/RT response            | XAS_TDP and RTBSE coverage in `regtest-xastdp` and `regtest-rtbse`            | open-shell GAPW XAS_TDP and GAPW RTBSE smoke tests in `regtest-acc-3`                                                |
 | KG embedding               | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG and RI embedding                                                  |
 | KG atomic potential        | `regtest-kg/H2_KG-1.inp`                                                      | GAPW/GAPW_XC energy and stress checks for `TNADD_METHOD ATOMIC`                                                      |
 
@@ -54,15 +60,25 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 - KG GAPW/GAPW_XC stress smoke checks: `regtest-kg/H2-libxc-gapw-stress.inp`,
   `H2-libxc-gapw_xc-stress.inp`, `H2_KG-1-gapw-stress.inp`, `H2_KG-1-gapw_xc-stress.inp`,
   `H2_H2O-kglri-gapw-stress.inp`, `H2_H2O-kglri-gapw_xc-stress.inp`.
+- DC-DFT/Energy Correction force-debug checks: `regtest-acc-2/HF-ec1.inp` through
+  `regtest-acc-2/HF-ec7.inp`.
 
 Remaining known gaps before a default change:
 
 - A future default flip should still run the full CP2K regtest suite and update affected default
   references deliberately; the representative F/T checks above are the local default-readiness
   smoke matrix for this PR.
+- SIC is not part of the green GAPW accurate-integration matrix: the implementation explicitly
+  aborts regular SIC with GAPW (`sic and GAPW not yet compatible`), and GAPW_XC XC-potential paths
+  assert `sic_none`.
+- Low-spin ROKS with GAPW/GAPW_XC, and with ADMM, remains explicitly guarded as incompatible in
+  `qs_ks_utils.F`.
 - KG combinations that are guarded by the implementation remain out of scope for this coverage
   matrix: KG meta-kinetic energy functionals abort as not implemented, and GAPW/GAPW_XC with the
   Energy Correction/Harris response machinery still has independent GAPW guards.
+- The added XAS_TDP and RTBSE tests are representative smoke coverage for GAPW accurate integration,
+  not a full spectroscopy/response-method matrix over all kernels, SOC, GW/BSE, periodic, and
+  open-shell variants.
 
 Related print-key limitation that is independent of the `GAPW_ACCURATE_XCINT` default:
 

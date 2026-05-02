@@ -3,6 +3,8 @@
 "Ar-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944239056047}]
 "Ar-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848179618906}]
 "Ar-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848219953337}]
+"Ar-kpoints-gapw-accurate.inp"          = [{matcher="E_total", tol=1e-10, ref=-1055.791694254042341}]
+"C-kpoints-gapw_xc-accurate.inp"        = [{matcher="E_total", tol=1e-10, ref=-45.657154884007589}]
 #
 "HF-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.3509709548997}]
 "HF-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.1363374234943}]
@@ -32,4 +34,6 @@
 "h2o-gapw_xc-force-1.inp"               = []
 "h2o-gapw_xc-stress-debug-1.inp"        = []
 "h2o-gapw_xc-full-stress-debug-1.inp"   = []
+"argon-rvv10-gapw-accurate.inp"         = [{matcher="E_total", tol=1e-10, ref=-84.675680282922329},
+                                           {matcher="M031", tol=1e-6, ref=1.92244234461E+04}]
 #EOF
