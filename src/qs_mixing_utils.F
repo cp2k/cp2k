@@ -403,10 +403,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mixing_init'
 
-      INTEGER                                            :: handle, iat, ib, ig, ig1, ig_count, &
-                                                            iproc, ispin, n1, n2, natom, nbuffer, &
-                                                            ng, nimg, nspin
-      REAL(dp)                                           :: bconst, beta, fdamp, g2max, g2min, kmin
+      INTEGER :: handle, iat, ib, icoef1, icoef2, ig, ig1, ig_count, iproc, ispin, n1, n2, natom, &
+         nbuffer, ncoef_h1, ncoef_h2, ncoef_s1, ncoef_s2, ng, nimg, nspin
+      REAL(dp)                                           :: bconst, beta, cpc_h_tmp, cpc_s_tmp, &
+                                                            fdamp, g2max, g2min, kmin
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -520,6 +520,45 @@ CONTAINS
                   END IF
                END DO
             END DO
+            IF (nspin == 2 .AND. ASSOCIATED(mixing_store%cpc_s_in)) THEN
+               DO iat = 1, natom
+                  IF (mixing_store%paw(iat)) THEN
+                     CPASSERT(ASSOCIATED(mixing_store%cpc_h_in(iat, 1)%r_coef))
+                     CPASSERT(ASSOCIATED(mixing_store%cpc_h_in(iat, 2)%r_coef))
+                     CPASSERT(ASSOCIATED(mixing_store%cpc_s_in(iat, 1)%r_coef))
+                     CPASSERT(ASSOCIATED(mixing_store%cpc_s_in(iat, 2)%r_coef))
+
+                     ncoef_h1 = SIZE(mixing_store%cpc_h_in(iat, 1)%r_coef, 1)
+                     ncoef_h2 = SIZE(mixing_store%cpc_h_in(iat, 1)%r_coef, 2)
+                     ncoef_s1 = SIZE(mixing_store%cpc_s_in(iat, 1)%r_coef, 1)
+                     ncoef_s2 = SIZE(mixing_store%cpc_s_in(iat, 1)%r_coef, 2)
+                     CPASSERT(ncoef_h1 == SIZE(mixing_store%cpc_h_in(iat, 2)%r_coef, 1))
+                     CPASSERT(ncoef_h2 == SIZE(mixing_store%cpc_h_in(iat, 2)%r_coef, 2))
+                     CPASSERT(ncoef_s1 == SIZE(mixing_store%cpc_s_in(iat, 2)%r_coef, 1))
+                     CPASSERT(ncoef_s2 == SIZE(mixing_store%cpc_s_in(iat, 2)%r_coef, 2))
+
+                     DO icoef2 = 1, ncoef_h2
+                        DO icoef1 = 1, ncoef_h1
+                           cpc_h_tmp = mixing_store%cpc_h_in(iat, 1)%r_coef(icoef1, icoef2)
+                           mixing_store%cpc_h_in(iat, 1)%r_coef(icoef1, icoef2) = &
+                              cpc_h_tmp + mixing_store%cpc_h_in(iat, 2)%r_coef(icoef1, icoef2)
+                           mixing_store%cpc_h_in(iat, 2)%r_coef(icoef1, icoef2) = &
+                              cpc_h_tmp - mixing_store%cpc_h_in(iat, 2)%r_coef(icoef1, icoef2)
+                        END DO
+                     END DO
+
+                     DO icoef2 = 1, ncoef_s2
+                        DO icoef1 = 1, ncoef_s1
+                           cpc_s_tmp = mixing_store%cpc_s_in(iat, 1)%r_coef(icoef1, icoef2)
+                           mixing_store%cpc_s_in(iat, 1)%r_coef(icoef1, icoef2) = &
+                              cpc_s_tmp + mixing_store%cpc_s_in(iat, 2)%r_coef(icoef1, icoef2)
+                           mixing_store%cpc_s_in(iat, 2)%r_coef(icoef1, icoef2) = &
+                              cpc_s_tmp - mixing_store%cpc_s_in(iat, 2)%r_coef(icoef1, icoef2)
+                        END DO
+                     END DO
+                  END IF
+               END DO
+            END IF
          END IF
       END IF
 
