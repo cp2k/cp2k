@@ -76,7 +76,8 @@ MODULE pw_env_methods
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               pw_grid_change,&
                                               pw_grid_create,&
-                                              pw_grid_release
+                                              pw_grid_release,&
+                                              pw_grid_retain
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
@@ -174,7 +175,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: higher_grid_layout
       LOGICAL :: do_io, efg_present, linres_present, odd, set_vdw_pool, should_output, &
          smooth_required, spherical, uf_grid, use_ref_cell
-      REAL(KIND=dp)                                      :: cutilev, rel_cutoff
+      REAL(KIND=dp)                                      :: cutilev, fine_grid_factor, rel_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radius
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff
       TYPE(cell_type), POINTER                           :: cell, cell_ref, my_cell
@@ -280,6 +281,10 @@ CONTAINS
       rel_cutoff = dft_control%qs_control%relative_cutoff
       cutoff => dft_control%qs_control%e_cutoff
       CALL section_vals_val_get(input, "DFT%XC%XC_GRID%USE_FINER_GRID", l_val=uf_grid)
+      CALL section_vals_val_get(input, "DFT%XC%XC_GRID%FINE_GRID_FACTOR", r_val=fine_grid_factor)
+      IF (uf_grid .AND. fine_grid_factor <= 1.0_dp) THEN
+         CPABORT("FINE_GRID_FACTOR must be larger than one when USE_FINER_GRID is enabled")
+      END IF
       ngrid_level = SIZE(cutoff)
 
       ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
@@ -317,6 +322,7 @@ CONTAINS
       CALL setup_super_ref_grid(super_ref_grid, mt_super_ref_grid, &
                                 xc_super_ref_grid, cutilev, grid_span, spherical, my_cell, para_env, &
                                 poisson_section, ncommensurate, uf_grid=uf_grid, &
+                                fine_grid_factor=fine_grid_factor, &
                                 print_section=print_section)
       old_pw_grid => super_ref_grid
       IF (.NOT. ASSOCIATED(mt_super_ref_grid)) vdw_ref_grid => super_ref_grid
@@ -948,6 +954,7 @@ CONTAINS
 !> \param poisson_section ...
 !> \param my_ncommensurate ...
 !> \param uf_grid ...
+!> \param fine_grid_factor ...
 !> \param print_section ...
 !> \author 03-2005 Teodoro Laino [teo]
 !> \note
@@ -955,7 +962,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_super_ref_grid(super_ref_pw_grid, mt_super_ref_pw_grid, &
                                    xc_super_ref_pw_grid, cutilev, grid_span, spherical, &
-                                   cell_ref, para_env, poisson_section, my_ncommensurate, uf_grid, print_section)
+                                   cell_ref, para_env, poisson_section, my_ncommensurate, uf_grid, &
+                                   fine_grid_factor, print_section)
       TYPE(pw_grid_type), POINTER                        :: super_ref_pw_grid, mt_super_ref_pw_grid, &
                                                             xc_super_ref_pw_grid
       REAL(KIND=dp), INTENT(IN)                          :: cutilev
@@ -966,6 +974,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: poisson_section
       INTEGER, INTENT(IN)                                :: my_ncommensurate
       LOGICAL, INTENT(in)                                :: uf_grid
+      REAL(KIND=dp), INTENT(IN)                          :: fine_grid_factor
       TYPE(section_vals_type), POINTER                   :: print_section
 
       INTEGER                                            :: iounit, my_val, nn(3), no(3)
@@ -992,26 +1001,30 @@ CONTAINS
                                     extension=".Log")
 
       IF (uf_grid) THEN
+         my_cutilev = fine_grid_factor*cutilev
+         IF (mt_s_grid) my_cutilev = MAX(my_cutilev, cutilev*mt_rel_cutoff)
          CALL pw_grid_create(xc_super_ref_pw_grid, para_env, cell_ref%hmat, grid_span=grid_span, &
-                             cutoff=4._dp*cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
+                             cutoff=my_cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
                              ncommensurate=my_ncommensurate, icommensurate=1, &
                              blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &
                              iounit=iounit)
          super_ref_pw_grid => xc_super_ref_pw_grid
       END IF
       IF (mt_s_grid) THEN
+         my_cutilev = cutilev*mt_rel_cutoff
+         IF (ASSOCIATED(xc_super_ref_pw_grid)) my_cutilev = MAX(my_cutilev, 4._dp*cutilev)
+
+         no = pw_grid_init_setup(cell_ref%hmat, cutoff=cutilev, spherical=spherical, &
+                                 odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
+         nn = pw_grid_init_setup(cell_ref%hmat, cutoff=my_cutilev, spherical=spherical, &
+                                 odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
+
+         ! bug appears for nn==no, also in old versions
+         CPASSERT(ALL(nn > no))
          IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
-            CPABORT("special grid for mt and fine xc grid not compatible")
+            mt_super_ref_pw_grid => xc_super_ref_pw_grid
+            CALL pw_grid_retain(mt_super_ref_pw_grid)
          ELSE
-            my_cutilev = cutilev*mt_rel_cutoff
-
-            no = pw_grid_init_setup(cell_ref%hmat, cutoff=cutilev, spherical=spherical, &
-                                    odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
-            nn = pw_grid_init_setup(cell_ref%hmat, cutoff=my_cutilev, spherical=spherical, &
-                                    odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
-
-            ! bug appears for nn==no, also in old versions
-            CPASSERT(ALL(nn > no))
             CALL pw_grid_create(mt_super_ref_pw_grid, para_env, cell_ref%hmat, &
                                 cutoff=my_cutilev, spherical=spherical, fft_usage=.TRUE., &
                                 blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &

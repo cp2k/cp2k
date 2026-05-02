@@ -16,4 +16,7 @@
 "H2O_GAPW_XC_4.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.845366E+00}]
 "H2O_GAPW_1_triplet.inp"                = [{matcher="M037", tol=4.0E-06, ref=0.509938E+00}]
 "Ne_GAPW_triplet.inp"                   = [{matcher="M037", tol=4.0E-06, ref=0.166970E+01}]
+"CH3-PBE-uks-xastdp-gapw-accurate.inp"  = [{matcher="XAS_excit_ener", tol=1e-06, ref=265.389562}]
+"h2-rtbse-gapw-accurate.inp"            = [{matcher="M115", tol=1e-3, ref=0.14890453E-005},
+                                           {matcher="M116", tol=1e-5, ref=0.00000000E+000}]
 #EOF
