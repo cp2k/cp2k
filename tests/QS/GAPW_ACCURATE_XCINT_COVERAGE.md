@@ -63,24 +63,27 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 - DC-DFT/Energy Correction force-debug checks: `regtest-acc-2/HF-ec1.inp` through
   `regtest-acc-2/HF-ec7.inp`.
 
-Remaining known gaps before a default change:
+Default-flip follow-up:
 
 - A future default flip should still run the full CP2K regtest suite and update affected default
   references deliberately; the representative F/T checks above are the local default-readiness
   smoke matrix for this PR.
-- SIC is not part of the green GAPW accurate-integration matrix: the implementation explicitly
-  aborts regular SIC with GAPW (`sic and GAPW not yet compatible`), and GAPW_XC XC-potential paths
-  assert `sic_none`.
+
+Existing method guards and print-key semantics that this PR intentionally does not change:
+
+- SIC remains outside the green GAPW accurate-integration matrix because the underlying methods are
+  not implemented for the relevant GAPW/GAPW_XC paths: regular SIC with GAPW aborts as not yet
+  compatible, and GAPW_XC XC-potential paths require `sic_none`.
 - Low-spin ROKS with GAPW/GAPW_XC, and with ADMM, remains explicitly guarded as incompatible in
-  `qs_ks_utils.F`.
-- KG combinations that are guarded by the implementation remain out of scope for this coverage
-  matrix: KG meta-kinetic energy functionals abort as not implemented, and GAPW/GAPW_XC with the
-  Energy Correction/Harris response machinery still has independent GAPW guards.
+  `qs_ks_utils.F`. This is an inherited method guard, not a new `GAPW_ACCURATE_XCINT` restriction.
+- KG coverage added here covers the implemented GAPW/GAPW_XC `EMBED`, `EMBED_RI`, `ATOMIC`, and
+  `NONE` paths. KG meta-kinetic energy functionals still abort as not implemented.
+- DC-DFT/Energy Correction GAPW cases are covered by `HF-ec1.inp` through `HF-ec7.inp`, including
+  force-debug checks where applicable. Harris-functional GAPW and GAPW HFX-ADMM Energy Correction
+  combinations remain independently guarded in `energy_corrections.F`.
 - The added XAS_TDP and RTBSE tests are representative smoke coverage for GAPW accurate integration,
   not a full spectroscopy/response-method matrix over all kernels, SOC, GW/BSE, periodic, and
   open-shell variants.
-
-Related print-key limitation that is independent of the `GAPW_ACCURATE_XCINT` default:
 
 - `LOCAL_ENERGY_CUBE` and `LOCAL_STRESS_CUBE` are regular-grid print keys. For GAPW/GAPW_XC and
   ADMM-GAPW they keep the existing soft-grid semantics; atom-centered hard one-center terms are not
