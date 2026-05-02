@@ -371,7 +371,8 @@ CONTAINS
                                ec_env%vxc_rspace, &
                                ec_env%vtau_rspace, &
                                ec_env%vadmm_rspace, &
-                               ec_env%ehartree, exc)
+                               ec_env%ehartree, exc, &
+                               vadmm_tau_rspace=ec_env%vadmm_tau_rspace)
          CALL ks_ref_potential_atom(qs_env, ec_env%local_rho_set, &
                                     ec_env%local_rho_set_admm, ec_env%vh_rspace)
 
@@ -520,6 +521,7 @@ CONTAINS
                              vxc_rspace=ec_env%vxc_rspace, &
                              vtau_rspace=ec_env%vtau_rspace, &
                              vadmm_rspace=ec_env%vadmm_rspace, &
+                             vadmm_tau_rspace=ec_env%vadmm_tau_rspace, &
                              matrix_hz=ec_env%matrix_hz, &
                              matrix_pz=ec_env%matrix_z, &
                              matrix_pz_admm=ec_env%z_admm, &
@@ -3854,6 +3856,7 @@ CONTAINS
                                    vxc_rspace=ec_env%vxc_rspace, &
                                    vtau_rspace=ec_env%vtau_rspace, &
                                    vadmm_rspace=ec_env%vadmm_rspace, &
+                                   vadmm_tau_rspace=ec_env%vadmm_tau_rspace, &
                                    matrix_hz=ec_env%matrix_hz, &
                                    matrix_pz=ec_env%matrix_z, &
                                    matrix_pz_admm=ec_env%z_admm, &
@@ -4073,4 +4076,3 @@ CONTAINS
    END SUBROUTINE get_t2cindex
 
 END MODULE energy_corrections
-
