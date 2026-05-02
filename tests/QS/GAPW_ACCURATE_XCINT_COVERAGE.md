@@ -12,16 +12,30 @@ used to move towards making accurate XC integration the GAPW default in a future
 | GAPW_XC                    | regular GAPW_XC tests in `regtest-gapw_xc`, including `Be_GAPW_XC_stress.inp` | `regtest-acc-1/Ar-2.inp`, `Ar-4.inp`, `h2o-gapw_xc-force-1.inp`, `h2o-gapw_xc-stress-debug-1.inp`                    |
 | Analytical/diagonal stress | regular GAPW/GAPW_XC energy coverage, including `Be_GAPW_XC_stress.inp`       | `h2o-fine-tpss-stress-1.inp`, `h2o-fine-tpss-stress-debug-1.inp`, `h2o-gapw_xc-stress-debug-1.inp`                   |
 | Local XC energy density    | regular local energy output                                                   | `regtest-acc-1/h2o-fine-local-energy-1.inp`                                                                          |
-| ADMM-GAPW stress FD check  | ADMM stress output in `regtest-admm-qps-2`                                    | diagonal stress check in `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`                                            |
+| ADMM-GAPW stress FD check  | ADMM stress output in `regtest-admm-qps-2`                                    | diagonal stress checks in `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`, `h2o-admm-gapw-pbe-stress-debug-1.inp`   |
 | TDDFPT forces              | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                     |
 | ADMM-GAPW TDDFPT response  | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                         |
-| KG embedding               | existing `regtest-kg` GPW cases                                               | `H2-libxc-gapw.inp`, `H2-libxc-gapw_xc.inp`                                                                          |
+| KG embedding               | existing `regtest-kg` GPW cases                                               | `H2-libxc-gapw.inp`, `H2-libxc-gapw_xc.inp`, `H2_H2O-kglri-gapw.inp`, `H2_H2O-kglri-gapw_xc.inp`                    |
 | KG atomic potential        | `regtest-kg/H2_KG-1.inp`                                                      | `H2_KG-1-gapw.inp`, `H2_KG-1-gapw_xc.inp`                                                                            |
 
 The new tests intentionally compare explicit reference energies, force-debug quantities, or
 debug-force/stress consistency checks rather than relying only on successful execution. This keeps
 the current default unchanged while making future reference updates for a default flip easier to
 audit.
+
+Local one-rank smoke comparisons between the current default (`GAPW_ACCURATE_XCINT F`) and explicit
+accurate integration (`GAPW_ACCURATE_XCINT T`) were run for representative cases:
+
+| Case                     | Representative input                                    | F energy [Ha]      | T energy [Ha]      | T-F [Ha]          |
+| ------------------------ | ------------------------------------------------------- | ------------------ | ------------------ | ----------------- |
+| GAPW PBE                 | `regtest-acc-1/h2o.inp`                                 | -17.26123610393284 | -17.26044915752598 | 0.00078694640686 |
+| GAPW_XC Pade             | `regtest-acc-1/Ar-2.inp`                                | -21.04944269549961 | -21.04944239056048 | 0.00000030493913 |
+| mGGA TPSS Fine-XC        | `regtest-acc-1/h2o-fine-tpss-1.inp`                     | -17.26821914033707 | -17.26735923212099 | 0.00085990821608 |
+| NLCC Fine-XC             | `regtest-acc-1/h2o-fine-nlcc-1.inp`                     | -18.07356942938059 | -18.07338831671611 | 0.00018111266448 |
+| TPSS stress FD           | `regtest-acc-1/h2o-fine-tpss-stress-debug-1.inp`        | -17.17596758695775 | -17.17509714444003 | 0.00087044251771 |
+| ADMM-GAPW PBE stress FD  | `regtest-acc-2/h2o-admm-gapw-pbe-stress-debug-1.inp`    | -21.03576759790435 | -21.11980618566643 | -0.08403858776208 |
+| TDDFPT force Fine-XC     | `regtest-acc-5/h2o_f01_fine.inp`                        | -16.86015219162475 | -16.86018894515963 | -0.00003675353488 |
+| KG RI GAPW               | `regtest-kg/H2_H2O-kglri-gapw.inp`                      | -18.31547980084748 | -18.31452827588301 | 0.00095152496447 |
 
 Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 
@@ -30,18 +44,19 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 - GAPW_XC forces and diagonal stress: `regtest-acc-1/h2o-gapw_xc-force-1.inp`,
   `regtest-acc-1/h2o-gapw_xc-stress-debug-1.inp`.
 - ADMM-GAPW forces: `regtest-acc-1/HF-d5.inp`, `regtest-acc-5/ft3_fine.inp`.
-- ADMM-GAPW diagonal stress: `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`.
+- ADMM-GAPW diagonal stress: `regtest-acc-2/h2o-admm-gapw-stress-debug-1.inp`,
+  `regtest-acc-2/h2o-admm-gapw-pbe-stress-debug-1.inp`.
 - Fine-XC forces and diagonal stress: `regtest-acc-1/h2o-fine-tpss-force-1.inp`,
   `regtest-acc-1/h2o-fine-tpss-stress-debug-1.inp`, `regtest-acc-5/ft3_fine.inp`.
 
 Remaining known gaps before a default change:
 
-- `KG_METHOD` with GAPW/GAPW_XC still excludes `TNADD_METHOD EMBED_RI`.
-- The ADMM-GAPW diagonal stress FD check exercises the ADMM/GAPW stress path with
-  `XC_FUNCTIONAL NONE`; mixed ADMM-GAPW stress with a nonzero soft XC functional should still be
-  part of the broader default-flip validation matrix.
-- GAPW/ADMM local energy and stress density output on regular grids still contains only the
-  regular-grid/soft contribution, not hard one-center terms.
-- A future default flip should run a broader reference-update pass comparing old default
-  (`GAPW_ACCURATE_XCINT F`) and explicit accurate integration (`GAPW_ACCURATE_XCINT T`) for
-  representative GAPW, GAPW_XC, ADMM-GAPW, mGGA, NLCC, stress, and TDDFPT-force cases.
+- A future default flip should still run the full CP2K regtest suite and update affected default
+  references deliberately; the representative F/T checks above are the local default-readiness
+  smoke matrix for this PR.
+
+Related print-key limitation that is independent of the `GAPW_ACCURATE_XCINT` default:
+
+- `LOCAL_ENERGY_CUBE` and `LOCAL_STRESS_CUBE` are regular-grid print keys. For GAPW/GAPW_XC and
+  ADMM-GAPW they keep the existing soft-grid semantics; atom-centered hard one-center terms are not
+  projected onto the cube grid.

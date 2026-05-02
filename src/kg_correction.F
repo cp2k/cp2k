@@ -92,19 +92,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_ext
 
-      LOGICAL                                            :: gapw, gapw_xc, lrigpw
+      LOGICAL                                            :: lrigpw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
 
       CALL get_qs_env(qs_env, kg_env=kg_env, dft_control=dft_control)
       lrigpw = dft_control%qs_control%lrigpw
-      gapw = dft_control%qs_control%gapw
-      gapw_xc = dft_control%qs_control%gapw_xc
-
-      IF ((gapw .OR. gapw_xc) .AND. kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
-         CPABORT("KG_METHOD with GAPW/GAPW_XC is not implemented for TNADD_METHOD EMBED_RI")
-      END IF
-
       IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
          IF (lrigpw) THEN
             CALL kg_ekin_embed_lri(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)

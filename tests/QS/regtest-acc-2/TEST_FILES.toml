@@ -18,4 +18,5 @@
 #
 "HF-uf1.inp"                            = []
 "h2o-admm-gapw-stress-debug-1.inp"      = []
+"h2o-admm-gapw-pbe-stress-debug-1.inp"  = []
 #EOF

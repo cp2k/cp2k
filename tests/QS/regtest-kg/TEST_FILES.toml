@@ -26,4 +26,6 @@
 "H2_H2O-vdW.inp"                        = [{matcher="M011", tol=1e-10, ref=-18.149003390914348}]
 "H2_H2O-lri.inp"                        = [{matcher="M072", tol=3e-02, ref=0.00011458}]
 "H2_H2O-kglri.inp"                      = [{matcher="M011", tol=3e-02, ref=-18.315742994162203}]
+"H2_H2O-kglri-gapw.inp"                 = [{matcher="M011", tol=3e-02, ref=-18.314528275883013}]
+"H2_H2O-kglri-gapw_xc.inp"              = [{matcher="M011", tol=3e-02, ref=-18.314768685433457}]
 #EOF
