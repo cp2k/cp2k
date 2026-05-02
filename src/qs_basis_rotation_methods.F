@@ -83,7 +83,7 @@ CONTAINS
             kpsym => kpoints%kp_sym(ik)%kpoint_sym
             IF (kpsym%apply_symmetry) THEN
                DO irot = 1, SIZE(kpsym%rotp)
-                  ir = kpsym%rotp(irot)
+                  ir = ABS(kpsym%rotp(irot))
                   ira = 0
                   DO jr = 1, SIZE(kpoints%ibrot)
                      IF (ir == kpoints%ibrot(jr)) ira = jr
