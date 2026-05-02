@@ -3689,6 +3689,8 @@ CONTAINS
       io_unit = cp_logger_get_default_io_unit(logger)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%LOCAL_STRESS_CUBE"), cp_p_file)) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "LOCAL_STRESS_CUBE uses the existing experimental local stress implementation")
          dft_section => section_vals_get_subs_vals(input, "DFT")
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, natom=natom)
          gapw = dft_control%qs_control%gapw
