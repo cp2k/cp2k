@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT cc02_fine
+  PROJECT h2o_pbe0_admm_fine
   RUN_TYPE DEBUG
 &END GLOBAL
 
@@ -32,7 +32,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 120
+      CUTOFF 100
       REL_CUTOFF 40
     &END MGRID
     &POISSON
@@ -46,7 +46,7 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.E-10
+      EPS_DEFAULT 1.E-9
       GAPW_ACCURATE_XCINT T
       METHOD GAPW
     &END QS
@@ -72,7 +72,7 @@
     &TDDFPT
       ADMM_KERNEL_CORRECTION_SYMMETRIC T
       ADMM_KERNEL_XC_CORRECTION T
-      CONVERGENCE [eV] 1.0e-06
+      CONVERGENCE [eV] 1.0e-05
       KERNEL FULL
       MAX_ITER 50
       NSTATES 1
@@ -81,24 +81,18 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [angstrom] 5.0 5.0 5.0
+      ABC [angstrom] 4.5 4.5 4.5
       PERIODIC NONE
     &END CELL
     &COORD
-      C          0.0000000000        0.0000000000       -0.5265526741
-      O          0.0000000000        0.0000000000        0.6555124750
-      H          0.0000000000       -0.9325664988       -1.1133424527
-      H          0.0000000000        0.9325664988       -1.1133424527
+      O          0.0000000000        0.0000000000       -0.0655870000
+      H          0.0000000000       -0.7571360000        0.5205450000
+      H          0.0000000000        0.7571360000        0.5205450000
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
       BASIS_SET AUX_FIT cFIT3
       POTENTIAL GTH-PADE-q1
-    &END KIND
-    &KIND C
-      BASIS_SET DZVP-GTH-PADE
-      BASIS_SET AUX_FIT cFIT3
-      POTENTIAL GTH-PADE-q4
     &END KIND
     &KIND O
       BASIS_SET DZVP-GTH-PADE
