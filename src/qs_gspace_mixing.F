@@ -73,7 +73,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gspace_mixing'
 
       INTEGER                                            :: handle, iatom, ig, ispin, natom, ng, &
-                                                            nimg, nspin
+                                                            nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
@@ -96,12 +96,17 @@ CONTAINS
          CALL qs_rho_get(rho, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
 
          nspin = SIZE(rho_g, 1)
-         nimg = dft_control%nimages
          ng = SIZE(rho_g(1)%pw_grid%gsq)
          CPASSERT(ng == SIZE(mixing_store%rhoin(1)%cc))
 
          alpha = mixing_store%alpha
          gapw = dft_control%qs_control%gapw
+         natom = 0
+
+         IF (mixing_store%gmix_p .AND. gapw) THEN
+            CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
+            natom = SIZE(rho_atom)
+         END IF
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -111,6 +116,9 @@ CONTAINS
             CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
             CALL pw_axpy(rho_tmp, rho_g(2), -1.0_dp)
             CALL pw_scale(rho_g(2), -1.0_dp)
+            IF (mixing_store%gmix_p .AND. gapw) THEN
+               CALL gapw_cpc_spin_to_charge_mag(rho_atom, mixing_store)
+            END IF
          END IF
 
          IF (iter_count + 1 <= mixing_store%nskip_mixing) THEN
@@ -121,8 +129,6 @@ CONTAINS
                END DO
             END DO
             IF (mixing_store%gmix_p .AND. gapw) THEN
-               CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
-               natom = SIZE(rho_atom)
                DO ispin = 1, nspin
                   DO iatom = 1, natom
                      IF (mixing_store%paw(iatom)) THEN
@@ -135,6 +141,9 @@ CONTAINS
 
             mixing_store%iter_method = "NoMix"
             IF (nspin == 2) THEN
+               IF (mixing_store%gmix_p .AND. gapw) THEN
+                  CALL gapw_cpc_charge_mag_to_spin(rho_atom, mixing_store)
+               END IF
                CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
                CALL pw_scale(rho_g(1), 0.5_dp)
                CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
@@ -164,6 +173,9 @@ CONTAINS
          END IF
 
          IF (nspin == 2) THEN
+            IF (mixing_store%gmix_p .AND. gapw) THEN
+               CALL gapw_cpc_charge_mag_to_spin(rho_atom, mixing_store)
+            END IF
             CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
             CALL pw_scale(rho_g(1), 0.5_dp)
             CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
@@ -180,6 +192,118 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE gspace_mixing
+
+! **************************************************************************************************
+!> \brief Convert GAPW compensation charge coefficients from spin-up/spin-down
+!>        representation to total-charge/magnetization representation.
+!> \param rho_atom ...
+!> \param mixing_store ...
+! **************************************************************************************************
+   SUBROUTINE gapw_cpc_spin_to_charge_mag(rho_atom, mixing_store)
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
+      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+
+      INTEGER                                            :: iatom, icoef1, icoef2, ncoef_h1, &
+                                                            ncoef_h2, ncoef_s1, ncoef_s2
+      REAL(dp)                                           :: cpc_h_tmp, cpc_s_tmp
+
+      CPASSERT(ASSOCIATED(rho_atom))
+      CPASSERT(ASSOCIATED(mixing_store%paw))
+
+      DO iatom = 1, SIZE(rho_atom)
+         IF (mixing_store%paw(iatom)) THEN
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_h(1)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_h(2)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_s(1)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_s(2)%r_coef))
+            ncoef_h1 = SIZE(rho_atom(iatom)%cpc_h(1)%r_coef, 1)
+            ncoef_h2 = SIZE(rho_atom(iatom)%cpc_h(1)%r_coef, 2)
+            ncoef_s1 = SIZE(rho_atom(iatom)%cpc_s(1)%r_coef, 1)
+            ncoef_s2 = SIZE(rho_atom(iatom)%cpc_s(1)%r_coef, 2)
+            CPASSERT(ncoef_h1 == SIZE(rho_atom(iatom)%cpc_h(2)%r_coef, 1))
+            CPASSERT(ncoef_h2 == SIZE(rho_atom(iatom)%cpc_h(2)%r_coef, 2))
+            CPASSERT(ncoef_s1 == SIZE(rho_atom(iatom)%cpc_s(2)%r_coef, 1))
+            CPASSERT(ncoef_s2 == SIZE(rho_atom(iatom)%cpc_s(2)%r_coef, 2))
+
+            DO icoef2 = 1, ncoef_h2
+               DO icoef1 = 1, ncoef_h1
+                  cpc_h_tmp = rho_atom(iatom)%cpc_h(1)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_h(1)%r_coef(icoef1, icoef2) = &
+                     cpc_h_tmp + rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2) = &
+                     cpc_h_tmp - rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2)
+               END DO
+            END DO
+
+            DO icoef2 = 1, ncoef_s2
+               DO icoef1 = 1, ncoef_s1
+                  cpc_s_tmp = rho_atom(iatom)%cpc_s(1)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_s(1)%r_coef(icoef1, icoef2) = &
+                     cpc_s_tmp + rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2) = &
+                     cpc_s_tmp - rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2)
+               END DO
+            END DO
+         END IF
+      END DO
+
+   END SUBROUTINE gapw_cpc_spin_to_charge_mag
+
+! **************************************************************************************************
+!> \brief Convert GAPW compensation charge coefficients from total-charge/magnetization
+!>        representation back to spin-up/spin-down representation.
+!> \param rho_atom ...
+!> \param mixing_store ...
+! **************************************************************************************************
+   SUBROUTINE gapw_cpc_charge_mag_to_spin(rho_atom, mixing_store)
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
+      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+
+      INTEGER                                            :: iatom, icoef1, icoef2, ncoef_h1, &
+                                                            ncoef_h2, ncoef_s1, ncoef_s2
+      REAL(dp)                                           :: cpc_h_tmp, cpc_s_tmp
+
+      CPASSERT(ASSOCIATED(rho_atom))
+      CPASSERT(ASSOCIATED(mixing_store%paw))
+
+      DO iatom = 1, SIZE(rho_atom)
+         IF (mixing_store%paw(iatom)) THEN
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_h(1)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_h(2)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_s(1)%r_coef))
+            CPASSERT(ASSOCIATED(rho_atom(iatom)%cpc_s(2)%r_coef))
+            ncoef_h1 = SIZE(rho_atom(iatom)%cpc_h(1)%r_coef, 1)
+            ncoef_h2 = SIZE(rho_atom(iatom)%cpc_h(1)%r_coef, 2)
+            ncoef_s1 = SIZE(rho_atom(iatom)%cpc_s(1)%r_coef, 1)
+            ncoef_s2 = SIZE(rho_atom(iatom)%cpc_s(1)%r_coef, 2)
+            CPASSERT(ncoef_h1 == SIZE(rho_atom(iatom)%cpc_h(2)%r_coef, 1))
+            CPASSERT(ncoef_h2 == SIZE(rho_atom(iatom)%cpc_h(2)%r_coef, 2))
+            CPASSERT(ncoef_s1 == SIZE(rho_atom(iatom)%cpc_s(2)%r_coef, 1))
+            CPASSERT(ncoef_s2 == SIZE(rho_atom(iatom)%cpc_s(2)%r_coef, 2))
+
+            DO icoef2 = 1, ncoef_h2
+               DO icoef1 = 1, ncoef_h1
+                  cpc_h_tmp = rho_atom(iatom)%cpc_h(1)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_h(1)%r_coef(icoef1, icoef2) = &
+                     0.5_dp*(cpc_h_tmp + rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2))
+                  rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2) = &
+                     0.5_dp*(cpc_h_tmp - rho_atom(iatom)%cpc_h(2)%r_coef(icoef1, icoef2))
+               END DO
+            END DO
+
+            DO icoef2 = 1, ncoef_s2
+               DO icoef1 = 1, ncoef_s1
+                  cpc_s_tmp = rho_atom(iatom)%cpc_s(1)%r_coef(icoef1, icoef2)
+                  rho_atom(iatom)%cpc_s(1)%r_coef(icoef1, icoef2) = &
+                     0.5_dp*(cpc_s_tmp + rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2))
+                  rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2) = &
+                     0.5_dp*(cpc_s_tmp - rho_atom(iatom)%cpc_s(2)%r_coef(icoef1, icoef2))
+               END DO
+            END DO
+         END IF
+      END DO
+
+   END SUBROUTINE gapw_cpc_charge_mag_to_spin
 
 ! **************************************************************************************************
 !> \brief G-space mixing performed via the Kerker damping on the density on the grid
