@@ -3,26 +3,26 @@
 `GAPW_ACCURATE_XCINT` remains opt-in in this change. The tests below document the initial coverage
 used to move towards making accurate XC integration the GAPW default in a future change.
 
-| Coverage area             | Baseline / existing coverage                                                  | Accurate-XC coverage added here                                                                                            |
-| ------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| GAPW energy and forces    | `regtest-acc-1/h2o.inp`                                                       | `regtest-acc-1/h2o-fine-1.inp`, `h2o-fine-tpss-force-1.inp`                                                                |
-| Fine XC grid              | regular-grid GAPW tests in `regtest-acc-1`                                    | `h2o-fine-1.inp`, `h2o_f01_fine.inp`, `ft3_fine.inp`                                                                       |
-| nonlocal vdW              | rVV10 and vdW-DF/optB88 coverage in `regtest-dft-vdw-corr-*`                  | `regtest-acc-1/argon-rvv10-gapw-accurate.inp`, `argon-vdW-DF-optB88-gapw-accurate.inp`                                     |
-| NLCC                      | NLCC potentials in non-accurate tests                                         | `regtest-acc-1/h2o-fine-nlcc-1.inp`                                                                                        |
-| mGGA / tau                | GAPW_XC TPSS tests in `regtest-gapw_xc`                                       | `h2o-fine-tpss-1.inp`, `h2o-fine-tpss-force-1.inp`, `h2o-fine-tpss-stress-1.inp`, `h2o-fine-tpss-stress-debug-1.inp`       |
-| GAPW_XC                   | regular GAPW_XC tests in `regtest-gapw_xc`, including `Be_GAPW_XC_stress.inp` | `regtest-acc-1/Ar-2.inp`, `Ar-4.inp`, `h2o-gapw_xc-force-1.inp`, `h2o-gapw_xc-stress-debug-1.inp`                          |
-| spin/open shell           | triplet GAPW tests in `regtest-acc-3`                                         | existing H2O/Ne triplets plus open-shell XAS_TDP and ADMM-GAPW O2 stress coverage                                          |
-| k-points                  | GAPW/GAPW_XC k-point tests in `regtest-kp-1` and `regtest-kp-2`               | `regtest-acc-1/Ar-kpoints-gapw-accurate.inp`, `C-kpoints-gapw_xc-accurate.inp`                                             |
-| Analytical/full stress    | regular GAPW/GAPW_XC energy coverage, including `Be_GAPW_XC_stress.inp`       | diagonal and full-matrix stress checks for GAPW, GAPW_XC, Fine-XC/mGGA, ADMM-GAPW/Fine-XC, and periodic/off-diagonal cases |
-| Local XC energy density   | regular local energy output                                                   | `regtest-acc-1/h2o-fine-local-energy-1.inp`                                                                                |
-| ADMM-GAPW stress FD check | ADMM stress output in `regtest-admm-qps-2`                                    | diagonal stress checks plus `h2o-admm-gapw-pbe-fine-full-stress-debug-1.inp`                                               |
-| ADMM-GAPW open shell      | ADMM-GAPW O2 stress output in `regtest-admm-qps-2`                            | `regtest-acc-2/O2-admmq-gapw-open-shell-accurate-stress.inp`                                                               |
-| DC-DFT/Energy Correction  | `regtest-acc-2/HF-ec1.inp`, `HF-ec2.inp`, `HF-ec3.inp`                        | `HF-ec4.inp`, `HF-ec5.inp`, `HF-ec6.inp`, and `HF-ec7.inp` now also use explicit accurate integration                      |
-| TDDFPT forces             | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                           |
-| ADMM-GAPW TDDFPT response | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                               |
-| XAS/RT response           | XAS_TDP and RTBSE coverage in `regtest-xastdp` and `regtest-rtbse`            | open-shell GAPW XAS_TDP and GAPW RTBSE smoke tests in `regtest-acc-3`                                                      |
-| KG embedding              | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG, meta-GGA/tau KG, and RI embedding                                      |
-| KG atomic potential       | `regtest-kg/H2_KG-1.inp`                                                      | GAPW/GAPW_XC energy and stress checks for `TNADD_METHOD ATOMIC`                                                            |
+| Coverage area             | Baseline / existing coverage                                                  | Accurate-XC coverage added here                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GAPW energy and forces    | `regtest-acc-1/h2o.inp`                                                       | `regtest-acc-1/h2o-fine-1.inp`, `h2o-fine-tpss-force-1.inp`                                                                                                   |
+| Fine XC grid              | regular-grid GAPW tests in `regtest-acc-1`                                    | `h2o-fine-1.inp`, `h2o_f01_fine.inp`, `ft3_fine.inp`                                                                                                          |
+| nonlocal vdW              | rVV10 and vdW-DF/optB88 coverage in `regtest-dft-vdw-corr-*`                  | `regtest-acc-1/argon-rvv10-gapw-accurate.inp`, `argon-vdW-DF-optB88-gapw-accurate.inp`                                                                        |
+| NLCC                      | NLCC potentials in non-accurate tests                                         | `regtest-acc-1/h2o-fine-nlcc-1.inp`                                                                                                                           |
+| mGGA / tau                | GAPW_XC TPSS tests in `regtest-gapw_xc`                                       | `h2o-fine-tpss-1.inp`, `h2o-fine-tpss-force-1.inp`, `h2o-fine-tpss-stress-1.inp`, `h2o-fine-tpss-stress-debug-1.inp`                                          |
+| GAPW_XC                   | regular GAPW_XC tests in `regtest-gapw_xc`, including `Be_GAPW_XC_stress.inp` | `regtest-acc-1/Ar-2.inp`, `Ar-4.inp`, `h2o-gapw_xc-force-1.inp`, `h2o-gapw_xc-stress-debug-1.inp`                                                             |
+| spin/open shell           | triplet GAPW tests in `regtest-acc-3`                                         | existing H2O/Ne triplets plus open-shell XAS_TDP and ADMM-GAPW O2 stress coverage                                                                             |
+| k-points                  | GAPW/GAPW_XC k-point tests in `regtest-kp-1` and `regtest-kp-2`               | `regtest-acc-1/Ar-kpoints-gapw-accurate.inp`, `C-kpoints-gapw_xc-accurate.inp`                                                                                |
+| Analytical/full stress    | regular GAPW/GAPW_XC energy coverage, including `Be_GAPW_XC_stress.inp`       | diagonal FD stress checks plus full-matrix analytical stress smoke checks for GAPW, GAPW_XC, Fine-XC/mGGA, ADMM-GAPW/Fine-XC, and periodic/off-diagonal cases |
+| Local XC energy density   | regular local energy output                                                   | `regtest-acc-1/h2o-fine-local-energy-1.inp`                                                                                                                   |
+| ADMM-GAPW stress FD check | ADMM stress output in `regtest-admm-qps-2`                                    | diagonal stress FD checks plus `h2o-admm-gapw-pbe-fine-full-stress-1.inp` as a full-matrix Fine-XC stress smoke check                                         |
+| ADMM-GAPW open shell      | ADMM-GAPW O2 stress output in `regtest-admm-qps-2`                            | `regtest-acc-2/O2-admmq-gapw-open-shell-accurate-stress.inp`                                                                                                  |
+| DC-DFT/Energy Correction  | `regtest-acc-2/HF-ec1.inp`, `HF-ec2.inp`, `HF-ec3.inp`                        | `HF-ec4.inp`, `HF-ec5.inp`, `HF-ec6.inp`, and `HF-ec7.inp` now also use explicit accurate integration                                                         |
+| TDDFPT forces             | `regtest-acc-5/h2o_f01.inp`                                                   | `regtest-acc-5/h2o_f01_fine.inp`                                                                                                                              |
+| ADMM-GAPW TDDFPT response | `regtest-acc-5/ft3.inp`                                                       | `regtest-acc-5/ft3_fine.inp`                                                                                                                                  |
+| XAS/RT response           | XAS_TDP and RTBSE coverage in `regtest-xastdp` and `regtest-rtbse`            | open-shell GAPW XAS_TDP and GAPW RTBSE smoke tests in `regtest-acc-3`                                                                                         |
+| KG embedding              | existing `regtest-kg` GPW cases                                               | GAPW/GAPW_XC energy and stress checks for libxc KG, meta-GGA/tau KG, and RI embedding                                                                         |
+| KG atomic potential       | `regtest-kg/H2_KG-1.inp`                                                      | GAPW/GAPW_XC energy and stress checks for `TNADD_METHOD ATOMIC`                                                                                               |
 
 The new tests intentionally compare explicit reference energies, force-debug quantities, or
 debug-force/stress consistency checks rather than relying only on successful execution. This keeps
@@ -48,9 +48,11 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 - TPSS/mGGA forces: `regtest-acc-1/HF-d2.inp`, `regtest-acc-1/h2o-fine-tpss-force-1.inp`.
 - TPSS/mGGA diagonal stress: `regtest-acc-1/h2o-fine-tpss-stress-debug-1.inp`.
 - Full analytical stress matrices with off-diagonal virial components:
-  `regtest-acc-1/h2o-gapw-pbe-full-stress-debug-1.inp`, `h2o-fine-tpss-full-stress-debug-1.inp`,
-  `h2o-gapw_xc-full-stress-debug-1.inp`,
-  `regtest-acc-2/h2o-admm-gapw-pbe-fine-full-stress-debug-1.inp`.
+  `regtest-acc-1/h2o-gapw-pbe-full-stress-debug-1.inp` keeps a compact full FD check.
+  `h2o-fine-tpss-full-stress-1.inp`, `h2o-gapw_xc-full-stress-1.inp`, and
+  `regtest-acc-2/h2o-admm-gapw-pbe-fine-full-stress-1.inp` provide full analytical stress smoke
+  checks with explicit energy and stress references, while the corresponding expensive FD coverage
+  is kept diagonal in the targeted debug tests above.
 - GAPW_XC forces and diagonal stress: `regtest-acc-1/h2o-gapw_xc-force-1.inp`,
   `regtest-acc-1/h2o-gapw_xc-stress-debug-1.inp`.
 - ADMM-GAPW forces: `regtest-acc-1/HF-d5.inp`, `regtest-acc-5/ft3_fine.inp`.

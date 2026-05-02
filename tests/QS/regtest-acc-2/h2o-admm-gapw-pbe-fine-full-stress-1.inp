@@ -1,16 +1,8 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT h2o-admm-gapw-pbe-fine-full-stress-debug-1
-  RUN_TYPE DEBUG
+  PROJECT h2o-admm-gapw-pbe-fine-full-stress-1
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
-
-&DEBUG
-  DEBUG_FORCES .FALSE.
-  DEBUG_STRESS_TENSOR .TRUE.
-  DX 0.0005
-  MAX_RELATIVE_ERROR 15.00
-  STOP_ON_MISMATCH T
-&END DEBUG
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -58,6 +50,11 @@
       &END XC_GRID
     &END XC
   &END DFT
+  &PRINT
+    &STRESS_TENSOR
+      COMPONENTS
+    &END STRESS_TENSOR
+  &END PRINT
   &SUBSYS
     &CELL
       A 4.5 0.0 0.0
