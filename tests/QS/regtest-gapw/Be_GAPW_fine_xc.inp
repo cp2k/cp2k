@@ -31,12 +31,12 @@
       &END OT
     &END SCF
     &XC
-      &XC_GRID
-        USE_FINER_GRID T
-        FINE_GRID_FACTOR 2.0
-      &END XC_GRID
       &XC_FUNCTIONAL TPSS
       &END XC_FUNCTIONAL
+      &XC_GRID
+        FINE_GRID_FACTOR 2.0
+        USE_FINER_GRID T
+      &END XC_GRID
     &END XC
   &END DFT
   &SUBSYS
