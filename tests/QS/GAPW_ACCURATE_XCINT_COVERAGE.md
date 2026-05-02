@@ -37,6 +37,9 @@ Finite-difference checks with `STOP_ON_MISMATCH` are included for:
 Remaining known gaps before a default change:
 
 - `KG_METHOD` with GAPW/GAPW_XC still excludes `TNADD_METHOD EMBED_RI`.
+- The ADMM-GAPW diagonal stress FD check exercises the ADMM/GAPW stress path with
+  `XC_FUNCTIONAL NONE`; mixed ADMM-GAPW stress with a nonzero soft XC functional should still be
+  part of the broader default-flip validation matrix.
 - GAPW/ADMM local energy and stress density output on regular grids still contains only the
   regular-grid/soft contribution, not hard one-center terms.
 - A future default flip should run a broader reference-update pass comparing old default
