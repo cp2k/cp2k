@@ -53,11 +53,12 @@ MODULE cp_control_utils
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, rtp_method_bse, &
-        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
-        sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
-        sic_mauri_spz, sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
-        use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        gaussian_env, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, numerical, ramp_env, &
+        real_time_propagation, rtp_method_bse, sccs_andreussi, sccs_derivative_cd3, &
+        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, tddfpt_dipole_length, tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, &
+        xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -115,22 +116,23 @@ CONTAINS
                                                             potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: admmtype, irep, isize, method_id, nrep, &
-                                                            xc_deriv_method_id
+      INTEGER                                            :: admmtype, irep, isize, kg_tnadd_method, &
+                                                            method_id, nrep, xc_deriv_method_id
       LOGICAL :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, exopt1, exopt2, exopt3, explicit, &
          is_present, l_param, local_moment_possible, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_parser_type)                               :: parser
-      TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, maxwell_section, &
-         sccs_section, scf_section, tmp_section, xc_fun_section, xc_section
+      TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, kg_xc_fun_section, &
+         kg_xc_section, maxwell_section, sccs_section, scf_section, tmp_section, xc_fun_section, &
+         xc_section
 
       was_present = .FALSE.
 
       logger => cp_get_default_logger()
 
-      NULLIFY (tmp_section, xc_fun_section, xc_section)
+      NULLIFY (kg_xc_fun_section, kg_xc_section, tmp_section, xc_fun_section, xc_section)
       ALLOCATE (dft_control)
       CALL dft_control_create(dft_control)
       ! determine wheather this is a semiempirical or DFTB run
@@ -188,6 +190,21 @@ CONTAINS
 
       dft_control%lsd = (dft_control%nspins > 1)
       dft_control%use_kinetic_energy_density = xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
+      tmp_section => section_vals_get_subs_vals(dft_section, "KG_METHOD")
+      CALL section_vals_get(tmp_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(tmp_section, "TNADD_METHOD", i_val=kg_tnadd_method)
+         IF (kg_tnadd_method == kg_tnadd_embed .OR. kg_tnadd_method == kg_tnadd_embed_ri) THEN
+            kg_xc_section => section_vals_get_subs_vals(tmp_section, "XC")
+            kg_xc_fun_section => section_vals_get_subs_vals(kg_xc_section, "XC_FUNCTIONAL")
+            CALL section_vals_get(kg_xc_fun_section, explicit=is_present)
+            IF (is_present) THEN
+               dft_control%use_kinetic_energy_density = dft_control%use_kinetic_energy_density .OR. &
+                                                        xc_uses_kinetic_energy_density(kg_xc_fun_section, &
+                                                                                       dft_control%lsd)
+            END IF
+         END IF
+      END IF
 
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
       dft_control%drho_by_collocation = (xc_uses_norm_drho(xc_fun_section, dft_control%lsd) &
