@@ -141,10 +141,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CUSOLVER_GENERALIZED", &
-                          description="Use cuSOLVERMp to solve the generalized eigenvalue problem directly on the GPU", &
-                          usage="CUSOLVER_GENERALIZED", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECT_GENERALIZED_DIAGONALIZATION", &
+                          description="Request direct generalized eigenvalue problem diagonalization "// &
+                          "without a CP2K-side Cholesky reduction in supported dense matrix paths. "// &
+                          "The eigensolver is still selected by PREFERRED_DIAG_LIBRARY.", &
+                          usage="DIRECT_GENERALIZED_DIAGONALIZATION", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

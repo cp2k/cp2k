@@ -30,6 +30,41 @@ if(NOT CP2K_CONFIG_PACKAGE)
       CP2K_SCALAPACK_LINK_LIBRARIES cp2k::BLAS::SCI::scalapack_link
       INTERFACE_LINK_LIBRARIES)
     set(CP2K_SCALAPACK_FOUND yes)
+  elseif(CP2K_SCALAPACK_VENDOR MATCHES "NVPL")
+    if(CP2K_BLAS_INTERFACE MATCHES "64bits")
+      set(_nvpl_int_type "ilp64")
+    else()
+      set(_nvpl_int_type "lp64")
+    endif()
+
+    set(_nvpl_mpi_type "${CP2K_NVPL_SCALAPACK_MPI}")
+    if(_nvpl_mpi_type STREQUAL "auto")
+      if(MPI_Fortran_LIBRARY_VERSION_STRING MATCHES "Open MPI[^0-9]*([0-9]+)")
+        set(_nvpl_mpi_type "openmpi${CMAKE_MATCH_1}")
+      elseif(MPI_Fortran_LIBRARY_VERSION_STRING MATCHES "MPICH|HYDRA")
+        set(_nvpl_mpi_type "mpich")
+      else()
+        message(
+          FATAL_ERROR
+            "Could not determine the NVPL BLACS MPI interface. Set "
+            "CP2K_NVPL_SCALAPACK_MPI to mpich, openmpi3, openmpi4, or openmpi5."
+        )
+      endif()
+    endif()
+
+    find_package(nvpl REQUIRED COMPONENTS scalapack)
+    set(_nvpl_scalapack_target "nvpl::scalapack_${_nvpl_int_type}")
+    set(_nvpl_blacs_target "nvpl::blacs_${_nvpl_int_type}_${_nvpl_mpi_type}")
+    if(NOT TARGET "${_nvpl_scalapack_target}")
+      message(
+        FATAL_ERROR "NVPL ScaLAPACK target ${_nvpl_scalapack_target} not found")
+    endif()
+    if(NOT TARGET "${_nvpl_blacs_target}")
+      message(FATAL_ERROR "NVPL BLACS target ${_nvpl_blacs_target} not found")
+    endif()
+    set(CP2K_SCALAPACK_LINK_LIBRARIES
+        "${_nvpl_scalapack_target};${_nvpl_blacs_target}")
+    set(CP2K_SCALAPACK_FOUND yes)
   else() # if(CP2K_SCALAPACK_VENDOR MATCHES "GENERIC|auto")
     if(TARGET cp2k::BLAS::MKL::scalapack_link)
       message(

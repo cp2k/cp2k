@@ -65,6 +65,7 @@ MODULE cp_fm_diag
                     dp
    USE machine, ONLY: default_output_unit, &
                       m_memory
+   USE parallel_gemm_api, ONLY: parallel_gemm
 #if defined (__parallel)
    USE message_passing, ONLY: mp_comm_type
 #endif
@@ -88,12 +89,15 @@ MODULE cp_fm_diag
    ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE            :: elpa_neigvec_min = 0
+   ! Minimum matrix size for the use of the cuSOLVERMp eigensolver.
+   ! Smaller matrices use the ScaLAPACK fallback to avoid GPU launch overheads.
+   INTEGER, PARAMETER, PUBLIC :: cusolver_n_min = 64
 #if defined(__DLAF)
    ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
 #endif
-   LOGICAL, SAVE, PUBLIC :: cusolver_generalized = .TRUE.
+   LOGICAL, SAVE, PUBLIC :: direct_generalized_diagonalization = .FALSE.
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
@@ -120,6 +124,8 @@ MODULE cp_fm_diag
              cp_fm_svd, &
              cp_fm_geeig, &
              cp_fm_geeig_canon, &
+             diag_check_requested, &
+             diag_check_warning_threshold, &
              diag_init, &
              diag_finalize
 
@@ -139,21 +145,21 @@ CONTAINS
 !> \param elpa_one_stage logical that enables the one-stage solver
 !> \param dlaf_neigvec_min_input ...
 !> \param eps_check_diag_input ...
-!> \param cusolver_generalized_input ...
+!> \param direct_generalized_diagonalization_input ...
 !> \par History
 !>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
 ! **************************************************************************************************
    SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_neigvec_min_input, elpa_qr, &
                         elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
-                        cusolver_generalized_input)
+                        direct_generalized_diagonalization_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
       INTEGER, INTENT(IN)                                :: elpa_kernel, elpa_neigvec_min_input
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_one_stage
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
-      LOGICAL, INTENT(IN), OPTIONAL                      :: cusolver_generalized_input
+      LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
@@ -200,10 +206,10 @@ CONTAINS
 
       elpa_neigvec_min = elpa_neigvec_min_input
       eps_check_diag = eps_check_diag_input
-      IF (PRESENT(cusolver_generalized_input)) THEN
-         cusolver_generalized = cusolver_generalized_input
+      IF (PRESENT(direct_generalized_diagonalization_input)) THEN
+         direct_generalized_diagonalization = direct_generalized_diagonalization_input
       ELSE
-         cusolver_generalized = .TRUE.
+         direct_generalized_diagonalization = .FALSE.
       END IF
 
    END SUBROUTINE diag_init
@@ -260,7 +266,7 @@ CONTAINS
          END IF
 
       ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
-         IF (matrix%matrix_struct%nrow_global < 64) THEN
+         IF (matrix%matrix_struct%nrow_global < cusolver_n_min) THEN
             ! We don't trust cuSolver with very small matrices.
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
          ELSE
@@ -284,6 +290,35 @@ CONTAINS
       CALL check_diag(matrix, eigenvectors, nvec=SIZE(eigenvalues))
 
    END SUBROUTINE choose_eigv_solver
+
+! **************************************************************************************************
+!> \brief Return whether diagonalization checks should be performed.
+!> \return ...
+! **************************************************************************************************
+   FUNCTION diag_check_requested() RESULT(check_requested)
+      LOGICAL                                            :: check_requested
+
+#if defined(__CHECK_DIAG)
+      check_requested = .TRUE.
+#else
+      check_requested = eps_check_diag >= 0.0_dp
+#endif
+
+   END FUNCTION diag_check_requested
+
+! **************************************************************************************************
+!> \brief Return the warning threshold for diagonalization checks.
+!> \return ...
+! **************************************************************************************************
+   FUNCTION diag_check_warning_threshold() RESULT(eps_warning)
+      REAL(KIND=dp)                                      :: eps_warning
+
+      eps_warning = eps_check_diag_default
+      IF (eps_check_diag >= 0.0_dp) THEN
+         eps_warning = eps_check_diag
+      END IF
+
+   END FUNCTION diag_check_warning_threshold
 
 ! **************************************************************************************************
 !> \brief   Check result of diagonalization, i.e. the orthonormality of the eigenvectors
@@ -312,20 +347,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       output_unit = default_output_unit
-      eps_warning = eps_check_diag_default
-#if defined(__CHECK_DIAG)
-      check_eigenvectors = .TRUE.
-      IF (eps_check_diag >= 0.0_dp) THEN
-         eps_warning = eps_check_diag
-      END IF
-#else
-      IF (eps_check_diag >= 0.0_dp) THEN
-         check_eigenvectors = .TRUE.
-         eps_warning = eps_check_diag
-      ELSE
-         check_eigenvectors = .FALSE.
-      END IF
-#endif
+      check_eigenvectors = diag_check_requested()
+      eps_warning = diag_check_warning_threshold()
       eps_abort = 10.0_dp*eps_warning
 
       gold = 0.0_dp
@@ -397,6 +420,108 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_diag
+
+! **************************************************************************************************
+!> \brief   Check C^T*S*C = I for a generalized eigenvalue problem.
+!> \param overlap original overlap matrix S; used as work matrix and overwritten
+!> \param eigenvectors eigenvectors C to be checked
+!> \param scratch work matrix
+!> \param nvec ...
+! **************************************************************************************************
+   SUBROUTINE check_generalized_diag(overlap, eigenvectors, scratch, nvec)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: overlap, scratch
+      INTEGER, INTENT(IN)                                :: nvec
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_generalized_diag'
+
+      CHARACTER(LEN=default_string_length)               :: diag_type_name
+      REAL(KIND=dp)                                      :: eps, eps_abort, eps_warning, gold, test
+      INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
+#if defined(__parallel)
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      INTEGER                                            :: il, jl, ipcol, iprow, &
+                                                            mypcol, myprow, npcol, nprow
+      INTEGER, DIMENSION(9)                              :: desca
+#endif
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. diag_check_requested()) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      output_unit = default_output_unit
+      eps_warning = diag_check_warning_threshold()
+      eps_abort = 10.0_dp*eps_warning
+
+      nrow = eigenvectors%matrix_struct%nrow_global
+      ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
+
+      CALL parallel_gemm("N", "N", nrow, ncol, nrow, 1.0_dp, overlap, eigenvectors, 0.0_dp, scratch)
+      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, eigenvectors, scratch, 0.0_dp, overlap)
+
+      gold = 0.0_dp
+      test = 0.0_dp
+      eps = 0.0_dp
+
+#if defined(__parallel)
+      context => overlap%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = overlap%matrix_struct%descriptor(:)
+      outer: DO j = 1, ncol
+         DO i = 1, ncol
+            CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
+            IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+               gold = MERGE(0.0_dp, 1.0_dp, i /= j)
+               test = overlap%local_data(il, jl)
+               eps = ABS(test - gold)
+               IF (eps > eps_warning) EXIT outer
+            END IF
+         END DO
+      END DO outer
+#else
+      outer: DO j = 1, ncol
+         DO i = 1, ncol
+            gold = MERGE(0.0_dp, 1.0_dp, i /= j)
+            test = overlap%local_data(i, j)
+            eps = ABS(test - gold)
+            IF (eps > eps_warning) EXIT outer
+         END DO
+      END DO outer
+#endif
+
+      IF (eps > eps_warning) THEN
+         IF (diag_type == FM_DIAG_TYPE_SCALAPACK) THEN
+            diag_type_name = "SYGVX"
+         ELSE IF (diag_type == FM_DIAG_TYPE_ELPA) THEN
+            diag_type_name = "ELPA"
+         ELSE IF (diag_type == FM_DIAG_TYPE_CUSOLVER) THEN
+            diag_type_name = "CUSOLVER"
+         ELSE IF (diag_type == FM_DIAG_TYPE_DLAF) THEN
+            diag_type_name = "DLAF"
+         ELSE
+            CPABORT("Unknown diag_type")
+         END IF
+         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,F0.0,A,ES10.3)") &
+            "The generalized eigenvectors returned by "//TRIM(diag_type_name)//" are not S-orthonormal", &
+            "Matrix element (", i, ", ", j, ") = ", test, &
+            "The deviation from the expected value ", gold, " is", eps
+         IF (eps > eps_abort) THEN
+            CPABORT("ERROR in "//routineN//": Check of generalized matrix diagonalization failed")
+         ELSE
+            CPWARN("Check of generalized matrix diagonalization failed in routine "//routineN)
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_generalized_diag
 
 ! **************************************************************************************************
 !> \brief Issues an error messages and exits (optionally only warns).
@@ -1348,8 +1473,9 @@ CONTAINS
    END SUBROUTINE cp_fm_block_jacobi
 
 ! **************************************************************************************************
-!> \brief General Eigenvalue Problem  AX = BXE
-!>        Single option version: Cholesky decomposition of B
+!> \brief General Eigenvalue Problem AX = BXE.
+!>        Use cuSOLVERMp directly when requested and large enough; otherwise
+!>        reduce the problem through a Cholesky decomposition of B.
 !> \param amatrix ...
 !> \param bmatrix ...
 !> \param eigenvectors ...
@@ -1365,21 +1491,64 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
       INTEGER                                            :: handle, nao, nmo
+      LOGICAL                                            :: check_eigenvectors
+      TYPE(cp_fm_type)                                   :: overlap_check, scratch_check
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(amatrix, nrow_global=nao)
       nmo = SIZE(eigenvalues)
+      check_eigenvectors = diag_check_requested()
 
-      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. cusolver_generalized .AND. nao >= 64) THEN
-         ! Use cuSolverMP generalized eigenvalue solver for large matrices
+      IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
+          nao >= cusolver_n_min) THEN
+         ! Use cuSolverMP generalized eigenvalue solver without a CP2K-side
+         ! Cholesky reduction.
          ! Use work as intermediate buffer since eigenvectors may be smaller (nao x nmo)
+         IF (check_eigenvectors) THEN
+            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_fm_to_fm(bmatrix, overlap_check)
+         END IF
          CALL cp_fm_general_cusolver(amatrix, bmatrix, work, eigenvalues)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_fm_release(scratch_check)
+            CALL cp_fm_release(overlap_check)
+         END IF
          CALL cp_fm_to_fm(work, eigenvectors, nmo)
+#if defined(__parallel)
+      ELSE IF (diag_type == FM_DIAG_TYPE_SCALAPACK .AND. direct_generalized_diagonalization) THEN
+         ! Use ScaLAPACK generalized eigenvalue solver without a CP2K-side
+         ! Cholesky reduction.
+         IF (check_eigenvectors) THEN
+            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_fm_to_fm(bmatrix, overlap_check)
+         END IF
+         CALL cp_fm_geeig_scalapack(amatrix, bmatrix, work, eigenvalues)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_fm_release(scratch_check)
+            CALL cp_fm_release(overlap_check)
+         END IF
+         CALL cp_fm_to_fm(work, eigenvectors, nmo)
+#endif
 #if defined(__DLAF)
       ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
          ! Use DLA-Future generalized eigenvalue solver for large matrices
-         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
+         IF (check_eigenvectors) THEN
+            CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)
+            CALL cp_fm_create(scratch_check, bmatrix%matrix_struct)
+            CALL cp_fm_to_fm(bmatrix, overlap_check)
+         END IF
+         CALL cp_fm_diag_gen_dlaf(amatrix, bmatrix, work, eigenvalues)
+         IF (check_eigenvectors) THEN
+            CALL check_generalized_diag(overlap_check, work, scratch_check, nmo)
+            CALL cp_fm_release(scratch_check)
+            CALL cp_fm_release(overlap_check)
+         END IF
+         CALL cp_fm_to_fm(work, eigenvectors, nmo)
 #endif
       ELSE
          ! Cholesky decompose S=U(T)U
@@ -1400,6 +1569,120 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_geeig
+
+! **************************************************************************************************
+!> \brief General Eigenvalue Problem AX = BXE using ScaLAPACK PDSYGVX.
+!> \param amatrix ...
+!> \param bmatrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_geeig_scalapack(amatrix, bmatrix, eigenvectors, eigenvalues)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_scalapack'
+
+#if defined(__parallel)
+      REAL(KIND=dp), PARAMETER                           :: orfac = -1.0_dp, &
+                                                            vl = 0.0_dp, &
+                                                            vu = 0.0_dp
+
+      INTEGER                                            :: handle, info, liwork, lwork, m, n, nb, &
+                                                            neig, npcol, nprow, nz
+      INTEGER, DIMENSION(9)                              :: desca, descb, descz
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: iclustr, ifail, iwork
+      REAL(KIND=dp)                                      :: abstol
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: gap, w, work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b, z
+
+      INTEGER                                            :: mq0, nn, np0, npe
+      INTEGER, EXTERNAL                                  :: iceil, numroc
+      REAL(KIND=dp), EXTERNAL                            :: dlamch
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
+#else
+      INTEGER                                            :: handle
+#endif
+
+      CALL timeset(routineN, handle)
+
+#if defined(__parallel)
+      n = amatrix%matrix_struct%nrow_global
+      neig = MIN(SIZE(eigenvalues), n)
+
+      IF (neig == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      IF (amatrix%matrix_struct%nrow_block /= amatrix%matrix_struct%ncol_block) THEN
+         CPABORT("ERROR in "//routineN//": Invalid blocksize (no square blocks) found")
+      END IF
+
+      a => amatrix%local_data
+      b => bmatrix%local_data
+      z => eigenvectors%local_data
+      desca(:) = amatrix%matrix_struct%descriptor(:)
+      descb(:) = bmatrix%matrix_struct%descriptor(:)
+      descz(:) = eigenvectors%matrix_struct%descriptor(:)
+
+      nprow = amatrix%matrix_struct%context%num_pe(1)
+      npcol = amatrix%matrix_struct%context%num_pe(2)
+      npe = nprow*npcol
+      nb = amatrix%matrix_struct%nrow_block
+      nn = MAX(n, nb, 2)
+      np0 = numroc(nn, nb, 0, 0, nprow)
+      mq0 = MAX(numroc(nn, nb, 0, 0, npcol), nb)
+
+      lwork = 5*n + MAX(5*nn, np0*mq0 + 2*nb*nb) + iceil(neig, npe)*nn + &
+              MAX(0, neig - 1)*n
+      liwork = 6*MAX(n, npe + 1, 4)
+
+      ALLOCATE (gap(npe))
+      gap = 0.0_dp
+      ALLOCATE (iclustr(2*npe))
+      iclustr = 0
+      ALLOCATE (ifail(n))
+      ifail = 0
+      ALLOCATE (iwork(liwork))
+      ALLOCATE (w(n))
+      ALLOCATE (work(lwork))
+
+      abstol = 2.0_dp*dlamch("S")
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+      CALL pdsygvx(1, "V", "I", "U", n, a(1, 1), 1, 1, desca, b(1, 1), 1, 1, descb, &
+                   vl, vu, 1, neig, abstol, m, nz, w(1), orfac, z(1, 1), 1, 1, descz, &
+                   work(1), lwork, iwork(1), liwork, ifail(1), iclustr(1), gap(1), info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
+
+      IF (info /= 0 .OR. m < neig .OR. nz < neig) THEN
+         CPABORT("ERROR in PDSYGVX (ScaLAPACK), info="//TRIM(cp_to_string(info)))
+      END IF
+
+      eigenvalues(:) = 0.0_dp
+      eigenvalues(1:neig) = w(1:neig)
+
+      DEALLOCATE (gap, iclustr, ifail, iwork, w, work)
+#else
+      MARK_USED(amatrix)
+      MARK_USED(bmatrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(eigenvalues)
+      CPABORT("ERROR in "//routineN//": PDSYGVX requested without ScaLAPACK support")
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_geeig_scalapack
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE

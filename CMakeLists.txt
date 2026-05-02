@@ -255,7 +255,7 @@ set_property(
            "NVHPCBlas"
            "CUSTOM")
 
-set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
+set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "NVPL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
     "auto"
     CACHE STRING "ScaLAPACK vendor/generic backend")
@@ -266,6 +266,17 @@ if(DEFINED CP2K_SCALAPACK_VENDOR)
   if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
     message(FATAL_ERROR "An invalid ScaLAPACK vendor backend was specified")
   endif()
+endif()
+
+set(CP2K_NVPL_SCALAPACK_MPI
+    "auto"
+    CACHE STRING "NVPL BLACS MPI interface")
+set(CP2K_NVPL_SCALAPACK_MPI_LIST "auto" "mpich" "openmpi3" "openmpi4"
+                                 "openmpi5")
+set_property(CACHE CP2K_NVPL_SCALAPACK_MPI
+             PROPERTY STRINGS ${CP2K_NVPL_SCALAPACK_MPI_LIST})
+if(NOT CP2K_NVPL_SCALAPACK_MPI IN_LIST CP2K_NVPL_SCALAPACK_MPI_LIST)
+  message(FATAL_ERROR "An invalid NVPL ScaLAPACK MPI interface was specified")
 endif()
 
 set(CP2K_DATA_DIR
@@ -285,6 +296,7 @@ set(CP2K_SUPPORTED_CUDA_ARCHITECTURES
     V100
     A100
     H100
+    GB10
     A40)
 set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     Mi50
@@ -299,6 +311,7 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     V100
     A100
     H100
+    GB10
     A40)
 
 set(CP2K_WITH_GPU
@@ -460,6 +473,7 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_V100 70)
   set(CP2K_GPU_ARCH_NUMBER_A100 80)
   set(CP2K_GPU_ARCH_NUMBER_H100 90)
+  set(CP2K_GPU_ARCH_NUMBER_GB10 121)
   set(CP2K_GPU_ARCH_NUMBER_A40 86)
   set(CP2K_GPU_ARCH_NUMBER_Mi50 gfx906)
   set(CP2K_GPU_ARCH_NUMBER_Mi100 gfx908)
@@ -700,8 +714,39 @@ endif()
 if(CP2K_USE_DLAF)
   find_package(DLAFFortran 0.4.0 REQUIRED)
 
+  if(TARGET DLAF::Fortran)
+    set(CP2K_DLAF_FORTRAN_TARGET DLAF::Fortran)
+  elseif(TARGET DLAF::DLAF_Fortran)
+    set(CP2K_DLAF_FORTRAN_TARGET DLAF::DLAF_Fortran)
+  else()
+    message(FATAL_ERROR "Could not find a DLA-Future-Fortran CMake target")
+  endif()
+
   get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
                       INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_DLAF_FORTRAN_INCLUDE_DIRS
+                      ${CP2K_DLAF_FORTRAN_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+  if(CP2K_DLAF_FORTRAN_INCLUDE_DIRS)
+    list(APPEND CP2K_DLAF_INCLUDE_DIRS ${CP2K_DLAF_FORTRAN_INCLUDE_DIRS})
+  else()
+    get_target_property(CP2K_DLAF_FORTRAN_LIBRARY ${CP2K_DLAF_FORTRAN_TARGET}
+                        IMPORTED_LOCATION_RELEASE)
+    if(NOT CP2K_DLAF_FORTRAN_LIBRARY)
+      get_target_property(CP2K_DLAF_FORTRAN_LIBRARY ${CP2K_DLAF_FORTRAN_TARGET}
+                          IMPORTED_LOCATION)
+    endif()
+    if(CP2K_DLAF_FORTRAN_LIBRARY)
+      get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
+                             "${CP2K_DLAF_FORTRAN_LIBRARY}" DIRECTORY)
+      get_filename_component(CP2K_DLAF_FORTRAN_PREFIX
+                             "${CP2K_DLAF_FORTRAN_PREFIX}" DIRECTORY)
+      if(EXISTS "${CP2K_DLAF_FORTRAN_PREFIX}/include/dlaf_fortran.mod")
+        list(APPEND CP2K_DLAF_INCLUDE_DIRS
+             "${CP2K_DLAF_FORTRAN_PREFIX}/include")
+      endif()
+    endif()
+  endif()
+  list(REMOVE_DUPLICATES CP2K_DLAF_INCLUDE_DIRS)
   get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::dlaf.prop
                       INTERFACE_LINK_LIBRARIES)
   message("${CP2K_DLAF_INCLUDE_DIRS} ${CP2K_DLAF_LINK_LIBRARIES}")
@@ -988,15 +1033,19 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)
-  message(
-    "   - CUSolverMP: \n"
-    "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
-    "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n"
-    "     - CAL library: ${CP2K_CAL_LINK_LIBRARIES} \n"
-    "     - CAL include: ${CP2K_CAL_INCLUDE_DIRS} \n"
-    "     - ucc library: ${CP2K_UCC_LINK_LIBRARIES} \n"
-    "     - ucx library: ${CP2K_UCX_LINK_LIBRARIES} \n"
-    "     - ucc include: ${CP2K_UCC_INCLUDE_DIRS} \n")
+  message("   - CUSolverMP: \n"
+          "     - library: ${CP2K_CUSOLVER_MP_LINK_LIBRARIES} \n"
+          "     - include: ${CP2K_CUSOLVER_MP_INCLUDE_DIRS} \n")
+  if(CP2K_CUSOLVERMP_USE_NCCL)
+    message("     - NCCL library: ${CP2K_NCCL_LINK_LIBRARIES} \n"
+            "     - NCCL include: ${CP2K_NCCL_INCLUDE_DIRS} \n")
+  else()
+    message("     - CAL library: ${CP2K_CAL_LINK_LIBRARIES} \n"
+            "     - CAL include: ${CP2K_CAL_INCLUDE_DIRS} \n")
+  endif()
+  message("     - ucc library: ${CP2K_UCC_LINK_LIBRARIES} \n"
+          "     - ucx library: ${CP2K_UCX_LINK_LIBRARIES} \n"
+          "     - ucc include: ${CP2K_UCC_INCLUDE_DIRS} \n")
 endif()
 
 if(CP2K_USE_LIBXC)

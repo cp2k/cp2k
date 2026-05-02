@@ -1,0 +1,2 @@
+"real_kp.inp"    = [{matcher="E_total", tol=1e-10, ref=-46.843539755568315}]
+"complex_kp.inp" = [{matcher="E_total", tol=1e-10, ref=-41.897080363575512}]

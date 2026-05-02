@@ -1,2 +1,4 @@
 "H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"Si8-generalized.inp"                   = [{matcher="E_total", tol=1e-11, ref=-31.187602969867214}]
+"Si8-generalized-complex.inp"           = [{matcher="E_total", tol=1e-10, ref=-31.461089087225638}]
 #EOF

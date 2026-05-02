@@ -9,10 +9,12 @@
 
 #include "../offload/offload_library.h"
 #include <assert.h>
+#include <cuComplex.h>
 #include <cuda_runtime.h>
 #include <cusolverMp.h>
 #include <math.h>
 #include <mpi.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,6 +52,60 @@
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+/*******************************************************************************
+ * \brief Check that local MPI ranks can be mapped one-to-one to GPUs.
+ ******************************************************************************/
+static void check_nccl_rank_device_mapping(MPI_Comm comm,
+                                           const int local_device) {
+  int device_count = 0;
+  CUDA_CHECK(cudaGetDeviceCount(&device_count));
+
+  MPI_Comm node_comm;
+  MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &node_comm);
+
+  int rank, local_rank, local_nranks;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_rank(node_comm, &local_rank);
+  MPI_Comm_size(node_comm, &local_nranks);
+
+  if (device_count <= 0) {
+    if (local_rank == 0) {
+      fprintf(stderr,
+              "ERROR: cuSOLVERMp with NCCL requires at least one visible GPU "
+              "on every node. No CUDA device is visible on the node containing "
+              "MPI rank %d.\n",
+              rank);
+    }
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  if (local_device < 0 || local_device >= device_count) {
+    fprintf(stderr,
+            "ERROR: cuSOLVERMp with NCCL selected invalid CUDA device %d on "
+            "MPI rank %d; %d CUDA device(s) are visible on this node.\n",
+            local_device, rank, device_count);
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  if (local_nranks > device_count) {
+    if (local_rank == 0) {
+      fprintf(stderr,
+              "ERROR: cuSOLVERMp with NCCL in CP2K requires at most one local "
+              "MPI rank per visible GPU. This node has %d local MPI ranks and "
+              "%d visible GPU(s). Use fewer MPI ranks per node, expose more "
+              "GPUs with CUDA_VISIBLE_DEVICES, or choose another "
+              "PREFERRED_DIAG_LIBRARY.\n",
+              local_nranks, device_count);
+    }
+    MPI_Comm_free(&node_comm);
+    MPI_Abort(comm, EXIT_FAILURE);
+  }
+
+  MPI_Comm_free(&node_comm);
+}
 
 #else
 /*******************************************************************************
@@ -215,13 +271,17 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
                          const int mypcol, const int n, const double *matrix,
                          double *eigenvectors, double *eigenvalues) {
 
-  offload_activate_chosen_device();
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
   int rank, nranks;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
+
+#if defined(__CUSOLVERMP_NCCL)
+  check_nccl_rank_device_mapping(comm, local_device);
+#endif
+  offload_activate_chosen_device();
 
 #if defined(__CUSOLVERMP_NCCL)
   // Create NCCL communicator.
@@ -376,13 +436,17 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
                                const double *aMatrix, const double *bMatrix,
                                double *eigenvectors, double *eigenvalues) {
 
-  offload_activate_chosen_device();
   const int local_device = offload_get_chosen_device();
 
   MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
   int rank, nranks;
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nranks);
+
+#if defined(__CUSOLVERMP_NCCL)
+  check_nccl_rank_device_mapping(comm, local_device);
+#endif
+  offload_activate_chosen_device();
 
 #if defined(__CUSOLVERMP_NCCL)
   // Create NCCL communicator.
@@ -443,7 +507,7 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
   // Ensure consistency in block sizes, sources, and leading dimensions
   assert(mb_a == mb_b && nb_a == nb_b);
   assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
-  (void)ldB; // Suppress unused variable warning
+  assert(ldA == ldB);
 
   const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
   const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
@@ -562,6 +626,190 @@ void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
 #endif
 
   MPI_Barrier(comm); // Synchronize MPI ranks
+}
+
+/*******************************************************************************
+ * \brief Driver routine to solve A*x = lambda*B*x with cuSOLVERMp hegvd.
+ ******************************************************************************/
+void cp_cfm_diag_cusolver_hegvd(
+    const int fortran_comm, const int a_matrix_desc[9],
+    const int b_matrix_desc[9], const int nprow, const int npcol,
+    const int myprow, const int mypcol, const int n,
+    const cuDoubleComplex *aMatrix, const cuDoubleComplex *bMatrix,
+    cuDoubleComplex *eigenvectors, double *eigenvalues) {
+
+  const int local_device = offload_get_chosen_device();
+
+  MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
+  int rank, nranks;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nranks);
+
+#if defined(__CUSOLVERMP_NCCL)
+  check_nccl_rank_device_mapping(comm, local_device);
+#endif
+  offload_activate_chosen_device();
+
+#if defined(__CUSOLVERMP_NCCL)
+  ncclUniqueId nccl_id;
+  if (rank == 0) {
+    NCCL_CHECK(ncclGetUniqueId(&nccl_id));
+  }
+  MPI_Bcast(&nccl_id, sizeof(nccl_id), MPI_BYTE, 0, comm);
+
+  ncclComm_t nccl_comm;
+  NCCL_CHECK(ncclCommInitRank(&nccl_comm, nranks, nccl_id, rank));
+#else
+  cal_comm_t cal_comm = NULL;
+  cal_comm_create_params_t params;
+  params.allgather = &allgather;
+  params.req_test = &req_test;
+  params.req_free = &req_free;
+  params.data = &comm;
+  params.rank = rank;
+  params.nranks = nranks;
+  params.local_device = local_device;
+  CAL_CHECK(cal_comm_create(params, &cal_comm));
+#endif
+
+  cudaStream_t stream = NULL;
+  CUDA_CHECK(cudaStreamCreate(&stream));
+
+  cusolverMpHandle_t cusolvermp_handle = NULL;
+  CUSOLVER_CHECK(cusolverMpCreate(&cusolvermp_handle, local_device, stream));
+
+  cusolverMpGrid_t grid = NULL;
+#if defined(__CUSOLVERMP_NCCL)
+  CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, nccl_comm,
+                                            nprow, npcol,
+                                            CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#else
+  CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, cal_comm,
+                                            nprow, npcol,
+                                            CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+#endif
+
+  const int mb_a = a_matrix_desc[4];
+  const int nb_a = a_matrix_desc[5];
+  const int rsrc_a = a_matrix_desc[6];
+  const int csrc_a = a_matrix_desc[7];
+  const int ldA = a_matrix_desc[8];
+
+  const int mb_b = b_matrix_desc[4];
+  const int nb_b = b_matrix_desc[5];
+  const int rsrc_b = b_matrix_desc[6];
+  const int csrc_b = b_matrix_desc[7];
+  const int ldB = b_matrix_desc[8];
+
+  assert(mb_a == mb_b && nb_a == nb_b);
+  assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
+  assert(ldA == ldB);
+
+  const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
+  const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
+  assert(np_a == ldA);
+
+  const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  const cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;
+  const cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
+  const cudaDataType_t data_type = CUDA_C_64F;
+
+  cusolverMpMatrixDescriptor_t descrA = NULL;
+  cusolverMpMatrixDescriptor_t descrB = NULL;
+  cusolverMpMatrixDescriptor_t descrZ = NULL;
+
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrA, grid, data_type, n, n,
+                                            mb_a, nb_a, rsrc_a, csrc_a, ldA));
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrB, grid, data_type, n, n,
+                                            mb_b, nb_b, rsrc_b, csrc_b, ldA));
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrZ, grid, data_type, n, n,
+                                            mb_a, nb_a, rsrc_a, csrc_a, ldA));
+
+  cuDoubleComplex *dev_A = NULL, *dev_B = NULL;
+  size_t matrix_local_size = ldA * nq_a * sizeof(cuDoubleComplex);
+  CUDA_CHECK(cudaMalloc((void **)&dev_A, matrix_local_size));
+  CUDA_CHECK(cudaMalloc((void **)&dev_B, matrix_local_size));
+
+  CUDA_CHECK(cudaMemcpyAsync(dev_A, aMatrix, matrix_local_size,
+                             cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK(cudaMemcpyAsync(dev_B, bMatrix, matrix_local_size,
+                             cudaMemcpyHostToDevice, stream));
+
+  cuDoubleComplex *dev_Z = NULL;
+  double *eigenvalues_dev = NULL;
+  CUDA_CHECK(cudaMalloc((void **)&dev_Z, matrix_local_size));
+  CUDA_CHECK(cudaMalloc((void **)&eigenvalues_dev, n * sizeof(double)));
+
+  size_t work_dev_size = 0, work_host_size = 0;
+  const int64_t ia = 1, ja = 1, ib = 1, jb = 1, iz = 1, jz = 1;
+  const int64_t m = (int64_t)n;
+
+  cusolverStatus_t status_bufsize = cusolverMpSygvd_bufferSize(
+      cusolvermp_handle, itype, jobz, uplo, m, ia, ja, descrA, ib, jb, descrB,
+      iz, jz, descrZ, data_type, &work_dev_size, &work_host_size);
+  if (status_bufsize != CUSOLVER_STATUS_SUCCESS) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd_bufferSize failed with status=%d\n",
+            (int)status_bufsize);
+    abort();
+  }
+
+  void *work_dev = NULL, *work_host = NULL;
+  CUDA_CHECK(cudaMalloc(&work_dev, work_dev_size));
+  CUDA_CHECK(cudaMallocHost(&work_host, work_host_size));
+
+  int *info_dev = NULL;
+  CUDA_CHECK(cudaMalloc((void **)&info_dev, sizeof(int)));
+  CUDA_CHECK(cudaMemset(info_dev, 0, sizeof(int)));
+
+  cusolverStatus_t status_sygvd = cusolverMpSygvd(
+      cusolvermp_handle, itype, jobz, uplo, m, dev_A, ia, ja, descrA, dev_B, ib,
+      jb, descrB, eigenvalues_dev, dev_Z, iz, jz, descrZ, data_type, work_dev,
+      work_dev_size, work_host, work_host_size, info_dev);
+  if (status_sygvd != CUSOLVER_STATUS_SUCCESS) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd failed with status=%d\n",
+            (int)status_sygvd);
+    abort();
+  }
+
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+#if !defined(__CUSOLVERMP_NCCL)
+  CAL_CHECK(cal_stream_sync(cal_comm, stream));
+#endif
+
+  int info;
+  CUDA_CHECK(cudaMemcpy(&info, info_dev, sizeof(int), cudaMemcpyDeviceToHost));
+  if (info != 0) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd failed with info = %d\n", info);
+    abort();
+  }
+
+  CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, matrix_local_size,
+                             cudaMemcpyDeviceToHost, stream));
+  CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev, n * sizeof(double),
+                             cudaMemcpyDeviceToHost, stream));
+
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  CUDA_CHECK(cudaFree(dev_A));
+  CUDA_CHECK(cudaFree(dev_B));
+  CUDA_CHECK(cudaFree(dev_Z));
+  CUDA_CHECK(cudaFree(eigenvalues_dev));
+  CUDA_CHECK(cudaFree(info_dev));
+  CUDA_CHECK(cudaFree(work_dev));
+  CUDA_CHECK(cudaFreeHost(work_host));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrA));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrB));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrZ));
+  CUSOLVER_CHECK(cusolverMpDestroyGrid(grid));
+  CUSOLVER_CHECK(cusolverMpDestroy(cusolvermp_handle));
+  CUDA_CHECK(cudaStreamDestroy(stream));
+#if defined(__CUSOLVERMP_NCCL)
+  NCCL_CHECK(ncclCommDestroy(nccl_comm));
+#else
+  CAL_CHECK(cal_comm_destroy(cal_comm));
+#endif
+
+  MPI_Barrier(comm);
 }
 #endif
 
