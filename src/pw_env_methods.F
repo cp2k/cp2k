@@ -635,8 +635,12 @@ CONTAINS
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                   "POISSON| Periodicity", "NONE"
             CASE (WAVELET2D)
+               string = ""
+               IF (poisson_params%periodic(1) == 1) string = TRIM(string)//"X"
+               IF (poisson_params%periodic(2) == 1) string = TRIM(string)//"Y"
+               IF (poisson_params%periodic(3) == 1) string = TRIM(string)//"Z"
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
-                  "POISSON| Periodicity", "XZ"
+                  "POISSON| Periodicity", ADJUSTR(string)
             CASE (WAVELET3D)
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                   "POISSON| Periodicity", "XYZ"
@@ -740,8 +744,7 @@ CONTAINS
           (dft_control%qs_control%method_id == do_method_lrigpw) .OR. &
           (dft_control%qs_control%method_id == do_method_rigpw) .OR. &
           (dft_control%qs_control%method_id == do_method_ofgpw)) THEN
-         IF ((poisson_params%solver /= pw_poisson_wavelet) .AND. &
-             (poisson_params%solver /= pw_poisson_implicit)) THEN
+         IF (poisson_params%solver /= pw_poisson_implicit) THEN
             IF (ANY(my_cell%perd(1:3) /= poisson_params%periodic(1:3))) THEN
                CALL cp_warn(__LOCATION__, &
                             "The selected periodicities in the sections &CELL and &POISSON do not match")

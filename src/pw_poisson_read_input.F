@@ -147,16 +147,29 @@ CONTAINS
 
       SELECT CASE (periodic)
       CASE (use_perd_none)
+         params%periodic = [0, 0, 0]
          params%wavelet_geocode = "F"
          params%wavelet_method = WAVELET0D
+      CASE (use_perd_xy)
+         params%periodic = [1, 1, 0]
+         params%wavelet_geocode = "S"
+         params%wavelet_method = WAVELET2D
+         params%wavelet_special_dimension = 3
       CASE (use_perd_xz)
+         params%periodic = [1, 0, 1]
          params%wavelet_geocode = "S"
          params%wavelet_method = WAVELET2D
          params%wavelet_special_dimension = 2
+      CASE (use_perd_yz)
+         params%periodic = [0, 1, 1]
+         params%wavelet_geocode = "S"
+         params%wavelet_method = WAVELET2D
+         params%wavelet_special_dimension = 1
       CASE (use_perd_xyz)
+         params%periodic = [1, 1, 1]
          params%wavelet_geocode = "P"
          params%wavelet_method = WAVELET3D
-      CASE (use_perd_x, use_perd_y, use_perd_z, use_perd_xy, use_perd_yz)
+      CASE (use_perd_x, use_perd_y, use_perd_z)
          CPABORT("Poisson solver for this periodicity not yet implemented")
       CASE DEFAULT
          CPABORT("")
