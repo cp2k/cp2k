@@ -113,10 +113,11 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: doat, dokp, found
-      REAL(KIND=dp)                                      :: alpha_c, atk0, atk1, core_charge, &
-                                                            core_radius, dab, dac, dbc, f0, rab2, &
-                                                            rac2, rbc2, zeta_c
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ff
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: active_set_pair, has_core_potential
+      REAL(KIND=dp) :: alpha_c, atk0, atk1, core_charge, core_radius, dab, dac, dbc, f0, rab2, &
+         rac2, rbc2, set_radius_a_max, set_radius_b_max, zeta_c
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_core_kind, core_charge_kind, &
+                                                            core_radius_kind, ff, zeta_core_kind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: habd, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab, pab, verf, vnuc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
@@ -169,12 +170,32 @@ CONTAINS
       pv_thread = 0.0_dp
 
       ALLOCATE (basis_set_list(nkind))
+      ALLOCATE (has_core_potential(nkind), alpha_core_kind(nkind), zeta_core_kind(nkind), &
+                core_charge_kind(nkind), core_radius_kind(nkind))
+      has_core_potential(:) = .FALSE.
+      alpha_core_kind(:) = 0.0_dp
+      zeta_core_kind(:) = 0.0_dp
+      core_charge_kind(:) = 0.0_dp
+      core_radius_kind(:) = 0.0_dp
       DO ikind = 1, nkind
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+         CALL get_qs_kind(qs_kind_set(ikind), all_potential=all_potential, &
+                          sgp_potential=sgp_potential)
+         IF (ASSOCIATED(all_potential)) THEN
+            CALL get_potential(potential=all_potential, &
+                               alpha_core_charge=alpha_core_kind(ikind), zeff=zeta_core_kind(ikind), &
+                               ccore_charge=core_charge_kind(ikind), core_charge_radius=core_radius_kind(ikind))
+            has_core_potential(ikind) = .TRUE.
+         ELSE IF (ASSOCIATED(sgp_potential)) THEN
+            CALL get_potential(potential=sgp_potential, &
+                               alpha_core_charge=alpha_core_kind(ikind), zeff=zeta_core_kind(ikind), &
+                               ccore_charge=core_charge_kind(ikind), core_charge_radius=core_radius_kind(ikind))
+            has_core_potential(ikind) = .TRUE.
          END IF
       END DO
 
@@ -195,16 +216,18 @@ CONTAINS
 !$OMP SHARED  (ap_iterator, basis_set_list, calculate_forces, use_virial, &
 !$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, cell_to_index, &
-!$OMP          slot, ldsab,  maxnset, ldai, nder, maxl, maxco, dokp, doat, locks, natom) &
+!$OMP          slot, ldsab,  maxnset, ldai, nder, maxl, maxco, dokp, doat, locks, natom, &
+!$OMP          has_core_potential, alpha_core_kind, zeta_core_kind, core_charge_kind, &
+!$OMP          core_radius_kind) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, lock_num, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, zeta_c, alpha_c, core_charge, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
 !$OMP          rac, dac, rbc, rab2, rac2, rbc2, dbc, na_plus, nb_plus, verf, vnuc, &
-!$OMP          set_radius_a,  core_radius, rpgfa, force_a, force_b, mepos, &
+!$OMP          set_radius_a,  core_radius, set_radius_a_max, set_radius_b_max, rpgfa, force_a, force_b, mepos, &
 !$OMP          atk0, atk1, habd, f0, katom, cellind, img, nij, ff, &
-!$OMP          sgp_potential, all_potential, hash, hash1, hash2, iatom8) &
+!$OMP          active_set_pair, sgp_potential, all_potential, hash, hash1, hash2, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread, at_thread )
 
 !$OMP SINGLE
@@ -222,6 +245,7 @@ CONTAINS
 
       ALLOCATE (hab(ldsab, ldsab, maxnset*maxnset), work(ldsab, ldsab))
       ALLOCATE (verf(ldai, ldai, 2*maxl + nder + 1), vnuc(ldai, ldai, 2*maxl + nder + 1), ff(0:2*maxl + nder))
+      ALLOCATE (active_set_pair(maxnset*maxnset))
       IF (calculate_forces .OR. doat) THEN
          ALLOCATE (pab(maxco, maxco, maxnset*maxnset))
       END IF
@@ -253,6 +277,7 @@ CONTAINS
          set_radius_a => basis_set_a%set_radius
          sphi_a => basis_set_a%sphi
          zeta => basis_set_a%zet
+         set_radius_a_max = MAXVAL(set_radius_a(1:nseta))
          ! basis jkind
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
@@ -264,8 +289,17 @@ CONTAINS
          set_radius_b => basis_set_b%set_radius
          sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
+         set_radius_b_max = MAXVAL(set_radius_b(1:nsetb))
 
          dab = SQRT(SUM(rab*rab))
+         rab2 = dab*dab
+
+         DO iset = 1, nseta
+            DO jset = 1, nsetb
+               nij = jset + (iset - 1)*maxnset
+               active_set_pair(nij) = set_radius_a(iset) + set_radius_b(jset) >= dab
+            END DO
+         END DO
 
          IF (dokp) THEN
             img = cell_to_index(cellind(1), cellind(2), cellind(3))
@@ -301,9 +335,10 @@ CONTAINS
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
                DO jset = 1, nsetb
+                  nij = jset + (iset - 1)*maxnset
+                  IF (.NOT. active_set_pair(nij)) CYCLE
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  nij = jset + (iset - 1)*maxnset
                   ! *** Decontract density matrix block ***
                   IF (iatom <= jatom) THEN
                      work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
@@ -319,21 +354,21 @@ CONTAINS
          END IF
 
          ! loop over all kinds for pseudopotential  atoms
-         hab = 0._dp
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            DO jset = 1, nsetb
+               nij = jset + (iset - 1)*maxnset
+               IF (.NOT. active_set_pair(nij)) CYCLE
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               hab(1:ncoa, 1:ncob, nij) = 0._dp
+            END DO
+         END DO
          DO kkind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(kkind), all_potential=all_potential, &
-                             sgp_potential=sgp_potential)
-            IF (ASSOCIATED(all_potential)) THEN
-               CALL get_potential(potential=all_potential, &
-                                  alpha_core_charge=alpha_c, zeff=zeta_c, &
-                                  ccore_charge=core_charge, core_charge_radius=core_radius)
-            ELSE IF (ASSOCIATED(sgp_potential)) THEN
-               CALL get_potential(potential=sgp_potential, &
-                                  alpha_core_charge=alpha_c, zeff=zeta_c, &
-                                  ccore_charge=core_charge, core_charge_radius=core_radius)
-            ELSE
-               CYCLE
-            END IF
+            IF (.NOT. has_core_potential(kkind)) CYCLE
+            alpha_c = alpha_core_kind(kkind)
+            zeta_c = zeta_core_kind(kkind)
+            core_charge = core_charge_kind(kkind)
+            core_radius = core_radius_kind(kkind)
 
             CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom, mepos=mepos)
 
@@ -343,8 +378,10 @@ CONTAINS
                dac = SQRT(SUM(rac*rac))
                rbc(:) = rac(:) - rab(:)
                dbc = SQRT(SUM(rbc*rbc))
-               IF ((MAXVAL(set_radius_a(:)) + core_radius < dac) .OR. &
-                   (MAXVAL(set_radius_b(:)) + core_radius < dbc)) THEN
+               rac2 = dac*dac
+               rbc2 = dbc*dbc
+               IF ((set_radius_a_max + core_radius < dac) .OR. &
+                   (set_radius_b_max + core_radius < dbc)) THEN
                   CYCLE
                END IF
 
@@ -353,14 +390,11 @@ CONTAINS
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   sgfa = first_sgfa(1, iset)
                   DO jset = 1, nsetb
+                     nij = jset + (iset - 1)*maxnset
+                     IF (.NOT. active_set_pair(nij)) CYCLE
                      IF (set_radius_b(jset) + core_radius < dbc) CYCLE
                      ncob = npgfb(jset)*ncoset(lb_max(jset))
                      sgfb = first_sgfb(1, jset)
-                     IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-                     rab2 = dab*dab
-                     rac2 = dac*dac
-                     rbc2 = dbc*dbc
-                     nij = jset + (iset - 1)*maxnset
                      ! *** Calculate the GTH pseudo potential forces ***
                      IF (doat) THEN
                         atk0 = f0*SUM(hab(1:ncoa, 1:ncob, nij)*pab(1:ncoa, 1:ncob, nij))
@@ -420,12 +454,13 @@ CONTAINS
          END DO
          ! *** Contract nuclear attraction integrals
          DO iset = 1, nseta
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
             DO jset = 1, nsetb
+               nij = jset + (iset - 1)*maxnset
+               IF (.NOT. active_set_pair(nij)) CYCLE
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
-               nij = jset + (iset - 1)*maxnset
 !$             hash2 = MOD((iset - 1)*nsetb + jset, nlock) + 1
 !$             hash = MOD(hash1 + hash2, nlock) + 1
                work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob, nij), &
@@ -446,7 +481,7 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE (hab, work, verf, vnuc, ff)
+      DEALLOCATE (hab, work, verf, vnuc, ff, active_set_pair)
       IF (calculate_forces .OR. doat) THEN
          DEALLOCATE (pab)
       END IF
@@ -465,7 +500,8 @@ CONTAINS
 
       CALL neighbor_list_iterator_release(ap_iterator)
 
-      DEALLOCATE (basis_set_list)
+      DEALLOCATE (basis_set_list, has_core_potential, alpha_core_kind, zeta_core_kind, &
+                  core_charge_kind, core_radius_kind)
 
       IF (calculate_forces .OR. doat) THEN
          ! *** If LSD, then recover alpha density and beta density     ***
