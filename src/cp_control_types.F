@@ -505,6 +505,23 @@ MODULE cp_control_types
    END TYPE smeared_type
 
 ! **************************************************************************************************
+! \brief Control parameters for the planar averaged Hartree potential
+! **************************************************************************************************
+   TYPE paep_control_type
+      INTEGER                              :: surf_normal = 0
+   END TYPE paep_control_type
+      
+! **************************************************************************************************
+! \brief Control parameters for the planar counter charge density
+! **************************************************************************************************
+   TYPE pcc_control_type
+      INTEGER                              :: surf_normal = 0
+      REAL(KIND=dp)                        :: dist_edge = 0.0_dp, &
+                                              gau_a = 0.0_dp, &
+                                              gau_c = 0.0_dp
+   END TYPE pcc_control_type
+
+! **************************************************************************************************
 ! \brief Control parameters for a Time-Dependent DFT calculation.
 ! **************************************************************************************************
    TYPE tddfpt2_control_type
@@ -642,6 +659,8 @@ MODULE cp_control_types
       TYPE(expot_control_type), POINTER    :: expot_control => NULL()
       TYPE(maxwell_control_type), POINTER  :: maxwell_control => NULL()
       TYPE(smeagol_control_type), POINTER  :: smeagol_control => NULL()
+      TYPE(paep_control_type), POINTER     :: paep_control => NULL()
+      TYPE(pcc_control_type), POINTER      :: pcc_control => NULL()
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields => NULL()
       TYPE(hairy_probes_type), POINTER, &
@@ -696,7 +715,9 @@ MODULE cp_control_types
                                               do_sccs = .FALSE., &
                                               apply_embed_pot = .FALSE., &
                                               apply_dmfet_pot = .FALSE., &
-                                              hairy_probes = .FALSE.
+                                              hairy_probes = .FALSE., &
+                                              do_paep = .FALSE., &
+                                              do_pcc = .FALSE.
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -723,7 +744,9 @@ MODULE cp_control_types
              sccs_control_type, &
              stda_control_type, &
              smeared_type, &
-             hairy_probes_type
+             hairy_probes_type, & 
+             paep_control_type, &
+             pcc_control_type 
 
    ! Public subroutines
 
@@ -859,10 +882,14 @@ CONTAINS
       NULLIFY (dft_control%rtp_control)
       NULLIFY (dft_control%sccs_control)
       NULLIFY (dft_control%probe)
+      NULLIFY (dft_control%paep_control)
+      NULLIFY (dft_control%pcc_control)
       dft_control%do_sccs = .FALSE.
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
       dft_control%hairy_probes = .FALSE.
+      dft_control%do_pcc = .FALSE.
+      dft_control%do_paep = .FALSE.
       CALL qs_control_create(dft_control%qs_control)
       CALL tddfpt2_control_create(dft_control%tddfpt2_control)
       CALL rixs_control_create(dft_control%rixs_control)
@@ -907,6 +934,8 @@ CONTAINS
          CALL proj_mo_list_release(dft_control%rtp_control%proj_mo_list)
          DEALLOCATE (dft_control%rtp_control)
       END IF
+      IF (ASSOCIATED(dft_control%pcc_control)) DEALLOCATE (dft_control%pcc_control)
+      IF (ASSOCIATED(dft_control%paep_control)) DEALLOCATE (dft_control%paep_control)
 
    END SUBROUTINE dft_control_release
 
