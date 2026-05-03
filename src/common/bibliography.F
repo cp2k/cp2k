@@ -69,7 +69,7 @@ MODULE bibliography
                             Batzner2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
-                            Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
+                            Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, Worlton1972, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
                             Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
@@ -1258,6 +1258,12 @@ CONTAINS
                          title="Comment on special points for Brillouin-zone integrations", &
                          source="Phys. Rev. B", volume="18", pages="5897-5899", &
                          year=1978, doi="10.1103/PhysRevB.18.5897")
+
+      CALL add_reference(key=Worlton1972, &
+                         authors=s2a("T. G. Worlton", "J. L. Warren"), &
+                         title="Group-theoretical analysis of lattice vibrations", &
+                         source="Comput. Phys. Commun.", volume="3", pages="88-117", &
+                         year=1972, doi="10.1016/0010-4655(72)90058-6")
 
       CALL add_reference(key=Gilbert2008, &
                          authors=s2a("A. T. B. Gilbert", "N. A. Besley", "P. M. W. Gill"), &

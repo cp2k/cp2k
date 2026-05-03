@@ -21,6 +21,7 @@ MODULE input_cp2k_kpoints
                                               section_create,&
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
+                                              enum_t,&
                                               real_t
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -34,11 +35,14 @@ MODULE input_cp2k_kpoints
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_kpoints'
 
    INTEGER, PARAMETER                      :: use_real_wfn = 101, &
-                                              use_complex_wfn = 100
+                                              use_complex_wfn = 100, &
+                                              use_k290_kpoint_symmetry = 200, &
+                                              use_spglib_kpoint_symmetry = 201
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
+   PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
 
 CONTAINS
 
@@ -52,8 +56,10 @@ CONTAINS
 !>      SYMMETRY         [on, off]
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
+!>      INVERSION_SYMMETRY_ONLY [on, off]
+!>      SYMMETRY_REDUCTION_METHOD [K290, SPGLIB]
 !>      VERBOSE          [on, off]
-!>      EPS_GEO          value
+!>      EPS_SYMMETRY     value
 !>      PARALLEL_GROUP_SIZE   [-1,0,n]
 !>
 !> \param section the section to create
@@ -118,6 +124,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="INVERSION_SYMMETRY_ONLY", &
+                          description="Restrict k-point reduction to k-space inversion "// &
+                          "(time-reversal) symmetry.", &
+                          usage="INVERSION_SYMMETRY_ONLY <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_REDUCTION_METHOD", &
+                          description="Select the method used to reduce Monkhorst-Pack and MacDonald "// &
+                          "k-point meshes when atomic symmetry is enabled. K290 is the established "// &
+                          "default. SPGLIB uses the symmetry operations returned by SPGLIB for the "// &
+                          "k-point reduction.", &
+                          usage="SYMMETRY_REDUCTION_METHOD K290", type_of_var=enum_t, &
+                          enum_c_vals=s2a("K290", "SPGLIB"), &
+                          enum_i_vals=[use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry], &
+                          enum_desc=s2a("Use the existing K290 k-point symmetry reduction method.", &
+                                        "Use SPGLIB symmetry operations for k-point reduction."), &
+                          default_i_val=use_k290_kpoint_symmetry)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
                           description="Verbose output information.", &
                           usage="VERBOSE <LOGICAL>", &
@@ -125,9 +153,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_GEO", &
-                          description="Accuracy in symmetry determination.", &
-                          usage="EPS_GEO <real>", &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SYMMETRY", variants=["EPS_GEO"], &
+                          description="Accuracy in k-point symmetry determination."//newline// &
+                          "EPS_GEO is accepted as an alias.", &
+                          usage="EPS_SYMMETRY <real>", &
                           default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

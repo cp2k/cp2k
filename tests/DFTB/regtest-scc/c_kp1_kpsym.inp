@@ -1,0 +1,70 @@
+@SET NREP 1
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &KPOINTS
+      EPS_SYMMETRY 1.e-8
+      FULL_GRID OFF
+      SCHEME MONKHORST-PACK 4 4 4
+      SYMMETRY ON
+      VERBOSE T
+    &END KPOINTS
+    &POISSON
+      &EWALD
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        GMAX 25
+      &END EWALD
+    &END POISSON
+    &QS
+      EXTRAPOLATION USE_GUESS
+      METHOD DFTB
+      &DFTB
+        DIAGONAL_DFTB3 F
+        DISPERSION T
+        DO_EWALD T
+        HB_SR_GAMMA F
+        SELF_CONSISTENT T
+        &PARAMETER
+          PARAM_FILE_PATH ./DFTB/scc
+          SK_FILE C C cc.spl
+          UFF_FORCE_FIELD ../uff_table
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0e-8
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.35
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.56683 3.56683 3.56683
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    &COORD
+      SCALED
+      C     0.000000    0.000000    0.000000
+      C     0.500000    0.500000    0.000000
+      C     0.500000    0.000000    0.500000
+      C     0.000000    0.500000    0.500000
+      C     0.250000    0.250000    0.250000
+      C     0.250000    0.750000    0.750000
+      C     0.750000    0.250000    0.750000
+      C     0.750000    0.750000    0.250000
+    &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT C_kpsym
+  RUN_TYPE ENERGY
+&END GLOBAL

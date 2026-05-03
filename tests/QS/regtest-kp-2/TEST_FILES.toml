@@ -21,4 +21,5 @@
 "ccn3.inp"                              = [{matcher="M069", tol=1.0E-04, ref=3.7586}]
 "ccn4.inp"                              = [{matcher="M069", tol=1.0E-04, ref=3.7586}]
 "cc2_lri.inp"                           = [{matcher="E_total", tol=8.0E-10, ref=-55.63725190467995}]
+"cc2_lri_kpsym.inp"                     = [{matcher="E_total", tol=8.0E-10, ref=-55.63725190467995}]
 #EOF
