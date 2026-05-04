@@ -8,4 +8,22 @@
 "H2O-64_C-NNP_MD-NpT-numeric.inp"       = [{matcher="M002", tol=1.0E-14, ref=0.375124841615E+04}]
 "H2O-64_C-NNP_biased_MD.inp"            = [{matcher="M002", tol=1.0E-14, ref=0.375124232248E+04}]
 "H2O-64_C-NNP_biased_MD_restart.inp"    = [{matcher="M002", tol=1.0E-14, ref=0.375124124406E+04}]
+
+# H2O-256_C-NNP_MD-bitexact: regression test for the cell-list bugs fixed in
+# this branch — tile-invariance (image_copies must include cell%perd ring
+# for boxes with L > 2*cutoff) and conservation drift on Verlet-skin reuse
+# (linked-cell chain must be re-binned every step from current positions,
+# otherwise the stencil walker silently misses pairs that have crossed
+# bin boundaries since the last full rebuild). Uses w=256 (24.84 x 24.84
+# x 12.42 box) so two axes have L > 2*cutoff: that's the regime where the
+# stale-image-pool bug actually produces wrong forces and Cons drifts by
+# > 1e-5 relative within just 5 NVT steps. Smaller boxes (H2O-64 cube,
+# H2O-128 with one big axis) are too saturated by image_copies and the
+# bugs hide under FP noise. Total runtime ~3 s (5 NVT steps at 256 waters
+# / 768 atoms, single rank, particle decomposition).
+"H2O-256_C-NNP_MD-bitexact.inp" = [
+    {matcher="M_INIT_ENERGY", tol=1.0E-14, ref=15004.992479346592518},
+    {matcher="M002",          tol=1.0E-14, ref=0.150049870566E+05},
+    {matcher="M_CONS_QTY",    tol=1.0E-14, ref=0.150060861414E+05},
+]
 #EOF

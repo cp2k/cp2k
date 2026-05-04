@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \brief  Methods dealing with Neural Network potentials
 !> \author Christoph Schran (christoph.schran@rub.de)
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
 !> \date   2020-10-10
 ! **************************************************************************************************
 MODULE nnp_force
@@ -29,7 +30,8 @@ MODULE nnp_force
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE nnp_acsf,                        ONLY: nnp_calc_acsf
+   USE nnp_acsf,                        ONLY: nnp_calc_acsf,&
+                                              nnp_prepare_neighbor_cache
    USE nnp_environment_types,           ONLY: nnp_env_get,&
                                               nnp_type
    USE nnp_model,                       ONLY: nnp_gradients,&
@@ -47,7 +49,7 @@ MODULE nnp_force
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nnp_force'
 
-   PUBLIC :: nnp_calc_energy_force
+   PUBLIC :: nnp_calc_energy_force, nnp_scatter_dgdr_to_forces
 
 CONTAINS
 
@@ -64,12 +66,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_energy_force'
 
-      INTEGER                                            :: handle, i, i_com, ig, ind, istart, j, k, &
-                                                            m, mecalc
+      INTEGER                                            :: handle, handle_loop, i, i_com, ig, ind, &
+                                                            istart, j, k, m, max_input_nodes, &
+                                                            mecalc, n_input_nodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: allcalc
       LOGICAL                                            :: calc_stress
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz, stress
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: stress
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -85,6 +88,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(nnp))
+      CPASSERT(nnp%n_committee >= 1)
       CALL nnp_env_get(nnp_env=nnp, particle_set=particle_set, &
                        subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set)
@@ -93,9 +97,9 @@ CONTAINS
                          virial=virial)
 
       calc_stress = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-      IF (calc_stress .AND. .NOT. calc_forces) CPABORT('Stress cannot be calculated without forces')
+      IF (calc_stress .AND. .NOT. calc_forces) &
+         CPABORT('Stress cannot be calculated without forces')
 
-      ! Initialize energy and gradient:
       nnp%atomic_energy(:, :) = 0.0_dp
       IF (calc_forces) nnp%myforce(:, :, :) = 0.0_dp
       IF (calc_forces) nnp%committee_forces(:, :, :) = 0.0_dp
@@ -134,11 +138,36 @@ CONTAINS
       ! reset extrapolation status
       nnp%output_expol = .FALSE.
 
+      CALL nnp_prepare_neighbor_cache(nnp)
+
+      max_input_nodes = 0
+      IF (calc_forces) THEN
+         DO i = 1, nnp%n_ele
+            max_input_nodes = MAX(max_input_nodes, nnp%arc(i)%n_nodes(1))
+         END DO
+         ! n2p2-style: per-neighbor dGdr lives in the per-element workspace state.
+         ! No global (3, n_sf, num_atoms) slab is needed -- the force scatter walks
+         ! the per-(ind) neighbor lists directly.
+         IF (calc_stress) THEN
+            ALLOCATE (stress(3, 3, max_input_nodes))
+            stress(:, :, :) = 0.0_dp
+         END IF
+         ALLOCATE (denergydsym(max_input_nodes))
+         denergydsym(:) = 0.0_dp
+      END IF
+
+      ! Per-rank wall-time instrumentation around the per-atom work. CP2K's
+      ! timer report aggregates this label across ranks (avg / max), so the
+      ! difference between max and avg is the load-imbalance budget that
+      ! shows up downstream as MPI sync time at the SUM(committee_*) calls.
+      CALL timeset('nnp_per_rank_atom_loop', handle_loop)
+
       ! calc atomic contribution to energy and force
       DO i = istart, istart + mecalc - 1
 
          ! determine index of atom type and offset
          ind = nnp%ele_ind(i)
+         n_input_nodes = nnp%arc(ind)%n_nodes(1)
 
          ! reset input nodes of ele(ind):
          nnp%arc(ind)%layer(1)%node(:) = 0.0_dp
@@ -147,17 +176,14 @@ CONTAINS
          IF (calc_forces) THEN
             !reset input grads of ele(ind):
             nnp%arc(ind)%layer(1)%node_grad(:) = 0.0_dp
-            ALLOCATE (dsymdxyz(3, nnp%arc(ind)%n_nodes(1), nnp%num_atoms))
-            dsymdxyz(:, :, :) = 0.0_dp
             IF (calc_stress) THEN
-               ALLOCATE (stress(3, 3, nnp%arc(ind)%n_nodes(1)))
-               stress(:, :, :) = 0.0_dp
-               CALL nnp_calc_acsf(nnp, i, dsymdxyz, stress)
+               stress(:, :, 1:n_input_nodes) = 0.0_dp
+               CALL nnp_calc_acsf(nnp, i, .TRUE., stress(:, :, 1:n_input_nodes))
             ELSE
-               CALL nnp_calc_acsf(nnp, i, dsymdxyz)
+               CALL nnp_calc_acsf(nnp, i, .TRUE.)
             END IF
          ELSE
-            CALL nnp_calc_acsf(nnp, i)
+            CALL nnp_calc_acsf(nnp, i, .FALSE.)
          END IF
 
          DO i_com = 1, nnp%n_committee
@@ -168,33 +194,35 @@ CONTAINS
 
             ! predict forces
             IF (calc_forces) THEN
-               ALLOCATE (denergydsym(nnp%arc(ind)%n_nodes(1)))
-               denergydsym(:) = 0.0_dp
-               CALL nnp_gradients(nnp%arc(ind), nnp, i_com, denergydsym)
-               DO j = 1, nnp%arc(ind)%n_nodes(1)
-                  DO k = 1, nnp%num_atoms
-                     DO m = 1, 3
-                        nnp%myforce(m, k, i_com) = nnp%myforce(m, k, i_com) - denergydsym(j)*dsymdxyz(m, j, k)
-                     END DO
-                  END DO
-                  IF (calc_stress) THEN
+               denergydsym(1:n_input_nodes) = 0.0_dp
+               CALL nnp_gradients(nnp%arc(ind), nnp, i_com, denergydsym(1:n_input_nodes))
+
+               ! n2p2-style force scatter. See nnp_scatter_dgdr_to_forces below
+               ! for the per-(self, radial, angular) walk over the per-element
+               ! workspace dGdr arrays. The same routine is reused by the
+               ! helium-NNP coupling in src/motion/helium_interactions.F.
+               CALL nnp_scatter_dgdr_to_forces(nnp, ind, i, denergydsym(1:n_input_nodes), &
+                                               nnp%myforce(:, :, i_com))
+
+               IF (calc_stress) THEN
+                  DO j = 1, n_input_nodes
                      nnp%committee_stress(:, :, i_com) = nnp%committee_stress(:, :, i_com) - &
                                                          denergydsym(j)*stress(:, :, j)
-                  END IF
-               END DO
-               DEALLOCATE (denergydsym)
+                  END DO
+               END IF
             END IF
          END DO
 
-         !deallocate memory
-         IF (calc_forces) THEN
-            DEALLOCATE (dsymdxyz)
-            IF (calc_stress) THEN
-               DEALLOCATE (stress)
-            END IF
-         END IF
-
       END DO ! loop over num_atoms
+
+      CALL timestop(handle_loop)
+
+      IF (calc_forces) THEN
+         DEALLOCATE (denergydsym)
+         IF (calc_stress) THEN
+            DEALLOCATE (stress)
+         END IF
+      END IF
 
       ! calculate energy:
       CALL logger%para_env%sum(nnp%atomic_energy(:, :))
@@ -335,7 +363,7 @@ CONTAINS
 
       print_key => section_vals_get_subs_vals(print_section, "FORCES")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         IF (unit_nr > 0) CALL nnp_print_forces(nnp, print_key)
+         CALL nnp_print_forces(nnp, print_key)
       END IF
 
       print_key => section_vals_get_subs_vals(print_section, "FORCES_SIGMA")
@@ -426,7 +454,6 @@ CONTAINS
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      ! TODO use write_particle_coordinates from particle_methods.F
       DO i = 1, nnp%n_committee
          WRITE (fmt_string, *) i
          WRITE (middle_name, "(A,A)") "nnp-forces-", ADJUSTL(TRIM(fmt_string))
@@ -612,7 +639,6 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i
 
-      ! TODO use write_particle_coordinates from particle_methods.F
       WRITE (unit_nr, *) nnp%num_atoms
       WRITE (unit_nr, "(A,F20.9)") "NNP bias forces [a.u.] for bias energy [a.u]=", nnp%bias_energy
 
@@ -670,5 +696,128 @@ CONTAINS
       WRITE (unit_nr, fmt_string) rvec
 
    END SUBROUTINE nnp_print_sumforces
+
+! **************************************************************************************************
+!> \brief Scatter the n2p2-style per-neighbour dG/dr arrays held in the
+!>        nnp_neighbor_workspace into a per-atom Cartesian force array.
+!>
+!>        Three contributions per central atom i:
+!>          1) self contribution from self_dGdr(:, m)        -> force_xyz(:, i)
+!>          2) radial neighbours: walk neighbor%rad(s)%ind(j) and read
+!>             dGdr_rad(s)%data(:, sf, j)                    -> force_xyz(:, k_atom)
+!>          3) angular neighbours: walk neighbor%ang1(s)%ind / ang2(s)%ind
+!>             (or both ang1(s)%ind in the homo case) and read dGdr_ang_jj /
+!>             dGdr_ang_kk.
+!>
+!>        No global (n_sf, num_atoms) slab is touched: every atom that picks
+!>        up a contribution is already in one of the per-(ind) neighbour
+!>        lists for i. Reused by helium_interactions for the helium-NNP
+!>        coupling so the scatter logic lives in one place.
+!> \param nnp ...
+!> \param ind central-atom element index
+!> \param i central atom index (absolute)
+!> \param denergydsym dE/dG_k for k = 1..n_input_nodes(ind)
+!> \param force_xyz (3, num_atoms) destination -- accumulated, NOT overwritten
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   SUBROUTINE nnp_scatter_dgdr_to_forces(nnp, ind, i, denergydsym, force_xyz)
+
+      TYPE(nnp_type), INTENT(IN)                         :: nnp
+      INTEGER, INTENT(IN)                                :: ind, i
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: denergydsym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: force_xyz
+
+      INTEGER                                            :: j, k, k_atom, m, off, s, sf, &
+                                                            n_symf_s, n_ang1_s, n_ang2_s, n_input_nodes
+      LOGICAL                                            :: homo_grp
+      REAL(KIND=dp)                                      :: de
+
+      ASSOCIATE (workspace => nnp%neighbor_interface_state%workspace(ind), &
+                 neighbor => nnp%neighbor_interface_state%workspace(ind)%neighbor, &
+                 self_dGdr => nnp%neighbor_interface_state%workspace(ind)%self_dGdr)
+
+         n_input_nodes = workspace%n_input_nodes
+
+         ! Self contribution
+         DO j = 1, n_input_nodes
+            de = denergydsym(j)
+            force_xyz(1, i) = force_xyz(1, i) - de*self_dGdr(1, j)
+            force_xyz(2, i) = force_xyz(2, i) - de*self_dGdr(2, j)
+            force_xyz(3, i) = force_xyz(3, i) - de*self_dGdr(3, j)
+         END DO
+
+         ! Radial neighbours
+         DO s = 1, nnp%rad(ind)%n_symfgrp
+            n_symf_s = nnp%rad(ind)%symfgrp(s)%n_symf
+            ASSOCIATE (rad_buf => workspace%dGdr_rad(s)%data)
+            DO j = 1, neighbor%n_rad(s)
+               k_atom = neighbor%rad(s)%ind(j)
+               DO sf = 1, n_symf_s
+                  m = nnp%rad(ind)%symfgrp(s)%symf(sf)
+                  de = denergydsym(m)
+                  force_xyz(1, k_atom) = force_xyz(1, k_atom) - de*rad_buf(1, sf, j)
+                  force_xyz(2, k_atom) = force_xyz(2, k_atom) - de*rad_buf(2, sf, j)
+                  force_xyz(3, k_atom) = force_xyz(3, k_atom) - de*rad_buf(3, sf, j)
+               END DO
+            END DO
+            END ASSOCIATE
+         END DO
+
+         ! Angular neighbours
+         off = nnp%n_rad(ind)
+         DO s = 1, nnp%ang(ind)%n_symfgrp
+            n_symf_s = nnp%ang(ind)%symfgrp(s)%n_symf
+            n_ang1_s = neighbor%n_ang1(s)
+            homo_grp = (nnp%ang(ind)%symfgrp(s)%ele(1) == nnp%ang(ind)%symfgrp(s)%ele(2))
+            IF (homo_grp) THEN
+               n_ang2_s = n_ang1_s   ! kk buffer is also indexed in ang1(s)%ind
+            ELSE
+               n_ang2_s = neighbor%n_ang2(s)
+            END IF
+
+            ASSOCIATE (jj_buf => workspace%dGdr_ang_jj(s)%data, &
+                       kk_buf => workspace%dGdr_ang_kk(s)%data)
+            ! jj-side
+            DO j = 1, n_ang1_s
+               k_atom = neighbor%ang1(s)%ind(j)
+               DO sf = 1, n_symf_s
+                  m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
+                  de = denergydsym(m)
+                  force_xyz(1, k_atom) = force_xyz(1, k_atom) - de*jj_buf(1, sf, j)
+                  force_xyz(2, k_atom) = force_xyz(2, k_atom) - de*jj_buf(2, sf, j)
+                  force_xyz(3, k_atom) = force_xyz(3, k_atom) - de*jj_buf(3, sf, j)
+               END DO
+            END DO
+
+            ! kk-side: homo reads ang1(s)%ind, hetero reads ang2(s)%ind
+            IF (homo_grp) THEN
+               DO k = 1, n_ang2_s
+                  k_atom = neighbor%ang1(s)%ind(k)
+                  DO sf = 1, n_symf_s
+                     m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
+                     de = denergydsym(m)
+                     force_xyz(1, k_atom) = force_xyz(1, k_atom) - de*kk_buf(1, sf, k)
+                     force_xyz(2, k_atom) = force_xyz(2, k_atom) - de*kk_buf(2, sf, k)
+                     force_xyz(3, k_atom) = force_xyz(3, k_atom) - de*kk_buf(3, sf, k)
+                  END DO
+               END DO
+            ELSE
+               DO k = 1, n_ang2_s
+                  k_atom = neighbor%ang2(s)%ind(k)
+                  DO sf = 1, n_symf_s
+                     m = off + nnp%ang(ind)%symfgrp(s)%symf(sf)
+                     de = denergydsym(m)
+                     force_xyz(1, k_atom) = force_xyz(1, k_atom) - de*kk_buf(1, sf, k)
+                     force_xyz(2, k_atom) = force_xyz(2, k_atom) - de*kk_buf(2, sf, k)
+                     force_xyz(3, k_atom) = force_xyz(3, k_atom) - de*kk_buf(3, sf, k)
+                  END DO
+               END DO
+            END IF
+            END ASSOCIATE
+         END DO
+
+      END ASSOCIATE
+
+   END SUBROUTINE nnp_scatter_dgdr_to_forces
 
 END MODULE nnp_force

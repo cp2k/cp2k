@@ -169,7 +169,7 @@ CONTAINS
       TYPE(nnp_arc_type), INTENT(INOUT)                  :: arc
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: i_com
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: denergydsym
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'nnp_gradients'
 

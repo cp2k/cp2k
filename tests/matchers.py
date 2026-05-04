@@ -73,6 +73,47 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
+class FirstMatcher(Matcher):
+    """Like GenericMatcher but takes the FIRST line that matches the pattern,
+    not the last. Useful for verifying step-0 (initial) values that get
+    overwritten by later print lines (e.g., the step-0 ENERGY|Total
+    FORCE_EVAL line is followed by one per MD step)."""
+
+    def __init__(self, pattern: str, col: int):
+        self.pattern = pattern
+        for c in r"[]()|+*?":
+            pattern = pattern.replace(c, f"\\{c}")
+        self.regex = re.compile(pattern)
+        self.col = col
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        tol, ref = kwargs["tol"], kwargs["ref"]
+        assert isinstance(tol, float) or isinstance(ref, int)
+        assert isinstance(ref, float) or isinstance(ref, int)
+        for line in output.split("\n"):
+            if self.regex.search(line):
+                value_str = line.split()[self.col - 1]
+                break
+        else:
+            error = f"Result not found: '{self.pattern}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        try:
+            value = float(value_str)
+        except:
+            error = f"Could not parse result as float: '{value_str}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        diff = value - ref
+        rel_error = abs(diff / ref if ref != 0.0 else diff)
+        if rel_error > tol:
+            error = f"Difference too large: {rel_error:.2e} > {tol}, value: {value}.\n"
+            return MatchResult("WRONG RESULT", error, value)
+
+        return MatchResult("OK", error=None, value=value)
+
+
+# ======================================================================================
 class MatcherRegistry(Dict[str, Matcher]):
     def __setitem__(self, key: str, value: Matcher) -> None:
         assert key not in self  # check for name collisions
@@ -281,4 +322,16 @@ registry["BC_near_K_point"] = GenericMatcher(r"   1    4", col=5)
 
 # GEXT extrapolation
 registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
+
+# NNP MD bit-exactness regression matchers (regtest-1):
+#   M_CONS_QTY catches conservation drift bugs (broken Verlet skin,
+#     stale coord_scaled, fine-grid bin layout). Takes the LAST step's
+#     "MD| Conserved quantity" — picks up any drift across the whole
+#     trajectory, not just the final position.
+#   M_INIT_ENERGY catches starting-config bugs (wrong NN setup, broken
+#     reading of geometry, image_copies/PBC issues). Takes the FIRST
+#     "ENERGY| Total FORCE_EVAL" line, which is the step-0 force eval
+#     before any integration has run.
+registry["M_CONS_QTY"] = GenericMatcher(r"MD| Conserved quantity", col=5)
+registry["M_INIT_ENERGY"] = FirstMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 # EOF

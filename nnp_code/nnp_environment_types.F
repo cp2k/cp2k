@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \brief  Data types for neural network potentials
 !> \author Christoph Schran (christoph.schran@rub.de)
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
 !> \date   2020-10-10
 ! **************************************************************************************************
 MODULE nnp_environment_types
@@ -52,13 +53,23 @@ MODULE nnp_environment_types
    PUBLIC :: nnp_type
    PUBLIC :: nnp_arc_type
    PUBLIC :: nnp_neighbor_type
+   PUBLIC :: nnp_neigh_grp_type
+   PUBLIC :: nnp_symfgrp_type
    PUBLIC :: nnp_acsf_rad_type
    PUBLIC :: nnp_acsf_ang_type
+   PUBLIC :: nnp_cell_list_cache_type
+   PUBLIC :: nnp_neighbor_pair_map_type
+   PUBLIC :: nnp_dGdr_grp_type
+   PUBLIC :: nnp_neighbor_workspace_type
+   PUBLIC :: nnp_neighbor_interface_state_type
 
    ! Public subroutines ***
    PUBLIC :: nnp_env_release, &
              nnp_env_set, &
-             nnp_env_get
+             nnp_env_get, &
+             nnp_cell_list_cache_release, &
+             nnp_neighbor_interface_state_release, &
+             nnp_workspace_release
 
    INTEGER, PARAMETER, PUBLIC :: &
       nnp_cut_cos = 1, &
@@ -107,7 +118,7 @@ MODULE nnp_environment_types
       INTEGER                                             :: n_layer = -1
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_hnodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: actfnct
-      INTEGER                                             :: expol = -1 ! extrapolation coutner
+      INTEGER                                             :: expol = -1 ! extrapolation counter
       LOGICAL                                             :: output_expol = .FALSE. ! output extrapolation
       ! structures for calculation
       INTEGER                                             :: num_atoms = -1
@@ -136,6 +147,17 @@ MODULE nnp_environment_types
       REAL(KIND=dp)                                       :: bias_sigma = -1.0_dp
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: bias_forces
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: bias_e_avrg
+      ! Per-nnp persistent neighbour-finder state. Owned by nnp_type so that
+      ! multiple &NNP force_evals (committee / MIX) carry independent caches
+      ! and so the lifetime tracks nnp_env_release rather than module-global
+      ! SAVE state. Operated on by nnp_cell_list and nnp_neighbor_interface.
+      ! ALLOCATABLE (rather than embedded) only to satisfy gfortran's rule
+      ! that direct-embedded type members must be defined before use; the
+      ! component types live further down this module file. Allocated by
+      ! nnp_prepare_neighbor_cache on first force eval, freed in
+      ! nnp_env_release.
+      TYPE(nnp_cell_list_cache_type), ALLOCATABLE         :: cell_list_cache
+      TYPE(nnp_neighbor_interface_state_type), ALLOCATABLE :: neighbor_interface_state
    END TYPE nnp_type
 
 ! **************************************************************************************************
@@ -153,6 +175,30 @@ MODULE nnp_environment_types
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: ele_ind
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE         :: ele
       REAL(KIND=dp)                                       :: cutoff = -1.0_dp
+      ! Packed per-member parameters: contiguous arrays sized n_symf so the
+      ! inner SF loop reads sequential memory instead of chasing 4 pointers
+      ! into ang(ind)%{eta,zeta,lam,prefzeta} via the symf(sf) index.
+      ! pack_use_int_zeta and pack_izeta let us skip NINT inside the inner loop.
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pack_eta
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pack_zeta
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pack_lam
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pack_prefzeta
+      INTEGER, DIMENSION(:), ALLOCATABLE                  :: pack_izeta
+      LOGICAL, DIMENSION(:), ALLOCATABLE                  :: pack_use_int_zeta
+      ! Group-shared Hermite cubic spline tables (radial groups only).
+      ! All SFs in a radial group share the same cutoff (= grp%cutoff), so
+      ! they all use the same uniform grid: x in [0, spline_x_max] with
+      ! spline_n nodes, spacing spline_dx. The per-SF y(r) and y'(r)
+      ! tables are packed sf-first into 2D arrays so the inner SF loop in
+      ! nnp_calc_rad streams them contiguously after computing the
+      ! interpolation params (i, t, h00..h11) ONCE per call.
+      LOGICAL                                             :: spline_built = .FALSE.
+      INTEGER                                             :: spline_n = 0
+      REAL(KIND=dp)                                       :: spline_dx = 1.0_dp
+      REAL(KIND=dp)                                       :: spline_dx_inv = 1.0_dp
+      REAL(KIND=dp)                                       :: spline_x_max = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: spline_y    ! (n_symf, n_grid)
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: spline_dy   ! (n_symf, n_grid)
    END TYPE nnp_symfgrp_type
 
 ! **************************************************************************************************
@@ -221,24 +267,164 @@ MODULE nnp_environment_types
    END TYPE nnp_acsf_ang_type
 
 ! **************************************************************************************************
-!> \brief Contains neighbors list of an atom
-!> \param dist - distance vectors + norm                      DIM(4,nat)
-!> \param n    - number of neighbors
+!> \brief Per-(symmetry-function-group) dense neighbor container.
+!>        cap is the allocated slab size; the live count is in
+!>        nnp_neighbor_type%n_rad/n_ang1/n_ang2 for the matching group index.
+!>        ind(j) is the absolute atom index of the j-th neighbor in this group;
+!>        dist(1:3, j) is the displacement vector and dist(4, j) is its norm.
+!>        Sized lazily by nnp_neigh_grp_grow (in nnp_neighbor_interface) so the
+!>        slabs settle at the true peak per group rather than the global image-pool
+!>        capacity.
+! **************************************************************************************************
+   TYPE nnp_neigh_grp_type
+      INTEGER                                             :: cap = 0
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: ind   ! (cap)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: dist  ! (4, cap)
+   END TYPE nnp_neigh_grp_type
+
+! **************************************************************************************************
+!> \brief Contains neighbors list of an atom (per-group dense layout).
+!> \param n_rad/n_ang1/n_ang2 - live neighbor counts per symfgrp
+!> \param rad/ang1/ang2       - per-group dense (ind, dist) containers
 !> \author Christoph Schran (christoph.schran@rub.de)
 !> \date   2020-10-10
 ! **************************************************************************************************
    TYPE nnp_neighbor_type
-      INTEGER, DIMENSION(3)                               :: pbc_copies = -1
-      INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_rad
-      INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang1
-      INTEGER, DIMENSION(:), ALLOCATABLE                  :: n_ang2
-      INTEGER, DIMENSION(:, :), ALLOCATABLE               :: ind_rad
-      INTEGER, DIMENSION(:, :), ALLOCATABLE               :: ind_ang1
-      INTEGER, DIMENSION(:, :), ALLOCATABLE               :: ind_ang2
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_rad
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_ang1
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_ang2
+      INTEGER, DIMENSION(3)                                :: pbc_copies = -1
+      INTEGER, DIMENSION(:), ALLOCATABLE                   :: n_rad
+      INTEGER, DIMENSION(:), ALLOCATABLE                   :: n_ang1
+      INTEGER, DIMENSION(:), ALLOCATABLE                   :: n_ang2
+      TYPE(nnp_neigh_grp_type), ALLOCATABLE, DIMENSION(:)  :: rad
+      TYPE(nnp_neigh_grp_type), ALLOCATABLE, DIMENSION(:)  :: ang1
+      TYPE(nnp_neigh_grp_type), ALLOCATABLE, DIMENSION(:)  :: ang2
    END TYPE nnp_neighbor_type
+
+! **************************************************************************************************
+!> \brief Linked-cell + Verlet-skin cache for the NNP descriptor neighbour walk.
+!>        Persisted across MD steps so the image pool, bin geometry, and
+!>        reference positions survive between force evaluations and the
+!>        head/next chain can be reused as long as no atom has drifted more
+!>        than skin/2. Operated on by nnp_cell_list.F.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_cell_list_cache_type
+      LOGICAL                                             :: initialized = .FALSE.
+      INTEGER                                             :: num_atoms = -1
+      INTEGER                                             :: n_images = 0
+      INTEGER                                             :: n_cells = 1
+      INTEGER, DIMENSION(3)                               :: exact_pbc_copies = 0
+      INTEGER, DIMENSION(3)                               :: list_pbc_copies = 0
+      INTEGER, DIMENSION(3)                               :: image_copies = 0
+      INTEGER, DIMENSION(3)                               :: nbin = 1
+      INTEGER, DIMENSION(3)                               :: bin_span = 0
+      INTEGER, DIMENSION(3)                               :: perd = 0
+      LOGICAL                                             :: orthorhombic = .FALSE.
+      REAL(KIND=dp)                                       :: exact_cutoff = -1.0_dp
+      REAL(KIND=dp)                                       :: list_cutoff = -1.0_dp
+      REAL(KIND=dp)                                       :: verlet_skin = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                         :: lower = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                         :: upper = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                         :: bin_width = 1.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)                      :: hmat = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)                      :: h_inv = 0.0_dp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: coord_primary
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: coord_scaled
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: ref_coord_primary
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: image_atom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: head
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: next
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)               :: image_shift
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: image_translation
+   END TYPE nnp_cell_list_cache_type
+
+! **************************************************************************************************
+!> \brief Species-pair routing table. For one (central element, neighbour element)
+!>        pair, lists which radial / angular symmetry-function groups need that
+!>        neighbour and the worst-case relevant cutoff.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_neighbor_pair_map_type
+      INTEGER                                             :: n_rad = 0
+      INTEGER                                             :: n_ang1 = 0
+      INTEGER                                             :: n_ang2 = 0
+      REAL(KIND=dp)                                       :: max_relevant_cutoff = 0.0_dp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: rad_groups
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: ang1_groups
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: ang2_groups
+   END TYPE nnp_neighbor_pair_map_type
+
+! **************************************************************************************************
+!> \brief Per-(element, symmetry-function-group) dG_k/dr buffer. Sized to the
+!>        actual n_symf for the group (no max_*_symf padding) and to the
+!>        observed maximum number of neighbors that fall in this group (no
+!>        image-pool over-allocation). Grown lazily with a 1.5x policy so that
+!>        after a handful of MD steps everything settles at the true peak.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_dGdr_grp_type
+      INTEGER                                             :: cap = 0
+      INTEGER                                             :: n_symf = 0
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)      :: data    ! (3, n_symf, cap)
+   END TYPE nnp_dGdr_grp_type
+
+! **************************************************************************************************
+!> \brief Reusable per-element scratch / persistent caches for the ACSF
+!>        descriptor and force assembly. See nnp_neighbor_interface for the
+!>        routines that populate and grow these buffers.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_neighbor_workspace_type
+      INTEGER                                             :: max_rad_symf = 0
+      INTEGER                                             :: max_ang_symf = 0
+      INTEGER                                             :: n_input_nodes = 0
+      ! High-water mark of the per-element angular-cache slab. Tracked
+      ! independently of the image-pool capacity so the 1D cutoff caches
+      ! settle at the true per-element peak rather than the global pool.
+      INTEGER                                             :: cache_cap = 0
+      TYPE(nnp_neighbor_type)                             :: neighbor
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: radial_sym
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: radial_force
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: angular_sym
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)      :: angular_force
+      ! Per-element persistent cutoff caches reused across every central
+      ! atom of this element. Sized lazily by nnp_workspace_grow_caches
+      ! to MAX(n_ang1) / MAX(n_ang2) over the angular groups -- not to
+      ! the much larger image-pool capacity.
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: fc_cache1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: dfc_cache1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: fc_cache2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: dfc_cache2
+      ! n2p2-style per-neighbor dG_k/dr storage. Replaces the global
+      ! dsymdxyz(3, n_input_nodes, num_atoms) slab. The per-group buffers
+      ! are dense in (3, n_symf_for_group, n_neighbors_in_group) -- no
+      ! max_*_symf padding and no image-pool over-allocation -- which
+      ! shrinks the working set by ~100x and lets every group walk be a
+      ! contiguous L1-friendly stride.
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: self_dGdr
+      TYPE(nnp_dGdr_grp_type), ALLOCATABLE, DIMENSION(:)  :: dGdr_rad
+      TYPE(nnp_dGdr_grp_type), ALLOCATABLE, DIMENSION(:)  :: dGdr_ang_jj
+      TYPE(nnp_dGdr_grp_type), ALLOCATABLE, DIMENSION(:)  :: dGdr_ang_kk
+   END TYPE nnp_neighbor_workspace_type
+
+! **************************************************************************************************
+!> \brief Persistent neighbour-interface state. Owned by nnp_type so that the
+!>        per-nnp pair-routing tables and per-element workspaces survive
+!>        across MD steps without leaking between independent &NNP
+!>        force_evals. Operated on by nnp_neighbor_interface.F.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_neighbor_interface_state_type
+      LOGICAL                                             :: initialized = .FALSE.
+      INTEGER                                             :: n_ele = 0
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_rad
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_ang
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_radgrp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_anggrp
+      TYPE(nnp_neighbor_pair_map_type), ALLOCATABLE, &
+         DIMENSION(:, :)                                  :: pair_map
+      TYPE(nnp_neighbor_workspace_type), ALLOCATABLE, &
+         DIMENSION(:)                                     :: workspace
+   END TYPE nnp_neighbor_interface_state_type
 
 ! **************************************************************************************************
 !> \brief Data type for artificial neural networks
@@ -283,6 +469,13 @@ CONTAINS
                DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
                            nnp_env%rad(i)%symfgrp(j)%ele, &
                            nnp_env%rad(i)%symfgrp(j)%ele_ind)
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%pack_eta)) &
+                  DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%pack_eta)
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_y)) &
+                  DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%spline_y)
+               IF (ALLOCATED(nnp_env%rad(i)%symfgrp(j)%spline_dy)) &
+                  DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%spline_dy)
+               nnp_env%rad(i)%symfgrp(j)%spline_built = .FALSE.
             END DO
             DEALLOCATE (nnp_env%rad(i)%y, &
                         nnp_env%rad(i)%funccut, &
@@ -305,6 +498,18 @@ CONTAINS
                DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
                            nnp_env%ang(i)%symfgrp(j)%ele, &
                            nnp_env%ang(i)%symfgrp(j)%ele_ind)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_eta)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_eta)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_zeta)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_zeta)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_lam)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_lam)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_prefzeta)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_prefzeta)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_izeta)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_izeta)
+               IF (ALLOCATED(nnp_env%ang(i)%symfgrp(j)%pack_use_int_zeta)) &
+                  DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%pack_use_int_zeta)
             END DO
             DEALLOCATE (nnp_env%ang(i)%y, &
                         nnp_env%ang(i)%funccut, &
@@ -368,11 +573,16 @@ CONTAINS
       IF (ALLOCATED(nnp_env%committee_forces)) DEALLOCATE (nnp_env%committee_forces)
       IF (ALLOCATED(nnp_env%committee_stress)) DEALLOCATE (nnp_env%committee_stress)
       IF (ALLOCATED(nnp_env%atoms)) DEALLOCATE (nnp_env%atoms)
-      IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
 
-      IF (ASSOCIATED(nnp_env%subsys)) THEN
-         CALL cp_subsys_release(nnp_env%subsys)
+      IF (ALLOCATED(nnp_env%cell_list_cache)) THEN
+         CALL nnp_cell_list_cache_release(nnp_env%cell_list_cache)
+         DEALLOCATE (nnp_env%cell_list_cache)
       END IF
+      IF (ALLOCATED(nnp_env%neighbor_interface_state)) THEN
+         CALL nnp_neighbor_interface_state_release(nnp_env%neighbor_interface_state)
+         DEALLOCATE (nnp_env%neighbor_interface_state)
+      END IF
+
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_release(nnp_env%subsys)
       END IF
@@ -384,6 +594,135 @@ CONTAINS
       END IF
 
    END SUBROUTINE nnp_env_release
+
+! **************************************************************************************************
+!> \brief Free the allocatable parts of a cell-list cache. Co-located with the
+!>        type definition to avoid creating a USE-cycle through nnp_cell_list.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   SUBROUTINE nnp_cell_list_cache_release(cache)
+      TYPE(nnp_cell_list_cache_type), INTENT(INOUT)      :: cache
+
+      IF (ALLOCATED(cache%coord_primary)) DEALLOCATE (cache%coord_primary)
+      IF (ALLOCATED(cache%coord_scaled)) DEALLOCATE (cache%coord_scaled)
+      IF (ALLOCATED(cache%ref_coord_primary)) DEALLOCATE (cache%ref_coord_primary)
+      IF (ALLOCATED(cache%image_atom)) DEALLOCATE (cache%image_atom)
+      IF (ALLOCATED(cache%head)) DEALLOCATE (cache%head)
+      IF (ALLOCATED(cache%next)) DEALLOCATE (cache%next)
+      IF (ALLOCATED(cache%image_shift)) DEALLOCATE (cache%image_shift)
+      IF (ALLOCATED(cache%image_translation)) DEALLOCATE (cache%image_translation)
+      cache%initialized = .FALSE.
+      cache%num_atoms = -1
+      cache%n_images = 0
+   END SUBROUTINE nnp_cell_list_cache_release
+
+! **************************************************************************************************
+!> \brief Free the allocatable parts of a neighbour-interface state. Co-located
+!>        with the type definition to avoid creating a USE-cycle through
+!>        nnp_neighbor_interface.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   SUBROUTINE nnp_neighbor_interface_state_release(state)
+      TYPE(nnp_neighbor_interface_state_type), INTENT(INOUT) :: state
+
+      INTEGER                                            :: i, j
+
+      IF (ALLOCATED(state%pair_map)) THEN
+         DO i = 1, SIZE(state%pair_map, 1)
+            DO j = 1, SIZE(state%pair_map, 2)
+               IF (ALLOCATED(state%pair_map(i, j)%rad_groups)) DEALLOCATE (state%pair_map(i, j)%rad_groups)
+               IF (ALLOCATED(state%pair_map(i, j)%ang1_groups)) DEALLOCATE (state%pair_map(i, j)%ang1_groups)
+               IF (ALLOCATED(state%pair_map(i, j)%ang2_groups)) DEALLOCATE (state%pair_map(i, j)%ang2_groups)
+            END DO
+         END DO
+         DEALLOCATE (state%pair_map)
+      END IF
+
+      IF (ALLOCATED(state%workspace)) THEN
+         DO i = 1, SIZE(state%workspace)
+            CALL nnp_workspace_release(state%workspace(i))
+         END DO
+         DEALLOCATE (state%workspace)
+      END IF
+
+      IF (ALLOCATED(state%n_rad)) DEALLOCATE (state%n_rad)
+      IF (ALLOCATED(state%n_ang)) DEALLOCATE (state%n_ang)
+      IF (ALLOCATED(state%n_radgrp)) DEALLOCATE (state%n_radgrp)
+      IF (ALLOCATED(state%n_anggrp)) DEALLOCATE (state%n_anggrp)
+
+      state%initialized = .FALSE.
+      state%n_ele = 0
+   END SUBROUTINE nnp_neighbor_interface_state_release
+
+! **************************************************************************************************
+!> \brief Free the allocatable parts of one per-element workspace.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   SUBROUTINE nnp_workspace_release(workspace)
+      TYPE(nnp_neighbor_workspace_type), INTENT(INOUT)   :: workspace
+
+      INTEGER                                            :: s
+
+      IF (ALLOCATED(workspace%neighbor%rad)) THEN
+         DO s = 1, SIZE(workspace%neighbor%rad)
+            IF (ALLOCATED(workspace%neighbor%rad(s)%ind)) DEALLOCATE (workspace%neighbor%rad(s)%ind)
+            IF (ALLOCATED(workspace%neighbor%rad(s)%dist)) DEALLOCATE (workspace%neighbor%rad(s)%dist)
+         END DO
+         DEALLOCATE (workspace%neighbor%rad)
+      END IF
+      IF (ALLOCATED(workspace%neighbor%ang1)) THEN
+         DO s = 1, SIZE(workspace%neighbor%ang1)
+            IF (ALLOCATED(workspace%neighbor%ang1(s)%ind)) DEALLOCATE (workspace%neighbor%ang1(s)%ind)
+            IF (ALLOCATED(workspace%neighbor%ang1(s)%dist)) DEALLOCATE (workspace%neighbor%ang1(s)%dist)
+         END DO
+         DEALLOCATE (workspace%neighbor%ang1)
+      END IF
+      IF (ALLOCATED(workspace%neighbor%ang2)) THEN
+         DO s = 1, SIZE(workspace%neighbor%ang2)
+            IF (ALLOCATED(workspace%neighbor%ang2(s)%ind)) DEALLOCATE (workspace%neighbor%ang2(s)%ind)
+            IF (ALLOCATED(workspace%neighbor%ang2(s)%dist)) DEALLOCATE (workspace%neighbor%ang2(s)%dist)
+         END DO
+         DEALLOCATE (workspace%neighbor%ang2)
+      END IF
+      IF (ALLOCATED(workspace%neighbor%n_rad)) DEALLOCATE (workspace%neighbor%n_rad)
+      IF (ALLOCATED(workspace%neighbor%n_ang1)) DEALLOCATE (workspace%neighbor%n_ang1)
+      IF (ALLOCATED(workspace%neighbor%n_ang2)) DEALLOCATE (workspace%neighbor%n_ang2)
+      workspace%neighbor%pbc_copies = -1
+
+      IF (ALLOCATED(workspace%radial_sym)) DEALLOCATE (workspace%radial_sym)
+      IF (ALLOCATED(workspace%radial_force)) DEALLOCATE (workspace%radial_force)
+      IF (ALLOCATED(workspace%angular_sym)) DEALLOCATE (workspace%angular_sym)
+      IF (ALLOCATED(workspace%angular_force)) DEALLOCATE (workspace%angular_force)
+      IF (ALLOCATED(workspace%fc_cache1)) DEALLOCATE (workspace%fc_cache1)
+      IF (ALLOCATED(workspace%dfc_cache1)) DEALLOCATE (workspace%dfc_cache1)
+      IF (ALLOCATED(workspace%fc_cache2)) DEALLOCATE (workspace%fc_cache2)
+      IF (ALLOCATED(workspace%dfc_cache2)) DEALLOCATE (workspace%dfc_cache2)
+      IF (ALLOCATED(workspace%self_dGdr)) DEALLOCATE (workspace%self_dGdr)
+
+      IF (ALLOCATED(workspace%dGdr_rad)) THEN
+         DO s = 1, SIZE(workspace%dGdr_rad)
+            IF (ALLOCATED(workspace%dGdr_rad(s)%data)) DEALLOCATE (workspace%dGdr_rad(s)%data)
+         END DO
+         DEALLOCATE (workspace%dGdr_rad)
+      END IF
+      IF (ALLOCATED(workspace%dGdr_ang_jj)) THEN
+         DO s = 1, SIZE(workspace%dGdr_ang_jj)
+            IF (ALLOCATED(workspace%dGdr_ang_jj(s)%data)) DEALLOCATE (workspace%dGdr_ang_jj(s)%data)
+         END DO
+         DEALLOCATE (workspace%dGdr_ang_jj)
+      END IF
+      IF (ALLOCATED(workspace%dGdr_ang_kk)) THEN
+         DO s = 1, SIZE(workspace%dGdr_ang_kk)
+            IF (ALLOCATED(workspace%dGdr_ang_kk(s)%data)) DEALLOCATE (workspace%dGdr_ang_kk(s)%data)
+         END DO
+         DEALLOCATE (workspace%dGdr_ang_kk)
+      END IF
+
+      workspace%max_rad_symf = 0
+      workspace%max_ang_symf = 0
+      workspace%n_input_nodes = 0
+      workspace%cache_cap = 0
+   END SUBROUTINE nnp_workspace_release
 
 ! **************************************************************************************************
 !> \brief Returns various attributes of the nnp environment

@@ -11,6 +11,13 @@ include(GNUInstallDirs) # required to get a proper LIBDIR variable
 include(CMakePackageConfigHelpers)
 configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 
+set(
+  CP2K_NNP_SOURCE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/../nnp_code"
+  CACHE PATH
+  "Directory containing the CP2K NNP Fortran sources"
+)
+
 # =================================================================================================
 # SOURCE FILE LISTS
 # =================================================================================================
@@ -284,7 +291,7 @@ list(
   input_cp2k_mp2.F
   input_cp2k_neb.F
   input_cp2k_negf.F
-  input_cp2k_nnp.F
+  ${CP2K_NNP_SOURCE_DIR}/input_cp2k_nnp.F
   input_cp2k_poisson.F
   input_cp2k_projection_rtp.F
   input_cp2k_properties_dft.F
@@ -420,11 +427,13 @@ list(
   negf_methods.F
   negf_subgroup_types.F
   negf_vectors.F
-  nnp_acsf.F
-  nnp_environment.F
-  nnp_environment_types.F
-  nnp_force.F
-  nnp_model.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_environment.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_environment_types.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_neighbor_interface.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_cell_list.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_acsf.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_force.F
+  ${CP2K_NNP_SOURCE_DIR}/nnp_model.F
   local_gemm_api.F
   offload/offload_api.F
   optbas_fenv_manipulation.F

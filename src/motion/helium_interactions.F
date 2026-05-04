@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 !> \brief  Methods that handle helium-solvent and helium-helium interactions
 !> \author Lukasz Walewski
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
 !> \date   2009-06-10
 ! **************************************************************************************************
 MODULE helium_interactions
@@ -34,8 +35,10 @@ MODULE helium_interactions
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE nnp_acsf,                        ONLY: nnp_calc_acsf
+   USE nnp_acsf,                        ONLY: nnp_calc_acsf,&
+                                              nnp_prepare_neighbor_cache
    USE nnp_environment_types,           ONLY: nnp_type
+   USE nnp_force,                       ONLY: nnp_scatter_dgdr_to_forces
    USE nnp_model,                       ONLY: nnp_gradients,&
                                               nnp_predict
    USE physcon,                         ONLY: angstrom,&
@@ -682,10 +685,8 @@ CONTAINS
          OPTIONAL, POINTER                               :: force
 
       INTEGER                                            :: i, i_com, ig, ind, ind_he, j, k, m
-      LOGICAL                                            :: extrapolate
-      REAL(KIND=dp)                                      :: rsqr, rvect(3), threshold
+      REAL(KIND=dp)                                      :: rsqr, rvect(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(nnp_type), POINTER                            :: nnp
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -696,9 +697,6 @@ CONTAINS
       IF (PRESENT(force)) THEN
          helium%nnp%myforce(:, :, :) = 0.0_dp
       END IF
-
-      extrapolate = .FALSE.
-      threshold = 0.0001d0
 
       !fill coord array
       ig = 1
@@ -739,6 +737,8 @@ CONTAINS
 
       ! reset flag if there's an extrapolation to report:
       helium%nnp%output_expol = .FALSE.
+      nnp => helium%nnp
+      CALL nnp_prepare_neighbor_cache(nnp)
 
       ! calc atomic contribution to energy and force
 !NOTE corresponds to nnp_force line with parallelization:
@@ -750,15 +750,12 @@ CONTAINS
 
          !reset input nodes and grads of ele(ind):
          helium%nnp%arc(ind)%layer(1)%node(:) = 0.0_dp
-         nnp => helium%nnp ! work around wrong INTENT of nnp_calc_acsf
          IF (PRESENT(force)) THEN
             helium%nnp%arc(ind)%layer(1)%node_grad(:) = 0.0_dp
-            ALLOCATE (dsymdxyz(3, helium%nnp%arc(ind)%n_nodes(1), helium%nnp%num_atoms))
             ALLOCATE (denergydsym(helium%nnp%arc(ind)%n_nodes(1)))
-            dsymdxyz(:, :, :) = 0.0_dp
-            CALL nnp_calc_acsf(nnp, i, dsymdxyz)
+            CALL nnp_calc_acsf(nnp, i, .TRUE.)
          ELSE
-            CALL nnp_calc_acsf(nnp, i)
+            CALL nnp_calc_acsf(nnp, i, .FALSE.)
          END IF
 
          ! input nodes filled, perform prediction:
@@ -771,16 +768,13 @@ CONTAINS
             IF (PRESENT(force)) THEN
 
                denergydsym(:) = 0.0_dp
-
                CALL nnp_gradients(helium%nnp%arc(ind), helium%nnp, i_com, denergydsym)
-               DO j = 1, helium%nnp%arc(ind)%n_nodes(1)
-                  DO k = 1, helium%nnp%num_atoms
-                     DO m = 1, 3
-                        helium%nnp%myforce(m, k, i_com) = helium%nnp%myforce(m, k, i_com) &
-                                                          - denergydsym(j)*dsymdxyz(m, j, k)
-                     END DO
-                  END DO
-               END DO
+
+               ! n2p2-style force scatter from per-element workspace dGdr arrays.
+               ! Shared with the main NNP force path; see nnp_scatter_dgdr_to_forces
+               ! in nnp_code/nnp_force.F.
+               CALL nnp_scatter_dgdr_to_forces(nnp, ind, i, denergydsym, &
+                                               helium%nnp%myforce(:, :, i_com))
 
             END IF
          END DO ! end loop over committee members
@@ -788,7 +782,6 @@ CONTAINS
          !deallocate memory
          IF (PRESENT(force)) THEN
             DEALLOCATE (denergydsym)
-            DEALLOCATE (dsymdxyz)
          END IF
 
       END DO ! end loop over num_atoms
