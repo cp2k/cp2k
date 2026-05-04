@@ -76,7 +76,8 @@ MODULE pw_env_methods
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               pw_grid_change,&
                                               pw_grid_create,&
-                                              pw_grid_release
+                                              pw_grid_release,&
+                                              pw_grid_retain
    USE pw_poisson_methods,              ONLY: pw_poisson_set
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
@@ -995,26 +996,30 @@ CONTAINS
                                     extension=".Log")
 
       IF (uf_grid) THEN
+         my_cutilev = 4._dp*cutilev
+         IF (mt_s_grid) my_cutilev = MAX(my_cutilev, cutilev*mt_rel_cutoff)
          CALL pw_grid_create(xc_super_ref_pw_grid, para_env, cell_ref%hmat, grid_span=grid_span, &
-                             cutoff=4._dp*cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
+                             cutoff=my_cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
                              ncommensurate=my_ncommensurate, icommensurate=1, &
                              blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &
                              iounit=iounit)
          super_ref_pw_grid => xc_super_ref_pw_grid
       END IF
       IF (mt_s_grid) THEN
+         my_cutilev = cutilev*mt_rel_cutoff
+         IF (ASSOCIATED(xc_super_ref_pw_grid)) my_cutilev = MAX(my_cutilev, 4._dp*cutilev)
+
+         no = pw_grid_init_setup(cell_ref%hmat, cutoff=cutilev, spherical=spherical, &
+                                 odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
+         nn = pw_grid_init_setup(cell_ref%hmat, cutoff=my_cutilev, spherical=spherical, &
+                                 odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
+
+         ! bug appears for nn==no, also in old versions
+         CPASSERT(ALL(nn > no))
          IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
-            CPABORT("special grid for mt and fine xc grid not compatible")
+            mt_super_ref_pw_grid => xc_super_ref_pw_grid
+            CALL pw_grid_retain(mt_super_ref_pw_grid)
          ELSE
-            my_cutilev = cutilev*mt_rel_cutoff
-
-            no = pw_grid_init_setup(cell_ref%hmat, cutoff=cutilev, spherical=spherical, &
-                                    odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
-            nn = pw_grid_init_setup(cell_ref%hmat, cutoff=my_cutilev, spherical=spherical, &
-                                    odd=.FALSE., fft_usage=.TRUE., ncommensurate=0, icommensurate=1)
-
-            ! bug appears for nn==no, also in old versions
-            CPASSERT(ALL(nn > no))
             CALL pw_grid_create(mt_super_ref_pw_grid, para_env, cell_ref%hmat, &
                                 cutoff=my_cutilev, spherical=spherical, fft_usage=.TRUE., &
                                 blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &

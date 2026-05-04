@@ -84,7 +84,7 @@ CONTAINS
 
       INTEGER                                            :: handle, img, iounit, ispin, nimages, &
                                                             nkind, nspins
-      LOGICAL                                            :: gapw, gapw_xc
+      LOGICAL                                            :: gapw, gapw_xc, local_soft_only
       REAL(KIND=dp)                                      :: eban, eband, eh, exc, ovol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -116,6 +116,7 @@ CONTAINS
       CALL get_qs_env(qs_env, nkind=nkind, dft_control=dft_control)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      local_soft_only = dft_control%do_admm .OR. gapw .OR. gapw_xc
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
@@ -187,10 +188,12 @@ CONTAINS
       DEALLOCATE (rho_tot_gspace, rho_tot_rspace)
 
       IF (dft_control%do_admm) THEN
-         CALL cp_warn(__LOCATION__, "ADMM not supported for local energy calculation")
+         CALL cp_warn(__LOCATION__, &
+                      "ADMM local energy density contains only the regular-grid contribution")
       END IF
       IF (gapw_xc .OR. gapw) THEN
-         CALL cp_warn(__LOCATION__, "GAPW/GAPW_XC not supported for local energy calculation")
+         CALL cp_warn(__LOCATION__, &
+                      "GAPW/GAPW_XC local energy density contains only the soft regular-grid part")
       END IF
       ! XC energy density correction = E_xc(r) - V_xc(r)*rho(r)
       CALL get_qs_env(qs_env, input=input)
@@ -217,12 +220,24 @@ CONTAINS
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T3,A)") REPEAT("=", 78)
-         WRITE (UNIT=iounit, FMT="(T4,A,T52,A,T75,A)") "Local Energy Calculation", "GPW/GAPW", "Local"
+         IF (local_soft_only) THEN
+            WRITE (UNIT=iounit, FMT="(T4,A)") &
+               "Local Energy Calculation (regular-grid contribution only)"
+            WRITE (UNIT=iounit, FMT="(T4,A,T52,A,T68,A)") "Energy Component", "Reference", "Local Grid"
+         ELSE
+            WRITE (UNIT=iounit, FMT="(T4,A,T52,A,T75,A)") "Local Energy Calculation", "GPW/GAPW", "Local"
+         END IF
          WRITE (UNIT=iounit, FMT="(T4,A,T45,F15.8,T65,F15.8)") "Band Energy", eband, eban
          WRITE (UNIT=iounit, FMT="(T4,A,T65,F15.8)") "Hartree Energy Correction", eh
          WRITE (UNIT=iounit, FMT="(T4,A,T65,F15.8)") "XC Energy Correction", exc
-         WRITE (UNIT=iounit, FMT="(T4,A,T45,F15.8,T65,F15.8)") "Total Energy", &
-            energy%total, eban + eh + exc + energy%core_overlap + energy%core_self + energy%dispersion
+         IF (local_soft_only) THEN
+            WRITE (UNIT=iounit, FMT="(T4,A,T45,F15.8)") "Reference Total Energy", energy%total
+            WRITE (UNIT=iounit, FMT="(T4,A,T65,F15.8)") "Local Grid Energy Sum", &
+               eban + eh + exc + energy%core_overlap + energy%core_self + energy%dispersion
+         ELSE
+            WRITE (UNIT=iounit, FMT="(T4,A,T45,F15.8,T65,F15.8)") "Total Energy", &
+               energy%total, eban + eh + exc + energy%core_overlap + energy%core_self + energy%dispersion
+         END IF
          WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
       END IF
 
@@ -321,10 +336,12 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm) THEN
-         CALL cp_warn(__LOCATION__, "ADMM not supported for local energy calculation")
+         CALL cp_warn(__LOCATION__, &
+                      "ADMM local stress density contains only the regular-grid contribution")
       END IF
       IF (gapw_xc .OR. gapw) THEN
-         CALL cp_warn(__LOCATION__, "GAPW/GAPW_XC not supported for local energy calculation")
+         CALL cp_warn(__LOCATION__, &
+                      "GAPW/GAPW_XC local stress density contains only the soft regular-grid part")
       END IF
       ! XC energy density correction = E_xc(r) - V_xc(r)*rho(r)
       CALL get_qs_env(qs_env, ks_env=ks_env, input=input, rho=rho_struct)

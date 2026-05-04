@@ -146,7 +146,8 @@ MODULE ec_env_types
       TYPE(pw_r3d_rs_type)                             :: vh_rspace = pw_r3d_rs_type()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: vxc_rspace => Null(), &
                                                           vtau_rspace => Null(), &
-                                                          vadmm_rspace => Null()
+                                                          vadmm_rspace => Null(), &
+                                                          vadmm_tau_rspace => Null()
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
       ! LS matrices and types
@@ -314,6 +315,13 @@ CONTAINS
             END DO
             DEALLOCATE (ec_env%vadmm_rspace)
             NULLIFY (ec_env%vadmm_rspace)
+         END IF
+         IF (ASSOCIATED(ec_env%vadmm_tau_rspace)) THEN
+            DO iab = 1, SIZE(ec_env%vadmm_tau_rspace)
+               CALL ec_env%vadmm_tau_rspace(iab)%release()
+            END DO
+            DEALLOCATE (ec_env%vadmm_tau_rspace)
+            NULLIFY (ec_env%vadmm_tau_rspace)
          END IF
          IF (ASSOCIATED(ec_env%local_rho_set)) THEN
             CALL local_rho_set_release(ec_env%local_rho_set)

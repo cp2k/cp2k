@@ -394,11 +394,12 @@ CONTAINS
 !> \param w ...
 !> \param vxc ...
 !> \param vxg ...
+!> \param vtau ...
 !> \param do_triplet ...
 !> \param do_sf ...
 ! **************************************************************************************************
    SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set, xc_section, &
-                                deriv_set, w, vxc, vxg, do_triplet, do_sf)
+                                deriv_set, w, vxc, vxg, vtau, do_triplet, do_sf)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid.
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
@@ -413,6 +414,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: w
       REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
+      REAL(dp), DIMENSION(:, :, :), OPTIONAL, POINTER    :: vtau
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet, do_sf
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_2nd_deriv_of_r'
@@ -467,12 +469,21 @@ CONTAINS
       END DO
 
       NULLIFY (vxc_tau_pw)
+      IF (PRESENT(vtau)) THEN
+         IF (ASSOCIATED(vtau)) THEN
+            ALLOCATE (vxc_tau_pw(nspins))
+            DO ispin = 1, nspins
+               vxc_tau_pw(ispin)%array => vtau(:, :, ispin:ispin)
+            END DO
+         END IF
+      END IF
 
       CALL xc_calc_2nd_deriv_analytical(vxc_pw, vxc_tau_pw, deriv_set, rho_set, rho1_set, pw_pool, &
                                         xc_section, gapw=.TRUE., vxg=vxg, &
                                         tddfpt_fac=my_fac_triplet, spinflip=do_sf)
 
       DEALLOCATE (vxc_pw)
+      IF (ASSOCIATED(vxc_tau_pw)) DEALLOCATE (vxc_tau_pw)
 
       ! zero the derivative data for the next call
       pos => deriv_set%derivs
