@@ -1535,7 +1535,8 @@ CONTAINS
          CALL cp_fm_to_fm(work, eigenvectors, nmo)
 #endif
 #if defined(__DLAF)
-      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. direct_generalized_diagonalization .AND. &
+               nao >= dlaf_neigvec_min) THEN
          ! Use DLA-Future generalized eigenvalue solver for large matrices
          IF (check_eigenvectors) THEN
             CALL cp_fm_create(overlap_check, bmatrix%matrix_struct)

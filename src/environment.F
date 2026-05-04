@@ -832,7 +832,8 @@ CONTAINS
                globenv%dlaf_neigvec_min
          END IF
 
-         IF (globenv%diag_library == "cuSOLVER" .OR. globenv%diag_library == "ScaLAPACK") THEN
+         IF (globenv%diag_library == "cuSOLVER" .OR. globenv%diag_library == "ScaLAPACK" .OR. &
+             globenv%diag_library == "DLAF") THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
                start_section_label//"| Direct generalized diagonalization requested", &
                globenv%direct_generalized_diagonalization

@@ -341,7 +341,8 @@ CONTAINS
             CALL cp_cfm_release(overlap_check)
          END IF
 #if defined(__DLAF)
-      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+      ELSE IF (diag_type == FM_DIAG_TYPE_DLAF .AND. direct_generalized_diagonalization .AND. &
+               nao >= dlaf_neigvec_min) THEN
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 
