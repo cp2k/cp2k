@@ -123,6 +123,7 @@ CONTAINS
                                                             is_not_associated, paw_atom, &
                                                             sgf_soft_only_a, sgf_soft_only_b
       REAL(dp)                                           :: eps_cpc, jmax, nbr_dbl, rab(3), rbc(3)
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: proj_work1, proj_work2
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, b_matrix, c_matrix, d_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b, r_coef_h, &
@@ -244,7 +245,8 @@ CONTAINS
 !$OMP                 )                                         &
 !$OMP          PRIVATE( a_block, b_block, c_block, d_block                      &
 !$OMP                 , jp_RARnu, jp2_RARnu                                     &
-!$OMP                 , a_matrix, b_matrix, c_matrix, d_matrix, istat           &
+!$OMP                 , a_matrix, b_matrix, c_matrix, d_matrix                  &
+!$OMP                 , proj_work1, proj_work2, istat                           &
 !$OMP                 , mepos                                                   &
 !$OMP                 , ikind, jkind, kkind, iatom, jatom, katom                &
 !$OMP                 , cell_b, rab, rbc                                        &
@@ -271,6 +273,8 @@ CONTAINS
       ALLOCATE (a_matrix(max_nsgf, max_nsgf), b_matrix(max_nsgf, max_nsgf), &
                 c_matrix(max_nsgf, max_nsgf), d_matrix(max_nsgf, max_nsgf), &
                 STAT=istat)
+      CPASSERT(istat == 0)
+      ALLOCATE (proj_work1(len_PC1), proj_work2(len_CPC), STAT=istat)
       CPASSERT(istat == 0)
 
 !$OMP SINGLE
@@ -450,7 +454,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       a_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      len_PC1, len_CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab, proj_work1, proj_work2)
                         !------------------------------------------------------------------
                         ! mQai_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_h(ispin)%r_coef
@@ -458,7 +462,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       b_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      len_PC1, len_CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab, proj_work1, proj_work2)
                         !------------------------------------------------------------------
                         ! Qci_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef
@@ -466,7 +470,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       c_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      len_PC1, len_CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab, proj_work1, proj_work2)
                         !------------------------------------------------------------------
                         ! Qbi_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef
@@ -474,7 +478,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       d_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      len_PC1, len_CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab, proj_work1, proj_work2)
                         !------------------------------------------------------------------
 !$                      CALL omp_unset_lock(proj_blk_lock((katom - 1)*nspins + ispin))
 
@@ -510,7 +514,7 @@ CONTAINS
 !$    DEALLOCATE (proj_blk_lock)
 !$OMP END SINGLE NOWAIT
 
-      DEALLOCATE (a_matrix, b_matrix, c_matrix, d_matrix, &
+      DEALLOCATE (a_matrix, b_matrix, c_matrix, d_matrix, proj_work1, proj_work2, &
                   a_block, b_block, c_block, d_block, &
                   jp_RARnu, jp2_RARnu &
                   )

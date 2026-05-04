@@ -29,6 +29,7 @@
 "H2O-gapw-all_localize_crazy_noortho.inp" = [{matcher="M023", tol=2e-09, ref=7.0317611684}]
 # TPSS functional
 "Be_GAPW.inp"                           = [{matcher="E_total", tol=7e-13, ref=-14.78558413889751}]
+"Be_GAPW_fine_xc.inp"                   = [{matcher="E_total", tol=7e-13, ref=-14.78689908905059}]
 # Single atom isolated function
 "Na_atom.inp"                           = [{matcher="E_total", tol=5e-13, ref=-154.80563563671905}]
 #

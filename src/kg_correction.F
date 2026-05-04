@@ -25,7 +25,9 @@ MODULE kg_correction
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               kg_tnadd_none
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE lri_environment_methods,         ONLY: calculate_lri_densities,&
@@ -58,6 +60,7 @@ MODULE kg_correction
                                               qs_rho_unset_rho_ao
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE virial_types,                    ONLY: virial_type
+   USE xc,                              ONLY: xc_uses_kinetic_energy_density
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -92,19 +95,17 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_ext
 
-      LOGICAL                                            :: gapw, gapw_xc, lrigpw
+      LOGICAL                                            :: lrigpw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
 
       CALL get_qs_env(qs_env, kg_env=kg_env, dft_control=dft_control)
       lrigpw = dft_control%qs_control%lrigpw
-      gapw = dft_control%qs_control%gapw
-      gapw_xc = dft_control%qs_control%gapw_xc
-
-      IF ((gapw .OR. gapw_xc) .AND. kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
-         CPABORT("KG_METHOD with GAPW/GAPW_XC is not implemented for TNADD_METHOD EMBED_RI")
+      IF ((kg_env%tnadd_method == kg_tnadd_embed_ri .OR. &
+           (kg_env%tnadd_method == kg_tnadd_embed .AND. lrigpw)) .AND. &
+          kg_uses_kinetic_energy_density(kg_env, dft_control%lsd)) THEN
+         CPABORT("KG LRI/RI embedding with meta-kinetic energy functionals not implemented")
       END IF
-
       IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
          IF (lrigpw) THEN
             CALL kg_ekin_embed_lri(qs_env, kg_env, ks_matrix, ekin_mol, calc_force)
@@ -124,6 +125,29 @@ CONTAINS
       END IF
 
    END SUBROUTINE kg_ekin_subset
+
+! **************************************************************************************************
+!> \brief Returns whether the KG XC section needs the kinetic energy density.
+!> \param kg_env Kim-Gordon environment
+!> \param lsd spin-polarized calculation flag
+!> \return ...
+! **************************************************************************************************
+   FUNCTION kg_uses_kinetic_energy_density(kg_env, lsd) RESULT(res)
+      TYPE(kg_environment_type), POINTER                 :: kg_env
+      LOGICAL, INTENT(IN)                                :: lsd
+      LOGICAL                                            :: res
+
+      LOGICAL                                            :: explicit
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+
+      res = .FALSE.
+      IF (.NOT. ASSOCIATED(kg_env%xc_section_kg)) RETURN
+
+      xc_fun_section => section_vals_get_subs_vals(kg_env%xc_section_kg, "XC_FUNCTIONAL")
+      CALL section_vals_get(xc_fun_section, explicit=explicit)
+      IF (explicit) res = xc_uses_kinetic_energy_density(xc_fun_section, lsd)
+
+   END FUNCTION kg_uses_kinetic_energy_density
 
 ! **************************************************************************************************
 !> \brief ...
@@ -275,20 +299,18 @@ CONTAINS
                             exc=ekin_imol)
       END IF
 
-      IF (ASSOCIATED(vxc_tau)) THEN
-         CPABORT(" KG with meta-kinetic energy functionals not implemented")
-      END IF
-
       ! Integrate xc-potential with external density for outer response forces
       IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
          CALL qs_rho_get(rho1, rho_ao=density_matrix)
-         CALL qs_rho_get(rho1_use, rho_r=rho1_r)
+         CALL qs_rho_get(rho1_use, rho_r=rho1_r, tau_r=tau1_r)
          ! Direct volume term of virial
          ! xc-potential is unscaled
          IF (use_virial) THEN
             ekin_imol = 0.0_dp
             DO ispin = 1, nspins
                ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin))
+               IF (ASSOCIATED(vxc_tau)) &
+                  ekin_imol = ekin_imol + pw_integral_ab(tau1_r(ispin), vxc_tau(ispin))
             END DO
          END IF
       END IF
@@ -302,8 +324,17 @@ CONTAINS
                                  pmat=density_matrix(ispin), hmat=ks_matrix(ispin), &
                                  qs_env=qs_env, calculate_forces=calc_force, gapw=use_gapw_soft)
          CALL auxbas_pw_pool%give_back_pw(vxc_rho(ispin))
+         IF (ASSOCIATED(vxc_tau)) THEN
+            CALL pw_scale(vxc_tau(ispin), alpha*vxc_tau(ispin)%pw_grid%dvol)
+            CALL integrate_v_rspace(v_rspace=vxc_tau(ispin), &
+                                    pmat=density_matrix(ispin), hmat=ks_matrix(ispin), &
+                                    qs_env=qs_env, compute_tau=.TRUE., &
+                                    calculate_forces=calc_force, gapw=use_gapw_soft)
+            CALL auxbas_pw_pool%give_back_pw(vxc_tau(ispin))
+         END IF
       END DO
       DEALLOCATE (vxc_rho)
+      IF (ASSOCIATED(vxc_tau)) DEALLOCATE (vxc_tau)
       ekin_mol = -ekin_imol
       xcvirial(1:3, 1:3) = 0.0_dp
       IF (use_virial) THEN
@@ -339,7 +370,7 @@ CONTAINS
          END IF
 
          ekin_imol = 0.0_dp
-         NULLIFY (vxc_rho)
+         NULLIFY (vxc_rho, vxc_tau)
 
          ! calculate  Hohenberg-Kohn kinetic energy of the density
          ! corresponding to the remaining molecular block(s)
@@ -371,13 +402,15 @@ CONTAINS
          ! Integrate with response density for outer response forces
          IF (PRESENT(pmat_ext) .AND. .NOT. do_kernel) THEN
             CALL qs_rho_get(rho1, rho_ao=density_matrix)
-            CALL qs_rho_get(rho1_use, rho_r=rho1_r)
+            CALL qs_rho_get(rho1_use, rho_r=rho1_r, tau_r=tau1_r)
             ! Direct volume term of virial
             ! xc-potential is unscaled
             IF (use_virial) THEN
                ekin_imol = 0.0_dp
                DO ispin = 1, nspins
                   ekin_imol = ekin_imol + pw_integral_ab(rho1_r(ispin), vxc_rho(ispin))
+                  IF (ASSOCIATED(vxc_tau)) &
+                     ekin_imol = ekin_imol + pw_integral_ab(tau1_r(ispin), vxc_tau(ispin))
                END DO
             END IF
          END IF
@@ -409,6 +442,7 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (vxc_rho)
+         IF (ASSOCIATED(vxc_tau)) DEALLOCATE (vxc_tau)
 
          ekin_mol = ekin_mol + ekin_imol
 

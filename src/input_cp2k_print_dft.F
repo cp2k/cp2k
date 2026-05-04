@@ -1057,7 +1057,10 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
                                        " energy. It is valid only for QS with GPW/GAPW formalism."// &
-                                       " Meta and hybrid functionals are not possible.", &
+                                       " Meta and hybrid functionals are not possible. For GAPW/GAPW_XC"// &
+                                       " and ADMM-GAPW this regular-grid cube keeps the existing soft-grid"// &
+                                       " semantics; atom-centered hard one-center terms are not projected"// &
+                                       " onto the cube grid.", &
                                        print_level=debug_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
@@ -1083,7 +1086,10 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_STRESS_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
                                        " stress. It is valid only for QS with GPW/GAPW formalism."// &
-                                       " Meta and hybrid functionals are not possible.", &
+                                       " Meta and hybrid functionals are not possible. For GAPW/GAPW_XC"// &
+                                       " and ADMM-GAPW this regular-grid cube keeps the existing soft-grid"// &
+                                       " semantics; atom-centered hard one-center terms are not projected"// &
+                                       " onto the cube grid.", &
                                        print_level=debug_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &

@@ -3,6 +3,8 @@
 "Ar-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.04944239056047}]
 "Ar-3.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848179618906}]
 "Ar-4.inp"                              = [{matcher="E_total", tol=1e-12, ref=-21.13848219953337}]
+"Ar-kpoints-gapw-accurate.inp"          = [{matcher="E_total", tol=1e-10, ref=-1055.791694254042341}]
+"C-kpoints-gapw_xc-accurate.inp"        = [{matcher="E_total", tol=1e-10, ref=-45.657154884007589}]
 #
 "HF-1.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.3509709548997}]
 "HF-2.inp"                              = [{matcher="E_total", tol=1e-12, ref=-100.1363374234943}]
@@ -19,6 +21,7 @@
 #
 "F2.inp"                                = []
 "h2o.inp"                               = [{matcher="E_total", tol=1e-12, ref=-17.26044915752584}]
+"h2o_fine_xc.inp"                       = [{matcher="E_total", tol=1e-12, ref=-17.26044827166014}]
 "h2o-fine-1.inp"                        = [{matcher="E_total", tol=1e-12, ref=-17.26044829804002}]
 "h2o-fine-local-energy-1.inp"           = [{matcher="E_total", tol=1e-12, ref=-17.26044829804002}]
 "h2o-fine-nlcc-1.inp"                   = [{matcher="E_total", tol=1e-12, ref=-18.07338831671584}]
@@ -26,6 +29,15 @@
 "h2o-fine-tpss-force-1.inp"             = []
 "h2o-fine-tpss-stress-1.inp"            = [{matcher="E_total", tol=1e-12, ref=-17.267359232120793}]
 "h2o-fine-tpss-stress-debug-1.inp"      = []
+"h2o-gapw-pbe-full-stress-debug-1.inp"  = []
+"h2o-fine-tpss-full-stress-1.inp"       = [{matcher="M011", tol=1e-08, ref=-17.230662604574352},
+                                           {matcher="M031", tol=1e-08, ref=-8.83077835786E+03}]
 "h2o-gapw_xc-force-1.inp"               = []
 "h2o-gapw_xc-stress-debug-1.inp"        = []
+"h2o-gapw_xc-full-stress-1.inp"         = [{matcher="M011", tol=1e-08, ref=-17.256333793570239},
+                                           {matcher="M031", tol=1e-08, ref=3.91898639036E+03}]
+"argon-rvv10-gapw-accurate.inp"         = [{matcher="E_total", tol=1e-10, ref=-84.675680282922329},
+                                           {matcher="M031", tol=1e-6, ref=1.92244234461E+04}]
+"argon-vdW-DF-optB88-gapw-accurate.inp" = [{matcher="E_total", tol=1e-10, ref=-84.823604067799337},
+                                           {matcher="M031", tol=1e-6, ref=1.81300371428E+04}]
 #EOF
