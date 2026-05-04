@@ -64,6 +64,7 @@ MODULE qs_active_space_methods
       eri_operator_trunc, eri_operator_lr_trunc, &
       manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
       eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt, high_spin_roks
+   USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
                                   section_vals_set_subs_vals, section_vals_type, &
                                   section_vals_val_get, &
@@ -215,16 +216,17 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       CHARACTER(len=default_path_length)                 :: qcschema_filename
-      CHARACTER(LEN=default_string_length)               :: basis_type
+      CHARACTER(LEN=default_string_length)               :: basis_type, kp_scheme
       INTEGER :: as_solver, eri_method, eri_operator, eri_print, group_size, handle, i, iatom, &
          ishell, isp, ispin, iw, j, jm, m, max_orb_ind, mselect, n1, n2, nao, natom, nel, &
-         nelec_active, nelec_inactive, nelec_total, nmo, nmo_active, nmo_available, nmo_inactive, &
-         nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
+         nelec_active, nelec_inactive, nelec_total, nkp, nmo, nmo_active, nmo_available, &
+         nmo_inactive, nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_ddapc, do_kpoints, ex_omega, &
                                                             ex_operator, ex_perd, ex_rcut, &
-                                                            explicit, stop_after_print, store_wfn
+                                                            explicit, stop_after_print, store_wfn, &
+                                                            use_real_wfn
       REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
          eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -240,8 +242,10 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix_kp, rho_ao_kp, s_matrix_kp
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -277,9 +281,22 @@ CONTAINS
       END IF
 
       ! k-points?
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control)
+      NULLIFY (kpoints)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, dft_control=dft_control, kpoints=kpoints)
       IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "k-points not supported in active space module")
+         IF (.NOT. ASSOCIATED(kpoints)) &
+            CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
+         CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme, nkp=nkp, use_real_wfn=use_real_wfn)
+         IF (TRIM(kp_scheme) /= "GAMMA" .OR. nkp /= 1 .OR. .NOT. use_real_wfn) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Only Gamma-point DFT%KPOINTS are supported in the active space module")
+         END IF
+         IF (.NOT. ASSOCIATED(kpoints%kp_env)) &
+            CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
+         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env)) &
+            CALL cp_abort(__LOCATION__, "Missing Gamma-point environment for active space module")
+         IF (.NOT. ASSOCIATED(kpoints%kp_env(1)%kpoint_env%mos)) &
+            CALL cp_abort(__LOCATION__, "Missing Gamma-point MOs for active space module")
       END IF
 
       ! adiabatic rescaling?
@@ -428,7 +445,11 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown orbital selection method")
       CASE (casci_canonical)
-         CALL get_qs_env(qs_env, mos=mos)
+         IF (do_kpoints) THEN
+            mos => kpoints%kp_env(1)%kpoint_env%mos(1, :)
+         ELSE
+            CALL get_qs_env(qs_env, mos=mos)
+         END IF
 
          ! total number of occupied orbitals, i.e. inactive plus active MOs
          nmo_occ = nmo_inactive + nmo_active
@@ -492,7 +513,14 @@ CONTAINS
 
             ALLOCATE (eigenvalues(nmo_occ, nspins))
             eigenvalues = 0.0_dp
-            CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, scf_control=scf_control)
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env, matrix_ks_kp=ks_matrix_kp, matrix_s_kp=s_matrix_kp, &
+                               scf_control=scf_control)
+               ks_matrix => ks_matrix_kp(:, 1)
+               s_matrix => s_matrix_kp(:, 1)
+            ELSE
+               CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, scf_control=scf_control)
+            END IF
 
             ! calculate virtual MOs and copy inactive and active orbitals
             IF (iw > 0) THEN
@@ -643,7 +671,11 @@ CONTAINS
                END DO
             END DO
 
-            CALL get_qs_env(qs_env, mos=mos)
+            IF (do_kpoints) THEN
+               mos => kpoints%kp_env(1)%kpoint_env%mos(1, :)
+            ELSE
+               CALL get_qs_env(qs_env, mos=mos)
+            END IF
 
             ! include MOs up to the largest index in the list
             max_orb_ind = MAXVAL(invals)
@@ -678,7 +710,14 @@ CONTAINS
 
             ALLOCATE (eigenvalues(max_orb_ind, nspins))
             eigenvalues = 0.0_dp
-            CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, scf_control=scf_control)
+            IF (do_kpoints) THEN
+               CALL get_qs_env(qs_env, matrix_ks_kp=ks_matrix_kp, matrix_s_kp=s_matrix_kp, &
+                               scf_control=scf_control)
+               ks_matrix => ks_matrix_kp(:, 1)
+               s_matrix => s_matrix_kp(:, 1)
+            ELSE
+               CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, scf_control=scf_control)
+            END IF
 
             ! calculate virtual MOs and copy inactive and active orbitals
             IF (iw > 0) THEN
@@ -828,7 +867,12 @@ CONTAINS
 
       ! calculate inactive density matrix
       CALL get_qs_env(qs_env, rho=rho)
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      IF (do_kpoints) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+         rho_ao => rho_ao_kp(:, 1)
+      ELSE
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+      END IF
       CPASSERT(ASSOCIATED(rho_ao))
       CALL dbcsr_allocate_matrix_set(active_space_env%pmat_inactive, nspins)
       DO ispin = 1, nspins
@@ -1155,8 +1199,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_spin_pol_overlap'
 
       INTEGER                                            :: handle, nmo, nspins
+      LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_a, mo_coeff_b
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: s_matrix_kp
 
       CALL timeset(routineN, handle)
 
@@ -1164,7 +1210,13 @@ CONTAINS
 
       ! overlap in AO
       IF (nspins > 1) THEN
-         CALL get_qs_env(qs_env, matrix_s=s_matrix)
+         CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+         IF (do_kpoints) THEN
+            CALL get_qs_env(qs_env, matrix_s_kp=s_matrix_kp)
+            s_matrix => s_matrix_kp(:, 1)
+         ELSE
+            CALL get_qs_env(qs_env, matrix_s=s_matrix)
+         END IF
          ALLOCATE (active_space_env%sab_sub(1))
 
          CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_a, nmo=nmo)

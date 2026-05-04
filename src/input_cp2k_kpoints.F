@@ -37,12 +37,15 @@ MODULE input_cp2k_kpoints
    INTEGER, PARAMETER                      :: use_real_wfn = 101, &
                                               use_complex_wfn = 100, &
                                               use_k290_kpoint_symmetry = 200, &
-                                              use_spglib_kpoint_symmetry = 201
+                                              use_spglib_kpoint_symmetry = 201, &
+                                              use_k290_kpoint_backend = 300, &
+                                              use_spglib_kpoint_backend = 301
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
+   PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
 
 CONTAINS
 
@@ -57,6 +60,7 @@ CONTAINS
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
 !>      INVERSION_SYMMETRY_ONLY [on, off]
+!>      SYMMETRY_BACKEND [K290, SPGLIB]
 !>      SYMMETRY_REDUCTION_METHOD [K290, SPGLIB]
 !>      VERBOSE          [on, off]
 !>      EPS_SYMMETRY     value
@@ -86,7 +90,9 @@ CONTAINS
                           newline// &
                           "For `MONKHORST-PACK` the number of k points in all 3 dimensions has to"// &
                           " be supplied along with the keyword. For `MACDONALD` also the list of shifts."// &
-                          " E.g. `MONKHORST-PACK 12 12 8`, `MACDONALD 4 4 4 0.25 0.25 0.25`", &
+                          " E.g. `MONKHORST-PACK 12 12 8`, `MACDONALD 4 4 4 0.25 0.25 0.25`."// &
+                          " `GENERAL` uses the explicitly listed k-points as supplied and does not apply"// &
+                          " SYMMETRY_BACKEND or SYMMETRY_REDUCTION_METHOD.", &
                           usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
                           citations=[Monkhorst1976, MacDonald1978], &
                           n_var=-1, type_of_var=char_t)
@@ -132,11 +138,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_BACKEND", &
+                          description="Select the backend used to provide and apply atomic "// &
+                          "k-point symmetry operations. K290 is the established default. "// &
+                          "SPGLIB uses the symmetry operations returned by SPGLIB, including "// &
+                          "their fractional translations. This applies to Monkhorst-Pack and MacDonald "// &
+                          "meshes. For GENERAL, the explicit k-point list is used as supplied. If "// &
+                          "SYMMETRY_REDUCTION_METHOD is not specified, it follows the selected backend.", &
+                          usage="SYMMETRY_BACKEND K290", type_of_var=enum_t, &
+                          enum_c_vals=s2a("K290", "SPGLIB"), &
+                          enum_i_vals=[use_k290_kpoint_backend, use_spglib_kpoint_backend], &
+                          enum_desc=s2a("Use the existing K290 k-point symmetry backend.", &
+                                        "Use SPGLIB symmetry operations as k-point symmetry backend."), &
+                          default_i_val=use_k290_kpoint_backend)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SYMMETRY_REDUCTION_METHOD", &
                           description="Select the method used to reduce Monkhorst-Pack and MacDonald "// &
                           "k-point meshes when atomic symmetry is enabled. K290 is the established "// &
                           "default. SPGLIB uses the symmetry operations returned by SPGLIB for the "// &
-                          "k-point reduction.", &
+                          "k-point reduction. GENERAL k-point lists are not reduced. With "// &
+                          "SYMMETRY_BACKEND K290 this can be used as a comparison mode using K290 "// &
+                          "operations for SPGLIB-generated mappings.", &
                           usage="SYMMETRY_REDUCTION_METHOD K290", type_of_var=enum_t, &
                           enum_c_vals=s2a("K290", "SPGLIB"), &
                           enum_i_vals=[use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry], &
@@ -175,7 +199,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WAVEFUNCTIONS", &
                           description="Select whether real or complex wavefunctions should be used "// &
-                          "when allowed by the k-point set.", &
+                          "when allowed by the k-point set. REAL wavefunctions can only represent "// &
+                          "Gamma or special k-points and symmetry operations with real Bloch phases. "// &
+                          "Use COMPLEX for general atomic k-point symmetries with nontrivial phases.", &
                           usage="WAVEFUNCTIONS REAL", &
                           default_i_val=use_complex_wfn, &
                           enum_c_vals=s2a("REAL", "COMPLEX"), &

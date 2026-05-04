@@ -54,7 +54,10 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_symmetry
+   USE input_cp2k_kpoints,              ONLY: use_k290_kpoint_backend,&
+                                              use_k290_kpoint_symmetry,&
+                                              use_spglib_kpoint_backend,&
+                                              use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -189,7 +192,8 @@ CONTAINS
                          full_grid=kpoint%full_grid, &
                          inversion_symmetry_only=kpoint%inversion_symmetry_only, &
                          use_spglib_reduction= &
-                         kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry)
+                         kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry, &
+                         use_spglib_backend=kpoint%symmetry_backend == use_spglib_kpoint_backend)
          kpoint%nkp = crys_sym%nkpoint
          ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
          wsum = SUM(crys_sym%wkpoint)
@@ -228,13 +232,13 @@ CONTAINS
                         nr = nr + 1
                         ir = crys_sym%kpop(is)
                         ira = ABS(ir)
-                        kpsym%rotp(nr) = ir
-                        kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ira)
-                        srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ira), cell%hmat))
-                        frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                        kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
                         DO ic = 1, crys_sym%nrtot
                            IF (crys_sym%ibrot(ic) == ira) THEN
+                              kpsym%rotp(nr) = ir
+                              kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                              kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
                               kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
                               DO j = 1, natom
                                  srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
@@ -246,6 +250,7 @@ CONTAINS
                               EXIT
                            END IF
                         END DO
+                        CPASSERT(ic <= crys_sym%nrtot)
                      END IF
                   END DO
                   ! Reduce inversion?
@@ -271,6 +276,17 @@ CONTAINS
          DEALLOCATE (agauge)
 
       CASE ("GENERAL")
+         IF (kpoint%symmetry) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "KPOINTS%SYMMETRY is not supported with SCHEME GENERAL; "// &
+                          "explicit k-points are used as supplied.")
+         END IF
+         IF (kpoint%symmetry_backend /= use_k290_kpoint_backend .OR. &
+             kpoint%symmetry_reduction_method /= use_k290_kpoint_symmetry) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "KPOINTS%SYMMETRY_BACKEND and SYMMETRY_REDUCTION_METHOD are ignored with "// &
+                         "SCHEME GENERAL; explicit k-points are used as supplied.")
+         END IF
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp
@@ -1747,9 +1763,8 @@ CONTAINS
                                                             numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
       LOGICAL                                            :: dorot, found, has_phase, perm, trans
-      REAL(KIND=dp)                                      :: arg, coskl, dr, phase_sign, sinkl
+      REAL(KIND=dp)                                      :: arg, coskl, dr, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye, rot2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
                                                             srblock
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -1769,15 +1784,6 @@ CONTAINS
       IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
       dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
       IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
-      eye = 0.0_dp
-      eye(1, 1) = 1.0_dp
-      eye(2, 2) = 1.0_dp
-      eye(3, 3) = 1.0_dp
-      rot2(1:3, 1:3) = MATMUL(rot(1:3, 1:3), rot(1:3, 1:3))
-      phase_sign = 1.0_dp
-      ! Non-self-inverse rotations need the inverse Bloch phase convention used by K290.
-      IF (ANY(ABS(rot2(1:3, 1:3) - eye(1:3, 1:3)) > 1.e-8_dp)) phase_sign = -1.0_dp
-
       has_phase = ANY(fcell /= 0) .OR. time_reversal
 
       IF (.NOT. (dorot .OR. perm .OR. has_phase)) THEN
@@ -1822,8 +1828,9 @@ CONTAINS
 
          shift = fcell(1:3, icol) - fcell(1:3, irow)
          arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
+         ! The Bloch phase depends only on the mapped atom-cell shifts and the target k-point.
          coskl = COS(twopi*arg)
-         sinkl = phase_sign*SIN(twopi*arg)
+         sinkl = SIN(twopi*arg)
          IF (real_only) THEN
             IF (ABS(sinkl) > 1.e-12_dp) THEN
                CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")

@@ -25,8 +25,10 @@ MODULE kpoint_types
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
+                                              use_k290_kpoint_backend,&
                                               use_k290_kpoint_symmetry,&
                                               use_real_wfn,&
+                                              use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
@@ -140,6 +142,7 @@ MODULE kpoint_types
 !> \param symmetry            [input] use symmetry (atoms) to reduce kpoints
 !> \param full_grid           [input] don't reduce kpoints at all
 !> \param inversion_symmetry_only [input] reduce kpoints only by inversion symmetry
+!> \param symmetry_backend [input] k-point symmetry backend
 !> \param symmetry_reduction_method [input] k-point symmetry reduction method
 !> \param verbose             [input] more output information
 !> \param eps_geo             [input] accuracy of atom symmetry detection
@@ -168,6 +171,7 @@ MODULE kpoint_types
       LOGICAL                                 :: symmetry = .FALSE.
       LOGICAL                                 :: full_grid = .FALSE.
       LOGICAL                                 :: inversion_symmetry_only = .FALSE.
+      INTEGER                                 :: symmetry_backend = use_k290_kpoint_backend
       INTEGER                                 :: symmetry_reduction_method = use_k290_kpoint_symmetry
       LOGICAL                                 :: verbose = .FALSE.
       REAL(KIND=dp)                           :: eps_geo = 0.0_dp
@@ -231,6 +235,7 @@ CONTAINS
       kpoint%verbose = .FALSE.
       kpoint%full_grid = .FALSE.
       kpoint%inversion_symmetry_only = .FALSE.
+      kpoint%symmetry_backend = use_k290_kpoint_backend
       kpoint%symmetry_reduction_method = use_k290_kpoint_symmetry
       kpoint%use_real_wfn = .FALSE.
       kpoint%eps_geo = 1.0e-6_dp
@@ -373,6 +378,7 @@ CONTAINS
 !> \param sab_nl        neighbourlist that defines real space matrices
 !> \param sab_nl_nosym neighbourlist that defines real space matrices, non-symmetric
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
+!> \param symmetry_backend k-point symmetry backend
 !> \param symmetry_reduction_method k-point symmetry reduction method
 !> \author JGH
 ! **************************************************************************************************
@@ -380,7 +386,8 @@ CONTAINS
                               full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, kp_aux_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, index_to_cell, &
-                              sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_reduction_method)
+                              sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_backend, &
+                              symmetry_reduction_method)
       TYPE(kpoint_type), INTENT(IN)                      :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
@@ -408,7 +415,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl, sab_nl_nosym
       LOGICAL, OPTIONAL                                  :: inversion_symmetry_only
-      INTEGER, OPTIONAL                                  :: symmetry_reduction_method
+      INTEGER, OPTIONAL                                  :: symmetry_backend, &
+                                                            symmetry_reduction_method
 
       IF (PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
       IF (PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
@@ -417,6 +425,7 @@ CONTAINS
       IF (PRESENT(verbose)) verbose = kpoint%verbose
       IF (PRESENT(full_grid)) full_grid = kpoint%full_grid
       IF (PRESENT(inversion_symmetry_only)) inversion_symmetry_only = kpoint%inversion_symmetry_only
+      IF (PRESENT(symmetry_backend)) symmetry_backend = kpoint%symmetry_backend
       IF (PRESENT(symmetry_reduction_method)) &
          symmetry_reduction_method = kpoint%symmetry_reduction_method
       IF (PRESENT(use_real_wfn)) use_real_wfn = kpoint%use_real_wfn
@@ -481,6 +490,7 @@ CONTAINS
 !> \param sab_nl        neighbourlist that defines real space matrices
 !> \param sab_nl_nosym  neighbourlist that defines real space matrices
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
+!> \param symmetry_backend k-point symmetry backend
 !> \param symmetry_reduction_method k-point symmetry reduction method
 !> \author JGH
 ! **************************************************************************************************
@@ -488,7 +498,8 @@ CONTAINS
                               full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, kp_aux_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, index_to_cell, &
-                              sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_reduction_method)
+                              sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_backend, &
+                              symmetry_reduction_method)
       TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
@@ -516,7 +527,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl, sab_nl_nosym
       LOGICAL, OPTIONAL                                  :: inversion_symmetry_only
-      INTEGER, OPTIONAL                                  :: symmetry_reduction_method
+      INTEGER, OPTIONAL                                  :: symmetry_backend, &
+                                                            symmetry_reduction_method
 
       IF (PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
       IF (PRESENT(nkp_grid)) kpoint%nkp_grid = nkp_grid
@@ -525,6 +537,7 @@ CONTAINS
       IF (PRESENT(verbose)) kpoint%verbose = verbose
       IF (PRESENT(full_grid)) kpoint%full_grid = full_grid
       IF (PRESENT(inversion_symmetry_only)) kpoint%inversion_symmetry_only = inversion_symmetry_only
+      IF (PRESENT(symmetry_backend)) kpoint%symmetry_backend = symmetry_backend
       IF (PRESENT(symmetry_reduction_method)) &
          kpoint%symmetry_reduction_method = symmetry_reduction_method
       IF (PRESENT(use_real_wfn)) kpoint%use_real_wfn = use_real_wfn
@@ -580,7 +593,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: i, n_rep, nval, wfntype
-      LOGICAL                                            :: available
+      LOGICAL                                            :: available, backend_explicit, &
+                                                            reduction_explicit
       REAL(KIND=dp)                                      :: ff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: reallist
 
@@ -651,8 +665,11 @@ CONTAINS
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=kpoint%full_grid)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=kpoint%inversion_symmetry_only)
+         CALL section_vals_val_get(kpoint_section, "SYMMETRY_BACKEND", &
+                                   i_val=kpoint%symmetry_backend, explicit=backend_explicit)
          CALL section_vals_val_get(kpoint_section, "SYMMETRY_REDUCTION_METHOD", &
-                                   i_val=kpoint%symmetry_reduction_method)
+                                   i_val=kpoint%symmetry_reduction_method, explicit=reduction_explicit)
+         CALL resolve_kpoint_symmetry_settings(kpoint, backend_explicit, reduction_explicit)
          CALL section_vals_val_get(kpoint_section, "EPS_SYMMETRY", r_val=kpoint%eps_geo)
          CALL section_vals_val_get(kpoint_section, "PARALLEL_GROUP_SIZE", &
                                    i_val=kpoint%parallel_group_size)
@@ -670,6 +687,35 @@ CONTAINS
       END IF
 
    END SUBROUTINE read_kpoint_section
+
+! **************************************************************************************************
+!> \brief Resolve legacy and backend k-point symmetry settings
+!> \param kpoint ...
+!> \param backend_explicit whether SYMMETRY_BACKEND was given
+!> \param reduction_explicit whether SYMMETRY_REDUCTION_METHOD was given
+! **************************************************************************************************
+   SUBROUTINE resolve_kpoint_symmetry_settings(kpoint, backend_explicit, reduction_explicit)
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
+      LOGICAL, INTENT(IN)                                :: backend_explicit, reduction_explicit
+
+      IF (backend_explicit .AND. .NOT. reduction_explicit) THEN
+         SELECT CASE (kpoint%symmetry_backend)
+         CASE (use_k290_kpoint_backend)
+            kpoint%symmetry_reduction_method = use_k290_kpoint_symmetry
+         CASE (use_spglib_kpoint_backend)
+            kpoint%symmetry_reduction_method = use_spglib_kpoint_symmetry
+         CASE DEFAULT
+            CPABORT("Unknown k-point symmetry backend")
+         END SELECT
+      END IF
+
+      IF (kpoint%symmetry_backend == use_spglib_kpoint_backend .AND. &
+          kpoint%symmetry_reduction_method /= use_spglib_kpoint_symmetry) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "SYMMETRY_BACKEND SPGLIB requires SYMMETRY_REDUCTION_METHOD SPGLIB")
+      END IF
+
+   END SUBROUTINE resolve_kpoint_symmetry_settings
 
 ! **************************************************************************************************
 !> \brief Write information on the kpoints to output
@@ -735,6 +781,14 @@ CONTAINS
             IF (kpoint%symmetry .AND. .NOT. kpoint%full_grid .AND. &
                 .NOT. kpoint%inversion_symmetry_only .AND. &
                 (kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD")) THEN
+               SELECT CASE (kpoint%symmetry_backend)
+               CASE (use_k290_kpoint_backend)
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry backend', '   K290'
+               CASE (use_spglib_kpoint_backend)
+                  WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry backend', ' SPGLIB'
+               CASE DEFAULT
+                  CPABORT("Unknown k-point symmetry backend")
+               END SELECT
                SELECT CASE (kpoint%symmetry_reduction_method)
                CASE (use_k290_kpoint_symmetry)
                   WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry reduction method', '   K290'
