@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT H2O_wavelet_XZ
+  PROJECT H2O_wavelet_YZ
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -13,7 +13,7 @@
       CUTOFF 100
     &END MGRID
     &POISSON
-      PERIODIC XZ
+      PERIODIC YZ
       POISSON WAVELET
       &WAVELET
         SCF_TYPE 14
@@ -38,12 +38,12 @@
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
-      PERIODIC XZ
+      PERIODIC YZ
     &END CELL
     &COORD
-      O   0.000000    4.000000   -0.065587
-      H   0.000000    3.242800    0.520545
-      H   0.000000    3.757136    0.520545
+      O   4.000000    0.000000   -0.065587
+      H   3.242800    0.000000    0.520545
+      H   3.757136    0.000000    0.520545
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PADE
