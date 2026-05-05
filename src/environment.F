@@ -34,6 +34,7 @@ MODULE environment
                                               FM_DIAG_TYPE_DLAF,&
                                               FM_DIAG_TYPE_ELPA,&
                                               FM_DIAG_TYPE_SCALAPACK,&
+                                              cusolver_n_min,&
                                               diag_finalize,&
                                               diag_init,&
                                               eps_check_diag_default
@@ -545,7 +546,8 @@ CONTAINS
       CALL section_vals_val_get(global_section, "BLACS_GRID", i_val=globenv%blacs_grid_layout)
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
-      CALL section_vals_val_get(global_section, "CUSOLVER_GENERALIZED", l_val=globenv%cusolver_generalized)
+      CALL section_vals_val_get(global_section, "DIRECT_GENERALIZED_DIAGONALIZATION", &
+                                l_val=globenv%direct_generalized_diagonalization)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
@@ -828,6 +830,19 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                start_section_label//"| Minimum number of eigenvectors for DLAF usage", &
                globenv%dlaf_neigvec_min
+         END IF
+
+         IF (globenv%diag_library == "cuSOLVER" .OR. globenv%diag_library == "ScaLAPACK" .OR. &
+             globenv%diag_library == "DLAF") THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
+               start_section_label//"| Direct generalized diagonalization requested", &
+               globenv%direct_generalized_diagonalization
+         END IF
+
+         IF (globenv%diag_library == "cuSOLVER") THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+               start_section_label//"| Minimum matrix size for cuSOLVER diagonalization", &
+               cusolver_n_min
          END IF
 
          IF (globenv%cholesky_library == "DLAF") THEN
@@ -1119,7 +1134,8 @@ CONTAINS
                      elpa_one_stage=globenv%elpa_one_stage, &
                      dlaf_neigvec_min_input=globenv%dlaf_neigvec_min, &
                      eps_check_diag_input=globenv%eps_check_diag, &
-                     cusolver_generalized_input=globenv%cusolver_generalized)
+                     direct_generalized_diagonalization_input= &
+                     globenv%direct_generalized_diagonalization)
 
       IF (fallback_applied) THEN
          message = "Diagonalization library "//TRIM(globenv%diag_library)// &

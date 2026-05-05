@@ -805,12 +805,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: agr, alpha, density_cut, gradient_cut, &
                                                             rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: vxc_h, vxc_s
+         POINTER                                         :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: rtau
       REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: weight_h, weight_s
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
-                                                            tau1_s, tau_h, tau_s, vtau_h, vtau_s
+                                                            tau1_s, tau_h, tau_s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho1_h, drho1_s, drho_h, drho_s, vxg_h, &
                                                             vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1572,13 +1572,13 @@ CONTAINS
                                                             paw_atom, tau_f
       REAL(dp)                                           :: agr, alpha, beta, density_cut, &
                                                             gradient_cut, oeps1, tau_cut
-      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc_h, vxc_s
+      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
       REAL(dp), DIMENSION(:, :, :), POINTER              :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
                                                             rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
-                                                            tau_h, tau_s, vtau_h, vtau_s
+                                                            tau_h, tau_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho0_h, drho0_s, drho1_h, drho1_s, &
                                                             drho_h, drho_s, vxg_h, vxg_s
       REAL(KIND=dp), DIMENSION(-4:4)                     :: ak

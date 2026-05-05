@@ -141,7 +141,7 @@ OPTIONS:
                           Default = native
   --gpu-ver               Select the target GPU architecture for compiling.
                           Available options are: K20X, K40, K80, P100, V100,
-                          A100, H100, A40, Mi50, Mi100, Mi250, and no.
+                          A100, H100, GB10, A40, Mi50, Mi100, Mi250, and no.
                           This option determines the value of nvcc -arch flag.
                           Default = no
   --libint-lmax           Maximum supported angular momentum by libint if the
@@ -640,7 +640,8 @@ while [ $# -ge 1 ]; do
       for ii in ${package_list}; do
         if [ "${ii}" != "intel" ] &&
           [ "${ii}" != "intelmpi" ] &&
-          [ "${ii}" != "amd" ]; then
+          [ "${ii}" != "amd" ] &&
+          [ "${ii}" != "cusolvermp" ]; then
           eval "with_${ii}=__INSTALL__"
         fi
       done
@@ -697,13 +698,13 @@ Otherwise use option no."
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
-        K20X | K40 | K80 | P100 | V100 | A100 | H100 | A40 | Mi50 | Mi100 | Mi250 | no)
+        K20X | K40 | K80 | P100 | V100 | A100 | H100 | GB10 | A40 | Mi50 | Mi100 | Mi250 | no)
           export GPUVER="${user_input}"
           ;;
         *)
           report_error ${LINENO} "Invalid value for --gpu-ver found."
           echo "Currently only one of the following options is supported:
-            K20X, K40, K80, P100, V100, A100, H100, A40, Mi50, Mi100, Mi250.
+            K20X, K40, K80, P100, V100, A100, H100, GB10, A40, Mi50, Mi100, Mi250.
 Otherwise use option no."
           exit 1
           ;;
@@ -845,7 +846,7 @@ Otherwise use option no."
       with_elpa=$(read_with "${1}")
       ;;
     --with-cusolvermp*)
-      with_cusolvermp=$(read_with "${1}")
+      with_cusolvermp=$(read_with "${1}" "__SYSTEM__")
       ;;
     --with-deepmd*)
       with_deepmd=$(read_with "${1}")
@@ -1165,6 +1166,9 @@ case ${GPUVER} in
     ;;
   H100)
     export ARCH_NUM="90"
+    ;;
+  GB10)
+    export ARCH_NUM="121"
     ;;
   Mi50)
     # TODO: export ARCH_NUM=

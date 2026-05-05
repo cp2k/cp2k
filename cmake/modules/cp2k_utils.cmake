@@ -13,8 +13,12 @@ function(cp2k_set_default_paths _varname _package_name)
   # find_library should work when ${PACKAGE_ROOT} is given to cmake
   # (-DPACKAGE_ROOT=bla) but I use only one variable syntax CP2K_PACKAGE_PREFIX
   set(CP2K_${_varname}_PREFIX_TMP "")
-  if(DEFINED ${_package_name}_ROOT)
-    set(CP2K_${_varname}_PREFIX_TMP "${${_varname}_ROOT}")
+  set(_cp2k_root_var "CP2K_${_varname}_ROOT")
+  set(_package_root_var "${_package_name}_ROOT")
+  if(DEFINED ${_cp2k_root_var})
+    set(CP2K_${_varname}_PREFIX_TMP "${${_cp2k_root_var}}")
+  elseif(DEFINED ${_package_root_var})
+    set(CP2K_${_varname}_PREFIX_TMP "${${_package_root_var}}")
   endif()
 
   # search common environment variables names

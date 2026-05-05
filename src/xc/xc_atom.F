@@ -414,7 +414,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: w
       REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
-      REAL(dp), DIMENSION(:, :, :), OPTIONAL, POINTER    :: vtau
+      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         OPTIONAL, POINTER                               :: vtau
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet, do_sf
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_2nd_deriv_of_r'
