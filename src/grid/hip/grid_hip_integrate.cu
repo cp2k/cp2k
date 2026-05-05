@@ -8,15 +8,13 @@
 /*
  * inspirations from the gpu backend
  * Authors :
- - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
+ - Mathieu Taillefumier (ETH Zurich / CSCS)
  - Advanced Micro Devices, Inc.
+ - Ole Schuett
 */
-
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 
 #include <algorithm>
 #include <assert.h>
-#include <hip/hip_runtime.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -26,14 +24,6 @@
 #include "grid_hip_context.h"
 #include "grid_hip_internal_header.h"
 #include "grid_hip_process_vab.h"
-
-#ifdef __HIP_PLATFORM_NVIDIA__
-#include <cooperative_groups.h>
-#if CUDA_VERSION >= 11000
-#include <cooperative_groups/reduce.h>
-#endif
-namespace cg = cooperative_groups;
-#endif
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -117,6 +107,7 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     __syncthreads();
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
+
     for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
       const auto &b = coset_inv[jco];
       for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
@@ -144,6 +135,7 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
           }
         }
         __syncthreads();
+        T block_val1 = 0.0;
         for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
           const T sphib = task.sphib[i * task.maxcob + jco];
           for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
@@ -152,29 +144,12 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
             // T block_val = hab * sphia_times_sphib;
 
             if (CALCULATE_FORCES) {
-              T block_val1 = 0.0;
               if (task.block_transposed) {
-                block_val1 =
-                    task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
+                block_val1 +=
+                  task.pab_block[j * task.nsgfb + i] * task.off_diag_twice * sphia_times_sphib;
               } else {
-                block_val1 =
-                    task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
-              }
-              for (int k = 0; k < 3; k++) {
-                fa[k] += block_val1 * sphia_times_sphib * shared_forces_a[k];
-                // get_force_a<COMPUTE_TAU, T>(
-                //     a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
-                fb[k] += block_val1 * sphia_times_sphib * shared_forces_b[k];
-                // get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
-                //                             task.rab, task.n1, smem_cab);
-              }
-              if (dev_.ptr_dev[5] != nullptr) {
-                for (int k = 0; k < 3; k++) {
-                  for (int l = 0; l < 3; l++) {
-                    virial[3 * k + l] += shared_virial[3 * k + l] * block_val1 *
-                                         sphia_times_sphib;
-                  }
-                }
+                block_val1 +=
+                  task.pab_block[i * task.nsgfa + j] * task.off_diag_twice * sphia_times_sphib;
               }
             }
             // we can use shuffle_down if it exists for T
@@ -193,7 +168,24 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
             }
           }
         }
-        __syncthreads();
+
+        if (CALCULATE_FORCES) {
+          for (int k = 0; k < 3; k++) {
+            fa[k] += block_val1 * shared_forces_a[k];
+            // get_force_a<COMPUTE_TAU, T>(
+            //     a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
+            fb[k] += block_val1 * shared_forces_b[k];
+            // get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
+            //                             task.rab, task.n1, smem_cab);
+          }
+          if (dev_.ptr_dev[5] != nullptr) {
+            for (int k = 0; k < 3; k++) {
+              for (int l = 0; l < 3; l++) {
+                virial[3 * k + l] += shared_virial[3 * k + l] * block_val1;
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -609,14 +601,19 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         accumulator[i][tid] += accumulator[i][tid + 2];
       }
       __syncthreads();
-      if (tid == 0)
+      if (tid == 0) {
         sum[i] = accumulator[i][0] + accumulator[i][1];
+      }
+
+      //   dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset + i +
+      //                   ico] = accumulator[i][0] + accumulator[i][1];
+
     }
     __syncthreads();
 
     for (int i = tid; i < min(length - ico, lbatch); i += lbatch)
-      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset + i +
-                      ico] = sum[i];
+       dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset + i +
+                       ico] = sum[i];
     __syncthreads();
     // if (tid == 0)
     //   printf("%.15lf\n", sum[0]);
@@ -765,4 +762,3 @@ void context_info::compute_hab_coefficients() {
   }
 }
 }; // namespace rocm_backend
-#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

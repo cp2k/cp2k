@@ -7,11 +7,10 @@
 
 /*
  * Authors :
- - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
+ - Mathieu Taillefumier (ETH Zurich / CSCS)
  - Advanced Micro Devices, Inc.
+ - Ole Schuett
 */
-
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 
 #include <algorithm>
 #include <assert.h>
@@ -20,7 +19,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <hip/hip_runtime.h>
 
 #include "grid_hip_internal_header.h"
 #include "grid_hip_prepare_pab.h"
@@ -483,4 +481,3 @@ void context_info::collocate_one_grid_level(const int level,
   }
 }
 } // namespace rocm_backend
-#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

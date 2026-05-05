@@ -7,8 +7,6 @@
 #ifndef GRID_HIP_TASK_LIST_H
 #define GRID_HIP_TASK_LIST_H
 
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
-
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -34,18 +32,18 @@ void grid_hip_create_task_list(
     const int *border_mask_list, const int *block_num_list,
     const double *radius_list, const double *rab_list, const int *npts_global,
     const int *npts_local, const int *shift_local, const int *border_width,
-    const double *dh, const double *dh_inv, void *ptr);
+    const double *dh, const double *dh_inv, grid_hip_task_list **ptr);
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
  ******************************************************************************/
-void grid_hip_free_task_list(void *ptr);
+void grid_hip_free_task_list(grid_hip_task_list *ptr);
 
 /*******************************************************************************
  * \brief Collocate all tasks of in given list onto given grids.
  *        See grid_task_list.h for details.
  ******************************************************************************/
-void grid_hip_collocate_task_list(const void *ptr, const enum grid_func func,
-                                  const int nlevels,
+void grid_hip_collocate_task_list(const grid_hip_task_list *ptr,
+                                  const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
                                   offload_buffer **grids);
 
@@ -53,8 +51,8 @@ void grid_hip_collocate_task_list(const void *ptr, const enum grid_func func,
  * \brief Integrate all tasks of in given list onto given grids.
  *        See grid_task_list.h for details.
  ******************************************************************************/
-void grid_hip_integrate_task_list(const void *ptr, const bool compute_tau,
-                                  const int nlevels,
+void grid_hip_integrate_task_list(const grid_hip_task_list *ptr,
+                                  const bool compute_tau, const int nlevels,
                                   const offload_buffer *pab_blocks,
                                   const offload_buffer **grids,
                                   offload_buffer *hab_blocks, double *forces,
@@ -63,5 +61,4 @@ void grid_hip_integrate_task_list(const void *ptr, const bool compute_tau,
 }
 #endif
 
-#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 #endif

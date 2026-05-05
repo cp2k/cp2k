@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <assert.h>
-#include <hip/hip_runtime.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -243,10 +242,8 @@ inline static void init_constant_memory() {
       }
     }
   }
-  hipError_t error =
-      hipMemcpyToSymbol(coset_inv, &coset_inv_host, sizeof(coset_inv_host), 0,
-                        hipMemcpyHostToDevice);
-  assert(error == hipSuccess);
+
+  offloadMemcpyToSymbol(coset_inv, &coset_inv_host, sizeof(coset_inv_host));
 
   // Binomial coefficient
   int binomial_coef_host[19][19] = {
@@ -276,11 +273,8 @@ inline static void init_constant_memory() {
        6188, 2380, 680, 136, 17, 1, 0},
       {1, 18, 153, 816, 3060, 8568, 18564, 31824, 43758, 48620, 43758, 31824,
        18564, 8568, 3060, 816, 153, 18, 1}};
-  error =
-      hipMemcpyToSymbol(binomial_coef, &binomial_coef_host[0][0],
-                        sizeof(binomial_coef_host), 0, hipMemcpyHostToDevice);
-  assert(error == hipSuccess);
-
+  offloadMemcpyToSymbol(binomial_coef, &binomial_coef_host[0][0],
+                        sizeof(binomial_coef_host));
   initialized = true;
 }
 

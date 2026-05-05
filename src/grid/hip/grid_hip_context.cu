@@ -7,16 +7,15 @@
 
 /*
  * Authors :
- - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
+ - Mathieu Taillefumier (ETH Zurich / CSCS)
  - Advanced Micro Devices, Inc.
+ - Ole Schuett
 */
 
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <hip/hip_runtime_api.h>
 #include <iostream>
 
 #include "../../offload/offload_library.h"
@@ -49,7 +48,7 @@ extern "C" void grid_hip_create_task_list(
     const int *border_mask_list, const int *block_num_list,
     const double *radius_list, const double *rab_list, const int *npts_global,
     const int *npts_local, const int *shift_local, const int *border_width,
-    const double *dh, const double *dh_inv, void *ptr) {
+    const double *dh, const double *dh_inv, grid_hip_task_list **ptr) {
 
   rocm_backend::context_info **ctx_out = (rocm_backend::context_info **)ptr;
   // Select GPU device.
@@ -367,7 +366,7 @@ extern "C" void grid_hip_create_task_list(
 /*******************************************************************************
  * \brief destroy a context
  ******************************************************************************/
-extern "C" void grid_hip_free_task_list(void *ptr) {
+extern "C" void grid_hip_free_task_list(grid_hip_task_list *ptr) {
 
   rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
   // Select GPU device.
@@ -381,7 +380,7 @@ extern "C" void grid_hip_free_task_list(void *ptr) {
 /*******************************************************************************
  * \brief Collocate all tasks of in given list onto given grids.
  ******************************************************************************/
-extern "C" void grid_hip_collocate_task_list(const void *ptr,
+extern "C" void grid_hip_collocate_task_list(const grid_hip_task_list *ptr,
                                              const enum grid_func func,
                                              const int nlevels,
                                              const offload_buffer *pab_blocks,
@@ -459,7 +458,7 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
  *        See grid_ctx.h for details.
  ******************************************************************************/
 extern "C" void grid_hip_integrate_task_list(
-    const void *ptr, const bool compute_tau, const int nlevels,
+    const grid_hip_task_list *ptr, const bool compute_tau, const int nlevels,
     const offload_buffer *pab_blocks, const offload_buffer **grids,
     offload_buffer *hab_blocks, double *forces, double *virial) {
 
@@ -552,5 +551,3 @@ extern "C" void grid_hip_integrate_task_list(
 
   ctx->synchronize(ctx->main_stream);
 }
-
-#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

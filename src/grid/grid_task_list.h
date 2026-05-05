@@ -32,8 +32,6 @@ typedef struct {
   grid_dgemm_task_list *dgemm;
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   grid_gpu_task_list *gpu;
-#endif
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   grid_hip_task_list *hip;
 #endif
   // more backends to be added here
