@@ -27,6 +27,9 @@
     &POISSON
       PERIODIC XYZ
       POISSON_SOLVER PERIODIC
+      &EWALD
+        ALPHA 1.0
+      &END EWALD
     &END POISSON
     &QS
       METHOD XTB

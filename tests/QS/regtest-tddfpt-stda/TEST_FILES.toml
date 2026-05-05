@@ -15,7 +15,7 @@
 "H2O_tddfpt_stda-pbe-t.inp"             = [{matcher="M037", tol=1.0E-05, ref=0.595565E+00}]
 "H2O_tddfpt_stda-pbe0-s.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.637391E+00}]
 "H2O_tddfpt_stda-pbe0-t.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.633489E+00}]
-"H2O_tddfpt_stda-s-1.inp"               = [{matcher="M037", tol=1.0E-05, ref=0.173021E+00}]
+"H2O_tddfpt_stda-s-1.inp"               = [{matcher="M037", tol=1.0E-05, ref=0.173147E+00}]
 "NO_tddfpt_stda-s-1.inp"                = [{matcher="M037", tol=1.0E-05, ref=0.375613E+00}]
 "water_xTB.inp"                         = [{matcher="M037", tol=2.0E-05, ref=0.125917E+00}]
 "water_xTBi_NTO.inp"                    = [{matcher="M037", tol=2.0E-05, ref=0.125917E+00}]

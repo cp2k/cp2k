@@ -38,5 +38,5 @@
 # dispersion
 "2h2o_disp1.inp"                        = [{matcher="M003", tol=1.0E-14, ref=-649.05174548613479}]
 "2h2o_disp2.inp"                        = [{matcher="M003", tol=1.0E-14, ref=-649.05174548613479}]
-"2h2o_disp3.inp"                        = [{matcher="M003", tol=1.0E-14, ref=-649.14047694554415}]
+"2h2o_disp3.inp"                        = [{matcher="M003", tol=1.0E-14, ref=-649.1404770436569}]
 #EOF

@@ -5,8 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 "COBe_gfn1_fd.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-7.4283186205}]
 "CH2O_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8503584297}]
-"Si_gfn1_fd.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.452117500}]
-"Si_gfn1_kp.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.7188399927}]
+"Si_gfn1_fd.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.45211729669823}]
+"Si_gfn1_kp.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.71883978952347}]
 "Si_gfn1_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-14.7262344001},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

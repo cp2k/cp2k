@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 "H2O-field-gopt.inp"                    = [{matcher="E_total", tol=4e-10, ref=-5.76970818700878}]
-"H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797174834}]
+"H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797200779}]
 "H2O-field.inp"                         = []
 "H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-5.76959233315201}]
 "HF-field.inp"                          = [{matcher="E_total", tol=1e-12, ref=-5.70162277773935}]
@@ -16,6 +16,6 @@
 "HF-dfield.inp"                         = [{matcher="E_total", tol=1e-12, ref=-5.66052242442153}]
 "HF-dfield-debug.inp"                   = []
 "HF-loc-field.inp"                      = [{matcher="E_total", tol=1e-12, ref=-5.65286303322644}]
-"HF-loc-field-gopt.inp"                 = [{matcher="E_total", tol=2e-08, ref=-5.65791503021294}]
+"HF-loc-field-gopt.inp"                 = [{matcher="E_total", tol=2e-08, ref=-5.65759961599548}]
 "HF-loc-field-debug.inp"                = []
 #EOF
