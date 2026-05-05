@@ -46,12 +46,15 @@ CONTAINS
 !> \brief   Construct basis set rotation matrices
 !> \param qs_env ...
 !> \param kpoints ...
+!> \param basis_type ...
 ! **************************************************************************************************
-   SUBROUTINE qs_basis_rotation(qs_env, kpoints)
+   SUBROUTINE qs_basis_rotation(qs_env, kpoints, basis_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
 
+      CHARACTER(LEN=12)                                  :: my_basis
       INTEGER                                            :: ik, ikind, ir, ira, irot, jr, lval, &
                                                             nkind, nrot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rotmat
@@ -65,6 +68,11 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(kpoints))
+      IF (PRESENT(basis_type)) THEN
+         my_basis = basis_type
+      ELSE
+         my_basis = "ORB"
+      END IF
       IF (ASSOCIATED(kpoints%kind_rotmat)) THEN
          CALL get_qs_env(qs_env, cell=cell)
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
@@ -105,7 +113,7 @@ CONTAINS
                            END DO
                         ELSE
                            DO ikind = 1, nkind
-                              CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis)
+                              CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis, basis_type=my_basis)
                               NULLIFY (kpoints%kind_rotmat(ira, ikind)%rmat)
                               CALL set_rotmat_basis(kpoints%kind_rotmat(ira, ikind)%rmat, orbrot, orb_basis)
                            END DO
