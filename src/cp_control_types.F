@@ -100,6 +100,10 @@ MODULE cp_control_types
       LOGICAL                              :: fixed_ions = .FALSE.
       INTEGER                              :: rtp_method = rtp_method_tddft
       INTEGER                              :: rtbse_ham = rtp_bse_ham_G0W0
+      ! Energy cutoffs (in a.u., relative to HOMO/LUMO) defining the active MO window
+      ! for linearized RT-BSE propagation. Non-positive values disable truncation.
+      REAL(KIND=dp)                        :: rtbse_energy_cutoff_occ = -1.0_dp
+      REAL(KIND=dp)                        :: rtbse_energy_cutoff_empty = -1.0_dp
       INTEGER                              :: initial_wfn = 0
       REAL(dp)                             :: eps_exp = 0.0_dp
       LOGICAL                              :: initial_step = .FALSE.

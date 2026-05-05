@@ -2066,6 +2066,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! Energy cutoff (occupied) for active MO window in linearized RT-BSE
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
+                          description="Energy cutoff (relative to HOMO) defining the lowest "// &
+                          "occupied molecular orbital included in the active MO window of the "// &
+                          "linearized RT-BSE propagation. Only used when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE.. A non-positive value disables the "// &
+                          "occupied truncation.", &
+                          usage="ENERGY_CUTOFF_OCC 5.0", &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp/evolt)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Energy cutoff (empty) for active MO window in linearized RT-BSE
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_EMPTY", &
+                          description="Energy cutoff (relative to LUMO) defining the highest "// &
+                          "virtual molecular orbital included in the active MO window of the "// &
+                          "linearized RT-BSE propagation. Only used when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE.. A non-positive value disables the "// &
+                          "virtual truncation.", &
+                          usage="ENERGY_CUTOFF_EMPTY 5.0", &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp/evolt)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output

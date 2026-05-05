@@ -206,6 +206,22 @@ CONTAINS
       file_labels(3) = "_SPIN_B_RE.dat"
       file_labels(4) = "_SPIN_B_IM.dat"
       logger => cp_get_default_logger()
+
+      ! In the linearized RT-BSE active-MO path, rho is already in the MO basis
+      ! restricted to the active window (sized mo_active x mo_active).  Dump it
+      ! directly without the AO-side C^T S * rho * S C transformation.
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+         DO j = 1, rtbse_env%n_spin
+            rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j - 1))
+            rho_unit_im = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j))
+            CALL cp_cfm_to_fm(rho(j), rtbse_env%real_workspace_mo(1), rtbse_env%real_workspace_mo(2))
+            CALL cp_fm_write_formatted(rtbse_env%real_workspace_mo(1), rho_unit_re)
+            CALL cp_fm_write_formatted(rtbse_env%real_workspace_mo(2), rho_unit_im)
+            CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
+            CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
+         END DO
+         RETURN
+      END IF
       ! Start by multiplying the current density by MOS
       DO j = 1, rtbse_env%n_spin
          rho_unit_re = cp_print_key_unit_nr(logger, print_key_section, extension=file_labels(2*j - 1))
@@ -369,25 +385,33 @@ CONTAINS
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       INTEGER                                            :: i, j, n
       REAL(kind=dp), DIMENSION(3)                        :: moments_re
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ws
 
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
 
+      ! In linearized RT-BSE rho and moments are MO-active sized; otherwise AO sized.
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+         ws => rtbse_env%real_workspace_mo
+      ELSE
+         ws => rtbse_env%real_workspace
+      END IF
+
       DO j = 1, rtbse_env%n_spin
          ! Need to transpose due to the definition of trace function
-         CALL cp_cfm_to_fm(msource=rho(j), mtargetr=rtbse_env%real_workspace(2))
+         CALL cp_cfm_to_fm(msource=rho(j), mtargetr=ws(2))
          DO i = 1, 3
             ! Moments should be symmetric, test without transopose?
-            CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
-            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
+            CALL cp_fm_transpose(rtbse_env%moments(i), ws(1))
+            CALL cp_fm_trace(ws(1), ws(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
             rtbse_env%moments_trace(j, i, n) = CMPLX(moments_re(i), 0.0, kind=dp)
          END DO
          ! Same for imaginary part
-         CALL cp_cfm_to_fm(msource=rho(j), mtargeti=rtbse_env%real_workspace(2))
+         CALL cp_cfm_to_fm(msource=rho(j), mtargeti=ws(2))
          DO i = 1, 3
-            CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
-            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
+            CALL cp_fm_transpose(rtbse_env%moments(i), ws(1))
+            CALL cp_fm_trace(ws(1), ws(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
             rtbse_env%moments_trace(j, i, n) = rtbse_env%moments_trace(j, i, n) + CMPLX(0.0, moments_re(i), kind=dp)
@@ -420,7 +444,12 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      workspace => rtbse_env%real_workspace
+      ! In linearized RT-BSE rho is MO-active sized; otherwise AO sized.
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+         workspace => rtbse_env%real_workspace_mo
+      ELSE
+         workspace => rtbse_env%real_workspace
+      END IF
 
       DO i = 1, rtbse_env%n_spin
          CALL cp_cfm_to_fm(rho(i), workspace(1), workspace(2))
@@ -453,11 +482,22 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
       INTEGER                                            :: rho_unit_nr, j
       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ws
 
       ! This allows the delta kick and output of moment at time 0 in all cases
       ! except the case when both imaginary and real parts of the density are read
       rtbse_env%restart_extracted = .FALSE.
       logger => cp_get_default_logger()
+
+      ! In linearized RT-BSE rho is MO-active sized; otherwise AO sized.
+      ! cp_fm_read_unformatted aborts on a size mismatch, which acts as a guard
+      ! when the restart file was written with a different active window.
+      IF (ASSOCIATED(rtbse_env%real_workspace_mo)) THEN
+         ws => rtbse_env%real_workspace_mo
+      ELSE
+         ws => rtbse_env%real_workspace
+      END IF
+
       ! Start by probing/loading info file
       save_name = cp_print_key_generate_filename(logger, rtbse_env%restart_section, extension=".info", my_local=.FALSE.)
       IF (file_exists(save_name)) THEN
@@ -484,13 +524,13 @@ CONTAINS
          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
             CALL open_file(save_name, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(1), rho_unit_nr)
+            CALL cp_fm_read_unformatted(ws(1), rho_unit_nr)
             CALL close_file(rho_unit_nr)
             CALL open_file(save_name_2, file_status="OLD", file_form="UNFORMATTED", file_action="READ", &
                            unit_number=rho_unit_nr)
-            CALL cp_fm_read_unformatted(rtbse_env%real_workspace(2), rho_unit_nr)
+            CALL cp_fm_read_unformatted(ws(2), rho_unit_nr)
             CALL close_file(rho_unit_nr)
-            CALL cp_fm_to_cfm(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), &
+            CALL cp_fm_to_cfm(ws(1), ws(2), &
                               rtbse_env%rho(j))
             rtbse_env%restart_extracted = .TRUE.
          ELSE
