@@ -4,8 +4,8 @@ index 2ea6307..62b9b9c 100644
 +++ b/src/dftd4/damping/atm.f90
 @@ -29,6 +29,58 @@ module dftd4_damping_atm
  contains
- 
- 
+
+
 +subroutine get_disp3_switch(cutoff, inner, active)
 +
 +   real(wp), intent(in) :: cutoff
@@ -63,7 +63,7 @@ index 2ea6307..62b9b9c 100644
        & c6, dc6dcn, dc6dq, energy, dEdcn, dEdq, gradient, sigma)
 @@ -133,26 +185,23 @@ subroutine get_atm_dispersion_energy(mol, trans, cutoff, s9, a1, a2, alp, r4r2,
     real(wp), intent(inout) :: energy(:)
- 
+
     integer :: iat, jat, kat, izp, jzp, kzp, jtr, ktr
 -   real(wp) :: vij(3), vjk(3), vik(3), r2ij, r2jk, r2ik, c6ij, c6jk, c6ik, triple
 +   logical :: use_switch
@@ -76,11 +76,11 @@ index 2ea6307..62b9b9c 100644
 -   ! Set to 0 explicitly as the shared variants are potentially non-zero (inout)
 -   real(wp), allocatable :: energy_local(:)
 +   real(wp) :: cutoff2, cutoff_inner, c9, dE, alp3, swij, swjk, swik, dswdr, sw
- 
+
     cutoff2 = cutoff*cutoff
     alp3 = alp / 3.0_wp
 +   call get_disp3_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, trans, c6, s9, a1, a2, alp3, r4r2, cutoff2) &
 +   !$omp parallel do schedule(runtime) default(none) reduction(+:energy) &
@@ -114,8 +114,8 @@ index 2ea6307..62b9b9c 100644
                    if (r2ik > cutoff2 .or. r2ik < epsilon(1.0_wp)) cycle
 +                  rik = sqrt(r2ik)
 +                  call smooth_cutoff(rik, cutoff, cutoff_inner, use_switch, swik, dswdr)
- 
-                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr) 
+
+                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr)
                    !          - mol%xyz(:, jat) - trans(:, jtr)
                    vjk(:) = vik(:) - vij(:)
                    r2jk = vjk(1)*vjk(1) + vjk(2)*vjk(2) + vjk(3)*vjk(3)
@@ -123,13 +123,13 @@ index 2ea6307..62b9b9c 100644
 +                  rjk = sqrt(r2jk)
 +                  call smooth_cutoff(rjk, cutoff, cutoff_inner, use_switch, swjk, dswdr)
 +                  sw = swij * swik * swjk
- 
+
                    r2 = r2ij*r2ik*r2jk
                    r1 = sqrt(r2)
 @@ -194,21 +250,15 @@ subroutine get_atm_dispersion_energy(mol, trans, cutoff, s9, a1, a2, alp, r4r2,
- 
+
                    rr = ang*fdmp
- 
+
 -                  dE = rr * c9 * triple * third
 -                  energy_local(iat) = energy_local(iat) - dE
 -                  energy_local(jat) = energy_local(jat) - dE
@@ -149,12 +149,12 @@ index 2ea6307..62b9b9c 100644
 -   !$omp end critical (get_atm_dispersion_energy_)
 -   deallocate(energy_local)
 -   !$omp end parallel
- 
+
  end subroutine get_atm_dispersion_energy
- 
+
 @@ -266,37 +316,27 @@ subroutine get_atm_dispersion_derivs(mol, trans, cutoff, s9, a1, a2, alp, r4r2,
     real(wp), intent(inout) :: sigma(:, :)
- 
+
     integer :: iat, jat, kat, izp, jzp, kzp, jtr, ktr
 -   real(wp) :: vij(3), vjk(3), vik(3), r2ij, r2jk, r2ik, c6ij, c6jk, c6ik, triple
 +   logical :: use_switch
@@ -173,11 +173,11 @@ index 2ea6307..62b9b9c 100644
 +   real(wp) :: cutoff2, cutoff_inner, alp3, c9, dE, dE0, dE_third
 +   real(wp) :: dGij(3), dGjk(3), dGik(3), dS(3, 3)
 +   real(wp) :: swij, swjk, swik, dswijdr, dswjkdr, dswikdr, sw
- 
+
     cutoff2 = cutoff*cutoff
     alp3 = alp / 3.0_wp
 +   call get_disp3_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, trans, c6, s9, a1, a2, alp, alp3, r4r2, cutoff2, &
 -   !$omp& dc6dcn, dc6dq) &
@@ -220,8 +220,8 @@ index 2ea6307..62b9b9c 100644
                    if (r2ik > cutoff2 .or. r2ik < epsilon(1.0_wp)) cycle
 +                  rik = sqrt(r2ik)
 +                  call smooth_cutoff(rik, cutoff, cutoff_inner, use_switch, swik, dswikdr)
- 
-                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr) 
+
+                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr)
                    !          - mol%xyz(:, jat) - trans(:, jtr)
                    vjk(:) = vik(:) - vij(:)
                    r2jk = vjk(1)*vjk(1) + vjk(2)*vjk(2) + vjk(3)*vjk(3)
@@ -229,7 +229,7 @@ index 2ea6307..62b9b9c 100644
 +                  rjk = sqrt(r2jk)
 +                  call smooth_cutoff(rjk, cutoff, cutoff_inner, use_switch, swjk, dswjkdr)
 +                  sw = swij * swik * swjk
- 
+
                    r2 = r2ij*r2ik*r2jk
                    r1 = sqrt(r2)
 @@ -345,73 +392,63 @@ subroutine get_atm_dispersion_derivs(mol, trans, cutoff, s9, a1, a2, alp, r4r2,
@@ -240,7 +240,7 @@ index 2ea6307..62b9b9c 100644
 +                  dE0 = rr * c9
 +                  dGij(:) = sw * c9 * (-dang*fdmp + ang*dfdmp) / r2ij * vij &
 +                     & - dE0 * dswijdr / rij * swik * swjk * vij
- 
+
                    ! d/drik
                    dang = -0.375_wp * (r2ik**3 + r2ik**2 * (r2jk + r2ij)&
                       & + r2ik * (3.0_wp * r2jk**2 + 2.0_wp * r2jk * r2ij&
@@ -249,7 +249,7 @@ index 2ea6307..62b9b9c 100644
 -                  dGik(:) = c9 * (-dang * fdmp + ang * dfdmp) / r2ik * vik
 +                  dGik(:) = sw * c9 * (-dang * fdmp + ang * dfdmp) / r2ik * vik &
 +                     & - dE0 * dswikdr / rik * swij * swjk * vik
- 
+
                    ! d/drjk
                    dang = -0.375_wp * (r2jk**3 + r2jk**2*(r2ik + r2ij)&
                       & + r2jk * (3.0_wp * r2ik**2 + 2.0_wp * r2ik * r2ij&
@@ -258,7 +258,7 @@ index 2ea6307..62b9b9c 100644
 -                  dGjk(:) = c9 * (-dang * fdmp + ang * dfdmp) / r2jk * vjk
 +                  dGjk(:) = sw * c9 * (-dang * fdmp + ang * dfdmp) / r2jk * vjk &
 +                     & - dE0 * dswjkdr / rjk * swij * swik * vjk
- 
+
 -                  dE = rr * c9 * triple
 +                  dE = dE0 * triple * sw
                    dE_third = dE * third
@@ -268,7 +268,7 @@ index 2ea6307..62b9b9c 100644
 +                  energy(iat) = energy(iat) - dE_third
 +                  energy(jat) = energy(jat) - dE_third
 +                  energy(kat) = energy(kat) - dE_third
- 
+
 -                  gradient_local(:, iat) = gradient_local(:, iat) &
 +                  gradient(:, iat) = gradient(:, iat) &
                       & - (dGij + dGik) * triple
@@ -278,14 +278,14 @@ index 2ea6307..62b9b9c 100644
 -                  gradient_local(:, kat) = gradient_local(:, kat) &
 +                  gradient(:, kat) = gradient(:, kat) &
                       & + (dGik + dGjk) * triple
- 
+
                    dS(:, :) = spread(dGij, 1, 3) * spread(vij, 2, 3)&
                       & + spread(dGik, 1, 3) * spread(vik, 2, 3)&
                       & + spread(dGjk, 1, 3) * spread(vjk, 2, 3)
- 
+
 -                  sigma_local(:, :) = sigma_local + dS * triple
 +                  sigma(:, :) = sigma(:, :) + dS * triple
- 
+
 -                  dEdcn_local(iat) = dEdcn_local(iat) - dE * 0.5_wp &
 +                  dEdcn(iat) = dEdcn(iat) - dE * 0.5_wp &
                       & * (dc6dcn(iat, jat) / c6ij + dc6dcn(iat, kat) / c6ik)
@@ -295,7 +295,7 @@ index 2ea6307..62b9b9c 100644
 -                  dEdcn_local(kat) = dEdcn_local(kat) - dE * 0.5_wp &
 +                  dEdcn(kat) = dEdcn(kat) - dE * 0.5_wp &
                       & * (dc6dcn(kat, iat) / c6ik + dc6dcn(kat, jat) / c6jk)
- 
+
 -                  dEdq_local(iat) = dEdq_local(iat) - dE * 0.5_wp &
 +                  dEdq(iat) = dEdq(iat) - dE * 0.5_wp &
                       & * (dc6dq(iat, jat) / c6ij + dc6dq(iat, kat) / c6ik)
@@ -324,17 +324,17 @@ index 2ea6307..62b9b9c 100644
 -   deallocate(gradient_local)
 -   deallocate(sigma_local)
 -   !$omp end parallel
- 
+
  end subroutine get_atm_dispersion_derivs
- 
+
 diff --git a/src/dftd4/damping/rational.f90 b/src/dftd4/damping/rational.f90
 index 04e9241..4fbb790 100644
 --- a/src/dftd4/damping/rational.f90
 +++ b/src/dftd4/damping/rational.f90
 @@ -57,6 +57,84 @@ module dftd4_damping_rational
  contains
- 
- 
+
+
 +subroutine get_disp2_switch(cutoff, inner, active)
 +
 +   real(wp), intent(in) :: cutoff
@@ -418,7 +418,7 @@ index 04e9241..4fbb790 100644
        & energy, dEdcn, dEdq, gradient, sigma)
 @@ -142,22 +220,17 @@ subroutine get_dispersion_energy(self, mol, trans, cutoff, r4r2, c6, energy)
     real(wp), intent(inout) :: energy(:)
- 
+
     integer :: iat, jat, izp, jzp, jtr
 -   real(wp) :: vec(3), r2, cutoff2, r0ij, rrij, c6ij, t6, t8, edisp, dE
 -
@@ -428,10 +428,10 @@ index 04e9241..4fbb790 100644
 +   logical :: use_switch
 +   real(wp) :: vec(3), r2, r, cutoff2, cutoff_inner, r0ij, rrij, c6ij, t6, t8
 +   real(wp) :: edisp, dE, sw, dswdr
- 
+
     cutoff2 = cutoff*cutoff
 +   call get_disp2_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, self, c6, trans, cutoff2, r4r2) &
 +   !$omp parallel do schedule(runtime) default(none) reduction(+:energy) &
@@ -457,15 +457,15 @@ index 04e9241..4fbb790 100644
 +            else
 +               sw = 1.0_wp
 +            end if
- 
+
              t6 = 1.0_wp/(r2**3 + r0ij**6)
              t8 = 1.0_wp/(r2**4 + r0ij**8)
- 
+
 -            edisp = self%s6*t6 + self%s8*rrij*t8
 +            edisp = sw * (self%s6*t6 + self%s8*rrij*t8)
- 
+
              dE = -c6ij*edisp * 0.5_wp
- 
+
 -            energy_local(iat) = energy_local(iat) + dE
 +            energy(iat) = energy(iat) + dE
              if (iat /= jat) then
@@ -481,19 +481,19 @@ index 04e9241..4fbb790 100644
 -   !$omp end critical (get_dispersion_energy_)
 -   deallocate(energy_local)
 -   !$omp end parallel
- 
+
  end subroutine get_dispersion_energy
- 
+
 @@ -238,32 +312,19 @@ subroutine get_dispersion_derivs(self, mol, trans, cutoff, r4r2, c6, dc6dcn, dc6
     real(wp), intent(inout) :: sigma(:, :)
- 
+
     integer :: iat, jat, izp, jzp, jtr
 -   real(wp) :: vec(3), r2, cutoff2, r0ij, rrij, c6ij, t6, t8, d6, d8, edisp, gdisp
 +   logical :: use_switch
 +   real(wp) :: vec(3), r2, r, cutoff2, cutoff_inner, r0ij, rrij, c6ij, t6, t8
 +   real(wp) :: d6, d8, edisp0, gdisp0, edisp, gdisp, sw, dswdr
     real(wp) :: dE, dG(3), dS(3, 3)
- 
+
 -   ! Thread-private arrays for reduction
 -   ! Set to 0 explicitly as the shared variants are potentially non-zero (inout)
 -   real(wp), allocatable :: energy_local(:)
@@ -504,7 +504,7 @@ index 04e9241..4fbb790 100644
 -
     cutoff2 = cutoff*cutoff
 +   call get_disp2_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, self, c6, dc6dcn, dc6dq, trans, cutoff2, r4r2) &
 +   !$omp parallel do schedule(runtime) default(none) &
@@ -538,24 +538,24 @@ index 04e9241..4fbb790 100644
 +               sw = 1.0_wp
 +               dswdr = 0.0_wp
 +            end if
- 
+
              t6 = 1.0_wp/(r2**3 + r0ij**6)
              t8 = 1.0_wp/(r2**4 + r0ij**8)
 @@ -282,42 +352,30 @@ subroutine get_dispersion_derivs(self, mol, trans, cutoff, r4r2, c6, dc6dcn, dc6
              d6 = -6*r2**2*t6**2
              d8 = -8*r2**3*t8**2
- 
+
 -            edisp = self%s6*t6 + self%s8*rrij*t8
 -            gdisp = self%s6*d6 + self%s8*rrij*d8
 +            edisp0 = self%s6*t6 + self%s8*rrij*t8
 +            gdisp0 = self%s6*d6 + self%s8*rrij*d8
 +            edisp = sw * edisp0
 +            gdisp = sw * gdisp0 + dswdr * edisp0 / r
- 
+
              dE = -c6ij*edisp * 0.5_wp
              dG(:) = -c6ij*gdisp*vec
              dS(:, :) = spread(dG, 1, 3) * spread(vec, 2, 3) * 0.5_wp
- 
+
 -            energy_local(iat) = energy_local(iat) + dE
 -            dEdcn_local(iat) = dEdcn_local(iat) - dc6dcn(iat, jat) * edisp
 -            dEdq_local(iat) = dEdq_local(iat) - dc6dq(iat, jat) * edisp
@@ -595,12 +595,12 @@ index 04e9241..4fbb790 100644
 -   deallocate(gradient_local)
 -   deallocate(sigma_local)
 -   !$omp end parallel
- 
+
  end subroutine get_dispersion_derivs
- 
+
 @@ -399,23 +457,18 @@ subroutine get_pairwise_dispersion2(self, mol, trans, cutoff, r4r2, c6, energy)
     real(wp), intent(inout) :: energy(:, :)
- 
+
     integer :: iat, jat, izp, jzp, jtr
 -   real(wp) :: vec(3), r2, cutoff2, r0ij, rrij, c6ij, t6, t8, edisp, dE
 -
@@ -610,11 +610,11 @@ index 04e9241..4fbb790 100644
 +   logical :: use_switch
 +   real(wp) :: vec(3), r2, r, cutoff2, cutoff_inner, r0ij, rrij, c6ij, t6, t8
 +   real(wp) :: edisp, dE, sw, dswdr
- 
+
     if (abs(self%s6) < epsilon(1.0_wp) .and. abs(self%s8) < epsilon(1.0_wp)) return
     cutoff2 = cutoff*cutoff
 +   call get_disp2_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, self, c6, trans, cutoff2, r4r2) &
 +   !$omp parallel do schedule(runtime) default(none) reduction(+:energy) &
@@ -640,15 +640,15 @@ index 04e9241..4fbb790 100644
 +            else
 +               sw = 1.0_wp
 +            end if
- 
+
              t6 = 1.0_wp/(r2**3 + r0ij**6)
              t8 = 1.0_wp/(r2**4 + r0ij**8)
- 
+
 -            edisp = self%s6*t6 + self%s8*rrij*t8
 +            edisp = sw * (self%s6*t6 + self%s8*rrij*t8)
- 
+
              dE = -c6ij*edisp * 0.5_wp
- 
+
 -            energy_local(jat, iat) = energy_local(jat, iat) + dE
 +            energy(jat, iat) = energy(jat, iat) + dE
              if (iat /= jat) then
@@ -664,12 +664,12 @@ index 04e9241..4fbb790 100644
 -   !$omp end critical (get_pairwise_dispersion2_)
 -   deallocate(energy_local)
 -   !$omp end parallel
- 
+
  end subroutine get_pairwise_dispersion2
- 
+
 @@ -478,27 +532,24 @@ subroutine get_pairwise_dispersion3(self, mol, trans, cutoff, r4r2, c6, energy)
     real(wp), intent(inout) :: energy(:, :)
- 
+
     integer :: iat, jat, kat, izp, jzp, kzp, jtr, ktr
 -   real(wp) :: vij(3), vjk(3), vik(3), r2ij, r2jk, r2ik, c6ij, c6jk, c6ik, triple
 +   logical :: use_switch
@@ -682,12 +682,12 @@ index 04e9241..4fbb790 100644
 -   ! Set to 0 explicitly as the shared variants are potentially non-zero (inout)
 -   real(wp), allocatable :: energy_local(:, :)
 +   real(wp) :: cutoff2, cutoff_inner, c9, dE, alp3, swij, swjk, swik, dswdr, sw
- 
+
     if (abs(self%s9) < epsilon(1.0_wp)) return
     cutoff2 = cutoff*cutoff
     alp3 = self%alp / 3.0_wp
 +   call get_disp3_switch(cutoff, cutoff_inner, use_switch)
- 
+
 -   !$omp parallel default(none) &
 -   !$omp shared(mol, trans, c6, r4r2, cutoff2, alp3, self) &
 +   !$omp parallel do schedule(runtime) default(none) reduction(+:energy) &
@@ -721,8 +721,8 @@ index 04e9241..4fbb790 100644
                    if (r2ik > cutoff2 .or. r2ik < epsilon(1.0_wp)) cycle
 +                  rik = sqrt(r2ik)
 +                  call smooth_cutoff(rik, cutoff, cutoff_inner, use_switch, swik, dswdr)
- 
-                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr) 
+
+                   ! vjk(:) = mol%xyz(:, kat) + trans(:, ktr)
                    !          - mol%xyz(:, jat) - trans(:, jtr)
                    vjk(:) = vik(:) - vij(:)
                    r2jk = vjk(1)*vjk(1) + vjk(2)*vjk(2) + vjk(3)*vjk(3)
@@ -730,13 +730,13 @@ index 04e9241..4fbb790 100644
 +                  rjk = sqrt(r2jk)
 +                  call smooth_cutoff(rjk, cutoff, cutoff_inner, use_switch, swjk, dswdr)
 +                  sw = swij * swik * swjk
- 
+
                    r2 = r2ij*r2ik*r2jk
                    r1 = sqrt(r2)
 @@ -540,24 +598,18 @@ subroutine get_pairwise_dispersion3(self, mol, trans, cutoff, r4r2, c6, energy)
- 
+
                    rr = ang*fdmp
- 
+
 -                  dE = rr * c9 * triple * sixth
 -                  energy_local(jat, iat) = energy_local(jat, iat) - dE
 -                  energy_local(kat, iat) = energy_local(kat, iat) - dE
@@ -762,6 +762,5 @@ index 04e9241..4fbb790 100644
 -   !$omp end critical (get_pairwise_dispersion3_)
 -   deallocate(energy_local)
 -   !$omp end parallel
- 
+
  end subroutine get_pairwise_dispersion3
- 
