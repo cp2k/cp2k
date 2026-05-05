@@ -24,8 +24,11 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 ARG FEATURE_FLAGS
 ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
 
-# Build CP2K
+# Copy CP2K files into container
 WORKDIR /opt/cp2k
+COPY CMakeLists.txt make_cp2k.sh benchmarks cmake data src tests ./
+
+# Build CP2K
 RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} ${FEATURE_FLAGS}
 
 ###### Stage 3: Install CP2K ######
