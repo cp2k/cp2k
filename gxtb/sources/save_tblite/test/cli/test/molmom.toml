@@ -1,0 +1,3 @@
+[post-processing.molecular-multipole]
+dipole = true
+quadrupole = true

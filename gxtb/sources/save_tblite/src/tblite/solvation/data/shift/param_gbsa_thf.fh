@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_thf = shift_parameter ( &
+    72.10610000_wp, &
+     0.88300000_wp, &
+     1.78759183_wp )
+type(shift_parameter),parameter :: gfn2_thf = shift_parameter ( &
+    72.10610000_wp, &
+     0.88300000_wp, &
+     2.13313378_wp )

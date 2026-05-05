@@ -1,0 +1,10 @@
+$ORIGIN/05-met-xbf.qchem
+--no-restart
+--method
+gfn1
+--guess
+sad
+--grad
+--verbose
+--gbe
+water

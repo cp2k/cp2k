@@ -1,0 +1,4 @@
+[wrap-git]
+directory = mctc-lib
+url = https://github.com/thfroitzheim/mctc-lib
+revision = conversion-debye

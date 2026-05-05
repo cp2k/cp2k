@@ -1,0 +1,4 @@
+name = "api-read-coord"
+
+[dependencies]
+dftd4.path = "../../../"

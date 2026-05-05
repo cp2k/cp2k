@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_benzaldehyde = shift_parameter ( &
+   106.12400000_wp, &
+     1.04000000_wp, &
+     4.17164891_wp )
+type(shift_parameter),parameter :: gfn2_alpb_benzaldehyde = shift_parameter ( &
+   106.12400000_wp, &
+     1.04000000_wp, &
+     1.41868733_wp )

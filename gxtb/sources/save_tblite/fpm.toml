@@ -1,0 +1,32 @@
+name = "tblite"
+version = "0.5.0"
+license = "LGPL-3.0-or-later"
+maintainer = ["@awvwgk"]
+author = ["Sebastian Ehlert"]
+description = "Light-weight tight-binding framework"
+keywords = ["quantum-chemistry", "tight-binding", "xtb"]
+copyright = "Copyright 2021 S. Ehlert"
+
+[build]
+external-modules = ["ifport"]
+link = ["lapack", "blas"]
+auto-tests = false
+
+[dependencies]
+mctc-lib.git = "https://github.com/thfroitzheim/mctc-lib"
+mctc-lib.tag = "conversion-debye"
+multicharge.git = "https://github.com/thfroitzheim/multicharge"
+multicharge.tag = "eeqbc2026"
+dftd4.git = "git@github.com:grimme-lab/dftd.git"
+s-dftd3.git = "https://github.com/dftd3/simple-dftd3"
+s-dftd3.tag = "v1.2.1"
+toml-f.git = "https://github.com/toml-f/toml-f"
+toml-f.tag = "v0.4.3"
+
+[dev-dependencies]
+mstore.git = "https://github.com/thfroitzheim/mstore"
+mstore.tag = "add-radicals"
+
+[[test]]
+name = "unit-tester"
+source-dir = "test/unit"

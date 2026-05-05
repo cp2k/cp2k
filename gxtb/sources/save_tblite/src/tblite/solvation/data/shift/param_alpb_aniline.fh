@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_aniline = shift_parameter ( &
+    93.13000000_wp, &
+     1.02000000_wp, &
+     1.92760071_wp )
+type(shift_parameter),parameter :: gfn2_alpb_aniline = shift_parameter ( &
+    93.13000000_wp, &
+     1.02000000_wp, &
+     1.86522103_wp )

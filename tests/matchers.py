@@ -207,6 +207,17 @@ registry["DEBUG_force_sum"] = GenericMatcher(
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )
+registry["XTB_reference_cli_check"] = TextPresenceMatcher("tblite reference CLI check")
+registry["XTB_reference_cli_gradient_max"] = GenericMatcher(
+    r"Gradient diff sum/max:\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=5,
+    regex=True,
+)
+registry["XTB_reference_cli_virial_max"] = GenericMatcher(
+    r"Virial diff sum/max:\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=5,
+    regex=True,
+)
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)

@@ -1,0 +1,4 @@
+[wrap-git]
+directory = dftd
+url = git@github.com:grimme-lab/dftd.git
+revision = head

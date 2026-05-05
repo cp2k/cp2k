@@ -1,0 +1,7 @@
+$ORIGIN/05-met-xbf.qchem
+--no-restart
+--method
+gxtb
+--input
+qchem
+--grad

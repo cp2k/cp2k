@@ -1,0 +1,44 @@
+name: docs
+
+on: [push, pull_request]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - id: deploy-on-push
+      run:
+        echo "::set-output name=result::${{ env.DEPLOY_BRANCH }}"
+      env:
+        DEPLOY_BRANCH: ${{ secrets.DEPLOY_BRANCH && contains(github.ref, secrets.DEPLOY_BRANCH) && 1 || 0 }}
+
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: config/ci/doc-env.yml
+
+    - name: Create documentation
+      run: |
+        doxygen
+      working-directory: doc
+
+    - name: Create nojekyll file
+      run: |
+        touch doc/_doxygen/html/.nojekyll
+
+    - uses: JamesIves/github-pages-deploy-action@4.1.6
+      if: ${{ github.event_name == 'push' && steps.deploy-on-push.outputs.result != 0 }}
+      with:
+        branch: gh-pages
+        folder: doc/_doxygen/html
+        single-commit: true
+        git-config-email: 84596089+tblite@users.noreply.github.com
+        git-config-name: tblite
+

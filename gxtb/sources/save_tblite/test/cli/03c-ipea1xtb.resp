@@ -1,0 +1,12 @@
+$ORIGIN/03-ser-xar.sdf
+--no-restart
+--method
+ipea1
+--grad
+--verbose
+--efield
+0,0,0
+--iterations
+40
+--solver
+gvd

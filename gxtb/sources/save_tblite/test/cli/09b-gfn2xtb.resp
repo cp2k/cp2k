@@ -1,0 +1,8 @@
+$ORIGIN/09-mb02.coord
+--no-restart
+--method
+gfn2
+--grad
+--etemp
+400
+--spin-polarized

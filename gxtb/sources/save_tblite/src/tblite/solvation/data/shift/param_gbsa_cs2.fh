@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_cs2 = shift_parameter ( &
+    76.13000000_wp, &
+     1.26600000_wp, &
+     3.37941625_wp )
+type(shift_parameter),parameter :: gfn2_cs2 = shift_parameter ( &
+    76.14000000_wp, &
+     1.26000000_wp, &
+     2.81072250_wp )

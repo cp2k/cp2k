@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_methanol = shift_parameter ( &
+    32.04000000_wp, &
+     0.79200000_wp, &
+     1.49235984_wp )
+type(shift_parameter),parameter :: gfn2_methanol = shift_parameter ( &
+    32.04000000_wp, &
+     0.79200000_wp, &
+     2.10650508_wp )

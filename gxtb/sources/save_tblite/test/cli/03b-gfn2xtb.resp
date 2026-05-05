@@ -1,0 +1,8 @@
+$ORIGIN/03-ser-xar.sdf
+--no-restart
+--method
+gfn2
+--grad
+-vv
+--iterations
+110

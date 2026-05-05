@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 MODULE qs_charge_mixing
 
-#if defined(__TBLITE)
+#if defined(__TBLITE_LEGACY_MIXER)
    USE mctc_env, ONLY: error_type
    USE tblite_scf, ONLY: new_mixer
 #endif
@@ -79,6 +79,7 @@ CONTAINS
       CASE (tblite_scc_mixer_auto, tblite_scc_mixer_cp2k)
          ! Use the regular CP2K SCC-variable mixing path below.
       CASE (tblite_scc_mixer_tblite)
+#if defined(__TBLITE_LEGACY_MIXER)
          CPASSERT(ASSOCIATED(mixing_store))
          mixer_damping = 0.4_dp
          IF (PRESENT(tblite_mixer_damping)) mixer_damping = tblite_mixer_damping
@@ -88,6 +89,9 @@ CONTAINS
                                    mixer_damping, mixer_memory)
          CALL timestop(handle)
          RETURN
+#else
+         CPABORT("SCC_MIXER TBLITE requires the legacy tblite 0.5 mixer API")
+#endif
       CASE (tblite_scc_mixer_none)
          IF (ASSOCIATED(mixing_store)) mixing_store%iter_method = "NoMix"
          CALL timestop(handle)
@@ -188,7 +192,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iter_count, memory
       REAL(KIND=dp), INTENT(IN)                          :: damping
 
-#if defined(__TBLITE)
+#if defined(__TBLITE_LEGACY_MIXER)
       TYPE(error_type), ALLOCATABLE                      :: error
 #endif
       INTEGER                                            :: natom, ndim, ns
@@ -208,7 +212,7 @@ CONTAINS
                     (mixing_store%tb_scc_mixer_memory /= memory)
       mixing_store%tb_scc_mixer_error = 0.0_dp
 
-#if defined(__TBLITE)
+#if defined(__TBLITE_LEGACY_MIXER)
       IF (reset_mixer) THEN
          IF (ALLOCATED(mixing_store%tb_scc_mixer)) DEALLOCATE (mixing_store%tb_scc_mixer)
          CALL new_mixer(mixing_store%tb_scc_mixer, memory, ndim, damping)
@@ -236,7 +240,7 @@ CONTAINS
       MARK_USED(iter_count)
       MARK_USED(damping)
       MARK_USED(memory)
-      CPABORT("SCC_MIXER TBLITE requires CP2K to be built with tblite")
+      CPABORT("SCC_MIXER TBLITE requires the legacy tblite 0.5 mixer API")
 #endif
 
    END SUBROUTINE tblite_charge_mixing

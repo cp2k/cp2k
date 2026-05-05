@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_octanol = shift_parameter ( &
+   130.23000000_wp, &
+     0.83000000_wp, &
+     1.99736739_wp )
+type(shift_parameter),parameter :: gfn2_alpb_octanol = shift_parameter ( &
+   130.23000000_wp, &
+     0.83000000_wp, &
+     1.46816470_wp )

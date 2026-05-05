@@ -1,0 +1,5 @@
+cffi
+numpy
+sphinx_book_theme
+sphinx_copybutton
+sphinx_design

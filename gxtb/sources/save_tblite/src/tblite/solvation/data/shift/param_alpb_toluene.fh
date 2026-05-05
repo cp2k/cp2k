@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_toluene = shift_parameter ( &
+    92.14000000_wp, &
+     0.86700000_wp, &
+     2.23078369_wp )
+type(shift_parameter),parameter :: gfn2_alpb_toluene = shift_parameter ( &
+    78.11000000_wp, &
+     0.86700000_wp, &
+     1.38563074_wp )

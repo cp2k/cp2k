@@ -1,0 +1,4 @@
+type(shift_parameter),parameter :: gfn2_hexane = shift_parameter ( &
+    86.18000000_wp, &
+     0.66000000_wp, &
+     2.94382796_wp )

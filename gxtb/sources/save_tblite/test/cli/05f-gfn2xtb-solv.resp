@@ -1,0 +1,8 @@
+$ORIGIN/05-met-xbf.qchem
+--method
+gfn2
+--gb
+thf
+--no-restart
+--grad
+--verbose

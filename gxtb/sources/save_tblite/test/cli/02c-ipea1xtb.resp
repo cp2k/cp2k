@@ -1,0 +1,7 @@
+$ORIGIN/02-trp-xao.mol
+--no-restart
+--method
+ipea1
+--grad
+--acc
+0.1

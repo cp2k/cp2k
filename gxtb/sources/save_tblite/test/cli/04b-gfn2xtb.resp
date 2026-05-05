@@ -1,0 +1,7 @@
+$ORIGIN/04-val-xaj.gen
+--no-restart
+--method
+gfn2
+--grad
+--etemp
+400

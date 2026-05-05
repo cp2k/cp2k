@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_benzene = shift_parameter ( &
+    78.11000000_wp, &
+     0.86700000_wp, &
+     3.17278716_wp )
+type(shift_parameter),parameter :: gfn2_alpb_benzene = shift_parameter ( &
+    78.11000000_wp, &
+     0.86700000_wp, &
+     2.93326080_wp )

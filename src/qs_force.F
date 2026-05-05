@@ -78,6 +78,7 @@ MODULE qs_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE tblite_interface,                ONLY: build_tblite_matrices,&
+                                              tb_apply_native_gxtb_forces,&
                                               tb_reference_cli_compare
    USE virial_types,                    ONLY: symmetrize_virial,&
                                               virial_type
@@ -378,6 +379,10 @@ CONTAINS
       ! Solve the response linear equation system for the Z-vector method
       ! and calculate remaining terms of the force
       CALL excited_state_energy(qs_env, calculate_forces=.TRUE.)
+
+      IF (dft_control%qs_control%xtb .AND. dft_control%qs_control%xtb_control%do_tblite) THEN
+         CALL tb_apply_native_gxtb_forces(qs_env)
+      END IF
 
       ! replicate forces (get current pointer)
       NULLIFY (force)

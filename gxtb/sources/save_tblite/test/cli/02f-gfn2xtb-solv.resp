@@ -1,0 +1,13 @@
+$ORIGIN/02-trp-xao.mol
+--no-restart
+--solv-state
+bar1mol
+--born-kernel
+p16
+--gbsa
+acetone
+--method
+gfn2
+--input
+mol
+--grad

@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_acetonitrile = shift_parameter ( &
+    41.05000000_wp, &
+     0.78600000_wp, &
+     2.64820749_wp )
+type(shift_parameter),parameter :: gfn2_acetonitrile = shift_parameter ( &
+    41.05000000_wp, &
+     0.78600000_wp, &
+     1.28468468_wp )

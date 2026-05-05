@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_woctanol = shift_parameter ( &
+   130.23000000_wp, &
+     0.83000000_wp, &
+     2.12513670_wp )
+type(shift_parameter),parameter :: gfn2_alpb_woctanol = shift_parameter ( &
+   130.23000000_wp, &
+     0.83000000_wp, &
+     1.57636999_wp )

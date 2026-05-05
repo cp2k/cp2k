@@ -1081,7 +1081,7 @@ CONTAINS
          CALL get_qs_env(qs_env, nkind=nkind)
          IF (xtb_control%do_tblite) THEN
             ! put geometry to tblite
-            CALL tb_init_geometry(qs_env, qs_env%tb_tblite)
+            CALL tb_init_geometry(qs_env, qs_env%tb_tblite, xtb_control%tblite_method)
             ! select tblite method
             CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method)
             !set up wave function

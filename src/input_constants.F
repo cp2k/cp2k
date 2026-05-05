@@ -1352,7 +1352,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: gfn1xtb = 1, &
                                                gfn2xtb = 2, &
                                                ipea1xtb = 3, &
-                                               gfn_tblite = 4
+                                               gfn_tblite = 4, &
+                                               gxtbxtb = 5
 
    ! tblite SCC mixer selection
    INTEGER, PARAMETER, PUBLIC               :: tblite_scc_mixer_auto = 0, &

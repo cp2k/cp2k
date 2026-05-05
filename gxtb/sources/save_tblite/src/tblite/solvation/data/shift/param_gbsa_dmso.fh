@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_dmso = shift_parameter ( &
+    78.13000000_wp, &
+     1.10000000_wp, &
+     2.64820749_wp )
+type(shift_parameter),parameter :: gfn2_dmso = shift_parameter ( &
+    78.13000000_wp, &
+     1.10000000_wp, &
+     3.23903959_wp )

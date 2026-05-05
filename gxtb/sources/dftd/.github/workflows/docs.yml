@@ -1,0 +1,60 @@
+name: docs
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - id: deploy-on-push
+        run: echo "result=$DEPLOY_BRANCH" >> $GITHUB_OUTPUT
+        env:
+          DEPLOY_BRANCH: ${{ secrets.DEPLOY_BRANCH && contains(github.ref, secrets.DEPLOY_BRANCH) && '1' || '0' }}
+
+      - name: Set DEPLOY_BRANCH
+        id: set-deploy-branch
+        run: echo "DEPLOY_BRANCH=$DEPLOY_BRANCH" >> $GITHUB_ENV
+        env:
+          DEPLOY_BRANCH: ${{ secrets.DEPLOY_BRANCH && contains(github.ref, secrets.DEPLOY_BRANCH) && '1' || '0' }}
+
+      - name: Validate DEPLOY_BRANCH
+        run: |
+          if [[ "$DEPLOY_BRANCH" != "1" && "$DEPLOY_BRANCH" != "0" ]]; then
+            echo "Invalid DEPLOY_BRANCH value: $DEPLOY_BRANCH"
+            exit 1
+          fi
+        env:
+          DEPLOY_BRANCH: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install ford
+
+      - name: Build Documentation
+        run: ford ford.md
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@4.1.6
+        if: ${{ github.event_name == 'push' && steps.deploy-on-push.outputs.result != '0' }}
+        with:
+          branch: gh-pages
+          folder: _docs
+          single-commit: true
+          git-config-email: 49320512+dftd4@users.noreply.github.com
+          git-config-name: DFT-D4

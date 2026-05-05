@@ -1,0 +1,23 @@
+# .readthedocs.yaml
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+# Configuration file for build in doc/ subdirectory
+sphinx:
+  configuration: doc/conf.py
+
+# Specify mambaforge such that we can install dependencies via mamba package manager
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "mambaforge-22.9"
+  jobs:
+    install:
+      - tar --exclude=./python -cvf ./python/tblite.tar . && mkdir -p ./python/subprojects/tblite && tar xvf ./python/tblite.tar -C ./python/subprojects/tblite
+      - pip install ./python
+
+# Get dependencies for docs, package and build from conda-forge
+conda:
+  environment: doc/environment.yml

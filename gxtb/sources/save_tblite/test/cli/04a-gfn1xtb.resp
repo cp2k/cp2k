@@ -1,0 +1,8 @@
+$ORIGIN/04-val-xaj.gen
+--no-restart
+--method
+gfn1
+--grad
+-s
+--acc
+2.0

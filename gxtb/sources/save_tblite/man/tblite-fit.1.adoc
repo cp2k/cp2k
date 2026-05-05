@@ -1,0 +1,147 @@
+= tblite-fit(1)
+Sebastian Ehlert (@awvwgk)
+:doctype: manpage
+
+== Name
+tblite-fit - Optimize tight-binding parameters
+
+== Synopsis
+*tblite fit* [_options_] _param_ _input_
+
+
+== Description
+
+Takes the name of the starting parameter file as first positional argument and an input file for the settings of the run as second positional argument.
+A starting parameter file can be produced using the tblite-param(1) command.
+
+
+== Input file
+
+The input file is provided in TOML format it contains the input to the optimization algorithm and the setup for the evaluation of the data set.
+
+[cols=3]
+|===
+|*key*
+|*description*
+|*type*
+
+|max-iter
+|Maxium number of iterations in the optimization
+|_integer_
+
+|trust-rad
+|Initial trust radius for performing steps
+|_real_
+
+|method
+|Optimization method to be used, available optimizers are _newuoa_
+|_string_ (`"newuoa"`)
+
+|relative
+|Use relative parameter optimization instead of absolute
+|_boolean_
+
+|script
+|Command to invoke the script to evaluate the data set
+|_string_
+
+|data-file
+|Name of the file to read the data from used to calculated the objective function
+|_string_
+
+|param-file
+|Name of the file to write the parameters of the current iteration to
+|_string_
+
+|mask
+|Contains the selection of the parameters to fit.
+|_table_
+|===
+
+The _mask_ table allows to select which parameters are part of the fit.
+Generally, all keys that take real values can be toggled in the mask.
+To enable a parameter group in the _element_ records, add the respective table name.
+Possible parameter groups are _hamiltonian_, _dispersion_, _repulsion_, _halogen_, _charge_, _thirdorder_, and _multipole_.
+Only elements present in the _element_ table will be included in the fit.
+Individual entries can be toggled by adding their key to the subtable.
+
+
+=== Example
+
+Settings for fitting carbon and hydrogen parameters, the slater exponent of the halogen atom is kept fixed to starting value.
+
+[source,toml]
+----
+max-iter = 100
+damping = 0.1
+trust-rad = 0.1
+method = "newuao"
+relative = true
+script = "./run.sh"
+data-file = ".data"
+param-file = "fitpar.toml"
+
+[mask]
+hamiltonian = {}
+dispersion = {}
+repulsion = {}
+charge = {}
+thirdorder = {}
+multipole = {}
+[mask.element]
+H = {slater=[false]}
+C = {}
+----
+
+
+== Script
+
+To make the fitting procedure flexible, the module will not attempt evaluate data sets itself but invoke a user provided script.
+The user provided script line is run for each fit iteration.
+Before invoking the script the module will emit the current parametrization data to the file provided in _param-file_.
+After the iteration the module will read the reference data and actual data from the file specified in _data-file_.
+The objective function is calculated as root mean square deviation from all entries in the data file.
+
+=== Environment variables
+
+The script will get information about the current run passed by environment variables.
+
+*TBLITE_EXE*::
+     Path to the tblite(1) executable
+*TBLITE_OUT*::
+     Name of the data file which will be read by the optimizer to determine the objective function
+*TBLITE_PAR*::
+     Name of the file containing the current set of parameters.
+     This file must be read by the program used to evaluate the tight-binding method.
+
+
+== Options
+
+*--dry-run*::
+     Do not run start the fitting procedure
+
+*--copy* _file_::
+     Write the full representation of the input to _file_, all defaults will be filled in and the mask expanded.
+
+*-v, --verbose*::
+     Increase verbosity of printout
+
+*-s, --silent*::
+     Reduce verbosity of printout
+
+*--version*::
+     Prints version number and citation
+
+*--help*::
+     Show this message
+
+
+Command line arguments can be read from an indirect file / response file by specifying the file with @_name_ in the command line.
+Each line in the file is interpreted as command line argument, shell like escape sequences are not available.
+The file can contain further @_name_ inputs. If the file cannot be the argument is used literally.
+
+
+== See also
+
+*tblite*(1),
+*tblite-param*(1)

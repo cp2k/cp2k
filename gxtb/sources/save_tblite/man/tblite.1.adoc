@@ -1,0 +1,59 @@
+= tblite(1)
+Sebastian Ehlert (@awvwgk)
+:doctype: manpage
+
+== Name
+tblite - Light-weight tight-binding framework
+
+== Synopsis
+*tblite* [_command_] [_options_] _input_
+
+
+== Description
+
+Main driver for tight-binding framework.
+
+
+== Commands
+
+*tblite-fit*(1)::
+     Optimize tight-binding parameters.
+
+*tblite-param*(1)::
+     Inspect and manipulate tight-binding parametrization data.
+
+*tblite-run*(1)::
+     Evaluate tight-binding method on the provided input structure.
+     If no command is specified run is selected by default.
+
+*tblite-guess*(1)::
+     Evaluate a guess charge model on the provided input structure.
+
+*tblite-tagdiff*(1)::
+     Auxilary tool to compute differences between data outputs.
+
+*tblite-solvents*(1)::
+     List of all available solvents with parameters.
+
+== Options
+
+*--color* _string_::
+     Support colorful terminal output,
+     possible values are _never_ (default), _always_, and _auto_.
+
+*--version*::
+     Prints version number and citation
+
+*--help*::
+     Show this message
+
+
+Command line arguments can be read from an indirect file / response file by specifying the file with @_name_ in the command line.
+Each line in the file is interpreted as command line argument, shell like escape sequences are not available.
+The file can contain further @_name_ inputs.
+If the file cannot be found the argument is used literally.
+
+
+== See also
+
+https://tblite.readthedocs.io

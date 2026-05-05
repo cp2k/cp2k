@@ -53,7 +53,7 @@ MODULE cp_control_utils
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
+        gaussian_env, gfn1xtb, gfn_tblite, gxtbxtb, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
         numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
@@ -1683,6 +1683,9 @@ CONTAINS
       IF (qs_control%xtb_control%do_tblite) THEN
          CALL section_vals_val_get(xtb_tblite, "METHOD", &
                                    i_val=qs_control%xtb_control%tblite_method)
+         IF (qs_control%xtb_control%tblite_method == gxtbxtb .AND. qs_control%periodicity /= 0) THEN
+            CPABORT("XTB/TBLITE/METHOD GXTB is supported only for isolated systems; use PERIODIC NONE")
+         END IF
          CALL section_vals_val_get(xtb_tblite, "SCC_MIXER", &
                                    i_val=qs_control%xtb_control%tblite_scc_mixer)
          CALL section_vals_val_get(xtb_tblite, "TBLITE_MIXER_DAMPING", &

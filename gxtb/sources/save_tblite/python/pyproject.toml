@@ -1,0 +1,41 @@
+[build-system]
+requires = [
+  "meson-python",
+  "cffi",
+  "setuptools",
+  "meson!=1.8.0",
+]
+build-backend = "mesonpy"
+
+[project]
+name = "tblite"
+version = "0.5.0"
+description = "Light-weight tight-binding framework"
+readme = "README.rst"
+license.text = "LGPL-3.0-or-later"
+urls.repository = "https://github.com/tblite/tblite"
+urls.documentation = "https://tblite.readthedocs.io"
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Fortran",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+requires-python = ">=3.7"
+dependencies = [
+   "cffi",
+   "numpy",
+]
+optional-dependencies.ase = ["ase"]
+optional-dependencies.test = [
+  "pytest",
+  "pytest-cov",
+]

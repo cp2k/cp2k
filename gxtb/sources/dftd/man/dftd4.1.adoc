@@ -1,0 +1,148 @@
+= dftd4(1)
+:doctype: manpage
+
+== Name
+dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
+
+== Synopsis
+*dftd4* [run|param] [_options_] _input_
+
+
+== Description
+
+Takes an geometry input to calculate the D4(S) dispersion correction.
+Periodic calculations are performed automatically for periodic input formats.
+Reads .CHRG file (if present) from the same directory as the input.
+Specify the functional to select the correct parameters.
+
+
+== Commands
+
+*run*::
+     Evaluate dispersion correction on the provided input structure.
+     Periodic calculations are performed automatically for periodic inputs
+     If no command is specified run is selected by default.
+
+*param*::
+     Inspect damping parameters.
+
+
+== Options: run
+
+*-c, --charge* _integer_::
+     Set charge to molecule,
+     overrides charge in .CHRG file
+
+*-i, --input* _format_::
+     Hint for the format of the input file
+
+*-f, --func* _functional_::
+     Dispersion correction for specified density functional method
+
+*-2b, --damp-2b* _function_::
+     use specific damping function for two-body dispersion
+     (options: bj, screened, zero, mzero, op, cso, koide)
+
+*-3b, --damp-3b* _function_::
+     use specific damping function for three-body dispersion
+     (options: bj, screened, zero, zero-avg)
+
+*--s6* _s6_::
+     scaling factor for two-body dip-dip (C6) dispersion (default=1.0)
+
+*--s8* _s8_::
+     scaling factor for two-body dip-quad (C8) dispersion
+
+*--s9* _s9_::
+     scaling factor for three-body dip-dip-dip (C9 or ATM) dispersion
+
+*--a1* _a1_::
+     linear radius scaling for the damping function
+
+*--a2* _a2_::
+     constant radius shift for the damping function
+
+*--a3* _a3_::
+     damping radius scaling in screening function (used in: screened)
+     short-range s6 modification (used in: cso)
+
+*--a4* _a4_::
+     screening function exponent (used in: screened)
+     radius scaling for short-range s6 modification (used in: cso)
+
+*--rs6* _rs6_::
+     distance-radius-fraction scaling for two-body dip-dip (C6) dispersion
+     (used in: zero, mzero, koide)
+
+*--rs8* _rs8_::
+     distance-radius-fraction scaling for two-body dip-quad (C8) dispersion
+     (used in: zero, mzero, koide)
+
+*--rs9* _rs9_::
+     distance-radius-fraction scaling for three-body dip-dip-dip (C9 or ATM) dispersion
+     (used in: zero)
+
+*--alp* _alp_::
+     exponent of distance-radius-fraction scaling (used in: zero, mzero)
+
+*--bet* _bet_::
+     optimized power exponent (used in: op)
+     additive linear radius scaling (used in: mzero)
+
+*--noatm*::
+     deactivate three-body dispersion
+
+*--zeta* _real_ _real_::
+     Adjust charge scaling height and charge scaling steepness
+     (default: 3.0 and 2.0)
+
+*--wfactor* _real_::
+     Adjust weighting factor for the Gaussian interpolation (only D4)
+     (default: 6.0)
+
+*-m, --model* _string_::
+     use either standard D4 (default) or the smoothed D4S model
+
+*--qmodel* _string_::
+     use specific charge model (options: EEQ (default), EEQBC)
+
+*-g, --grad* [_file_]::
+     prints analytical gradient to file,
+     write results to file (default: dftd4.txt),
+     attempts to add to Turbomole gradient and gradlatt files
+
+*--json* [_file_]::
+     Serialize all results as JSON (dftd4.json)
+
+*--noedisp*::
+     Do not write dispersion energy in `.EDISP` file
+
+*--property*::
+     Print atomic properties and molecular C6-coefficient
+
+*--pair-resolved*::
+     Calculate pairwise representation of dispersion energy
+
+*--version*::
+     Prints version number and citation
+
+*--citation*::
+     Prints references for DFT-D4 method
+
+*--license*::
+     Prints licensing information
+
+*-v, --verbose*::
+     Show more, can be used multiple times
+
+*-s, --silent*::
+     Show less, use twice to supress all output
+
+*-h, --help*::
+     Show this message
+
+
+== Options: param
+
+*--list, --funcs, -l*::
+     List all available functionals (keywords for *-f, --func*)

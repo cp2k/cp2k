@@ -8,6 +8,7 @@ MIMIC/regtest-qmmm                                          mimic mpiranks==4
 QS/regtest-monovalent
 QS/regtest-tddfpt-sf-force                                  libint !ifx
 QS/regtest-tddfpt-sf                                        libint !ifx
+xTB/regtest-tblite-gxtb                                    tblite_gxtb
 xTB/regtest-tblite-gfn1-grad                                tblite
 QS/regtest-spgr-id                                          spglib
 HP-DFT

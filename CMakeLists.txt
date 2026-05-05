@@ -126,6 +126,9 @@ option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TBLITE_GXTB
+       "Enable experimental g-xTB support through a g-xTB-enabled tblite build"
+       OFF)
 option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
@@ -138,6 +141,10 @@ option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
+
+if(CP2K_USE_TBLITE_GXTB AND NOT CP2K_USE_TBLITE)
+  message(FATAL_ERROR "CP2K_USE_TBLITE_GXTB requires CP2K_USE_TBLITE")
+endif()
 option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -1097,7 +1104,8 @@ endif()
 if(CP2K_USE_TBLITE)
   message(" - TBLITE :\n"
           "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
-          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n\n")
+          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n"
+          "   - g-xTB support       :  ${CP2K_USE_TBLITE_GXTB}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)

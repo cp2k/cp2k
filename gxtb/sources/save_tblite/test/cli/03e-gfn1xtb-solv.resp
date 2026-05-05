@@ -1,0 +1,7 @@
+$ORIGIN/03-ser-xar.sdf
+--no-restart
+--method
+gfn1
+--grad
+--cpcm
+35.8

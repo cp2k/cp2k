@@ -1,0 +1,4 @@
+type(shift_parameter),parameter :: gfn2_dmf = shift_parameter ( &
+    73.10000000_wp, &
+     0.95000000_wp, &
+     2.10659266_wp )

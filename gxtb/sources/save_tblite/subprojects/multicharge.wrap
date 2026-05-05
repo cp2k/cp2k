@@ -1,0 +1,4 @@
+[wrap-git]
+directory = multicharge
+url = https://github.com/thfroitzheim/multicharge
+revision = eeqbc2026

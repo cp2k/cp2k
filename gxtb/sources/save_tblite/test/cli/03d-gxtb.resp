@@ -1,0 +1,7 @@
+$ORIGIN/03-ser-xar.sdf
+--no-restart
+--method
+gxtb
+--grad
+--acc
+0.001

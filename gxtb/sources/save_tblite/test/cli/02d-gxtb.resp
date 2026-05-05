@@ -1,0 +1,7 @@
+$ORIGIN/02-trp-xao.mol
+--no-restart
+--method
+gxtb
+--grad
+--acc
+0.1

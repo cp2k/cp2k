@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_dmf = shift_parameter ( &
+    73.10000000_wp, &
+     0.95000000_wp, &
+     4.97937067_wp )
+type(shift_parameter),parameter :: gfn2_alpb_dmf = shift_parameter ( &
+    73.10000000_wp, &
+     0.95000000_wp, &
+     3.77045120_wp )

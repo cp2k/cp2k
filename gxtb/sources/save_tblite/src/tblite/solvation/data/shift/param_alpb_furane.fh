@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_furane = shift_parameter ( &
+    68.07000000_wp, &
+     0.93600000_wp, &
+     1.81646541_wp )
+type(shift_parameter),parameter :: gfn2_alpb_furane = shift_parameter ( &
+    68.07000000_wp, &
+     0.93600000_wp, &
+     1.24661341_wp )

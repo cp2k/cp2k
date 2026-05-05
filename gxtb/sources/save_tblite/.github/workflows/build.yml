@@ -1,0 +1,355 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  BUILD_DIR: _build
+  PIP_PACKAGES: >-
+    meson!=1.8.0
+    cmake
+    ninja
+    gcovr
+  PIP_EXTRAS: >-
+    pkgconfig
+    pytest
+    pytest-cov
+    cffi
+    numpy
+    ase
+    matplotlib
+    qcelemental
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build-type: [debug]
+        toolchain:
+          - {compiler: gcc, version: '12', build: meson}
+          - {compiler: gcc, version: '12', build: cmake}
+
+        include:
+        - os: ubuntu-latest
+          build-type: coverage
+          toolchain: {compiler: gcc, version: '10', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: gcc, version: '11', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: gcc, version: '13', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: gcc, version: '14', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: intel-classic, version: '2021.2', mkl_version: '2021.2.0', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: intel, version: '2024.1', mkl_version: '2024.1', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: intel, version: '2025.1', mkl_version: '2025.1', build: meson}
+
+        - os: ubuntu-latest
+          build-type: debug
+          toolchain: {compiler: gcc, version: '12', build: fpm}
+
+        # - os: windows-latest
+        #   build: meson
+        #   build-type: debug
+        #   compiler: gcc
+        #   shell: msys2 {0}
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PYTHON_V: 3.9
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_V }}
+
+    - name: Install LAPACK (macOS)
+      if: ${{ contains(matrix.os, 'macos') && matrix.toolchain.compiler == 'gcc' }}
+      run: |
+        brew install openblas
+        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+        echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+
+    - name: Install LAPACK (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') && matrix.toolchain.compiler == 'gcc' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y liblapack-dev
+
+    - name: Install fpm
+      if: ${{ matrix.toolchain.build == 'fpm' }}
+      uses: fortran-lang/setup-fpm@v7  # fpm 0.11.0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Prepare for cache restore
+      if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+      run: |
+        sudo mkdir -p /opt/intel
+        sudo chown $USER /opt/intel
+
+    - name: Cache Intel installation
+      if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+      id: cache-install
+      uses: actions/cache@v4
+      with:
+        path: /opt/intel/oneapi
+        key: install-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.toolchain.mkl_version }}-${{ matrix.os }}
+
+    - name: Install GCC Compiler
+      if: ${{ contains(matrix.toolchain.compiler, 'gcc') }}
+      uses: fortran-lang/setup-fortran@v1
+      with:
+        compiler: ${{ matrix.toolchain.compiler }}
+        version: ${{ matrix.toolchain.version }}
+
+    - name: Install Intel Compiler (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+      uses: fortran-lang/setup-fortran@v1
+      with:
+        compiler: ${{ matrix.toolchain.compiler }}
+        version: ${{ matrix.toolchain.version }}
+
+    - name: Install Intel MKL
+      if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+      run: |
+        sudo apt-get install intel-oneapi-mkl-${{ matrix.toolchain.mkl_version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.mkl_version }}
+
+    - name: Setup Intel oneAPI environment
+      if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+      run: |
+        source /opt/intel/oneapi/setvars.sh --force
+        printenv >> $GITHUB_ENV
+
+    - name: Setup environment for Fortran and C compilers
+      run: |
+        if [ ! -n "$FC" ]; then
+          if [ "${{ matrix.toolchain.compiler }}" = "gcc" ]; then
+            FC="gfortran"
+            CC="gcc"
+          elif [ "${{ matrix.toolchain.compiler }}" = "intel" ]; then
+            FC="ifx"
+            CC="icx"
+          elif [ "${{ matrix.toolchain.compiler }}" = "intel-classic" ]; then
+            FC="ifort"
+            CC="icc"
+          fi
+          echo "FC=$FC" >> $GITHUB_ENV
+          echo "CC=$CC" >> $GITHUB_ENV
+        fi
+
+    - name: Install build and test dependencies
+      if: ${{ ! contains(matrix.os, 'windows') }}
+      run: pip3 install ${{ env.PIP_PACKAGES }} ${{ env.PIP_EXTRAS }}
+
+    - name: Configure build (meson)
+      if: ${{ matrix.toolchain.build == 'meson' }}
+      run: >-
+        meson setup ${{ env.BUILD_DIR }}
+        --buildtype=debug
+        --prefix=$PWD/_dist
+        --libdir=lib
+        --warnlevel=0
+        -Db_coverage=${{ env.COVERAGE }}
+        ${{ env.MESON_ARGS }}
+      env:
+        COVERAGE: ${{ matrix.build-type == 'coverage' }}
+        MESON_ARGS: >-
+          ${{ contains(matrix.toolchain.compiler, 'intel') && '-Dfortran_link_args=-qopenmp -Dapi=false' || '' }}
+          ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '' }}
+          ${{ contains(matrix.os, 'windows') && '-Dfortran_link_args=-Wl,--allow-multiple-definition' || '' }}
+
+    - name: Configure build (CMake)
+      if: ${{ matrix.toolchain.build == 'cmake' }}
+      run: >-
+        cmake -B${{ env.BUILD_DIR }}
+        -GNinja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+        -DCMAKE_INSTALL_LIBDIR=lib
+
+    - name: Build library (fpm)
+      if: ${{ matrix.toolchain.build == 'fpm' }}
+      run: |
+        fpm --version
+        fpm build
+
+    - name: Build library
+      if: ${{ matrix.toolchain.build != 'fpm' }}
+      run: ninja -C ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests (fpm)
+      if: ${{ matrix.toolchain.build == 'fpm' }}
+      run: fpm test
+
+    - name: Run unit tests (meson)
+      if: ${{ matrix.toolchain.build == 'meson' }}
+      run: >-
+         meson test
+         -C ${{ env.BUILD_DIR }}
+         --print-errorlogs
+         --no-rebuild
+         --num-processes 1
+         --suite tblite
+         -t 2
+      env:
+        OMP_NUM_THREADS: 1,2,1
+
+    - name: Run benchmarks
+      if: ${{ matrix.toolchain.build == 'meson' }}
+      run: >-
+         meson test
+         -C ${{ env.BUILD_DIR }}
+         --print-errorlogs
+         --no-rebuild
+         --num-processes 1
+         --suite tblite
+         -t 2
+         --benchmark
+
+    - name: Run unit tests (ctest)
+      if: ${{ matrix.toolchain.build == 'cmake' }}
+      run: |
+         ctest --output-on-failure --parallel 2 -R '^tblite/'
+      working-directory: ${{ env.BUILD_DIR }}
+      env:
+        OMP_NUM_THREADS: 1,2,1
+
+    - name: Create coverage report
+      if: ${{ matrix.toolchain.build == 'meson' && matrix.build-type == 'coverage' }}
+      run:
+         ninja -C ${{ env.BUILD_DIR }} coverage
+
+    - name: Install project
+      if: ${{ matrix.toolchain.build != 'fpm' }}
+      run: |
+        ninja -C ${{ env.BUILD_DIR }} install
+        echo "TBLITE_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+
+    - name: Create package
+      if: ${{ matrix.toolchain.build == 'meson' && matrix.toolchain.version == '12' && matrix.build-type == 'debug' && matrix.toolchain.compiler == 'gcc' }}
+      run: |
+        tar cvf ${{ env.OUTPUT }} _dist
+        xz -T0 ${{ env.OUTPUT }}
+        echo "TBLITE_OUTPUT=${{ env.OUTPUT }}.xz" >> $GITHUB_ENV
+      env:
+        OUTPUT: tblite-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.os }}.tar
+
+    - name: Upload package
+      if: ${{ matrix.toolchain.build == 'meson' && matrix.toolchain.version == '12' && matrix.build-type == 'debug' && matrix.toolchain.compiler == 'gcc' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.TBLITE_OUTPUT }}
+        path: ${{ env.TBLITE_OUTPUT }}
+
+    - name: Upload coverage report
+      if: ${{ matrix.toolchain.build == 'meson' && matrix.build-type == 'coverage' }}
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+
+  python:
+    needs:
+      - build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        gcc_v: ['12']
+        python_v: ['3.9', '3.10', '3.11', '3.12', '3.13']
+
+        include:
+        - os: macos-latest
+          gcc_v: '12'
+          python_v: '3.12'
+
+    env:
+      FC: gfortran
+      CC: gcc
+      GCC_V: ${{ matrix.gcc_v }}
+      PYTHON_V: ${{ matrix.python_v }}
+      OMP_NUM_THREADS: 2,1
+      TBLITE_OUTPUT: tblite-gcc-${{ matrix.gcc_v }}-${{ matrix.os }}.tar.xz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python_v }}
+
+    - name: Link LAPACK (macOS)
+      if: ${{ contains(matrix.os, 'macos')}}
+      run: |
+        brew install openblas
+        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+        echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+
+    - name: Install LAPACK (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libblas-dev liblapack-dev
+
+    - name: Install GCC Compiler
+      uses: fortran-lang/setup-fortran@v1
+      with:
+        compiler: gcc
+        version: ${{ matrix.gcc_v }}
+
+    - name: Install meson and test dependencies
+      run: pip3 install ${{ env.PIP_EXTRAS }}
+
+    - name: Download package
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ env.TBLITE_OUTPUT }}
+
+    - name: Unpack package
+      run: |
+        tar xvf ${{ env.TBLITE_OUTPUT }}
+        echo "TBLITE_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+
+    - name: Install Python extension module (pip)
+      run: pip3 install . --user
+      working-directory: python
+      env:
+        PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}:${{ env.TBLITE_PREFIX }}/lib/pkgconfig
+
+    - name: Test Python API
+      run: pytest --pyargs tblite --cov=tblite -vv
+      env:
+        LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}:${{ env.TBLITE_PREFIX }}/lib
+        DYLD_LIBRARY_PATH: ${{ env.DYLD_LIBRARY_PATH }}:${{ env.TBLITE_PREFIX }}/lib
+
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}

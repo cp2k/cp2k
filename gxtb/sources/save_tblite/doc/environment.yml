@@ -1,0 +1,31 @@
+name: tblite-docs
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  # documentation dependencies
+  - breathe
+  - myst-nb
+  - sphinx-book-theme
+  - sphinx-design
+  - sphinxcontrib-bibtex
+  # package dependencies
+  - ase
+  - cffi
+  - numpy
+  - qcelemental
+  # extra dependencies for notebooks
+  - altair
+  - chemiscope
+  - ipython
+  - polars
+  - pyberny
+  # build dependencies
+  - c-compiler
+  - fortran-compiler
+  - libblas
+  - liblapack
+  - meson !=1.8.0
+  - ninja
+  - pkg-config
+  - pip

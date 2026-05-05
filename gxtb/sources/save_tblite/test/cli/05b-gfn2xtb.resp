@@ -1,0 +1,9 @@
+$ORIGIN/05-met-xbf.qchem
+--no-restart
+--method
+gfn2
+--guess
+eeq
+--solver
+gvr
+--grad

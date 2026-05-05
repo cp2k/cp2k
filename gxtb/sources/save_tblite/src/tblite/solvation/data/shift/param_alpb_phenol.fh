@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_phenol = shift_parameter ( &
+    94.11000000_wp, &
+     1.07000000_wp, &
+     2.30630191_wp )
+type(shift_parameter),parameter :: gfn2_alpb_phenol = shift_parameter ( &
+    94.11000000_wp, &
+     1.07000000_wp, &
+     1.52339711_wp )

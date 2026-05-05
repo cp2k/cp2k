@@ -1,0 +1,6 @@
+$ORIGIN/08-mb01.xyz
+--no-restart
+--method
+gxtb
+--acc
+0.0001

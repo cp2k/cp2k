@@ -1,0 +1,11 @@
+$ORIGIN/04-val-xaj.gen
+--no-restart
+--method
+gfn1
+--grad
+--alpb
+thf
+--born-kernel
+still
+--input
+gen

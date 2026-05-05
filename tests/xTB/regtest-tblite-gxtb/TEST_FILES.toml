@@ -1,0 +1,23 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O_gfn2.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-5.0701759637775341}]
+"H2O_gfn2_force.inp"                 = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+"H2O_gfn2_reference_cli.inp"         = [{matcher="E_total", tol=1.0E-8, ref=-5.0701759637775341},
+                                        {matcher="XTB_reference_cli_check"}]
+"H2O_gfn2_reference_cli_force.inp"   = [{matcher="E_total", tol=1.0E-8, ref=-5.0701759637775341},
+                                        {matcher="XTB_reference_cli_check"},
+                                        {matcher="XTB_reference_cli_gradient_max", tol=1.0E-5, ref=0.0000000},
+                                        {matcher="XTB_reference_cli_virial_max", tol=1.0E-5, ref=0.0000000}]
+"H2O_gxtb.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-76.437387426459765}]
+"H2O_gxtb_force.inp"                 = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+"H2O_gxtb_reference_cli.inp"         = [{matcher="E_total", tol=1.0E-8, ref=-76.437387426459765},
+                                        {matcher="XTB_reference_cli_check"}]
+"H2O_gxtb_reference_cli_force.inp"   = [{matcher="E_total", tol=1.0E-8, ref=-76.437387426459765},
+                                        {matcher="XTB_reference_cli_check"},
+                                        {matcher="XTB_reference_cli_gradient_max", tol=1.0E-5, ref=0.0000000},
+                                        {matcher="XTB_reference_cli_virial_max", tol=1.0E-5, ref=0.0000000}]
+"MB01_gxtb.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-1278.3882990053107}]
+#EOF

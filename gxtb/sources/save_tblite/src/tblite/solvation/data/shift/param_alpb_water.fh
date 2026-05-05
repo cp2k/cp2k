@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_water = shift_parameter ( &
+    18.00000000_wp, &
+     1.00000000_wp, &
+     2.66415841_wp )
+type(shift_parameter),parameter :: gfn2_alpb_water = shift_parameter ( &
+    18.00000000_wp, &
+     1.00000000_wp, &
+     0.67818695_wp )

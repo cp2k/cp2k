@@ -1,0 +1,7 @@
+breathe
+sphinx-book-theme
+sphinx-design
+sphinxcontrib-bibtex
+numpy
+ase
+cffi

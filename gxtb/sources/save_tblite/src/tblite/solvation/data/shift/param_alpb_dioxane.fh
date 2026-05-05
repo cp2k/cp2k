@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_dioxane = shift_parameter ( &
+    88.11000000_wp, &
+     1.03000000_wp, &
+     1.65053783_wp )
+type(shift_parameter),parameter :: gfn2_alpb_dioxane = shift_parameter ( &
+    88.11000000_wp, &
+     1.03000000_wp, &
+     1.73889651_wp )

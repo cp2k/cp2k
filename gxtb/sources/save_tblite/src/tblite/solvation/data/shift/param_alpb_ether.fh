@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_ether = shift_parameter ( &
+    74.12000000_wp, &
+     0.71300000_wp, &
+     8.54631169_wp )
+type(shift_parameter),parameter :: gfn2_alpb_ether = shift_parameter ( &
+    74.12000000_wp, &
+     0.71300000_wp, &
+     3.10832901_wp )

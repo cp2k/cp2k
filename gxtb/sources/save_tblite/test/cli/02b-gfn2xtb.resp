@@ -1,0 +1,9 @@
+$ORIGIN/02-trp-xao.mol
+--no-restart
+--method
+gfn2
+--etemp
+200
+--grad
+--guess
+ceh

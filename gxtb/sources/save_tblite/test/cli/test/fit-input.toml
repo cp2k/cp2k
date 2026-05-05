@@ -1,0 +1,46 @@
+[mask]
+hamiltonian = {}
+dispersion = {}
+increment = {}
+repulsion = {}
+charge = {}
+thirdorder = {}
+multipole = {}
+[mask.element]
+[mask.element.H]
+cn_rcov = false
+h0_rad = false
+[mask.element.H.shells]
+[mask.element.H.shells.1s]
+lgam = false
+[mask.element.H.shells.1s.sto_ng]
+[mask.element.C]
+cn_rcov = false
+h0_rad = false
+[mask.element.C.shells]
+[mask.element.C.shells.2s]
+lgam = false
+[mask.element.C.shells.2s.sto_ng]
+[mask.element.C.shells.2p]
+lgam = true
+[mask.element.C.shells.2p.sto_ng]
+[mask.element.N]
+cn_rcov = false
+h0_rad = false
+[mask.element.N.shells]
+[mask.element.N.shells.2s]
+lgam = false
+[mask.element.N.shells.2s.sto_ng]
+[mask.element.N.shells.2p]
+lgam = true
+[mask.element.N.shells.2p.sto_ng]
+[mask.element.O]
+cn_rcov = false
+h0_rad = false
+[mask.element.O.shells]
+[mask.element.O.shells.2s]
+lgam = false
+[mask.element.O.shells.2s.sto_ng]
+[mask.element.O.shells.2p]
+lgam = true
+[mask.element.O.shells.2p.sto_ng]

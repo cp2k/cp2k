@@ -1,0 +1,194 @@
+name: wheel
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+env:
+  # https://github.com/actions/checkout/issues/1809
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/build-env.yaml
+    - name: Install LAPACK
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y liblapack-dev
+    - run: |
+        meson setup _build
+        meson dist -C _build --no-tests --include-subprojects
+        mv _build/meson-dist/*.tar.xz .
+    - uses: actions/upload-artifact@v4
+      with:
+        name: tblite-source
+        path: ./*.tar.xz
+        retention-days: 5
+
+  sdist:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/python-env.yaml
+        create-args: >-
+          meson-python
+          python-build
+    - name: Install LAPACK
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y liblapack-dev
+    - name: Reorganize repository
+      run: |
+        git config user.email ""
+        git config user.name "dummy"
+        git subtree add --prefix python/subprojects/tblite . HEAD
+    - run: |
+        python -m build python/ --sdist --outdir . -n
+    - uses: actions/upload-artifact@v4
+      with:
+        name: tblite-python-sdist
+        path: ./*.tar.gz
+        retention-days: 5
+
+  wheels:
+    needs:
+      - sdist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        # macos-13
+        # macos-latest
+        # windows-latest
+        python: ['39', '310', '311', '312', '313']
+        include: 
+          - os: ubuntu-22.04
+            python: '38'
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      # Set up Python to host 'cibuildwheel'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # Install 'cibuildwheel' as the driver for building wheels
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.23.3
+
+      # Download the source distribution from above
+      - name: Download sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: tblite-python-sdist
+
+      # Build wheels for all supported Python versions
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir . *.tar.gz
+        env:
+          CIBW_PLAT: ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '' }}
+          CIBW_CONFIG_SETTINGS: setup-args="-Dtblite:openmp=false"
+          CIBW_ARCHS: auto64
+          CIBW_ARCHS_MACOS: ${{ matrix.os == 'macos-latest' && 'arm64' || 'x86_64' }}
+          CIBW_BUILD: "*${{ matrix.python }}-*"
+          # MM: Package installation (yum install ...) works differently on musllinux
+          CIBW_SKIP: "*musllinux*"
+          # Control verbosity of the 'pip wheel' output
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_BEFORE_ALL_LINUX: yum install -y lapack-devel
+          # Delete all other (=/= gcc-14) GCC versions to avoid conflicts in delocation of the wheel
+          # MM: 'openblas' from brew requires gcc@14, using a different version for building leads to delocation errors
+          # MM: gcc@14 needs macOS14
+          CIBW_BEFORE_ALL_MACOS: |
+            brew uninstall gcc@12
+            brew uninstall gcc@13
+            brew autoremove
+            brew install openblas
+          # Set macOS variables to find gfortran, lapack, and avoid testing against macOS earlier than 14 (see above)
+          CIBW_ENVIRONMENT_MACOS: >
+            CC=gcc-14 CXX=g++-14 FC=gfortran-14
+            PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig
+            LDFLAGS=-L/opt/homebrew/opt/openblas/lib
+            CPPFLAGS=-I/opt/homebrew/opt/openblas/include
+            MACOSX_DEPLOYMENT_TARGET=14.0
+
+      # Upload the built wheels as artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tblite-python-${{ matrix.os }}-${{ matrix.python }}
+          path: ./*.whl
+          retention-days: 5
+
+  release:
+    needs:
+      - source
+      - sdist
+      - wheels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}  # This will download all files
+
+      - name: Create SHA256 checksums
+        run: |
+          set -ex
+          for output in tblite*/tblite*; do
+            pushd $(dirname "$output")
+            sha256sum $(basename "$output") | tee $(basename "$output").sha256
+            popd
+          done
+
+      - name: Copy release artifacts
+        run: |
+          mkdir dist/
+          cp -v tblite*/tblite*.whl tblite*/tblite*.tar.gz dist/
+
+      - name: Publish to Test PyPI
+        if: ${{ github.event_name == 'release' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Upload assets
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ github.event_name == 'release' }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: tblite*/tblite*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+
+      - name: Publish to PyPI
+        if: ${{ github.event_name == 'release' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}

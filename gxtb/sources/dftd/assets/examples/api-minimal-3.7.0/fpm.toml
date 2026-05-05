@@ -1,0 +1,7 @@
+name = "api-minimal-3_7_0"
+
+[dependencies]
+dftd4.git = "https://github.com/dftd4/dftd4"
+dftd4.tag = "v3.7.0"
+multicharge.git = "https://github.com/grimme-lab/multicharge.git"
+multicharge.tag = "v0.3.0"

@@ -1,0 +1,8 @@
+type(shift_parameter),parameter :: gfn1_alpb_nitromethane = shift_parameter ( &
+    61.04000000_wp, &
+     1.14000000_wp, &
+     3.48634027_wp )
+type(shift_parameter),parameter :: gfn2_alpb_nitromethane = shift_parameter ( &
+    61.04000000_wp, &
+     1.14000000_wp, &
+     1.51623302_wp )

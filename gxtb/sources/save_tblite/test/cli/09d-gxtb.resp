@@ -1,0 +1,7 @@
+$ORIGIN/09-mb02.coord
+--no-restart
+--method
+gxtb
+--acc
+0.0001
+--grad
