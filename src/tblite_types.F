@@ -27,6 +27,7 @@ MODULE tblite_types
 
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
    USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
+   USE input_constants, ONLY: gxtbxtb
    USE kinds, ONLY: dp
 
 #include "./base/base_uses.f90"
@@ -107,11 +108,13 @@ CONTAINS
       IF (ASSOCIATED(tb_tblite)) THEN
          IF (ALLOCATED(tb_tblite%el_num)) DEALLOCATE (tb_tblite%el_num)
 
-         IF (ALLOCATED(tb_tblite%e_hal)) DEALLOCATE (tb_tblite%e_hal)
-         IF (ALLOCATED(tb_tblite%e_rep)) DEALLOCATE (tb_tblite%e_rep)
-         IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
-         IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
-         IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
+         IF (tb_tblite%method /= gxtbxtb) THEN
+            IF (ALLOCATED(tb_tblite%e_hal)) DEALLOCATE (tb_tblite%e_hal)
+            IF (ALLOCATED(tb_tblite%e_rep)) DEALLOCATE (tb_tblite%e_rep)
+            IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
+            IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
+            IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
+         END IF
          IF (ALLOCATED(tb_tblite%selfenergy)) DEALLOCATE (tb_tblite%selfenergy)
          IF (ALLOCATED(tb_tblite%cn)) DEALLOCATE (tb_tblite%cn)
 
@@ -132,6 +135,10 @@ CONTAINS
          IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
 #endif
 
+         IF (tb_tblite%method == gxtbxtb) THEN
+            NULLIFY (tb_tblite)
+            RETURN
+         END IF
          DEALLOCATE (tb_tblite)
       END IF
 

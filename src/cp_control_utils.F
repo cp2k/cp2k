@@ -1683,9 +1683,6 @@ CONTAINS
       IF (qs_control%xtb_control%do_tblite) THEN
          CALL section_vals_val_get(xtb_tblite, "METHOD", &
                                    i_val=qs_control%xtb_control%tblite_method)
-         IF (qs_control%xtb_control%tblite_method == gxtbxtb .AND. qs_control%periodicity /= 0) THEN
-            CPABORT("XTB/TBLITE/METHOD GXTB is supported only for isolated systems; use PERIODIC NONE")
-         END IF
          CALL section_vals_val_get(xtb_tblite, "SCC_MIXER", &
                                    i_val=qs_control%xtb_control%tblite_scc_mixer)
          CALL section_vals_val_get(xtb_tblite, "TBLITE_MIXER_DAMPING", &

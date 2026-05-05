@@ -35,6 +35,7 @@
     &SCF
       ADDED_MOS -1 -1
       EPS_SCF 1.e-10
+      IGNORE_CONVERGENCE_FAILURE T
       MAX_SCF 300
       SCF_GUESS MOPAC
       &MIXING

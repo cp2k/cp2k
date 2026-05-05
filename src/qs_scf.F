@@ -80,7 +80,7 @@ MODULE qs_scf
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
-        cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
+        cdft2ot, gxtbxtb, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
         outer_scf_optimizer_newton_ls, tblite_scc_mixer_tblite
@@ -538,9 +538,11 @@ CONTAINS
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-               CPASSERT(scf_env%mixing_method > 0)
-               CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
-               CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
+               IF (dft_control%qs_control%xtb_control%tblite_method /= gxtbxtb) THEN
+                  CPASSERT(scf_env%mixing_method > 0)
+                  CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+                  CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
+               END IF
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 

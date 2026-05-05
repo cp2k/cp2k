@@ -20,6 +20,7 @@ MODULE tblite_ks_matrix
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
+   USE input_constants,                 ONLY: gxtbxtb
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -115,6 +116,11 @@ CONTAINS
          CPABORT("Not implemented yet. Use CP2K routines for GFN1")
       ELSE
          do_efield = .FALSE.
+      END IF
+
+      IF (dft_control%qs_control%xtb_control%tblite_method == gxtbxtb) THEN
+         CALL timestop(handle)
+         RETURN
       END IF
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)

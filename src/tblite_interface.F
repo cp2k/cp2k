@@ -182,9 +182,6 @@ CONTAINS
 
       !get information about cell / lattice
       CALL get_cell(cell=cell, periodic=periodic)
-      IF (method == gxtbxtb .AND. ANY(periodic == 1)) THEN
-         CPABORT("TBLITE METHOD GXTB is supported only for isolated systems")
-      END IF
       lperiod(1) = periodic(1) == 1
       lperiod(2) = periodic(2) == 1
       lperiod(3) = periodic(3) == 1
@@ -278,8 +275,10 @@ CONTAINS
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
 
       !allocate quantities later required
-      ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
-      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
+      IF (tb%method /= gxtbxtb) THEN
+         ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
+         ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
+      END IF
       ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
       IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
 
@@ -481,7 +480,46 @@ CONTAINS
 
 #if defined(__TBLITE)
 
+      INTEGER                                            :: nat, nsh
       TYPE(container_cache)                              :: hcache, rcache
+
+      nat = tb%mol%nat
+      nsh = tb%calc%bas%nsh
+
+      IF (tb%method == gxtbxtb) THEN
+         IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
+            CALL tb_zero_force(qs_env)
+         END IF
+         tb%sigma = 0.0_dp
+
+         CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
+         IF (ALLOCATED(tb%calc%coulomb)) THEN
+            CALL tb%calc%coulomb%update(tb%mol, tb%cache)
+         END IF
+
+         IF (.NOT. ALLOCATED(tb%selfenergy)) ALLOCATE (tb%selfenergy(nsh))
+         IF (ALLOCATED(tb%calc%ncoord) .AND. (.NOT. ALLOCATED(tb%cn))) ALLOCATE (tb%cn(nat))
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            IF (ALLOCATED(tb%grad)) THEN
+               CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn, tb%dcndr, tb%dcndL)
+            ELSE
+               CALL tb%calc%ncoord%get_cn(tb%mol, tb%cn)
+            END IF
+         END IF
+         CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
+         &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
+         CALL tb_update_basis_cache(tb, ALLOCATED(tb%grad))
+         RETURN
+      END IF
+
+      IF (.NOT. ALLOCATED(tb%e_hal)) ALLOCATE (tb%e_hal(nat))
+      IF (.NOT. ALLOCATED(tb%e_rep)) ALLOCATE (tb%e_rep(nat))
+      IF (.NOT. ALLOCATED(tb%e_disp)) ALLOCATE (tb%e_disp(nat))
+      IF (.NOT. ALLOCATED(tb%e_scd)) ALLOCATE (tb%e_scd(nat))
+      IF (.NOT. ALLOCATED(tb%e_es)) ALLOCATE (tb%e_es(nat))
+      IF (.NOT. ALLOCATED(tb%selfenergy)) ALLOCATE (tb%selfenergy(nsh))
+      IF (ALLOCATED(tb%calc%ncoord) .AND. (.NOT. ALLOCATED(tb%cn))) ALLOCATE (tb%cn(nat))
 
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
@@ -622,16 +660,6 @@ CONTAINS
       iounit = cp_logger_get_default_io_unit(logger)
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
-      energy%repulsive = SUM(tb%e_rep)
-      energy%el_stat = SUM(tb%e_es)
-      energy%dispersion = SUM(tb%e_disp)
-      energy%dispersion_sc = SUM(tb%e_scd)
-      energy%xtb_xb_inter = SUM(tb%e_hal)
-
-      energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
-                     + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
-                     + energy%efield + energy%qmmm_el
-
       IF (tb%method == gxtbxtb) THEN
          CALL tb_gxtb_native_singlepoint(tb, energy%total, .FALSE.)
          energy%core = energy%total
@@ -643,6 +671,16 @@ CONTAINS
          energy%kTS = 0.0_dp
          energy%efield = 0.0_dp
          energy%qmmm_el = 0.0_dp
+      ELSE
+         energy%repulsive = SUM(tb%e_rep)
+         energy%el_stat = SUM(tb%e_es)
+         energy%dispersion = SUM(tb%e_disp)
+         energy%dispersion_sc = SUM(tb%e_scd)
+         energy%xtb_xb_inter = SUM(tb%e_hal)
+
+         energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
+                        + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
+                        + energy%efield + energy%qmmm_el
       END IF
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
@@ -769,6 +807,7 @@ CONTAINS
       natom = SIZE(particle_set)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
+         particle_set(iatom)%f = 0.0_dp
          force(ikind)%all_potential(:, atom_of_kind(iatom)) = tb%grad(:, iatom)/para_env%num_pe
       END DO
 
@@ -3899,7 +3938,7 @@ CONTAINS
       CHARACTER(LEN=8*default_path_length)               :: command
       CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
                                                             json_file, log_file
-      INTEGER                                            :: cmdstat, exitstat, handle, iounit, &
+      INTEGER                                            :: cmdstat, exitstat, handle, ia, ib, iounit, &
                                                             natom, nkp, spin
       LOGICAL                                            :: do_kpoints, have_energy, have_gradient, &
                                                             have_virial, too_large, &
@@ -4032,8 +4071,14 @@ CONTAINS
 
       IF (ref%check_virial) THEN
          IF (have_virial .AND. ASSOCIATED(virial)) THEN
-            ! Native tblite prints the positive cell derivative; CP2K stores the PV virial
-            ! with the opposite sign.
+            ! Native tblite prints the positive cell derivative. CP2K stores the PV virial
+            ! with the opposite sign and symmetrizes it before this reference check.
+            DO ia = 1, 3
+               DO ib = ia + 1, 3
+                  cli_virial(ib, ia) = 0.5_dp*(cli_virial(ia, ib) + cli_virial(ib, ia))
+                  cli_virial(ia, ib) = cli_virial(ib, ia)
+               END DO
+            END DO
             vsum = SUM(ABS(-virial%pv_virial - cli_virial))
             vmax = MAXVAL(ABS(-virial%pv_virial - cli_virial))
             WRITE (UNIT=iounit, FMT="(T2,A,2ES22.12)") "Virial diff sum/max:", vsum, vmax
@@ -4456,7 +4501,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, virial=virial, cell=cell)
       CALL get_cell(cell=cell, periodic=periodic)
 
-      IF (ALL(periodic == 0) .AND. tb%method /= gxtbxtb) THEN
+      IF (ALL(periodic == 0)) THEN
          CALL cp_warn(__LOCATION__, &
                       "tblite stress tensor requested for an isolated system. "// &
                       "The reported virial is useful for finite-difference checks, "// &

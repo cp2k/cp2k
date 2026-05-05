@@ -593,15 +593,14 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          description="Selection of the method used in tblite. GXTB is limited to isolated "// &
-                          "molecular systems.", &
+                          description="Selection of the method used in tblite.", &
                           usage="METHOD (GFN1|GFN2|IPEA1|GXTB)", &
                           enum_c_vals=s2a("GFN1", "GFN2", "IPEA1", "GXTB"), &
                           enum_i_vals=[gfn1xtb, gfn2xtb, ipea1xtb, gxtbxtb], &
                           enum_desc=s2a("Uses the GFN1-XTB method by Grimme.", &
                                         "Uses the GFN2-XTB method by Grimme.", &
                                         "Uses the IPEA1 method by Grimme.", &
-                                        "Uses the g-xTB method; isolated molecular systems only."), &
+                                        "Uses the g-xTB method."), &
                           default_i_val=gfn2xtb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -679,8 +678,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="REFERENCE_CLI", &
                           description="Run the native tblite command line interface as a reference "// &
                           "for CP2K/tblite energies, nuclear gradients, and optionally virials. "// &
-                          "For METHOD GXTB this requires a g-xTB-enabled tblite executable and is limited "// &
-                          "to isolated molecular systems. "// &
+                          "For METHOD GXTB this requires a g-xTB-enabled tblite executable. "// &
                           "The section is a lone section: if it is present, the reference check is enabled.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
