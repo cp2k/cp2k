@@ -35,10 +35,12 @@ class Matcher(Protocol):
 
 # ======================================================================================
 class GenericMatcher(Matcher):
-    def __init__(self, pattern: str, col: int):
+    def __init__(self, pattern: str, col: int, regex: bool = False):
         self.pattern = pattern
-        for c in r"[]()|+*?":
-            pattern = pattern.replace(c, f"\\{c}")  # escape special chars
+        self.regex_mode = regex
+        if not regex:
+            for c in r"[]()|+*?":
+                pattern = pattern.replace(c, f"\\{c}")  # escape special chars
         self.regex = re.compile(pattern)
         self.col = col
 
@@ -48,8 +50,12 @@ class GenericMatcher(Matcher):
         assert isinstance(ref, float) or isinstance(ref, int)
         # grep result
         for line in reversed(output.split("\n")):
-            if self.regex.search(line):
-                value_str = line.split()[self.col - 1]
+            match = self.regex.search(line)
+            if match:
+                if self.regex_mode and match.groups():
+                    value_str = match.group(1)
+                else:
+                    value_str = line.split()[self.col - 1]
                 break
         else:
             error = f"Result not found: '{self.pattern}'.\n"
@@ -57,7 +63,7 @@ class GenericMatcher(Matcher):
 
         # parse result
         try:
-            value = float(value_str)
+            value = float(value_str.replace("D", "E"))
         except:
             error = f"Could not parse result as float: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value=None)
@@ -70,40 +76,6 @@ class GenericMatcher(Matcher):
             return MatchResult("WRONG RESULT", error, value)
 
         return MatchResult("OK", error=None, value=value)  # passed
-
-
-# ======================================================================================
-class RegexValueMatcher(Matcher):
-    def __init__(self, pattern: str):
-        self.regex = re.compile(pattern)
-
-    def run(self, output: str, **kwargs: Any) -> MatchResult:
-        tol, ref = kwargs["tol"], kwargs["ref"]
-        assert isinstance(tol, float) or isinstance(ref, int)
-        assert isinstance(ref, float) or isinstance(ref, int)
-
-        for line in reversed(output.split("\n")):
-            match = self.regex.search(line)
-            if match:
-                value_str = match.group(1)
-                break
-        else:
-            error = f"Result not found: '{self.regex.pattern}'.\n"
-            return MatchResult("WRONG RESULT", error, value=None)
-
-        try:
-            value = float(value_str.replace("D", "E"))
-        except:
-            error = f"Could not parse result as float: '{value_str}'.\n"
-            return MatchResult("WRONG RESULT", error, value=None)
-
-        diff = value - ref
-        rel_error = abs(diff / ref if ref != 0.0 else diff)
-        if rel_error > tol:
-            error = f"Difference too large: {rel_error:.2e} > {tol}, value: {value}.\n"
-            return MatchResult("WRONG RESULT", error, value)
-
-        return MatchResult("OK", error=None, value=value)
 
 
 # ======================================================================================
@@ -226,11 +198,11 @@ registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
 
 registry["M081"] = GenericMatcher(r"HOMO SCF Cycle:     4", col=9)
 registry["M082"] = GenericMatcher(r"DEBUG| Sum of differences:", col=5)
-registry["DEBUG_stress_sum"] = RegexValueMatcher(
-    r"DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$"
+registry["DEBUG_stress_sum"] = GenericMatcher(
+    r"DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$", col=5, regex=True
 )
-registry["DEBUG_force_sum"] = RegexValueMatcher(
-    r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)"
+registry["DEBUG_force_sum"] = GenericMatcher(
+    r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)", col=5, regex=True
 )
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
