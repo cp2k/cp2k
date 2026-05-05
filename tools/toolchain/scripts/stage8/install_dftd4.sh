@@ -53,6 +53,8 @@ case "$with_dftd4" in
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xJf dftd4-${dftd4_ver}.tar.xz
       cd dftd4-${dftd4_ver}
+      patch -p1 < "${SCRIPT_DIR}/stage8/dftd4-${dftd4_ver}-gradient-fixes.patch" \
+        > dftd4_gradient_fixes.patch.log 2>&1 || tail_excerpt dftd4_gradient_fixes.patch.log
 
       mkdir build && cd build
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
@@ -70,7 +72,8 @@ case "$with_dftd4" in
 
       cd ..
     fi
-    write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+    write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+      "${SCRIPT_DIR}/stage8/dftd4-${dftd4_ver}-gradient-fixes.patch"
     ;;
 
   __SYSTEM__)

@@ -79,6 +79,8 @@ case "$with_tblite" in
       tar -xzf ../simple-dftd3-${tblite_sdftd3_ver}.tar.gz -C subprojects/s-dftd3 --strip-components=1
       tar -xzf ../mctc-lib-${tblite_mctc_ver}.tar.gz -C subprojects/mctc-lib --strip-components=1
       tar -xzf ../toml-f-${tblite_tomlf_ver}.tar.gz -C subprojects/toml-f --strip-components=1
+      patch -d subprojects/s-dftd3 -p1 < "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
+        > simple_dftd3_gradient_fixes.patch.log 2>&1 || tail_excerpt simple_dftd3_gradient_fixes.patch.log
       # Interim fix for tblite-0.5.0.tar.xz: the subprojects are found in order
       # specified by tblite-0.5.0/CMakeLists.txt as
       # mctc-lib, mstore, toml-f (, test-drive), dft-d4 (, multicharge), s-dftd3.
@@ -114,6 +116,7 @@ case "$with_tblite" in
       cd ..
     fi
     write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+      "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
       "${SCRIPT_DIR}/stage8/tblite-0.5.0-gradient-fixes.patch"
     ;;
 
