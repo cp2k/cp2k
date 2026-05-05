@@ -759,6 +759,7 @@ CONTAINS
       reason = ""
       MARK_USED(do_gw)
       MARK_USED(do_mp2)
+      MARK_USED(do_xtb_tblite)
 
       IF (do_bse) THEN
          reason = "BSE"
