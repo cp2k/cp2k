@@ -2690,6 +2690,11 @@ CONTAINS
                         CALL tb_shift_multipole(mp_shift_vec, stmp(ij), dtmp(:, ij), qtmp(:, ij), &
                                                 dtmpj(:, ij), qtmpj(:, ij))
                         IF (icol == irow .AND. r2 >= same_atom**2) THEN
+                           IF (nimg > 1) THEN
+                              ! Match the k-point image block orientation used for self-image quadrupoles.
+                              qtmp(:, ij) = -qtmp(:, ij)
+                              qtmpj(:, ij) = -qtmpj(:, ij)
+                           END IF
                            IF (mp_test_mode == 30 .OR. mp_test_mode == 32 .OR. mp_test_mode == 33) THEN
                               dtmpj(:, ij) = dtmp(:, ij)
                               qtmpj(:, ij) = qtmp(:, ij)
