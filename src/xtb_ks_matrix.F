@@ -355,7 +355,10 @@ CONTAINS
          ELSE
             CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
             CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                               charges, para_env, scf_env%iter_count)
+                               charges, para_env, scf_env%iter_count, &
+                               scc_mixer=dft_control%qs_control%xtb_control%tblite_scc_mixer, &
+                               tblite_mixer_damping=dft_control%qs_control%xtb_control%tblite_mixer_damping, &
+                               tblite_mixer_memory=qs_env%scf_control%max_scf)
          END IF
 
          DO iatom = 1, natom
@@ -472,4 +475,3 @@ CONTAINS
    END SUBROUTINE build_gfn1_xtb_ks_matrix
 
 END MODULE xtb_ks_matrix
-

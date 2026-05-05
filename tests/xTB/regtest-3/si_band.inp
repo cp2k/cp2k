@@ -5,6 +5,14 @@
     &KPOINTS
       SCHEME MONKHORST-PACK 2 2 2
     &END KPOINTS
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+      &EWALD
+        ALPHA [bohr^-1] 1.0
+        EWALD_TYPE SPME
+      &END EWALD
+    &END POISSON
     &PRINT
       &BAND_STRUCTURE
         &KPOINT_SET
@@ -15,18 +23,16 @@
     &QS
       METHOD xTB
       &XTB
-        DO_EWALD T
       &END XTB
     &END QS
     &SCF
       ADDED_MOS 100
       EPS_SCF 1.e-6
-      MAX_SCF 100
+      MAX_SCF 500
       SCF_GUESS MOPAC
       &MIXING
         ALPHA 0.40
-        METHOD BROYDEN_MIXING
-        NBUFFER 10
+        METHOD DIRECT_P_MIXING
       &END MIXING
       &PRINT
         &RESTART OFF

@@ -8,6 +8,14 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 tblite_ver="0.5.0"
 tblite_sha256="e8a70b72ed0a0db0621c7958c63667a9cd008c97c868a4a417ff1bc262052ea8"
+tblite_dftd4_ver="3.7.0"
+tblite_multicharge_ver="0.3.0"
+tblite_sdftd3_ver="1.3.2"
+tblite_sdftd3_sha256="bbf6aaa23332a7217a6dfc5c3ca8dc74f949c4cb6e4dccbadf32fa21fe8bb0d7"
+tblite_mctc_ver="0.5.1"
+tblite_mctc_sha256="c0b3ed75546ca6382f18b5569ce3f80c916537aaf02b208662bce6eb53338350"
+tblite_tomlf_ver="0.5.0"
+tblite_tomlf_sha256="a9e546221d788416fa6ca8d8550a79d1adf983a2a67b5c9ef57ae79fb02c9df0"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -19,6 +27,22 @@ source "${INSTALLDIR}"/toolchain.env
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
+retrieve_github_archive() {
+  local __sha256="$1"
+  local __filename="$2"
+  local __urlpath="$3"
+  local __outfile="$4"
+  if ! [ -f "${__outfile}" ]; then
+    download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}"
+  elif ! checksum "${__sha256}" "${__outfile}"; then
+    echo "${__outfile} is found but checksum is wrong; delete and re-download"
+    rm -vf "${__outfile}"
+    download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}"
+  else
+    echo "${__outfile} is found and checksum is right"
+  fi
+}
 
 case "$with_tblite" in
   __DONTUSE__) ;;
@@ -35,19 +59,40 @@ case "$with_tblite" in
       echo "tblite-${tblite_ver} is already installed, skipping it."
     else
       retrieve_package "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
+      retrieve_github_archive "${tblite_sdftd3_sha256}" "v${tblite_sdftd3_ver}.tar.gz" \
+        "https://github.com/dftd3/simple-dftd3/archive/refs/tags" \
+        "simple-dftd3-${tblite_sdftd3_ver}.tar.gz"
+      retrieve_github_archive "${tblite_mctc_sha256}" "v${tblite_mctc_ver}.tar.gz" \
+        "https://github.com/grimme-lab/mctc-lib/archive/refs/tags" \
+        "mctc-lib-${tblite_mctc_ver}.tar.gz"
+      retrieve_github_archive "${tblite_tomlf_sha256}" "v${tblite_tomlf_ver}.tar.gz" \
+        "https://github.com/toml-f/toml-f/archive/refs/tags" \
+        "toml-f-${tblite_tomlf_ver}.tar.gz"
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
+      # tblite 0.5.0 is still the latest release, but newer compatible
+      # subprojects can be used for s-D3, mctc-lib, and toml-f.
+      rm -rf subprojects/s-dftd3 subprojects/mctc-lib subprojects/toml-f
+      mkdir -p subprojects/s-dftd3 subprojects/mctc-lib subprojects/toml-f
+      tar -xzf ../simple-dftd3-${tblite_sdftd3_ver}.tar.gz -C subprojects/s-dftd3 --strip-components=1
+      tar -xzf ../mctc-lib-${tblite_mctc_ver}.tar.gz -C subprojects/mctc-lib --strip-components=1
+      tar -xzf ../toml-f-${tblite_tomlf_ver}.tar.gz -C subprojects/toml-f --strip-components=1
+      patch -l -d subprojects/s-dftd3 -p1 < "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
+        > simple_dftd3_gradient_fixes.patch.log 2>&1 || tail_excerpt simple_dftd3_gradient_fixes.patch.log
       # Interim fix for tblite-0.5.0.tar.xz: the subprojects are found in order
       # specified by tblite-0.5.0/CMakeLists.txt as
       # mctc-lib, mstore, toml-f (, test-drive), dft-d4 (, multicharge), s-dftd3.
       # Despite all subprojects already included in the package, test-drive and
       # multicharge cannot be located, necessitating separate downloads from
       # github repositories. Two soft links are created to resolve this issue.
-      ln -s ${PWD}/subprojects/test-drive ${PWD}/subprojects/toml-f/subprojects/test-drive
-      ln -s ${PWD}/subprojects/multicharge ${PWD}/subprojects/dftd4/subprojects/multicharge
+      mkdir -p ${PWD}/subprojects/toml-f/subprojects ${PWD}/subprojects/dftd4/subprojects
+      ln -sfn ${PWD}/subprojects/test-drive ${PWD}/subprojects/toml-f/subprojects/test-drive
+      ln -sfn ${PWD}/subprojects/multicharge ${PWD}/subprojects/dftd4/subprojects/multicharge
       # See https://github.com/tblite/tblite/issues/313 for the full story.
+      patch -p1 < "${SCRIPT_DIR}/stage8/tblite-0.5.0-gradient-fixes.patch" \
+        > tblite_gradient_fixes.patch.log 2>&1 || tail_excerpt tblite_gradient_fixes.patch.log
 
       rm -Rf build
       mkdir build
@@ -57,13 +102,22 @@ case "$with_tblite" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DBUILD_TESTING=OFF \
+        -DWITH_TESTS=OFF \
+        -Dtblite-dependency-method=subproject \
+        -DDFTD4_FIND_METHOD=subproject \
+        -DMULTICHARGE_FIND_METHOD=subproject \
         .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      cmake --build . --target mctc-convert mstore-fortranize mstore-info multicharge-exe dftd4-exe s-dftd3-exe tblite-exe \
+        -- -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      cmake --install . >> make.log 2>&1 || tail_excerpt make.log
 
       cd ..
     fi
-    write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+    write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+      "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
+      "${SCRIPT_DIR}/stage8/tblite-0.5.0-gradient-fixes.patch"
     ;;
 
   __SYSTEM__)
@@ -95,6 +149,11 @@ if [ "$with_tblite" != "__DONTUSE__" ]; then
 
   cat << EOF > "${BUILDDIR}/setup_tblite"
 export TBLITE_VER="${tblite_ver}"
+export TBLITE_DFTD4_VER="${tblite_dftd4_ver}"
+export TBLITE_MULTICHARGE_VER="${tblite_multicharge_ver}"
+export TBLITE_SDFTD3_VER="${tblite_sdftd3_ver}"
+export TBLITE_MCTC_VER="${tblite_mctc_ver}"
+export TBLITE_TOMLF_VER="${tblite_tomlf_ver}"
 EOF
 
   TEMP_LOC=$(find ${pkg_install_dir}/include -name "tomlf.mod")

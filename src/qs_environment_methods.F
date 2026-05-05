@@ -261,7 +261,8 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
                CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat)
             END IF
-         ELSE IF (dft_control%qs_control%xtb) THEN
+         ELSE IF (dft_control%qs_control%xtb .AND. &
+                  (.NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
             IF (dft_control%qs_control%xtb_control%do_ewald) THEN
                ! rebuild Ewald environment
                CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)

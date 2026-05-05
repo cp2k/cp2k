@@ -1792,6 +1792,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
+    # Developer-only manual flag: __TBLITE_DEBUG_DIAGNOSTICS
     $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4_V3}>:__DFTD4_V3>

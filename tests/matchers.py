@@ -35,10 +35,12 @@ class Matcher(Protocol):
 
 # ======================================================================================
 class GenericMatcher(Matcher):
-    def __init__(self, pattern: str, col: int):
+    def __init__(self, pattern: str, col: int, regex: bool = False):
         self.pattern = pattern
-        for c in r"[]()|+*?":
-            pattern = pattern.replace(c, f"\\{c}")  # escape special chars
+        self.regex_mode = regex
+        if not regex:
+            for c in r"[]()|+*?":
+                pattern = pattern.replace(c, f"\\{c}")  # escape special chars
         self.regex = re.compile(pattern)
         self.col = col
 
@@ -48,8 +50,12 @@ class GenericMatcher(Matcher):
         assert isinstance(ref, float) or isinstance(ref, int)
         # grep result
         for line in reversed(output.split("\n")):
-            if self.regex.search(line):
-                value_str = line.split()[self.col - 1]
+            match = self.regex.search(line)
+            if match:
+                if self.regex_mode and match.groups():
+                    value_str = match.group(1)
+                else:
+                    value_str = line.split()[self.col - 1]
                 break
         else:
             error = f"Result not found: '{self.pattern}'.\n"
@@ -57,7 +63,7 @@ class GenericMatcher(Matcher):
 
         # parse result
         try:
-            value = float(value_str)
+            value = float(value_str.replace("D", "E"))
         except:
             error = f"Could not parse result as float: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value=None)
@@ -70,6 +76,19 @@ class GenericMatcher(Matcher):
             return MatchResult("WRONG RESULT", error, value)
 
         return MatchResult("OK", error=None, value=value)  # passed
+
+
+# ======================================================================================
+class TextPresenceMatcher(Matcher):
+    def __init__(self, text: str):
+        self.text = text
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        if self.text not in output:
+            return MatchResult(
+                "WRONG RESULT", f"Text not found: '{self.text}'.\n", value=None
+            )
+        return MatchResult("OK", error=None, value=None)
 
 
 # ======================================================================================
@@ -179,6 +198,15 @@ registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
 
 registry["M081"] = GenericMatcher(r"HOMO SCF Cycle:     4", col=9)
 registry["M082"] = GenericMatcher(r"DEBUG| Sum of differences:", col=5)
+registry["DEBUG_stress_sum"] = GenericMatcher(
+    r"DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$", col=5, regex=True
+)
+registry["DEBUG_force_sum"] = GenericMatcher(
+    r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)", col=5, regex=True
+)
+registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
+    "tblite reference CLI check failed to run."
+)
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)

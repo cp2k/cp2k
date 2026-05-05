@@ -83,7 +83,7 @@ MODULE qs_scf
         cdft2ot, history_guess, ot2cdft, ot_precond_full_all, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls
+        outer_scf_optimizer_newton_ls, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -110,6 +110,7 @@ MODULE qs_scf
                                               print_inverse_jacobian,&
                                               restart_inverse_jacobian
    USE qs_cdft_types,                   ONLY: cdft_control_type
+   USE qs_charge_mixing,                ONLY: charge_mixing_scc_error
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
@@ -174,6 +175,8 @@ MODULE qs_scf
    USE smeagol_interface,               ONLY: run_smeagol_bulktrans,&
                                               run_smeagol_emtrans
    USE tblite_interface,                ONLY: tb_get_energy,&
+                                              tb_native_scc_mixer_active,&
+                                              tb_scf_mixer_error,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
 
@@ -357,8 +360,9 @@ CONTAINS
       INTEGER                                            :: ext_master_id, handle, handle2, i_tmp, &
                                                             ic, ispin, iter_count, output_unit, &
                                                             scf_energy_message_tag, total_steps
-      LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, &
-         inner_loop_converged, just_energy, outer_loop_converged
+      LOGICAL :: density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, &
+         exit_outer_loop, inner_loop_converged, internal_tblite_density_full_step, &
+         internal_tblite_mixer, just_energy, outer_loop_converged, tblite_native_mixer
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -410,6 +414,16 @@ CONTAINS
                       results=results, &
                       pw_env=pw_env, &
                       para_env=para_env)
+      tblite_native_mixer = dft_control%qs_control%xtb_control%do_tblite .AND. &
+                            tb_native_scc_mixer_active(dft_control)
+      internal_tblite_mixer = (dft_control%qs_control%dftb .AND. &
+                               dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) .OR. &
+                              (dft_control%qs_control%xtb .AND. &
+                               .NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
+                               dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite)
+      internal_tblite_density_full_step = dft_control%qs_control%xtb .AND. &
+                                          .NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
+                                          dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
@@ -530,7 +544,29 @@ CONTAINS
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
-            CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
+            density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
+            CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step)
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               scf_env%iter_delta = MAX(scf_env%iter_delta, &
+                                        tb_scf_mixer_error(dft_control, qs_env%tb_tblite, &
+                                                           scf_control%eps_scf))
+            END IF
+            IF (dft_control%qs_control%dftb .OR. &
+                (dft_control%qs_control%xtb .AND. .NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
+               scf_env%iter_delta = MAX(scf_env%iter_delta, &
+                                        charge_mixing_scc_error(scf_env%mixing_store, scf_control%eps_scf))
+            END IF
+            IF (tblite_native_mixer) THEN
+               scf_env%iter_param = dft_control%qs_control%xtb_control%tblite_mixer_damping
+               scf_env%iter_method = "TBLite/Diag"
+            ELSEIF (internal_tblite_mixer) THEN
+               scf_env%iter_method = "TBLite/Diag"
+               IF (dft_control%qs_control%dftb) THEN
+                  scf_env%iter_param = dft_control%qs_control%dftb_control%tblite_mixer_damping
+               ELSE
+                  scf_env%iter_param = dft_control%qs_control%xtb_control%tblite_mixer_damping
+               END IF
+            END IF
 
             t2 = m_walltime()
 
@@ -550,7 +586,7 @@ CONTAINS
             ! is really the last SCF step
             IF (exit_inner_loop) THEN
 
-               CALL qs_scf_inner_finalize(scf_env, qs_env, diis_step, output_unit)
+               CALL qs_scf_inner_finalize(scf_env, qs_env, density_full_step, output_unit)
 
                CALL qs_scf_check_outer_exit(qs_env, scf_env, scf_control, should_stop, &
                                             outer_loop_converged, exit_outer_loop)

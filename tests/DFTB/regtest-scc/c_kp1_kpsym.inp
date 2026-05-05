@@ -10,6 +10,8 @@
       VERBOSE T
     &END KPOINTS
     &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
       &EWALD
         ALPHA 0.35
         EWALD_TYPE SPME
@@ -22,7 +24,6 @@
       &DFTB
         DIAGONAL_DFTB3 F
         DISPERSION T
-        DO_EWALD T
         HB_SR_GAMMA F
         SELF_CONSISTENT T
         &PARAMETER

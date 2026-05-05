@@ -12,27 +12,30 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_density_mixing_types
-   USE ao_util,                         ONLY: exp_radius
-   USE input_constants,                 ONLY: broy_mix,&
-                                              direct_p_mix,&
-                                              gaussian,&
-                                              kerker_mix,&
-                                              multisec_mix,&
-                                              no_mix,&
-                                              pulay_mix
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_create,&
-                                              section_type,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE input_val_types,                 ONLY: real_t
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-   USE string_utilities,                ONLY: s2a
+#if defined(__TBLITE)
+   USE tblite_scf, ONLY: mixer_type
+#endif
+   USE ao_util, ONLY: exp_radius
+   USE input_constants, ONLY: broy_mix, &
+                              direct_p_mix, &
+                              gaussian, &
+                              kerker_mix, &
+                              multisec_mix, &
+                              no_mix, &
+                              pulay_mix
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_create, &
+                                  section_type, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE input_val_types, ONLY: real_t
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE qs_rho_atom_types, ONLY: rho_atom_coeff
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,6 +77,9 @@ MODULE qs_density_mixing_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat => NULL(), gmat => NULL(), pulay_matrix => NULL(), smat => NULL()
       !
       INTEGER                                           :: nat_local = -1, max_shell = -1
+      INTEGER                                           :: tb_scc_mixer_memory = 0, tb_scc_mixer_natom = 0, &
+                                                           tb_scc_mixer_ns = 0, tb_scc_mixer_step = 0
+      REAL(KIND=dp)                                     :: tb_scc_mixer_error = 0.0_dp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dacharge => NULL()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dfbroy => NULL()
@@ -92,6 +98,9 @@ MODULE qs_density_mixing_types
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer => NULL(), cpc_s_in_buffer => NULL()
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer => NULL(), cpc_s_res_buffer => NULL()
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in => NULL(), dcpc_s_in => NULL()
+#if defined(__TBLITE)
+      CLASS(mixer_type), ALLOCATABLE                    :: tb_scc_mixer
+#endif
    END TYPE mixing_storage_type
 
 CONTAINS
@@ -126,6 +135,11 @@ CONTAINS
       mixing_store%iter_method = "NoMix"
       mixing_store%max_g2 = 2._dp*ecut
       mixing_store%gmix_p = .FALSE.
+      mixing_store%tb_scc_mixer_error = 0.0_dp
+      mixing_store%tb_scc_mixer_memory = 0
+      mixing_store%tb_scc_mixer_natom = 0
+      mixing_store%tb_scc_mixer_ns = 0
+      mixing_store%tb_scc_mixer_step = 0
 
       NULLIFY (mixing_store%p_metric)
       NULLIFY (mixing_store%kerker_factor)
@@ -405,6 +419,11 @@ CONTAINS
       IF (ASSOCIATED(mixing_store%atlist)) THEN
          DEALLOCATE (mixing_store%atlist)
       END IF
+#if defined(__TBLITE)
+      IF (ALLOCATED(mixing_store%tb_scc_mixer)) THEN
+         DEALLOCATE (mixing_store%tb_scc_mixer)
+      END IF
+#endif
 
       IF (ASSOCIATED(mixing_store%delta_res)) THEN
          DO i = 1, SIZE(mixing_store%delta_res, 2)

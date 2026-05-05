@@ -56,7 +56,7 @@ MODULE kpoint_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_types'
 
    PUBLIC :: kpoint_type
-   PUBLIC :: kpoint_create, kpoint_release, get_kpoint_info, set_kpoint_info
+   PUBLIC :: kpoint_create, kpoint_release, kpoint_reset_initialization, get_kpoint_info, set_kpoint_info
    PUBLIC :: read_kpoint_section, write_kpoint_info
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create, get_kpoint_env
@@ -345,6 +345,116 @@ CONTAINS
       END IF
 
    END SUBROUTINE kpoint_release
+
+! **************************************************************************************************
+!> \brief Reset all data derived from a concrete k-point initialization.
+!>        Input options such as the scheme, grid, shifts and symmetry settings are kept.
+!> \param kpoint  The kpoint environment
+! **************************************************************************************************
+   SUBROUTINE kpoint_reset_initialization(kpoint)
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
+
+      INTEGER                                            :: i, ik, j
+
+      IF (ASSOCIATED(kpoint%xkp)) THEN
+         DEALLOCATE (kpoint%xkp)
+         NULLIFY (kpoint%xkp)
+      END IF
+      IF (ASSOCIATED(kpoint%wkp)) THEN
+         DEALLOCATE (kpoint%wkp)
+         NULLIFY (kpoint%wkp)
+      END IF
+      IF (ASSOCIATED(kpoint%kp_dist)) THEN
+         DEALLOCATE (kpoint%kp_dist)
+         NULLIFY (kpoint%kp_dist)
+      END IF
+
+      CALL mpools_release(kpoint%mpools)
+      CALL mpools_release(kpoint%mpools_aux_fit)
+
+      CALL cp_blacs_env_release(kpoint%blacs_env)
+      CALL cp_blacs_env_release(kpoint%blacs_env_all)
+
+      CALL mp_para_env_release(kpoint%para_env)
+      CALL mp_para_env_release(kpoint%para_env_kp)
+      CALL mp_para_env_release(kpoint%para_env_inter_kp)
+
+      IF (ASSOCIATED(kpoint%cell_to_index)) THEN
+         DEALLOCATE (kpoint%cell_to_index)
+         NULLIFY (kpoint%cell_to_index)
+      END IF
+      IF (ASSOCIATED(kpoint%index_to_cell)) THEN
+         DEALLOCATE (kpoint%index_to_cell)
+         NULLIFY (kpoint%index_to_cell)
+      END IF
+
+      IF (ASSOCIATED(kpoint%kp_env)) THEN
+         DO ik = 1, SIZE(kpoint%kp_env)
+            CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
+         END DO
+         DEALLOCATE (kpoint%kp_env)
+         NULLIFY (kpoint%kp_env)
+      END IF
+
+      IF (ASSOCIATED(kpoint%kp_aux_env)) THEN
+         DO ik = 1, SIZE(kpoint%kp_aux_env)
+            CALL kpoint_env_release(kpoint%kp_aux_env(ik)%kpoint_env)
+         END DO
+         DEALLOCATE (kpoint%kp_aux_env)
+         NULLIFY (kpoint%kp_aux_env)
+      END IF
+
+      IF (ASSOCIATED(kpoint%kp_sym)) THEN
+         DO ik = 1, SIZE(kpoint%kp_sym)
+            CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
+         END DO
+         DEALLOCATE (kpoint%kp_sym)
+         NULLIFY (kpoint%kp_sym)
+      END IF
+
+      IF (ASSOCIATED(kpoint%atype)) THEN
+         DEALLOCATE (kpoint%atype)
+         NULLIFY (kpoint%atype)
+      END IF
+      IF (ASSOCIATED(kpoint%ibrot)) THEN
+         DEALLOCATE (kpoint%ibrot)
+         NULLIFY (kpoint%ibrot)
+      END IF
+
+      IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
+         DO i = 1, SIZE(kpoint%kind_rotmat, 1)
+            DO j = 1, SIZE(kpoint%kind_rotmat, 2)
+               IF (ASSOCIATED(kpoint%kind_rotmat(i, j)%rmat)) THEN
+                  DEALLOCATE (kpoint%kind_rotmat(i, j)%rmat)
+                  NULLIFY (kpoint%kind_rotmat(i, j)%rmat)
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (kpoint%kind_rotmat)
+         NULLIFY (kpoint%kind_rotmat)
+      END IF
+
+      IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
+         CALL qs_diis_b_release_kp(kpoint%scf_diis_buffer)
+         DEALLOCATE (kpoint%scf_diis_buffer)
+         NULLIFY (kpoint%scf_diis_buffer)
+      END IF
+
+      NULLIFY (kpoint%sab_nl)
+      NULLIFY (kpoint%sab_nl_nosym)
+
+      ALLOCATE (kpoint%cell_to_index(0:0, 0:0, 0:0))
+      kpoint%cell_to_index(:, :, :) = 1
+
+      ALLOCATE (kpoint%index_to_cell(0:0, 0:0))
+      kpoint%index_to_cell(:, :) = 0
+
+      kpoint%nkp = 0
+      kpoint%nkp_groups = 0
+      kpoint%kp_range = 0
+      kpoint%iogrp = .FALSE.
+
+   END SUBROUTINE kpoint_reset_initialization
 
 ! **************************************************************************************************
 !> \brief Retrieve information from a kpoint environment

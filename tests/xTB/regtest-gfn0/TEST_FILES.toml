@@ -13,10 +13,25 @@
 "ch2o_8.inp"                            = []
 "ch2o_9.inp"                            = []
 "si_kp.inp"                             = []
+"si_kp_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350112312},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4},
+                                           {matcher="M072", tol=1.0E-12, ref=0.0},
+                                           {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
+"si_kp_kpsym_atomdisp.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348551223},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=12}]
+"si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350112312},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4},
+                                           {matcher="M072", tol=1.0E-12, ref=0.0},
+                                           {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
+"si_kp_spglib_reduction_atomdisp.inp"   = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348551223},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=12}]
+"si_kp_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-11, ref=-13.92597057189198},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=32},
+                                           {matcher="M042", tol=1.0E-5, ref=0.0}]
 "si_smear.inp"                          = []
 "SiC_virial.inp"                        = []
-"SiC-stress.inp"                        = []
-"ch2o_eeq.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-7.84498782090161}]
+"SiC-stress.inp"                        = [{matcher="M042", tol=1.0E-04, ref=0.0}]
+"ch2o_eeq.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-7.84498764689590}]
 "ch2o_eloc.inp"                         = []
 "ch2o_eper.inp"                         = []
 "ch2o_ls1.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-6.46515972056537}]

@@ -1351,7 +1351,14 @@ MODULE input_constants
    ! tblite method selection
    INTEGER, PARAMETER, PUBLIC               :: gfn1xtb = 1, &
                                                gfn2xtb = 2, &
-                                               ipea1xtb = 3
+                                               ipea1xtb = 3, &
+                                               gfn_tblite = 4
+
+   ! tblite SCC mixer selection
+   INTEGER, PARAMETER, PUBLIC               :: tblite_scc_mixer_auto = 0, &
+                                               tblite_scc_mixer_tblite = 1, &
+                                               tblite_scc_mixer_cp2k = 2, &
+                                               tblite_scc_mixer_none = 3
 
    ! SMEAGOL interface
    INTEGER, PARAMETER, PUBLIC               :: smeagol_bulklead_leftright = 1, &

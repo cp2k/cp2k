@@ -16,6 +16,7 @@ MODULE cp_control_types
    USE input_constants,                 ONLY: do_full_density,&
                                               rtp_bse_ham_G0W0,&
                                               rtp_method_tddft,&
+                                              tblite_scc_mixer_auto,&
                                               use_mom_ref_coac
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -149,10 +150,12 @@ MODULE cp_control_types
       LOGICAL                              :: self_consistent = .FALSE.
       LOGICAL                              :: orthogonal_basis = .FALSE.
       LOGICAL                              :: dispersion = .FALSE.
+      INTEGER                              :: tblite_scc_mixer = tblite_scc_mixer_auto
       INTEGER                              :: dispersion_type = 0
       LOGICAL                              :: dftb3_diagonal = .FALSE.
       LOGICAL                              :: hb_sr_damp = .FALSE.
       REAL(KIND=dp)                        :: hb_sr_para = 0.0_dp
+      REAL(KIND=dp)                        :: tblite_mixer_damping = 0.4_dp
       REAL(KIND=dp)                        :: eps_disp = 0.0_dp
       REAL(KIND=dp)                        :: epscn = 0.0_dp
       REAL(KIND=dp)                        :: exp_pre = 0.0_dp
@@ -172,6 +175,21 @@ MODULE cp_control_types
 ! **************************************************************************************************
 ! \brief Control parameters for xTB calculations
 ! **************************************************************************************************
+   TYPE xtb_reference_cli_type
+      LOGICAL                              :: enabled = .FALSE.
+      LOGICAL                              :: check_energy = .TRUE.
+      LOGICAL                              :: check_forces = .TRUE.
+      LOGICAL                              :: check_virial = .FALSE.
+      LOGICAL                              :: keep_files = .FALSE.
+      LOGICAL                              :: stop_on_error = .FALSE.
+      INTEGER                              :: iterations = 250
+      REAL(KIND=dp)                        :: accuracy = 1.0_dp
+      REAL(KIND=dp)                        :: error_limit = 1.0E-8_dp
+      CHARACTER(LEN=default_path_length)   :: program_name = "tblite"
+      CHARACTER(LEN=default_path_length)   :: work_directory = "."
+      CHARACTER(LEN=default_path_length)   :: prefix = "tblite-reference"
+   END TYPE xtb_reference_cli_type
+
    TYPE xtb_control_type
       !
       INTEGER                              :: gfn_type = 1
@@ -182,6 +200,8 @@ MODULE cp_control_types
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
       INTEGER                              :: tblite_method = 0
+      INTEGER                              :: tblite_scc_mixer = tblite_scc_mixer_auto
+      REAL(KIND=dp)                        :: tblite_mixer_damping = 0.4_dp
       !
       INTEGER                              :: vdw_type = -1
       CHARACTER(LEN=default_path_length)   :: parameter_file_path = ""
@@ -232,6 +252,7 @@ MODULE cp_control_types
       ! EN shift in EEQ (molecular=1 or crystaline=2)
       INTEGER                              :: enshift_type = 1
       TYPE(eeq_solver_type)                :: eeq_sparam ! parameters for EEQ solver
+      TYPE(xtb_reference_cli_type)          :: reference_cli
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
@@ -714,6 +735,7 @@ MODULE cp_control_types
              ddapc_restraint_type, &
              dftb_control_type, &
              xtb_control_type, &
+             xtb_reference_cli_type, &
              semi_empirical_control_type, &
              s2_restraint_type, &
              admm_control_type, &

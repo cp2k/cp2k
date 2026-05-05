@@ -170,6 +170,12 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, root_section, "DEBUG%PROGRAM_RUN_INFO", &
                                 extension=".log")
       IF (debug_stress_tensor) THEN
+         IF (SUM(cell%perd) == 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "DEBUG_STRESS_TENSOR requested for PERIODIC NONE. "// &
+                         "The isolated-system virial is useful for finite-difference diagnostics, "// &
+                         "but it is not a physically meaningful bulk stress.")
+         END IF
          ! To debug stress tensor the stress tensor calculation must be
          ! first enabled..
          CALL section_vals_val_get(force_env%force_env_section, "STRESS_TENSOR", &

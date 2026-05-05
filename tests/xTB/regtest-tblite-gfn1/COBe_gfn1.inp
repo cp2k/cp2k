@@ -15,6 +15,7 @@
     &QS
       METHOD xTB
       &XTB
+        GFN_TYPE TBLITE
         &TBLITE
           METHOD GFN1
         &END TBLITE

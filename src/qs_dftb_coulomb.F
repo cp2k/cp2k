@@ -82,6 +82,7 @@ MODULE qs_dftb_coulomb
    REAL(dp), PARAMETER                    :: tol_gamma = 1.e-4_dp
    ! small real number
    REAL(dp), PARAMETER                    :: rtiny = 1.e-10_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE      :: dftb_fd_deriv_step = 1.0e-3_dp
 
    PUBLIC :: build_dftb_coulomb, gamma_rab_sr
 
@@ -110,19 +111,23 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb'
 
       INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
-         irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
+         irow, is, jatom, jkind, llm, lmaxi, lmaxj, n1, n2, natom, natorb_a, natorb_b, ngrd, &
+         ngrdcut, nimg, nkind, nmat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, do_ewald, do_gamma_stress, &
-                                                            found, hb_sr_damp, use_virial
-      REAL(KIND=dp)                                      :: alpha, ddr, deth, dgam, dr, drm, drp, &
-                                                            fi, ga, gb, gmat, gmij, hb_para, zeff
+      LOGICAL                                            :: defined, defined_a, defined_b, do_ewald, &
+                                                            do_gamma_stress, found, hb_sr_damp, &
+                                                            use_virial
+      REAL(KIND=dp)                                      :: alpha, background, ddr, deth, dgam, &
+                                                            dgrd, dr, drm, drp, fi, ga, gb, gmat, &
+                                                            gmij, gmij_virial, hb_para, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a, eta_b
-      REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, gmcharge, ksblock, pblock, &
-                                                            sblock
+      REAL(KIND=dp), DIMENSION(3)                        :: drij, fij, rij
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, dsblock_vir, dsblockm_vir, &
+                                                            gmcharge, ksblock, pblock, sblock, &
+                                                            smatij, smatji
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
@@ -143,6 +148,7 @@ CONTAINS
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind, dftb_kind_a, dftb_kind_b
       TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
          POINTER                                         :: dftb_potential
+      TYPE(qs_dftb_pairpot_type), POINTER                :: dftb_param_ij, dftb_param_ji
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -217,7 +223,7 @@ CONTAINS
             gmcharge(iatom, 1) = gmcharge(iatom, 1) + gmat*mcharge(jatom)
          END IF
          IF (calculate_forces .AND. (iatom /= jatom .OR. dr > 0.001_dp)) THEN
-            ddr = 0.1_dp*dftb_potential(ikind, jkind)%dgrd
+            ddr = dftb_fd_deriv_step*dftb_potential(ikind, jkind)%dgrd
             drp = dr + ddr
             drm = dr - ddr
             dgam = 0.5_dp*(gamma_rab_sr(drp, ga, gb, hb_para) - gamma_rab_sr(drm, ga, gb, hb_para))/ddr
@@ -294,15 +300,16 @@ CONTAINS
 
       CALL para_env%sum(gmcharge(:, 1))
 
+      background = 0.0_dp
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution
          gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
          IF (ANY(periodic(:) == 1)) THEN
-            gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
+            background = pi/alpha**2/deth
          END IF
       END IF
 
-      energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*gmcharge(:, 1))
+      energy%hartree = energy%hartree + 0.5_dp*SUM(mcharge(:)*(gmcharge(:, 1) - background))
       IF (atprop%energy) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          local_particles=local_particles)
@@ -485,9 +492,55 @@ CONTAINS
                      fij(i) = fi
                   END DO
                   IF (use_virial) THEN
-                     fi = 1.0_dp
-                     IF (iatom == jatom) fi = 0.5_dp
-                     CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                     ! The image-resolved overlap derivative blocks are matrix oriented.  Rebuild the
+                     ! atom-oriented derivative for the virial contraction, matching the Gamma path.
+                     fij = 0.0_dp
+                     CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
+                     CALL get_dftb_atom_param(dftb_kind_a, &
+                                              defined=defined_a, lmax=lmaxi, natorb=natorb_a)
+                     CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
+                     CALL get_dftb_atom_param(dftb_kind_b, &
+                                              defined=defined_b, lmax=lmaxj, natorb=natorb_b)
+                     IF (defined_a .AND. defined_b .AND. natorb_a > 0 .AND. natorb_b > 0) THEN
+                        dftb_param_ij => dftb_potential(ikind, jkind)
+                        dftb_param_ji => dftb_potential(jkind, ikind)
+                        ngrd = dftb_param_ij%ngrd
+                        ngrdcut = dftb_param_ij%ngrdcut
+                        dgrd = dftb_param_ij%dgrd
+                        ddr = dgrd*dftb_fd_deriv_step
+                        CPASSERT(dftb_param_ij%llm == dftb_param_ji%llm)
+                        llm = dftb_param_ij%llm
+                        smatij => dftb_param_ij%smat
+                        smatji => dftb_param_ji%smat
+                        dr = SQRT(SUM(rij(:)**2))
+                        IF (NINT(dr/dgrd) <= ngrdcut .AND. dr > 1.e-6_dp) THEN
+                           n1 = natorb_a
+                           n2 = natorb_b
+                           ALLOCATE (dsblock_vir(n1, n2), dsblockm_vir(n1, n2))
+                           gmij_virial = 0.5_dp*(gmcharge(iatom, 1) + gmcharge(jatom, 1))
+                           DO i = 1, 3
+                              dsblock_vir = 0._dp
+                              dsblockm_vir = 0._dp
+                              drij = rij
+                              drij(i) = rij(i) - ddr
+                              CALL compute_block_sk(dsblockm_vir, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                                    llm, lmaxi, lmaxj, iatom, iatom)
+                              drij(i) = rij(i) + ddr
+                              CALL compute_block_sk(dsblock_vir, smatij, smatji, drij, ngrd, ngrdcut, dgrd, &
+                                                    llm, lmaxi, lmaxj, iatom, iatom)
+                              dsblock_vir = (dsblock_vir - dsblockm_vir)/(2.0_dp*ddr)
+                              IF (irow == iatom) THEN
+                                 fij(i) = 2.0_dp*gmij_virial*SUM(pblock*dsblock_vir)
+                              ELSE
+                                 fij(i) = 2.0_dp*gmij_virial*SUM(TRANSPOSE(pblock)*dsblock_vir)
+                              END IF
+                           END DO
+                           DEALLOCATE (dsblock_vir, dsblockm_vir)
+                           fi = 1.0_dp
+                           IF (iatom == jatom) fi = 0.5_dp
+                           CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
+                        END IF
+                     END IF
                   END IF
                END IF
             END DO
@@ -694,7 +747,7 @@ CONTAINS
          ngrd = dftb_param_ij%ngrd
          ngrdcut = dftb_param_ij%ngrdcut
          dgrd = dftb_param_ij%dgrd
-         ddr = dgrd*0.1_dp
+         ddr = dgrd*dftb_fd_deriv_step
          CPASSERT(dftb_param_ij%llm == dftb_param_ji%llm)
          llm = dftb_param_ij%llm
          smatij => dftb_param_ij%smat
@@ -738,4 +791,3 @@ CONTAINS
    END SUBROUTINE dftb_dsint_list
 
 END MODULE qs_dftb_coulomb
-

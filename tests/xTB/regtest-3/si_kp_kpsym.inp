@@ -11,6 +11,8 @@
       VERBOSE T
     &END KPOINTS
     &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
       &EWALD
         ALPHA 1.0
         EWALD_TYPE SPME
@@ -20,7 +22,6 @@
     &QS
       METHOD xTB
       &XTB
-        DO_EWALD T
       &END XTB
     &END QS
     &SCF

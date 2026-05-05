@@ -90,11 +90,11 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, do_method_am1, do_method_dftb, &
-        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
-        do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-        do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, &
-        do_qmmm_gauss, do_qmmm_swave, general_roks, hden_atomic, kg_tnadd_embed_ri, &
+        debug_run, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, do_method_am1, &
+        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
+        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
+        do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, hden_atomic, kg_tnadd_embed_ri, &
         linear_response_run, rel_none, rel_trans_atom, smear_fermi_dirac, vdw_pairpot_dftd2, &
         vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_gext_proj_nr, &
         wfi_gext_proj_qtr_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
@@ -268,8 +268,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
-      LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, &
-         do_kpoints, do_linear_response, do_mp2, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
+      LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, do_debug_forces, &
+         do_debug_stress_tensor, do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, &
+         do_linear_response, do_mp2, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, &
          do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, is_identical, is_semi, &
          mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
@@ -411,6 +412,15 @@ CONTAINS
          END IF
          do_linear_response = .FALSE.
          IF (PRESENT(globenv)) do_linear_response = globenv%run_type_id == linear_response_run
+         do_debug_fdiff = .FALSE.
+         IF (PRESENT(globenv)) do_debug_fdiff = globenv%run_type_id == debug_run
+         IF (do_debug_fdiff .AND. PRESENT(root_section)) THEN
+            CALL section_vals_val_get(root_section, "DEBUG%DEBUG_FORCES", &
+                                      l_val=do_debug_forces)
+            CALL section_vals_val_get(root_section, "DEBUG%DEBUG_STRESS_TENSOR", &
+                                      l_val=do_debug_stress_tensor)
+            do_debug_fdiff = do_debug_forces .OR. do_debug_stress_tensor
+         END IF
          do_mp2 = .FALSE.
          do_ri_mp2 = .FALSE.
          do_ri_sos_mp2 = .FALSE.
@@ -439,6 +449,7 @@ CONTAINS
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
+                                                          do_debug_fdiff, &
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
@@ -659,6 +670,7 @@ CONTAINS
 !> \param do_tddfpt ...
 !> \param do_active_space ...
 !> \param do_linear_response ...
+!> \param do_debug_fdiff ...
 !> \param do_mp2 ...
 !> \param do_rpa ...
 !> \param do_bse ...
@@ -668,12 +680,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
                                                           do_tddfpt, do_active_space, do_linear_response, &
+                                                          do_debug_fdiff, &
                                                           do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                           do_wfc_low_scaling_kpoints, do_xtb_tblite)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
-         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+         do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
          do_wfc_low_scaling_kpoints, do_xtb_tblite
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
@@ -713,6 +726,7 @@ CONTAINS
 
       reason = unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, &
                                                          do_tddfpt, do_active_space, do_linear_response, &
+                                                         do_debug_fdiff, &
                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                          do_wfc_low_scaling_kpoints, do_xtb_tblite)
       IF (LEN_TRIM(reason) == 0) RETURN
@@ -745,6 +759,7 @@ CONTAINS
       reason = ""
       MARK_USED(do_gw)
       MARK_USED(do_mp2)
+      MARK_USED(do_xtb_tblite)
 
       IF (do_bse) THEN
          reason = "BSE"
@@ -758,11 +773,6 @@ CONTAINS
          reason = "LINEAR_RESPONSE/DFPT"
          RETURN
       END IF
-      IF (do_xtb_tblite) THEN
-         reason = "tblite xTB"
-         RETURN
-      END IF
-
       SELECT CASE (method_id)
       CASE (do_method_rigpw)
          reason = "RIGPW"
@@ -786,6 +796,7 @@ CONTAINS
 !> \param do_tddfpt ...
 !> \param do_active_space ...
 !> \param do_linear_response ...
+!> \param do_debug_fdiff ...
 !> \param do_mp2 ...
 !> \param do_rpa ...
 !> \param do_bse ...
@@ -795,26 +806,24 @@ CONTAINS
 !> \return reason
 ! **************************************************************************************************
    FUNCTION unsupported_atomic_kpoint_symmetry_reason(method_id, do_hfx, do_exx, do_gw, do_tddfpt, &
-                                                      do_active_space, do_linear_response, do_mp2, do_rpa, &
-                                                      do_bse, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-                                                      do_xtb_tblite) RESULT(reason)
+                                                      do_active_space, do_linear_response, do_debug_fdiff, &
+                                                      do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+                                                      do_wfc_low_scaling_kpoints, do_xtb_tblite) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
-         do_linear_response, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
+         do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
          do_wfc_low_scaling_kpoints, do_xtb_tblite
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
+      MARK_USED(do_debug_fdiff)
+      MARK_USED(do_xtb_tblite)
 
       SELECT CASE (method_id)
-      CASE (do_method_dftb)
-         reason = "DFTB"
       CASE (do_method_lrigpw)
          reason = "LRIGPW"
       CASE (do_method_rigpw)
          reason = "RIGPW"
-      CASE (do_method_xtb)
-         reason = "xTB"
       CASE (do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
             do_method_pm6, do_method_pm6fm, do_method_pdg, do_method_rm1, do_method_pnnl)
          reason = "semiempirical methods"
@@ -829,8 +838,6 @@ CONTAINS
          reason = "GW"
       ELSE IF (do_hfx .OR. do_exx) THEN
          reason = "HFX/HF"
-      ELSE IF (do_xtb_tblite) THEN
-         reason = "tblite xTB"
       ELSE IF (do_tddfpt) THEN
          reason = "TDDFPT/TDDFT"
       ELSE IF (do_active_space) THEN
@@ -1062,7 +1069,8 @@ CONTAINS
             ewald_section => section_vals_get_subs_vals(poisson_section, "EWALD")
             print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
             CALL get_qs_kind_set(qs_kind_set, basis_rcut=ewald_rcut)
-            CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat)
+            CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
+                                       cell_periodic=cell%perd)
             ALLOCATE (ewald_pw)
             CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
             CALL set_qs_env(qs_env, ewald_env=ewald_env, ewald_pw=ewald_pw)
@@ -1156,10 +1164,10 @@ CONTAINS
                print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
                IF (gfn_type == 0) THEN
                   CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
-                                             silent=silent, pset="EEQ")
+                                             silent=silent, pset="EEQ", cell_periodic=cell%perd)
                ELSE
                   CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
-                                             silent=silent)
+                                             silent=silent, cell_periodic=cell%perd)
                END IF
                ALLOCATE (ewald_pw)
                CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)

@@ -5,5 +5,5 @@
 "SiC-stress-pbe-nlcc.inp"               = [{matcher="M031", tol=1.0E-09, ref=-1.84632367133E+05}]
 "SiC-stress-tpss.inp"                   = [{matcher="M031", tol=1.0E-09, ref=1.33145056114E+04}]
 "SiC-stress-br89.inp"                   = [{matcher="M031", tol=1.0E-09, ref=-5.12223409624E+04}]
-"LiH-stress-pbe-uks-vdW.inp"            = [{matcher="M031", tol=1.0E-09, ref=-2.66548358795E+03}]
+"LiH-stress-pbe-uks-vdW.inp"            = [{matcher="M031", tol=1.0E-09, ref=-2.61376786609E+03}]
 #EOF

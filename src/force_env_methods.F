@@ -30,6 +30,7 @@ MODULE force_env_methods
                                               scaled_to_real
    USE constraint_fxd,                  ONLY: fix_atom_control
    USE constraint_vsite,                ONLY: vsite_force_control
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_types,                     ONLY: cp_fm_copy_general
@@ -101,6 +102,13 @@ MODULE force_env_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
+                                              kpoint_initialize,&
+                                              kpoint_initialize_mos
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_reset_initialization,&
+                                              kpoint_type,&
+                                              set_kpoint_info
    USE machine,                         ONLY: m_memory
    USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_para_env_type
@@ -132,6 +140,7 @@ MODULE force_env_methods
         understand_spin_states
    USE particle_list_types,             ONLY: particle_list_p_type,&
                                               particle_list_type
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -149,13 +158,17 @@ MODULE force_env_methods
    USE qmmmx_force,                     ONLY: qmmmx_calc_energy_force
    USE qmmmx_types,                     ONLY: qmmmx_env_type
    USE qs_apt_fdiff_methods,            ONLY: apt_fdiff
+   USE qs_basis_rotation_methods,       ONLY: qs_basis_rotation
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force,                        ONLY: qs_calc_energy_force
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                              wfi_clear
    USE restraint,                       ONLY: restraint_control
    USE scine_utils,                     ONLY: write_scine
    USE string_utilities,                ONLY: compress
@@ -264,6 +277,7 @@ CONTAINS
          CASE (use_fist_force)
             CALL fist_calc_energy_force(force_env%fist_env)
          CASE (use_qs_force)
+            CALL force_env_refresh_debug_kpoints(force_env, fd_energy=.NOT. calculate_forces)
             CALL qs_calc_energy_force(force_env%qs_env, calculate_forces, energy_consistency, linres_run)
          CASE (use_pwdft_force)
             IF (virial%pv_availability .AND. calculate_stress_tensor) THEN
@@ -514,6 +528,87 @@ CONTAINS
       CALL cp_print_key_finished_output(print_scine, logger, force_env%force_env_section, "PRINT%SCINE")
 
    END SUBROUTINE force_env_calc_energy_force
+
+! **************************************************************************************************
+!> \brief Rebuild k-point data for DEBUG finite-difference geometries.
+!>        Atomic k-point symmetry may change when a single atom or cell element is displaced.
+!> \param force_env ...
+!> \param fd_energy ...
+! **************************************************************************************************
+   SUBROUTINE force_env_refresh_debug_kpoints(force_env, fd_energy)
+
+      TYPE(force_env_type), POINTER                      :: force_env
+      LOGICAL, INTENT(IN)                                :: fd_energy
+
+      CHARACTER(LEN=default_string_length)               :: kp_scheme
+      LOGICAL :: debug_inversion_only, do_kpoints, full_grid, input_full_grid, &
+         input_inversion_symmetry_only, inversion_symmetry_only, kpoint_symmetry, use_full_grid, &
+         use_inversion_symmetry_only
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(section_vals_type), POINTER                   :: input, kpoint_section
+
+      IF (.NOT. ASSOCIATED(force_env)) RETURN
+      IF (force_env%in_use /= use_qs_force) RETURN
+
+      NULLIFY (globenv)
+      CALL force_env_get(force_env, globenv=globenv)
+      IF (.NOT. ASSOCIATED(globenv)) RETURN
+      IF (globenv%run_type_id /= debug_run) RETURN
+
+      NULLIFY (blacs_env, cell, dft_control, input, kpoint_section, kpoints, mos, para_env, &
+               particle_set, wf_history)
+      CALL get_qs_env(qs_env=force_env%qs_env, &
+                      blacs_env=blacs_env, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
+                      input=input, &
+                      kpoints=kpoints, &
+                      mos=mos, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      wf_history=wf_history)
+      IF (.NOT. do_kpoints) RETURN
+
+      CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme, symmetry=kpoint_symmetry, full_grid=full_grid, &
+                           inversion_symmetry_only=inversion_symmetry_only)
+      IF (.NOT. kpoint_symmetry) RETURN
+      IF (TRIM(kp_scheme) /= "MONKHORST-PACK" .AND. TRIM(kp_scheme) /= "MACDONALD") RETURN
+
+      input_full_grid = full_grid
+      input_inversion_symmetry_only = inversion_symmetry_only
+      IF (ASSOCIATED(input)) THEN
+         kpoint_section => section_vals_get_subs_vals(input, "DFT%KPOINTS")
+         CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=input_full_grid)
+         CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
+                                   l_val=input_inversion_symmetry_only)
+      END IF
+      ! DEBUG finite differences must not reuse atomic symmetry from another geometry.
+      ! Keep only k-space inversion/time-reversal for numerical points and TB DEBUG.
+      debug_inversion_only = fd_energy .OR. dft_control%qs_control%dftb .OR. &
+                             dft_control%qs_control%xtb
+      use_full_grid = input_full_grid
+      use_inversion_symmetry_only = (input_inversion_symmetry_only .OR. debug_inversion_only) .AND. &
+                                    (.NOT. use_full_grid)
+      CALL set_kpoint_info(kpoints, full_grid=use_full_grid, &
+                           inversion_symmetry_only=use_inversion_symmetry_only)
+
+      CALL kpoint_reset_initialization(kpoints)
+      CALL kpoint_initialize(kpoints, particle_set, cell)
+      CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
+      CALL kpoint_initialize_mos(kpoints, mos)
+      CALL wfi_clear(wf_history)
+      CALL qs_basis_rotation(force_env%qs_env, kpoints)
+
+   END SUBROUTINE force_env_refresh_debug_kpoints
 
 ! **************************************************************************************************
 !> \brief Evaluates the stress tensor and pressure numerically

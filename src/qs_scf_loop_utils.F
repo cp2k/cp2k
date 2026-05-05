@@ -62,6 +62,7 @@ MODULE qs_scf_loop_utils
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
    USE smeagol_interface,               ONLY: run_smeagol_emtrans
+   USE tblite_interface,                ONLY: tb_native_scc_mixer_active
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -130,7 +131,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: has_unit_metric, skip_diag_sub
+      LOGICAL                                            :: disable_diis, has_unit_metric, &
+                                                            skip_diag_sub
+      REAL(KIND=dp)                                      :: saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -149,6 +152,12 @@ CONTAINS
                       dft_control=dft_control, &
                       has_unit_metric=has_unit_metric)
       scf_env%iter_param = 0.0_dp
+      disable_diis = dft_control%qs_control%xtb_control%do_tblite .AND. &
+                     tb_native_scc_mixer_active(dft_control)
+      IF (disable_diis) THEN
+         saved_eps_diis = scf_control%eps_diis
+         scf_control%eps_diis = 0.0_dp
+      END IF
 
       ! transfer total_zeff_corr from qs_env to scf_env only if
       ! correct_el_density_dip is switched on [SGh]
@@ -275,6 +284,7 @@ CONTAINS
                                 qs_env%mo_derivs, energy%total, &
                                 matrix_s, energy_only=energy_only, has_unit_metric=has_unit_metric)
       END SELECT
+      IF (disable_diis) scf_control%eps_diis = saved_eps_diis
 
       energy%kTS = 0.0_dp
       energy%efermi = 0.0_dp
@@ -309,8 +319,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: has_unit_metric
-      REAL(dp)                                           :: diis_error
+      LOGICAL                                            :: disable_diis, has_unit_metric
+      REAL(dp)                                           :: diis_error, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -323,6 +333,12 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, kpoints=kpoints)
       scf_env%iter_param = 0.0_dp
+      disable_diis = dft_control%qs_control%xtb_control%do_tblite .AND. &
+                     tb_native_scc_mixer_active(dft_control)
+      IF (disable_diis) THEN
+         saved_eps_diis = scf_control%eps_diis
+         scf_control%eps_diis = 0.0_dp
+      END IF
 
       IF (dft_control%roks) &
          CPABORT("KP code: ROKS method not available: ")
@@ -385,6 +401,7 @@ CONTAINS
          END IF
          CALL run_smeagol_emtrans(qs_env, last=.FALSE., iter=scf_env%iter_count, rho_ao_kp=scf_env%p_mix_new)
       END SELECT
+      IF (disable_diis) scf_control%eps_diis = saved_eps_diis
 
       CALL get_qs_env(qs_env=qs_env, energy=energy)
       energy%kTS = 0.0_dp
