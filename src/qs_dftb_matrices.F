@@ -33,6 +33,7 @@ MODULE qs_dftb_matrices
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE efield_tb_methods,               ONLY: efield_tb_matrix
+   USE input_constants,                 ONLY: tblite_scc_mixer_auto
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -44,6 +45,7 @@ MODULE qs_dftb_matrices
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
+   USE qs_charge_mixing,                ONLY: charge_mixing
    USE qs_dftb_coulomb,                 ONLY: build_dftb_coulomb
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                               qs_dftb_pairpot_type
@@ -71,6 +73,7 @@ MODULE qs_dftb_matrices
                                               neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -83,6 +86,7 @@ MODULE qs_dftb_matrices
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_matrices'
+   REAL(KIND=dp), PARAMETER, PRIVATE     :: dftb_fd_deriv_step = 1.0e-3_dp
 
    PUBLIC :: build_dftb_matrices, build_dftb_ks_matrix, build_dftb_overlap
 
@@ -250,7 +254,7 @@ CONTAINS
          ngrd = dftb_param_ij%ngrd
          ngrdcut = dftb_param_ij%ngrdcut
          dgrd = dftb_param_ij%dgrd
-         ddr = dgrd*0.1_dp
+         ddr = dgrd*dftb_fd_deriv_step
          CPASSERT(dftb_param_ij%llm == dftb_param_ji%llm)
          llm = dftb_param_ij%llm
          fmatij => dftb_param_ij%fmat
@@ -496,6 +500,7 @@ CONTAINS
                                                             ispin, natom, nkind, nspins, &
                                                             output_unit
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el, zeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mix_charge
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mcharge, occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -511,11 +516,12 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, logger, scf_section, matrix_p, particle_set, ks_env, &
-               ks_matrix, rho, energy)
+               ks_matrix, rho, energy, scf_env)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -568,6 +574,20 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (charges)
+
+         IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
+             (dft_control%qs_control%dftb_control%tblite_scc_mixer /= tblite_scc_mixer_auto)) THEN
+            CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
+            ALLOCATE (mix_charge(SIZE(mcharge), 1))
+            mix_charge(:, 1) = mcharge(:)
+            CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
+                               mix_charge, para_env, scf_env%iter_count, &
+                               scc_mixer=dft_control%qs_control%dftb_control%tblite_scc_mixer, &
+                               tblite_mixer_damping=dft_control%qs_control%dftb_control%tblite_mixer_damping, &
+                               tblite_mixer_memory=qs_env%scf_control%max_scf)
+            mcharge(:) = mix_charge(:, 1)
+            DEALLOCATE (mix_charge)
+         END IF
 
          CALL build_dftb_coulomb(qs_env, ks_matrix, rho, mcharge, energy, &
                                  calculate_forces, just_energy)
@@ -747,7 +767,7 @@ CONTAINS
          ngrd = dftb_param_ij%ngrd
          ngrdcut = dftb_param_ij%ngrdcut
          dgrd = dftb_param_ij%dgrd
-         ddr = dgrd*0.1_dp
+         ddr = dgrd*dftb_fd_deriv_step
          CPASSERT(dftb_param_ij%llm == dftb_param_ji%llm)
          llm = dftb_param_ij%llm
          smatij => dftb_param_ij%smat
@@ -1029,4 +1049,3 @@ CONTAINS
    END SUBROUTINE setup_matrices2
 
 END MODULE qs_dftb_matrices
-

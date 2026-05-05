@@ -326,11 +326,10 @@ CONTAINS
                END DO
             END IF
             IF (use_virial) THEN
-               IF (iatom == jatom) THEN
-                  pfr = -0.5_dp*dfr*mcharge(iatom)*mcharge(jatom)
-               ELSE
-                  pfr = -dfr*mcharge(iatom)*mcharge(jatom)
-               END IF
+               ! The potential update above adds both sides of the pair before the
+               ! final 0.5 energy prefactor is applied. Self-image pairs therefore
+               ! need the same virial prefactor as interatomic pairs.
+               pfr = -dfr*mcharge(iatom)*mcharge(jatom)
                CALL virial_pair_force(virial%pv_virial, -pfr, rij, rij)
             END IF
          END IF
@@ -513,4 +512,3 @@ CONTAINS
    END SUBROUTINE tb_spme_zforce
 
 END MODULE ewald_methods_tb
-

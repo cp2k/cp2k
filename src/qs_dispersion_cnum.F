@@ -983,7 +983,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab, k1
       REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
 
-      REAL(KIND=dp)                                      :: dfz, ee, fz, rr
+      REAL(KIND=dp)                                      :: dfz, ee, ff, fz, rr
 
       ! covalent distance in Bohr
       rr = rcovab/rab
@@ -994,8 +994,9 @@ CONTAINS
       ! force the function to zero using a second step function
       fz = 0.5_dp*(1.0_dp - TANH(rab - 2.0_dp*rcovab))
       dfz = 0.5_dp*((TANH(rab - 2.0_dp*rcovab))**2 - 1.0_dp)
-      cnab = 1.0_dp/(1.0_dp + ee)*fz
-      dcnab = -cnab*cnab*k1*rr/rab*ee + 1.0_dp/(1.0_dp + ee)*dfz
+      ff = 1.0_dp/(1.0_dp + ee)
+      cnab = ff*fz
+      dcnab = -fz*ff*ff*k1*rr/rab*ee + ff*dfz
 
    END SUBROUTINE cnparam_d3
 

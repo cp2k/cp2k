@@ -19,7 +19,7 @@ MODULE cp_control_utils
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
         maxwell_control_create, qs_control_type, rixs_control_type, tddfpt2_control_type, &
-        xtb_control_type
+        xtb_control_type, xtb_reference_cli_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -53,12 +53,13 @@ MODULE cp_control_utils
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, numerical, ramp_env, &
-        real_time_propagation, rtp_method_bse, sccs_andreussi, sccs_derivative_cd3, &
-        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
-        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
-        slater, tddfpt_dipole_length, tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, &
-        xtb_vdw_type_d4, xtb_vdw_type_none
+        gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
+        numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+        sic_mauri_us, sic_none, slater, tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
+        tblite_scc_mixer_none, tblite_scc_mixer_tblite, tddfpt_dipole_length, tddfpt_kernel_stda, &
+        use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -870,20 +871,22 @@ CONTAINS
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
                                                             ngauss, ngp, nrep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      LOGICAL                                            :: explicit, was_present
+      LOGICAL                                            :: explicit, tblite_reference_cli, &
+                                                            tblite_reference_cli_section, &
+                                                            tblite_section_active, was_present
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
          dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, &
          mull_section, nonbonded_section, s2_restraint_section, se_section, xtb_parameter, &
-         xtb_section, xtb_tblite
+         xtb_section, xtb_tblite, xtb_tblite_ref_cli
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
       NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, &
                se_section, dftb_section, xtb_section, dftb_parameter, xtb_parameter, lri_optbas_section, &
-               cdft_control_section, genpot_section, eeq_section)
+               cdft_control_section, genpot_section, eeq_section, xtb_tblite_ref_cli)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
       ddapc_restraint_section => section_vals_get_subs_vals(qs_section, "DDAPC_RESTRAINT")
@@ -899,6 +902,7 @@ CONTAINS
       nonbonded_section => section_vals_get_subs_vals(xtb_section, "NONBONDED")
       genpot_section => section_vals_get_subs_vals(nonbonded_section, "GENPOT")
       xtb_tblite => section_vals_get_subs_vals(xtb_section, "TBLITE")
+      xtb_tblite_ref_cli => section_vals_get_subs_vals(xtb_tblite, "REFERENCE_CLI")
 
       ! Setup all defaults values and overwrite input parameters
       ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -1290,6 +1294,10 @@ CONTAINS
                                    l_val=qs_control%dftb_control%dftb3_diagonal)
          CALL section_vals_val_get(dftb_section, "HB_SR_GAMMA", &
                                    l_val=qs_control%dftb_control%hb_sr_damp)
+         CALL section_vals_val_get(dftb_section, "SCC_MIXER", &
+                                   i_val=qs_control%dftb_control%tblite_scc_mixer)
+         CALL section_vals_val_get(dftb_section, "TBLITE_MIXER_DAMPING", &
+                                   r_val=qs_control%dftb_control%tblite_mixer_damping)
          CALL section_vals_val_get(dftb_section, "EPS_DISP", &
                                    r_val=qs_control%dftb_control%eps_disp)
          CALL section_vals_val_get(dftb_section, "DO_EWALD", explicit=explicit)
@@ -1346,6 +1354,20 @@ CONTAINS
       ! xTB code
       IF (qs_control%xtb) THEN
          CALL section_vals_val_get(xtb_section, "GFN_TYPE", i_val=qs_control%xtb_control%gfn_type)
+         CALL section_vals_val_get(xtb_tblite, "_SECTION_PARAMETERS_", l_val=tblite_section_active)
+         qs_control%xtb_control%do_tblite = (qs_control%xtb_control%gfn_type == gfn_tblite)
+         IF (qs_control%xtb_control%do_tblite) THEN
+            IF (.NOT. tblite_section_active) &
+               CPABORT("XTB/GFN_TYPE TBLITE requires an XTB/TBLITE section")
+            ! The CP2K-internal GFN1 defaults are still used to initialize shared xTB fields.
+            qs_control%xtb_control%gfn_type = gfn1xtb
+         ELSE IF (tblite_section_active) THEN
+            CPABORT("The XTB/TBLITE section requires XTB/GFN_TYPE TBLITE")
+         END IF
+         CALL section_vals_val_get(xtb_section, "SCC_MIXER", &
+                                   i_val=qs_control%xtb_control%tblite_scc_mixer)
+         CALL section_vals_val_get(xtb_section, "TBLITE_MIXER_DAMPING", &
+                                   r_val=qs_control%xtb_control%tblite_mixer_damping)
          CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)
          IF (explicit) THEN
             CALL section_vals_val_get(xtb_section, "DO_EWALD", &
@@ -1652,29 +1674,63 @@ CONTAINS
 
          ! EEQ solver params
          CALL read_eeq_param(eeq_section, qs_control%xtb_control%eeq_sparam)
-
       END IF
 
       ! Optimize LRI basis set
       CALL section_vals_get(lri_optbas_section, explicit=qs_control%lri_optbas)
 
-      ! Use instead the tblite
-      CALL section_vals_val_get(xtb_tblite, "_SECTION_PARAMETERS_", &
-                                l_val=qs_control%xtb_control%do_tblite)
-      CALL section_vals_val_get(xtb_tblite, "METHOD", &
-                                i_val=qs_control%xtb_control%tblite_method)
+      ! Use tblite if selected through XTB/GFN_TYPE TBLITE.
       IF (qs_control%xtb_control%do_tblite) THEN
+         CALL section_vals_val_get(xtb_tblite, "METHOD", &
+                                   i_val=qs_control%xtb_control%tblite_method)
+         CALL section_vals_val_get(xtb_tblite, "SCC_MIXER", &
+                                   i_val=qs_control%xtb_control%tblite_scc_mixer)
+         CALL section_vals_val_get(xtb_tblite, "TBLITE_MIXER_DAMPING", &
+                                   r_val=qs_control%xtb_control%tblite_mixer_damping)
+         CALL section_vals_val_get(xtb_tblite, "REFERENCE_CLI", l_val=tblite_reference_cli)
+         CALL section_vals_get(xtb_tblite_ref_cli, explicit=tblite_reference_cli_section)
+         IF (tblite_reference_cli .AND. (.NOT. tblite_reference_cli_section)) &
+            CPABORT("XTB/TBLITE/REFERENCE_CLI keyword requires an XTB/TBLITE/REFERENCE_CLI section")
+         IF (tblite_reference_cli .OR. tblite_reference_cli_section) THEN
+            CALL read_xtb_reference_cli_section(xtb_tblite_ref_cli, qs_control%xtb_control%reference_cli)
+            qs_control%xtb_control%reference_cli%enabled = .TRUE.
+         END IF
          CALL cite_reference(Caldeweyher2017)
          CALL cite_reference(Caldeweyher2020)
          CALL cite_reference(Asgeirsson2017)
          CALL cite_reference(Grimme2017)
          CALL cite_reference(Bannwarth2019)
-         !Ewald sum included in tblite
-         qs_control%xtb_control%do_ewald = .FALSE.
+         ! tblite handles periodic long-range terms internally from the CP2K cell periodicity.
+         ! Keep xtb_control%do_ewald as read above from XTB/DO_EWALD or SUBSYS/CELL/PERIODIC,
+         ! matching the DFTB and CP2K-internal xTB setup.
       END IF
 
       CALL timestop(handle)
    END SUBROUTINE read_qs_section
+
+! **************************************************************************************************
+!> \brief Read native tblite CLI reference options.
+!> \param ref_cli_section input section
+!> \param ref_cli reference CLI control data
+! **************************************************************************************************
+   SUBROUTINE read_xtb_reference_cli_section(ref_cli_section, ref_cli)
+      TYPE(section_vals_type), POINTER                   :: ref_cli_section
+      TYPE(xtb_reference_cli_type), INTENT(INOUT)        :: ref_cli
+
+      CALL section_vals_val_get(ref_cli_section, "_SECTION_PARAMETERS_", l_val=ref_cli%enabled)
+      CALL section_vals_val_get(ref_cli_section, "PROGRAM_NAME", c_val=ref_cli%program_name)
+      CALL section_vals_val_get(ref_cli_section, "WORK_DIRECTORY", c_val=ref_cli%work_directory)
+      CALL section_vals_val_get(ref_cli_section, "PREFIX", c_val=ref_cli%prefix)
+      CALL section_vals_val_get(ref_cli_section, "KEEP_FILES", l_val=ref_cli%keep_files)
+      CALL section_vals_val_get(ref_cli_section, "ERROR_LIMIT", r_val=ref_cli%error_limit)
+      CALL section_vals_val_get(ref_cli_section, "STOP_ON_ERROR", l_val=ref_cli%stop_on_error)
+      CALL section_vals_val_get(ref_cli_section, "CHECK_ENERGY", l_val=ref_cli%check_energy)
+      CALL section_vals_val_get(ref_cli_section, "CHECK_FORCES", l_val=ref_cli%check_forces)
+      CALL section_vals_val_get(ref_cli_section, "CHECK_VIRIAL", l_val=ref_cli%check_virial)
+      CALL section_vals_val_get(ref_cli_section, "ACCURACY", r_val=ref_cli%accuracy)
+      CALL section_vals_val_get(ref_cli_section, "ITERATIONS", i_val=ref_cli%iterations)
+
+   END SUBROUTINE read_xtb_reference_cli_section
 
 ! **************************************************************************************************
 !> \brief Read TDDFPT-related input parameters.
@@ -2302,6 +2358,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_xtb_control'
 
+      CHARACTER(LEN=16)                                  :: scc_mixer_name
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -2359,6 +2416,22 @@ CONTAINS
             "xTB| Electronegativity scaling", xtb_control%ken
          WRITE (UNIT=output_unit, FMT="(T2,A,T61,2F10.3)") &
             "xTB| Halogen potential scaling kxr kx2", xtb_control%kxr, xtb_control%kx2
+         SELECT CASE (xtb_control%tblite_scc_mixer)
+         CASE (tblite_scc_mixer_auto)
+            scc_mixer_name = "AUTO"
+         CASE (tblite_scc_mixer_tblite)
+            scc_mixer_name = "TBLITE"
+         CASE (tblite_scc_mixer_cp2k)
+            scc_mixer_name = "CP2K"
+         CASE (tblite_scc_mixer_none)
+            scc_mixer_name = "NONE"
+         CASE DEFAULT
+            CPABORT("Unknown tblite SCC mixer")
+         END SELECT
+         WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
+            "xTB| SCC mixer:", TRIM(scc_mixer_name)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
+            "xTB| tblite SCC mixer damping:", xtb_control%tblite_mixer_damping
          WRITE (UNIT=output_unit, FMT="(/)")
 
       END IF

@@ -39,6 +39,8 @@ MODULE qs_mixing_utils
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mixing_utils'
+   INTEGER, PARAMETER, PRIVATE          :: max_dftb_scc_vars = 1, &
+                                           max_xtb_scc_vars = 14
 
    PUBLIC :: mixing_allocate, mixing_init, charge_mixing_init, &
              self_consistency_check
@@ -177,13 +179,13 @@ CONTAINS
       END IF
 
       IF (charge_mixing) THEN
-         !   *** allocate buffer for charge mixing ***
+         !   *** allocate buffer for TB SCC variable mixing ***
          IF (mixing_method >= gspace_mixing_nr) THEN
             CPASSERT(.NOT. mixing_store%gmix_p)
             IF (dft_control%qs_control%dftb) THEN
-               max_shell = 1
+               max_shell = max_dftb_scc_vars
             ELSEIF (dft_control%qs_control%xtb) THEN
-               max_shell = 5
+               max_shell = max_xtb_scc_vars
             ELSE
                CPABORT('UNKNOWN METHOD')
             END IF
@@ -652,7 +654,11 @@ CONTAINS
    ELEMENTAL SUBROUTINE charge_mixing_init(mixing_store)
       TYPE(mixing_storage_type), INTENT(INOUT)           :: mixing_store
 
-      mixing_store%acharge = 0.0_dp
+      mixing_store%ncall = 0
+      mixing_store%tb_scc_mixer_error = 0.0_dp
+      mixing_store%tb_scc_mixer_step = 0
+      IF (ASSOCIATED(mixing_store%acharge)) mixing_store%acharge = 0.0_dp
+      IF (ASSOCIATED(mixing_store%dacharge)) mixing_store%dacharge = 0.0_dp
 
    END SUBROUTINE charge_mixing_init
 

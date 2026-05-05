@@ -17,6 +17,7 @@ MODULE tblite_types
    USE mctc_io, ONLY: structure_type, new
    USE tblite_xtb_calculator, ONLY: xtb_calculator
    USE tblite_container, ONLY: container_cache
+   USE tblite_scf_mixer, ONLY: mixer_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type
    USE tblite_scf_potential, ONLY: potential_type
 #endif
@@ -66,6 +67,7 @@ MODULE tblite_types
       TYPE(container_cache)                              :: dcache = container_cache()
       TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
+      CLASS(mixer_type), ALLOCATABLE                     :: mixer
 #endif
 
    END TYPE tblite_type
@@ -118,6 +120,9 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadbra)
          IF (ASSOCIATED(tb_tblite%quadket)) &
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
+#if defined(__TBLITE)
+         IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
+#endif
 
          DEALLOCATE (tb_tblite)
       END IF

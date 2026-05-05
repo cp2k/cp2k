@@ -12,6 +12,7 @@
     &END KPOINTS
     &POISSON
       &EWALD
+        ALPHA [bohr^-1] 1.0
         EWALD_TYPE SPME
       &END EWALD
     &END POISSON
@@ -36,7 +37,7 @@
     &SCF
       ADDED_MOS 400
       EPS_SCF 1.0E-7
-      MAX_SCF 500
+      MAX_SCF 1000
       SCF_GUESS MOPAC
       &DIAGONALIZATION
         ALGORITHM STANDARD

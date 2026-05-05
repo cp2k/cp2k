@@ -29,6 +29,7 @@
       EPS_DEFAULT 1.00E-12
       METHOD xTB
       &XTB
+        GFN_TYPE TBLITE
         &TBLITE
           METHOD GFN1
         &END TBLITE

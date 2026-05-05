@@ -11,7 +11,6 @@
 &END DEBUG
 
 &FORCE_EVAL
-  STRESS_TENSOR ANALYTICAL
   &DFT
     CHARGE 0
     MULTIPLICITY 1
@@ -22,6 +21,7 @@
     &QS
       METHOD xTB
       &XTB
+        GFN_TYPE TBLITE
         &TBLITE
           METHOD GFN2
         &END TBLITE

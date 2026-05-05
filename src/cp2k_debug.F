@@ -86,7 +86,7 @@ CONTAINS
       LOGICAL                                            :: check_failed, debug_dipole, &
                                                             debug_forces, debug_polar, &
                                                             debug_stress_tensor, skip, &
-                                                            stop_on_mismatch
+                                                            stop_on_mismatch, xtb_tblite
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: do_dof_atom_coor
       LOGICAL, DIMENSION(3)                              :: do_dof_dipole
       REAL(KIND=dp)                                      :: amplitude, dd, de, derr, difference, dx, &
@@ -170,6 +170,26 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, root_section, "DEBUG%PROGRAM_RUN_INFO", &
                                 extension=".log")
       IF (debug_stress_tensor) THEN
+         IF (SUM(cell%perd) == 0) THEN
+            xtb_tblite = .FALSE.
+            IF (force_env%in_use == use_qs_force) THEN
+               NULLIFY (dft_control)
+               CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
+               xtb_tblite = ASSOCIATED(dft_control) .AND. &
+                            dft_control%qs_control%xtb .AND. &
+                            dft_control%qs_control%xtb_control%do_tblite
+            END IF
+            IF (xtb_tblite) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "DEBUG_STRESS_TENSOR requested for PERIODIC NONE with CP2K/tblite xTB. "// &
+                            "The isolated-system virial is useful for finite-difference diagnostics, "// &
+                            "but it is not a physically meaningful bulk stress.")
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "DEBUG_STRESS_TENSOR needs a periodic cell; "// &
+                             "stress is not defined for PERIODIC NONE.")
+            END IF
+         END IF
          ! To debug stress tensor the stress tensor calculation must be
          ! first enabled..
          CALL section_vals_val_get(force_env%force_env_section, "STRESS_TENSOR", &

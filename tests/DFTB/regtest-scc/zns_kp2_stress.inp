@@ -1,0 +1,81 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ZnS
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DEBUG_FORCES F
+  DEBUG_STRESS_TENSOR T
+  DX 1.0e-4
+  STOP_ON_MISMATCH F
+&END DEBUG
+
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &KPOINTS
+      EPS_GEO 1.e-8
+      FULL_GRID OFF
+      SCHEME MONKHORST-PACK 2 2 2
+      SYMMETRY ON
+      VERBOSE T
+    &END KPOINTS
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+      &EWALD
+        ALPHA 0.35
+        EWALD_TYPE SPME
+        GMAX 25
+      &END EWALD
+    &END POISSON
+    &QS
+      EXTRAPOLATION USE_GUESS
+      METHOD DFTB
+      &DFTB
+        DISPERSION F
+        ORTHOGONAL_BASIS F
+        SCC_MIXER CP2K
+        SELF_CONSISTENT T
+        &PARAMETER
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH ./DFTB/scc
+          SK_FILE Zn Zn znzn.spl
+          SK_FILE Zn S zns.spl
+          SK_FILE S Zn szn.spl
+          SK_FILE S S ss.spl
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0e-10
+      MAX_SCF 500
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.409 5.409 5.409
+    &END CELL
+    &COORD
+      SCALED
+      Zn    0.000000    0.000000    0.000000
+      Zn    0.000000    0.500000    0.500000
+      Zn    0.500000    0.000000    0.500000
+      Zn    0.500000    0.500000    0.000000
+      S     0.255000    0.250000    0.250000
+      S     0.250000    0.750000    0.750000
+      S     0.750000    0.250000    0.750000
+      S     0.750000    0.750000    0.250000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

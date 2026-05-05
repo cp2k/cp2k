@@ -335,7 +335,7 @@ CONTAINS
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
          CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
-                                    silent=.TRUE., pset="EEQ")
+                                    silent=.TRUE., pset="EEQ", cell_periodic=cell%perd)
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !
@@ -511,7 +511,7 @@ CONTAINS
          print_section => section_vals_get_subs_vals(qs_env%input, "PRINT%GRID_INFORMATION")
          CALL get_qs_env(qs_env, cell_ref=cell_ref)
          CALL read_ewald_section_tb(ewald_env, ewald_section, cell_ref%hmat, &
-                                    silent=.TRUE., pset="EEQ")
+                                    silent=.TRUE., pset="EEQ", cell_periodic=cell%perd)
          ALLOCATE (ewald_pw)
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          !

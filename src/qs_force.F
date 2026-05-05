@@ -77,7 +77,8 @@ MODULE qs_force
                                               velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE tblite_interface,                ONLY: build_tblite_matrices
+   USE tblite_interface,                ONLY: build_tblite_matrices,&
+                                              tb_reference_cli_compare
    USE virial_types,                    ONLY: symmetrize_virial,&
                                               virial_type
    USE xtb_matrices,                    ONLY: build_xtb_matrices
@@ -446,6 +447,10 @@ CONTAINS
                ! There should be a more elegant solution to that ...
             END DO
          END IF
+      END IF
+
+      IF (dft_control%qs_control%xtb .AND. dft_control%qs_control%xtb_control%do_tblite) THEN
+         CALL tb_reference_cli_compare(qs_env)
       END IF
 
       output_unit = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%DERIVATIVES", &

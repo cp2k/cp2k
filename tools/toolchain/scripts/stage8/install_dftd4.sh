@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="4.0.2"
-dftd4_sha256="ed4a6a3ba0a89b8d6825bf11724dee647fd8ee6272e7822e0cbd9847994eb872"
+dftd4_ver="4.1.1"
+dftd4_sha256="c8e6388d7d7d748dbcf91117f35aa50108492d4fd2266d60782cf85a16651887"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -34,10 +34,24 @@ case "$with_dftd4" in
     if verify_checksums "${install_lock_file}"; then
       echo "dftd4-${dftd4_ver} is already installed, skipping it."
     else
-      retrieve_package "${dftd4_sha256}" "dftd4-${dftd4_ver}-source.tar.xz"
+      if ! [ -f "dftd4-${dftd4_ver}.tar.xz" ]; then
+        if ! download_pkg_from_cp2k_org "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.xz"; then
+          download_pkg_from_urlpath "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.xz" \
+            "https://github.com/dftd4/dftd4/releases/download/v${dftd4_ver}"
+        fi
+      elif ! checksum "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.xz"; then
+        echo "dftd4-${dftd4_ver}.tar.xz is found but checksum is wrong; delete and re-download"
+        rm -vf "dftd4-${dftd4_ver}.tar.xz"
+        if ! download_pkg_from_cp2k_org "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.xz"; then
+          download_pkg_from_urlpath "${dftd4_sha256}" "dftd4-${dftd4_ver}.tar.xz" \
+            "https://github.com/dftd4/dftd4/releases/download/v${dftd4_ver}"
+        fi
+      else
+        echo "dftd4-${dftd4_ver}.tar.xz is found and checksum is right"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
-      tar -xJf dftd4-${dftd4_ver}-source.tar.xz
+      tar -xJf dftd4-${dftd4_ver}.tar.xz
       cd dftd4-${dftd4_ver}
 
       mkdir build && cd build
@@ -45,9 +59,14 @@ case "$with_dftd4" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -Ddftd4-dependency-method=subproject \
+        -DMCTC-LIB_FIND_METHOD=subproject \
+        -DMULTICHARGE_FIND_METHOD=subproject \
         .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      make install -j $(get_nprocs) >> make.log 2>&1 || tail_excerpt build.log
+      cmake --build . --target mctc-convert mstore-fortranize mstore-info multicharge-exe dftd4-exe \
+        -- -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      cmake --install . >> make.log 2>&1 || tail_excerpt make.log
 
       cd ..
     fi

@@ -12,6 +12,14 @@
 !> \author CJM NOV-30-2003
 ! **************************************************************************************************
 MODULE ewald_environment_types
+   USE cell_types,                      ONLY: use_perd_none,&
+                                              use_perd_x,&
+                                              use_perd_xy,&
+                                              use_perd_xyz,&
+                                              use_perd_xz,&
+                                              use_perd_y,&
+                                              use_perd_yz,&
+                                              use_perd_z
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -383,27 +391,46 @@ CONTAINS
 !> \param hmat ...
 !> \param silent ...
 !> \param pset ...
+!> \param cell_periodic ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat, silent, pset)
+   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat, silent, pset, cell_periodic)
       TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
       CHARACTER(LEN=*), OPTIONAL                         :: pset
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: cell_periodic
 
       CHARACTER(LEN=5)                                   :: param
-      INTEGER                                            :: i, iw, n(3)
+      INTEGER                                            :: i, iw, n(3), poisson_key
+      INTEGER, DIMENSION(3)                              :: poisson_periodic
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
       LOGICAL                                            :: do_print, explicit
       REAL(KIND=dp)                                      :: alat, cutoff, dummy, omega
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: poisson_section
 
       logger => cp_get_default_logger()
       do_print = .TRUE.
       IF (PRESENT(silent)) do_print = .NOT. silent
       param = "none"
       IF (PRESENT(pset)) param = pset
+
+      IF (PRESENT(cell_periodic)) THEN
+         poisson_section => ewald_env%poisson_section
+         IF (ASSOCIATED(poisson_section)) THEN
+            CALL section_vals_val_get(poisson_section, "PERIODIC", i_val=poisson_key)
+            CALL tb_decode_periodicity(poisson_key, poisson_periodic)
+            IF (ANY(cell_periodic /= poisson_periodic)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "The selected periodicities in SUBSYS/CELL and DFT/POISSON do not match. "// &
+                            "The TB Ewald electrostatics will use DFT/POISSON/PERIODIC="// &
+                            TRIM(tb_periodicity_label(poisson_periodic))// &
+                            " while SUBSYS/CELL/PERIODIC="//TRIM(tb_periodicity_label(cell_periodic))//".")
+            END IF
+         END IF
+      END IF
 
       ewald_env%do_multipoles = .FALSE.
       ewald_env%do_ipol = 0
@@ -429,7 +456,7 @@ CONTAINS
       ELSE
          SELECT CASE (param)
          CASE DEFAULT
-            ewald_env%alpha = 1.0_dp
+            CALL section_vals_val_get(ewald_section, "ALPHA", r_val=ewald_env%alpha)
          CASE ("EEQ")
             omega = ABS(det_3x3(hmat))
             ewald_env%alpha = SQRT(twopi)/omega**(1./3.)
@@ -512,6 +539,58 @@ CONTAINS
    END SUBROUTINE read_ewald_section_tb
 
 ! **************************************************************************************************
+!> \brief Decode CP2K PERIODIC enum into the 3-component periodicity mask.
+!> \param periodic_key input enum value
+!> \param periodic periodicity mask
+! **************************************************************************************************
+   SUBROUTINE tb_decode_periodicity(periodic_key, periodic)
+      INTEGER, INTENT(IN)                                :: periodic_key
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: periodic
+
+      SELECT CASE (periodic_key)
+      CASE (use_perd_x)
+         periodic = [1, 0, 0]
+      CASE (use_perd_y)
+         periodic = [0, 1, 0]
+      CASE (use_perd_z)
+         periodic = [0, 0, 1]
+      CASE (use_perd_xy)
+         periodic = [1, 1, 0]
+      CASE (use_perd_xz)
+         periodic = [1, 0, 1]
+      CASE (use_perd_yz)
+         periodic = [0, 1, 1]
+      CASE (use_perd_xyz)
+         periodic = [1, 1, 1]
+      CASE (use_perd_none)
+         periodic = [0, 0, 0]
+      CASE DEFAULT
+         CPABORT("Invalid PERIODIC setting for TB Ewald")
+      END SELECT
+
+   END SUBROUTINE tb_decode_periodicity
+
+! **************************************************************************************************
+!> \brief Return a compact label for a 3-component periodicity mask.
+!> \param periodic periodicity mask
+!> \return label
+! **************************************************************************************************
+   FUNCTION tb_periodicity_label(periodic) RESULT(label)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: periodic
+      CHARACTER(LEN=4)                                   :: label
+
+      label = ""
+      IF (ALL(periodic == 0)) THEN
+         label = "NONE"
+      ELSE
+         IF (periodic(1) == 1) label = TRIM(label)//"X"
+         IF (periodic(2) == 1) label = TRIM(label)//"Y"
+         IF (periodic(3) == 1) label = TRIM(label)//"Z"
+      END IF
+
+   END FUNCTION tb_periodicity_label
+
+! **************************************************************************************************
 !> \brief triggers (by bisection) the optimal value for EWALD parameter x
 !>      EXP(-x^2)/x^2 = EWALD_ACCURACY
 !> \param precs ...
@@ -551,4 +630,3 @@ CONTAINS
    END FUNCTION find_ewald_optimal_value
 
 END MODULE ewald_environment_types
-

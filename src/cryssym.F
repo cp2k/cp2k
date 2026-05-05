@@ -973,14 +973,16 @@ CONTAINS
       valid = .FALSE.
 
       DO iop = 1, csym%nrtot
-         kr = csym%ibrot(iop)
-         IF (kr < 1 .OR. kr > SIZE(csym%rt, 3)) CYCLE
+         IF (iop > SIZE(csym%rt, 3)) CYCLE
+         IF (csym%ibrot(iop) == 0) CYCLE
          DO ibsign = 1, 2
             wcart(1:3) = alat*(xref(1)*b1(1:3) + xref(2)*b2(1:3) + xref(3)*b3(1:3))
-            wcart(1:3) = kp_apply_operation(wcart(1:3), csym%rt(1:3, 1:3, kr))
+            wcart(1:3) = kp_apply_operation(wcart(1:3), csym%rt(1:3, 1:3, iop))
             IF (ibsign == 2) THEN
                wcart(1:3) = -wcart(1:3)
-               kr = -kr
+               kr = -csym%ibrot(iop)
+            ELSE
+               kr = csym%ibrot(iop)
             END IF
             rr(1) = DOT_PRODUCT(a1(1:3), wcart(1:3))/alat
             rr(2) = DOT_PRODUCT(a2(1:3), wcart(1:3))/alat

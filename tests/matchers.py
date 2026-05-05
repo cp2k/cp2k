@@ -73,6 +73,53 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
+class RegexValueMatcher(Matcher):
+    def __init__(self, pattern: str):
+        self.regex = re.compile(pattern)
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        tol, ref = kwargs["tol"], kwargs["ref"]
+        assert isinstance(tol, float) or isinstance(ref, int)
+        assert isinstance(ref, float) or isinstance(ref, int)
+
+        for line in reversed(output.split("\n")):
+            match = self.regex.search(line)
+            if match:
+                value_str = match.group(1)
+                break
+        else:
+            error = f"Result not found: '{self.regex.pattern}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        try:
+            value = float(value_str.replace("D", "E"))
+        except:
+            error = f"Could not parse result as float: '{value_str}'.\n"
+            return MatchResult("WRONG RESULT", error, value=None)
+
+        diff = value - ref
+        rel_error = abs(diff / ref if ref != 0.0 else diff)
+        if rel_error > tol:
+            error = f"Difference too large: {rel_error:.2e} > {tol}, value: {value}.\n"
+            return MatchResult("WRONG RESULT", error, value)
+
+        return MatchResult("OK", error=None, value=value)
+
+
+# ======================================================================================
+class TextPresenceMatcher(Matcher):
+    def __init__(self, text: str):
+        self.text = text
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        if self.text not in output:
+            return MatchResult(
+                "WRONG RESULT", f"Text not found: '{self.text}'.\n", value=None
+            )
+        return MatchResult("OK", error=None, value=1.0)
+
+
+# ======================================================================================
 class MatcherRegistry(Dict[str, Matcher]):
     def __setitem__(self, key: str, value: Matcher) -> None:
         assert key not in self  # check for name collisions
@@ -179,6 +226,15 @@ registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
 
 registry["M081"] = GenericMatcher(r"HOMO SCF Cycle:     4", col=9)
 registry["M082"] = GenericMatcher(r"DEBUG| Sum of differences:", col=5)
+registry["DEBUG_stress_sum"] = RegexValueMatcher(
+    r"DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$"
+)
+registry["DEBUG_force_sum"] = RegexValueMatcher(
+    r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)"
+)
+registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
+    "tblite reference CLI check failed to run."
+)
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)
