@@ -20,6 +20,9 @@ The CP2K branch was created from local PR5131 state:
 - `sources/dftd`
   - Origin: https://github.com/grimme-lab/dftd.git
   - Commit: `e56749a67f85371bb63095b85fc8d0c4a6a2e0eb`
+  - Notes: includes a local port of the PR5131 DFTD4 gradient/virial patch to the newer
+    `src/dftd4/model/type.f90` layout. The same patched file was used in the `save_tblite`
+    subproject for the local test build.
 
 - `sources/g-xtb`
   - Origin: https://github.com/grimme-lab/g-xtb.git
