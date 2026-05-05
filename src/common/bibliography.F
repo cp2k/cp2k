@@ -191,7 +191,7 @@ CONTAINS
                          title="Electrostatic decoupling of periodic images of plane‐wave‐expanded"// &
                          " densities and derived atomic point charges", &
                          source="J. Chem. Phys.", volume="103", pages="7422-7428", &
-                         year=1995, doi="10.1063/1.470314")
+                         year=1995, doi="10.1063/1.470314", citation_key="Blöchl1995")
 
       CALL add_reference(key=Laino2008, &
                          authors=s2a("T. Laino", "J. Hutter"), &

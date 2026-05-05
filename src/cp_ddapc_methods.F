@@ -635,25 +635,26 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_ddapc_pot'
 
-      INTEGER :: ewmdim, handle, idim, idim1, idim2, idimo, igauss1, igauss2, ip1, ip2, &
-         iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, nmax1, nmax2, nmax3, r1, r2, &
-         r3, rmax1, rmax2, rmax3
+      INTEGER :: ewmdim, handle, iaxis, idim, idim1, idim2, idimo, igauss1, igauss2, ip1, ip2, &
+         iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, r1, r2, r3
+      INTEGER, DIMENSION(3)                              :: gmax, image_cell, rmax, rmin
       LOGICAL                                            :: analyt
-      REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, fs, g_ewald, galpha, gsq, gsqi, ij_fac, &
-         my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, rcut, rcut2, t1, tol, tol1
-      REAL(KIND=dp), DIMENSION(3)                        :: fvec, gvec, ra, rvec
+      REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, frac_radius, fs, g_ewald, galpha, gsq, &
+         gsqi, ij_fac, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, rcut, rcut2, t1, tol, tol1
+      REAL(KIND=dp), DIMENSION(3)                        :: g_index, gvec, ra, rvec, svec
       REAL(KIND=dp), DIMENSION(:), POINTER               :: EwM
 
       NULLIFY (EwM)
       CALL timeset(routineN, handle)
       CPASSERT(.NOT. ASSOCIATED(M))
       CPASSERT(ASSOCIATED(radii))
-      CPASSERT(cell%orthorhombic)
-      rcut = MIN(cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3))/2.0_dp
+      rcut = MIN(NORM2(cell%hmat(:, 1)), NORM2(cell%hmat(:, 2)), NORM2(cell%hmat(:, 3)))/2.0_dp
       CALL section_vals_val_get(multipole_section, "RCUT", n_rep_val=n_rep)
       IF (n_rep == 1) CALL section_vals_val_get(multipole_section, "RCUT", r_val=rcut)
       CALL section_vals_val_get(multipole_section, "EWALD_PRECISION", r_val=eps)
       CALL section_vals_val_get(multipole_section, "ANALYTICAL_GTERM", l_val=analyt)
+      ! The spline interpolation path is only valid for orthorhombic grids.
+      analyt = analyt .OR. .NOT. cell%orthorhombic .OR. .NOT. ASSOCIATED(coeff)
       rcut2 = rcut**2
       !
       ! Setting-up parameters for Ewald summation
@@ -663,16 +664,17 @@ CONTAINS
       alpha = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
       galpha = 1.0_dp/(4.0_dp*alpha*alpha)
       tol1 = SQRT(-LOG(eps*rcut*(2.0_dp*tol*alpha)**2))
-      nmax1 = NINT(0.25_dp + cell%hmat(1, 1)*alpha*tol1/pi)
-      nmax2 = NINT(0.25_dp + cell%hmat(2, 2)*alpha*tol1/pi)
-      nmax3 = NINT(0.25_dp + cell%hmat(3, 3)*alpha*tol1/pi)
-
-      rmax1 = CEILING(rcut/cell%hmat(1, 1))
-      rmax2 = CEILING(rcut/cell%hmat(2, 2))
-      rmax3 = CEILING(rcut/cell%hmat(3, 3))
+      IF (cell%orthorhombic) THEN
+         DO iaxis = 1, 3
+            gmax(iaxis) = NINT(0.25_dp + cell%hmat(iaxis, iaxis)*alpha*tol1/pi)
+         END DO
+      ELSE
+         DO iaxis = 1, 3
+            gmax(iaxis) = CEILING(alpha*tol1*NORM2(cell%hmat(:, iaxis))/pi)
+         END DO
+      END IF
       fac = 1.e0_dp/cell%deth
       fac3 = fac*pi
-      fvec = twopi/[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
       ew_neut = -fac*pi/alpha**2
       !
       ewmdim = SIZE(particle_set)*(SIZE(particle_set) + 1)/2
@@ -708,13 +710,18 @@ CONTAINS
                   r_ewald = t1
                END IF
             END IF
-            DO r1 = -rmax1, rmax1
-               DO r2 = -rmax2, rmax2
-                  DO r3 = -rmax3, rmax3
+            svec = MATMUL(cell%h_inv, rvec)
+            DO iaxis = 1, 3
+               frac_radius = rcut*NORM2(cell%h_inv(iaxis, :))
+               rmin(iaxis) = FLOOR(-svec(iaxis) - frac_radius)
+               rmax(iaxis) = CEILING(-svec(iaxis) + frac_radius)
+            END DO
+            DO r1 = rmin(1), rmax(1)
+               DO r2 = rmin(2), rmax(2)
+                  DO r3 = rmin(3), rmax(3)
                      IF ((r1 == 0) .AND. (r2 == 0) .AND. (r3 == 0)) CYCLE
-                     ra(1) = rvec(1) + cell%hmat(1, 1)*r1
-                     ra(2) = rvec(2) + cell%hmat(2, 2)*r2
-                     ra(3) = rvec(3) + cell%hmat(3, 3)*r3
+                     image_cell = [r1, r2, r3]
+                     ra = rvec + MATMUL(cell%hmat, REAL(image_cell, KIND=dp))
                      r2tmp = DOT_PRODUCT(ra, ra)
                      IF (r2tmp <= rcut2) THEN
                         r = SQRT(r2tmp)
@@ -729,12 +736,13 @@ CONTAINS
             !
             IF (analyt) THEN
                g_ewald = 0.0_dp
-               DO k1 = 0, nmax1
-                  DO k2 = -nmax2, nmax2
-                     DO k3 = -nmax3, nmax3
+               DO k1 = 0, gmax(1)
+                  DO k2 = -gmax(2), gmax(2)
+                     DO k3 = -gmax(3), gmax(3)
                         IF (k1 == 0 .AND. k2 == 0 .AND. k3 == 0) CYCLE
                         fs = 2.0_dp; IF (k1 == 0) fs = 1.0_dp
-                        gvec = fvec*[REAL(k1, KIND=dp), REAL(k2, KIND=dp), REAL(k3, KIND=dp)]
+                        g_index = [REAL(k1, KIND=dp), REAL(k2, KIND=dp), REAL(k3, KIND=dp)]
+                        gvec = twopi*MATMUL(TRANSPOSE(cell%h_inv), g_index)
                         gsq = DOT_PRODUCT(gvec, gvec)
                         gsqi = fs/gsq
                         t1 = fac*gsqi*EXP(-galpha*gsq)
