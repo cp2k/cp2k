@@ -1,0 +1,7 @@
+run
+--zero
+hf
+--gcp
+deftzvp
+--atm
+$ORIGIN/24-h2o_6.qchem

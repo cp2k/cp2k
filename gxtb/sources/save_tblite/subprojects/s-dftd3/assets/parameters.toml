@@ -1,0 +1,900 @@
+[default]
+d3 = ["bj", "zero"]
+
+[default.parameter]
+d3.bj = {s6=1.0, s9=1.0, alp=14.0, damping="rational"}
+d3.zero = {s6=1.0, s9=1.0, rs8=1.0, alp=14.0, damping="zero"}
+d3.bjm = {s6=1.0, s9=1.0, alp=14.0, damping="rational"}
+d3.zerom = {s6=1.0, s9=1.0, rs8=1.0, alp=14.0, damping="mzero"}
+d3.op = {s9=1.0, alp=14.0, damping="optimizedpower"}
+d3.cso = {s6=1.0, s9=1.0, a2=2.5, rs6=0.0, rs8=6.25, alp=14.0, damping="cso"}
+
+[parameter.slaterdirac]
+d3.zero = {rs6=0.999, s8=-1.957, rs8=0.697}
+
+[parameter.bp]
+d3.bj = {a1=0.3946, s8=3.2822, a2=4.8516, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.139, s8=1.683, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.821850, s8=3.140281, a2=2.728151, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.233460, s8=1.945174, bet=0.000000, doi="10.1021/acs.jpclett.6b00780"}
+d3.cso = {a1=1.01, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.blyp]
+d3.bj = {a1=0.4298, s8=2.6996, a2=4.2359, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.094, s8=1.682, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.448486, s8=1.875007, a2=3.610679, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.279637, s8=1.841686, bet=0.014370, doi="10.1021/acs.jpclett.6b00780"}
+d3.op = {s6=1.0, s8=1.31867, a1=0.425, a2=3.50, bet=2.0, doi="10.1021/acs.jctc.7b00176"}
+d3.cso = {a1=1.28, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.revpbe]
+d3.bj = {a1=0.5238, s8=2.3550, a2=3.5016, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=0.923, s8=1.010, doi="10.1063/1.3382344"}
+d3.op = {s6=1.0, s8=1.44765, a1=0.600, a2=2.50, bet=0.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.rpbe]
+d3.bj = {a1=0.1820, s8=0.8318, a2=4.0094}
+d3.zero = {rs6=0.872, s8=0.514}
+
+[parameter.b97d]
+d3.bj = {a1=0.5545, s8=2.2609, a2=3.2297, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=0.892, s8=0.909, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.240184, s8=1.206988, a2=3.864426, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.151808, s8=1.020078, bet=0.035964, doi="10.1021/acs.jpclett.6b00780"}
+d3.op = {s6=1.0, s8=1.46861, a1=0.600, a2=2.50, bet=0.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.b973c]
+d3.bj = {a1=0.37, s8=1.50, a2=4.10, doi="10.1063/1.5012601"}
+d3.zero = {rs6=1.06, s8=1.50, doi="10.1063/1.5012601"}
+
+[parameter.pbe]
+d3.bj = {a1=0.4289, s8=0.7875, a2=4.4407, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.217, s8=0.722, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.012092, s8=0.358940, a2=5.938951, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=2.340218, s8=0.000000, bet=0.129434, doi="10.1021/acs.jpclett.6b00780"}
+d3.op = {s6=0.91826, s8=0.0, a1=0.200, a2=4.750, bet=6.0, doi="10.1021/acs.jctc.7b00176"}
+d3.cso = {a1=0.24, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.rpw86pbe]
+d3.bj = {a1=0.4613, s8=1.3845, a2=4.5062, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.224, s8=0.901}
+
+[parameter.b3lyp]
+d3.bj = {a1=0.3981, s8=1.9889, a2=4.4211, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.261, s8=1.703, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.278672, s8=1.466677, a2=4.606311, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.338153, s8=1.532981, bet=0.013988, doi="10.1021/acs.jpclett.6b00780"}
+d3.op = {s6=1.0, s8=0.78311, a1=0.300, a2=4.25, bet=4.0, doi="10.1021/acs.jctc.7b00176"}
+d3.cso = {a1=0.86, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.tpss]
+d3.bj = {a1=0.4535, s8=1.9435, a2=4.4752, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.166, s8=1.105, doi="10.1063/1.3382344"}
+d3.op = {s6=1.0, s8=0.51581, a1=0.575, a2=3.00, bet=8.0, doi="10.1021/acs.jctc.7b00176"}
+d3.cso = {a1=0.72, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.hf]
+d3.bj = {a1=0.3385, s8=0.9171, a2=2.8830, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.158, s8=1.746}
+
+[parameter.tpss0]
+d3.bj = {a1=0.3768, s8=1.2576, a2=4.5865, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.252, s8=1.242, doi="10.1063/1.3382344"}
+
+[parameter.pbe0]
+d3.bj = {a1=0.4145, s8=1.2177, a2=4.8593, doi="10.1002/jcc.21759"}
+d3.zero = {rs6=1.287, s8=0.928, doi="10.1063/1.3382344"}
+d3.bjm = {a1=0.007912, s8=0.528823, a2=6.162326, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=2.077949, s8=0.000081, bet=0.116755, doi="10.1021/acs.jpclett.6b00780"}
+d3.op = {s6=0.88290, s8=0.0, a1=0.150, a2=4.750, bet=6.0, doi="10.1021/acs.jctc.7b00176"}
+d3.cso = {a1=0.20, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.hse06]
+d3.bj = {a1=0.383, s8=2.310, a2=5.685, doi="10.1021/jp501237c"}
+d3.zero = {rs6=1.129, s8=0.109, doi="10.1021/jp501237c"}
+
+[parameter.revpbe38]
+d3.bj = {a1=0.4309, s8=1.4760, a2=3.9446, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.021, s8=0.862}
+
+[parameter.pw6b95]
+d3.bj = {a1=0.2076, s8=0.7257, a2=6.3750, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.532, s8=0.862}
+d3.cso = {a1=-0.15, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.b2plyp]
+d3.bj = {a1=0.3065, s8=0.9147, a2=5.0570, s6=0.64, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.427, s8=1.022, s6=0.64, doi="10.1021/ct100466k"}
+d3.bjm = {a1=0.486434, s8=0.672820, a2=3.656466, s6=0.64, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.313134, s8=0.717543, bet=0.016035, s6=0.64, doi="10.1021/acs.jpclett.6b00780"}
+d3.cso = {s6=0.73, a1=0.24, doi="10.1021/acs.jctc.5b00400"}
+
+[parameter.dsdblyp]
+d3.bj = {a1=0.0000, s8=0.2130, a2=6.0519, s6=0.50, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.569, s8=0.705, s6=0.5, doi="10.1021/ct100466k"}
+
+[parameter.dsdblypfc]
+d3.bj = {a1=0.0009, s8=0.2112, a2=5.9807, s6=0.50, doi="10.1039/c0cp02984j"}
+
+[parameter.dodscan66]
+d3.bj = {s6=0.3152, a1=0.0, s8=0.0, a2=5.75, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdsdblyp]
+d3.bj = {s6=0.5451, a1=0.0, s8=0.0, a2=5.2, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdsdpbep86]
+d3.bj = {s6=0.4377, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdsdpbeb95]
+d3.bj = {s6=0.3686, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdsdpbe]
+d3.bj = {s6=0.5746, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdodblyp]
+d3.bj = {s6=0.6145, a1=0.0, s8=0.0, a2=5.2, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdodpbep86]
+d3.bj = {s6=0.4770, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdodpbeb95]
+d3.bj = {s6=0.4107, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.revdodpbe]
+d3.bj = {s6=0.6067, a1=0.0, s8=0.0, a2=5.5, doi="10.1021/acs.jpca.9b03157"}
+
+[parameter.bop]
+d3.bj = {a1=0.4870, s8=3.2950, a2=3.5043, doi="10.1039/c0cp02984j"}
+
+[parameter.mpwlyp]
+d3.bj = {a1=0.4831, s8=2.0077, a2=4.5323, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.239, s8=1.098, doi="10.1039/c0cp02984j"}
+
+[parameter.olyp]
+d3.bj = {a1=0.5299, s8=2.6205, a2=2.8065, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=0.806, s8=1.764, doi="10.1039/c0cp02984j"}
+
+[parameter.pbesol]
+d3.bj = {a1=0.4466, s8=2.9491, a2=6.1742, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.345, s8=0.612}
+
+[parameter.bpbe]
+d3.bj = {a1=0.4567, s8=4.0728, a2=4.3908, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.087, s8=2.033, doi="10.1039/c0cp02984j"}
+
+[parameter.opbe]
+d3.bj = {a1=0.5512, s8=3.3816, a2=2.9444, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=0.837, s8=2.033, doi="10.1039/c0cp02984j"}
+
+[parameter.ssb]
+d3.bj = {a1=-0.0952, s8=-0.1744, a2=5.2170, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.215, s8=0.663, doi="10.1039/c0cp02984j"}
+
+[parameter.revssb]
+d3.bj = {a1=0.4720, s8=0.4389, a2=4.0986, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.221, s8=0.560, doi="10.1039/c0cp02984j"}
+
+[parameter.otpss]
+d3.bj = {a1=0.4634, s8=2.7495, a2=4.3153, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.128, s8=1.494, doi="10.1039/c0cp02984j"}
+
+[parameter.b3pw91]
+d3.bj = {a1=0.4312, s8=2.8524, a2=4.4693, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.176, s8=1.775, doi="10.1039/c0cp02984j"}
+
+[parameter.bhlyp]
+d3.bj = {a1=0.2793, s8=1.0354, a2=4.9615, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.370, s8=1.442, doi="10.1039/c0cp02984j"}
+
+[parameter.revpbe0]
+d3.bj = {a1=0.4679, s8=1.7588, a2=3.7619, doi="10.1039/c0cp02984j"}
+d3.op = {s6=1.0, s8=1.25684, a1=0.725, a2=2.25, bet=0.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.tpssh]
+d3.bj = {a1=0.4529, s8=2.2382, a2=4.6550, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.223, s8=1.219, doi="10.1039/c0cp02984j"}
+d3.op = {s6=1.0, s8=0.43185, a1=0.575, a2=3.00, bet=8.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.mpw1b95]
+d3.bj = {a1=0.1955, s8=1.0508, a2=6.4177, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.605, s8=1.118, doi="10.1039/c0cp02984j"}
+
+[parameter.pwb6k]
+d3.bj = {a1=0.1805, s8=0.9383, a2=7.7627, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.660, s8=0.550, doi="10.1039/c0cp02984j"}
+
+[parameter.b1b95]
+d3.bj = {a1=0.2092, s8=1.4507, a2=5.5545, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.613, s8=1.868, doi="10.1039/c0cp02984j"}
+
+[parameter.bmk]
+d3.bj = {a1=0.1940, s8=2.0860, a2=5.9197, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.931, s8=2.168, doi="10.1039/c0cp02984j"}
+
+[parameter.camb3lyp]
+d3.bj = {a1=0.3708, s8=2.0674, a2=5.4743, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.378, s8=1.217, doi="10.1039/c0cp02984j"}
+
+[parameter.lcwpbe]
+d3.bj = {a1=0.3919, s8=1.8541, a2=5.0897, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.355, s8=1.279, doi="10.1039/c0cp02984j"}
+d3.bjm = {a1=0.563761, s8=0.906564, a2=3.593680, doi="10.1021/acs.jpclett.6b00780"}
+d3.zerom = {rs6=1.366361, s8=1.280619, bet=0.003160, doi="10.1021/acs.jpclett.6b00780"}
+
+[parameter.b2gpplyp]
+d3.bj = {a1=0.0000, s8=0.2597, a2=6.3332, s6=0.560, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.586, s8=0.760, s6=0.56, doi="10.1021/ct100466k"}
+
+[parameter.ptpss]
+d3.bj = {a1=0.0000, s8=0.2804, a2=6.5745, s6=0.750, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.541, s8=0.879, s6=0.75, doi="10.1021/ct100466k"}
+
+[parameter.pwpb95]
+d3.bj = {a1=0.0000, s8=0.2904, a2=7.3141, s6=0.820, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.557, s8=0.705, s6=0.82, doi="10.1021/ct100466k"}
+
+[parameter.hf_mixed]
+d3.bj = {a1=0.5607, s8=3.9027, a2=4.5622, doi="10.1063/1.3700154"}
+
+[parameter.hf_sv]
+d3.bj = {a1=0.4249, s8=2.1849, a2=4.2783, doi="10.1063/1.3700154"}
+
+[parameter.hf_minis]
+d3.bj = {a1=0.1702, s8=0.9841, a2=3.8506, doi="10.1063/1.3700154"}
+
+[parameter.b3lyp_631gd]
+d3.bj = {a1=0.5014, s8=4.0672, a2=4.8409, doi="10.1063/1.3700154"}
+
+[parameter.hcth120]
+d3.bj = {a1=0.3563, s8=1.0821, a2=4.3359}
+
+[parameter.dftb3]
+d3.bj = {a1=0.5719, s8=0.5883, a2=3.6017}
+
+[parameter.pw1pw]
+d3.bj = {a1=0.3807, s8=2.3363, a2=5.8844, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.4968, s8=1.1786, doi="10.1039/c7cp04913g"}
+
+[parameter.pwgga]
+d3.bj = {a1=0.2211, s8=2.6910, a2=6.7278}
+
+[parameter.hsesol]
+d3.bj = {a1=0.4650, s8=2.9215, a2=6.2003}
+
+[parameter.hf3c]
+d3.bj = {a1=0.4171, s8=0.8777, a2=2.9149, doi="10.1002/jcc.23317"}
+
+[parameter.hf3cv]
+d3.bj = {a1=0.3063, s8=0.5022, a2=3.9856, doi="10.1002/jcc.23317"}
+
+[parameter.pbeh3c]
+d3.bj = {a1=0.4860, s8=0.0000, a2=4.5000, doi="10.1063/1.4927476"}
+
+[parameter.scan]
+d3.bj = {a1=0.5380, s8=0.0000, a2=5.4200, doi="10.1103/physrevb.94.115144"}
+d3.zero = {rs6=1.324, s8=0.000, doi="10.1103/physrevb.94.115144"}
+
+[parameter.rscan]
+d3.bj = {a1=0.47023427, s8=1.08859014, a2=5.73408312, doi="10.1063/5.0041008"}
+
+[parameter.r2scan]
+d3.bj = {a1=0.49484001, s8=0.78981345, a2=5.73083694, doi="10.1063/5.0041008"}
+
+[parameter.r2scanh]
+d3.bj = {s8=1.1236, a1=0.4709, a2=5.9157, doi="10.1063/5.0086040"}
+
+[parameter.r2scan0]
+d3.bj = {s8=1.1846, a1=0.4534, a2=5.8972, doi="10.1063/5.0086040"}
+
+[parameter.r2scan50]
+d3.bj = {s8=1.3294, a1=0.4311, a2=5.9240, doi="10.1063/5.0086040"}
+
+[parameter.wb97x]
+d3.bj = {a1=0.0000, s8=0.2641, a2=5.4959}
+d3.zero = {rs6=1.281, s8=1.0, rs8=1.094, doi="10.1021/ct300715s"}
+
+[parameter.wb97m]
+d3.bj = {a1=0.5660, s8=0.3908, a2=3.1280, doi="10.1021/acs.jctc.8b00842"}
+
+[parameter.b97m]
+d3.bj = {a1=-0.0780, s8=0.1384, a2=5.5946, doi="10.1021/acs.jctc.8b00842"}
+
+[parameter.pbehpbe]
+d3.bj = {a1=0.0000, s8=1.1152, a2=6.7184, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.5703, s8=1.4010, doi="10.1039/c7cp04913g"}
+
+[parameter.xlyp]
+d3.bj = {a1=0.0809, s8=1.5669, a2=5.3166, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=0.9384, s8=0.7447, doi="10.1039/c7cp04913g"}
+
+[parameter.mpwpw]
+d3.bj = {a1=0.3168, s8=1.7974, a2=4.7732, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3725, s8=1.9467, doi="10.1039/c7cp04913g"}
+
+[parameter.hcth407]
+d3.bj = {a1=0.0000, s8=0.6490, a2=4.8162, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=4.0426, s8=2.7694, doi="10.1039/c7cp04913g"}
+
+[parameter.revtpss]
+d3.bj = {a1=0.4426, s8=1.4023, a2=4.4723, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3491, s8=1.3666, doi="10.1039/c7cp04913g"}
+d3.op = {s6=1.0, s8=0.27632, a1=0.700, a2=2.500, bet=8.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.tauhcth]
+d3.bj = {a1=0.0000, s8=1.2626, a2=5.6162, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=0.9320, s8=0.5662, doi="10.1039/c7cp04913g"}
+
+[parameter.b3p]
+d3.bj = {a1=0.4601, s8=3.3211, a2=4.9294, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.1897, s8=1.1961, doi="10.1039/c7cp04913g"}
+
+[parameter.b1p]
+d3.bj = {a1=0.4724, s8=3.5681, a2=4.9858, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.1815, s8=1.1209, doi="10.1039/c7cp04913g"}
+
+[parameter.b1lyp]
+d3.bj = {a1=0.1986, s8=2.1167, a2=5.3875, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3725, s8=1.9467, doi="10.1039/c7cp04913g"}
+
+[parameter.mpwb1k]
+d3.bj = {a1=0.1474, s8=0.9499, a2=6.6223, doi="10.1039/c0cp02984j"}
+d3.zero = {rs6=1.671, s8=1.061, doi="10.1039/c0cp02984j"}
+
+[parameter.mpw1lyp]
+d3.zero = {rs6=2.0512, s8=1.9529, doi="10.1039/c7cp04913g"}
+
+[parameter.mpw1pw]
+d3.bj = {a1=0.3342, s8=1.8744, a2=4.9819, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.2892, s8=1.4758, doi="10.1039/c7cp04913g"}
+
+[parameter.mpw1kcis]
+d3.bj = {a1=0.0576, s8=1.0893, a2=5.5314, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.7231, s8=2.2917, doi="10.1039/c7cp04913g"}
+
+[parameter.mpwkcis1k]
+d3.bj = {a1=0.0855, s8=1.2875, a2=5.8961, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.4853, s8=1.7553, doi="10.1039/c7cp04913g"}
+
+[parameter.pbeh1pbe]
+d3.bj = {a1=0.0000, s8=1.4877, a2=7.0385, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3719, s8=1.0430, doi="10.1039/c7cp04913g"}
+
+[parameter.pbe1kcis]
+d3.bj = {a1=0.0000, s8=0.7688, a2=6.2794, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=3.6355, s8=1.7934, doi="10.1039/c7cp04913g"}
+
+[parameter.x3lyp]
+d3.bj = {a1=0.2022, s8=1.5744, a2=5.4184, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.0, s8=0.2990, doi="10.1039/c7cp04913g"}
+
+[parameter.o3lyp]
+d3.bj = {a1=0.0963, s8=1.8171, a2=5.9940, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.4060, s8=1.8058, doi="10.1039/c7cp04913g"}
+
+[parameter.b97_1]
+d3.bj = {a1=0.0000, s8=0.4814, a2=6.2279, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=3.7924, s8=1.6418, doi="10.1039/c7cp04913g"}
+d3.op = {s6=0.97388, s8=0.0, a1=0.150, a2=4.25, bet=6.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.b97_2]
+d3.bj = {a1=0.0000, s8=0.9448, a2=5.4603, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.7066, s8=1.6418, doi="10.1039/c7cp04913g"}
+
+[parameter.b98]
+d3.bj = {a1=0.0000, s8=0.7086, a2=6.0672, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=2.6895, s8=1.9078, doi="10.1039/c7cp04913g"}
+
+[parameter.hiss]
+d3.bj = {a1=0.0000, s8=1.6112, a2=7.3539, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3338, s8=0.7615, doi="10.1039/c7cp04913g"}
+
+[parameter.hse03]
+d3.bj = {a1=0.0000, s8=1.1243, a2=6.8889, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3944, s8=1.0156, doi="10.1039/c7cp04913g"}
+
+[parameter.revtpssh]
+d3.bj = {a1=0.2660, s8=1.4076, a2=5.3761, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.3224, s8=1.2504, doi="10.1039/c7cp04913g"}
+d3.op = {s6=1.0, s8=0.12467, a1=0.575, a2=3.000, bet=10.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.revtpss0]
+d3.bj = {a1=0.2218, s8=1.6151, a2=5.7985, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.2881, s8=1.0649, doi="10.1039/c7cp04913g"}
+
+[parameter.tpss1kcis]
+d3.bj = {a1=0.0000, s8=1.0542, a2=6.0201, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.7729, s8=2.0902, doi="10.1039/c7cp04913g"}
+
+[parameter.tauhcthhyb]
+d3.bj = {a1=0.0000, s8=0.9585, a2=10.1389, doi="10.1039/c7cp04913g"}
+d3.zero = {rs6=1.5001, s8=1.6302, doi="10.1039/c7cp04913g"}
+
+[parameter.m11]
+d3.bj = {a1=0.0000, s8=2.8112, a2=10.1389, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.sogga11x]
+d3.bj = {a1=0.1330, s8=1.1426, a2=5.7381, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.pkzb]
+d3.zero = {rs6=0.6327, s8=0.0, doi="10.1039/c7cp04913g"}
+
+[parameter.n12]
+d3.zero = {rs6=1.3493, s8=2.3916, doi="10.1039/c7cp04913g"}
+
+[parameter.n12sx]
+d3.bj = {a1=0.3283, s8=2.4900, a2=5.7898, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.mn12sx]
+d3.bj = {a1=0.0983, s8=1.1674, a2=8.0259, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.mn12l]
+d3.bj = {a1=0.0000, s8=2.2674, a2=9.1494, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.mn15]
+d3.bj = {a1=2.0971, s8=0.7862, a2=7.5923, doi="10.1039/c7cp04913g"}
+
+[parameter.lc_whpbe]
+d3.bj = {a1=0.2746, s8=1.1908, a2=5.3157, doi="10.1039/c7cp04913g"}
+
+[parameter.mpw2plyp]
+d3.bj = {s6=0.66, a1=0.4105, s8=0.6223, a2=5.0136, doi="10.1039/c7cp04913g"}
+d3.zero = {s6=0.66, rs6=1.5527, s8=0.7529, doi="10.1039/c7cp04913g"}
+
+[parameter.ms2]
+d3.op = {s6=1.0, s8=0.90743, a1=0.700, a2=4.00, bet=2.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.ms2h]
+d3.op = {s6=1.0, s8=1.69464, a1=0.650, a2=4.75, bet=0.0, doi="10.1021/acs.jctc.7b00176"}
+
+[parameter.m05]
+d3.zero = {rs6=1.373, s8=0.595, doi="10.1039/c0cp02984j"}
+
+[parameter.m052x]
+d3.zero = {rs6=1.417, s8=0.000, doi="10.1039/c0cp02984j"}
+
+[parameter.m06l]
+d3.zero = {rs6=1.581, s8=0.000, doi="10.1039/c0cp02984j"}
+
+[parameter.m06]
+d3.zero = {rs6=1.325, s8=0.000, doi="10.1039/c0cp02984j"}
+
+[parameter.m062x]
+d3.zero = {rs6=1.619, s8=0.000, doi="10.1039/c0cp02984j"}
+
+[parameter.m08hx]
+d3.zero = {rs6=1.6247, s8=0.0, doi="10.1039/c7cp04913g"}
+
+[parameter.m11l]
+d3.zero = {rs6=2.3933, s8=1.1129, doi="10.1021/acs.jpclett.5b01591"}
+
+[parameter.mn15l]
+d3.zero = {rs6=3.3388, s8=0.0, doi="10.1039/c7cp04913g"}
+
+[parameter.pwp]
+d3.zero = {rs6=2.1040, s8=0.8747, doi="10.1039/c7cp04913g"}
+
+[parameter.pw91]
+d3.bj = {a1=0.6319, s8=1.9598, a2=4.5718, doi="10.1073/pnas.1516984112"}
+
+[parameter.drpa75]
+d3.bj = {s6=0.3754, a1=0.0, s8=0.0, a2=4.5048, doi="10.1039/c6cp00688d"}
+
+[parameter.scsdrpa75]
+d3.bj = {s6=0.2528, a1=0.0, s8=0.0, a2=4.5050, doi="10.1021/acs.jpca.1c01295"}
+
+[parameter.optscsdrpa75]
+d3.bj = {s6=0.2546, a1=0.0, s8=0.0, a2=4.5050, doi="10.1021/acs.jpca.1c01295"}
+
+[parameter.dsdpbedrpa75]
+d3.bj = {s6=0.3223, a1=0.0, s8=0.0, a2=4.5050, doi="10.1021/acs.jpca.1c01295"}
+
+[parameter.dsdpbep86drpa75]
+d3.bj = {s6=0.3012, a1=0.0, s8=0.0, a2=4.5050, doi="10.1021/acs.jpca.1c01295"}
+
+[parameter.dsdpbep86_2011]
+d3.bj = {s6=0.418, a1=0.0, s8=0.0, a2=5.65, doi="10.1039/c1cp22592h"}
+
+[parameter.dsdsvwn5]
+d3.bj = {s6=0.46, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdsp86]
+d3.bj = {s6=0.30, a1=0.0, s8=0.0, a2=5.8, doi="10.1002/jcc.23391"}
+
+[parameter.dsdslyp]
+d3.bj = {s6=0.30, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdspbe]
+d3.bj = {s6=0.40, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbvwn5]
+d3.bj = {s6=0.61, a1=0.0, s8=0.0, a2=5.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdblyp_2013]
+d3.bj = {s6=0.57, a1=0.0, s8=0.0, a2=5.4, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbpbe]
+d3.bj = {s6=1.22, a1=0.0, s8=0.0, a2=6.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbp86]
+d3.bj = {s6=0.76, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbpw91]
+d3.bj = {s6=1.14, a1=0.0, s8=0.0, a2=6.5, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbb95]
+d3.bj = {s6=1.02, a1=0.0, s8=0.0, a2=6.8, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbevwn5]
+d3.bj = {s6=0.54, a1=0.0, s8=0.0, a2=5.1, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbelyp]
+d3.bj = {s6=0.43, a1=0.0, s8=0.0, a2=5.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbe]
+d3.bj = {s6=0.78, a1=0.0, s8=0.0, a2=6.1, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbep86]
+d3.bj = {s6=0.48, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbepw91]
+d3.bj = {s6=0.73, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbeb95]
+d3.bj = {s6=0.61, a1=0.0, s8=0.0, a2=6.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbehb95]
+d3.bj = {s6=0.58, a1=0.0, s8=0.0, a2=6.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdpbehp86]
+d3.bj = {s6=0.46, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdmpwlyp]
+d3.bj = {s6=0.48, a1=0.0, s8=0.0, a2=5.3, doi="10.1002/jcc.23391"}
+
+[parameter.dsdmpwpw91]
+d3.bj = {s6=0.90, a1=0.0, s8=0.0, a2=6.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdmpwp86]
+d3.bj = {s6=0.59, a1=0.0, s8=0.0, a2=5.8, doi="10.1002/jcc.23391"}
+
+[parameter.dsdmpwpbe]
+d3.bj = {s6=0.96, a1=0.0, s8=0.0, a2=6.3, doi="10.1002/jcc.23391"}
+
+[parameter.dsdmpwb95]
+d3.bj = {s6=0.82, a1=0.0, s8=0.0, a2=6.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdhsepbe]
+d3.bj = {s6=0.79, a1=0.0, s8=0.0, a2=6.1, doi="10.1002/jcc.23391"}
+
+[parameter.dsdhsepw91]
+d3.bj = {s6=0.74, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.dsdhsep86]
+d3.bj = {s6=0.46, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dsdhselyp]
+d3.bj = {s6=0.40, a1=0.0, s8=0.0, a2=5.2, doi="10.1002/jcc.23391"}
+
+[parameter.dsdtpss]
+d3.bj = {s6=0.72, a1=0.0, s8=0.0, a2=6.5, doi="10.1002/jcc.23391"}
+
+[parameter.dsdtpssb95]
+d3.bj = {s6=0.91, a1=0.0, s8=0.0, a2=7.9, doi="10.1002/jcc.23391"}
+
+[parameter.dsdolyp]
+d3.bj = {s6=0.93, a1=0.0, s8=0.0, a2=5.8, doi="10.1002/jcc.23391"}
+
+[parameter.dsdxlyp]
+d3.bj = {s6=0.51, a1=0.0, s8=0.0, a2=5.3, doi="10.1002/jcc.23391"}
+
+[parameter.dsdxb95]
+d3.bj = {s6=0.92, a1=0.0, s8=0.0, a2=6.7, doi="10.1002/jcc.23391"}
+
+[parameter.dsdb98]
+d3.bj = {s6=0.07, a1=0.0, s8=0.0, a2=3.7, doi="10.1002/jcc.23391"}
+
+[parameter.dsdbmk]
+d3.bj = {s6=0.17, a1=0.0, s8=0.0, a2=3.9, doi="10.1002/jcc.23391"}
+
+[parameter.dsdthcth]
+d3.bj = {s6=0.39, a1=0.0, s8=0.0, a2=4.8, doi="10.1002/jcc.23391"}
+
+[parameter.dsdhcth407]
+d3.bj = {s6=0.53, a1=0.0, s8=0.0, a2=5.0, doi="10.1002/jcc.23391"}
+
+[parameter.dodsvwn5]
+d3.bj = {s6=0.57, a1=0.0, s8=0.0, a2=5.6, doi="10.1002/jcc.23391"}
+
+[parameter.dodblyp]
+d3.bj = {s6=0.96, a1=0.0, s8=0.0, a2=5.1, doi="10.1002/jcc.23391"}
+
+[parameter.dodpbe]
+d3.bj = {s6=0.91, a1=0.0, s8=0.0, a2=5.9, doi="10.1002/jcc.23391"}
+
+[parameter.dodpbep86]
+d3.bj = {s6=0.72, a1=0.0, s8=0.0, a2=5.4, doi="10.1002/jcc.23391"}
+
+[parameter.dodpbeb95]
+d3.bj = {s6=0.71, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.dodhsep86]
+d3.bj = {s6=0.69, a1=0.0, s8=0.0, a2=5.4, doi="10.1002/jcc.23391"}
+
+[parameter.dodpbehb95]
+d3.bj = {s6=0.67, a1=0.0, s8=0.0, a2=6.0, doi="10.1002/jcc.23391"}
+
+[parameter.cf22d]
+d3.zero = {rs6=1.53, doi="10.1038/s43588-022-00371-5"}
+
+[parameter."skala-1.0"]
+d3.bj = {a1=0.3981, s8=1.9889, a2=4.4211, doi="10.48550/arXiv.2506.14665"}
+
+[citation."10.1063/1.3382344"]  # DFT-D3(0)
+title = "A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT-D) for the 94 elements H-Pu"
+author = ["Stefan Grimme", "Jens Antony", "Stephan Ehrlich", "Helge Krieg"]
+journal = "J. Chem. Phys."
+volume = "132"
+pages = "154104"
+year = "2010"
+published = 2010-04-16
+
+[citation."10.1002/jcc.21759"]  # DFT-D3(BJ)
+title = "Effect of the damping function in dispersion corrected density functional theory"
+author = ["Stefan Grimme", "Stephan Ehrlich", "Lars Goerigk"]
+journal = "J. Comput. Chem."
+issue = "7"
+volume = "32"
+pages = "1456-1465"
+year = "2011"
+published = 2011-03-01
+
+[citation."10.1021/acs.jpclett.6b00780"]  # DFT-D3M
+title = "Revised Damping Parameters for the D3 Dispersion Correction to Density Functional Theory"
+author = ["Daniel G. A. Smith", "Lori A. Burns", "Konrad Patkowski", "C. David Sherrill"]
+journal = "J. Phys. Chem. Lett."
+issue = "12"
+volume = "7"
+pages = "2197–2203"
+year = "2016"
+published = 2016-05-20
+
+[citation."10.1021/acs.jctc.7b00176"]  # DFT-D3(op)
+title = "Assessing DFT-D3 Damping Functions Across Widely Used Density Functionals: Can We Do Better?"
+author = ["Jonathon Witte", "Narbe Mardirossian", "Jeffrey B. Neaton", "Martin Head-Gordon"]
+journal = "J. Chem. Theory Comput."
+issue = "5"
+volume = "13"
+pages = "2043–2052"
+year = "2017"
+published = 2017-04-10
+
+[citation."10.1021/ct100466k"]  # GMTKN30
+title = "Efficient and Accurate Double-Hybrid-Meta-GGA Density Functionals—Evaluation with the Extended GMTKN30 Database for General Main Group Thermochemistry, Kinetics, and Noncovalent Interactions"
+author = ["Lars Goerigk", "Stefan Grimme"]
+journal = "J. Chem. Theory Comput."
+issue = "2"
+volume = "7"
+pages = "291–309"
+year = "2011"
+published = 2010-12-23
+
+[citation."10.1039/c0cp02984j"]  # GMTKN30
+title = "A thorough benchmark of density functional methods for general main group thermochemistry, kinetics, and noncovalent interactions"
+author = ["Lars Goerigk", "Stefan Grimme"]
+journal = "Phys. Chem. Chem. Phys."
+issue = "14"
+volume = "13"
+pages = "6670-6688"
+year = "2011"
+published = 2011-03-07
+
+[citation."10.1039/c7cp04913g"]  # GMTKN55
+title = "A look at the density functional theory zoo with the advanced GMTKN55 database for general main group thermochemistry, kinetics and noncovalent interactions"
+author = ["Lars Goerigk", "Andreas Hansen", "Christoph Bauer", "Stephan Ehrlich", "Asim Najibi", "Stefan Grimme"]
+journal = "Phys. Chem. Chem. Phys."
+issue = "48"
+volume = "19"
+pages = "32184-32215"
+year = "2017"
+published = 2017-10-26
+
+[citation."10.1002/jcc.23391"]  # DSD functionals
+title = "Spin-component-scaled double hybrids: An extensive search for the best fifth-rung functionals blending DFT and perturbation theory"
+author = ["Sebastian Kozuch", "Jan M. L. Martin"]
+journal = "J. Comput. Chem."
+issue = "27"
+volume = "34"
+pages = "2327-2344"
+year = "2013"
+published = 2013-08-26
+
+[citation."10.1039/c1cp22592h"]  # DSD-PBEP86
+title = "DSD-PBEP86: in search of the best double-hybrid DFT with spin-component scaled MP2 and dispersion corrections"
+author = ["Sebastian Kozuch", "Jan M. L. Martin"]
+journal = "Phys. Chem. Chem. Phys."
+issue = "45"
+volume = "13"
+pages = "20104-20107"
+year = "2011"
+published = 2011-10-12
+
+[citation."10.1021/acs.jpca.1c01295"]  # dRPA
+title = "Exploring Avenues beyond Revised DSD Functionals: II. Random-Phase Approximation and Scaled MP3 Corrections"
+author = ["Golokesh Santra", "Emmanouil Semidalas", "Jan M. L. Martin"]
+journal = "J. Phys. Chem. A"
+issue = "21"
+volume = "125"
+pages = "4628-4638"
+year = "2021"
+published = 2021-05-21
+
+[citation."10.1021/acs.jpca.9b03157"]  # revDSD / revDOD
+title = "Minimally Empirical Double-Hybrid Functionals Trained against the GMTKN55 Database: revDSD-PBEP86-D4, revDOD-PBE-D4, and DOD-SCAN-D4"
+author = ["Golokesh Santra", "Nitai Sylvetsky", "Jan M. L. Martin"]
+journal = "J. Phys. Chem. A"
+issue = "24"
+volume = "123"
+pages = "5129-5143"
+year = " 2019"
+published = 2019-05-28
+
+[citation."10.1073/pnas.1516984112"]  # PW91-D3
+title = "A priori calculations of the free energy of formation from solution of polymorphic self-assembled monolayers"
+author = ["Jeffrey R. Reimers", "Dwi Panduwinata", "Johan Visser", "Maxwell J. Crossley"]
+journal = "Proc. Natl. Acad. Sci."
+issue = "45"
+volume = "112"
+pages = "E6101-E6110"
+year = "2015"
+published = 2015-10-28
+
+[citation."10.1063/5.0041008"]  # r2SCAN-D4
+title = "r²SCAN-D4: Dispersion corrected meta-generalized gradient approximation for general chemical applications"
+author = ["Sebastian Ehlert", "Uwe Huniar", "Jinliang Ning", "James W. Furness", "Jianwei Sun", "Aaron D. Kaplan", "John P. Perdew", "Jan Gerit Brandenburg"]
+journal = "J. Chem. Phys."
+volume = "154"
+pages = "061101"
+year = "2021"
+published = 2021-02-09
+
+[citation."10.1103/physrevb.94.115144"]  # SCAN-D3
+title = "Benchmark tests of a strongly constrained semilocal functional with a long-range dispersion correction"
+author = ["J. G. Brandenburg", "J. E. Bates", "J. Sun", "J. P. Perdew"]
+journal = "Phys. Rev. B"
+volume = "94"
+pages = "115144"
+year = "2016"
+published = 2016-09-21
+
+[citation."10.1063/1.4927476"]  # PBEh-3c
+title = "Consistent structures and interactions by density functional theory with small atomic orbital basis sets"
+author = ["Stefan Grimme", "Jan Gerit Brandenburg", "Christoph Bannwarth", "Andreas Hansen"]
+journal = "J. Chem. Phys."
+volume = "143"
+pages = "054107"
+year = "2015"
+published = 2015-08-05
+
+[citation."10.1039/c6cp01697a"]  # HSE-3c
+title = "Screened exchange hybrid density functional for accurate and efficient structures and interaction energies"
+author = ["Jan Gerit Brandenburg", "Eike Caldeweyher", "Stefan Grimme"]
+journal = "Phys. Chem. Chem. Phys."
+issue = "23"
+volume = "18"
+pages = "15519-15523"
+year = "2016"
+published = 2016-05-24
+
+[citation."10.1063/1.5012601"]  # B97-3c
+title = "B97-3c: A revised low-cost variant of the B97-D density functional method"
+author = ["Jan Gerit Brandenburg", "Christoph Bannwarth", "Andreas Hansen", "Stefan Grimme"]
+journal = "J. Chem. Phys."
+volume = " 148"
+pages = "064104"
+year = "2018"
+published = 2018-02-09
+
+[citation."10.1002/jcc.23317"]  # HF-3c
+title = "Corrected small basis set Hartree-Fock method for large systems"
+author = ["Rebecca Sure", "Stefan Grimme"]
+journal = "J. Comput. Chem."
+issue = "19"
+volume = "34"
+pages = "1672-1685"
+year = "2013"
+published = 2013-06-15
+
+[citation."10.1063/1.3700154"]  # gCP
+title = "A geometrical correction for the inter- and intra-molecular basis set superposition error in Hartree-Fock and density functional theory calculations for large systems"
+author = ["Holger Kruse", "Stefan Grimme"]
+journal = "J. Chem. Phys."
+volume = "136"
+pages = "154101"
+year = "2012"
+published = 2012-04-16
+
+[citation."10.1002/cphc.201100521"]  # D3 PBC
+title = "System-Dependent Dispersion Coefficients for the DFT-D3 Treatment of Adsorption Processes on Ionic Surfaces"
+author = ["Stephan Ehrlich", "Jonas Moellmann", "Werner Reckien", "Thomas Bredow", "Stefan Grimme"]
+journal = "ChemPhysChem"
+issue = "17"
+volume = "12"
+pages = "3414"
+year = "2011"
+published = 2011-10-19
+
+[citation."10.1063/5.0086040"]  # r2SCAN hybrids
+title = "Dispersion corrected r²SCAN based global hybrid functionals: r²SCANh, r²SCAN0, and r²SCAN50"
+author = ["Markus Bursch", "Hagen Neugebauer", "Sebastian Ehlert", "Stefan Grimme"]
+journal = "J. Chem. Phys."
+volume = "156"
+pages = "134105"
+year = "2022"
+published = 2022-04-04
+
+[citation."10.1063/5.0174988"]  # r2SCAN double hybrids
+title = "Dispersion-corrected r²SCAN based double-hybrid functionals"
+author = ["Lukas Wittmann", "Hagen Neugebauer", "Stefan Grimme", "Markus Bursch"]
+journal = "J. Chem. Phys."
+volume = "159"
+pages = "224103"
+year = "2023"
+published = 2023-12-08
+
+[citation."10.1021/acs.jpclett.5b01591"]  # Minnesota + D3
+title = "Treating London-Dispersion Effects with the Latest Minnesota Density Functionals: Problems and Possible Solutions"
+author = ["Lars Goerigk"]
+journal = "J. Phys. Chem. Lett."
+issue = "19"
+volume = "6"
+pages = "3891-3896"
+year = "2015"
+published = 2015-09-14
+
+[citation."10.1021/acs.jctc.8b00842"]  # mB97 + D3
+title = "The Nonlocal Kernel in van der Waals Density Functionals as an Additive Correction: An Extensive Analysis with Special Emphasis on the B97M-V and ωB97M-V Approaches"
+author = ["Asim Najibi", "Lars Goerigk"]
+journal = "J. Chem. Theory Comput."
+issue = "11"
+volume = "14"
+pages = "5725-5738"
+year = "2018"
+published = 2018-10-09
+
+[citation."10.1021/ct300715s"]  # wB97x-D3
+title = "Long-Range Corrected Hybrid Density Functionals with Improved Dispersion Corrections"
+author = ["You-Sheng Lin", "Guan-De Li", "Shan-Ping Mao", "Jeng-Da Chai"]
+journal = "J. Chem. Theory Comput."
+issue = "1"
+volume = "9"
+pages = "263-272"
+year = "2013"
+published = 2012-11-05
+
+[citation."10.1021/jp501237c"]  # HSE06-D3
+title = "DFT-D3 Study of Some Molecular Crystals"
+author = ["Jonas Moellmann", "Stefan Grimme"]
+journal = "J. Phys. Chem. C"
+issue = "14"
+volume = "118"
+pages = "7615-7621"
+year = "2014"
+published = 2014-03-13
+
+[citation."10.1038/s43588-022-00371-5"]  # CF22D
+title = "Supervised learning of a chemistry functional with damped dispersion"
+author = ["Yiwei Liu", "Cheng Zhang", "Zhonghua Liu", "Donald G. Truhlar", "Ying Wang", "Xiao He"]
+journal = "Nat. Comput. Sci."
+issue = "1"
+volume = "3"
+pages = "48–58"
+year = "2023"
+published = 2022-12-23
+
+[citation."10.48550/arXiv.2506.14665"]  # Skala
+title = "Accurate and scalable exchange-correlation with deep learning"
+author = ["Giulia Luise", "Chin-Wei Huang", "Thijs Vogels", "Derk P. Kooi", "Sebastian Ehlert", "Stephanie Lanius", "Klaas J. H. Giesbertz", "Amir Karton", "Deniz Gunceler", "Megan Stanley", "Wessel P. Bruinsma", "Lin Huang", "Xinran Wei", "José Garrido Torres", "Abylay Katbashev", "Rodrigo Chavez Zavaleta", "Bálint Máté", "Sékou-Oumar Kaba", "Roberto Sordillo", "Yingrong Chen", "David B. Williams-Young", "Christopher M. Bishop", "Jan Hermann", "Rianne van den Berg", "Paola Gori-Giorgi"]
+journal = "arXiv"
+volume = "2506.14665"
+pages = "2506.14665"
+year = "2025"

@@ -1,0 +1,6 @@
+$ORIGIN/20-i21p.tmol
+--db
+$ORIGIN/../../assets/parameters.toml
+--op
+ms2
+--noedisp

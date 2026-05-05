@@ -1,0 +1,8 @@
+gcp
+$ORIGIN/25-g3.gen
+-i
+gen
+--nocpc
+--level
+b3lyp/631gd
+--grad

@@ -1,0 +1,39 @@
+name: docs
+
+on: [push, pull_request]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - id: deploy-on-push
+      run:
+        echo "::set-output name=result::${{ env.DEPLOY_BRANCH }}"
+      env:
+        DEPLOY_BRANCH: ${{ secrets.DEPLOY_BRANCH && contains(github.ref, secrets.DEPLOY_BRANCH) && 1 || 0 }}
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install ford
+
+    - name: Build Documentation
+      run: ford docs.md
+
+    - uses: JamesIves/github-pages-deploy-action@4.1.6
+      if: ${{ github.event_name == 'push' && steps.deploy-on-push.outputs.result != 0 }}
+      with:
+        branch: gh-pages
+        folder: _docs
+        single-commit: true
+        git-config-email: 104521936+dftd3@users.noreply.github.com
+        git-config-name: DFT-D3

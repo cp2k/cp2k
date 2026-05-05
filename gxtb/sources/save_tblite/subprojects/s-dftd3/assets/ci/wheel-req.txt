@@ -1,0 +1,15 @@
+git
+python
+pip
+python-build
+pkgconfig
+patchelf
+cffi
+numpy
+ase
+qcelemental
+matplotlib-base
+meson !=1.8.0
+setuptools
+unzip
+wheel

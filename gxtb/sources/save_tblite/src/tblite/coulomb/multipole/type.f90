@@ -1423,9 +1423,9 @@ pure subroutine get_damat_sdq_rec_3d(rij, qi, qj, mi, mj, ti, tj, vol, alp, tran
    !> Derivative of the energy w.r.t. strain deformations
    real(wp), intent(out) :: dS(3, 3)
 
-   integer :: itr
+   integer :: itr, a, b
    real(wp) :: fac, vec(3), g2, gv, expk, alp2, sink, cosk, dpiqj, qidpj
-   real(wp) :: qpiqj, qiqpj, dpiv, dpjv
+   real(wp) :: qpiqj, qiqpj, dpiv, dpjv, tiv(3), tjv(3)
 
    dG(:) = 0.0_wp
    dS(:, :) = 0.0_wp
@@ -1447,6 +1447,12 @@ pure subroutine get_damat_sdq_rec_3d(rij, qi, qj, mi, mj, ti, tj, vol, alp, tran
       dG(:) = dG - 2*vec*cosk * (dpiqj - qidpj)
       dS(:, :) = dS + 2 * sink * (dpiqj - qidpj) &
          & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+      do b = 1, 3
+         do a = 1, 3
+            dS(a, b) = dS(a, b) - sink*( &
+               & vec(a)*(qj*mi(b) - qi*mj(b)) + vec(b)*(qj*mi(a) - qi*mj(a)))
+         end do
+      end do
 
       dpiv = dot_product(mi, vec)
       dpjv = dot_product(mj, vec)
@@ -1454,15 +1460,33 @@ pure subroutine get_damat_sdq_rec_3d(rij, qi, qj, mi, mj, ti, tj, vol, alp, tran
       dG(:) = dG + vec*sink*dpiv*dpjv
       dS(:, :) = dS + cosk * dpiv*dpjv &
          & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+      do b = 1, 3
+         do a = 1, 3
+            dS(a, b) = dS(a, b) - 0.5_wp*cosk*( &
+               & vec(a)*(mi(b)*dpjv + mj(b)*dpiv) + vec(b)*(mi(a)*dpjv + mj(a)*dpiv))
+         end do
+      end do
 
       qiqpj = qi*(tj(1)*vec(1)*vec(1) + tj(3)*vec(2)*vec(2) + tj(6)*vec(3)*vec(3) &
          & + 2*tj(2)*vec(1)*vec(2) + 2*tj(4)*vec(1)*vec(3) + 2*tj(5)*vec(2)*vec(3))
       qpiqj = qj*(ti(1)*vec(1)*vec(1) + ti(3)*vec(2)*vec(2) + ti(6)*vec(3)*vec(3) &
          & + 2*ti(2)*vec(1)*vec(2) + 2*ti(4)*vec(1)*vec(3) + 2*ti(5)*vec(2)*vec(3))
+      tiv = [ti(1)*vec(1) + ti(2)*vec(2) + ti(4)*vec(3), &
+         & ti(2)*vec(1) + ti(3)*vec(2) + ti(5)*vec(3), &
+         & ti(4)*vec(1) + ti(5)*vec(2) + ti(6)*vec(3)]
+      tjv = [tj(1)*vec(1) + tj(2)*vec(2) + tj(4)*vec(3), &
+         & tj(2)*vec(1) + tj(3)*vec(2) + tj(5)*vec(3), &
+         & tj(4)*vec(1) + tj(5)*vec(2) + tj(6)*vec(3)]
 
       dG(:) = dG + vec * sink * (qiqpj + qpiqj)
       dS(:, :) = dS + cosk * (qiqpj + qpiqj) &
          & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+      do b = 1, 3
+         do a = 1, 3
+            dS(a, b) = dS(a, b) - cosk*( &
+               & vec(a)*(qi*tjv(b) + qj*tiv(b)) + vec(b)*(qi*tjv(a) + qj*tiv(a)))
+         end do
+      end do
    end do
 
 end subroutine get_damat_sdq_rec_3d

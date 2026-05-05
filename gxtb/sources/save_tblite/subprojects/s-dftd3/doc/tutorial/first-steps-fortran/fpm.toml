@@ -1,0 +1,6 @@
+name = "d3-example"
+version = "1.0.0"
+
+[dependencies]
+# s-dftd3.git = "https://github.com/dftd3/simple-dftd3"
+s-dftd3.path = "../../../"

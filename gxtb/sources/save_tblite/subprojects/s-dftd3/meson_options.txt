@@ -1,0 +1,54 @@
+# This file is part of s-dftd3.
+# SPDX-Identifier: LGPL-3.0-or-later
+#
+# s-dftd3 is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# s-dftd3 is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with s-dftd3.  If not, see <https://www.gnu.org/licenses/>.
+
+option(
+  'blas',
+  type: 'combo',
+  value: 'none',
+  choices: ['none', 'netlib', 'custom'],
+  description: 'Use basic linear algebra subprograms',
+)
+option(
+  'blas_libs',
+  type: 'array',
+  value: [],
+  description: 'Libraries to link against as custom BLAS backend',
+)
+option(
+  'openmp',
+  type: 'boolean',
+  value: true,
+  yield: true,
+  description: 'Use OpenMP parallelisation',
+)
+option(
+  'api',
+  type: 'boolean',
+  value: true,
+  description: 'Build C API using iso_c_binding module',
+)
+option(
+  'python',
+  type: 'boolean',
+  value: false,
+  description: 'Build Python extension module',
+)
+option(
+  'python_version',
+  type: 'string',
+  value: 'python3',
+  description: 'Python version to link against.',
+)

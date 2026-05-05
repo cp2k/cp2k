@@ -1,0 +1,198 @@
+name: wheel
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/build-env.yaml
+    - run: |
+        meson setup _build
+        meson dist -C _build --no-tests --include-subprojects
+        mv _build/meson-dist/*.tar.xz .
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dftd3-source
+        path: ./*.tar.xz
+        retention-days: 5
+
+  sdist:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/python-env.yaml
+        create-args: >-
+          meson-python
+          python-build
+    - name: Reorganize repository
+      run: |
+        git config user.email ""
+        git config user.name "dummy"
+        git subtree add --prefix python/subprojects/s-dftd3 . HEAD
+        git mv {assets,python/dftd3}/parameters.toml
+        git commit -m "Python dist"
+    - run: |
+        python -m build python/ --sdist --outdir . -n
+    - uses: actions/upload-artifact@v4
+      with:
+        name: dftd3-python-sdist
+        path: ./*.tar.gz
+        retention-days: 5
+
+  wheels:
+    needs:
+      - sdist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-14
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      # Used to host cibuildwheel
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set cibuildwheel cache path
+        run: echo "CIBW_CACHE_PATH=${{ github.workspace }}/.cibw-cache" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.cibw-cache
+          key: cibw-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/workflows/*.yml') }}
+          restore-keys: |
+            cibw-${{ runner.os }}-${{ runner.arch }}-
+            cibw-${{ runner.os }}-
+
+      - name: Install cibuildwheel
+        run: python -m pip install "cibuildwheel==3.4.1"
+
+      - name: Download sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: dftd3-python-sdist
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir . *.tar.gz
+        env:
+          CIBW_CACHE_PATH: ${{ github.workspace }}/.cibw-cache
+          CIBW_CONFIG_SETTINGS: setup-args="-Ds-dftd3:openmp=false"
+          CIBW_ARCHS: auto64
+          CIBW_SKIP: "{cp38-macosx_arm64,cp39-macosx_arm64,pp37-win_amd64,pp39-win_amd64,pp310-win_amd64}"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS_MACOS: arm64
+          CIBW_ENVIRONMENT_MACOS: >
+             CC=gcc-14 CXX=g++-14 FC=gfortran-14
+             MACOSX_DEPLOYMENT_TARGET=14.0
+          CIBW_BEFORE_ALL_MACOS: brew install gcc@14
+          CIBW_BEFORE_BUILD_WINDOWS: choco upgrade mingw && pip install delvewheel
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel show {wheel} && delvewheel repair -w {dest_dir} {wheel} --no-mangle-all"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dftd3-python-${{ matrix.os }}
+          path: "*.whl"
+
+  release:
+    needs:
+      - source
+      - sdist
+      - wheels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}  # This will download all files
+
+      - name: Create SHA256 checksums
+        run: |
+          set -ex
+          for output in dftd3*/*dftd3*; do
+            pushd $(dirname "$output")
+            sha256sum $(basename "$output") | tee $(basename "$output").sha256
+            popd
+          done
+
+      - name: Copy release artifacts
+        run: |
+          mkdir dist/
+          cp -v dftd3*/dftd3*.whl dftd3*/dftd3*.tar.gz dist/
+
+      - name: Upload assets
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ github.event_name == 'release' }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dftd3*/*dftd3*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    needs:
+      - sdist
+      - wheels
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dftd3
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download sdist
+      uses: actions/download-artifact@v4
+      with:
+        name: dftd3-python-sdist
+        path: dist/
+
+    - name: Download manylinux wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: dftd3-python-ubuntu-latest
+        path: dist/
+
+    - name: Download windows wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: dftd3-python-windows-latest
+        path: dist/
+
+    - name: Download osx wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: dftd3-python-macos-14
+        path: dist/
+
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

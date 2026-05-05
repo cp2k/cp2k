@@ -1,0 +1,7 @@
+run
+$ORIGIN/02-ser-xad.gen
+--zero
+b3lyp
+--citation
+--noedisp
+-s

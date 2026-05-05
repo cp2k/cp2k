@@ -417,6 +417,7 @@ subroutine get_hamiltonian(mol, trans, list, bas, bcache, h0, selfenergy, &
          js = bas%ish_at(jat)
          vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
          r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         if (r2 <= epsilon(1.0_wp)) cycle
          r = sqrt(r2)
          ! Precompute square root, linear, and quadratic distance factors
          rr2 = r / (h0%rad(jzp) + h0%rad(izp))
@@ -772,9 +773,9 @@ subroutine get_hamiltonian_gradient(mol, trans, list, bas, bcache, h0, &
          itr = list%nltr(img+inl)
          jzp = mol%id(jat)
          js = bas%ish_at(jat)
-         if (iat == jat) cycle
          vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
          r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         if (r2 <= epsilon(1.0_wp)) cycle
          r = sqrt(r2)
          ! Precompute square root, linear, and quadratic distance factors
          rr2 = r / (h0%rad(jzp) + h0%rad(izp))
@@ -1041,8 +1042,12 @@ subroutine get_hamiltonian_gradient(mol, trans, list, bas, bcache, h0, &
 
          ! Collect CN-, anisotropy, effective (H0) charge-derivatives, gradient
          ! and sigma once per atom pair
-         dEdcn_local(iat) = dEdcn_local(iat) + dcni
-         dEdcn_local(jat) = dEdcn_local(jat) + dcnj
+         if (iat == jat) then
+            dEdcn_local(iat) = dEdcn_local(iat) + 0.5_wp * (dcni + dcnj)
+         else
+            dEdcn_local(iat) = dEdcn_local(iat) + dcni
+            dEdcn_local(jat) = dEdcn_local(jat) + dcnj
+         end if
          dEdad_local(:, iat) = dEdad_local(:, iat) + dadi
          dEdad_local(:, jat) = dEdad_local(:, jat) + dadj
          if (compute_qeff_grad) then
@@ -1053,8 +1058,13 @@ subroutine get_hamiltonian_gradient(mol, trans, list, bas, bcache, h0, &
          end if
          gradient_local(:, iat) = gradient_local(:, iat) + dG
          gradient_local(:, jat) = gradient_local(:, jat) - dG
-         sigma_local(:, :) = sigma_local + 0.5_wp * (spread(vec, 1, 3) &
-            & * spread(dG, 2, 3) + spread(dG, 1, 3) * spread(vec, 2, 3))
+         if (iat == jat) then
+            sigma_local(:, :) = sigma_local + 0.25_wp * (spread(vec, 1, 3) &
+               & * spread(dG, 2, 3) + spread(dG, 1, 3) * spread(vec, 2, 3))
+         else
+            sigma_local(:, :) = sigma_local + 0.5_wp * (spread(vec, 1, 3) &
+               & * spread(dG, 2, 3) + spread(dG, 1, 3) * spread(vec, 2, 3))
+         end if
 
       end do
 

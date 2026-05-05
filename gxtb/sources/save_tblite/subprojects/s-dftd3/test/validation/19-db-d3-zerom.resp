@@ -1,0 +1,7 @@
+$ORIGIN/19-g1.mol
+--db
+$ORIGIN/../../assets/parameters.toml
+--zerom
+b2plyp
+--noedisp
+--silent

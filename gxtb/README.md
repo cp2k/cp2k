@@ -15,7 +15,10 @@ The CP2K branch was created from local PR5131 state:
   - Origin: https://github.com/thfroitzheim/save_tblite.git
   - Commit: `b4b2b79506e31d0b962f9dc9dcb90c0dc3771908`
   - Notes: g-xTB-enabled tblite source used for the CP2K build. The local snapshot includes the
-    CMake `Finddftd.cmake` compatibility fix used during the build.
+    CMake `Finddftd.cmake` compatibility fix used during the build. The bundled s-D3 dependency
+    is moved to `v1.3.2`, which already contains the ATM `triple` gradient fix from the
+    `simple-dftd3-1.3.1` patch baseline; the remaining PR5131 s-D3 gradient/smooth-cutoff fixes
+    are applied to the local subproject used for testing.
 
 - `sources/dftd`
   - Origin: https://github.com/grimme-lab/dftd.git

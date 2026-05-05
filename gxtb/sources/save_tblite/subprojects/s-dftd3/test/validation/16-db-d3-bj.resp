@@ -1,0 +1,6 @@
+$ORIGIN/16-i10e.gen
+--db
+$ORIGIN/../../assets/parameters.toml
+--bj
+b1lyp
+--noedisp

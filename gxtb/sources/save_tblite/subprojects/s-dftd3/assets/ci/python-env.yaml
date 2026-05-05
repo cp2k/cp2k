@@ -1,0 +1,21 @@
+name: python
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pip
+  - python-build
+  - pkgconfig
+  # - pyscf  # opt'l, added w/logic in GHA
+  - pytest
+  - pytest-cov
+  - coverage
+  - cffi
+  - numpy
+  - ase
+  # - qcelemental  # opt'l, added w/logic in GHA
+  - matplotlib-base
+  - meson >=1.2.3,!=1.8.0
+  - meson-python
+  - setuptools
+  - ninja

@@ -1,0 +1,7 @@
+--input
+xyz
+$ORIGIN/10-but14diol.log
+--op
+revpbe0
+--noedisp
+--grad

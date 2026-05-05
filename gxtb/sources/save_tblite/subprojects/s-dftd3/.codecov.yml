@@ -1,0 +1,6 @@
+fixes:
+  - "/home/runner/work/simple-dftd3/simple-dftd3::"
+
+ignore:
+  - "python/**/test_*.py"
+  - "test/**"

@@ -1,0 +1,10 @@
+$ORIGIN/15-pxylene.mol
+--noedisp
+--op-param
+1.0
+0.27632
+0.700
+2.500
+8.0
+--pair-resolved
+--verbose

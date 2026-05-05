@@ -1,0 +1,327 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  BUILD_DIR: _build
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        build: [meson, cmake, fpm]
+        build-type: [debug]
+        compiler: [gnu]
+        version: [10]
+
+        include:
+        - os: macos-14
+          build: cmake
+          build-type: debug
+          compiler: gnu
+          version: 12
+
+        - os: ubuntu-latest
+          build: meson
+          build-type: coverage
+          compiler: gnu
+          version: 9
+
+        - os: macos-14
+          build: meson
+          build-type: debug
+          compiler: gnu
+          version: 12
+
+        - os: ubuntu-latest
+          build: meson
+          build-type: debug
+          compiler: gnu
+          version: 11
+
+        - os: ubuntu-latest
+          build: meson
+          build-type: debug
+          compiler: gnu
+          version: 12
+
+        - os: ubuntu-latest
+          build: meson
+          build-type: debug
+          compiler: gnu
+          version: 13
+
+        - os: ubuntu-latest
+          build: meson
+          build-type: debug
+          compiler: intel
+          version: 2021.2.0
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell || 'bash -l {0}' }}
+
+    env:
+      FC: ${{ matrix.compiler == 'intel' && 'ifort' || 'gfortran' }}
+      CC: ${{ matrix.compiler == 'intel' && 'icc' || 'gcc' }}
+      GCC_V: ${{ matrix.version }}
+      PYTHON_V: 3.8
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install GCC (OSX)
+      if: ${{ contains(matrix.os, 'macos') && matrix.compiler == 'gnu' }}
+      run: |
+        brew install gcc@${{ env.GCC_V }}
+        ln -s /opt/homebrew/bin/gfortran-${{ env.GCC_V }} /opt/homebrew/bin/gfortran
+        ln -s /opt/homebrew/bin/gcc-${{ env.GCC_V }} /opt/homebrew/bin/gcc
+        ln -s /opt/homebrew/bin/g++-${{ env.GCC_V }} /opt/homebrew/bin/g++
+
+    - name: Install GCC (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') && matrix.compiler == 'gnu' }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }}
+        sudo update-alternatives \
+          --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_V }} 100 \
+          --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ env.GCC_V }} \
+          --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ env.GCC_V }}
+
+    - name: Install GCC (Windows)
+      if: ${{ contains(matrix.os, 'windows') && matrix.compiler == 'gnu' }}
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        install: >-
+          git
+          mingw-w64-x86_64-gcc-fortran
+          mingw-w64-x86_64-lapack
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-meson
+          mingw-w64-x86_64-ninja
+
+    - name: Install dependencies
+      if: ${{ ! contains(matrix.os, 'windows') }}
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/build-env.yaml
+
+    - name: Prepare for cache restore
+      if: ${{ matrix.compiler == 'intel' }}
+      run: |
+        sudo mkdir -p /opt/intel
+        sudo chown $USER /opt/intel
+
+    - name: Cache Intel install
+      if: ${{ matrix.compiler == 'intel' }}
+      id: cache-install
+      uses: actions/cache@v4
+      with:
+        path: /opt/intel/oneapi
+        key: install-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}
+
+    - name: Install Intel
+      if: ${{ contains(matrix.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+      run: |
+        bash assets/ci/setup-intel.sh
+
+    - name: Setup Intel oneAPI environment
+      if: ${{ matrix.compiler == 'intel' }}
+      run: |
+        source /opt/intel/oneapi/setvars.sh
+        printenv >> $GITHUB_ENV
+
+    - name: Configure build (meson)
+      if: ${{ matrix.build == 'meson' }}
+      run: >-
+        meson setup ${{ env.BUILD_DIR }}
+        --buildtype=debug
+        --prefix=$PWD/_dist
+        --libdir=lib
+        --warnlevel=0
+        -Db_coverage=${{ env.COVERAGE }}
+        -Dapi=${{ matrix.compiler == 'intel' && 'false' || 'true' }}
+      env:
+        COVERAGE: ${{ matrix.build-type == 'coverage' }}
+
+    - name: Configure build (CMake)
+      if: ${{ matrix.build == 'cmake' }}
+      run: >-
+        cmake -B${{ env.BUILD_DIR }}
+        -GNinja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+        -DCMAKE_INSTALL_LIBDIR=lib
+
+    - name: Build library (fpm)
+      if: ${{ matrix.build == 'fpm' }}
+      run: fpm build
+
+    - name: Build library
+      if: ${{ matrix.build != 'fpm' }}
+      run: ninja -C ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests (fpm)
+      if: ${{ matrix.build == 'fpm' }}
+      run: fpm test
+
+    - name: Run unit tests (meson)
+      if: ${{ matrix.build == 'meson' }}
+      run: >-
+         meson test
+         -C ${{ env.BUILD_DIR }}
+         --print-errorlogs
+         --no-rebuild
+         --num-processes 1
+         --suite s-dftd3
+         -t 10
+      env:
+        OMP_NUM_THREADS: 1,2,1
+
+    - name: Run benchmarks
+      if: ${{ matrix.build == 'meson' }}
+      run: >-
+         meson test
+         -C ${{ env.BUILD_DIR }}
+         --print-errorlogs
+         --no-rebuild
+         --num-processes 1
+         --suite s-dftd3
+         -t 2
+         --benchmark
+
+    - name: Run unit tests (ctest)
+      if: ${{ matrix.build == 'cmake' }}
+      run: |
+         ctest --output-on-failure --parallel 2 -R '${{ env.CTEST_ARGS }}'
+      working-directory: ${{ env.BUILD_DIR }}
+      env:
+        OMP_NUM_THREADS: 1,2,1
+        CTEST_ARGS: >-
+          ${{ contains(matrix.os, 'macos') &&  '^s-dftd3/' || '' }}
+
+    - name: Create coverage report
+      if: ${{ matrix.build == 'meson' && matrix.build-type == 'coverage' }}
+      run:
+         ninja -C ${{ env.BUILD_DIR }} coverage
+
+    - name: Install project
+      if: ${{ matrix.build != 'fpm' }}
+      run: |
+        ninja -C ${{ env.BUILD_DIR }} install
+        echo "DFTD3_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+
+    - name: Create package
+      if: ${{ matrix.build == 'meson' }}
+      run: |
+        tar cvf ${{ env.OUTPUT }} _dist
+        xz -T0 ${{ env.OUTPUT }}
+        echo "DFTD3_OUTPUT=${{ env.OUTPUT }}.xz" >> $GITHUB_ENV
+      env:
+        OUTPUT: s-dftd3-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}.tar
+
+    - name: Upload package
+      if: ${{ matrix.build == 'meson' && matrix.build-type != 'coverage' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.DFTD3_OUTPUT }}
+        path: ${{ env.DFTD3_OUTPUT }}
+
+    - name: Upload coverage report
+      if: ${{ matrix.build-type == 'coverage' }}
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+
+  python:
+    needs:
+      - build
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        gcc_v: [10]
+        python_v: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+
+    env:
+      FC: gfortran
+      CC: gcc
+      GCC_V: ${{ matrix.gcc_v }}
+      PYTHON_V: ${{ matrix.python_v }}
+      OMP_NUM_THREADS: 2,1
+      DFTD3_OUTPUT: s-dftd3-gnu-${{ matrix.gcc_v }}-${{ matrix.os }}.tar.xz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - run: pip3 install coverage
+
+    - name: Install dependencies
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: assets/ci/python-env.yaml
+        create-args: >-
+          python=${{ matrix.python_v }}
+          ${{ (matrix.python_v == '3.14' || matrix.python_v == '3.13') && 'conda-forge/label/qcelemental_dev::qcelemental>=0.50.0rc3' || 'qcelemental pyscf' }}
+
+    - name: Install GCC (OSX)
+      if: ${{ contains(matrix.os, 'macos') }}
+      run: |
+        ln -s /opt/homebrew/bin/gfortran-${{ env.GCC_V }} /opt/homebrew/bin/gfortran
+        ln -s /opt/homebrew/bin/gcc-${{ env.GCC_V }} /opt/homebrew/bin/gcc
+        ln -s /opt/homebrew/bin/g++-${{ env.GCC_V }} /opt/homebrew/bin/g++
+
+    - name: Install GCC (Linux)
+      if: ${{ contains(matrix.os, 'ubuntu') }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
+        sudo apt-get install -y gcc-${{ env.GCC_V}} gfortran-${{ env.GCC_V }}
+        sudo update-alternatives \
+          --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_V }} 100 \
+          --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ env.GCC_V }} \
+          --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ env.GCC_V }}
+
+    - name: Download package
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ env.DFTD3_OUTPUT }}
+
+    - name: Unpack package
+      run: |
+        tar xvf ${{ env.DFTD3_OUTPUT }}
+        echo "DFTD3_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+
+    - name: Copy parameter file
+      run: |
+        cp assets/parameters.toml python/dftd3
+
+    - name: Install Python extension module (meson-python)
+      run: pip3 install . -vv --no-build-isolation
+      working-directory: python
+      env:
+        PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}:${{ env.DFTD3_PREFIX }}/lib/pkgconfig
+
+    - name: Test Python API
+      run: pytest --pyargs dftd3 --cov=dftd3 --cov-report term --cov-report xml:coverage.xml -vv
+      env:
+        LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}:${{ env.DFTD3_PREFIX }}/lib
+        DYLD_LIBRARY_PATH: ${{ env.DYLD_LIBRARY_PATH }}:${{ env.DFTD3_PREFIX }}/lib
+
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}

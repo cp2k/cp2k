@@ -1,0 +1,10 @@
+$ORIGIN/07-bih3-nh3.tmol
+-i
+coord
+--zero
+m06l
+--grad
+07-gradient-d3-zero.txt
+--noedisp
+--atm
+--property
