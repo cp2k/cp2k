@@ -88,7 +88,7 @@ class TextPresenceMatcher(Matcher):
             return MatchResult(
                 "WRONG RESULT", f"Text not found: '{self.text}'.\n", value=None
             )
-        return MatchResult("OK", error=None, value=1.0)
+        return MatchResult("OK", error=None, value=None)
 
 
 # ======================================================================================
