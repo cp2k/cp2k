@@ -226,9 +226,8 @@ CONTAINS
 
       INTEGER                                            :: my_val, npts(3)
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
-      LOGICAL                                            :: analyt, decoupling, &
-                                                            do_qmmm_periodic_decpl, do_restraint, &
-                                                            do_restraintB, do_solvation
+      LOGICAL :: analyt, decoupling, do_qmmm_periodic_decpl, do_restraint, do_restraintB, &
+         do_solvation, use_mm_spline, use_qm_spline
       REAL(KIND=dp)                                      :: hmat(3, 3)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gx, gy, gz, LG
       TYPE(cell_type), POINTER                           :: dummy_cell, mm_cell
@@ -293,36 +292,48 @@ CONTAINS
          ! Do we do the calculation analytically or interpolating the g-space factor?
          CALL section_vals_val_get(multipole_section, "ANALYTICAL_GTERM", l_val=analyt)
          IF (.NOT. analyt) THEN
-            CALL section_vals_val_get(multipole_section, "ngrids", i_vals=ngrids)
-            npts = ngrids
-
-            NULLIFY (LG, gx, gy, gz)
-            hmat = qm_cell%hmat
-            CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
-            grid_print_section => section_vals_get_subs_vals(force_env_section, "PRINT%GRID_INFORMATION")
-            CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm, pw_pool=cp_ddapc_ewald%pw_pool_qm, &
-                                    coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
-                                    param_section=multipole_section, tag="ddapc", &
-                                    print_section=grid_print_section)
-            DEALLOCATE (LG)
-            DEALLOCATE (gx)
-            DEALLOCATE (gy)
-            DEALLOCATE (gz)
+            ! The tabulated spline path is only valid for orthorhombic grids.
+            use_qm_spline = qm_cell%orthorhombic
+            use_mm_spline = .FALSE.
             IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
                NULLIFY (mm_cell, dummy_cell)
                cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
                CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, para_env=para_env)
-               hmat = mm_cell%hmat
-               CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
+               use_mm_spline = mm_cell%orthorhombic
+            END IF
+            IF (use_qm_spline .OR. use_mm_spline) THEN
+               CALL section_vals_val_get(multipole_section, "ngrids", i_vals=ngrids)
+               npts = ngrids
                grid_print_section => section_vals_get_subs_vals(force_env_section, "PRINT%GRID_INFORMATION")
-               CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm, pw_pool=cp_ddapc_ewald%pw_pool_mm, &
-                                       coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
-                                       param_section=multipole_section, tag="ddapc", &
-                                       print_section=grid_print_section)
-               DEALLOCATE (LG)
-               DEALLOCATE (gx)
-               DEALLOCATE (gy)
-               DEALLOCATE (gz)
+
+               IF (use_qm_spline) THEN
+                  NULLIFY (LG, gx, gy, gz)
+                  hmat = qm_cell%hmat
+                  CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
+                  CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm, pw_pool=cp_ddapc_ewald%pw_pool_qm, &
+                                          coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
+                                          param_section=multipole_section, tag="ddapc", &
+                                          print_section=grid_print_section)
+                  DEALLOCATE (LG)
+                  DEALLOCATE (gx)
+                  DEALLOCATE (gy)
+                  DEALLOCATE (gz)
+               END IF
+               IF (use_mm_spline) THEN
+                  NULLIFY (LG, gx, gy, gz)
+                  hmat = mm_cell%hmat
+                  CALL eval_lg(multipole_section, hmat, LG, gx, gy, gz)
+                  CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm, pw_pool=cp_ddapc_ewald%pw_pool_mm, &
+                                          coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
+                                          param_section=multipole_section, tag="ddapc", &
+                                          print_section=grid_print_section)
+                  DEALLOCATE (LG)
+                  DEALLOCATE (gx)
+                  DEALLOCATE (gy)
+                  DEALLOCATE (gz)
+               END IF
+            END IF
+            IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
                CALL cell_release(dummy_cell)
                CALL cell_release(mm_cell)
             END IF
