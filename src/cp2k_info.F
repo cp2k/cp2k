@@ -203,6 +203,9 @@ CONTAINS
       flags = TRIM(flags)//" mctc-lib"
       flags = TRIM(flags)//" tblite"
 #endif
+#if defined(__TBLITE_GXTB)
+      flags = TRIM(flags)//" tblite_gxtb"
+#endif
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       flags = TRIM(flags)//" tblite_debug_diagnostics"
 #endif

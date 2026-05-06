@@ -17,6 +17,9 @@ MODULE tblite_interface
    USE mctc_env, ONLY: error_type, wp
    USE mctc_io, ONLY: structure_type, new
    USE mctc_io_symbols, ONLY: symbol_to_number
+#if defined(__TBLITE_GXTB)
+   USE multicharge, ONLY: get_charges
+#endif
    USE tblite_adjlist, ONLY: adjacency_list, new_adjacency_list
    USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
@@ -30,6 +33,9 @@ MODULE tblite_interface
    USE tblite_scf_mixer_input, ONLY: mixer_mode
    USE tblite_scf_potential, ONLY: potential_type, new_potential, add_pot_to_h1
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
+#if defined(__TBLITE_GXTB)
+   USE tblite_wavefunction, ONLY: eeqbc_guess
+#endif
    USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
@@ -37,6 +43,9 @@ MODULE tblite_interface
                             get_hamiltonian_gradient, tb_hamiltonian
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
 #if defined(__TBLITE_GXTB)
+   USE tblite_acp_type, ONLY: get_acp
+   USE tblite_context, ONLY: context_type
+   USE tblite_xtb_singlepoint, ONLY: xtb_singlepoint
    USE tblite_xtb_gxtb, ONLY: new_gxtb_calculator
 #endif
 #endif
@@ -259,6 +268,8 @@ CONTAINS
       !allocate quantities later required
       ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
       ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat), tb%e_x(tb%mol%nat))
+      ALLOCATE (tb%e_incr(tb%mol%nat), tb%e_srep(tb%mol%nat), tb%e_spin(tb%mol%nat))
+      ALLOCATE (tb%e_inter(tb%mol%nat), tb%e_sinter(tb%mol%nat))
       ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
       IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
 
@@ -476,6 +487,8 @@ CONTAINS
       CASE (gxtb)
 #if defined(__TBLITE_GXTB)
          CALL new_gxtb_calculator(tb%calc, tb%mol, error)
+         IF (.NOT. ALLOCATED(tb%calc%exchange)) &
+            CPABORT("g-xTB calculator setup did not provide an exchange container")
 #else
          CPABORT("g-xTB requires CP2K to be built with a g-xTB-enabled tblite library")
 #endif
@@ -504,17 +517,35 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      TYPE(container_cache)                              :: hcache, rcache
+      TYPE(container_cache)                              :: hcache
 
       tb%e_hal = 0.0_dp
+      tb%e_incr = 0.0_dp
       tb%e_rep = 0.0_dp
+      tb%e_srep = 0.0_dp
       tb%e_disp = 0.0_dp
+      tb%e_inter = 0.0_dp
+      tb%e_sinter = 0.0_dp
       tb%e_x = 0.0_dp
+      tb%e_spin = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
          CALL tb_zero_force(qs_env)
       END IF
       tb%sigma = 0.0_dp
+
+      IF (ALLOCATED(tb%calc%increment)) THEN
+         CALL tb%calc%increment%update(tb%mol, tb%iccache)
+         IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%increment%get_engrad(tb%mol, tb%iccache, tb%e_incr, &
+                                              tb%grad, tb%sigma)
+            CALL tb_dump_sigma_component("after_increment", tb%sigma, para_env)
+            CALL tb_grad2force(qs_env, tb, para_env, 0)
+         ELSE
+            CALL tb%calc%increment%get_engrad(tb%mol, tb%iccache, tb%e_incr)
+         END IF
+      END IF
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
@@ -530,15 +561,15 @@ CONTAINS
       END IF
 
       IF (ALLOCATED(tb%calc%repulsion)) THEN
-         CALL tb%calc%repulsion%update(tb%mol, rcache)
+         CALL tb%calc%repulsion%update(tb%mol, tb%rcache)
          IF (ALLOCATED(tb%grad)) THEN
             tb%grad = 0.0_dp
-            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
+            CALL tb%calc%repulsion%get_engrad(tb%mol, tb%rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
             CALL tb_dump_sigma_component("after_repulsion", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 1)
          ELSE
-            CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
+            CALL tb%calc%repulsion%get_engrad(tb%mol, tb%rcache, tb%e_rep)
          END IF
       END IF
 
@@ -555,6 +586,19 @@ CONTAINS
          END IF
       END IF
 
+      IF (ALLOCATED(tb%calc%interactions)) THEN
+         CALL tb%calc%interactions%update(tb%mol, tb%icache)
+         IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%interactions%get_engrad(tb%mol, tb%icache, tb%e_inter, &
+                                                 tb%grad, tb%sigma)
+            CALL tb_dump_sigma_component("after_interactions_static", tb%sigma, para_env)
+            CALL tb_grad2force(qs_env, tb, para_env, 0)
+         ELSE
+            CALL tb%calc%interactions%get_engrad(tb%mol, tb%icache, tb%e_inter)
+         END IF
+      END IF
+
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
          CALL tb%calc%exchange%update(tb%mol, tb%ecache)
@@ -564,6 +608,9 @@ CONTAINS
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%update(tb%mol, tb%cache)
+      END IF
+      IF (ALLOCATED(tb%calc%spin_polarization)) THEN
+         CALL tb%calc%spin_polarization%update(tb%mol, tb%scache)
       END IF
 
       IF (ALLOCATED(tb%grad)) THEN
@@ -584,6 +631,11 @@ CONTAINS
       tb%aniso_dip = 0.0_dp
       CALL get_anisotropy(tb%calc%h0, tb%mol, tb%aniso_dip)
       CALL tb%calc%bas%update(tb%mol, tb%bcache, ALLOCATED(tb%grad), tb%wfn)
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%acp)) THEN
+         CALL tb%calc%acp%update(tb%mol, tb%acache)
+      END IF
+#endif
 
 #else
       MARK_USED(qs_env)
@@ -618,11 +670,11 @@ CONTAINS
       iounit = cp_logger_get_default_io_unit(logger)
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
-      energy%repulsive = SUM(tb%e_rep)
-      energy%el_stat = SUM(tb%e_es) + SUM(tb%e_x)
+      energy%repulsive = SUM(tb%e_rep) + SUM(tb%e_srep)
+      energy%el_stat = SUM(tb%e_es) + SUM(tb%e_x) + SUM(tb%e_spin)
       energy%dispersion = SUM(tb%e_disp)
       energy%dispersion_sc = SUM(tb%e_scd)
-      energy%xtb_xb_inter = SUM(tb%e_hal)
+      energy%xtb_xb_inter = SUM(tb%e_hal) + SUM(tb%e_incr) + SUM(tb%e_inter) + SUM(tb%e_sinter)
 
       energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
                      + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
@@ -634,12 +686,17 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
             "Repulsive pair potential energy:               ", energy%repulsive, &
             "Zeroth order Hamiltonian energy:               ", energy%core, &
+            "Core increment energy:                         ", SUM(tb%e_incr), &
             "Electrostatic energy:                          ", SUM(tb%e_es), &
             "Approximate exchange energy:                   ", SUM(tb%e_x), &
+            "Spin polarization energy:                      ", SUM(tb%e_spin), &
+            "Charge-dependent repulsion energy:             ", SUM(tb%e_srep), &
             "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
             "Non-self consistent dispersion energy:         ", energy%dispersion
          WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for halogen bonding:                ", energy%xtb_xb_inter
+            "Correction for halogen bonding:                ", SUM(tb%e_hal), &
+            "Other non-self consistent interactions:        ", SUM(tb%e_inter), &
+            "Other self-consistent interactions:            ", SUM(tb%e_sinter)
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield
@@ -797,7 +854,7 @@ CONTAINS
                                                             ic, iw, iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, &
                                                             irow, ia, ib, sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, &
                                                             natorb_a, natorb_b, sgfa0, mp_test_mode, i0, j0
-      LOGICAL                                            :: found, norml1, norml2, use_arnoldi
+      LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_native_hamiltonian
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
       REAL(KIND=dp)                                      :: hij, shpoly
@@ -897,8 +954,6 @@ CONTAINS
 
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
-         IF (calculate_forces) &
-            CPABORT("Analytical forces for g-xTB through CP2K/tblite are not yet implemented")
          IF (nimg > 1) &
             CPABORT("g-xTB through CP2K/tblite is not yet implemented for k-points")
       END IF
@@ -950,8 +1005,12 @@ CONTAINS
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
-      IF (mp_test_mode == 81 .OR. mp_test_mode == 82 .OR. &
-          mp_test_mode == 232 .OR. mp_test_mode == 233) THEN
+      use_native_hamiltonian = mp_test_mode == 81 .OR. mp_test_mode == 82 .OR. &
+                               mp_test_mode == 232 .OR. mp_test_mode == 233
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) use_native_hamiltonian = .TRUE.
+#endif
+      IF (use_native_hamiltonian) THEN
          IF (nimg > 1) CPABORT("Native tblite matrix test with k-points not implemented")
          ALLOCATE (native_s(tb%calc%bas%nao, tb%calc%bas%nao))
          ALLOCATE (native_h(tb%calc%bas%nao, tb%calc%bas%nao))
@@ -961,6 +1020,12 @@ CONTAINS
          CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
          CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, tb%calc%h0, &
                               tb%selfenergy, tb%aniso_dip, native_s, native_dip, native_quad, native_h)
+#if defined(__TBLITE_GXTB)
+         IF (ALLOCATED(tb%calc%acp)) THEN
+            CALL get_acp(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, &
+                         tb%calc%acp, tb%acache, native_h)
+         END IF
+#endif
 
          NULLIFY (nl_iterator)
          CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -1700,6 +1765,9 @@ CONTAINS
          tb%e_es = 0.0_dp
          tb%e_x = 0.0_dp
          tb%e_scd = 0.0_dp
+         tb%e_srep = 0.0_dp
+         tb%e_spin = 0.0_dp
+         tb%e_sinter = 0.0_dp
          moment_alpha = scf_env%p_mix_alpha
          IF (mp_test_mode == 61 .OR. mp_test_mode == 91) moment_alpha = 0.05_dp
          IF (mp_test_mode == 62 .OR. mp_test_mode == 92) moment_alpha = 0.5_dp
@@ -1859,6 +1927,9 @@ CONTAINS
       tb%e_es = 0.0_dp
       tb%e_x = 0.0_dp
       tb%e_scd = 0.0_dp
+      tb%e_srep = 0.0_dp
+      tb%e_spin = 0.0_dp
+      tb%e_sinter = 0.0_dp
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
@@ -1911,6 +1982,8 @@ CONTAINS
             END DO
             CALL dbcsr_iterator_stop(iter)
          END DO
+         CALL para_env%sum(native_s)
+         CALL para_env%sum(tb%wfn%density)
 
          CALL tb%calc%exchange%get_potential_w_overlap(tb%mol, tb%ecache, tb%wfn, native_s, tb%pot)
          CALL tb%calc%exchange%get_energy_w_overlap(tb%mol, tb%ecache, tb%wfn, native_s, tb%e_x)
@@ -1918,6 +1991,19 @@ CONTAINS
          DEALLOCATE (native_s)
       END IF
 #endif
+
+      IF (ALLOCATED(tb%calc%repulsion)) THEN
+         CALL tb%calc%repulsion%get_potential(tb%mol, tb%rcache, tb%wfn, tb%pot)
+         CALL tb%calc%repulsion%get_energy(tb%mol, tb%rcache, tb%wfn, tb%e_srep)
+      END IF
+      IF (ALLOCATED(tb%calc%spin_polarization)) THEN
+         CALL tb%calc%spin_polarization%get_potential(tb%mol, tb%scache, tb%wfn, tb%pot)
+         CALL tb%calc%spin_polarization%get_energy(tb%mol, tb%scache, tb%wfn, tb%e_spin)
+      END IF
+      IF (ALLOCATED(tb%calc%interactions)) THEN
+         CALL tb%calc%interactions%get_potential(tb%mol, tb%icache, tb%wfn, tb%pot)
+         CALL tb%calc%interactions%get_energy(tb%mol, tb%icache, tb%wfn, tb%e_sinter)
+      END IF
 
       state_status = 1
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
@@ -1961,6 +2047,20 @@ CONTAINS
             CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
             CALL tb_dump_sigma_component("after_dispersion_scf", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
+         END IF
+
+         IF (ALLOCATED(tb%calc%repulsion)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%repulsion%get_gradient(tb%mol, tb%rcache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_dump_sigma_component("after_repulsion_scf", tb%sigma, para_env)
+            CALL tb_grad2force(qs_env, tb, para_env, 1)
+         END IF
+
+         IF (ALLOCATED(tb%calc%interactions)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%interactions%get_gradient(tb%mol, tb%icache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_dump_sigma_component("after_interactions_scf", tb%sigma, para_env)
+            CALL tb_grad2force(qs_env, tb, para_env, 3)
          END IF
       END IF
 
@@ -3303,6 +3403,80 @@ CONTAINS
    END SUBROUTINE tb_zero_force
 
 ! **************************************************************************************************
+!> \brief Use tblite's native molecular g-xTB gradient path for isolated systems.
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_derive_gxtb_native_gradient(qs_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+#if defined(__TBLITE)
+#if defined(__TBLITE_GXTB)
+      REAL(KIND=dp)                                      :: native_energy
+
+      TYPE(context_type)                                 :: ctx
+      TYPE(error_type), ALLOCATABLE                      :: error
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(wavefunction_type), ALLOCATABLE               :: native_wfn_aux
+      TYPE(wavefunction_type)                            :: native_wfn
+      TYPE(xtb_calculator)                               :: native_calc
+
+      NULLIFY (para_env, tb)
+      CALL get_qs_env(qs_env=qs_env, tb_tblite=tb, para_env=para_env)
+
+      ctx%verbosity = 0
+      IF (ALLOCATED(tb%grad)) THEN
+         tb%grad = 0.0_dp
+      ELSE
+         ALLOCATE (tb%grad(3, tb%mol%nat))
+      END IF
+      tb%sigma = 0.0_dp
+
+      CALL tb_zero_force(qs_env)
+      CALL new_gxtb_calculator(native_calc, tb%mol, error, 1.0e-8_dp)
+      IF (ALLOCATED(error)) CPABORT("Native g-xTB calculator setup failed")
+      CALL new_wavefunction(native_wfn, tb%mol%nat, native_calc%bas%nsh, &
+                            native_calc%bas%nao, tb%wfn%nspin, 0.0_dp)
+      CALL eeqbc_guess(tb%mol, native_calc, native_wfn, error)
+      IF (ALLOCATED(error)) CPABORT("Native g-xTB wavefunction guess failed")
+      IF (ALLOCATED(native_calc%charge_model)) THEN
+         ALLOCATE (native_wfn_aux)
+         CALL new_wavefunction(native_wfn_aux, tb%mol%nat, native_calc%bas%nsh, 0, 1, &
+                               0.0_dp, .TRUE.)
+         CALL get_charges(native_calc%charge_model, tb%mol, error, native_wfn_aux%qat(:, 1), &
+                          dqdr=native_wfn_aux%dqatdr(:, :, :, 1), &
+                          dqdL=native_wfn_aux%dqatdL(:, :, :, 1))
+         IF (ALLOCATED(error)) CPABORT("Native g-xTB charge model setup failed")
+         CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                              tb%grad, tb%sigma, verbosity=0, wfn_aux=native_wfn_aux)
+      ELSE
+         CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                              tb%grad, tb%sigma, verbosity=0)
+      END IF
+      IF (ctx%failed()) THEN
+         CALL ctx%get_error(error)
+         IF (ALLOCATED(error)) THEN
+            CPABORT("Native g-xTB gradient calculation failed: "//TRIM(error%message))
+         ELSE
+            CPABORT("Native g-xTB gradient calculation failed")
+         END IF
+      END IF
+
+      CALL tb_grad2force(qs_env, tb, para_env, 0)
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
+#else
+      MARK_USED(qs_env)
+      CPABORT("g-xTB requires CP2K to be built with a g-xTB-enabled tblite library")
+#endif
+#else
+      MARK_USED(qs_env)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_derive_gxtb_native_gradient
+
+! **************************************************************************************************
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
 !> \param use_rho ...
@@ -3337,6 +3511,13 @@ CONTAINS
       NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
       CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
                       sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
+
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) THEN
+         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for k-points")
+         RETURN
+      END IF
+#endif
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
@@ -3480,6 +3661,14 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       kpoints=kpoints, &
                       matrix_w_kp=matrix_w)
+
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) THEN
+         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for k-points")
+         CALL tb_derive_gxtb_native_gradient(qs_env)
+         RETURN
+      END IF
+#endif
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN

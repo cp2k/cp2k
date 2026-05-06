@@ -9,6 +9,7 @@ QS/regtest-monovalent
 QS/regtest-tddfpt-sf-force                                  libint !ifx
 QS/regtest-tddfpt-sf                                        libint !ifx
 xTB/regtest-tblite-gfn1-grad                                tblite
+xTB/regtest-tblite-gxtb                                     tblite_gxtb
 QS/regtest-spgr-id                                          spglib
 HP-DFT
 xTB/regtest-tblite-gfn1-periodic                            tblite
