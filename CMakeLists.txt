@@ -869,7 +869,9 @@ if(CP2K_USE_TBLITE)
   find_package(mctc-lib REQUIRED)
   find_package(toml-f REQUIRED)
   find_package(dftd4 REQUIRED)
-  if(CP2K_USE_TBLITE_GXTB AND TARGET dftd4::dftd4 AND NOT TARGET dftd::dftd)
+  if(CP2K_USE_TBLITE_GXTB
+     AND TARGET dftd4::dftd4
+     AND NOT TARGET dftd::dftd)
     add_library(dftd::dftd INTERFACE IMPORTED)
     target_link_libraries(dftd::dftd INTERFACE dftd4::dftd4)
   endif()

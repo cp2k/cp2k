@@ -22,9 +22,9 @@ MODULE tblite_types
    USE tblite_scf_mixer_type, ONLY: mixer_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type
    USE tblite_scf_potential, ONLY: potential_type
-#if defined(__TBLITE_GXTB)
-   USE tblite_acp_cache, ONLY: acp_cache
 #endif
+#if defined(__TBLITE) && defined(__TBLITE_GXTB)
+   USE tblite_acp_cache, ONLY: acp_cache
 #endif
 
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
@@ -85,9 +85,11 @@ MODULE tblite_types
       TYPE(container_cache)                              :: iccache = container_cache()
       TYPE(container_cache)                              :: scache = container_cache()
       TYPE(basis_cache)                                  :: bcache = basis_cache()
-#if defined(__TBLITE_GXTB)
+#endif
+#if defined(__TBLITE) && defined(__TBLITE_GXTB)
       TYPE(acp_cache)                                    :: acache = acp_cache()
 #endif
+#if defined(__TBLITE)
       TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
       CLASS(mixer_type), ALLOCATABLE                     :: mixer

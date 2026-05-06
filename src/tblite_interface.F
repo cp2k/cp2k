@@ -4626,7 +4626,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: isolated_force_virial
 
       CHARACTER(LEN=default_path_length)                 :: dump_file
-      INTEGER                                            :: dump_status, dump_unit, i, iatom, j, natom
+      INTEGER                                            :: dump_status, dump_unit, i, iatom, j, &
+                                                            natom
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: use_isolated_force_virial
       REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
@@ -4657,8 +4658,8 @@ CONTAINS
                DO i = 1, 3
                   DO j = 1, 3
                      molecular_virial(i, j) = molecular_virial(i, j) - &
-                        0.5_dp*(tb%grad(i, iatom)*particle_set(iatom)%r(j) + &
-                                tb%grad(j, iatom)*particle_set(iatom)%r(i))
+                                              0.5_dp*(tb%grad(i, iatom)*particle_set(iatom)%r(j) + &
+                                                      tb%grad(j, iatom)*particle_set(iatom)%r(i))
                   END DO
                END DO
             END DO

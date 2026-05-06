@@ -234,6 +234,8 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - Please always use the CMake-built tblite package rather than the Meson-built one for CP2K.
 - For more information see <https://github.com/tblite/tblite>
 - Pass `-DCP2K_USE_TBLITE=ON` to CMake.
+- Pass `-DCP2K_USE_TBLITE_GXTB=ON` together with `-DCP2K_USE_TBLITE=ON` to enable experimental g-xTB
+  support when building against a tblite version that provides it.
 
 ## openPMD (structured output)
 
