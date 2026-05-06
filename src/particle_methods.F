@@ -1071,7 +1071,7 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), ALLOCATABLE                      :: element_list(:)
-      CHARACTER(LEN=4)                                   :: perd_str
+      CHARACTER(LEN=5)                                   :: perd_str
       CHARACTER(LEN=:), ALLOCATABLE                      :: formula_structural, formula_sum
       CHARACTER(LEN=default_path_length)                 :: cell_str, record
       CHARACTER(LEN=default_string_length)               :: atm_name, f_cif, f_cif_label, &
@@ -1103,21 +1103,18 @@ CONTAINS
       print_key => section_vals_get_subs_vals(input_section, "PRINT%FINAL_STRUCTURE")
 
       ! Collect cell information
-      perd_str = "NONE"
+      perd_str = "F F F"
       CALL get_cell(cell, alpha=angle_alpha, beta=angle_beta, gamma=angle_gamma, &
                     deth=deth, orthorhombic=orthorhombic, abc=abc, periodic=periodic, &
                     h=hmat, symmetry_id=symmetry_id)
-      IF (SUM(periodic(1:3)) /= 0) THEN
-         perd_str = ""
-         IF (periodic(1) == 1) perd_str = TRIM(perd_str)//"X"
-         IF (periodic(2) == 1) perd_str = TRIM(perd_str)//"Y"
-         IF (periodic(3) == 1) perd_str = TRIM(perd_str)//"Z"
-      END IF
+      IF (periodic(1) == 1) perd_str(1:1) = "T"
+      IF (periodic(2) == 1) perd_str(3:3) = "T"
+      IF (periodic(3) == 1) perd_str(5:5) = "T"
       CALL create_cell_section(tmp_cell_section)
       symmetry_keyword => section_get_keyword(tmp_cell_section, "SYMMETRY")
       CALL keyword_get(symmetry_keyword, enum=enum)
       ! cell_str is default_path_length which is longer
-      ! then default_string_length
+      ! than default_string_length and should be enough
       WRITE (UNIT=cell_str, FMT="(9(1X,F19.10))") &
          cp_unit_from_cp2k(hmat(1, 1), "angstrom"), &
          cp_unit_from_cp2k(hmat(2, 1), "angstrom"), &
@@ -1244,7 +1241,9 @@ CONTAINS
             WRITE (UNIT=file_unit, FMT="(I8)") &
                natom
             WRITE (UNIT=file_unit, FMT="(A)") &
-               'Lattice="'//TRIM(ADJUSTL(cell_str))//'" Properties=species:S:1:pos:R:3'
+               'Lattice="'//TRIM(ADJUSTL(cell_str))// &
+               '" Properties=species:S:1:pos:R:3 pbc="'// &
+               TRIM(perd_str)//'"'
             DO iatom = 1, natom
                DO i = 1, 3
                   r(i) = cp_unit_from_cp2k(particle_set(iatom)%r(i), "angstrom")
