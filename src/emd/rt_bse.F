@@ -1061,30 +1061,22 @@ CONTAINS
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_cfm_type), INTENT(IN)                      :: greens_cfm ! matrix to contract with RI_W
       REAL(kind=dp)                                      :: prefactor
-      TYPE(cp_cfm_type)                                  :: tmp_re
 
       prefactor = 1.0_dp
       IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
-
-      ! Local AO-sized scratch (cannot use rtbse_env%ham_workspace because in linearized
-      ! RT-BSE it is allocated on the MO-active struct, while real_workspace and sigma_cfm
-      ! are AO-sized here).
-      CALL cp_cfm_create(tmp_re, rtbse_env%real_workspace(2)%matrix_struct)
 
       ! Carry out the sigma part twice
       ! Real part
       CALL cp_cfm_to_fm(msource=greens_cfm, mtargetr=rtbse_env%real_workspace(1))
       CALL get_sigma(rtbse_env, rtbse_env%real_workspace(2), prefactor, rtbse_env%real_workspace(1))
-      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(2), mtarget=tmp_re)
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(2), mtarget=rtbse_env%sigma_complex_workspace(1))
       ! Imaginary part
       CALL cp_cfm_to_fm(msource=greens_cfm, mtargeti=rtbse_env%real_workspace(1))
       CALL get_sigma(rtbse_env, rtbse_env%real_workspace(2), prefactor, rtbse_env%real_workspace(1))
       CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(2), mtarget=sigma_cfm)
       ! Add the real part
       CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), sigma_cfm, &
-                                CMPLX(1.0, 0.0, kind=dp), tmp_re)
-
-      CALL cp_cfm_release(tmp_re)
+                                CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_complex_workspace(1))
 
    END SUBROUTINE get_sigma_complex
 ! **************************************************************************************************

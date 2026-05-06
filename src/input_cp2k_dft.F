@@ -2092,6 +2092,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_MAX_DT", &
+                 description="For linearized RT-BSE, recompute TIMESTEP and STEPS so the same total "// &
+                 "propagation time is covered with the largest timestep that does not exceed the "// &
+                 "estimated RK4 stability limit.", &
+                 usage="ENFORCE_MAX_DT", &
+                 default_l_val=.FALSE., &
+                 lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output

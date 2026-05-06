@@ -174,7 +174,9 @@ CONTAINS
 
       IF (logger%iter_info%print_level > low_print_level .AND. rtbse_env%unit_nr > 0) THEN
          IF (flag_lrrtbse) THEN
-            WRITE (rtbse_env%unit_nr, '(A23,T65,A15)') " RTBSE| Simulation step", "Electron number"
+            IF (step == 0) THEN
+               WRITE (rtbse_env%unit_nr, '(A23,T65,A15)') " RTBSE| Simulation step", "Electron number"
+            END IF
             WRITE (rtbse_env%unit_nr, '(A7,I16,T60,E20.8E3)') ' RTBSE|', step, electron_num_re
          ELSE
             WRITE (rtbse_env%unit_nr, '(A23,A20,A20,A17)') " RTBSE| Simulation step", "Convergence", &

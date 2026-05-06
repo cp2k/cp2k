@@ -104,6 +104,7 @@ MODULE cp_control_types
       ! for linearized RT-BSE propagation. Non-positive values disable truncation.
       REAL(KIND=dp)                        :: rtbse_energy_cutoff_occ = -1.0_dp
       REAL(KIND=dp)                        :: rtbse_energy_cutoff_empty = -1.0_dp
+      LOGICAL                              :: enforce_max_dt = .FALSE.
       INTEGER                              :: initial_wfn = 0
       REAL(dp)                             :: eps_exp = 0.0_dp
       LOGICAL                              :: initial_step = .FALSE.

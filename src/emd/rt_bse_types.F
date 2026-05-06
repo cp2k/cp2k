@@ -163,6 +163,8 @@ MODULE rt_bse_types
       ! Truncated MO coefficient slabs C_active(:,:) of size n_ao x mo_active for each spin
       ! (only allocated for the linearized path).
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: C_active => NULL()
+      ! Rectangular n_ao x mo_active scratch used by linearized AO<->MO transforms.
+      TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: ao_mo_workspace => NULL()
       REAL(kind=dp)                                             :: spin_degeneracy = 2
       REAL(kind=dp), DIMENSION(3)                               :: field = 0.0_dp
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: moments => NULL(), &
@@ -178,6 +180,8 @@ MODULE rt_bse_types
       REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &
+                                                                   maximum_timestep = -1.0_dp, &
+                                                                   omega_max = -1.0_dp, &
                                                                    etrs_threshold = 1.0e-7_dp, &
                                                                    exp_accuracy = 1.0e-10_dp, &
                                                                    ft_damping = 0.0_dp, &
@@ -235,6 +239,8 @@ MODULE rt_bse_types
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho_workspace => NULL()
       ! Many methods use real and imaginary parts separately - prevent unnecessary reallocation
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace => NULL()
+      ! AO-sized complex scratch used to stage the real part in get_sigma_complex.
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_complex_workspace => NULL()
       ! Workspace required for exact matrix exponentiation
       REAL(kind=dp), DIMENSION(:), POINTER                      :: real_eigvals => NULL()
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: exp_eigvals => NULL()
@@ -470,6 +476,10 @@ CONTAINS
          CALL cp_fm_create(rtbse_env%real_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(rtbse_env%real_workspace(i), 0.0_dp)
       END DO
+      NULLIFY (rtbse_env%sigma_complex_workspace)
+      ALLOCATE (rtbse_env%sigma_complex_workspace(1))
+      CALL cp_cfm_create(rtbse_env%sigma_complex_workspace(1), bs_env%fm_ks_Gamma(1)%matrix_struct)
+      CALL cp_cfm_set_all(rtbse_env%sigma_complex_workspace(1), CMPLX(0.0_dp, 0.0_dp, kind=dp))
       ! Allocate density matrix (MO-active sized when linearized; AO-sized otherwise)
       NULLIFY (rtbse_env%rho)
       ALLOCATE (rtbse_env%rho(rtbse_env%n_spin))
@@ -606,6 +616,10 @@ CONTAINS
             CALL cp_fm_create(rtbse_env%real_workspace_mo(i), rtbse_env%fm_struct_mo_active)
             CALL cp_fm_set_all(rtbse_env%real_workspace_mo(i), 0.0_dp)
          END DO
+         NULLIFY (rtbse_env%ao_mo_workspace)
+         ALLOCATE (rtbse_env%ao_mo_workspace(1))
+         CALL cp_fm_create(rtbse_env%ao_mo_workspace(1), rtbse_env%fm_struct_ao_mo_active)
+         CALL cp_fm_set_all(rtbse_env%ao_mo_workspace(1), 0.0_dp)
          ! Truncated MO coefficient slabs C_active (n_ao x mo_active) for each spin.
          ! Filled in initialize_rtbse_env from bs_env%fm_mo_coeff_Gamma via submatrix copy.
          NULLIFY (rtbse_env%C_active)
@@ -669,6 +683,7 @@ CONTAINS
          CALL cp_cfm_release_pa1(rtbse_env%rk4_coefficients)
       END IF
       CALL cp_fm_release(rtbse_env%real_workspace)
+      IF (ASSOCIATED(rtbse_env%sigma_complex_workspace)) CALL cp_cfm_release_pa1(rtbse_env%sigma_complex_workspace)
       CALL cp_fm_release(rtbse_env%S_inv_fm)
       CALL cp_fm_release(rtbse_env%S_fm)
       CALL cp_cfm_release(rtbse_env%S_cfm)
@@ -696,6 +711,7 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%sigma_SEX_ao)) CALL cp_cfm_release_pa1(rtbse_env%sigma_SEX_ao)
       IF (ASSOCIATED(rtbse_env%hartree_curr_ao)) CALL cp_fm_release(rtbse_env%hartree_curr_ao)
       IF (ASSOCIATED(rtbse_env%real_workspace_mo)) CALL cp_fm_release(rtbse_env%real_workspace_mo)
+      IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
       ! Release owned active-MO matrix structures
       IF (ASSOCIATED(rtbse_env%fm_struct_mo_active)) THEN

@@ -3406,6 +3406,8 @@ CONTAINS
                                 r_val=dft_control%rtp_control%rtbse_energy_cutoff_occ)
       CALL section_vals_val_get(rtp_section, "RTBSE%ENERGY_CUTOFF_EMPTY", &
                                 r_val=dft_control%rtp_control%rtbse_energy_cutoff_empty)
+      CALL section_vals_val_get(rtp_section, "RTBSE%ENFORCE_MAX_DT", &
+                                l_val=dft_control%rtp_control%enforce_max_dt)
       ! Change rtp_method to linearized bse
       IF (linearize_bse_propagation) THEN
          dft_control%rtp_control%rtp_method = rtp_method_bse_linearized
@@ -3413,6 +3415,7 @@ CONTAINS
          ! RT-BSE active-MO truncation only applies to the linearized propagation.
          dft_control%rtp_control%rtbse_energy_cutoff_occ = -1.0_dp
          dft_control%rtp_control%rtbse_energy_cutoff_empty = -1.0_dp
+         dft_control%rtp_control%enforce_max_dt = .FALSE.
       END IF
 
       CALL section_vals_val_get(rtp_section, "PROPAGATOR", &
