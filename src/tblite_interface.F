@@ -3372,6 +3372,12 @@ CONTAINS
       w_self_image_deriv_scale = w_image_deriv_scale
       h0_self_image_deriv_scale = h0_image_deriv_scale
       mp_self_image_deriv_scale = mp_image_deriv_scale
+      ! Periodic self-images are stored in the sorted on-site image block for
+      ! k-point calculations. Their multipole derivatives need the same
+      ! opposite quarter-weighting as the explicit self-image virial
+      ! contribution below. The Gamma periodic bsf path keeps the native factor.
+      IF (nimg > 1 .AND. ALL(tb%mol%periodic)) &
+         mp_self_image_deriv_scale = -0.25_dp*mp_image_deriv_scale
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_self_image_deriv_scale
@@ -3383,6 +3389,7 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_self_image_deriv_scale
 #endif
       cn_image_scale = 1.0_dp
+      IF (nimg > 1 .AND. ALL(tb%mol%periodic)) cn_image_scale = -0.25_dp
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
