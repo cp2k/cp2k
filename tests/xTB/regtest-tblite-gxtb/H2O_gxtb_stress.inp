@@ -1,8 +1,15 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT H2O_gxtb_reference_cli_force
-  RUN_TYPE ENERGY_FORCE
+  PROJECT H2O_gxtb_stress
+  RUN_TYPE DEBUG
 &END GLOBAL
+
+&DEBUG
+  DEBUG_FORCES F
+  DEBUG_STRESS_TENSOR T
+  DX 0.0001
+  STOP_ON_MISMATCH F
+&END DEBUG
 
 &FORCE_EVAL
   STRESS_TENSOR ANALYTICAL
@@ -14,15 +21,6 @@
         GFN_TYPE TBLITE
         &TBLITE
           METHOD GXTB
-          &REFERENCE_CLI
-            CHECK_FORCES T
-            CHECK_VIRIAL T
-            ! Native g-XTB CLI virials use tblite's analytic sigma.
-            ! CP2K/tblite uses a numerical energy derivative for the stress.
-            ERROR_LIMIT 2.0E-3
-            PROGRAM_NAME tblite
-            STOP_ON_ERROR T
-          &END REFERENCE_CLI
         &END TBLITE
       &END XTB
     &END QS

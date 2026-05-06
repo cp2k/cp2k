@@ -111,6 +111,7 @@ MODULE tblite_interface
    INTEGER, PARAMETER                                 :: quad_n = 6
    REAL(KIND=dp), PARAMETER                           :: same_atom = 0.00001_dp
    REAL(KIND=dp), PARAMETER                           :: tblite_scc_pconv = 2.0E-5_dp
+   REAL(KIND=dp), PARAMETER                           :: gxtb_stress_fd_dx = 1.0E-4_dp
 
    PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
    PUBLIC :: tb_get_basis, build_tblite_matrices
@@ -766,6 +767,86 @@ CONTAINS
    END SUBROUTINE tb_gxtb_native_singlepoint
 
 ! **************************************************************************************************
+!> \brief Numerical g-xTB virial from native singlepoint energies.
+!> \param tb ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param diagonal_only ...
+!> \param pv_virial ...
+! **************************************************************************************************
+   SUBROUTINE tb_gxtb_native_numerical_virial(tb, particle_set, cell, diagonal_only, pv_virial)
+
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN)                                :: diagonal_only
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: pv_virial
+
+#if defined(__TBLITE_GXTB)
+
+      INTEGER                                            :: i, iatom, ip, iq, j, k, natom
+      REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dEdh, hmat, hmat0
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: scaled, xyz0
+
+      natom = SIZE(particle_set)
+      CPASSERT(natom == tb%mol%nat)
+
+      hmat0 = tb%mol%lattice
+      ALLOCATE (xyz0(3, natom), scaled(3, natom))
+      xyz0 = tb%mol%xyz
+
+      DO iatom = 1, natom
+         scaled(:, iatom) = MATMUL(cell%h_inv, particle_set(iatom)%r)
+      END DO
+
+      dEdh = 0.0_dp
+      ! Follow force_env_calc_num_pressure: distort h, keep scaled coordinates fixed,
+      ! and transform dE/dh into CP2K's PV virial convention.
+      DO ip = 1, 3
+         DO iq = 1, 3
+            IF (diagonal_only .AND. ip /= iq) CYCLE
+            DO i = 1, 2
+               hmat = hmat0
+               hmat(ip, iq) = hmat0(ip, iq) - (-1.0_dp)**i*gxtb_stress_fd_dx
+               tb%mol%lattice = hmat
+               DO iatom = 1, natom
+                  tb%mol%xyz(:, iatom) = MATMUL(hmat, scaled(:, iatom))
+               END DO
+               CALL tb_gxtb_native_singlepoint(tb, numer_energy(i), .FALSE.)
+            END DO
+            dEdh(ip, iq) = 0.5_dp*(numer_energy(1) - numer_energy(2))/gxtb_stress_fd_dx
+         END DO
+      END DO
+
+      tb%mol%lattice = hmat0
+      tb%mol%xyz = xyz0
+      CALL tb_update_basis_cache(tb, ALLOCATED(tb%grad))
+
+      pv_virial = 0.0_dp
+      DO i = 1, 3
+         DO j = 1, 3
+            DO k = 1, 3
+               pv_virial(i, j) = pv_virial(i, j) - &
+                                 0.5_dp*(dEdh(i, k)*hmat0(j, k) + dEdh(j, k)*hmat0(i, k))
+            END DO
+         END DO
+      END DO
+
+      DEALLOCATE (scaled, xyz0)
+
+#else
+      MARK_USED(tb)
+      MARK_USED(particle_set)
+      MARK_USED(cell)
+      MARK_USED(diagonal_only)
+      pv_virial = 0.0_dp
+      CPABORT("Numerical g-xTB virial requires CP2K_USE_TBLITE_GXTB")
+#endif
+
+   END SUBROUTINE tb_gxtb_native_numerical_virial
+
+! **************************************************************************************************
 !> \brief Replace CP2K/tblite force components by the native g-xTB gradient.
 !> \param qs_env ...
 ! **************************************************************************************************
@@ -820,7 +901,9 @@ CONTAINS
                          "but it is not a physically meaningful bulk stress for an isolated molecule.")
          END IF
          CALL zero_virial(virial, reset=.FALSE.)
-         virial%pv_virial = -tb%sigma/para_env%num_pe
+         CALL tb_gxtb_native_numerical_virial(tb, particle_set, cell, virial%pv_diagonal, &
+                                              virial%pv_virial)
+         virial%pv_virial = virial%pv_virial/para_env%num_pe
       END IF
 
       DEALLOCATE (atom_of_kind, kind_of)
