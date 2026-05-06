@@ -14,6 +14,9 @@
 MODULE qs_density_mixing_types
 #if defined(__TBLITE_LEGACY_MIXER)
    USE tblite_scf, ONLY: mixer_type
+#elif defined(__TBLITE_GXTB_MIXER)
+   USE tblite_scf_mixer_cache, ONLY: mixer_cache_container
+   USE tblite_scf_mixer_type, ONLY: mixer_type
 #endif
    USE ao_util, ONLY: exp_radius
    USE input_constants, ONLY: broy_mix, &
@@ -98,8 +101,11 @@ MODULE qs_density_mixing_types
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer => NULL(), cpc_s_in_buffer => NULL()
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer => NULL(), cpc_s_res_buffer => NULL()
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in => NULL(), dcpc_s_in => NULL()
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
       CLASS(mixer_type), ALLOCATABLE                    :: tb_scc_mixer
+#endif
+#if defined(__TBLITE_GXTB_MIXER)
+      TYPE(mixer_cache_container)                       :: tb_scc_mixer_cache
 #endif
    END TYPE mixing_storage_type
 
@@ -419,9 +425,18 @@ CONTAINS
       IF (ASSOCIATED(mixing_store%atlist)) THEN
          DEALLOCATE (mixing_store%atlist)
       END IF
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
       IF (ALLOCATED(mixing_store%tb_scc_mixer)) THEN
+#if defined(__TBLITE_GXTB_MIXER)
+         IF (ALLOCATED(mixing_store%tb_scc_mixer_cache%raw)) &
+            CALL mixing_store%tb_scc_mixer%cleanup(mixing_store%tb_scc_mixer_cache)
+#endif
          DEALLOCATE (mixing_store%tb_scc_mixer)
+      END IF
+#endif
+#if defined(__TBLITE_GXTB_MIXER)
+      IF (ALLOCATED(mixing_store%tb_scc_mixer_cache%raw)) THEN
+         DEALLOCATE (mixing_store%tb_scc_mixer_cache%raw)
       END IF
 #endif
 

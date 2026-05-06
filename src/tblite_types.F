@@ -23,6 +23,9 @@ MODULE tblite_types
 #endif
 #if defined(__TBLITE_LEGACY_MIXER)
    USE tblite_scf_mixer, ONLY: mixer_type
+#elif defined(__TBLITE_GXTB_MIXER)
+   USE tblite_scf_mixer_cache, ONLY: mixer_cache_container
+   USE tblite_scf_mixer_type, ONLY: mixer_type
 #endif
 
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
@@ -43,9 +46,11 @@ MODULE tblite_types
 
       LOGICAL                                            :: use_virial = .FALSE.
       INTEGER                                            :: method = 0
+      INTEGER                                            :: mixer_max_iter = 250
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
+      REAL(KIND=dp)                                      :: mixer_damping = 0.4_dp
       REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
@@ -75,8 +80,11 @@ MODULE tblite_types
       TYPE(wavefunction_type)                            :: wfn_aux = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
 #endif
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
       CLASS(mixer_type), ALLOCATABLE                     :: mixer
+#endif
+#if defined(__TBLITE_GXTB_MIXER)
+      TYPE(mixer_cache_container)                        :: mixer_cache
 #endif
 
    END TYPE tblite_type
@@ -131,8 +139,17 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadbra)
          IF (ASSOCIATED(tb_tblite%quadket)) &
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
-#if defined(__TBLITE_LEGACY_MIXER)
-         IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+         IF (ALLOCATED(tb_tblite%mixer)) THEN
+#if defined(__TBLITE_GXTB_MIXER)
+            IF (ALLOCATED(tb_tblite%mixer_cache%raw)) &
+               CALL tb_tblite%mixer%cleanup(tb_tblite%mixer_cache)
+#endif
+            DEALLOCATE (tb_tblite%mixer)
+         END IF
+#endif
+#if defined(__TBLITE_GXTB_MIXER)
+         IF (ALLOCATED(tb_tblite%mixer_cache%raw)) DEALLOCATE (tb_tblite%mixer_cache%raw)
 #endif
 
          IF (tb_tblite%method == gxtbxtb) THEN

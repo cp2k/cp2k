@@ -24,6 +24,7 @@
 "Ar_fcc_gxtb.inp"                    = [{matcher="E_total", tol=1.0E-8, ref=-2092.2944098275489}]
 "Ar_fcc_gxtb_force.inp"              = [{matcher="M082", tol=2.0E-4, ref=0.0000000}]
 "Ar_fcc_gxtb_stress.inp"             = [{matcher="M042", tol=5.0E-4, ref=0.0000000}]
+"Ar_fcc_gxtb_cell_opt.inp"           = [{matcher="E_total", tol=1.0E-8, ref=-2092.2952297090997}]
 "Ar_fcc_gxtb_reference_cli_force.inp" = [{matcher="E_total", tol=1.0E-8, ref=-2092.2944098275489},
                                          {matcher="XTB_reference_cli_check"},
                                          {matcher="XTB_reference_cli_gradient_max", tol=2.0E-5, ref=0.0000000},

@@ -42,6 +42,10 @@ MODULE tblite_interface
 #endif
 #if defined(__TBLITE_LEGACY_MIXER)
    USE tblite_scf, ONLY: get_mixer_dimension, new_mixer
+#elif defined(__TBLITE_GXTB_MIXER)
+   USE tblite_scf_mixer, ONLY: new_mixer
+   USE tblite_scf_mixer_broyden, ONLY: broyden_input
+   USE tblite_scf_mixer_input, ONLY: mixer_mode
 #endif
    USE ai_contraction, ONLY: block_add, &
                              contraction
@@ -308,6 +312,27 @@ CONTAINS
                      tb%wfn%nspin*get_mixer_dimension(tb%mol, tb%calc%bas, info), &
                      tb%calc%mixer_damping)
 
+#elif defined(__TBLITE_GXTB_MIXER)
+
+      TYPE(broyden_input)                                :: mixer_input
+      TYPE(scf_info)                                     :: info
+
+      info = tb%calc%variable_info()
+      IF (ALLOCATED(tb%mixer)) THEN
+         IF (ALLOCATED(tb%mixer_cache%raw)) CALL tb%mixer%cleanup(tb%mixer_cache)
+         DEALLOCATE (tb%mixer)
+      END IF
+      IF (ALLOCATED(tb%mixer_cache%raw)) DEALLOCATE (tb%mixer_cache%raw)
+
+      mixer_input%mode = mixer_mode%density
+      mixer_input%start = 2
+      mixer_input%conv_start = 1.0E-12_dp
+      mixer_input%precollect = 1
+      mixer_input%memory = tb%mixer_max_iter
+      mixer_input%damp = tb%mixer_damping
+      CALL new_mixer(tb%mixer, mixer_input)
+      CALL tb%mixer%update(tb%mixer_cache, tb%wfn%nspin*tb_mixer_dimension(tb, info))
+
 #elif defined(__TBLITE)
       MARK_USED(tb)
 #else
@@ -337,11 +362,19 @@ CONTAINS
       tb%calc%max_iter = max_scf
       tb%calc%mixer_damping = damping
 
+#elif defined(__TBLITE_GXTB_MIXER)
+
+      IF (max_scf < 1) CPABORT("tblite SCC mixer MAX_SCF must be positive")
+      IF (damping <= 0.0_dp) CPABORT("tblite SCC mixer damping must be positive")
+
+      tb%mixer_max_iter = max_scf
+      tb%mixer_damping = damping
+
 #elif defined(__TBLITE)
       MARK_USED(tb)
       MARK_USED(max_scf)
       MARK_USED(damping)
-      CPABORT("SCC_MIXER TBLITE requires the legacy tblite 0.5 mixer API")
+      CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
 #else
       MARK_USED(tb)
       MARK_USED(max_scf)
@@ -366,16 +399,16 @@ CONTAINS
 
       SELECT CASE (dft_control%qs_control%xtb_control%tblite_scc_mixer)
       CASE (tblite_scc_mixer_auto)
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
          use_native_mixer = .TRUE.
 #else
          use_native_mixer = .FALSE.
 #endif
       CASE (tblite_scc_mixer_tblite)
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
          use_native_mixer = .TRUE.
 #else
-         CPABORT("SCC_MIXER TBLITE requires the legacy tblite 0.5 mixer API")
+         CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
 #endif
       CASE (tblite_scc_mixer_cp2k, tblite_scc_mixer_none)
          use_native_mixer = .FALSE.
@@ -403,11 +436,11 @@ CONTAINS
 
       mixer_error = 0.0_dp
 
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
       IF (.NOT. ASSOCIATED(tb)) RETURN
       IF (.NOT. tb_native_scc_mixer_active(dft_control)) RETURN
       IF (ALLOCATED(tb%mixer)) THEN
-         raw_error = REAL(tb%mixer%get_error(), KIND=dp)
+         raw_error = tb_mixer_error(tb)
          IF (eps_scf > 0.0_dp) THEN
             mixer_error = eps_scf*raw_error/tblite_scc_pconv
          ELSE
@@ -425,6 +458,199 @@ CONTAINS
 #endif
 
    END FUNCTION tb_scf_mixer_error
+
+! **************************************************************************************************
+!> \brief Return the tblite density-mixer dimension for the current SCC variables.
+!> \param tb ...
+!> \param info ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_mixer_dimension(tb, info) RESULT(ndim)
+
+      TYPE(tblite_type), INTENT(IN)                       :: tb
+      TYPE(scf_info), INTENT(IN)                          :: info
+      INTEGER                                             :: ndim
+
+      ndim = 0
+      SELECT CASE (info%charge)
+      CASE (atom_resolved)
+         ndim = ndim + tb%mol%nat
+      CASE (shell_resolved)
+         ndim = ndim + tb%calc%bas%nsh
+      END SELECT
+
+      SELECT CASE (info%dipole)
+      CASE (atom_resolved)
+         ndim = ndim + dip_n*tb%mol%nat
+      END SELECT
+
+      SELECT CASE (info%quadrupole)
+      CASE (atom_resolved)
+         ndim = ndim + quad_n*tb%mol%nat
+      END SELECT
+
+      SELECT CASE (info%density)
+      CASE (orbital_resolved)
+         ndim = ndim + tb%calc%bas%nao*tb%calc%bas%nao
+      END SELECT
+
+   END FUNCTION tb_mixer_dimension
+
+! **************************************************************************************************
+!> \brief Store the current tblite SCC variables in the native SCC mixer.
+!> \param tb ...
+!> \param do_dipole ...
+!> \param do_quadrupole ...
+! **************************************************************************************************
+   SUBROUTINE tb_mixer_set(tb, do_dipole, do_quadrupole)
+
+      TYPE(tblite_type), POINTER                          :: tb
+      LOGICAL, INTENT(IN)                                 :: do_dipole, do_quadrupole
+
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+      IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
+#if defined(__TBLITE_LEGACY_MIXER)
+      CALL tb%mixer%set(tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%set(tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%set(tb%wfn%qpat)
+#else
+      CPASSERT(ALLOCATED(tb%mixer_cache%raw))
+      tb%mixer_cache%raw%iset = 0
+      CALL tb%mixer%set(tb%mixer_cache, tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%set(tb%mixer_cache, tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%set(tb%mixer_cache, tb%wfn%qpat)
+      tb%mixer_cache%raw%initialized = .TRUE.
+#endif
+#else
+      MARK_USED(tb)
+      MARK_USED(do_dipole)
+      MARK_USED(do_quadrupole)
+      CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
+#endif
+
+   END SUBROUTINE tb_mixer_set
+
+! **************************************************************************************************
+!> \brief Accumulate the residual of the current tblite SCC variables in the native SCC mixer.
+!> \param tb ...
+!> \param do_dipole ...
+!> \param do_quadrupole ...
+! **************************************************************************************************
+   SUBROUTINE tb_mixer_diff(tb, do_dipole, do_quadrupole)
+
+      TYPE(tblite_type), POINTER                          :: tb
+      LOGICAL, INTENT(IN)                                 :: do_dipole, do_quadrupole
+
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+      IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
+#if defined(__TBLITE_LEGACY_MIXER)
+      CALL tb%mixer%diff(tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%diff(tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%diff(tb%wfn%qpat)
+#else
+      CPASSERT(ALLOCATED(tb%mixer_cache%raw))
+      IF (.NOT. tb%mixer_cache%raw%initialized) RETURN
+      tb%mixer_cache%raw%idif = 0
+      CALL tb%mixer%diff(tb%mixer_cache, tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%diff(tb%mixer_cache, tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%diff(tb%mixer_cache, tb%wfn%qpat)
+      CALL tb%mixer%collect(tb%mixer_cache)
+#endif
+#else
+      MARK_USED(tb)
+      MARK_USED(do_dipole)
+      MARK_USED(do_quadrupole)
+      CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
+#endif
+
+   END SUBROUTINE tb_mixer_diff
+
+! **************************************************************************************************
+!> \brief Advance the native tblite SCC mixer.
+!> \param tb ...
+!> \param error ...
+! **************************************************************************************************
+   SUBROUTINE tb_mixer_next(tb, error)
+
+      TYPE(tblite_type), POINTER                          :: tb
+      TYPE(error_type), ALLOCATABLE                       :: error
+
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+      IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
+#if defined(__TBLITE_LEGACY_MIXER)
+      CALL tb%mixer%next(error)
+#else
+      CPASSERT(ALLOCATED(tb%mixer_cache%raw))
+      IF (.NOT. tb%mixer_cache%raw%initialized) RETURN
+      CALL tb%mixer%next(tb%mixer_cache, error)
+#endif
+#else
+      MARK_USED(tb)
+      CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
+#endif
+
+   END SUBROUTINE tb_mixer_next
+
+! **************************************************************************************************
+!> \brief Retrieve mixed tblite SCC variables from the native SCC mixer.
+!> \param tb ...
+!> \param do_dipole ...
+!> \param do_quadrupole ...
+! **************************************************************************************************
+   SUBROUTINE tb_mixer_get(tb, do_dipole, do_quadrupole)
+
+      TYPE(tblite_type), POINTER                          :: tb
+      LOGICAL, INTENT(IN)                                 :: do_dipole, do_quadrupole
+
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+      IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
+#if defined(__TBLITE_LEGACY_MIXER)
+      CALL tb%mixer%get(tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%get(tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%get(tb%wfn%qpat)
+#else
+      CPASSERT(ALLOCATED(tb%mixer_cache%raw))
+      IF (.NOT. tb%mixer_cache%raw%initialized) RETURN
+      tb%mixer_cache%raw%iget = 0
+      CALL tb%mixer%get(tb%mixer_cache, tb%wfn%qsh)
+      IF (do_dipole) CALL tb%mixer%get(tb%mixer_cache, tb%wfn%dpat)
+      IF (do_quadrupole) CALL tb%mixer%get(tb%mixer_cache, tb%wfn%qpat)
+#endif
+#else
+      MARK_USED(tb)
+      MARK_USED(do_dipole)
+      MARK_USED(do_quadrupole)
+      CPABORT("SCC_MIXER TBLITE requires a tblite mixer API")
+#endif
+
+   END SUBROUTINE tb_mixer_get
+
+! **************************************************************************************************
+!> \brief Return the raw native tblite SCC mixer residual.
+!> \param tb ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_mixer_error(tb) RESULT(mixer_error)
+
+      TYPE(tblite_type), POINTER                          :: tb
+      REAL(KIND=dp)                                       :: mixer_error
+
+      mixer_error = 0.0_dp
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
+      IF (.NOT. ASSOCIATED(tb)) RETURN
+      IF (.NOT. ALLOCATED(tb%mixer)) RETURN
+#if defined(__TBLITE_LEGACY_MIXER)
+      mixer_error = REAL(tb%mixer%get_error(), KIND=dp)
+#else
+      IF (.NOT. ALLOCATED(tb%mixer_cache%raw)) RETURN
+      IF (.NOT. tb%mixer_cache%raw%initialized) RETURN
+      mixer_error = REAL(tb%mixer%get_error(tb%mixer_cache), KIND=dp)
+#endif
+#else
+      MARK_USED(tb)
+#endif
+
+   END FUNCTION tb_mixer_error
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1049,13 +1275,15 @@ CONTAINS
                                                             irow, ia, ib, sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, &
                                                             natorb_a, natorb_b, sgfa0, mp_test_mode, i0, j0
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi
-      REAL(KIND=dp)                                      :: dr, rr
+      REAL(KIND=dp)                                      :: dr, rr, rr2, rr4
       INTEGER, DIMENSION(3)                              :: cell
-      REAL(KIND=dp)                                      :: hij, shpoly
+      REAL(KIND=dp)                                      :: hij, shpoly, shpolyi, shpolyj
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: rij
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
+#endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, native_s, native_h, native_lattr, native_aniso
@@ -1093,8 +1321,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       mp_test_mode = 0
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
+#endif
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
       NULLIFY (matrix_h, matrix_s, atprop, dft_control)
@@ -1383,8 +1613,18 @@ CONTAINS
                n2 = tb%calc%bas%ish_at(irow)
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
+#if defined(__TBLITE_GXTB)
+                  rr2 = rr*rr
+                  rr4 = rr2*rr2
+                  shpolyi = 1.0_dp + h0%shpoly(iset, ikind)*rr &
+                             + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
+                  shpolyj = 1.0_dp + h0%shpoly(jset, jkind)*rr &
+                             + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
+                  shpoly = shpolyi*shpolyj
+#else
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
                            *(1.0_dp + h0%shpoly(jset, jkind)*rr)
+#endif
                   hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
                         *h0%hscale(iset, jset, ikind, jkind)*shpoly
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
@@ -1469,7 +1709,8 @@ CONTAINS
 
       INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im, irow, icol, i, j
       INTEGER                                            :: iao, jao, ish, ispin, i0, j0, nspin
-      INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
+      INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset, &
+                                                            scc_mixer_for_charge_mixing
       INTEGER                                            :: n_atom, max_orb, max_shell
       INTEGER                                            :: mp_test_mode, raw_state_status, raw_state_unit, &
                                                             state_status, state_unit, last_mix_slot, ia_local, ns_mix
@@ -1751,26 +1992,24 @@ CONTAINS
             DEALLOCATE (ao_quad)
          END IF
          DEALLOCATE (mix_vars)
-#if defined(__TBLITE_LEGACY_MIXER)
+#if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
       ELSEIF (use_native_mixer .OR. mp_test_mode == 120 .OR. mp_test_mode == 220 .OR. &
               mp_test_mode == 230 .OR. mp_test_mode == 231 .OR. &
               mp_test_mode == 232 .OR. mp_test_mode == 233) THEN
          IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
          IF (use_rho .AND. (.NOT. calculate_forces) .AND. scf_env%iter_count > 1) THEN
-            CALL tb%mixer%next(error)
+            CALL tb_mixer_next(tb, error)
             IF (ALLOCATED(error)) CPABORT("tblite native mixer failed")
-            CALL tb%mixer%get(tb%wfn%qsh)
+            CALL tb_mixer_get(tb, do_dipole, do_quadrupole)
             tb%wfn%qat(:, 1) = 0.0_dp
             DO iatom = 1, n_atom
                ii = tb%calc%bas%ish_at(iatom)
                tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
             END DO
             IF (do_dipole) THEN
-               CALL tb%mixer%get(tb%wfn%dpat)
                DEALLOCATE (ao_dip)
             END IF
             IF (do_quadrupole) THEN
-               CALL tb%mixer%get(tb%wfn%qpat)
                DEALLOCATE (ao_quad)
             END IF
          ELSE
@@ -1787,9 +2026,7 @@ CONTAINS
                IF (do_quadrupole) DEALLOCATE (ao_quad)
             ELSE
                IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%set(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%set(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%set(tb%wfn%qpat)
+                  CALL tb_mixer_set(tb, do_dipole, do_quadrupole)
                END IF
                DO iatom = 1, n_atom
                   ii = tb%calc%bas%ish_at(iatom)
@@ -1811,9 +2048,7 @@ CONTAINS
                   DEALLOCATE (ao_quad)
                END IF
                IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%diff(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%diff(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%diff(tb%wfn%qpat)
+                  CALL tb_mixer_diff(tb, do_dipole, do_quadrupole)
                END IF
             END IF
          END IF
@@ -1824,6 +2059,14 @@ CONTAINS
             !
          ELSE
             ! CP2K SCC mixing has to see all tblite SCC variables, not only shell charges.
+            scc_mixer_for_charge_mixing = dft_control%qs_control%xtb_control%tblite_scc_mixer
+            IF (scc_mixer_for_charge_mixing == tblite_scc_mixer_auto) THEN
+#if defined(__TBLITE_GXTB_MIXER)
+               scc_mixer_for_charge_mixing = tblite_scc_mixer_tblite
+#else
+               scc_mixer_for_charge_mixing = tblite_scc_mixer_cp2k
+#endif
+            END IF
             do_combined_mixing = do_dipole .OR. do_quadrupole .OR. &
                                  (mp_test_mode == 110 .OR. mp_test_mode == 111 .OR. &
                                   mp_test_mode == 112 .OR. mp_test_mode == 114 .OR. &
@@ -1900,7 +2143,10 @@ CONTAINS
                   END IF
                END IF
                CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                                  mix_vars, para_env, scf_env%iter_count)
+                                  mix_vars, para_env, scf_env%iter_count, &
+                                  scc_mixer=scc_mixer_for_charge_mixing, &
+                                  tblite_mixer_damping=dft_control%qs_control%xtb_control%tblite_mixer_damping, &
+                                  tblite_mixer_memory=scf_control%max_scf)
                IF (.NOT. discard_mixed_output) THEN
                   IF (native_sign_mixing) THEN
                      ch_shell(:, 1:max_shell) = -mix_vars(:, 1:max_shell)
@@ -1927,7 +2173,10 @@ CONTAINS
                DEALLOCATE (mix_vars)
             ELSE
                CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                                  ch_shell, para_env, scf_env%iter_count)
+                                  ch_shell, para_env, scf_env%iter_count, &
+                                  scc_mixer=scc_mixer_for_charge_mixing, &
+                                  tblite_mixer_damping=dft_control%qs_control%xtb_control%tblite_mixer_damping, &
+                                  tblite_mixer_memory=scf_control%max_scf)
             END IF
          END IF
 
@@ -2662,8 +2911,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                       :: cell
       INTEGER, DIMENSION(:, :, :), POINTER        :: cell_to_index
       REAL(KIND=dp), DIMENSION(3)                 :: rij, mp_int_vec, mp_shift_vec
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                     :: debug_status
       CHARACTER(LEN=32)                           :: debug_value
+#endif
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
@@ -2712,8 +2963,10 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
       mp_test_mode = 0
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
+#endif
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
@@ -3206,7 +3459,7 @@ CONTAINS
    END SUBROUTINE tb_shift_multipole
 
 ! **************************************************************************************************
-!> \brief Add explicit multipole-operator strain contribution for diagnostics.
+!> \brief Add explicit multipole-operator strain contribution.
 !> \param sigma ...
 !> \param pij ...
 !> \param vdp ...
@@ -3637,7 +3890,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, image_pair, native_h0_grad
-      REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
+      REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, rr2, rr4, hij, shpoly, &
+                                                            shpolyi, shpolyj, dshpoly, dshpolyi, dshpolyj, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift, &
                                                             dip_deriv_fac, quad_deriv_fac, dip_deriv_fac_pair, &
                                                             quad_deriv_fac_pair, overlap_deriv_fac, pot_deriv_scale, &
@@ -3652,9 +3906,6 @@ CONTAINS
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value, scale_value
-#else
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: scale_value
 #endif
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
@@ -3736,6 +3987,7 @@ CONTAINS
       w_deriv_scale = 1.0_dp
       h0_deriv_scale = 1.0_dp
       mp_deriv_scale = 1.0_dp
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_SCALE", scale_value, STATUS=debug_status)
@@ -3771,12 +4023,25 @@ CONTAINS
       cn_image_scale = 1.0_dp
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
-      mp_strain_scale = 0.0_dp
+      mp_strain_scale = 1.0_dp
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MP_STRAIN_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_strain_scale
       native_h0_grad = .FALSE.
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_NATIVE_H0_GRAD", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) native_h0_grad
+#else
+      pot_image_deriv_scale = pot_deriv_scale
+      w_image_deriv_scale = w_deriv_scale
+      h0_image_deriv_scale = h0_deriv_scale
+      mp_image_deriv_scale = mp_deriv_scale
+      pot_self_image_deriv_scale = pot_image_deriv_scale
+      w_self_image_deriv_scale = w_image_deriv_scale
+      h0_self_image_deriv_scale = h0_image_deriv_scale
+      mp_self_image_deriv_scale = mp_image_deriv_scale
+      cn_image_scale = 1.0_dp
+      mp_strain_scale = 1.0_dp
+      native_h0_grad = .FALSE.
+#endif
 
       NULLIFY (matrix_p)
       IF (use_rho) THEN
@@ -3975,11 +4240,28 @@ CONTAINS
                      & t_i_dip, t_i_quad, t_j_dip, t_j_quad)
                END IF
 
+#if defined(__TBLITE_GXTB)
+               rr2 = rr*rr
+               rr4 = rr2*rr2
+               shpolyi = 1.0_dp + h0%shpoly(iset, ikind)*rr &
+                          + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
+               dshpolyi = (0.5_dp*h0%shpoly(iset, ikind)*rr &
+                            + h0%shpoly2(iset, ikind)*rr2 &
+                            + 2.0_dp*h0%shpoly4(iset, ikind)*rr4)/r2
+               shpolyj = 1.0_dp + h0%shpoly(jset, jkind)*rr &
+                          + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
+               dshpolyj = (0.5_dp*h0%shpoly(jset, jkind)*rr &
+                            + h0%shpoly2(jset, jkind)*rr2 &
+                            + 2.0_dp*h0%shpoly4(jset, jkind)*rr4)/r2
+               shpoly = shpolyi*shpolyj
+               dshpoly = dshpolyi*shpolyj + dshpolyj*shpolyi
+#else
                shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
                         *(1.0_dp + h0%shpoly(jset, jkind)*rr)
                dshpoly = ((1.0_dp + h0%shpoly(iset, ikind)*rr)*h0%shpoly(jset, jkind)*rr &
                           + (1.0_dp + h0%shpoly(jset, jkind)*rr)*h0%shpoly(iset, ikind)*rr) &
                          *0.5_dp/r2
+#endif
                scal = h0%hscale(iset, jset, ikind, jkind)
                hij = 0.5_dp*(tb%selfenergy(ni + iset) + tb%selfenergy(nj + jset))*scal
 
@@ -4634,6 +4916,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sigma
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CHARACTER(LEN=default_path_length)                 :: dump_file
       INTEGER                                            :: dump_status, dump_unit, i
 
@@ -4648,6 +4931,11 @@ CONTAINS
          WRITE (dump_unit, "(3(1X,ES24.16))") sigma(i, :)/para_env%num_pe
       END DO
       CLOSE (dump_unit)
+#else
+      MARK_USED(label)
+      MARK_USED(sigma)
+      MARK_USED(para_env)
+#endif
 
    END SUBROUTINE tb_dump_sigma_component
 
@@ -4663,8 +4951,10 @@ CONTAINS
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
 
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CHARACTER(LEN=default_path_length)                 :: dump_file
       INTEGER                                            :: dump_status, dump_unit, i
+#endif
       INTEGER, DIMENSION(3)                              :: periodic
       TYPE(cell_type), POINTER                           :: cell
       TYPE(virial_type), POINTER                         :: virial
@@ -4680,6 +4970,7 @@ CONTAINS
                       "but it is not a physically meaningful bulk stress for an isolated molecule.")
       END IF
 
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       dump_status = 1
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_VIRIAL_DUMP", dump_file, STATUS=dump_status)
       IF (dump_status == 0) THEN
@@ -4691,6 +4982,7 @@ CONTAINS
          END DO
          CLOSE (dump_unit)
       END IF
+#endif
 
       virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
 
