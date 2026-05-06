@@ -3734,6 +3734,7 @@ CONTAINS
                 " --spin "//TRIM(ADJUSTL(spin_str))// &
                 " --acc "//TRIM(ADJUSTL(acc_str))// &
                 " --iterations "//TRIM(ADJUSTL(iter_str))// &
+                " --etemp 0.0"// &
                 " --no-restart --input gen --grad "//TRIM(tb_shell_quote(grad_file))// &
                 " --json "//TRIM(tb_shell_quote(json_file))//" "//TRIM(tb_shell_quote(gen_file))// &
                 " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
@@ -4008,7 +4009,7 @@ CONTAINS
             ALLOCATE (values(9))
             CALL tb_read_real_values(unit_nr, values, nread)
             IF (nread == 9) THEN
-               CALL tb_values_to_matrix_rowmajor(values, virial)
+               CALL tb_values_to_matrix(values, virial)
                have_virial = .TRUE.
             END IF
             DEALLOCATE (values)
@@ -4096,28 +4097,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE tb_values_to_matrix
-
-! **************************************************************************************************
-!> \brief Convert flat native tblite row-major values to a 2D matrix.
-!> \param values ...
-!> \param matrix ...
-! **************************************************************************************************
-   SUBROUTINE tb_values_to_matrix_rowmajor(values, matrix)
-
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: matrix
-
-      INTEGER                                            :: i, j, n
-
-      n = 0
-      DO i = 1, SIZE(matrix, 1)
-         DO j = 1, SIZE(matrix, 2)
-            n = n + 1
-            matrix(i, j) = values(n)
-         END DO
-      END DO
-
-   END SUBROUTINE tb_values_to_matrix_rowmajor
 
 ! **************************************************************************************************
 !> \brief Delete temporary files unless requested otherwise.

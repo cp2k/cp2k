@@ -9,4 +9,6 @@
 "Si_gfn1_kp.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.71883999271131}]
 "Si_gfn1_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-14.7262344001},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Si_gfn1_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-14.7262344001},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

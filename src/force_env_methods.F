@@ -592,9 +592,9 @@ CONTAINS
                                    l_val=input_inversion_symmetry_only)
       END IF
       ! DEBUG finite differences must not reuse atomic symmetry from another geometry.
-      ! Keep only k-space inversion/time-reversal for numerical points and TB DEBUG.
-      debug_inversion_only = fd_energy .OR. dft_control%qs_control%dftb .OR. &
-                             dft_control%qs_control%xtb
+      ! Rebuild the k-point symmetry for each DEBUG point. Keep numerical finite-difference
+      ! energies and DFTB DEBUG checks on the established inversion/time-reversal reduction.
+      debug_inversion_only = fd_energy .OR. dft_control%qs_control%dftb
       use_full_grid = input_full_grid
       use_inversion_symmetry_only = (input_inversion_symmetry_only .OR. debug_inversion_only) .AND. &
                                     (.NOT. use_full_grid)

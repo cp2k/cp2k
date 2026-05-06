@@ -141,7 +141,7 @@ CONTAINS
                                                             zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(eeq_solver_type)                              :: eeq_sparam
@@ -190,15 +190,13 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, kind_of=kind_of)
 
-      NULLIFY (rho, matrix_w)
+      NULLIFY (rho)
       CALL get_qs_env(qs_env=qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
       IF (SIZE(matrix_p, 1) == 2) THEN
          DO img = 1, nimg
             CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-            CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
                            alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END DO
       END IF
