@@ -467,9 +467,9 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION tb_mixer_dimension(tb, info) RESULT(ndim)
 
-      TYPE(tblite_type), INTENT(IN)                       :: tb
-      TYPE(scf_info), INTENT(IN)                          :: info
-      INTEGER                                             :: ndim
+      TYPE(tblite_type), INTENT(IN)                      :: tb
+      TYPE(scf_info), INTENT(IN)                         :: info
+      INTEGER                                            :: ndim
 
       ndim = 0
       SELECT CASE (info%charge)
@@ -632,8 +632,8 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION tb_mixer_error(tb) RESULT(mixer_error)
 
-      TYPE(tblite_type), POINTER                          :: tb
-      REAL(KIND=dp)                                       :: mixer_error
+      TYPE(tblite_type), POINTER                         :: tb
+      REAL(KIND=dp)                                      :: mixer_error
 
       mixer_error = 0.0_dp
 #if defined(__TBLITE_LEGACY_MIXER) || defined(__TBLITE_GXTB_MIXER)
@@ -1617,9 +1617,9 @@ CONTAINS
                   rr2 = rr*rr
                   rr4 = rr2*rr2
                   shpolyi = 1.0_dp + h0%shpoly(iset, ikind)*rr &
-                             + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
+                            + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
                   shpolyj = 1.0_dp + h0%shpoly(jset, jkind)*rr &
-                             + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
+                            + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
                   shpoly = shpolyi*shpolyj
 #else
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
@@ -3477,7 +3477,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: qmat, qv, vmat
 
       sigma(:, :) = sigma(:, :) - 0.5_dp*pij*(SPREAD(vdp, 1, 3)*SPREAD(dip, 2, 3) &
-                                             + SPREAD(dip, 1, 3)*SPREAD(vdp, 2, 3))
+                                              + SPREAD(dip, 1, 3)*SPREAD(vdp, 2, 3))
 
       qmat = RESHAPE([quad(1), quad(2), quad(4), &
                       quad(2), quad(3), quad(5), &
@@ -4023,7 +4023,7 @@ CONTAINS
       cn_image_scale = 1.0_dp
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
-      mp_strain_scale = 1.0_dp
+      mp_strain_scale = 0.0_dp
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MP_STRAIN_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_strain_scale
       native_h0_grad = .FALSE.
@@ -4039,7 +4039,7 @@ CONTAINS
       h0_self_image_deriv_scale = h0_image_deriv_scale
       mp_self_image_deriv_scale = mp_image_deriv_scale
       cn_image_scale = 1.0_dp
-      mp_strain_scale = 1.0_dp
+      mp_strain_scale = 0.0_dp
       native_h0_grad = .FALSE.
 #endif
 
@@ -4244,15 +4244,15 @@ CONTAINS
                rr2 = rr*rr
                rr4 = rr2*rr2
                shpolyi = 1.0_dp + h0%shpoly(iset, ikind)*rr &
-                          + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
+                         + h0%shpoly2(iset, ikind)*rr2 + h0%shpoly4(iset, ikind)*rr4
                dshpolyi = (0.5_dp*h0%shpoly(iset, ikind)*rr &
-                            + h0%shpoly2(iset, ikind)*rr2 &
-                            + 2.0_dp*h0%shpoly4(iset, ikind)*rr4)/r2
+                           + h0%shpoly2(iset, ikind)*rr2 &
+                           + 2.0_dp*h0%shpoly4(iset, ikind)*rr4)/r2
                shpolyj = 1.0_dp + h0%shpoly(jset, jkind)*rr &
-                          + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
+                         + h0%shpoly2(jset, jkind)*rr2 + h0%shpoly4(jset, jkind)*rr4
                dshpolyj = (0.5_dp*h0%shpoly(jset, jkind)*rr &
-                            + h0%shpoly2(jset, jkind)*rr2 &
-                            + 2.0_dp*h0%shpoly4(jset, jkind)*rr4)/r2
+                           + h0%shpoly2(jset, jkind)*rr2 &
+                           + 2.0_dp*h0%shpoly4(jset, jkind)*rr4)/r2
                shpoly = shpolyi*shpolyj
                dshpoly = dshpolyi*shpolyj + dshpolyj*shpolyi
 #else
@@ -4302,9 +4302,9 @@ CONTAINS
                         CALL tb_shift_multipole(-rij, t_ov(ij), t_dip(:, ij), t_quad(:, ij), &
                                                 shifted_dip, shifted_quad)
                         CALL tb_add_multipole_strain(hsigma, mp_strain_scale*pblock(ib, ia), &
-                                                      idip, iquad, t_dip(:, ij), t_quad(:, ij))
+                                                     idip, iquad, t_dip(:, ij), t_quad(:, ij))
                         CALL tb_add_multipole_strain(hsigma, mp_strain_scale*pblock(ib, ia), &
-                                                      jdip, jquad, shifted_dip, shifted_quad)
+                                                     jdip, jquad, shifted_dip, shifted_quad)
                      END IF
 
                   END DO
@@ -4394,8 +4394,8 @@ CONTAINS
       CHARACTER(LEN=8*default_path_length)               :: command
       CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
                                                             json_file, log_file
-      INTEGER                                            :: cmdstat, exitstat, handle, ia, ib, iounit, &
-                                                            natom, nkp, spin
+      INTEGER                                            :: cmdstat, exitstat, handle, ia, ib, &
+                                                            iounit, natom, nkp, spin
       LOGICAL                                            :: do_kpoints, have_energy, have_gradient, &
                                                             have_virial, too_large, &
                                                             unsupported_kpoints

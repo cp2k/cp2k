@@ -26,8 +26,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-10
-      MAX_SCF 200
       IGNORE_CONVERGENCE_FAILURE T
+      MAX_SCF 200
       SCF_GUESS MOPAC
       &MIXING
         ALPHA 0.2

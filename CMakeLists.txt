@@ -1102,10 +1102,10 @@ if(CP2K_USE_LIBSMEAGOL)
 endif()
 
 if(CP2K_USE_TBLITE)
-  message(" - TBLITE :\n"
-          "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
-          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n"
-          "   - g-xTB support       :  ${CP2K_USE_TBLITE_GXTB}\n\n")
+  message(
+    " - TBLITE :\n" "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
+    "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n"
+    "   - g-xTB support       :  ${CP2K_USE_TBLITE_GXTB}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
