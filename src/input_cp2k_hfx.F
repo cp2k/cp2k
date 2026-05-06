@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_hfx
    USE bibliography, ONLY: Guidon2008, &
-                           Guidon2009
+                           Guidon2009, &
+                           Lin2016ACE
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  high_print_level, &
@@ -126,6 +127,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_hf_ri_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_hf_ace_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -821,5 +826,52 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_hf_ri_section
+
+   ! ACE Keyword section
+
+   SUBROUTINE create_hf_ace_section(section)
+      TYPE(section_type), POINTER :: section
+
+      TYPE(keyword_type), POINTER :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, &
+                           name="ACE",  &
+                           description="Parameters for the Adaptively Compressed Exchange (ACE) "// &
+                           "operator. ACE replaces the full exchange matrix with a "// &
+                           "low-rank projector K_ACE = -W*W^T after an initial "// &
+                           "full HFX build, reducing cost of subsequent SCF steps. ", &
+                           n_keywords=2, &
+                           n_subsections=0, &
+                           repeats=.TRUE., &
+                           citations=[Lin2016ACE])
+
+      NULLIFY(keyword)
+
+      ! --- ACTIVE ---
+      CALL keyword_create(keyword,  __LOCATION__, &
+           name="ACTIVE", &
+           description="Enable the ACE approximation for HFX. "// &
+                       "When .TRUE., the exchange matrix is replaced by "// &
+                       "the ACE projector after the first full build.", &
+           usage="ACTIVE .TRUE.", &
+           default_l_val=.FALSE., &
+           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! --- REBUILD_FREQUENCY ---
+      CALL keyword_create(keyword, __LOCATION__, &
+           name="REBUILD_FREQUENCY", &
+           description="Rebuild the ACE projectors W every N SCF steps. "// &
+                       "N=1 means rebuild every step (identical to full HFX, "// &
+                       "use for testing only). N=10-20 is typical for production. "// &
+                       "Projectors are always rebuilt when the structure changes.", &
+           usage="REBUILD_FREQUENCY 20", &
+           default_i_val=20)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_hf_ace_section
 
 END MODULE input_cp2k_hfx
