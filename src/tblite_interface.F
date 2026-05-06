@@ -3389,7 +3389,7 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_self_image_deriv_scale
 #endif
       cn_image_scale = 1.0_dp
-      IF (nimg > 1 .AND. ALL(tb%mol%periodic)) cn_image_scale = -0.25_dp
+      IF (nimg > 1 .AND. ANY(tb%mol%periodic)) cn_image_scale = -0.25_dp
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
