@@ -4629,9 +4629,6 @@ CONTAINS
       INTEGER                                            :: dump_status, dump_unit, i, iatom, j, natom
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: use_isolated_force_virial
-#if defined(__TBLITE_GXTB)
-      LOGICAL, SAVE                                      :: gxtb_periodic_stress_warned = .FALSE.
-#endif
       REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -4669,17 +4666,6 @@ CONTAINS
             RETURN
          END IF
       END IF
-
-#if defined(__TBLITE_GXTB)
-      IF (ANY(periodic == 1) .AND. ALLOCATED(tb%calc%exchange) .AND. &
-          .NOT. gxtb_periodic_stress_warned) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "Periodic g-xTB analytical stress uses the native tblite strain derivative. "// &
-                      "The current g-xTB tblite implementation is not finite-difference exact for "// &
-                      "periodic stresses; use STRESS_TENSOR NUMERICAL for validated cell stresses.")
-         gxtb_periodic_stress_warned = .TRUE.
-      END IF
-#endif
 
       dump_status = 1
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
