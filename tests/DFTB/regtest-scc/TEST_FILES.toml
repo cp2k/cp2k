@@ -66,6 +66,8 @@
 "c_kp2.inp"                             = [{matcher="E_total", tol=7e-14, ref=-13.76786045921772}]
 "c_kp2_stress.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-13.76771748328116},
                                            {matcher="M042", tol=2.0E-06, ref=0.0000000}]
+"zns_kp2_kpsym.inp"                     = [{matcher="E_total", tol=1.0E-12, ref=-27.54559977921195},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "zns_kp2_stress.inp"                    = [{matcher="E_total", tol=1.0E-12, ref=-27.54559977921195},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M042", tol=2.0E-06, ref=0.0000000}]
