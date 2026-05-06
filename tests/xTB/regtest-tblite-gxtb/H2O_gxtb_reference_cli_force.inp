@@ -17,9 +17,7 @@
           &REFERENCE_CLI
             CHECK_FORCES T
             CHECK_VIRIAL T
-            ! Native g-XTB CLI virials use tblite's analytic sigma.
-            ! CP2K/tblite uses a numerical energy derivative for the stress.
-            ERROR_LIMIT 2.0E-3
+            ERROR_LIMIT 1.0E-5
             PROGRAM_NAME tblite
             STOP_ON_ERROR T
           &END REFERENCE_CLI

@@ -901,9 +901,7 @@ CONTAINS
                          "but it is not a physically meaningful bulk stress for an isolated molecule.")
          END IF
          CALL zero_virial(virial, reset=.FALSE.)
-         CALL tb_gxtb_native_numerical_virial(tb, particle_set, cell, virial%pv_diagonal, &
-                                              virial%pv_virial)
-         virial%pv_virial = virial%pv_virial/para_env%num_pe
+         virial%pv_virial = -tb%sigma/para_env%num_pe
       END IF
 
       DEALLOCATE (atom_of_kind, kind_of)
@@ -1056,10 +1054,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: rij
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
-#endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, native_s, native_h, native_lattr, native_aniso
@@ -1097,10 +1093,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
       NULLIFY (matrix_h, matrix_s, atprop, dft_control)
@@ -2668,10 +2662,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                       :: cell
       INTEGER, DIMENSION(:, :, :), POINTER        :: cell_to_index
       REAL(KIND=dp), DIMENSION(3)                 :: rij, mp_int_vec, mp_shift_vec
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                     :: debug_status
       CHARACTER(LEN=32)                           :: debug_value
-#endif
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
@@ -2720,10 +2712,8 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
       mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
@@ -3216,6 +3206,43 @@ CONTAINS
    END SUBROUTINE tb_shift_multipole
 
 ! **************************************************************************************************
+!> \brief Add explicit multipole-operator strain contribution for diagnostics.
+!> \param sigma ...
+!> \param pij ...
+!> \param vdp ...
+!> \param vqp ...
+!> \param dip ...
+!> \param quad ...
+! **************************************************************************************************
+   PURE SUBROUTINE tb_add_multipole_strain(sigma, pij, vdp, vqp, dip, quad)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sigma
+      REAL(KIND=dp), INTENT(IN)                          :: pij
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vdp, vqp, dip, quad
+
+      REAL(KIND=dp)                                      :: qdotv
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: qmat, qv, vmat
+
+      sigma(:, :) = sigma(:, :) - 0.5_dp*pij*(SPREAD(vdp, 1, 3)*SPREAD(dip, 2, 3) &
+                                             + SPREAD(dip, 1, 3)*SPREAD(vdp, 2, 3))
+
+      qmat = RESHAPE([quad(1), quad(2), quad(4), &
+                      quad(2), quad(3), quad(5), &
+                      quad(4), quad(5), quad(6)], [3, 3])
+      vmat = RESHAPE([vqp(1), 0.5_dp*vqp(2), 0.5_dp*vqp(4), &
+                      0.5_dp*vqp(2), vqp(3), 0.5_dp*vqp(5), &
+                      0.5_dp*vqp(4), 0.5_dp*vqp(5), vqp(6)], [3, 3])
+      qv = MATMUL(qmat, vmat)
+      qdotv = DOT_PRODUCT(quad, vqp)
+
+      sigma(:, :) = sigma(:, :) - pij*(qv + TRANSPOSE(qv))
+      sigma(1, 1) = sigma(1, 1) + pij*2.0_dp/3.0_dp*qdotv
+      sigma(2, 2) = sigma(2, 2) + pij*2.0_dp/3.0_dp*qdotv
+      sigma(3, 3) = sigma(3, 3) + pij*2.0_dp/3.0_dp*qdotv
+
+   END SUBROUTINE tb_add_multipole_strain
+
+! **************************************************************************************************
 !> \brief compute the mulliken properties (AO resolved)
 !> \param p_matrix ...
 !> \param bra_mat ...
@@ -3609,7 +3636,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, image_pair
+      LOGICAL                                            :: found, image_pair, native_h0_grad
       REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift, &
                                                             dip_deriv_fac, quad_deriv_fac, dip_deriv_fac_pair, &
@@ -3620,20 +3647,28 @@ CONTAINS
                                                             pot_pair_scale, w_pair_scale, h0_pair_scale, mp_pair_scale, &
                                                             pot_self_image_deriv_scale, w_self_image_deriv_scale, &
                                                             h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
-                                                            cn_image_scale
+                                                            cn_image_scale, mp_strain_scale
       INTEGER                                            :: mp_test_mode
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value, scale_value
+#else
+      INTEGER                                            :: debug_status
+      CHARACTER(LEN=32)                                  :: scale_value
 #endif
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad, &
+                                                            shifted_dip, shifted_quad, dEdcnbas, dEdqbas
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov, native_aniso, &
+                                                            native_lattr, dEdad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad, &
+                                                            native_p, native_w
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, wblock
 
+      TYPE(adjacency_list)                               :: native_list
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER            :: basis_set_a, basis_set_b
@@ -3701,7 +3736,6 @@ CONTAINS
       w_deriv_scale = 1.0_dp
       h0_deriv_scale = 1.0_dp
       mp_deriv_scale = 1.0_dp
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_SCALE", scale_value, STATUS=debug_status)
@@ -3710,12 +3744,10 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_deriv_scale
-#endif
       pot_image_deriv_scale = pot_deriv_scale
       w_image_deriv_scale = w_deriv_scale
       h0_image_deriv_scale = h0_deriv_scale
       mp_image_deriv_scale = mp_deriv_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_image_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_IMAGE_SCALE", scale_value, STATUS=debug_status)
@@ -3724,12 +3756,10 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_image_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_image_deriv_scale
-#endif
       pot_self_image_deriv_scale = pot_image_deriv_scale
       w_self_image_deriv_scale = w_image_deriv_scale
       h0_self_image_deriv_scale = h0_image_deriv_scale
       mp_self_image_deriv_scale = mp_image_deriv_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_self_image_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_W_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
@@ -3738,12 +3768,15 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) h0_self_image_deriv_scale
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_MP_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_self_image_deriv_scale
-#endif
       cn_image_scale = 1.0_dp
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
-#endif
+      mp_strain_scale = 0.0_dp
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MP_STRAIN_SCALE", scale_value, STATUS=debug_status)
+      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_strain_scale
+      native_h0_grad = .FALSE.
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_NATIVE_H0_GRAD", scale_value, STATUS=debug_status)
+      IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) native_h0_grad
 
       NULLIFY (matrix_p)
       IF (use_rho) THEN
@@ -3758,6 +3791,54 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       ALLOCATE (dE(tb%mol%nat))
+      IF (native_h0_grad) THEN
+         IF (nimg > 1) CPABORT("Native tblite H0 gradient diagnostic with k-points not implemented")
+         ALLOCATE (native_p(tb%calc%bas%nao, tb%calc%bas%nao, 1))
+         ALLOCATE (native_w(tb%calc%bas%nao, tb%calc%bas%nao, 1))
+         native_p = 0.0_dp
+         native_w = 0.0_dp
+         CALL dbcsr_iterator_start(iter, matrix_p(1, 1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            NULLIFY (pblock, wblock)
+            CALL dbcsr_iterator_next_block(iter, jrow, icol, pblock)
+            CALL dbcsr_get_block_p(matrix=matrix_w(1, 1)%matrix, row=jrow, col=icol, block=wblock, found=found)
+            CPASSERT(found)
+            ni = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(jrow) + 1)
+            nj = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
+            DO ib = 1, SIZE(pblock, 1)
+               DO ia = 1, SIZE(pblock, 2)
+                  native_p(ni + ib, nj + ia, 1) = pblock(ib, ia)
+                  native_w(ni + ib, nj + ia, 1) = wblock(ib, ia)
+                  IF (jrow /= icol) THEN
+                     native_p(nj + ia, ni + ib, 1) = pblock(ib, ia)
+                     native_w(nj + ia, ni + ib, 1) = wblock(ib, ia)
+                  END IF
+               END DO
+            END DO
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         dE = 0.0_dp
+         ALLOCATE (dEdad(3, tb%mol%nat), dEdcnbas(tb%mol%nat), dEdqbas(tb%mol%nat))
+         ALLOCATE (native_aniso(3, tb%mol%nat))
+         dEdad = 0.0_dp
+         dEdcnbas = 0.0_dp
+         dEdqbas = 0.0_dp
+         CALL get_anisotropy(tb%calc%h0, tb%mol, native_aniso)
+         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
+         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
+         CALL get_hamiltonian_gradient(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, &
+                                       tb%calc%h0, tb%selfenergy, tb%dsedcn, native_aniso, tb%pot, &
+                                       native_p, native_w, dE, dEdad, dEdcnbas, dEdqbas, tb%grad, tb%sigma)
+         CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+         CALL tb_grad2force(qs_env, tb, para_env, 4)
+         IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
+
+         DEALLOCATE (native_p, native_w, native_aniso, native_lattr, dEdad, dEdcnbas, dEdqbas, dE)
+         IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
+         DEALLOCATE (basis_set_list)
+         RETURN
+      END IF
 
       nel = msao(tb%calc%bas%maxl)**2
       ALLOCATE (t_ov(nel))
@@ -3769,6 +3850,7 @@ CONTAINS
 
       ALLOCATE (idip(dip_n), jdip(dip_n))
       ALLOCATE (iquad(quad_n), jquad(quad_n))
+      ALLOCATE (shifted_dip(dip_n), shifted_quad(quad_n))
 
       dE = 0.0_dp
       tb%grad = 0.0_dp
@@ -3934,6 +4016,15 @@ CONTAINS
                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
                                                        + MATMUL(t_j_quad(:, :, ij), jquad)))
 
+                     IF (tb%use_virial .AND. mp_strain_scale /= 0.0_dp) THEN
+                        CALL tb_shift_multipole(-rij, t_ov(ij), t_dip(:, ij), t_quad(:, ij), &
+                                                shifted_dip, shifted_quad)
+                        CALL tb_add_multipole_strain(hsigma, mp_strain_scale*pblock(ib, ia), &
+                                                      idip, iquad, t_dip(:, ij), t_quad(:, ij))
+                        CALL tb_add_multipole_strain(hsigma, mp_strain_scale*pblock(ib, ia), &
+                                                      jdip, jquad, shifted_dip, shifted_quad)
+                     END IF
+
                   END DO
                END DO
                ! Periodic self-image pairs share one atom in the sorted CP2K block representation.
@@ -3993,7 +4084,7 @@ CONTAINS
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
-      DEALLOCATE (idip, jdip, iquad, jquad)
+      DEALLOCATE (idip, jdip, iquad, jquad, shifted_dip, shifted_quad)
 
       IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
 
@@ -4547,9 +4638,7 @@ CONTAINS
       INTEGER                                            :: dump_status, dump_unit, i
 
       dump_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_SIGMA_COMPONENT_DUMP", dump_file, STATUS=dump_status)
-#endif
       IF (dump_status /= 0) RETURN
 
       OPEN (NEWUNIT=dump_unit, FILE=TRIM(dump_file), STATUS="UNKNOWN", &
@@ -4592,9 +4681,7 @@ CONTAINS
       END IF
 
       dump_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_VIRIAL_DUMP", dump_file, STATUS=dump_status)
-#endif
       IF (dump_status == 0) THEN
          OPEN (NEWUNIT=dump_unit, FILE=TRIM(dump_file), STATUS="UNKNOWN", &
                POSITION="APPEND", ACTION="WRITE")
