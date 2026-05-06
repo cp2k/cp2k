@@ -104,20 +104,14 @@ case "$with_tblite" in
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_TESTING=OFF \
         -DWITH_TESTS=OFF \
-        -Dtblite-dependency-method=subproject \
-        -DDFTD4_FIND_METHOD=subproject \
-        -DMULTICHARGE_FIND_METHOD=subproject \
         .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
-      cmake --build . --target mctc-convert mstore-fortranize mstore-info multicharge-exe dftd4-exe s-dftd3-exe tblite-exe \
-        -- -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      cmake --install . >> make.log 2>&1 || tail_excerpt make.log
-
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
+        "${SCRIPT_DIR}/stage8/tblite-0.5.0-gradient-fixes.patch"
       cd ..
     fi
-    write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
-      "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
-      "${SCRIPT_DIR}/stage8/tblite-0.5.0-gradient-fixes.patch"
     ;;
 
   __SYSTEM__)
