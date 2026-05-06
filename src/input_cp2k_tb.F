@@ -18,7 +18,7 @@ MODULE input_cp2k_tb
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
         dispersion_d2, dispersion_d3, dispersion_d3bj, dispersion_uff, gfn1xtb, gfn2xtb, &
-        gfn_tblite, ipea1xtb, slater, tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
+        gfn_tblite, gxtb, ipea1xtb, slater, tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
         tblite_scc_mixer_none, tblite_scc_mixer_tblite
    USE input_cp2k_mm,                   ONLY: create_GENPOT_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -594,12 +594,13 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Selection of the method used in tblite.", &
-                          usage="METHOD (GFN1|GFN2|IPEA1)", &
-                          enum_c_vals=s2a("GFN1", "GFN2", "IPEA1"), &
-                          enum_i_vals=[gfn1xtb, gfn2xtb, ipea1xtb], &
+                          usage="METHOD (GFN1|GFN2|GXTB|IPEA1)", &
+                          enum_c_vals=s2a("GFN1", "GFN2", "GXTB", "IPEA1"), &
+                          enum_i_vals=[gfn1xtb, gfn2xtb, gxtb, ipea1xtb], &
                           enum_desc=s2a("Uses the GFN1-XTB method by Grimme.", &
                                         "Uses the GFN2-XTB method by Grimme.", &
-                                        "Uses the IEPEA1 method by Grimme."), &
+                                        "Uses the g-xTB method.", &
+                                        "Uses the IPEA1 method by Grimme."), &
                           default_i_val=gfn2xtb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

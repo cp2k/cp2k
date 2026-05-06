@@ -269,6 +269,8 @@ CONTAINS
          WRITE (iw, '( 34x,a )') ' GFN2-xTB  '
       CASE (3)
          WRITE (iw, '( 34x,a )') ' IPEA1-xTB '
+      CASE (5)
+         WRITE (iw, '( 34x,a )') ' g-xTB     '
       CASE DEFAULT
       END SELECT
 
@@ -528,4 +530,3 @@ CONTAINS
 
    END SUBROUTINE rixs_header
 END MODULE header
-

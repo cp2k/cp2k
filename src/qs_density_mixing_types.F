@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE qs_density_mixing_types
 #if defined(__TBLITE)
-   USE tblite_scf, ONLY: mixer_type
+   USE tblite_scf_mixer_cache, ONLY: mixer_cache_container
+   USE tblite_scf_mixer_type, ONLY: mixer_type
 #endif
    USE ao_util, ONLY: exp_radius
    USE input_constants, ONLY: broy_mix, &
@@ -100,6 +101,7 @@ MODULE qs_density_mixing_types
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in => NULL(), dcpc_s_in => NULL()
 #if defined(__TBLITE)
       CLASS(mixer_type), ALLOCATABLE                    :: tb_scc_mixer
+      TYPE(mixer_cache_container)                       :: tb_scc_mcache = mixer_cache_container()
 #endif
    END TYPE mixing_storage_type
 
@@ -422,6 +424,9 @@ CONTAINS
 #if defined(__TBLITE)
       IF (ALLOCATED(mixing_store%tb_scc_mixer)) THEN
          DEALLOCATE (mixing_store%tb_scc_mixer)
+      END IF
+      IF (ALLOCATED(mixing_store%tb_scc_mcache%raw)) THEN
+         DEALLOCATE (mixing_store%tb_scc_mcache%raw)
       END IF
 #endif
 

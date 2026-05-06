@@ -14,7 +14,7 @@
 MODULE tblite_interface
 
 #if defined(__TBLITE)
-   USE mctc_env, ONLY: error_type
+   USE mctc_env, ONLY: error_type, wp
    USE mctc_io, ONLY: structure_type, new
    USE mctc_io_symbols, ONLY: symbol_to_number
    USE tblite_adjlist, ONLY: adjacency_list, new_adjacency_list
@@ -23,17 +23,22 @@ MODULE tblite_interface
    USE tblite_cutoff, ONLY: get_lattice_points
    USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, maxl, msao
    USE tblite_integral_type, ONLY: integral_type, new_integral
-   USE tblite_scf, ONLY: get_mixer_dimension, new_mixer
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                               orbital_resolved, not_used
+   USE tblite_scf_mixer, ONLY: new_mixer
+   USE tblite_scf_mixer_broyden, ONLY: broyden_input
+   USE tblite_scf_mixer_input, ONLY: mixer_mode
    USE tblite_scf_potential, ONLY: potential_type, new_potential, add_pot_to_h1
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
    USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
-   USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
+   USE tblite_xtb_h0, ONLY: get_selfenergy, get_anisotropy, get_hamiltonian, get_occupation, &
                             get_hamiltonian_gradient, tb_hamiltonian
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
+#if defined(__TBLITE_GXTB)
+   USE tblite_xtb_gxtb, ONLY: new_gxtb_calculator
+#endif
 #endif
    USE ai_contraction, ONLY: block_add, &
                              contraction
@@ -58,7 +63,7 @@ MODULE tblite_interface
    USE cp_output_handling, ONLY: cp_print_key_should_output, &
                                  cp_print_key_unit_nr, cp_print_key_finished_output
    USE cp_units, ONLY: cp_unit_from_cp2k
-   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb, &
+   USE input_constants, ONLY: gfn1xtb, gfn2xtb, gxtb, ipea1xtb, &
                               tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
                               tblite_scc_mixer_none, tblite_scc_mixer_tblite
    USE input_section_types, ONLY: section_vals_val_get
@@ -153,8 +158,8 @@ CONTAINS
          xyz(:, iatom) = particle_set(iatom)%r(:)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), zatom=tb%el_num(iatom))
-         IF (tb%el_num(iatom) < 1 .OR. tb%el_num(iatom) > 85) THEN
-            CPABORT("only elements 1-85 are supported by tblite")
+         IF (tb%el_num(iatom) < 1 .OR. tb%el_num(iatom) > 103) THEN
+            CPABORT("only elements 1-103 are supported by tblite")
          END IF
       END DO
 
@@ -253,7 +258,7 @@ CONTAINS
 
       !allocate quantities later required
       ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
-      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
+      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat), tb%e_x(tb%mol%nat))
       ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
       IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
 
@@ -274,13 +279,18 @@ CONTAINS
 
 #if defined(__TBLITE)
 
+      TYPE(broyden_input)                                :: mixer_input
       TYPE(scf_info)                                     :: info
+      INTEGER                                            :: ndim_mixer
 
       info = tb%calc%variable_info()
+      ndim_mixer = tb%wfn%nspin*tb_get_mixer_dimension(tb, info)
       IF (ALLOCATED(tb%mixer)) DEALLOCATE (tb%mixer)
-      CALL new_mixer(tb%mixer, tb%calc%max_iter, &
-                     tb%wfn%nspin*get_mixer_dimension(tb%mol, tb%calc%bas, info), &
-                     tb%calc%mixer_damping)
+      IF (ALLOCATED(tb%mcache%raw)) DEALLOCATE (tb%mcache%raw)
+      mixer_input = broyden_input(mixer_mode%density, memory=tb%mixer_memory, &
+                                  damp=REAL(tb%mixer_damping, KIND=wp))
+      CALL new_mixer(tb%mixer, mixer_input)
+      CALL tb%mixer%update(tb%mcache, ndim_mixer)
 
 #else
       MARK_USED(tb)
@@ -288,6 +298,46 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_reset_mixer
+
+#if defined(__TBLITE)
+! **************************************************************************************************
+!> \brief Return the density-mixer vector length for the active tblite SCC variables.
+!> \param tb ...
+!> \param info ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_get_mixer_dimension(tb, info) RESULT(ndim)
+
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(scf_info), INTENT(IN)                         :: info
+      INTEGER                                            :: ndim
+
+      ndim = 0
+
+      SELECT CASE (info%charge)
+      CASE (atom_resolved)
+         ndim = ndim + tb%mol%nat
+      CASE (shell_resolved)
+         ndim = ndim + tb%calc%bas%nsh
+      END SELECT
+
+      SELECT CASE (info%dipole)
+      CASE (atom_resolved)
+         ndim = ndim + 3*tb%mol%nat
+      END SELECT
+
+      SELECT CASE (info%quadrupole)
+      CASE (atom_resolved)
+         ndim = ndim + 6*tb%mol%nat
+      END SELECT
+
+      SELECT CASE (info%density)
+      CASE (orbital_resolved)
+         ndim = ndim + tb%calc%bas%nao*tb%calc%bas%nao
+      END SELECT
+
+   END FUNCTION tb_get_mixer_dimension
+#endif
 
 ! **************************************************************************************************
 !> \brief Configure tblite's internal SCC mixer from CP2K input.
@@ -306,8 +356,8 @@ CONTAINS
       IF (max_scf < 1) CPABORT("tblite SCC mixer MAX_SCF must be positive")
       IF (damping <= 0.0_dp) CPABORT("tblite SCC mixer damping must be positive")
 
-      tb%calc%max_iter = max_scf
-      tb%calc%mixer_damping = damping
+      tb%mixer_memory = max_scf
+      tb%mixer_damping = damping
 
 #else
       MARK_USED(tb)
@@ -365,8 +415,8 @@ CONTAINS
 #if defined(__TBLITE)
       IF (.NOT. ASSOCIATED(tb)) RETURN
       IF (.NOT. tb_native_scc_mixer_active(dft_control)) RETURN
-      IF (ALLOCATED(tb%mixer)) THEN
-         raw_error = REAL(tb%mixer%get_error(), KIND=dp)
+      IF (ALLOCATED(tb%mixer) .AND. ALLOCATED(tb%mcache%raw)) THEN
+         raw_error = REAL(tb%mixer%get_error(tb%mcache), KIND=dp)
          IF (eps_scf > 0.0_dp) THEN
             mixer_error = eps_scf*raw_error/tblite_scc_pconv
          ELSE
@@ -380,6 +430,25 @@ CONTAINS
 #endif
 
    END FUNCTION tb_scf_mixer_error
+
+! **************************************************************************************************
+!> \brief Return whether a tblite method needs multipole integrals in the CP2K matrix path.
+!> \param method_id ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_method_uses_multipoles(method_id) RESULT(uses_multipoles)
+
+      INTEGER, INTENT(IN)                                :: method_id
+      LOGICAL                                            :: uses_multipoles
+
+      SELECT CASE (method_id)
+      CASE (gfn2xtb, gxtb)
+         uses_multipoles = .TRUE.
+      CASE DEFAULT
+         uses_multipoles = .FALSE.
+      END SELECT
+
+   END FUNCTION tb_method_uses_multipoles
 
 ! **************************************************************************************************
 !> \brief ...
@@ -404,7 +473,14 @@ CONTAINS
          CALL new_gfn2_calculator(tb%calc, tb%mol, error)
       CASE (ipea1xtb)
          CALL new_ipea1_calculator(tb%calc, tb%mol, error)
+      CASE (gxtb)
+#if defined(__TBLITE_GXTB)
+         CALL new_gxtb_calculator(tb%calc, tb%mol, error)
+#else
+         CPABORT("g-xTB requires CP2K to be built with a g-xTB-enabled tblite library")
+#endif
       END SELECT
+      IF (ALLOCATED(error)) CPABORT("tblite calculator setup failed")
 
 #else
       MARK_USED(tb)
@@ -433,6 +509,7 @@ CONTAINS
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
       tb%e_disp = 0.0_dp
+      tb%e_x = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
          CALL tb_zero_force(qs_env)
@@ -478,6 +555,12 @@ CONTAINS
          END IF
       END IF
 
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) THEN
+         CALL tb%calc%exchange%update(tb%mol, tb%ecache)
+      END IF
+#endif
+
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%update(tb%mol, tb%cache)
@@ -496,6 +579,11 @@ CONTAINS
          CALL get_selfenergy(tb%calc%h0, tb%mol%id, tb%calc%bas%ish_at, &
          &  tb%calc%bas%nsh_id, cn=tb%cn, selfenergy=tb%selfenergy, dsedcn=tb%dsedcn)
       END IF
+
+      IF (.NOT. ALLOCATED(tb%aniso_dip)) ALLOCATE (tb%aniso_dip(3, tb%mol%nat))
+      tb%aniso_dip = 0.0_dp
+      CALL get_anisotropy(tb%calc%h0, tb%mol, tb%aniso_dip)
+      CALL tb%calc%bas%update(tb%mol, tb%bcache, ALLOCATED(tb%grad), tb%wfn)
 
 #else
       MARK_USED(qs_env)
@@ -531,7 +619,7 @@ CONTAINS
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
       energy%repulsive = SUM(tb%e_rep)
-      energy%el_stat = SUM(tb%e_es)
+      energy%el_stat = SUM(tb%e_es) + SUM(tb%e_x)
       energy%dispersion = SUM(tb%e_disp)
       energy%dispersion_sc = SUM(tb%e_scd)
       energy%xtb_xb_inter = SUM(tb%e_hal)
@@ -546,7 +634,8 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
             "Repulsive pair potential energy:               ", energy%repulsive, &
             "Zeroth order Hamiltonian energy:               ", energy%core, &
-            "Electrostatic energy:                          ", energy%el_stat, &
+            "Electrostatic energy:                          ", SUM(tb%e_es), &
+            "Approximate exchange energy:                   ", SUM(tb%e_x), &
             "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
             "Non-self consistent dispersion energy:         ", energy%dispersion
          WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
@@ -614,7 +703,7 @@ CONTAINS
       nshell = 1
       mprim = 0
       DO ishell = 1, nset
-         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, ityp)%nprim)
+         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, ityp)%raw%nprim)
       END DO
       param%nshell = nset
       natorb = 0
@@ -635,19 +724,19 @@ CONTAINS
       ind_ao = 0
       maxl = 0
       DO ishell = 1, nset
-         ang = tb%calc%bas%cgto(ishell, ityp)%ang
+         ang = tb%calc%bas%cgto(ishell, ityp)%raw%ang
          natorb = natorb + (2*ang + 1)
          param%lval(ishell) = ang
          maxl = MAX(ang, maxl)
          gto_basis_set%lmax(ishell) = ang
          gto_basis_set%lmin(ishell) = ang
-         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, ityp)%nprim
+         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, ityp)%raw%nprim
          gto_basis_set%nshell(ishell) = nshell
          gto_basis_set%n(1, ishell) = ang + 1
          gto_basis_set%l(1, ishell) = ang
          DO ipgf = 1, gto_basis_set%npgf(ishell)
-            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, ityp)%coeff(ipgf)
-            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, ityp)%alpha(ipgf)
+            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, ityp)%raw%coeff(ipgf)
+            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, ityp)%raw%alpha(ipgf)
          END DO
          DO ipgf = 1, (2*ang + 1)
             ind_ao = ind_ao + 1
@@ -806,6 +895,15 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) THEN
+         IF (calculate_forces) &
+            CPABORT("Analytical forces for g-xTB through CP2K/tblite are not yet implemented")
+         IF (nimg > 1) &
+            CPABORT("g-xTB through CP2K/tblite is not yet implemented for k-points")
+      END IF
+#endif
+
       !intialise hamiltonian
       CALL tb_init_ham(qs_env, tb, para_env)
 
@@ -861,8 +959,8 @@ CONTAINS
          ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
          CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
          CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_s, native_dip, native_quad, native_h)
+         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, tb%calc%h0, &
+                              tb%selfenergy, tb%aniso_dip, native_s, native_dip, native_quad, native_h)
 
          NULLIFY (nl_iterator)
          CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -897,7 +995,7 @@ CONTAINS
             END DO
          END DO
 
-         IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
+         IF (tb_method_uses_multipoles(dft_control%qs_control%xtb_control%tblite_method)) &
             CALL tb_get_multipole(qs_env, tb)
 
          DEALLOCATE (native_s, native_h, native_dip, native_quad, native_lattr)
@@ -1041,7 +1139,7 @@ CONTAINS
             sgfa0 = 1
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
-               sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%nprim
+               sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%raw%nprim
                n2 = tb%calc%bas%ish_at(irow)
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
@@ -1080,7 +1178,7 @@ CONTAINS
       END DO
 
       !compute multipole moments for gfn2
-      IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
+      IF (tb_method_uses_multipoles(dft_control%qs_control%xtb_control%tblite_method)) &
          CALL tb_get_multipole(qs_env, tb)
 
       ! output overlap information
@@ -1150,7 +1248,7 @@ CONTAINS
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb, mix_vars, prev_vars
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad, native_lattr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad, native_lattr, native_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: native_p
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1163,7 +1261,7 @@ CONTAINS
       TYPE(integral_type)                                :: native_ints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -1417,21 +1515,23 @@ CONTAINS
               mp_test_mode == 230 .OR. mp_test_mode == 231 .OR. &
               mp_test_mode == 232 .OR. mp_test_mode == 233) THEN
          IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
+         IF (.NOT. ALLOCATED(tb%mcache%raw)) CPABORT("tblite mixer cache not initialized")
          IF (use_rho .AND. (.NOT. calculate_forces) .AND. scf_env%iter_count > 1) THEN
-            CALL tb%mixer%next(error)
+            CALL tb%mixer%next(tb%mcache, error)
             IF (ALLOCATED(error)) CPABORT("tblite native mixer failed")
-            CALL tb%mixer%get(tb%wfn%qsh)
+            tb%mcache%raw%iget = 0
+            CALL tb%mixer%get(tb%mcache, tb%wfn%qsh)
             tb%wfn%qat(:, 1) = 0.0_dp
             DO iatom = 1, n_atom
                ii = tb%calc%bas%ish_at(iatom)
                tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
             END DO
             IF (do_dipole) THEN
-               CALL tb%mixer%get(tb%wfn%dpat)
+               CALL tb%mixer%get(tb%mcache, tb%wfn%dpat)
                DEALLOCATE (ao_dip)
             END IF
             IF (do_quadrupole) THEN
-               CALL tb%mixer%get(tb%wfn%qpat)
+               CALL tb%mixer%get(tb%mcache, tb%wfn%qpat)
                DEALLOCATE (ao_quad)
             END IF
          ELSE
@@ -1448,9 +1548,11 @@ CONTAINS
                IF (do_quadrupole) DEALLOCATE (ao_quad)
             ELSE
                IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%set(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%set(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%set(tb%wfn%qpat)
+                  tb%mcache%raw%iset = 0
+                  CALL tb%mixer%set(tb%mcache, tb%wfn%qsh)
+                  IF (do_dipole) CALL tb%mixer%set(tb%mcache, tb%wfn%dpat)
+                  IF (do_quadrupole) CALL tb%mixer%set(tb%mcache, tb%wfn%qpat)
+                  tb%mcache%raw%initialized = .TRUE.
                END IF
                DO iatom = 1, n_atom
                   ii = tb%calc%bas%ish_at(iatom)
@@ -1472,9 +1574,11 @@ CONTAINS
                   DEALLOCATE (ao_quad)
                END IF
                IF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-                  CALL tb%mixer%diff(tb%wfn%qsh)
-                  IF (do_dipole) CALL tb%mixer%diff(tb%wfn%dpat)
-                  IF (do_quadrupole) CALL tb%mixer%diff(tb%wfn%qpat)
+                  tb%mcache%raw%idif = 0
+                  CALL tb%mixer%diff(tb%mcache, tb%wfn%qsh)
+                  IF (do_dipole) CALL tb%mixer%diff(tb%mcache, tb%wfn%dpat)
+                  IF (do_quadrupole) CALL tb%mixer%diff(tb%mcache, tb%wfn%qpat)
+                  CALL tb%mixer%collect(tb%mcache)
                END IF
             END IF
          END IF
@@ -1594,6 +1698,7 @@ CONTAINS
          !setting new wave function
          CALL tb%pot%reset
          tb%e_es = 0.0_dp
+         tb%e_x = 0.0_dp
          tb%e_scd = 0.0_dp
          moment_alpha = scf_env%p_mix_alpha
          IF (mp_test_mode == 61 .OR. mp_test_mode == 91) moment_alpha = 0.05_dp
@@ -1669,7 +1774,8 @@ CONTAINS
          CALL new_integral(native_ints, tb%calc%bas%nao)
          CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
          CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
+         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, tb%calc%h0, &
+                              tb%selfenergy, tb%aniso_dip, &
                               native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
                               native_ints%hamiltonian)
          ALLOCATE (native_p(tb%calc%bas%nao, tb%calc%bas%nao, nspin))
@@ -1751,6 +1857,7 @@ CONTAINS
 
       CALL tb%pot%reset
       tb%e_es = 0.0_dp
+      tb%e_x = 0.0_dp
       tb%e_scd = 0.0_dp
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
@@ -1762,6 +1869,55 @@ CONTAINS
          IF (.NOT. skip_scf_dispersion_energy) &
             CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
+
+#if defined(__TBLITE_GXTB)
+      IF (ALLOCATED(tb%calc%exchange)) THEN
+         IF (nimg > 1) CPABORT("g-xTB exchange is not implemented for k-points")
+         IF (SIZE(matrix_p, 1) /= tb%wfn%nspin) &
+            CPABORT("g-xTB exchange requires the CP2K and tblite spin dimensions to match")
+
+         ALLOCATE (native_s(tb%calc%bas%nao, tb%calc%bas%nao))
+         native_s = 0.0_dp
+         tb%wfn%density = 0.0_dp
+
+         CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            NULLIFY (s_block)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
+            i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
+            j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
+            DO j = 1, SIZE(s_block, 1)
+               DO i = 1, SIZE(s_block, 2)
+                  native_s(i0 + j, j0 + i) = s_block(j, i)
+                  IF (irow /= icol) native_s(j0 + i, i0 + j) = s_block(j, i)
+               END DO
+            END DO
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         DO ispin = 1, SIZE(matrix_p, 1)
+            CALL dbcsr_iterator_start(iter, matrix_p(ispin, 1)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               NULLIFY (p_block)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, p_block)
+               i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
+               j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
+               DO j = 1, SIZE(p_block, 1)
+                  DO i = 1, SIZE(p_block, 2)
+                     tb%wfn%density(i0 + j, j0 + i, ispin) = p_block(j, i)
+                     IF (irow /= icol) tb%wfn%density(j0 + i, i0 + j, ispin) = p_block(j, i)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+         END DO
+
+         CALL tb%calc%exchange%get_potential_w_overlap(tb%mol, tb%ecache, tb%wfn, native_s, tb%pot)
+         CALL tb%calc%exchange%get_energy_w_overlap(tb%mol, tb%ecache, tb%wfn, native_s, tb%e_x)
+
+         DEALLOCATE (native_s)
+      END IF
+#endif
 
       state_status = 1
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
@@ -1897,7 +2053,8 @@ CONTAINS
          CALL new_integral(native_ints, tb%calc%bas%nao)
          CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
          CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
+         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, tb%calc%h0, &
+                              tb%selfenergy, tb%aniso_dip, &
                               native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
                               native_ints%hamiltonian)
          ALLOCATE (native_h1(tb%calc%bas%nao, tb%calc%bas%nao, 1))
@@ -2085,6 +2242,23 @@ CONTAINS
             END DO
             CALL dbcsr_iterator_stop(iter)
          END IF
+
+#if defined(__TBLITE_GXTB)
+         IF (ALLOCATED(tb%calc%exchange)) THEN
+            CALL dbcsr_iterator_start(iter, ks_matrix(1, 1)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, irow, icol, ksblock)
+               i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
+               j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
+               DO j = 1, SIZE(ksblock, 1)
+                  DO i = 1, SIZE(ksblock, 2)
+                     ksblock(j, i) = ksblock(j, i) + tb%pot%kao(i0 + j, j0 + i, 1)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+         END IF
+#endif
 
       ELSE
          NULLIFY (kpoints)
@@ -2424,8 +2598,8 @@ CONTAINS
          ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
          CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
          CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_s, native_dip, native_quad, native_h)
+         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%bcache, tb%calc%h0, &
+                              tb%selfenergy, tb%aniso_dip, native_s, native_dip, native_quad, native_h)
 
          CALL dbcsr_iterator_start(iter, tb%dipbra(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2631,8 +2805,9 @@ CONTAINS
          IF (icol == irow .AND. r2 < same_atom**2) THEN
             DO iset = 1, nseta
                DO jset = 1, nsetb
-                  CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp), tb%calc%bas%cgto(iset, ityp), &
-                       & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp)%raw, &
+                       & tb%calc%bas%cgto(iset, ityp)%raw, tb%bcache%cgto(jset, ityp), &
+                       & tb%bcache%cgto(iset, ityp), r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
                   DO inda = 1, nsgfa(iset)
                      ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
@@ -2678,8 +2853,9 @@ CONTAINS
                   ELSEIF (mp_test_mode == 16) THEN
                      mp_int_vec = rij
                   END IF
-                  CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
-                      & r2, mp_int_vec, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp)%raw, &
+                      & tb%calc%bas%cgto(iset, ityp)%raw, tb%bcache%cgto(jset, jtyp), &
+                      & tb%bcache%cgto(iset, ityp), r2, mp_int_vec, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
                   DO inda = 1, nsgfa(iset)
                      ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
@@ -3208,7 +3384,7 @@ CONTAINS
 
          ind = 0
          DO ish = 1, tb%calc%bas%nsh_id(ikind)
-            DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
+            DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%raw%ang)
                ind = ind + 1
                dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
             END DO
@@ -3511,21 +3687,25 @@ CONTAINS
 
                !get integrals and derivatives
                IF (mp_test_mode == 20 .OR. mp_test_mode == 21) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
-                     & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
-                     & t_i_dip, t_i_quad)
+                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp)%raw, &
+                     & tb%calc%bas%cgto(iset, ityp)%raw, tb%bcache%cgto(jset, jtyp), &
+                     & tb%bcache%cgto(iset, ityp), r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, &
+                     & t_d_ov, t_j_dip, t_j_quad, t_i_dip, t_i_quad)
                ELSEIF (mp_test_mode == 34 .OR. mp_test_mode == 35) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
-                     & r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
-                     & t_i_dip, t_i_quad)
+                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp)%raw, &
+                     & tb%calc%bas%cgto(iset, ityp)%raw, tb%bcache%cgto(jset, jtyp), &
+                     & tb%bcache%cgto(iset, ityp), r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, &
+                     & t_d_ov, t_j_dip, t_j_quad, t_i_dip, t_i_quad)
                ELSEIF (mp_test_mode == 36 .OR. mp_test_mode == 37) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                     & r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
-                     & t_j_dip, t_j_quad)
+                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp)%raw, &
+                     & tb%calc%bas%cgto(jset, jtyp)%raw, tb%bcache%cgto(iset, ityp), &
+                     & tb%bcache%cgto(jset, jtyp), r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, &
+                     & t_d_ov, t_i_dip, t_i_quad, t_j_dip, t_j_quad)
                ELSE
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                     & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
-                     & t_j_dip, t_j_quad)
+                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp)%raw, &
+                     & tb%calc%bas%cgto(jset, jtyp)%raw, tb%bcache%cgto(iset, ityp), &
+                     & tb%bcache%cgto(jset, jtyp), r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, &
+                     & t_d_ov, t_i_dip, t_i_quad, t_j_dip, t_j_quad)
                END IF
 
                shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
@@ -3829,6 +4009,8 @@ CONTAINS
          method = "gfn2"
       CASE (ipea1xtb)
          method = "ipea1"
+      CASE (gxtb)
+         method = "gxtb"
       CASE DEFAULT
          CPABORT("Unknown tblite reference CLI method")
       END SELECT

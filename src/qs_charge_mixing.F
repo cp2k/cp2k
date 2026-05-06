@@ -9,8 +9,10 @@
 MODULE qs_charge_mixing
 
 #if defined(__TBLITE)
-   USE mctc_env, ONLY: error_type
-   USE tblite_scf, ONLY: new_mixer
+   USE mctc_env, ONLY: error_type, wp
+   USE tblite_scf_mixer, ONLY: new_mixer
+   USE tblite_scf_mixer_broyden, ONLY: broyden_input
+   USE tblite_scf_mixer_input, ONLY: mixer_mode
 #endif
    USE input_constants, ONLY: tblite_scc_mixer_auto, &
                               tblite_scc_mixer_cp2k, &
@@ -189,6 +191,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: damping
 
 #if defined(__TBLITE)
+      TYPE(broyden_input)                                :: mixer_input
       TYPE(error_type), ALLOCATABLE                      :: error
 #endif
       INTEGER                                            :: natom, ndim, ns
@@ -211,8 +214,13 @@ CONTAINS
 #if defined(__TBLITE)
       IF (reset_mixer) THEN
          IF (ALLOCATED(mixing_store%tb_scc_mixer)) DEALLOCATE (mixing_store%tb_scc_mixer)
-         CALL new_mixer(mixing_store%tb_scc_mixer, memory, ndim, damping)
-         CALL mixing_store%tb_scc_mixer%set(qvec)
+         IF (ALLOCATED(mixing_store%tb_scc_mcache%raw)) DEALLOCATE (mixing_store%tb_scc_mcache%raw)
+         mixer_input = broyden_input(mixer_mode%density, memory=memory, damp=REAL(damping, KIND=wp))
+         CALL new_mixer(mixing_store%tb_scc_mixer, mixer_input)
+         CALL mixing_store%tb_scc_mixer%update(mixing_store%tb_scc_mcache, ndim)
+         mixing_store%tb_scc_mcache%raw%iset = 0
+         CALL mixing_store%tb_scc_mixer%set(mixing_store%tb_scc_mcache, qvec)
+         mixing_store%tb_scc_mcache%raw%initialized = .TRUE.
          mixing_store%tb_scc_mixer_natom = natom
          mixing_store%tb_scc_mixer_ns = ns
          mixing_store%tb_scc_mixer_memory = memory
@@ -222,11 +230,15 @@ CONTAINS
       END IF
 
       CPASSERT(ALLOCATED(mixing_store%tb_scc_mixer))
-      CALL mixing_store%tb_scc_mixer%diff(qvec)
-      mixing_store%tb_scc_mixer_error = REAL(mixing_store%tb_scc_mixer%get_error(), KIND=dp)
-      CALL mixing_store%tb_scc_mixer%next(error)
+      mixing_store%tb_scc_mcache%raw%idif = 0
+      CALL mixing_store%tb_scc_mixer%diff(mixing_store%tb_scc_mcache, qvec)
+      mixing_store%tb_scc_mixer_error = REAL(mixing_store%tb_scc_mixer%get_error(mixing_store%tb_scc_mcache), &
+                                             KIND=dp)
+      CALL mixing_store%tb_scc_mixer%next(mixing_store%tb_scc_mcache, error)
       IF (ALLOCATED(error)) CPABORT("tblite SCC mixer failed")
-      CALL mixing_store%tb_scc_mixer%get(qvec)
+      mixing_store%tb_scc_mcache%raw%iget = 0
+      CALL mixing_store%tb_scc_mixer%get(mixing_store%tb_scc_mcache, qvec)
+      CALL mixing_store%tb_scc_mixer%collect(mixing_store%tb_scc_mcache)
       charges = RESHAPE(qvec, SHAPE(charges))
       mixing_store%tb_scc_mixer_step = mixing_store%tb_scc_mixer_step + 1
       mixing_store%iter_method = "TBLITE"

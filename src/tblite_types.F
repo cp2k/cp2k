@@ -15,9 +15,11 @@ MODULE tblite_types
 
 #if defined(__TBLITE)
    USE mctc_io, ONLY: structure_type, new
+   USE tblite_basis_cache, ONLY: basis_cache
    USE tblite_xtb_calculator, ONLY: xtb_calculator
    USE tblite_container, ONLY: container_cache
-   USE tblite_scf_mixer, ONLY: mixer_type
+   USE tblite_scf_mixer_cache, ONLY: mixer_cache_container
+   USE tblite_scf_mixer_type, ONLY: mixer_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type
    USE tblite_scf_potential, ONLY: potential_type
 #endif
@@ -38,14 +40,18 @@ MODULE tblite_types
    TYPE tblite_type
 
       LOGICAL                                            :: use_virial = .FALSE.
+      INTEGER                                            :: mixer_memory = 100
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
+      REAL(KIND=dp)                                      :: mixer_damping = 0.4_dp
       REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_scd(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_es(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_x(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: aniso_dip(:, :)
       REAL(KIND=dp), ALLOCATABLE                         :: selfenergy(:)
       REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
 
@@ -65,9 +71,12 @@ MODULE tblite_types
       TYPE(xtb_calculator)                               :: calc = xtb_calculator()
       TYPE(container_cache)                              :: cache = container_cache()
       TYPE(container_cache)                              :: dcache = container_cache()
+      TYPE(container_cache)                              :: ecache = container_cache()
+      TYPE(basis_cache)                                  :: bcache = basis_cache()
       TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
       CLASS(mixer_type), ALLOCATABLE                     :: mixer
+      TYPE(mixer_cache_container)                        :: mcache = mixer_cache_container()
 #endif
 
    END TYPE tblite_type
@@ -104,6 +113,8 @@ CONTAINS
          IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
          IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
          IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
+         IF (ALLOCATED(tb_tblite%e_x)) DEALLOCATE (tb_tblite%e_x)
+         IF (ALLOCATED(tb_tblite%aniso_dip)) DEALLOCATE (tb_tblite%aniso_dip)
          IF (ALLOCATED(tb_tblite%selfenergy)) DEALLOCATE (tb_tblite%selfenergy)
          IF (ALLOCATED(tb_tblite%cn)) DEALLOCATE (tb_tblite%cn)
 
@@ -122,6 +133,7 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
 #if defined(__TBLITE)
          IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
+         IF (ALLOCATED(tb_tblite%mcache%raw)) DEALLOCATE (tb_tblite%mcache%raw)
 #endif
 
          DEALLOCATE (tb_tblite)
