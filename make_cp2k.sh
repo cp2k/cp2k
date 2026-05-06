@@ -1504,7 +1504,7 @@ else
     echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} run_tests"
     echo ""
     if [[ "${VERSION}" == @(sdbg|ssmp) ]]; then
-      echo "*** A CP2K run using 8 OpenMP threads (default) can be launched with"
+      echo "*** A CP2K run using 2 OpenMP threads (default) can be launched with"
       echo "    podman run -it${DEVICE_FLAG} --rm ${IMAGE_TAG} cp2k ${CP2K_ROOT}/benchmarks/CI/H2O-32_md.inp"
     else
       echo "*** An MPI-parallel CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
