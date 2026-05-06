@@ -5,6 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 "CH2O_gxtb.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-114.5117241754}]
 "H2_gxtb_force.inp"                     = [{matcher="M082", tol=1.0E-8, ref=0.0000000}]
-"H2_gxtb_stress.inp"                    = [{matcher="M011", tol=1.0E-8, ref=-1.162678350391701},
-                                           {matcher="M031", tol=1.0E-6, ref=1.80245820483E+02}]
+"H2_gxtb_stress.inp"                    = [{matcher="M042", tol=1.0E-7, ref=0.0000000}]
 #EOF

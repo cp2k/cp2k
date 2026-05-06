@@ -3464,7 +3464,7 @@ CONTAINS
       END IF
 
       CALL tb_grad2force(qs_env, tb, para_env, 0)
-      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env, isolated_force_virial=.TRUE.)
 #else
       MARK_USED(qs_env)
       CPABORT("g-xTB requires CP2K to be built with a g-xTB-enabled tblite library")
@@ -4565,28 +4565,55 @@ CONTAINS
 !> \param qs_env ...
 !> \param tb ...
 !> \param para_env ...
+!> \param isolated_force_virial ...
 ! **************************************************************************************************
-   SUBROUTINE tb_add_stress(qs_env, tb, para_env)
+   SUBROUTINE tb_add_stress(qs_env, tb, para_env, isolated_force_virial)
 
       TYPE(qs_environment_type)                          :: qs_env
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: isolated_force_virial
 
       CHARACTER(LEN=default_path_length)                 :: dump_file
-      INTEGER                                            :: dump_status, dump_unit, i
+      INTEGER                                            :: dump_status, dump_unit, i, iatom, j, natom
       INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: use_isolated_force_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (virial, cell)
-      CALL get_qs_env(qs_env=qs_env, virial=virial, cell=cell)
+      NULLIFY (virial, cell, particle_set)
+      CALL get_qs_env(qs_env=qs_env, virial=virial, cell=cell, particle_set=particle_set)
       CALL get_cell(cell=cell, periodic=periodic)
+
+      use_isolated_force_virial = .FALSE.
+      IF (PRESENT(isolated_force_virial)) use_isolated_force_virial = isolated_force_virial
 
       IF (ALL(periodic == 0)) THEN
          CALL cp_warn(__LOCATION__, &
                       "tblite stress tensor requested for an isolated system. "// &
                       "The reported virial is useful for finite-difference checks, "// &
                       "but it is not a physically meaningful bulk stress for an isolated molecule.")
+         IF (use_isolated_force_virial) THEN
+            IF (.NOT. ALLOCATED(tb%grad)) &
+               CPABORT("Cannot compute isolated tblite virial without gradients")
+            natom = SIZE(particle_set)
+            IF (SIZE(tb%grad, 2) /= natom) &
+               CPABORT("Inconsistent tblite gradient size for isolated virial")
+            molecular_virial = 0.0_dp
+            DO iatom = 1, natom
+               DO i = 1, 3
+                  DO j = 1, 3
+                     molecular_virial(i, j) = molecular_virial(i, j) - &
+                        0.5_dp*(tb%grad(i, iatom)*particle_set(iatom)%r(j) + &
+                                tb%grad(j, iatom)*particle_set(iatom)%r(i))
+                  END DO
+               END DO
+            END DO
+            virial%pv_virial = virial%pv_virial + molecular_virial/para_env%num_pe
+            RETURN
+         END IF
       END IF
 
       dump_status = 1
