@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="4.1.1"
-dftd4_sha256="c8e6388d7d7d748dbcf91117f35aa50108492d4fd2266d60782cf85a16651887"
+dftd4_ver="4.2.0"
+dftd4_sha256="467e024071510ad82b862c66c383c2ebc164fc1140e15dfc79f48d2f999fd184"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -39,8 +39,6 @@ case "$with_dftd4" in
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xJf dftd4-${dftd4_ver}.tar.xz
       cd dftd4-${dftd4_ver}
-      patch -l -p1 < "${SCRIPT_DIR}/stage8/dftd4-${dftd4_ver}-gradient-fixes.patch" \
-        > dftd4_gradient_fixes.patch.log 2>&1 || tail_excerpt dftd4_gradient_fixes.patch.log
 
       mkdir build && cd build
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
@@ -51,8 +49,7 @@ case "$with_dftd4" in
         > cmake.log 2>&1 || tail_excerpt cmake.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage8/dftd4-${dftd4_ver}-gradient-fixes.patch"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     ;;
 
