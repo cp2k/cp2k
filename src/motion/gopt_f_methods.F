@@ -67,7 +67,7 @@ MODULE gopt_f_methods
                            write_stress_tensor_to_file, &
                            write_trajectory
    USE particle_list_types, ONLY: particle_list_type
-   USE particle_methods, ONLY: write_final_cif, &
+   USE particle_methods, ONLY: write_final_structure, &
                                write_structure_data
    USE particle_types, ONLY: particle_type
    USE qmmm_util, ONLY: apply_qmmm_translate
@@ -878,7 +878,7 @@ CONTAINS
       particle_set => particles%els
 
       ! Passing gopt_f_type pointer gopt_env to particle_methods where
-      ! write_final_cif is defined causes a circular dependency, so it
+      ! write_final_structure is defined causes a circular dependency, so it
       ! is necessary to get some flags by preprocessing...
       keep_angles = .TRUE.
       keep_symmetry = .TRUE.
@@ -905,9 +905,9 @@ CONTAINS
             constraint_label = "NONE"
          END SELECT
       END IF
-      CALL write_final_cif(particle_set, cell, motion_section, conv, &
-                           keep_angles, keep_symmetry, keep_volume, &
-                           gopt_env%label, constraint_label)
+      CALL write_final_structure(particle_set, cell, motion_section, conv, &
+                                 keep_angles, keep_symmetry, keep_volume, &
+                                 gopt_env%label, constraint_label)
 
       IF (conv) THEN
          it = it + 1

@@ -93,7 +93,7 @@ MODULE particle_methods
              write_structure_data, &
              get_particle_set, &
              write_particle_matrix, &
-             write_final_cif
+             write_final_structure
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_methods'
 
@@ -1032,10 +1032,10 @@ CONTAINS
    END SUBROUTINE write_structure_data
 
 ! **************************************************************************************************
-!> \brief   Write the final geometry and cell information to a CIF file
+!> \brief   Write the final geometry and cell information to files
 !> \param particle_set pointer to particles with atm_name, element_symbol and position
 !> \param cell pointer to cell with abc, angle_alpha, angle_beta, angle_gamma and deth
-!> \param input_section pointer to motion_section which has PRINT%FINAL_CIF
+!> \param input_section pointer to motion_section which has PRINT%FINAL_STRUCTURE
 !> \param conv flag for whether convergence is achieved or not in optimization
 !> \param keep_angles flag for whether cell optimization keeps initial angles
 !> \param keep_symmetry flag for whether cell optimization keeps initial symmetry
@@ -1056,9 +1056,9 @@ CONTAINS
 !> \author  HE Zilong
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE write_final_cif(particle_set, cell, input_section, conv, &
-                              keep_angles, keep_symmetry, keep_volume, &
-                              gopt_env_label, constraint_label)
+   SUBROUTINE write_final_structure(particle_set, cell, input_section, conv, &
+                                    keep_angles, keep_symmetry, keep_volume, &
+                                    gopt_env_label, constraint_label)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(section_vals_type), INTENT(IN), POINTER       :: input_section
@@ -1067,22 +1067,24 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: gopt_env_label
       CHARACTER(LEN=4), INTENT(IN)                       :: constraint_label
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_final_cif'
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_final_structure'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), ALLOCATABLE                      :: element_list(:)
       CHARACTER(LEN=4)                                   :: perd_str
       CHARACTER(LEN=:), ALLOCATABLE                      :: formula_structural, formula_sum
-      CHARACTER(LEN=default_path_length)                 :: record
-      CHARACTER(LEN=default_string_length)               :: atm_name, f_cif, f_label, f_type_symbol
-      CHARACTER(LEN=default_string_length), ALLOCATABLE  :: label(:), type_symbol(:)
+      CHARACTER(LEN=default_path_length)                 :: cell_str, record
+      CHARACTER(LEN=default_string_length)               :: atm_name, f_cif, f_cif_label, &
+                                                            f_cif_type_symbol, f_xyz
+      CHARACTER(LEN=default_string_length), ALLOCATABLE  :: cif_label(:), cif_type_symbol(:), &
+                                                            xyz_label(:)
       CHARACTER(LEN=timestamp_length)                    :: timestamp
-      INTEGER                                            :: elem_seen, file_unit, gcd_all, handle, &
-                                                            i, iatom, ielem, natom, output_unit, &
-                                                            symmetry_id, w_label, w_type_symbol
+      INTEGER :: elem_seen, file_unit, gcd_all, handle, i, iatom, ielem, natom, output_unit, &
+         symmetry_id, w_cif_label, w_cif_type_symbol, w_xyz_label
       INTEGER, ALLOCATABLE                               :: count_list(:)
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: dummy, elem_in_list, orthorhombic
+      LOGICAL                                            :: dummy, elem_in_list, orthorhombic, &
+                                                            write_cif, write_xyz
       REAL(KIND=dp)                                      :: angle_alpha, angle_beta, angle_gamma, &
                                                             deth
       REAL(KIND=dp), DIMENSION(3)                        :: abc, r, s
@@ -1098,7 +1100,7 @@ CONTAINS
       NULLIFY (enum, logger, symmetry_keyword, print_key, tmp_cell_section)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
-      print_key => section_vals_get_subs_vals(input_section, "PRINT%FINAL_CIF")
+      print_key => section_vals_get_subs_vals(input_section, "PRINT%FINAL_STRUCTURE")
 
       ! Collect cell information
       perd_str = "NONE"
@@ -1114,28 +1116,43 @@ CONTAINS
       CALL create_cell_section(tmp_cell_section)
       symmetry_keyword => section_get_keyword(tmp_cell_section, "SYMMETRY")
       CALL keyword_get(symmetry_keyword, enum=enum)
+      ! cell_str is default_path_length which is longer
+      ! then default_string_length
+      WRITE (UNIT=cell_str, FMT="(9(1X,F19.10))") &
+         cp_unit_from_cp2k(hmat(1, 1), "angstrom"), &
+         cp_unit_from_cp2k(hmat(2, 1), "angstrom"), &
+         cp_unit_from_cp2k(hmat(3, 1), "angstrom"), &
+         cp_unit_from_cp2k(hmat(1, 2), "angstrom"), &
+         cp_unit_from_cp2k(hmat(2, 2), "angstrom"), &
+         cp_unit_from_cp2k(hmat(3, 2), "angstrom"), &
+         cp_unit_from_cp2k(hmat(1, 3), "angstrom"), &
+         cp_unit_from_cp2k(hmat(2, 3), "angstrom"), &
+         cp_unit_from_cp2k(hmat(3, 3), "angstrom")
 
       ! Collect atom information
       natom = SIZE(particle_set)
       ALLOCATE (element_list(nelem + 1), count_list(nelem + 1))
       count_list(:) = 0
-      ALLOCATE (label(natom), type_symbol(natom))
+      ALLOCATE (cif_label(natom), cif_type_symbol(natom), xyz_label(natom))
       elem_seen = 0
-      w_type_symbol = 0
-      w_label = 0
+      w_cif_type_symbol = 0
+      w_cif_label = 0
+      w_xyz_label = 0
       atom_loop: DO iatom = 1, natom
          elem_in_list = .FALSE.
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                               name=atm_name, element_symbol=element_symbol)
-         type_symbol(iatom) = TRIM(atm_name)
+         cif_type_symbol(iatom) = TRIM(atm_name)
          ! From write_particle_coordinates above it seems possible
          ! for some atoms to have empty element symbols; whatever
          ! these are, do not count them in the chemical formula
          IF (LEN_TRIM(element_symbol) == 0) THEN
             dummy = qmmm_ff_precond_only_qm(id1=atm_name)
-            label(iatom) = TRIM(atm_name)//TRIM(ADJUSTL(cp_to_string(iatom)))
+            cif_label(iatom) = TRIM(atm_name)//TRIM(ADJUSTL(cp_to_string(iatom)))
+            xyz_label(iatom) = TRIM(atm_name)
          ELSE
-            label(iatom) = TRIM(element_symbol)//TRIM(ADJUSTL(cp_to_string(iatom)))
+            cif_label(iatom) = TRIM(element_symbol)//TRIM(ADJUSTL(cp_to_string(iatom)))
+            xyz_label(iatom) = TRIM(element_symbol)
             elem_loop: DO ielem = 1, nelem + 1
                IF (element_list(ielem) == element_symbol) THEN
                   elem_in_list = .TRUE.
@@ -1149,13 +1166,15 @@ CONTAINS
                count_list(elem_seen) = 1
             END IF
          END IF
-         IF (LEN_TRIM(type_symbol(iatom)) > w_type_symbol) &
-            w_type_symbol = LEN_TRIM(type_symbol(iatom))
-         IF (LEN_TRIM(label(iatom)) > w_label) &
-            w_label = LEN_TRIM(label(iatom))
+         IF (LEN_TRIM(cif_type_symbol(iatom)) > w_cif_type_symbol) &
+            w_cif_type_symbol = LEN_TRIM(cif_type_symbol(iatom))
+         IF (LEN_TRIM(cif_label(iatom)) > w_cif_label) &
+            w_cif_label = LEN_TRIM(cif_label(iatom))
+         IF (LEN_TRIM(xyz_label(iatom)) > w_xyz_label) &
+            w_xyz_label = LEN_TRIM(xyz_label(iatom))
       END DO atom_loop
 
-      ! Determine the format of each line in cif considering width of type_symbol and label
+      ! Determine the format of each line in cif considering width of cif_type_symbol and cif_label
       ! The fields are, in order:
       !  _atom_site_type_symbol, _atom_site_label, _atom_site_symmetry_multiplicity,
       !  _atom_site_fract_x, _atom_site_fract_y, _atom_site_fract_z, _atom_site_occupancy
@@ -1163,9 +1182,12 @@ CONTAINS
       !  _atom_site_type_symbol is taken as atm_name
       !  _atom_site_label is taken as element_symbol//iatom
       !  _atom_site_symmetry_multiplicity and _atom_site_occupancy are always 1
-      f_type_symbol = "A"//TRIM(ADJUSTL(cp_to_string(w_type_symbol + 4)))
-      f_label = "A"//TRIM(ADJUSTL(cp_to_string(w_label + 4)))
-      f_cif = "(T3,"//TRIM(f_type_symbol)//","//TRIM(f_label)//",I4,3F14.8,F8.2)"
+      f_cif_type_symbol = "A"//TRIM(ADJUSTL(cp_to_string(w_cif_type_symbol + 4)))
+      f_cif_label = "A"//TRIM(ADJUSTL(cp_to_string(w_cif_label + 4)))
+      f_cif = "(T3,"//TRIM(f_cif_type_symbol)//","//TRIM(f_cif_label)//",I4,3F14.8,F8.2)"
+
+      ! Determine the format of each line in xyz
+      f_xyz = "(T2,A"//TRIM(ADJUSTL(cp_to_string(w_xyz_label + 4)))//",1X,3F20.10)"
 
       ! Determine formula_sum
       CPASSERT(elem_seen > 0)
@@ -1194,156 +1216,201 @@ CONTAINS
       END DO
       formula_structural = TRIM(ADJUSTL(formula_structural))//"'"
 
-      ! Print a message to log
-      record = cp_print_key_generate_filename(logger, print_key, &
-                                              extension=".cif", &
-                                              my_local=.FALSE.)
-      IF (output_unit > 0) THEN
-         IF (conv) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
-               routineN//": Optimization converged, writing CIF file gladly:"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
-               routineN//": Optimization not yet converged, writing CIF file anyway:"
+      ! Write XYZ
+      CALL section_vals_val_get(print_key, "PRINT_XYZ", l_val=write_xyz)
+      IF (write_xyz) THEN
+         ! Print a message to log
+         record = cp_print_key_generate_filename(logger, print_key, &
+                                                 extension=".xyz", &
+                                                 my_local=.FALSE.)
+         IF (output_unit > 0) THEN
+            IF (conv) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                  routineN//": Optimization converged, writing XYZ file gladly:"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                  routineN//": Optimization not yet converged, writing XYZ file anyway:"
+            END IF
+            WRITE (UNIT=output_unit, FMT="(T3,A)") TRIM(record)
          END IF
-         WRITE (UNIT=output_unit, FMT="(T3,A)") TRIM(record)
+
+         ! Make timestamp for the file
+         CALL m_timestamp(timestamp)
+
+         ! Prepare file unit and write to it
+         file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_STRUCTURE", &
+                                          file_status="REPLACE", extension=".xyz")
+         IF (file_unit > 0) THEN
+            WRITE (UNIT=file_unit, FMT="(I8)") &
+               natom
+            WRITE (UNIT=file_unit, FMT="(A)") &
+               'Lattice="'//TRIM(ADJUSTL(cell_str))//'" Properties=species:S:1:pos:R:3'
+            DO iatom = 1, natom
+               DO i = 1, 3
+                  r(i) = cp_unit_from_cp2k(particle_set(iatom)%r(i), "angstrom")
+               END DO
+               WRITE (UNIT=file_unit, FMT=TRIM(f_xyz)) &
+                  xyz_label(iatom), r(1:3)
+            END DO
+         END IF
       END IF
 
-      ! Make timestamp for the file
-      CALL m_timestamp(timestamp)
+      ! Write CIF
+      CALL section_vals_val_get(print_key, "PRINT_CIF", l_val=write_cif)
+      IF (write_cif) THEN
+         ! Print a message to log
+         record = cp_print_key_generate_filename(logger, print_key, &
+                                                 extension=".cif", &
+                                                 my_local=.FALSE.)
+         IF (output_unit > 0) THEN
+            IF (conv) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                  routineN//": Optimization converged, writing CIF file gladly:"
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                  routineN//": Optimization not yet converged, writing CIF file anyway:"
+            END IF
+            WRITE (UNIT=output_unit, FMT="(T3,A)") TRIM(record)
+         END IF
 
-      ! Prepare file unit and write to it
-      file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_CIF", &
-                                       file_status="REPLACE", extension=".cif")
-      IF (file_unit > 0) THEN
-         ! Generic information
-         WRITE (UNIT=file_unit, FMT="(A)") &
-            "# CIF file created by CP2K "//TRIM(moduleN)//":"//TRIM(routineN)
-         WRITE (UNIT=file_unit, FMT="(A)") &
-            "data_"//TRIM(logger%iter_info%project_name)
-         WRITE (UNIT=file_unit, FMT="(A,T39,A)") &
-            "_audit_creation_date", timestamp(:10)
-         WRITE (UNIT=file_unit, FMT="(A,/,A,/,A)") &
-            "_audit_creation_method", ";", &
-            TRIM(cp2k_version)//" (revision "//TRIM(compile_revision)//")"
-         WRITE (UNIT=file_unit, FMT="(A,/,A,/,A,/,A)") &
-            "Project name "//TRIM(logger%iter_info%project_name), &
-            "submitted by "//TRIM(r_user_name)//"@"//TRIM(r_host_name), &
-            "processed in "//TRIM(r_cwd), &
-            "generated at "//TRIM(timestamp)
-         WRITE (UNIT=file_unit, FMT="(T2,A)") &
-            "- Optimization type: "//TRIM(gopt_env_label)
-         IF (conv) THEN
+         ! Make timestamp for the file
+         CALL m_timestamp(timestamp)
+
+         ! Prepare file unit and write to it
+         file_unit = cp_print_key_unit_nr(logger, input_section, "PRINT%FINAL_STRUCTURE", &
+                                          file_status="REPLACE", extension=".cif")
+         IF (file_unit > 0) THEN
+            ! Generic information
+            WRITE (UNIT=file_unit, FMT="(A)") &
+               "# CIF file created by CP2K "//TRIM(moduleN)//":"//TRIM(routineN)
+            WRITE (UNIT=file_unit, FMT="(A)") &
+               "data_"//TRIM(logger%iter_info%project_name)
+            WRITE (UNIT=file_unit, FMT="(A,T39,A)") &
+               "_audit_creation_date", timestamp(:10)
+            WRITE (UNIT=file_unit, FMT="(A,/,A,/,A)") &
+               "_audit_creation_method", ";", &
+               TRIM(cp2k_version)//" (revision "//TRIM(compile_revision)//")"
+            WRITE (UNIT=file_unit, FMT="(A,/,A,/,A,/,A)") &
+               "Project name "//TRIM(logger%iter_info%project_name), &
+               "submitted by "//TRIM(r_user_name)//"@"//TRIM(r_host_name), &
+               "processed in "//TRIM(r_cwd), &
+               "generated at "//TRIM(timestamp)
             WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Optimization converged: TRUE"
-         ELSE
-            WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Optimization converged: FALSE"
-         END IF
-         WRITE (UNIT=file_unit, FMT="(T2,A)") &
-            "- Requested initial cell symmetry: "//TRIM(enum_i2c(enum, symmetry_id))
-         IF (orthorhombic) THEN
-            WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Cell is numerically orthorhombic: TRUE"
-         ELSE
-            WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Cell is numerically orthorhombic: FALSE"
-         END IF
-         WRITE (UNIT=file_unit, FMT="(T2,A)") &
-            "- Periodicity of cell: "//TRIM(perd_str)
-         IF (gopt_env_label == "CELL_OPT") THEN
-            WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Cell is subject to optimization: TRUE"
-            WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Cell has constraint on direction: "//TRIM(ADJUSTL(constraint_label))
-            IF (keep_angles) THEN
+               "- Optimization type: "//TRIM(gopt_env_label)
+            IF (conv) THEN
                WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep angles between the cell vectors during optimization: TRUE"
+                  "- Optimization converged: TRUE"
             ELSE
                WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep angles between the cell vectors during optimization: FALSE"
+                  "- Optimization converged: FALSE"
             END IF
-            IF (keep_symmetry) THEN
-               WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep initial cell symmetry during optimization: TRUE"
-            ELSE
-               WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep initial cell symmetry during optimization: FALSE"
-            END IF
-            IF (keep_volume) THEN
-               WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep initial cell volume during optimization: TRUE"
-            ELSE
-               WRITE (UNIT=file_unit, FMT="(T2,A)") &
-                  "- Keep initial cell volume during optimization: FALSE"
-            END IF
-         ELSE
             WRITE (UNIT=file_unit, FMT="(T2,A)") &
-               "- Cell is subject to optimization: FALSE"
-         END IF
-         WRITE (UNIT=file_unit, FMT="(T2,A)") &
-            "- Final cell vectors A, B, C by rows [angstrom]:"
-         DO i = 1, 3
-            WRITE (UNIT=file_unit, FMT="(T3,3(1X,F19.10))") &
-               cp_unit_from_cp2k(hmat(1, i), "angstrom"), &
-               cp_unit_from_cp2k(hmat(2, i), "angstrom"), &
-               cp_unit_from_cp2k(hmat(3, i), "angstrom")
-         END DO
-         WRITE (UNIT=file_unit, FMT="(A)") ";"
-         ! Data of cell and geometry
-         WRITE (UNIT=file_unit, FMT="(/,A,T44,A)") &
-            "_symmetry_space_group_name_H-M", "'P 1'"
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_length_a", cp_unit_from_cp2k(abc(1), "angstrom")
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_length_b", cp_unit_from_cp2k(abc(2), "angstrom")
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_length_c", cp_unit_from_cp2k(abc(3), "angstrom")
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_angle_alpha", angle_alpha
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_angle_beta", angle_beta
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_angle_gamma", angle_gamma
-         WRITE (UNIT=file_unit, FMT="(A,T48,A)") &
-            "_symmetry_Int_Tables_number", "1"
-         WRITE (UNIT=file_unit, FMT="(A,T36,A)") &
-            "_chemical_formula_structural", formula_structural
-         WRITE (UNIT=file_unit, FMT="(A,T36,A)") &
-            "_chemical_formula_sum", formula_sum
-         WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
-            "_cell_volume", cp_unit_from_cp2k(ABS(deth), "angstrom^3")
-         WRITE (UNIT=file_unit, FMT="(A,T41,I8)") &
-            "_cell_formula_units_Z", gcd_all
-         WRITE (UNIT=file_unit, FMT="(A,/,T2,A,/,T2,A,/,T3,A)") &
-            "loop_", "_symmetry_equiv_pos_site_id", &
-            "_symmetry_equiv_pos_as_xyz", "1  'x, y, z'"
-         WRITE (UNIT=file_unit, FMT="(A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A)") &
-            "loop_", "_atom_site_type_symbol", "_atom_site_label", &
-            "_atom_site_symmetry_multiplicity", "_atom_site_fract_x", &
-            "_atom_site_fract_y", "_atom_site_fract_z", "_atom_site_occupancy"
-         DO iatom = 1, natom
-            r(1:3) = pbc(particle_set(iatom)%r(1:3), cell)
-            CALL real_to_scaled(s, r, cell)
+               "- Requested initial cell symmetry: "//TRIM(enum_i2c(enum, symmetry_id))
+            IF (orthorhombic) THEN
+               WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                  "- Cell is numerically orthorhombic: TRUE"
+            ELSE
+               WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                  "- Cell is numerically orthorhombic: FALSE"
+            END IF
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "- Periodicity of cell: "//TRIM(perd_str)
+            IF (gopt_env_label == "CELL_OPT") THEN
+               WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                  "- Cell is subject to optimization: TRUE"
+               WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                  "- Cell has constraint on direction: "//TRIM(ADJUSTL(constraint_label))
+               IF (keep_angles) THEN
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep angles between the cell vectors during optimization: TRUE"
+               ELSE
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep angles between the cell vectors during optimization: FALSE"
+               END IF
+               IF (keep_symmetry) THEN
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep initial cell symmetry during optimization: TRUE"
+               ELSE
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep initial cell symmetry during optimization: FALSE"
+               END IF
+               IF (keep_volume) THEN
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep initial cell volume during optimization: TRUE"
+               ELSE
+                  WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                     "- Keep initial cell volume during optimization: FALSE"
+               END IF
+            ELSE
+               WRITE (UNIT=file_unit, FMT="(T2,A)") &
+                  "- Cell is subject to optimization: FALSE"
+            END IF
+            WRITE (UNIT=file_unit, FMT="(T2,A)") &
+               "- Final cell vectors A, B, C by rows [angstrom]:"
             DO i = 1, 3
-               s(i) = MODULO(s(i), 1.0_dp)
+               WRITE (UNIT=file_unit, FMT="(T3,3(1X,F19.10))") &
+                  cp_unit_from_cp2k(hmat(1, i), "angstrom"), &
+                  cp_unit_from_cp2k(hmat(2, i), "angstrom"), &
+                  cp_unit_from_cp2k(hmat(3, i), "angstrom")
             END DO
-            WRITE (UNIT=file_unit, FMT=TRIM(f_cif)) &
-               type_symbol(iatom), label(iatom), 1, s(1:3), 1.0_dp
-         END DO
+            WRITE (UNIT=file_unit, FMT="(A)") ";"
+            ! Data of cell and geometry
+            WRITE (UNIT=file_unit, FMT="(/,A,T44,A)") &
+               "_symmetry_space_group_name_H-M", "'P 1'"
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_length_a", cp_unit_from_cp2k(abc(1), "angstrom")
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_length_b", cp_unit_from_cp2k(abc(2), "angstrom")
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_length_c", cp_unit_from_cp2k(abc(3), "angstrom")
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_angle_alpha", angle_alpha
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_angle_beta", angle_beta
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_angle_gamma", angle_gamma
+            WRITE (UNIT=file_unit, FMT="(A,T48,A)") &
+               "_symmetry_Int_Tables_number", "1"
+            WRITE (UNIT=file_unit, FMT="(A,T36,A)") &
+               "_chemical_formula_structural", formula_structural
+            WRITE (UNIT=file_unit, FMT="(A,T36,A)") &
+               "_chemical_formula_sum", formula_sum
+            WRITE (UNIT=file_unit, FMT="(A,T31,F18.8)") &
+               "_cell_volume", cp_unit_from_cp2k(ABS(deth), "angstrom^3")
+            WRITE (UNIT=file_unit, FMT="(A,T41,I8)") &
+               "_cell_formula_units_Z", gcd_all
+            WRITE (UNIT=file_unit, FMT="(A,/,T2,A,/,T2,A,/,T3,A)") &
+               "loop_", "_symmetry_equiv_pos_site_id", &
+               "_symmetry_equiv_pos_as_xyz", "1  'x, y, z'"
+            WRITE (UNIT=file_unit, FMT="(A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A,/,T2,A)") &
+               "loop_", "_atom_site_type_symbol", "_atom_site_label", &
+               "_atom_site_symmetry_multiplicity", "_atom_site_fract_x", &
+               "_atom_site_fract_y", "_atom_site_fract_z", "_atom_site_occupancy"
+            DO iatom = 1, natom
+               r(1:3) = pbc(particle_set(iatom)%r(1:3), cell)
+               CALL real_to_scaled(s, r, cell)
+               DO i = 1, 3
+                  s(i) = MODULO(s(i), 1.0_dp)
+               END DO
+               WRITE (UNIT=file_unit, FMT=TRIM(f_cif)) &
+                  cif_type_symbol(iatom), cif_label(iatom), 1, s(1:3), 1.0_dp
+            END DO
+         END IF
       END IF
 
       ! Finish
-      DEALLOCATE (element_list, count_list, formula_structural, formula_sum, label, type_symbol)
+      DEALLOCATE (element_list, count_list, formula_structural, &
+                  formula_sum, cif_label, cif_type_symbol, &
+                  xyz_label)
       CALL section_release(tmp_cell_section)
       CALL cp_print_key_finished_output(file_unit, logger, input_section, &
-                                        "PRINT%FINAL_CIF")
+                                        "PRINT%FINAL_STRUCTURE")
       IF (output_unit > 0) &
          WRITE (UNIT=output_unit, FMT='(/,T2,A)') &
          routineN//": Done!"
 
       CALL timestop(handle)
 
-   END SUBROUTINE write_final_cif
+   END SUBROUTINE write_final_structure
 
 END MODULE particle_methods

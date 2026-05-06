@@ -144,13 +144,32 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_CIF", &
-                                       description="Controls the dumping of a CIF containing "// &
-                                       "the final geometry and cell for optimization tasks. "// &
-                                       "Currently the structure will always be dumped with "// &
-                                       "the space group `P 1` and a single symmetry-equivalent "// &
-                                       "position `x, y, z` for all of the atoms.", &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FINAL_STRUCTURE", &
+                                       description="Controls the dumping of the final "// &
+                                       "geometry and cell for optimization tasks. ", &
                                        print_level=low_print_level, filename="FINAL")
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_CIF", &
+                          description="Print the final structure as CIF. Currently the "// &
+                          "structure will always be dumped with the space "// &
+                          "group `P 1` and a single symmetry-equivalent "// &
+                          "position `x, y, z` for all of the atoms.", &
+                          usage="PRINT_CIF T", default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_XYZ", &
+                          description="Print the final structure as XYZ. The cell "// &
+                          "information is available in the comment line according "// &
+                          "to the extended XYZ specification as the `Lattice=...` "// &
+                          "field, and the unit is angstrom for both the cell vectors "// &
+                          "and the atomic coordinates.", &
+                          usage="PRINT_XYZ T", default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
