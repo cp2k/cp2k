@@ -955,7 +955,7 @@ CONTAINS
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
          IF (nimg > 1) &
-            CPABORT("g-xTB through CP2K/tblite is not yet implemented for k-points")
+            CPABORT("g-xTB with CP2K k-points is not implemented; use a Gamma-point calculation")
       END IF
 #endif
 
@@ -1943,7 +1943,7 @@ CONTAINS
 
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
-         IF (nimg > 1) CPABORT("g-xTB exchange is not implemented for k-points")
+         IF (nimg > 1) CPABORT("g-xTB exchange is not implemented for CP2K k-points")
          IF (SIZE(matrix_p, 1) /= tb%wfn%nspin) &
             CPABORT("g-xTB exchange requires the CP2K and tblite spin dimensions to match")
 
@@ -3403,7 +3403,99 @@ CONTAINS
    END SUBROUTINE tb_zero_force
 
 ! **************************************************************************************************
-!> \brief Use tblite's native molecular g-xTB gradient path for isolated systems.
+!> \brief Run tblite's native g-xTB singlepoint path.
+!> \param tb ...
+!> \param calculate_gradient ...
+!> \param native_energy ...
+! **************************************************************************************************
+   SUBROUTINE tb_gxtb_native_singlepoint(tb, calculate_gradient, native_energy)
+
+      TYPE(tblite_type), INTENT(INOUT)                   :: tb
+      LOGICAL, INTENT(IN)                                :: calculate_gradient
+      REAL(KIND=dp), INTENT(OUT)                         :: native_energy
+
+#if defined(__TBLITE)
+#if defined(__TBLITE_GXTB)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_sigma
+
+      TYPE(context_type)                                 :: ctx
+      TYPE(error_type), ALLOCATABLE                      :: error
+      TYPE(wavefunction_type), ALLOCATABLE               :: native_wfn_aux
+      TYPE(wavefunction_type)                            :: native_wfn
+      TYPE(xtb_calculator)                               :: native_calc
+
+      ctx%verbosity = 0
+      IF (calculate_gradient) THEN
+         IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
+         ELSE
+            ALLOCATE (tb%grad(3, tb%mol%nat))
+         END IF
+         tb%sigma = 0.0_dp
+         ALLOCATE (native_sigma(3, 3))
+         native_sigma = 0.0_dp
+      END IF
+
+      CALL new_gxtb_calculator(native_calc, tb%mol, error, 1.0e-8_dp)
+      IF (ALLOCATED(error)) CPABORT("Native g-xTB calculator setup failed")
+      CALL new_wavefunction(native_wfn, tb%mol%nat, native_calc%bas%nsh, &
+                            native_calc%bas%nao, tb%wfn%nspin, 0.0_dp)
+      CALL eeqbc_guess(tb%mol, native_calc, native_wfn, error)
+      IF (ALLOCATED(error)) CPABORT("Native g-xTB wavefunction guess failed")
+      IF (ALLOCATED(native_calc%charge_model)) THEN
+         ALLOCATE (native_wfn_aux)
+         CALL new_wavefunction(native_wfn_aux, tb%mol%nat, 0, 0, 1, 0.0_dp, calculate_gradient)
+         IF (calculate_gradient) THEN
+            CALL get_charges(native_calc%charge_model, tb%mol, error, native_wfn_aux%qat(:, 1), &
+                             dqdr=native_wfn_aux%dqatdr(:, :, :, 1), &
+                             dqdL=native_wfn_aux%dqatdL(:, :, :, 1))
+         ELSE
+            CALL get_charges(native_calc%charge_model, tb%mol, error, native_wfn_aux%qat(:, 1))
+         END IF
+         IF (ALLOCATED(error)) CPABORT("Native g-xTB charge model setup failed")
+         IF (calculate_gradient) THEN
+            CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                                 tb%grad, native_sigma(:, 1:3), verbosity=0, wfn_aux=native_wfn_aux)
+         ELSE
+            CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                                 verbosity=0, wfn_aux=native_wfn_aux)
+         END IF
+      ELSE
+         IF (calculate_gradient) THEN
+            CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                                 tb%grad, native_sigma(:, 1:3), verbosity=0)
+         ELSE
+            CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
+                                 verbosity=0)
+         END IF
+      END IF
+      IF (ctx%failed()) THEN
+         CALL ctx%get_error(error)
+         IF (ALLOCATED(error)) THEN
+            CPABORT("Native g-xTB singlepoint calculation failed: "//TRIM(error%message))
+         ELSE
+            CPABORT("Native g-xTB singlepoint calculation failed")
+         END IF
+      END IF
+
+      IF (calculate_gradient) tb%sigma = native_sigma(:, 1:3)
+#else
+      MARK_USED(tb)
+      MARK_USED(calculate_gradient)
+      native_energy = 0.0_dp
+      CPABORT("g-xTB requires CP2K to be built with a g-xTB-enabled tblite library")
+#endif
+#else
+      MARK_USED(tb)
+      MARK_USED(calculate_gradient)
+      native_energy = 0.0_dp
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_gxtb_native_singlepoint
+
+! **************************************************************************************************
+!> \brief Use tblite's native g-xTB gradient path.
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE tb_derive_gxtb_native_gradient(qs_env)
@@ -3414,55 +3506,14 @@ CONTAINS
 #if defined(__TBLITE_GXTB)
       REAL(KIND=dp)                                      :: native_energy
 
-      TYPE(context_type)                                 :: ctx
-      TYPE(error_type), ALLOCATABLE                      :: error
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(tblite_type), POINTER                         :: tb
-      TYPE(wavefunction_type), ALLOCATABLE               :: native_wfn_aux
-      TYPE(wavefunction_type)                            :: native_wfn
-      TYPE(xtb_calculator)                               :: native_calc
 
       NULLIFY (para_env, tb)
       CALL get_qs_env(qs_env=qs_env, tb_tblite=tb, para_env=para_env)
 
-      ctx%verbosity = 0
-      IF (ALLOCATED(tb%grad)) THEN
-         tb%grad = 0.0_dp
-      ELSE
-         ALLOCATE (tb%grad(3, tb%mol%nat))
-      END IF
-      tb%sigma = 0.0_dp
-
       CALL tb_zero_force(qs_env)
-      CALL new_gxtb_calculator(native_calc, tb%mol, error, 1.0e-8_dp)
-      IF (ALLOCATED(error)) CPABORT("Native g-xTB calculator setup failed")
-      CALL new_wavefunction(native_wfn, tb%mol%nat, native_calc%bas%nsh, &
-                            native_calc%bas%nao, tb%wfn%nspin, 0.0_dp)
-      CALL eeqbc_guess(tb%mol, native_calc, native_wfn, error)
-      IF (ALLOCATED(error)) CPABORT("Native g-xTB wavefunction guess failed")
-      IF (ALLOCATED(native_calc%charge_model)) THEN
-         ALLOCATE (native_wfn_aux)
-         CALL new_wavefunction(native_wfn_aux, tb%mol%nat, native_calc%bas%nsh, 0, 1, &
-                               0.0_dp, .TRUE.)
-         CALL get_charges(native_calc%charge_model, tb%mol, error, native_wfn_aux%qat(:, 1), &
-                          dqdr=native_wfn_aux%dqatdr(:, :, :, 1), &
-                          dqdL=native_wfn_aux%dqatdL(:, :, :, 1))
-         IF (ALLOCATED(error)) CPABORT("Native g-xTB charge model setup failed")
-         CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
-                              tb%grad, tb%sigma, verbosity=0, wfn_aux=native_wfn_aux)
-      ELSE
-         CALL xtb_singlepoint(ctx, tb%mol, native_calc, native_wfn, 1.0e-8_dp, native_energy, &
-                              tb%grad, tb%sigma, verbosity=0)
-      END IF
-      IF (ctx%failed()) THEN
-         CALL ctx%get_error(error)
-         IF (ALLOCATED(error)) THEN
-            CPABORT("Native g-xTB gradient calculation failed: "//TRIM(error%message))
-         ELSE
-            CPABORT("Native g-xTB gradient calculation failed")
-         END IF
-      END IF
-
+      CALL tb_gxtb_native_singlepoint(tb, .TRUE., native_energy)
       CALL tb_grad2force(qs_env, tb, para_env, 0)
       IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env, isolated_force_virial=.TRUE.)
 #else
@@ -3514,7 +3565,7 @@ CONTAINS
 
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
-         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for k-points")
+         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for CP2K k-points")
          RETURN
       END IF
 #endif
@@ -3664,7 +3715,7 @@ CONTAINS
 
 #if defined(__TBLITE_GXTB)
       IF (ALLOCATED(tb%calc%exchange)) THEN
-         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for k-points")
+         IF (nimg > 1) CPABORT("g-xTB Hamiltonian gradient is not implemented for CP2K k-points")
          CALL tb_derive_gxtb_native_gradient(qs_env)
          RETURN
       END IF
@@ -4578,6 +4629,9 @@ CONTAINS
       INTEGER                                            :: dump_status, dump_unit, i, iatom, j, natom
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: use_isolated_force_virial
+#if defined(__TBLITE_GXTB)
+      LOGICAL, SAVE                                      :: gxtb_periodic_stress_warned = .FALSE.
+#endif
       REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -4615,6 +4669,17 @@ CONTAINS
             RETURN
          END IF
       END IF
+
+#if defined(__TBLITE_GXTB)
+      IF (ANY(periodic == 1) .AND. ALLOCATED(tb%calc%exchange) .AND. &
+          .NOT. gxtb_periodic_stress_warned) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Periodic g-xTB analytical stress uses the native tblite strain derivative. "// &
+                      "The current g-xTB tblite implementation is not finite-difference exact for "// &
+                      "periodic stresses; use STRESS_TENSOR NUMERICAL for validated cell stresses.")
+         gxtb_periodic_stress_warned = .TRUE.
+      END IF
+#endif
 
       dump_status = 1
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
