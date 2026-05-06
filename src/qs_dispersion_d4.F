@@ -254,6 +254,12 @@ CONTAINS
       IF (cutoff%disp3 > cutoff%disp2) THEN
          CPABORT("D4: Three-body cutoff should be smaller than two-body cutoff")
       END IF
+#if defined(__DFTD4_V4_2)
+      ! DFTD4 4.2 introduced explicit smooth-cutoff widths.
+      ! Keep the same narrow two-body smoothing used by the toolchain patch.
+      cutoff%width2 = 0.05_dp
+      cutoff%width3 = 0.0_dp
+#endif
 
       IF (calculate_forces) THEN
          grad = .TRUE.
@@ -669,8 +675,14 @@ CONTAINS
          ALLOCATE (dEdcn(natom), dEdq(natom))
          dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
       END IF
+#if defined(__DFTD4_V4_2)
+      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                 dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
+                                 stress(:, :, 1))
+#else
       CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
                                  enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
+#endif
       !
       IF (grad) THEN
          DO i = 1, 3
@@ -687,8 +699,14 @@ CONTAINS
          CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
          CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
          CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+#if defined(__DFTD4_V4_2)
+         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                    dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
+                                    stress(:, :, 3))
+#else
          CALL param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, c6, dc6dcn, dc6dq, &
                                     enerd3, dEdcn, qq, gradient(:, :, 3), stress(:, :, 3))
+#endif
       END IF
       IF (grad) THEN
          DO i = 1, 3
