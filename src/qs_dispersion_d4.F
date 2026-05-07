@@ -79,6 +79,39 @@ CONTAINS
 
 #if defined(__DFTD4)
 ! **************************************************************************************************
+!> \brief Read smooth-cutoff width override from environment.
+!> \param primary primary environment variable name
+!> \param fallback fallback environment variable name
+!> \param cutoff real-space cutoff used to validate the width
+!> \param width smooth-cutoff width to update
+! **************************************************************************************************
+   SUBROUTINE d4_smooth_width_from_env(primary, fallback, cutoff, width)
+      CHARACTER(LEN=*), INTENT(IN)                       :: primary, fallback
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), INTENT(INOUT)                       :: width
+
+      CHARACTER(LEN=64)                                  :: env
+      INTEGER                                            :: io, stat
+      REAL(KIND=dp)                                      :: env_width
+
+      CALL GET_ENVIRONMENT_VARIABLE(primary, env, STATUS=stat)
+      IF (stat /= 0 .OR. LEN_TRIM(env) == 0) THEN
+         CALL GET_ENVIRONMENT_VARIABLE(fallback, env, STATUS=stat)
+      END IF
+      IF (stat == 0 .AND. LEN_TRIM(env) > 0) THEN
+         READ (env, *, IOSTAT=io) env_width
+         IF (io == 0) THEN
+            IF (env_width > 0.0_dp .AND. env_width < cutoff) THEN
+               width = env_width
+            ELSE
+               width = 0.0_dp
+            END IF
+         END IF
+      END IF
+
+   END SUBROUTINE d4_smooth_width_from_env
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param dispersion_env ...
@@ -254,6 +287,16 @@ CONTAINS
       IF (cutoff%disp3 > cutoff%disp2) THEN
          CPABORT("D4: Three-body cutoff should be smaller than two-body cutoff")
       END IF
+#if defined(__DFTD4_V4_2)
+      ! DFTD4 4.2 introduced explicit smooth-cutoff widths.
+      ! Keep the same narrow two-body smoothing used by the toolchain patch.
+      cutoff%width2 = 0.05_dp
+      cutoff%width3 = 0.0_dp
+      CALL d4_smooth_width_from_env("DFTD4_DISP2_SMOOTH_WIDTH", "TBLITE_D4_DISP2_SMOOTH_WIDTH", &
+                                    cutoff%disp2, cutoff%width2)
+      CALL d4_smooth_width_from_env("DFTD4_DISP3_SMOOTH_WIDTH", "TBLITE_D4_DISP3_SMOOTH_WIDTH", &
+                                    cutoff%disp3, cutoff%width3)
+#endif
 
       IF (calculate_forces) THEN
          grad = .TRUE.
@@ -669,8 +712,14 @@ CONTAINS
          ALLOCATE (dEdcn(natom), dEdq(natom))
          dEdcn(:) = 0.0_dp; dEdq(:) = 0.0_dp
       END IF
+#if defined(__DFTD4_V4_2)
+      CALL param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%r4r2, c6, &
+                                 dc6dcn, dc6dq, enerd2, dEdcn, dEdq, gradient(:, :, 1), &
+                                 stress(:, :, 1))
+#else
       CALL param%get_dispersion2(mol, lattr, cutoff%disp2, disp%r4r2, c6, dc6dcn, dc6dq, &
                                  enerd2, dEdcn, dEdq, gradient(:, :, 1), stress(:, :, 1))
+#endif
       !
       IF (grad) THEN
          DO i = 1, 3
@@ -687,8 +736,14 @@ CONTAINS
          CALL disp%weight_references(mol, cnd, q, gwvec, gwdcn, gwdq)
          CALL disp%get_atomic_c6(mol, gwvec, gwdcn, gwdq, c6, dc6dcn, dc6dq)
          CALL get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+#if defined(__DFTD4_V4_2)
+         CALL param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%r4r2, c6, &
+                                    dc6dcn, dc6dq, enerd3, dEdcn, qq, gradient(:, :, 3), &
+                                    stress(:, :, 3))
+#else
          CALL param%get_dispersion3(mol, lattr, cutoff%disp3, disp%r4r2, c6, dc6dcn, dc6dq, &
                                     enerd3, dEdcn, qq, gradient(:, :, 3), stress(:, :, 3))
+#endif
       END IF
       IF (grad) THEN
          DO i = 1, 3

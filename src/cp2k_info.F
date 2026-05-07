@@ -196,6 +196,9 @@ CONTAINS
 #if defined(__DFTD4_V3)
       flags = TRIM(flags)//" dftd4_v3"
 #endif
+#if defined(__DFTD4_V4_2)
+      flags = TRIM(flags)//" dftd4_v4_2"
+#endif
 #if defined(__TBLITE)
       flags = TRIM(flags)//" mctc-lib"
       flags = TRIM(flags)//" tblite"

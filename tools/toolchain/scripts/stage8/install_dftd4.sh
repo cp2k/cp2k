@@ -34,7 +34,7 @@ case "$with_dftd4" in
     if verify_checksums "${install_lock_file}"; then
       echo "dftd4-${dftd4_ver} is already installed, skipping it."
     else
-      retrieve_package "${dftd4_sha256}" dftd4-${dftd4_ver}.tar.gz
+      retrieve_package "${dftd4_sha256}" dftd4-${dftd4_ver}.tar.xz
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xJf dftd4-${dftd4_ver}.tar.xz
@@ -76,7 +76,7 @@ esac
 
 if [ "$with_dftd4" != "__DONTUSE__" ]; then
 
-  DFTD4_DFLAGS="-D__DFTD4"
+  DFTD4_DFLAGS="-D__DFTD4 -D__DFTD4_V4_2"
   DFTD4_LIBS="-ldftd4 -lmstore -lmulticharge -lmctc-lib"
 
   cat << EOF > "${BUILDDIR}/setup_dftd4"

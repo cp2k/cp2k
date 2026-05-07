@@ -40,6 +40,10 @@
           end do
 --- a/src/tblite/coulomb/multipole.f90	2025-07-30 13:36:17
 +++ b/src/tblite/coulomb/multipole.f90	2026-05-05 12:29:02
+@@ -150,1 +150,2 @@ subroutine update(self, mol, cache)
+-   call taint(cache, ptr)
++   call taint(cache, ptr)
++   call ptr%update(mol)
 @@ -931,9 +931,9 @@
     real(wp), intent(out) :: dg(3)
     real(wp), intent(out) :: ds(3, 3)
