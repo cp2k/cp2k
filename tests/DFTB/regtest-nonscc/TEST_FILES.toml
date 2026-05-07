@@ -6,6 +6,7 @@
 "ch2o-3.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.8137341344748501}]
 "ch2o-r.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.8137341344748501}]
 "ch2o_force.inp"                        = [{matcher="M042", tol=1.0E-06, ref=0.0}]
+"ch2o_uks_force.inp"                    = [{matcher="M042", tol=1.0E-06, ref=0.0}]
 "h2-1.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-2.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-3.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
