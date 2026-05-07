@@ -447,6 +447,9 @@ CONTAINS
          END IF
          density_scalar = dbcsr_to_dense(rho_ao(1, img))
          IF (nspins == 1) THEN
+            ! xmat factor 2 is applied by both CP2K and GauXC
+            ! "unapply" it here to even things back out
+            density_scalar = 0.5_dp * density_scalar
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
@@ -479,6 +482,9 @@ CONTAINS
 
          IF (nspins == 1) THEN
             IF (img == 1) THEN
+               ! xmat factor 2 is applied by both CP2K and GauXC
+               ! "unapply" it here to even things back out
+               gauxc_xc_result%vxc_scalar = 0.5_dp * gauxc_xc_result%vxc_scalar
                matrix_vxc(1) = dense_to_dbcsr_dense(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
                CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
