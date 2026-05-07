@@ -73,6 +73,7 @@ QS/regtest-gpw-8
 SE/regtest-2-2
 QS/regtest-ed                                               libint !ifx
 QS/regtest-kp-2                                             libint !ifx
+QS/regtest-kp-spglib                                        libint spglib !ifx
 QS/regtest-rtp-3
 ATOM/regtest-pseudo
 QS/regtest-sym-4

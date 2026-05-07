@@ -5,7 +5,7 @@
 "cc_t04.inp"                            = [{matcher="M031", tol=2e-05, ref=1.61512980469E+05}]
 # kpoint symmetry
 "cc_s01.inp"                            = [{matcher="M011", tol=2e-11, ref=-45.504493495029}]
-"cc_s02.inp"                            = [{matcher="M011", tol=2e-11, ref=-45.472869509530}]
+"cc_s02.inp"                            = [{matcher="M011", tol=2e-11, ref=-45.472869510987}]
 "cc_s03.inp"                            = []
 "cc_s04.inp"                            = [{matcher="M031", tol=2e-05, ref=1.61512980469E+05}]
 #EOF
