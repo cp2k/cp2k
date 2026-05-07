@@ -3247,12 +3247,12 @@ CONTAINS
 #if defined(__TBLITE)
       INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
                                                             sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
-                                                            nseti, nsetj, ia, ib, inda, indb
-      INTEGER, DIMENSION(3)                              :: cellind
+                                                            nseti, nsetj, ia, ib, inda, indb, sampled_odd_axes
+      INTEGER, DIMENSION(3)                              :: cellind, nkp_grid
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, image_pair
+      LOGICAL                                            :: found, image_pair, sampled_image_pair
       REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift, &
                                                             dip_deriv_fac, quad_deriv_fac, dip_deriv_fac_pair, &
@@ -3307,8 +3307,14 @@ CONTAINS
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, nkp_grid=nkp_grid)
+      ELSE
+         nkp_grid = 1
       END IF
+      sampled_odd_axes = 0
+      IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
+      IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
+      IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
 
       h0 => tb%calc%h0
       mp_test_mode = 0
@@ -3468,13 +3474,21 @@ CONTAINS
             CPASSERT(ic > 0)
          END IF
          image_pair = (cellind(1) /= 0 .OR. cellind(2) /= 0 .OR. cellind(3) /= 0)
+         sampled_image_pair = image_pair .AND. &
+                              ((cellind(1) /= 0 .AND. nkp_grid(1) > 1) .OR. &
+                               (cellind(2) /= 0 .AND. nkp_grid(2) > 1) .OR. &
+                               (cellind(3) /= 0 .AND. nkp_grid(3) > 1))
          pot_pair_scale = MERGE(pot_image_deriv_scale, pot_deriv_scale, image_pair)
          w_pair_scale = MERGE(w_image_deriv_scale, w_deriv_scale, image_pair)
          h0_pair_scale = MERGE(h0_image_deriv_scale, h0_deriv_scale, image_pair)
          mp_pair_scale = MERGE(mp_image_deriv_scale, mp_deriv_scale, image_pair)
-         IF (icol == jrow .AND. image_pair) THEN
+         IF (icol == jrow .AND. sampled_image_pair) THEN
             pot_pair_scale = pot_self_image_deriv_scale
             w_pair_scale = w_self_image_deriv_scale
+            ! Odd Monkhorst-Pack meshes do not contain a Nyquist image along the
+            ! sampled axis. Match the self-image W derivative to the reduced
+            ! real-space representation used by the k-point density transform.
+            w_pair_scale = w_pair_scale*(1.0_dp - 0.125_dp*REAL(sampled_odd_axes, dp))
             h0_pair_scale = h0_self_image_deriv_scale
             mp_pair_scale = mp_self_image_deriv_scale
          END IF
@@ -3580,7 +3594,7 @@ CONTAINS
                END DO
                ! Periodic self-image pairs share one atom in the sorted CP2K block representation.
                IF (icol == jrow) THEN
-                  IF (image_pair) THEN
+                  IF (sampled_image_pair) THEN
                      dE(icol) = dE(icol) + cn_image_scale*0.5_dp*(itemp + jtemp)
                   ELSE
                      dE(icol) = dE(icol) + 0.5_dp*(itemp + jtemp)
@@ -3595,7 +3609,7 @@ CONTAINS
                   IF (icol == jrow) THEN
                      DO ia = 1, 3
                         DO ib = 1, 3
-                           IF (image_pair .AND. nimg > 1) THEN
+                           IF (sampled_image_pair) THEN
                               hsigma(ia, ib) = hsigma(ia, ib) - 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
                            ELSE
                               hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))

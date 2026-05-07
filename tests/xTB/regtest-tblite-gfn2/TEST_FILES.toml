@@ -16,9 +16,8 @@
 "Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn2_fd_force.inp"                   = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn2_fd_stress.inp"                  = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
-# Si_gfn2_asym_fd_stress.inp is a deliberately harsh diagnostic input for
-# residual low-symmetry periodic GFN2/tblite stress errors. It is kept next to
-# the regtests for manual DEBUG runs, but is not enabled as a mandatory test.
+# Low-symmetry periodic GFN2/tblite stress diagnostic enabled on this branch.
+"Si_gfn2_asym_fd_stress.inp"             = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000}]
 "Si_gfn2_kp_stress.inp"                  = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-13.6562404472},
