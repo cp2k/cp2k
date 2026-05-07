@@ -27,6 +27,7 @@ source "${TOOLCHAIN_SCRIPTS_DIR}/tool_kit.sh"
 CP2K_ROOT=$(cd "${TOOLCHAIN_ROOTDIR}/../.." && pwd)
 CMAKE_INSTALL_PREFIX=${CP2K_ROOT}/install
 CLEAN_BUILD="__FALSE__"
+DEBUG_BUILD="__FALSE__"
 BUILD_JOBS="$(get_nprocs)"
 BUILD_SHARED_LIBS="ON"
 DRY_RUN="__FALSE__"
@@ -44,6 +45,7 @@ Options:
   --dry-run             Show generated CMake options only and then exit
   --clean               Remove the build directory before configuring, which means
                         rebuilding CP2K entirely
+  --debug               Build debug version of CP2K (-DCMAKE_BUILD_TYPE=Debug)
   --build-static        Set -DBUILD_SHARED_LIBS=OFF (default is ON)
 EOF
 }
@@ -70,6 +72,9 @@ while [ $# -ge 1 ]; do
       fi
       CMAKE_INSTALL_PREFIX="${2}"
       shift
+      ;;
+    --debug)
+      DEBUG_BUILD="__TRUE__"
       ;;
     --build-static)
       BUILD_SHARED_LIBS="OFF"
@@ -150,13 +155,13 @@ fi
 source "${TOOLCHAIN_INSTALL_DIR}/setup"
 source "${TOOLCHAIN_INSTALL_DIR}/toolchain.conf"
 
-printf "========================== %s =========================\n" \
-  "Generating CMake options from toolchain"
-
 # Generate cmake options for compiling cp2k
 CMAKE_OPTIONS="-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
+fi
+if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
+  CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_INSTALL_DIR}/setup")" ]; then
   CMAKE_OPTIONS+=" -DCP2K_USE_EVERYTHING=ON -DCP2K_USE_DLAF=OFF -DCP2K_USE_PEXSI=OFF"
@@ -238,15 +243,19 @@ if [ "${DRY_RUN}" != "__TRUE__" ]; then
   echo -n "Configuring ... "
   cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} > cmake.log 2>&1 || tail_excerpt cmake.log
   echo "done."
-  echo "=========================================================="
 
   # ====================== Build ======================
   echo "==================== Building CP2K ======================="
   echo "Parallel jobs: ${BUILD_JOBS}"
 
   echo -n "Building CP2K ... "
-  cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" > build.log 2>&1 || tail_excerpt build.log
-  echo "done."
+  if ! cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" > build.log 2>&1; then
+    echo "failed."
+    tail_excerpt build.log
+    exit 1
+  else
+    echo "done."
+  fi
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file
