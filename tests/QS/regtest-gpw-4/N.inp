@@ -47,6 +47,9 @@
       SCF_GUESS ATOMIC
       &MIXING
         ALPHA 0.4
+        ALPHA_MAG 1.6
+        BETA 1.0
+        BETA_MAG 0.0
         METHOD BROYDEN_MIXING
         NBROYDEN 8
       &END MIXING
