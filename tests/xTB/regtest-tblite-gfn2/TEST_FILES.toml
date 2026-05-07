@@ -8,6 +8,8 @@
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
 "NH3_gfn2.inp"                           = [{matcher="E_total", tol=1.0E-8, ref=-4.4259996366}]
 "CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"CH2O_gfn2_uks_force.inp"                = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"O2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_force_cp2k_mixer.inp"         = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_stress.inp"                   = [{matcher="M042", tol=1.0E-7, ref=0.0000000}]
 "CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
@@ -16,17 +18,32 @@
 "Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn2_fd_force.inp"                   = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn2_fd_stress.inp"                  = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
-# Si_gfn2_asym_fd_stress.inp is a deliberately harsh diagnostic input for
-# residual low-symmetry periodic GFN2/tblite stress errors. It is kept next to
-# the regtests for manual DEBUG runs, but is not enabled as a mandatory test.
+# Low-symmetry periodic GFN2/tblite stress diagnostic enabled on this branch.
+"Si_gfn2_asym_fd_stress.inp"             = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000}]
+"Si_gfn2_kp_stress.inp"                  = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-13.6562404472},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Si_gfn2_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-13.6562404472},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Ar_fcc_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Ar_fcc_gfn2_stress.inp"                 = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
 "Ar_fcc_gfn2_kp_debug.inp"               = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
                                              {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Ar_fcc_gfn2_kp_spglib_backend_debug.inp" = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
+                                             {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Ar_layer_gfn2_xz_kp_debug.inp"          = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000},
+                                             {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=2}]
+"Ar2_chain_gfn2_x_kp_debug.inp"          = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000},
+                                             {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"Ar2_chain_gfn2_y_kp_debug.inp"          = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000},
+                                             {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"Ar_layer_gfn2_yz_kp_debug.inp"          = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000},
                                              {matcher="DEBUG_force_sum", tol=1.0E-5, ref=0.0000000},
                                              {matcher="N_special_kpoints", tol=0.0, ref=2}]
 #EOF

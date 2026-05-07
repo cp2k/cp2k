@@ -476,6 +476,8 @@ CONTAINS
             DO img = 1, nimg
                CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
                               beta_scalar=-1.0_dp)
+               CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, alpha_scalar=1.0_dp, &
+                              beta_scalar=-1.0_dp)
             END DO
          END IF
       END IF

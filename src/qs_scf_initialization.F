@@ -960,9 +960,6 @@ CONTAINS
 
       !Check restricted optimizers available for tblite library
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-         IF (dft_control%lsd) THEN
-            CPABORT("LSD option not compatible with tblite library.")
-         END IF
          IF (scf_env%method == ot_method_nr) THEN
             CPABORT("OT SCF option not compatible with tblite library.")
          END IF

@@ -219,6 +219,18 @@ CONTAINS
                CALL cp_subsys_get(subsys, virial=virial)
                virial_numerical = virial
 
+               ! Numerical diagonal stress checks only perturb diagonal cell elements.
+               IF (virial_analytical%pv_diagonal .OR. virial_numerical%pv_diagonal) THEN
+                  DO i = 1, 3
+                     DO k = 1, 3
+                        IF (i /= k) THEN
+                           virial_analytical%pv_virial(i, k) = 0.0_dp
+                           virial_numerical%pv_virial(i, k) = 0.0_dp
+                        END IF
+                     END DO
+                  END DO
+               END IF
+
                ! Print results
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="((T2,A))") &

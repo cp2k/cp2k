@@ -1,0 +1,8 @@
+# runs are executed in the same order as in this file
+"si_kp1_kpsym.inp"                      = [{matcher="E_total", tol=1.0E-13, ref=-10.06358203475393},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"si_kp1_kpsym_atomdisp.inp"             = [{matcher="E_total", tol=1.0E-13, ref=-10.06358201165233},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=12}]
+"si_kp1_spglib_backend.inp"             = [{matcher="E_total", tol=1.0E-13, ref=-10.06358203475393},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+#EOF

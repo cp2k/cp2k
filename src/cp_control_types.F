@@ -183,7 +183,7 @@ MODULE cp_control_types
       LOGICAL                              :: keep_files = .FALSE.
       LOGICAL                              :: stop_on_error = .FALSE.
       INTEGER                              :: iterations = 250
-      REAL(KIND=dp)                        :: accuracy = 1.0_dp
+      REAL(KIND=dp)                        :: accuracy = 1.0E-8_dp
       REAL(KIND=dp)                        :: error_limit = 1.0E-8_dp
       CHARACTER(LEN=default_path_length)   :: program_name = "tblite"
       CHARACTER(LEN=default_path_length)   :: work_directory = "."

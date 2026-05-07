@@ -46,6 +46,7 @@ MODULE tblite_types
       REAL(KIND=dp), ALLOCATABLE                         :: e_disp(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_scd(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_es(:)
+      REAL(KIND=dp), ALLOCATABLE                         :: e_int(:)
       REAL(KIND=dp), ALLOCATABLE                         :: selfenergy(:)
       REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
 
@@ -59,12 +60,14 @@ MODULE tblite_types
                                                             dipket => Null()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quadbra => Null(), &
                                                             quadket => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_ref => Null()
 
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol = structure_type()
       TYPE(xtb_calculator)                               :: calc = xtb_calculator()
       TYPE(container_cache)                              :: cache = container_cache()
       TYPE(container_cache)                              :: dcache = container_cache()
+      TYPE(container_cache)                              :: icache = container_cache()
       TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
       CLASS(mixer_type), ALLOCATABLE                     :: mixer
@@ -104,6 +107,7 @@ CONTAINS
          IF (ALLOCATED(tb_tblite%e_disp)) DEALLOCATE (tb_tblite%e_disp)
          IF (ALLOCATED(tb_tblite%e_scd)) DEALLOCATE (tb_tblite%e_scd)
          IF (ALLOCATED(tb_tblite%e_es)) DEALLOCATE (tb_tblite%e_es)
+         IF (ALLOCATED(tb_tblite%e_int)) DEALLOCATE (tb_tblite%e_int)
          IF (ALLOCATED(tb_tblite%selfenergy)) DEALLOCATE (tb_tblite%selfenergy)
          IF (ALLOCATED(tb_tblite%cn)) DEALLOCATE (tb_tblite%cn)
 
@@ -120,6 +124,8 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadbra)
          IF (ASSOCIATED(tb_tblite%quadket)) &
             CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
+         IF (ASSOCIATED(tb_tblite%rho_ao_kp_ref)) &
+            CALL dbcsr_deallocate_matrix_set(tb_tblite%rho_ao_kp_ref)
 #if defined(__TBLITE)
          IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
 #endif

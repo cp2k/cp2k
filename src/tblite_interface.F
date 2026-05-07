@@ -20,13 +20,16 @@ MODULE tblite_interface
    USE tblite_adjlist, ONLY: adjacency_list, new_adjacency_list
    USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
+   USE tblite_container_type, ONLY: container_type
    USE tblite_cutoff, ONLY: get_lattice_points
+   USE tblite_data_spin, ONLY: get_spin_constant
    USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, maxl, msao
    USE tblite_integral_type, ONLY: integral_type, new_integral
    USE tblite_scf, ONLY: get_mixer_dimension, new_mixer
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                               orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential, add_pot_to_h1
+   USE tblite_spin, ONLY: spin_polarization, new_spin_polarization
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
    USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
@@ -45,14 +48,14 @@ MODULE tblite_interface
    USE cell_types, ONLY: cell_type, get_cell
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type, xtb_reference_cli_type
-   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_add, &
+   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_add, dbcsr_copy, &
                            dbcsr_get_block_p, dbcsr_finalize, &
                            dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
                            dbcsr_iterator_start, dbcsr_iterator_stop, &
                            dbcsr_iterator_next_block
    USE cp_dbcsr_contrib, ONLY: dbcsr_print
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
+   USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_type, cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_should_output, &
@@ -114,6 +117,68 @@ MODULE tblite_interface
    PUBLIC :: tb_reference_cli_compare
 
 CONTAINS
+
+#if defined(__TBLITE)
+! **************************************************************************************************
+!> \brief Project a tblite charge/magnetization quantity to a CP2K spin channel.
+!> \param values ...
+!> \param ispin ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION tb_spin_project(values, ispin) RESULT(value)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
+      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp)                                      :: value
+
+      value = values(1)
+      IF (SIZE(values) > 1) THEN
+         SELECT CASE (ispin)
+         CASE (1)
+            value = values(1) + values(2)
+         CASE (2)
+            value = values(1) - values(2)
+         CASE DEFAULT
+            value = values(1)
+         END SELECT
+      END IF
+
+   END FUNCTION tb_spin_project
+
+! **************************************************************************************************
+!> \brief Store a private copy of the converged density for tblite force derivatives.
+!> \param tb ...
+!> \param matrix_p ...
+! **************************************************************************************************
+   SUBROUTINE tb_store_density_ref(tb, matrix_p)
+
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+
+      INTEGER                                            :: img, ispin, nimg, nspin
+
+      nspin = SIZE(matrix_p, 1)
+      nimg = SIZE(matrix_p, 2)
+      IF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
+         IF (SIZE(tb%rho_ao_kp_ref, 1) /= nspin .OR. SIZE(tb%rho_ao_kp_ref, 2) /= nimg) &
+            CALL dbcsr_deallocate_matrix_set(tb%rho_ao_kp_ref)
+      END IF
+      IF (.NOT. ASSOCIATED(tb%rho_ao_kp_ref)) THEN
+         CALL dbcsr_allocate_matrix_set(tb%rho_ao_kp_ref, nspin, nimg)
+         DO img = 1, nimg
+            DO ispin = 1, nspin
+               ALLOCATE (tb%rho_ao_kp_ref(ispin, img)%matrix)
+            END DO
+         END DO
+      END IF
+      DO img = 1, nimg
+         DO ispin = 1, nspin
+            CALL dbcsr_copy(tb%rho_ao_kp_ref(ispin, img)%matrix, matrix_p(ispin, img)%matrix)
+         END DO
+      END DO
+
+   END SUBROUTINE tb_store_density_ref
+#endif
 
 ! **************************************************************************************************
 !> \brief intialize geometry objects ...
@@ -229,16 +294,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief initialize wavefunction ...
 !> \param tb ...
+!> \param dft_control ...
 ! **************************************************************************************************
-   SUBROUTINE tb_init_wf(tb)
+   SUBROUTINE tb_init_wf(tb, dft_control)
 
       TYPE(tblite_type), POINTER                         :: tb
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
 #if defined(__TBLITE)
 
-      INTEGER, PARAMETER                                 :: nSpin = 1 !number of spin channels
+      INTEGER                                            :: nSpin
 
       TYPE(scf_info)                                     :: info
+
+      nSpin = dft_control%nspins
+      IF (nSpin /= 1 .AND. nSpin /= 2) CPABORT("tblite supports only one or two spin channels")
+
+      tb%mol%charge = dft_control%charge
+      tb%mol%uhf = MAX(0, dft_control%multiplicity - 1)
+      IF (nSpin == 2) CALL tb_add_spin_polarization(tb)
 
       info = tb%calc%variable_info()
       IF (info%charge > shell_resolved) CPABORT("tblite: no support for orbital resolved charge")
@@ -247,22 +321,73 @@ CONTAINS
          CPABORT("tblite: no support shell resolved quadrupole moment")
 
       CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp)
+      CALL get_occupation(tb%mol, tb%calc%bas, tb%calc%h0, tb%wfn%nocc, tb%wfn%n0at, tb%wfn%n0sh)
       CALL tb_reset_mixer(tb)
 
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
 
       !allocate quantities later required
       ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
-      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
+      ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat), tb%e_int(tb%mol%nat))
       ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
       IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
 
 #else
       MARK_USED(tb)
+      MARK_USED(dft_control)
       CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_init_wf
+
+#if defined(__TBLITE)
+! **************************************************************************************************
+!> \brief Add tblite's on-site spin-polarization interaction.
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_spin_polarization(tb)
+
+      TYPE(tblite_type), POINTER                         :: tb
+
+      CLASS(container_type), ALLOCATABLE                 :: cont
+      TYPE(spin_polarization), ALLOCATABLE               :: spin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: wll
+
+      ALLOCATE (spin)
+      CALL tb_get_spin_constants(tb, wll)
+      CALL new_spin_polarization(spin, tb%mol, wll, tb%calc%bas%nsh_id)
+      CALL MOVE_ALLOC(spin, cont)
+      CALL tb%calc%push_back(cont)
+
+   END SUBROUTINE tb_add_spin_polarization
+
+! **************************************************************************************************
+!> \brief Build tblite spin constants for the current basis.
+!> \param tb ...
+!> \param wll ...
+! **************************************************************************************************
+   SUBROUTINE tb_get_spin_constants(tb, wll)
+
+      TYPE(tblite_type), POINTER                         :: tb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: wll
+
+      INTEGER                                            :: il, ish, izp, jl, jsh
+
+      ALLOCATE (wll(tb%calc%bas%nsh, tb%calc%bas%nsh, tb%mol%nid))
+      wll = 0.0_dp
+      DO izp = 1, tb%mol%nid
+         DO ish = 1, tb%calc%bas%nsh_id(izp)
+            il = tb%calc%bas%cgto(ish, izp)%ang
+            DO jsh = 1, tb%calc%bas%nsh_id(izp)
+               jl = tb%calc%bas%cgto(jsh, izp)%ang
+               wll(jsh, ish, izp) = get_spin_constant(jl, il, tb%mol%num(izp))
+            END DO
+         END DO
+      END DO
+
+   END SUBROUTINE tb_get_spin_constants
+#endif
 
 ! **************************************************************************************************
 !> \brief Reset tblite's internal SCC mixer for a new CP2K SCF cycle.
@@ -433,6 +558,7 @@ CONTAINS
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
       tb%e_disp = 0.0_dp
+      tb%e_int = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
          CALL tb_zero_force(qs_env)
@@ -476,6 +602,10 @@ CONTAINS
          ELSE
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
          END IF
+      END IF
+
+      IF (ALLOCATED(tb%calc%interactions)) THEN
+         CALL tb%calc%interactions%update(tb%mol, tb%icache)
       END IF
 
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
@@ -535,6 +665,7 @@ CONTAINS
       energy%dispersion = SUM(tb%e_disp)
       energy%dispersion_sc = SUM(tb%e_scd)
       energy%xtb_xb_inter = SUM(tb%e_hal)
+      energy%xtb_xb_inter = energy%xtb_xb_inter + SUM(tb%e_int)
 
       energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
                      + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
@@ -1134,7 +1265,7 @@ CONTAINS
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
       INTEGER                                            :: n_atom, max_orb, max_shell
       INTEGER                                            :: mp_test_mode, raw_state_status, raw_state_unit, &
-                                                            state_status, state_unit, last_mix_slot, ia_local, ns_mix
+                                                            last_mix_slot, ia_local, ns_mix
       LOGICAL                                            :: discard_mixed_output, do_combined_mixing, do_dipole, do_quadrupole, &
                                                             native_sign_mixing, phased_combined_mixing, skip_charge_mixing, &
                                                             reuse_native_input, skip_scf_dispersion, skip_scf_dispersion_energy, &
@@ -1145,13 +1276,14 @@ CONTAINS
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
 #endif
-      CHARACTER(LEN=default_path_length)                 :: raw_state_file, state_file
+      CHARACTER(LEN=default_path_length)                 :: raw_state_file
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb, mix_vars, prev_vars
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad, native_lattr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: native_p
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aocg_spin, ao_dip_spin, ao_quad_spin, &
+                                                            ch_orb_spin, ch_shell_spin, native_p
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(adjacency_list)                               :: native_list
@@ -1222,12 +1354,24 @@ CONTAINS
                                  dft_control%qs_control%xtb_control%tblite_mixer_damping)
          CALL tb_reset_mixer(tb)
       END IF
+      nspin = dft_control%nspins
+      IF (nspin /= tb%wfn%nspin) CPABORT("CP2K/tblite spin channel mismatch")
+
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSEIF (calculate_forces .AND. nspin > 1) THEN
+         IF (.NOT. ASSOCIATED(tb%rho_ao_kp_ref)) &
+            CPABORT("Missing converged tblite density for UKS/LSD forces")
+         matrix_p => tb%rho_ao_kp_ref
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
+      IF (nspin > 1 .AND. (.NOT. use_native_mixer)) &
+         CPABORT("tblite UKS/LSD currently requires SCC_MIXER AUTO or TBLITE")
+      IF (nspin > 1 .AND. mp_test_mode /= 0) &
+         CPABORT("tblite UKS/LSD debug multipole modes are not implemented")
+      IF (nspin > 1 .AND. (.NOT. calculate_forces)) CALL tb_store_density_ref(tb, matrix_p)
       IF (ASSOCIATED(tb%dipbra)) do_dipole = .TRUE.
       IF (ASSOCIATED(tb%quadbra)) do_quadrupole = .TRUE.
       reuse_native_input = .FALSE.
@@ -1243,9 +1387,19 @@ CONTAINS
       nimg = dft_control%nimages
       CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
       ALLOCATE (aocg(nsgf, n_atom))
+      ALLOCATE (aocg_spin(nsgf, n_atom, nspin))
       aocg = 0.0_dp
-      IF (do_dipole) ALLOCATE (ao_dip(n_atom, dip_n))
-      IF (do_quadrupole) ALLOCATE (ao_quad(n_atom, quad_n))
+      aocg_spin = 0.0_dp
+      IF (do_dipole) THEN
+         ALLOCATE (ao_dip(n_atom, dip_n))
+         ALLOCATE (ao_dip_spin(n_atom, dip_n, nspin))
+         ao_dip_spin = 0.0_dp
+      END IF
+      IF (do_quadrupole) THEN
+         ALLOCATE (ao_quad(n_atom, quad_n))
+         ALLOCATE (ao_quad_spin(n_atom, quad_n, nspin))
+         ao_quad_spin = 0.0_dp
+      END IF
       max_orb = 0
       max_shell = 0
       DO ikind = 1, nkind
@@ -1256,38 +1410,76 @@ CONTAINS
       DO is = 1, n_atom
          max_shell = MAX(max_shell, tb%calc%bas%nsh_at(is))
       END DO
-      ALLOCATE (ch_atom(n_atom, 1), ch_shell(n_atom, max_shell))
+      ALLOCATE (ch_atom(n_atom, nspin), ch_shell(n_atom, max_shell))
       ALLOCATE (ch_orb(max_orb, n_atom), ch_ref(max_orb, n_atom))
+      ALLOCATE (ch_orb_spin(max_orb, n_atom, nspin), ch_shell_spin(n_atom, max_shell, nspin))
       ch_atom = 0.0_dp
       ch_shell = 0.0_dp
       ch_orb = 0.0_dp
+      ch_orb_spin = 0.0_dp
+      ch_shell_spin = 0.0_dp
       ch_ref = 0.0_dp
       IF (nimg > 1) THEN
-         CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
-         IF (do_dipole) THEN
-            DO im = 1, dip_n
-               CALL contract_dens_kp(matrix_p, tb%dipbra, tb%dipket, im, dip_n, ao_dip(:, im), para_env)
-            END DO
-         END IF
-         IF (do_quadrupole) THEN
-            DO im = 1, quad_n
-               CALL contract_dens_kp(matrix_p, tb%quadbra, tb%quadket, im, quad_n, ao_quad(:, im), para_env)
-            END DO
-         END IF
+         DO ispin = 1, nspin
+            CALL tb_ao_charges_kp_spin(matrix_p, matrix_s, aocg_spin(:, :, ispin), ispin, para_env)
+            IF (do_dipole) THEN
+               DO im = 1, dip_n
+                  CALL tb_contract_dens_kp_spin(matrix_p, tb%dipbra, tb%dipket, im, dip_n, &
+                                                ao_dip_spin(:, im, ispin), ispin, para_env)
+               END DO
+            END IF
+            IF (do_quadrupole) THEN
+               DO im = 1, quad_n
+                  CALL tb_contract_dens_kp_spin(matrix_p, tb%quadbra, tb%quadket, im, quad_n, &
+                                                ao_quad_spin(:, im, ispin), ispin, para_env)
+               END DO
+            END IF
+         END DO
       ELSE
          NULLIFY (p_matrix, s_matrix)
          p_matrix => matrix_p(:, 1)
          s_matrix => matrix_s(1, 1)%matrix
-         CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
+         DO ispin = 1, nspin
+            CALL tb_ao_charges_matrix(matrix_p(ispin, 1)%matrix, s_matrix, aocg_spin(:, :, ispin), para_env)
+            IF (do_dipole) THEN
+               DO im = 1, dip_n
+                  CALL tb_contract_dens_matrix(matrix_p(ispin, 1)%matrix, tb%dipbra(im)%matrix, &
+                                               tb%dipket(im)%matrix, ao_dip_spin(:, im, ispin), para_env)
+               END DO
+            END IF
+            IF (do_quadrupole) THEN
+               DO im = 1, quad_n
+                  CALL tb_contract_dens_matrix(matrix_p(ispin, 1)%matrix, tb%quadbra(im)%matrix, &
+                                               tb%quadket(im)%matrix, ao_quad_spin(:, im, ispin), para_env)
+               END DO
+            END IF
+         END DO
+      END IF
+      IF (nspin == 1) THEN
+         aocg(:, :) = aocg_spin(:, :, 1)
+         IF (do_dipole) ao_dip(:, :) = ao_dip_spin(:, :, 1)
+         IF (do_quadrupole) ao_quad(:, :) = ao_quad_spin(:, :, 1)
+      ELSE
+         aocg(:, :) = aocg_spin(:, :, 1) + aocg_spin(:, :, 2)
          IF (do_dipole) THEN
             DO im = 1, dip_n
-               CALL contract_dens(p_matrix, tb%dipbra(im)%matrix, tb%dipket(im)%matrix, ao_dip(:, im), para_env)
+               DO iatom = 1, n_atom
+                  pao = ao_dip_spin(iatom, im, 1)
+                  ao_dip_spin(iatom, im, 1) = pao + ao_dip_spin(iatom, im, 2)
+                  ao_dip_spin(iatom, im, 2) = pao - ao_dip_spin(iatom, im, 2)
+               END DO
             END DO
+            ao_dip(:, :) = ao_dip_spin(:, :, 1)
          END IF
          IF (do_quadrupole) THEN
             DO im = 1, quad_n
-               CALL contract_dens(p_matrix, tb%quadbra(im)%matrix, tb%quadket(im)%matrix, ao_quad(:, im), para_env)
+               DO iatom = 1, n_atom
+                  pao = ao_quad_spin(iatom, im, 1)
+                  ao_quad_spin(iatom, im, 1) = pao + ao_quad_spin(iatom, im, 2)
+                  ao_quad_spin(iatom, im, 2) = pao - ao_quad_spin(iatom, im, 2)
+               END DO
             END DO
+            ao_quad(:, :) = ao_quad_spin(:, :, 1)
          END IF
       END IF
       NULLIFY (xtb_kind)
@@ -1302,12 +1494,21 @@ CONTAINS
                norm = 2*lao(is) + 1
                ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), ikind)/norm
                ch_orb(is, atom_a) = aocg(is, atom_a) - ch_ref(is, atom_a)
+               ch_orb_spin(is, atom_a, 1) = ch_orb(is, atom_a)
+               IF (nspin == 2) ch_orb_spin(is, atom_a, 2) = &
+                  aocg_spin(is, atom_a, 1) - aocg_spin(is, atom_a, 2)
                ch_shell(atom_a, ns) = ch_orb(is, atom_a) + ch_shell(atom_a, ns)
+               DO ispin = 1, nspin
+                  ch_shell_spin(atom_a, ns, ispin) = ch_orb_spin(is, atom_a, ispin) + &
+                                                     ch_shell_spin(atom_a, ns, ispin)
+               END DO
             END DO
-            ch_atom(atom_a, 1) = SUM(ch_orb(:, atom_a))
+            DO ispin = 1, nspin
+               ch_atom(atom_a, ispin) = SUM(ch_orb_spin(:, atom_a, ispin))
+            END DO
          END DO
       END DO
-      DEALLOCATE (aocg)
+      DEALLOCATE (aocg, aocg_spin)
 
       raw_state_status = 1
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
@@ -1421,10 +1622,13 @@ CONTAINS
             CALL tb%mixer%next(error)
             IF (ALLOCATED(error)) CPABORT("tblite native mixer failed")
             CALL tb%mixer%get(tb%wfn%qsh)
-            tb%wfn%qat(:, 1) = 0.0_dp
+            tb%wfn%qat(:, :) = 0.0_dp
             DO iatom = 1, n_atom
                ii = tb%calc%bas%ish_at(iatom)
-               tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
+               DO ispin = 1, nspin
+                  tb%wfn%qat(iatom, ispin) = &
+                     SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
+               END DO
             END DO
             IF (do_dipole) THEN
                CALL tb%mixer%get(tb%wfn%dpat)
@@ -1454,20 +1658,27 @@ CONTAINS
                END IF
                DO iatom = 1, n_atom
                   ii = tb%calc%bas%ish_at(iatom)
-                  DO is = 1, tb%calc%bas%nsh_at(iatom)
-                     tb%wfn%qsh(ii + is, 1) = -ch_shell(iatom, is)
+                  DO ispin = 1, nspin
+                     DO is = 1, tb%calc%bas%nsh_at(iatom)
+                        tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
+                     END DO
+                     tb%wfn%qat(iatom, ispin) = &
+                        SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
                   END DO
-                  tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
                END DO
                IF (do_dipole) THEN
                   DO iatom = 1, n_atom
-                     tb%wfn%dpat(:, iatom, 1) = -ao_dip(iatom, :)
+                     DO ispin = 1, nspin
+                        tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
+                     END DO
                   END DO
                   DEALLOCATE (ao_dip)
                END IF
                IF (do_quadrupole) THEN
                   DO iatom = 1, n_atom
-                     tb%wfn%qpat(:, iatom, 1) = -ao_quad(iatom, :)
+                     DO ispin = 1, nspin
+                        tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
+                     END DO
                   END DO
                   DEALLOCATE (ao_quad)
                END IF
@@ -1752,6 +1963,7 @@ CONTAINS
       CALL tb%pot%reset
       tb%e_es = 0.0_dp
       tb%e_scd = 0.0_dp
+      tb%e_int = 0.0_dp
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
@@ -1762,34 +1974,9 @@ CONTAINS
          IF (.NOT. skip_scf_dispersion_energy) &
             CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
-
-      state_status = 1
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_STATE_DUMP", state_file, STATUS=state_status)
-#endif
-      IF (state_status == 0) THEN
-         OPEN (NEWUNIT=state_unit, FILE=TRIM(state_file), STATUS="REPLACE", ACTION="WRITE")
-         WRITE (state_unit, *) "qat"
-         DO iatom = 1, n_atom
-            WRITE (state_unit, "(I0,1X,ES24.16)") iatom, tb%wfn%qat(iatom, 1)
-         END DO
-         WRITE (state_unit, *) "qsh"
-         DO iatom = 1, SIZE(tb%wfn%qsh, 1)
-            WRITE (state_unit, "(I0,1X,ES24.16)") iatom, tb%wfn%qsh(iatom, 1)
-         END DO
-         IF (do_dipole) THEN
-            WRITE (state_unit, *) "dpat"
-            DO iatom = 1, n_atom
-               WRITE (state_unit, "(I0,3(1X,ES24.16))") iatom, tb%wfn%dpat(:, iatom, 1)
-            END DO
-         END IF
-         IF (do_quadrupole) THEN
-            WRITE (state_unit, *) "qpat"
-            DO iatom = 1, n_atom
-               WRITE (state_unit, "(I0,6(1X,ES24.16))") iatom, tb%wfn%qpat(:, iatom, 1)
-            END DO
-         END IF
-         CLOSE (state_unit)
+      IF (ALLOCATED(tb%calc%interactions)) THEN
+         CALL tb%calc%interactions%get_potential(tb%mol, tb%icache, tb%wfn, tb%pot)
+         CALL tb%calc%interactions%get_energy(tb%mol, tb%icache, tb%wfn, tb%e_int)
       END IF
 
       IF (calculate_forces) THEN
@@ -1806,9 +1993,18 @@ CONTAINS
             CALL tb_dump_sigma_component("after_dispersion_scf", tb%sigma, para_env)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
          END IF
+
+         IF (ALLOCATED(tb%calc%interactions)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%interactions%get_gradient(tb%mol, tb%icache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_dump_sigma_component("after_interactions_scf", tb%sigma, para_env)
+            CALL tb_grad2force(qs_env, tb, para_env, 3)
+         END IF
       END IF
 
-      DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
+      IF (ALLOCATED(ao_dip_spin)) DEALLOCATE (ao_dip_spin)
+      IF (ALLOCATED(ao_quad_spin)) DEALLOCATE (ao_quad_spin)
+      DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref, ch_orb_spin, ch_shell_spin)
 
 #else
       MARK_USED(qs_env)
@@ -1837,7 +2033,7 @@ CONTAINS
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
       INTEGER                                            :: ic, id1, id2, id3, iq1, iq2, iq3, iq4, iq5, iq6, &
-                                                            is, nimg, ni, nj, i, j, i0, j0
+                                                            is, nimg, ni, nj, i, j, i0, j0, nspin
       INTEGER                                            :: la, lb, za, zb
       INTEGER                                            :: mp_test_mode
       LOGICAL                                            :: found
@@ -1889,6 +2085,7 @@ CONTAINS
 
       NULLIFY (matrix_s, ks_matrix, n_list, qs_kind_set)
       CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
+      nspin = SIZE(ks_matrix, 1)
 
       IF (mp_test_mode == 83 .OR. mp_test_mode == 183 .OR. &
           mp_test_mode == 220 .OR. mp_test_mode == 231 .OR. &
@@ -1948,29 +2145,29 @@ CONTAINS
 
             ni = SIZE(sblock, 1)
             ALLOCATE (ashift(ni, ni))
-            ashift = 0.0_dp
-            DO i = 1, ni
-               la = naoa(i) + sum_shell(irow)
-               ashift(i, i) = tb%pot%vsh(la, 1)
-            END DO
 
             nj = SIZE(sblock, 2)
             ALLOCATE (bshift(nj, nj))
-            bshift = 0.0_dp
-            DO j = 1, nj
-               lb = naob(j) + sum_shell(icol)
-               bshift(j, j) = tb%pot%vsh(lb, 1)
-            END DO
 
-            DO is = 1, SIZE(ks_matrix, 1)
+            DO is = 1, nspin
+               ashift = 0.0_dp
+               DO i = 1, ni
+                  la = naoa(i) + sum_shell(irow)
+                  ashift(i, i) = tb_spin_project(tb%pot%vsh(la, :), is)
+               END DO
+               bshift = 0.0_dp
+               DO j = 1, nj
+                  lb = naob(j) + sum_shell(icol)
+                  bshift(j, j) = tb_spin_project(tb%pot%vsh(lb, :), is)
+               END DO
                NULLIFY (ksblock)
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                       row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
                ksblock = ksblock - 0.5_dp*(MATMUL(ashift, sblock) &
                                            + MATMUL(sblock, bshift))
-               ksblock = ksblock - 0.5_dp*(tb%pot%vat(irow, 1) &
-                                           + tb%pot%vat(icol, 1))*sblock
+               ksblock = ksblock - 0.5_dp*(tb_spin_project(tb%pot%vat(irow, :), is) &
+                                           + tb_spin_project(tb%pot%vat(icol, :), is))*sblock
             END DO
             DEALLOCATE (ashift, bshift)
          END DO
@@ -2002,17 +2199,17 @@ CONTAINS
                                       row=irow, col=icol, BLOCK=dip_ket3, found=found)
                CPASSERT(found)
 
-               DO is = 1, SIZE(ks_matrix, 1)
+               DO is = 1, nspin
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock + mpfac*(dip_ket1*tb%pot%vdp(1, irow, 1) &
-                                             + dip_ket2*tb%pot%vdp(2, irow, 1) &
-                                             + dip_ket3*tb%pot%vdp(3, irow, 1) &
-                                             + dip_bra1*tb%pot%vdp(1, icol, 1) &
-                                             + dip_bra2*tb%pot%vdp(2, icol, 1) &
-                                             + dip_bra3*tb%pot%vdp(3, icol, 1))
+                  ksblock = ksblock + mpfac*(dip_ket1*tb_spin_project(tb%pot%vdp(1, irow, :), is) &
+                                             + dip_ket2*tb_spin_project(tb%pot%vdp(2, irow, :), is) &
+                                             + dip_ket3*tb_spin_project(tb%pot%vdp(3, irow, :), is) &
+                                             + dip_bra1*tb_spin_project(tb%pot%vdp(1, icol, :), is) &
+                                             + dip_bra2*tb_spin_project(tb%pot%vdp(2, icol, :), is) &
+                                             + dip_bra3*tb_spin_project(tb%pot%vdp(3, icol, :), is))
                END DO
             END DO
             CALL dbcsr_iterator_stop(iter)
@@ -2063,24 +2260,24 @@ CONTAINS
                                       row=irow, col=icol, BLOCK=quad_ket6, found=found)
                CPASSERT(found)
 
-               DO is = 1, SIZE(ks_matrix, 1)
+               DO is = 1, nspin
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
 
-                  ksblock = ksblock + mpfac*(quad_ket1*tb%pot%vqp(1, irow, 1) &
-                                             + quad_ket2*tb%pot%vqp(2, irow, 1) &
-                                             + quad_ket3*tb%pot%vqp(3, irow, 1) &
-                                             + quad_ket4*tb%pot%vqp(4, irow, 1) &
-                                             + quad_ket5*tb%pot%vqp(5, irow, 1) &
-                                             + quad_ket6*tb%pot%vqp(6, irow, 1) &
-                                             + quad_bra1*tb%pot%vqp(1, icol, 1) &
-                                             + quad_bra2*tb%pot%vqp(2, icol, 1) &
-                                             + quad_bra3*tb%pot%vqp(3, icol, 1) &
-                                             + quad_bra4*tb%pot%vqp(4, icol, 1) &
-                                             + quad_bra5*tb%pot%vqp(5, icol, 1) &
-                                             + quad_bra6*tb%pot%vqp(6, icol, 1))
+                  ksblock = ksblock + mpfac*(quad_ket1*tb_spin_project(tb%pot%vqp(1, irow, :), is) &
+                                             + quad_ket2*tb_spin_project(tb%pot%vqp(2, irow, :), is) &
+                                             + quad_ket3*tb_spin_project(tb%pot%vqp(3, irow, :), is) &
+                                             + quad_ket4*tb_spin_project(tb%pot%vqp(4, irow, :), is) &
+                                             + quad_ket5*tb_spin_project(tb%pot%vqp(5, irow, :), is) &
+                                             + quad_ket6*tb_spin_project(tb%pot%vqp(6, irow, :), is) &
+                                             + quad_bra1*tb_spin_project(tb%pot%vqp(1, icol, :), is) &
+                                             + quad_bra2*tb_spin_project(tb%pot%vqp(2, icol, :), is) &
+                                             + quad_bra3*tb_spin_project(tb%pot%vqp(3, icol, :), is) &
+                                             + quad_bra4*tb_spin_project(tb%pot%vqp(4, icol, :), is) &
+                                             + quad_bra5*tb_spin_project(tb%pot%vqp(5, icol, :), is) &
+                                             + quad_bra6*tb_spin_project(tb%pot%vqp(6, icol, :), is))
                END DO
             END DO
             CALL dbcsr_iterator_stop(iter)
@@ -2124,29 +2321,29 @@ CONTAINS
 
             ni = SIZE(sblock, 1)
             ALLOCATE (ashift(ni, ni))
-            ashift = 0.0_dp
-            DO i = 1, ni
-               la = naoa(i) + sum_shell(irow)
-               ashift(i, i) = tb%pot%vsh(la, 1)
-            END DO
 
             nj = SIZE(sblock, 2)
             ALLOCATE (bshift(nj, nj))
-            bshift = 0.0_dp
-            DO j = 1, nj
-               lb = naob(j) + sum_shell(icol)
-               bshift(j, j) = tb%pot%vsh(lb, 1)
-            END DO
 
-            DO is = 1, SIZE(ks_matrix, 1)
+            DO is = 1, nspin
+               ashift = 0.0_dp
+               DO i = 1, ni
+                  la = naoa(i) + sum_shell(irow)
+                  ashift(i, i) = tb_spin_project(tb%pot%vsh(la, :), is)
+               END DO
+               bshift = 0.0_dp
+               DO j = 1, nj
+                  lb = naob(j) + sum_shell(icol)
+                  bshift(j, j) = tb_spin_project(tb%pot%vsh(lb, :), is)
+               END DO
                NULLIFY (ksblock)
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                       row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
                ksblock = ksblock - 0.5_dp*(MATMUL(ashift, sblock) &
                                            + MATMUL(sblock, bshift))
-               ksblock = ksblock - 0.5_dp*(tb%pot%vat(irow, 1) &
-                                           + tb%pot%vat(icol, 1))*sblock
+               ksblock = ksblock - 0.5_dp*(tb_spin_project(tb%pot%vat(irow, :), is) &
+                                           + tb_spin_project(tb%pot%vat(icol, :), is))*sblock
             END DO
             DEALLOCATE (ashift, bshift)
          END DO
@@ -2187,17 +2384,17 @@ CONTAINS
                                       row=irow, col=icol, BLOCK=dip_ket3, found=found)
                CPASSERT(found)
 
-               DO is = 1, SIZE(ks_matrix, 1)
+               DO is = 1, nspin
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
-                  ksblock = ksblock + mpfac*(dip_ket1*tb%pot%vdp(1, irow, 1) &
-                                             + dip_ket2*tb%pot%vdp(2, irow, 1) &
-                                             + dip_ket3*tb%pot%vdp(3, irow, 1) &
-                                             + dip_bra1*tb%pot%vdp(1, icol, 1) &
-                                             + dip_bra2*tb%pot%vdp(2, icol, 1) &
-                                             + dip_bra3*tb%pot%vdp(3, icol, 1))
+                  ksblock = ksblock + mpfac*(dip_ket1*tb_spin_project(tb%pot%vdp(1, irow, :), is) &
+                                             + dip_ket2*tb_spin_project(tb%pot%vdp(2, irow, :), is) &
+                                             + dip_ket3*tb_spin_project(tb%pot%vdp(3, irow, :), is) &
+                                             + dip_bra1*tb_spin_project(tb%pot%vdp(1, icol, :), is) &
+                                             + dip_bra2*tb_spin_project(tb%pot%vdp(2, icol, :), is) &
+                                             + dip_bra3*tb_spin_project(tb%pot%vdp(3, icol, :), is))
                END DO
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
@@ -2260,24 +2457,24 @@ CONTAINS
                                       row=irow, col=icol, BLOCK=quad_ket6, found=found)
                CPASSERT(found)
 
-               DO is = 1, SIZE(ks_matrix, 1)
+               DO is = 1, nspin
                   NULLIFY (ksblock)
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ksblock, found=found)
                   CPASSERT(found)
 
-                  ksblock = ksblock + mpfac*(quad_ket1*tb%pot%vqp(1, irow, 1) &
-                                             + quad_ket2*tb%pot%vqp(2, irow, 1) &
-                                             + quad_ket3*tb%pot%vqp(3, irow, 1) &
-                                             + quad_ket4*tb%pot%vqp(4, irow, 1) &
-                                             + quad_ket5*tb%pot%vqp(5, irow, 1) &
-                                             + quad_ket6*tb%pot%vqp(6, irow, 1) &
-                                             + quad_bra1*tb%pot%vqp(1, icol, 1) &
-                                             + quad_bra2*tb%pot%vqp(2, icol, 1) &
-                                             + quad_bra3*tb%pot%vqp(3, icol, 1) &
-                                             + quad_bra4*tb%pot%vqp(4, icol, 1) &
-                                             + quad_bra5*tb%pot%vqp(5, icol, 1) &
-                                             + quad_bra6*tb%pot%vqp(6, icol, 1))
+                  ksblock = ksblock + mpfac*(quad_ket1*tb_spin_project(tb%pot%vqp(1, irow, :), is) &
+                                             + quad_ket2*tb_spin_project(tb%pot%vqp(2, irow, :), is) &
+                                             + quad_ket3*tb_spin_project(tb%pot%vqp(3, irow, :), is) &
+                                             + quad_ket4*tb_spin_project(tb%pot%vqp(4, irow, :), is) &
+                                             + quad_ket5*tb_spin_project(tb%pot%vqp(5, irow, :), is) &
+                                             + quad_ket6*tb_spin_project(tb%pot%vqp(6, irow, :), is) &
+                                             + quad_bra1*tb_spin_project(tb%pot%vqp(1, icol, :), is) &
+                                             + quad_bra2*tb_spin_project(tb%pot%vqp(2, icol, :), is) &
+                                             + quad_bra3*tb_spin_project(tb%pot%vqp(3, icol, :), is) &
+                                             + quad_bra4*tb_spin_project(tb%pot%vqp(4, icol, :), is) &
+                                             + quad_bra5*tb_spin_project(tb%pot%vqp(5, icol, :), is) &
+                                             + quad_bra6*tb_spin_project(tb%pot%vqp(6, icol, :), is))
                END DO
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
@@ -2860,6 +3057,201 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief compute the mulliken properties (AO resolved)
+!> \param p_mat ...
+!> \param s_matrix ...
+!> \param charges ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_ao_charges_matrix(p_mat, s_matrix, charges, para_env)
+      TYPE(dbcsr_type), POINTER                          :: p_mat, s_matrix
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: i, iblock_col, iblock_row, j
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      charges = 0.0_dp
+      CALL dbcsr_iterator_start(iter, s_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         NULLIFY (s_block, p_block)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
+         CALL dbcsr_get_block_p(matrix=p_mat, row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+         IF (.NOT. found) CYCLE
+         IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
+
+         DO j = 1, SIZE(p_block, 2)
+            DO i = 1, SIZE(p_block, 1)
+               charges(i, iblock_row) = charges(i, iblock_row) + p_block(i, j)*s_block(i, j)
+            END DO
+         END DO
+         IF (iblock_col /= iblock_row) THEN
+            DO j = 1, SIZE(p_block, 2)
+               DO i = 1, SIZE(p_block, 1)
+                  charges(j, iblock_col) = charges(j, iblock_col) + p_block(i, j)*s_block(i, j)
+               END DO
+            END DO
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL para_env%sum(charges)
+
+   END SUBROUTINE tb_ao_charges_matrix
+
+! **************************************************************************************************
+!> \brief compute the AO-resolved Mulliken charges for one k-point spin channel.
+!> \param p_matrix_kp ...
+!> \param s_matrix_kp ...
+!> \param charges ...
+!> \param ispin ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_ao_charges_kp_spin(p_matrix_kp, s_matrix_kp, charges, ispin, para_env)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix_kp, s_matrix_kp
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: ic
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: image_charges
+      TYPE(dbcsr_type), POINTER                          :: p_mat, s_mat
+
+      charges = 0.0_dp
+      ALLOCATE (image_charges(SIZE(charges, 1), SIZE(charges, 2)))
+      DO ic = 1, SIZE(s_matrix_kp, 2)
+         NULLIFY (p_mat, s_mat)
+         p_mat => p_matrix_kp(ispin, ic)%matrix
+         s_mat => s_matrix_kp(1, ic)%matrix
+         IF (ASSOCIATED(p_mat) .AND. ASSOCIATED(s_mat)) THEN
+            image_charges = 0.0_dp
+            CALL tb_ao_charges_matrix(p_mat, s_mat, image_charges, para_env)
+            charges(:, :) = charges(:, :) + image_charges(:, :)
+         END IF
+      END DO
+      DEALLOCATE (image_charges)
+
+   END SUBROUTINE tb_ao_charges_kp_spin
+
+! **************************************************************************************************
+!> \brief compute the mulliken properties (AO resolved)
+!> \param p_mat ...
+!> \param bra_mat ...
+!> \param ket_mat ...
+!> \param output ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_contract_dens_matrix(p_mat, bra_mat, ket_mat, output, para_env)
+      TYPE(dbcsr_type), POINTER                          :: p_mat, bra_mat, ket_mat
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: output
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: i, iblock_col, iblock_row, j, mp_test_mode
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
+      INTEGER                                            :: debug_status
+      CHARACTER(LEN=32)                                  :: debug_value
+#endif
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bra, ket, p_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      mp_test_mode = 0
+#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
+      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
+#endif
+
+      output = 0.0_dp
+      CALL dbcsr_iterator_start(iter, bra_mat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         NULLIFY (p_block, bra, ket)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, bra)
+         CALL dbcsr_get_block_p(matrix=p_mat, row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+         IF (.NOT. found) CYCLE
+         CALL dbcsr_get_block_p(matrix=ket_mat, row=iblock_row, col=iblock_col, BLOCK=ket, found=found)
+         IF (.NOT. found) CPABORT("missing block")
+
+         IF (.NOT. (ASSOCIATED(bra) .AND. ASSOCIATED(p_block))) CYCLE
+         IF (iblock_col == iblock_row) THEN
+            IF (mp_test_mode == 70) THEN
+               DO j = 1, SIZE(p_block, 1)
+                  DO i = 1, SIZE(p_block, 2)
+                     output(iblock_row) = output(iblock_row) + p_block(j, i)*ket(j, i)
+                  END DO
+               END DO
+            ELSEIF (mp_test_mode == 71) THEN
+               DO j = 1, SIZE(p_block, 1)
+                  DO i = 1, SIZE(p_block, 2)
+                     output(iblock_row) = output(iblock_row) + 0.5_dp*p_block(j, i)*(bra(j, i) + ket(j, i))
+                  END DO
+               END DO
+            ELSE
+               DO j = 1, SIZE(p_block, 1)
+                  DO i = 1, SIZE(p_block, 2)
+                     output(iblock_row) = output(iblock_row) + p_block(j, i)*bra(j, i)
+                  END DO
+               END DO
+            END IF
+         ELSE
+            DO j = 1, SIZE(p_block, 1)
+               DO i = 1, SIZE(p_block, 2)
+                  output(iblock_row) = output(iblock_row) + p_block(j, i)*ket(j, i)
+               END DO
+            END DO
+            DO j = 1, SIZE(p_block, 1)
+               DO i = 1, SIZE(p_block, 2)
+                  output(iblock_col) = output(iblock_col) + p_block(j, i)*bra(j, i)
+               END DO
+            END DO
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL para_env%sum(output)
+
+   END SUBROUTINE tb_contract_dens_matrix
+
+! **************************************************************************************************
+!> \brief compute the AO-resolved density contraction for one k-point spin channel.
+!> \param p_matrix ...
+!> \param bra_mat ...
+!> \param ket_mat ...
+!> \param iop ...
+!> \param nops ...
+!> \param output ...
+!> \param ispin ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_contract_dens_kp_spin(p_matrix, bra_mat, ket_mat, iop, nops, output, ispin, para_env)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: bra_mat, ket_mat
+      INTEGER, INTENT(IN)                                :: iop, nops
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: output
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: ic, idx, nimg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: image_output
+      TYPE(dbcsr_type), POINTER                          :: p_mat
+
+      nimg = SIZE(p_matrix, 2)
+      output = 0.0_dp
+      ALLOCATE (image_output(SIZE(output)))
+      DO ic = 1, nimg
+         idx = iop + nops*(ic - 1)
+         CPASSERT(idx <= SIZE(bra_mat))
+         CPASSERT(idx <= SIZE(ket_mat))
+         NULLIFY (p_mat)
+         p_mat => p_matrix(ispin, ic)%matrix
+         image_output = 0.0_dp
+         CALL tb_contract_dens_matrix(p_mat, bra_mat(idx)%matrix, ket_mat(idx)%matrix, image_output, para_env)
+         output = output + image_output
+      END DO
+      DEALLOCATE (image_output)
+
+   END SUBROUTINE tb_contract_dens_kp_spin
+
+! **************************************************************************************************
+!> \brief compute the mulliken properties (AO resolved)
 !> \param p_matrix ...
 !> \param bra_mat ...
 !> \param ket_mat ...
@@ -3139,7 +3531,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nimg
 
 #if defined(__TBLITE)
-      INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, &
+      INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, ispin, &
                                                             jatom, jkind
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -3170,6 +3562,8 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSEIF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
+         matrix_p => tb%rho_ao_kp_ref
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
@@ -3201,16 +3595,18 @@ CONTAINS
          IF (cellind(2) /= 0) CYCLE
          IF (cellind(3) /= 0) CYCLE
 
-         CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                row=iatom, col=jatom, BLOCK=pblock, found=found)
+         DO ispin = 1, SIZE(matrix_p, 1)
+            CALL dbcsr_get_block_p(matrix=matrix_p(ispin, ic)%matrix, &
+                                   row=iatom, col=jatom, BLOCK=pblock, found=found)
 
-         IF (.NOT. found) CPABORT("block not found")
+            IF (.NOT. found) CPABORT("block not found")
 
-         ind = 0
-         DO ish = 1, tb%calc%bas%nsh_id(ikind)
-            DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
-               ind = ind + 1
-               dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
+            ind = 0
+            DO ish = 1, tb%calc%bas%nsh_id(ikind)
+               DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
+                  ind = ind + 1
+                  dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
+               END DO
             END DO
          END DO
       END DO
@@ -3247,14 +3643,16 @@ CONTAINS
 #if defined(__TBLITE)
       INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
                                                             sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
-                                                            nseti, nsetj, ia, ib, inda, indb
-      INTEGER, DIMENSION(3)                              :: cellind
+                                                            nseti, nsetj, ia, ib, inda, indb, sampled_odd_axes, nspin
+      INTEGER, DIMENSION(3)                              :: cellind, nkp_grid
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, image_pair
+      LOGICAL                                            :: found, image_pair, sampled_image_pair
       REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
-                                                            scal, hp, i_a_shift, j_a_shift, ishift, jshift, &
+                                                            scal, hp, i_a_shift, j_a_shift, i_a_shift_mag, j_a_shift_mag, &
+                                                            ishift, jshift, ishift_mag, jshift_mag, pij_charge, &
+                                                            pij_magnet, wij_charge, &
                                                             dip_deriv_fac, quad_deriv_fac, dip_deriv_fac_pair, &
                                                             quad_deriv_fac_pair, overlap_deriv_fac, pot_deriv_scale, &
                                                             w_deriv_scale, h0_deriv_scale, mp_deriv_scale, &
@@ -3271,10 +3669,11 @@ CONTAINS
 #endif
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, idip_mag, jdip_mag, &
+                                                            iquad, jquad, iquad_mag, jquad_mag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, wblock
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, pblock_beta, wblock, wblock_beta
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
@@ -3307,8 +3706,14 @@ CONTAINS
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, nkp_grid=nkp_grid)
+      ELSE
+         nkp_grid = 1
       END IF
+      sampled_odd_axes = 0
+      IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
+      IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
+      IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
 
       h0 => tb%calc%h0
       mp_test_mode = 0
@@ -3372,6 +3777,12 @@ CONTAINS
       w_self_image_deriv_scale = w_image_deriv_scale
       h0_self_image_deriv_scale = h0_image_deriv_scale
       mp_self_image_deriv_scale = mp_image_deriv_scale
+      ! Periodic self-images are stored in the sorted on-site image block for
+      ! k-point calculations. Their multipole derivatives need the same
+      ! opposite quarter-weighting as the explicit self-image virial
+      ! contribution below. The Gamma periodic bsf path keeps the native factor.
+      IF (nimg > 1 .AND. ALL(tb%mol%periodic)) &
+         mp_self_image_deriv_scale = -0.25_dp*mp_image_deriv_scale
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_self_image_deriv_scale
@@ -3383,6 +3794,7 @@ CONTAINS
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) mp_self_image_deriv_scale
 #endif
       cn_image_scale = 1.0_dp
+      IF (nimg > 1 .AND. ANY(tb%mol%periodic)) cn_image_scale = -0.25_dp
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
@@ -3391,9 +3803,12 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSEIF (ASSOCIATED(tb%rho_ao_kp_ref)) THEN
+         matrix_p => tb%rho_ao_kp_ref
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
+      nspin = SIZE(matrix_p, 1)
 
       ! set up basis set lists
       nkind = SIZE(atomic_kind_set)
@@ -3410,8 +3825,8 @@ CONTAINS
       ALLOCATE (t_quad(quad_n, nel))
       ALLOCATE (t_i_quad(3, quad_n, nel), t_j_quad(3, quad_n, nel))
 
-      ALLOCATE (idip(dip_n), jdip(dip_n))
-      ALLOCATE (iquad(quad_n), jquad(quad_n))
+      ALLOCATE (idip(dip_n), jdip(dip_n), idip_mag(dip_n), jdip_mag(dip_n))
+      ALLOCATE (iquad(quad_n), jquad(quad_n), iquad_mag(quad_n), jquad_mag(quad_n))
 
       dE = 0.0_dp
       tb%grad = 0.0_dp
@@ -3461,33 +3876,69 @@ CONTAINS
             CPASSERT(ic > 0)
          END IF
          image_pair = (cellind(1) /= 0 .OR. cellind(2) /= 0 .OR. cellind(3) /= 0)
+         sampled_image_pair = image_pair .AND. &
+                              ((cellind(1) /= 0 .AND. nkp_grid(1) > 1) .OR. &
+                               (cellind(2) /= 0 .AND. nkp_grid(2) > 1) .OR. &
+                               (cellind(3) /= 0 .AND. nkp_grid(3) > 1))
          pot_pair_scale = MERGE(pot_image_deriv_scale, pot_deriv_scale, image_pair)
          w_pair_scale = MERGE(w_image_deriv_scale, w_deriv_scale, image_pair)
          h0_pair_scale = MERGE(h0_image_deriv_scale, h0_deriv_scale, image_pair)
          mp_pair_scale = MERGE(mp_image_deriv_scale, mp_deriv_scale, image_pair)
-         IF (icol == jrow .AND. image_pair) THEN
+         IF (icol == jrow .AND. sampled_image_pair) THEN
             pot_pair_scale = pot_self_image_deriv_scale
             w_pair_scale = w_self_image_deriv_scale
+            ! Odd Monkhorst-Pack meshes do not contain a Nyquist image along the
+            ! sampled axis. Match the self-image W derivative to the reduced
+            ! real-space representation used by the k-point density transform.
+            w_pair_scale = w_pair_scale*(1.0_dp - 0.125_dp*REAL(sampled_odd_axes, dp))
             h0_pair_scale = h0_self_image_deriv_scale
             mp_pair_scale = mp_self_image_deriv_scale
          END IF
 
-         NULLIFY (pblock)
+         NULLIFY (pblock, pblock_beta)
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                 row=jrow, col=icol, BLOCK=pblock, found=found)
          IF (.NOT. found) CPABORT("pblock not found")
+         IF (nspin > 1) THEN
+            CALL dbcsr_get_block_p(matrix=matrix_p(2, ic)%matrix, &
+                                   row=jrow, col=icol, BLOCK=pblock_beta, found=found)
+            IF (.NOT. found) CPABORT("pblock beta not found")
+         END IF
 
-         NULLIFY (wblock)
+         NULLIFY (wblock, wblock_beta)
          CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
                                 row=jrow, col=icol, block=wblock, found=found)
          CPASSERT(found)
+         IF (nspin > 1) THEN
+            CALL dbcsr_get_block_p(matrix=matrix_w(2, ic)%matrix, &
+                                   row=jrow, col=icol, block=wblock_beta, found=found)
+            CPASSERT(found)
+         END IF
 
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
+         i_a_shift_mag = 0.0_dp
+         j_a_shift_mag = 0.0_dp
+         IF (SIZE(tb%pot%vat, 2) > 1) THEN
+            i_a_shift_mag = tb%pot%vat(icol, 2)
+            j_a_shift_mag = tb%pot%vat(jrow, 2)
+         END IF
          idip(:) = tb%pot%vdp(:, icol, 1)
          jdip(:) = tb%pot%vdp(:, jrow, 1)
+         idip_mag(:) = 0.0_dp
+         jdip_mag(:) = 0.0_dp
+         IF (SIZE(tb%pot%vdp, 3) > 1) THEN
+            idip_mag(:) = tb%pot%vdp(:, icol, 2)
+            jdip_mag(:) = tb%pot%vdp(:, jrow, 2)
+         END IF
          iquad(:) = tb%pot%vqp(:, icol, 1)
          jquad(:) = tb%pot%vqp(:, jrow, 1)
+         iquad_mag(:) = 0.0_dp
+         jquad_mag(:) = 0.0_dp
+         IF (SIZE(tb%pot%vqp, 3) > 1) THEN
+            iquad_mag(:) = tb%pot%vqp(:, icol, 2)
+            jquad_mag(:) = tb%pot%vqp(:, jrow, 2)
+         END IF
          dip_deriv_fac_pair = dip_deriv_fac
          quad_deriv_fac_pair = quad_deriv_fac
          overlap_deriv_fac = 1.0_dp
@@ -3504,10 +3955,14 @@ CONTAINS
          DO iset = 1, nseti
             sgfi = first_sgfa(1, iset)
             ishift = i_a_shift + tb%pot%vsh(ni + iset, 1)
+            ishift_mag = 0.0_dp
+            IF (SIZE(tb%pot%vsh, 2) > 1) ishift_mag = i_a_shift_mag + tb%pot%vsh(ni + iset, 2)
             nj = tb%calc%bas%ish_at(jrow)
             DO jset = 1, nsetj
                sgfj = first_sgfb(1, jset)
                jshift = j_a_shift + tb%pot%vsh(nj + jset, 1)
+               jshift_mag = 0.0_dp
+               IF (SIZE(tb%pot%vsh, 2) > 1) jshift_mag = j_a_shift_mag + tb%pot%vsh(nj + jset, 2)
 
                !get integrals and derivatives
                IF (mp_test_mode == 20 .OR. mp_test_mode == 21) THEN
@@ -3554,26 +4009,42 @@ CONTAINS
                         ij = inda + nsgfa(iset)*(indb - 1)
                      END IF
 
-                     itemp = itemp + overlap_deriv_fac*idHdc*pblock(ib, ia)*t_ov(ij)
-                     jtemp = jtemp + overlap_deriv_fac*jdHdc*pblock(ib, ia)*t_ov(ij)
+                     pij_charge = pblock(ib, ia)
+                     pij_magnet = 0.0_dp
+                     wij_charge = wblock(ib, ia)
+                     IF (nspin > 1) THEN
+                        pij_charge = pij_charge + pblock_beta(ib, ia)
+                        pij_magnet = pblock(ib, ia) - pblock_beta(ib, ia)
+                        ! CP2K's core Hamiltonian force setup leaves matrix_w(1)
+                        ! as the already combined alpha+beta channel for LSD.
+                     END IF
 
-                     hp = 2*hij*pblock(ib, ia)
+                     itemp = itemp + overlap_deriv_fac*idHdc*pij_charge*t_ov(ij)
+                     jtemp = jtemp + overlap_deriv_fac*jdHdc*pij_charge*t_ov(ij)
+
+                     hp = 2*hij*pij_charge
                      dgrad(:) = dgrad(:) &
-                                + overlap_deriv_fac*(-pot_pair_scale*(ishift + jshift)*pblock(ib, ia)*t_d_ov(:, ij) &
-                                                     - 2*w_pair_scale*wblock(ib, ia)*t_d_ov(:, ij) &
+                                + overlap_deriv_fac*(-pot_pair_scale*((ishift + jshift)*pij_charge &
+                                                                      + (ishift_mag + jshift_mag)*pij_magnet)*t_d_ov(:, ij) &
+                                                     - 2*w_pair_scale*wij_charge*t_d_ov(:, ij) &
                                                      + h0_pair_scale*(hp*shpoly*t_d_ov(:, ij) &
                                                                       + hp*dshpoly*t_ov(ij)*rij)) &
-                                + mp_pair_scale*pblock(ib, ia)*( &
-                                dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip) &
-                                                    + MATMUL(t_j_dip(:, :, ij), jdip)) &
-                                + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
-                                                       + MATMUL(t_j_quad(:, :, ij), jquad)))
+                                + mp_pair_scale*(pij_charge*( &
+                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip) &
+                                                                     + MATMUL(t_j_dip(:, :, ij), jdip)) &
+                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
+                                                                        + MATMUL(t_j_quad(:, :, ij), jquad))) &
+                                                 + pij_magnet*( &
+                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip_mag) &
+                                                                     + MATMUL(t_j_dip(:, :, ij), jdip_mag)) &
+                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad_mag) &
+                                                                        + MATMUL(t_j_quad(:, :, ij), jquad_mag))))
 
                   END DO
                END DO
                ! Periodic self-image pairs share one atom in the sorted CP2K block representation.
                IF (icol == jrow) THEN
-                  IF (image_pair) THEN
+                  IF (sampled_image_pair) THEN
                      dE(icol) = dE(icol) + cn_image_scale*0.5_dp*(itemp + jtemp)
                   ELSE
                      dE(icol) = dE(icol) + 0.5_dp*(itemp + jtemp)
@@ -3588,7 +4059,7 @@ CONTAINS
                   IF (icol == jrow) THEN
                      DO ia = 1, 3
                         DO ib = 1, 3
-                           IF (image_pair .AND. nimg > 1) THEN
+                           IF (sampled_image_pair) THEN
                               hsigma(ia, ib) = hsigma(ia, ib) - 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
                            ELSE
                               hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
@@ -3628,7 +4099,7 @@ CONTAINS
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
-      DEALLOCATE (idip, jdip, iquad, jquad)
+      DEALLOCATE (idip, jdip, idip_mag, jdip_mag, iquad, jquad, iquad_mag, jquad_mag)
 
       IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
 
@@ -3651,7 +4122,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_reference_cli_compare'
 
-      CHARACTER(LEN=32)                                  :: acc_str, charge_str, iter_str, spin_str
+      CHARACTER(LEN=32)                                  :: acc_str, charge_str, iter_str, spin_str, &
+                                                            spinpol_str
       CHARACTER(LEN=8)                                   :: method
       CHARACTER(LEN=8*default_path_length)               :: command
       CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
@@ -3726,14 +4198,18 @@ CONTAINS
       WRITE (spin_str, "(I0)") spin
       WRITE (acc_str, "(ES16.8)") ref%accuracy
       WRITE (iter_str, "(I0)") ref%iterations
+      spinpol_str = ""
+      IF (dft_control%lsd) spinpol_str = " --spin-polarized"
 
       CALL tb_write_reference_gen(qs_env, TRIM(gen_file))
 
       command = TRIM(tb_shell_quote(ref%program_name))//" run --method "//TRIM(method)// &
+                TRIM(spinpol_str)// &
                 " --charge "//TRIM(ADJUSTL(charge_str))// &
                 " --spin "//TRIM(ADJUSTL(spin_str))// &
                 " --acc "//TRIM(ADJUSTL(acc_str))// &
                 " --iterations "//TRIM(ADJUSTL(iter_str))// &
+                " --etemp 0.0"// &
                 " --no-restart --input gen --grad "//TRIM(tb_shell_quote(grad_file))// &
                 " --json "//TRIM(tb_shell_quote(json_file))//" "//TRIM(tb_shell_quote(gen_file))// &
                 " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
@@ -4008,7 +4484,7 @@ CONTAINS
             ALLOCATE (values(9))
             CALL tb_read_real_values(unit_nr, values, nread)
             IF (nread == 9) THEN
-               CALL tb_values_to_matrix_rowmajor(values, virial)
+               CALL tb_values_to_matrix(values, virial)
                have_virial = .TRUE.
             END IF
             DEALLOCATE (values)
@@ -4096,28 +4572,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE tb_values_to_matrix
-
-! **************************************************************************************************
-!> \brief Convert flat native tblite row-major values to a 2D matrix.
-!> \param values ...
-!> \param matrix ...
-! **************************************************************************************************
-   SUBROUTINE tb_values_to_matrix_rowmajor(values, matrix)
-
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: matrix
-
-      INTEGER                                            :: i, j, n
-
-      n = 0
-      DO i = 1, SIZE(matrix, 1)
-         DO j = 1, SIZE(matrix, 2)
-            n = n + 1
-            matrix(i, j) = values(n)
-         END DO
-      END DO
-
-   END SUBROUTINE tb_values_to_matrix_rowmajor
 
 ! **************************************************************************************************
 !> \brief Delete temporary files unless requested otherwise.

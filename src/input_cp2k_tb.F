@@ -744,7 +744,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ACCURACY", &
                           description="Value passed to native tblite as --acc.", &
-                          usage="ACCURACY 1.0", default_r_val=1.0_dp)
+                          usage="ACCURACY 1.0E-8", default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

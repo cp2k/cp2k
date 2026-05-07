@@ -6,6 +6,7 @@
 "ch2o-3.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.8137341344748501}]
 "ch2o-r.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.8137341344748501}]
 "ch2o_force.inp"                        = [{matcher="M042", tol=1.0E-06, ref=0.0}]
+"ch2o_uks_force.inp"                    = [{matcher="M042", tol=1.0E-06, ref=0.0}]
 "h2-1.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-2.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-3.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
@@ -27,12 +28,6 @@
 "co2_3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-8.55586246566686}]
 #
 "si_kp1.inp"                            = [{matcher="E_total", tol=1.0E-13, ref=-10.06358203475393}]
-"si_kp1_kpsym.inp"                      = [{matcher="E_total", tol=1.0E-13, ref=-10.06358203475393},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"si_kp1_kpsym_atomdisp.inp"             = [{matcher="E_total", tol=1.0E-13, ref=-10.06358201165233},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=12}]
-"si_kp1_spglib_backend.inp"             = [{matcher="E_total", tol=1.0E-13, ref=-10.06358203475393},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "si_kp_stress.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-10.05636443824252},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M042", tol=1.0E-06, ref=0.0}]

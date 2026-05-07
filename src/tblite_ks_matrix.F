@@ -62,7 +62,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tblite_ks_matrix'
 
       INTEGER                                            :: handle, img, ispin, nimg, ns, nspins
-      LOGICAL                                            :: do_efield
+      LOGICAL                                            :: do_efield, force_use_rho
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
@@ -117,7 +117,8 @@ CONTAINS
          do_efield = .FALSE.
       END IF
 
-      CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
+      force_use_rho = .NOT. (calculate_forces .AND. nspins > 1)
+      CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, force_use_rho)
 
       CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control)
 
@@ -138,8 +139,8 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         CALL tb_derive_dH_diag(qs_env, .TRUE., nimg)
-         CALL tb_derive_dH_off(qs_env, .TRUE., nimg)
+         CALL tb_derive_dH_diag(qs_env, force_use_rho, nimg)
+         CALL tb_derive_dH_off(qs_env, force_use_rho, nimg)
       END IF
 
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C

@@ -45,6 +45,7 @@ QS/regtest-rtp-5
 QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-gpw-3
 DFTB/regtest-scc
+DFTB/regtest-scc-spglib                                      spglib
 Fist/regtest-opt
 QS/regtest-ec                                               libint libvori !ifx
 QS/regtest-as-1                                             libint !ifx
@@ -143,6 +144,7 @@ QS/regtest-dft-vdw-corr-2                                   libxc libint !ifx
 QS/regtest-pao-4
 QS/regtest-pao-5                                            libtorch
 QS/regtest-acc-1                                            libint !ifx
+QS/regtest-acc-1-libxc                                      libint libxc !ifx
 QS/regtest-acc-2                                            libint libxc !ifx
 QS/regtest-acc-3                                            libint !ifx
 QS/regtest-acc-4                                            libint libxc !ifx
@@ -151,6 +153,7 @@ Fist/regtest-3
 MC/regtest
 QS/regtest-gw                                               libint !ifx
 QS/regtest-kp-1                                             libint !ifx
+QS/regtest-kp-1-spglib                                      libint spglib !ifx
 QS/regtest-nmr-1
 QS/regtest-nmr-4
 QS/regtest-mp2-grad-solvers                                 libint !ifx
@@ -183,6 +186,7 @@ Fist/regtest-1-3
 QS/regtest-md-extrap
 Fist/regtest-15
 xTB/regtest-3
+xTB/regtest-3-spglib                                        spglib
 QS/regtest-debug-3                                          libint libxc !ifx
 QS/regtest-lrigpw-2
 QS/regtest-hybrid-4                                         libint libxc !ifx
@@ -200,6 +204,7 @@ QS/regtest-dm-ls-scf-1
 QS/regtest-ps-implicit-1-1                                  fftw3
 QMMM/QS/regtest-cdft                                        parallel mpiranks%2==0
 DFTB/regtest-nonscc
+DFTB/regtest-nonscc-spglib                                  spglib
 QS/regtest-tddfpt                                           libint !ifx
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
 QS/regtest-tddfpt-lri                                       libint !ifx
