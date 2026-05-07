@@ -237,12 +237,12 @@ CONTAINS
                                         full_max, oo_max, vv_max, ov_max, vo_max)
             ov_growth = ov_max/MAX(ov_max_old, TINY(1.0_dp))
             vo_growth = vo_max/MAX(vo_max_old, TINY(1.0_dp))
-            IF (rtbse_env%unit_nr > 0) THEN
-               WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
-                  full_max, oo_max, vv_max, ov_max, vo_max 
-               WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
-                  ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
-            END IF
+            ! IF (rtbse_env%unit_nr > 0) THEN
+            !    WRITE (rtbse_env%unit_nr, '(A,I3, A, 5ES12.3)') 'MG: Block max norms for spin ', j, ': ', &
+            !       full_max, oo_max, vv_max, ov_max, vo_max 
+            !    WRITE (rtbse_env%unit_nr, '(A,I3,A,2ES12.3,A,2ES12.3)') 'MG: OV/VO growth for spin ', j, &
+            !       ' (new/old): ', ov_growth, vo_growth, ' | old OV/VO: ', ov_max_old, vo_max_old
+            ! END IF
          END DO
          CALL get_electron_number_MO(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
          IF (.FALSE.) THEN
@@ -906,9 +906,9 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: debug_disable_sex = .FALSE.
       LOGICAL, PARAMETER                                 :: debug_disable_hartree = .FALSE.
       LOGICAL, PARAMETER                                 :: debug_disable_coh = .FALSE.
-      INTEGER                                            :: k, j, nspin, handle
+      INTEGER                                            :: k, nspin, handle
       LOGICAL                                            :: keep_OV
-      REAL(kind=dp)                                      :: sign_pass
+      TYPE(cp_cfm_type), POINTER                         :: tda_kernel_accumulator
 
       CALL timeset(routineN, handle)
       ! Shorthand
@@ -987,44 +987,52 @@ CONTAINS
                                          CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
             END IF
          ELSE
-            ! ----- Tamm-Dancoff approximation: build kernel from OV and VO masked densities -----
-            ! Two passes (keep_OV = .TRUE. then .FALSE.). The MO-block mask combined with the
-            ! (f_n - f_m) factor is constant per pass: -1 over the surviving OV block, +1 over
-            ! the surviving VO block. We fold that sign into the scale_and_add prefactor and
-            ! accumulate directly into ham_effective, reusing the existing per-spin scratches.
-            DO j = 1, 2
-               ! j=1 -> OV pass (sign = -1), j=2 -> VO pass (sign = +1)
-               keep_OV = (j == 1)
-               sign_pass = MERGE(-1.0_dp, 1.0_dp, keep_OV)
-               CALL cp_cfm_to_cfm(rho, rtbse_env%rho_workspace(2))
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_workspace(2), ispin, keep_OV)
-               ! Project masked MO density into AO (overwrites the AO scratch)
-               CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_workspace(2), &
-                                                         rtbse_env%rho_ao_lrrtbse(ispin), ispin)
-               ! SEX contribution for this pass
-               IF (.NOT. debug_disable_sex) THEN
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-                  CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                        rtbse_env%sigma_SEX(ispin), ispin)
-                  CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV)
-                  CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                            CMPLX(sign_pass, 0.0, kind=dp), rtbse_env%sigma_SEX(ispin))
-               END IF
-               ! Hartree contribution for this pass
-               IF (.NOT. debug_disable_hartree) THEN
-                  CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                   rtbse_env%hartree_curr_ao(ispin))
-                  CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
-                                                       rtbse_env%hartree_curr(ispin), ispin)
-                  CALL mask_mo_block_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin, keep_OV)
-                  CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
-                  CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
-                                            CMPLX(sign_pass*rtbse_env%spin_degeneracy, 0.0, kind=dp), &
-                                            rtbse_env%ham_workspace(1))
-               END IF
-            END DO
+            ! ----- Tamm-Dancoff approximation: single-pass OV + Hermitian-conjugate shortcut -----
+            ! The two TDA passes (OV with sign -1, VO with sign +1) are related by
+            !    (VO contribution) = - (OV contribution)^C
+            ! provided V_H has a real-symmetric AO output (true: get_hartree forwards only Re(rho))
+            ! and Sigma_SEX is complex-linear in rho (true: get_sigma_complex). We therefore
+            ! evaluate only the OV pass, accumulate SEX + spin_deg*Hartree into a per-spin scratch
+            ! (aliased to sigma_SEX(ispin) to avoid extra allocation), and form
+            !   ham_effective += h1 - h1^C   using ham_workspace(1) as transpose scratch.
+            tda_kernel_accumulator => rtbse_env%sigma_SEX(ispin)
+            keep_OV = .TRUE.
+            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_workspace(2))
+            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_workspace(2), ispin, keep_OV)
+            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_workspace(2), &
+                                                      rtbse_env%rho_ao_lrrtbse(ispin), ispin)
+            ! Reset the OV-pass kernel accumulator
+            CALL cp_cfm_set_all(tda_kernel_accumulator, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            ! SEX contribution into the accumulator (with the OV-pass sign -1 already applied)
+            IF (.NOT. debug_disable_sex) THEN
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%ham_workspace(1), ispin)
+               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV)
+               CALL cp_cfm_scale_and_add(CMPLX(0.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator, &
+                                         CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
+            END IF
+            ! Hartree contribution (real -> cfm) into the same accumulator
+            IF (.NOT. debug_disable_hartree) THEN
+               CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                rtbse_env%hartree_curr_ao(ispin))
+               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
+                                                    rtbse_env%hartree_curr(ispin), ispin)
+               CALL mask_mo_block_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin, keep_OV)
+               CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator, &
+                                         CMPLX(-rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                         rtbse_env%ham_workspace(1))
+            END IF
+            ! Add OV pass: ham_effective += h1
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(1.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator)
+            ! Add VO pass = -h1^C : ham_effective += -h1^C
+            CALL cp_cfm_transpose(tda_kernel_accumulator, 'C', rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
             ! Restore the un-masked AO density so observables (moments, polarisability, ...)
-            ! computed elsewhere from rho_ao_lrrtbse see the physical Δρ, not the VO mask.
+            ! computed elsewhere from rho_ao_lrrtbse see the physical Δρ, not the OV mask.
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
          END IF
