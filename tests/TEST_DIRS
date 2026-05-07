@@ -144,6 +144,7 @@ QS/regtest-dft-vdw-corr-2                                   libxc libint !ifx
 QS/regtest-pao-4
 QS/regtest-pao-5                                            libtorch
 QS/regtest-acc-1                                            libint !ifx
+QS/regtest-acc-1-libxc                                      libint libxc !ifx
 QS/regtest-acc-2                                            libint libxc !ifx
 QS/regtest-acc-3                                            libint !ifx
 QS/regtest-acc-4                                            libint libxc !ifx

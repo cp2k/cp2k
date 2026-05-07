@@ -36,8 +36,4 @@
 "h2o-gapw_xc-stress-debug-1.inp"        = []
 "h2o-gapw_xc-full-stress-1.inp"         = [{matcher="M011", tol=1e-08, ref=-17.256333793570239},
                                            {matcher="M031", tol=1e-08, ref=3.91898639036E+03}]
-"argon-rvv10-gapw-accurate.inp"         = [{matcher="E_total", tol=1e-10, ref=-84.675680282922329},
-                                           {matcher="M031", tol=1e-6, ref=1.92244234461E+04}]
-"argon-vdW-DF-optB88-gapw-accurate.inp" = [{matcher="E_total", tol=1e-10, ref=-84.823604067799337},
-                                           {matcher="M031", tol=1e-6, ref=1.81300371428E+04}]
 #EOF

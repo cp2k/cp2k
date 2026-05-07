@@ -1,0 +1,6 @@
+# runs are executed in the same order as in this file
+"argon-rvv10-gapw-accurate.inp"         = [{matcher="E_total", tol=1e-10, ref=-84.675680282922329},
+                                           {matcher="M031", tol=1e-6, ref=1.92244234461E+04}]
+"argon-vdW-DF-optB88-gapw-accurate.inp" = [{matcher="E_total", tol=1e-10, ref=-84.823604067799337},
+                                           {matcher="M031", tol=1e-6, ref=1.81300371428E+04}]
+#EOF

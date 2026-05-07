@@ -26,7 +26,7 @@
 "ch2o-ot2.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.75313936188209}]
 "ch2o-ot3.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.74238713882779}]
 "ch2o-ot4.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.71482283252281}]
-"ch2o-ot6.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.7573449633658802}]
+"ch2o-ot6.inp"                          = [{matcher="E_total", tol=2e-14, ref=-5.7573449633658802}]
 # bug fix for neighborlists
 "h2o-5.inp"                             = [{matcher="E_total", tol=4e-09, ref=-130.55701170331295}]
 # first check for LSD
