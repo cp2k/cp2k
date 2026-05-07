@@ -361,8 +361,8 @@ CONTAINS
                                                             ic, ispin, iter_count, output_unit, &
                                                             scf_energy_message_tag, total_steps
       LOGICAL :: density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, &
-         exit_outer_loop, inner_loop_converged, internal_tblite_density_full_step, &
-         internal_tblite_mixer, just_energy, outer_loop_converged, tblite_native_mixer
+         exit_outer_loop, inner_loop_converged, internal_tblite_mixer, just_energy, &
+         outer_loop_converged, tblite_native_mixer
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -421,10 +421,6 @@ CONTAINS
                               (dft_control%qs_control%xtb .AND. &
                                .NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
                                dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite)
-      internal_tblite_density_full_step = dft_control%qs_control%xtb .AND. &
-                                          .NOT. dft_control%qs_control%xtb_control%do_tblite .AND. &
-                                          dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite
-
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
       dft_section => section_vals_get_subs_vals(input, "DFT")
@@ -544,7 +540,7 @@ CONTAINS
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
-            density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
+            density_full_step = diis_step .OR. tblite_native_mixer
             CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step)
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                scf_env%iter_delta = MAX(scf_env%iter_delta, &

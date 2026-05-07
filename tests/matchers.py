@@ -92,6 +92,20 @@ class TextPresenceMatcher(Matcher):
 
 
 # ======================================================================================
+class RegexPresenceMatcher(Matcher):
+    def __init__(self, pattern: str):
+        self.pattern = pattern
+        self.regex = re.compile(pattern)
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        if not self.regex.search(output):
+            return MatchResult(
+                "WRONG RESULT", f"Pattern not found: '{self.pattern}'.\n", value=None
+            )
+        return MatchResult("OK", error=None, value=None)
+
+
+# ======================================================================================
 class MatcherRegistry(Dict[str, Matcher]):
     def __setitem__(self, key: str, value: Matcher) -> None:
         assert key not in self  # check for name collisions
@@ -207,6 +221,11 @@ registry["DEBUG_force_sum"] = GenericMatcher(
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )
+registry["XTB_scc_mixer_auto"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+AUTO\b")
+registry["XTB_scc_mixer_tblite"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+TBLITE\b")
+registry["XTB_scc_mixer_cp2k"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+CP2K\b")
+registry["XTB_tblite_diag"] = TextPresenceMatcher("TBLite/Diag")
+registry["XTB_cp2k_diis_diag"] = TextPresenceMatcher("DIIS/Diag.")
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)

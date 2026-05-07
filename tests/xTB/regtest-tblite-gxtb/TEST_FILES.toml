@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+"CH2O_gxtb_auto.inp"                     = [{matcher="E_total", tol=1.0E-8, ref=-114.5128571502},
+                                             {matcher="XTB_scc_mixer_auto"},
+                                             {matcher="XTB_tblite_diag"}]
+"CH2O_gxtb_tblite.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-114.5128571502},
+                                             {matcher="XTB_scc_mixer_tblite"},
+                                             {matcher="XTB_tblite_diag"}]
+"CH2O_gxtb_cp2k_mixer.inp"               = [{matcher="E_total", tol=1.0E-8, ref=-114.5128571502},
+                                             {matcher="XTB_scc_mixer_cp2k"},
+                                             {matcher="XTB_cp2k_diis_diag"}]
+"CH2O_gxtb_auto_debug.inp"               = [{matcher="DEBUG_force_sum", tol=1.0E-7, ref=0.0000000},
+                                             {matcher="XTB_scc_mixer_auto"},
+                                             {matcher="XTB_tblite_diag"}]
+"NH4_plus_gxtb_auto.inp"                 = [{matcher="E_total", tol=1.0E-8, ref=-56.8849523826},
+                                             {matcher="XTB_scc_mixer_auto"},
+                                             {matcher="XTB_tblite_diag"}]
+#EOF
