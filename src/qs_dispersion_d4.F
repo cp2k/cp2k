@@ -79,6 +79,39 @@ CONTAINS
 
 #if defined(__DFTD4)
 ! **************************************************************************************************
+!> \brief Read smooth-cutoff width override from environment.
+!> \param primary primary environment variable name
+!> \param fallback fallback environment variable name
+!> \param cutoff real-space cutoff used to validate the width
+!> \param width smooth-cutoff width to update
+! **************************************************************************************************
+   SUBROUTINE d4_smooth_width_from_env(primary, fallback, cutoff, width)
+      CHARACTER(LEN=*), INTENT(IN)                       :: primary, fallback
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      REAL(KIND=dp), INTENT(INOUT)                       :: width
+
+      CHARACTER(LEN=64)                                  :: env
+      INTEGER                                            :: io, stat
+      REAL(KIND=dp)                                      :: env_width
+
+      CALL GET_ENVIRONMENT_VARIABLE(primary, env, STATUS=stat)
+      IF (stat /= 0 .OR. LEN_TRIM(env) == 0) THEN
+         CALL GET_ENVIRONMENT_VARIABLE(fallback, env, STATUS=stat)
+      END IF
+      IF (stat == 0 .AND. LEN_TRIM(env) > 0) THEN
+         READ (env, *, IOSTAT=io) env_width
+         IF (io == 0) THEN
+            IF (env_width > 0.0_dp .AND. env_width < cutoff) THEN
+               width = env_width
+            ELSE
+               width = 0.0_dp
+            END IF
+         END IF
+      END IF
+
+   END SUBROUTINE d4_smooth_width_from_env
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param dispersion_env ...
@@ -259,6 +292,10 @@ CONTAINS
       ! Keep the same narrow two-body smoothing used by the toolchain patch.
       cutoff%width2 = 0.05_dp
       cutoff%width3 = 0.0_dp
+      CALL d4_smooth_width_from_env("DFTD4_DISP2_SMOOTH_WIDTH", "TBLITE_D4_DISP2_SMOOTH_WIDTH", &
+                                    cutoff%disp2, cutoff%width2)
+      CALL d4_smooth_width_from_env("DFTD4_DISP3_SMOOTH_WIDTH", "TBLITE_D4_DISP3_SMOOTH_WIDTH", &
+                                    cutoff%disp3, cutoff%width3)
 #endif
 
       IF (calculate_forces) THEN

@@ -1,7 +1,16 @@
 diff --git a/src/dftd3/cutoff.f90 b/src/dftd3/cutoff.f90
-index 743774e..8c57090 100644
+index 743774e..da2a0df 100644
 --- a/src/dftd3/cutoff.f90
 +++ b/src/dftd3/cutoff.f90
+@@ -18,7 +18,7 @@ module dftd3_cutoff
+    use mctc_env, only : wp
+    implicit none
+
+-   public :: realspace_cutoff, get_lattice_points, smooth_cutoff
++   public :: realspace_cutoff, get_lattice_points, smooth_cutoff, apply_smooth_width_env
+
+
+    !> Coordination number cutoff
 @@ -51,7 +51,7 @@ module dftd3_cutoff
        real(wp) :: disp3 = disp3_default
 
@@ -11,6 +20,54 @@ index 743774e..8c57090 100644
 
        !> Width of smooth three-body interaction cutoff
        real(wp) :: width3 = 0.0_wp
+@@ -68,6 +68,47 @@ module dftd3_cutoff
+ contains
+
+
++subroutine apply_smooth_width_env(cutoff)
++   type(realspace_cutoff), intent(inout) :: cutoff
++
++   call get_smooth_width("SDFTD3_DISP2_SMOOTH_WIDTH", "DFTD3_DISP2_SMOOTH_WIDTH", &
++      & "TBLITE_D3_DISP2_SMOOTH_WIDTH", cutoff%disp2, cutoff%width2)
++   call get_smooth_width("SDFTD3_DISP3_SMOOTH_WIDTH", "DFTD3_DISP3_SMOOTH_WIDTH", &
++      & "TBLITE_D3_DISP3_SMOOTH_WIDTH", cutoff%disp3, cutoff%width3)
++
++end subroutine apply_smooth_width_env
++
++
++subroutine get_smooth_width(env1, env2, env3, cutoff, width)
++   character(len=*), intent(in) :: env1, env2, env3
++   real(wp), intent(in) :: cutoff
++   real(wp), intent(inout) :: width
++
++   character(len=64) :: env
++   integer :: stat, io
++   real(wp) :: env_width
++
++   call get_environment_variable(env1, env, status=stat)
++   if (stat /= 0 .or. len_trim(env) == 0) then
++      call get_environment_variable(env2, env, status=stat)
++   end if
++   if (stat /= 0 .or. len_trim(env) == 0) then
++      call get_environment_variable(env3, env, status=stat)
++   end if
++   if (stat == 0 .and. len_trim(env) > 0) then
++      read(env, *, iostat=io) env_width
++      if (io == 0) then
++         if (env_width > 0.0_wp .and. env_width < cutoff) then
++            width = env_width
++         else
++            width = 0.0_wp
++         end if
++      end if
++   end if
++
++end subroutine get_smooth_width
++
++
+ !> Smooth polynomial switch for realspace cutoffs
+ pure subroutine smooth_cutoff(r, cutoff, width, sw, dswdr)
+    real(wp), intent(in) :: r
 diff --git a/src/dftd3/damping/atm.f90 b/src/dftd3/damping/atm.f90
 index 419561a..9ce6521 100644
 --- a/src/dftd3/damping/atm.f90
@@ -1061,3 +1118,93 @@ index 2e3ed6e..e5b78ad 100644
 +   !$omp end parallel do
 
  end subroutine get_pairwise_dispersion2
+
+diff --git a/src/dftd3/disp.f90 b/src/dftd3/disp.f90
+index 413683f..c75fec8 100644
+--- a/src/dftd3/disp.f90
++++ b/src/dftd3/disp.f90
+@@ -15,7 +15,7 @@
+ ! along with s-dftd3.  If not, see <https://www.gnu.org/licenses/>.
+
+ module dftd3_disp
+-   use dftd3_cutoff, only : realspace_cutoff, get_lattice_points
++   use dftd3_cutoff, only : realspace_cutoff, get_lattice_points, apply_smooth_width_env
+    use dftd3_damping, only : damping_param
+    use dftd3_model, only : d3_model
+    use dftd3_ncoord, only : get_coordination_number, add_coordination_number_derivs
+@@ -69,13 +69,16 @@ subroutine get_dispersion_atomic(mol, disp, param, cutoff, energies, gradient, s
+    real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
+    real(wp), allocatable :: dEdcn(:)
+    real(wp), allocatable :: lattr(:, :)
++   type(realspace_cutoff) :: cutoff_eff
+
+    mref = maxval(disp%ref)
+    grad = present(gradient).and.present(sigma)
++   cutoff_eff = cutoff
++   call apply_smooth_width_env(cutoff_eff)
+
+    allocate(cn(mol%nat))
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%cn, lattr)
+-   call get_coordination_number(mol, lattr, cutoff%cn, disp%rcov, cn)
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%cn, lattr)
++   call get_coordination_number(mol, lattr, cutoff_eff%cn, disp%rcov, cn)
+
+    allocate(gwvec(mref, mol%nat))
+    if (grad) allocate(gwdcn(mref, mol%nat))
+@@ -92,15 +95,15 @@ subroutine get_dispersion_atomic(mol, disp, param, cutoff, energies, gradient, s
+       gradient(:, :) = 0.0_wp
+       sigma(:, :) = 0.0_wp
+    end if
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%disp2, lattr)
+-    call param%get_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, disp%rvdw, &
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%disp2, lattr)
++    call param%get_dispersion2(mol, lattr, cutoff_eff%disp2, cutoff_eff%width2, disp%rvdw, &
+        & disp%r4r2, c6, dc6dcn, energies, dEdcn, gradient, sigma)
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+-    call param%get_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, disp%rvdw, &
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%disp3, lattr)
++    call param%get_dispersion3(mol, lattr, cutoff_eff%disp3, cutoff_eff%width3, disp%rvdw, &
+        & disp%r4r2, c6, dc6dcn, energies, dEdcn, gradient, sigma)
+    if (grad) then
+-      call get_lattice_points(mol%periodic, mol%lattice, cutoff%cn, lattr)
+-      call add_coordination_number_derivs(mol, lattr, cutoff%cn, disp%rcov, dEdcn, &
++      call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%cn, lattr)
++      call add_coordination_number_derivs(mol, lattr, cutoff_eff%cn, disp%rcov, dEdcn, &
+          & gradient, sigma)
+    end if
+
+@@ -165,12 +168,15 @@ subroutine get_pairwise_dispersion(mol, disp, param, cutoff, energy2, energy3)
+
+    integer :: mref
+    real(wp), allocatable :: cn(:), gwvec(:, :), c6(:, :), lattr(:, :)
++   type(realspace_cutoff) :: cutoff_eff
+
+    mref = maxval(disp%ref)
++   cutoff_eff = cutoff
++   call apply_smooth_width_env(cutoff_eff)
+
+    allocate(cn(mol%nat))
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%cn, lattr)
+-   call get_coordination_number(mol, lattr, cutoff%cn, disp%rcov, cn)
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%cn, lattr)
++   call get_coordination_number(mol, lattr, cutoff_eff%cn, disp%rcov, cn)
+
+    allocate(gwvec(mref, mol%nat))
+    call disp%weight_references(mol, cn, gwvec)
+@@ -180,12 +186,12 @@ subroutine get_pairwise_dispersion(mol, disp, param, cutoff, energy2, energy3)
+
+    energy2(:, :) = 0.0_wp
+    energy3(:, :) = 0.0_wp
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%disp2, lattr)
+-    call param%get_pairwise_dispersion2(mol, lattr, cutoff%disp2, cutoff%width2, &
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%disp2, lattr)
++    call param%get_pairwise_dispersion2(mol, lattr, cutoff_eff%disp2, cutoff_eff%width2, &
+        & disp%rvdw, disp%r4r2, c6, energy2)
+
+-   call get_lattice_points(mol%periodic, mol%lattice, cutoff%disp3, lattr)
+-    call param%get_pairwise_dispersion3(mol, lattr, cutoff%disp3, cutoff%width3, &
++   call get_lattice_points(mol%periodic, mol%lattice, cutoff_eff%disp3, lattr)
++    call param%get_pairwise_dispersion3(mol, lattr, cutoff_eff%disp3, cutoff_eff%width3, &
+        & disp%rvdw, disp%r4r2, c6, energy3)
+
+ end subroutine get_pairwise_dispersion
