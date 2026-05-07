@@ -30,7 +30,7 @@ RUN rm -rf benchmarks cmake data src tests tools
 COPY . .
 
 # Build CP2K
-RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -dlc -j${NUM_PROCS} ${FEATURE_FLAGS}
+RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -uc no -j${NUM_PROCS} ${FEATURE_FLAGS}
 
 ###### Stage 3: Install CP2K ######
 
