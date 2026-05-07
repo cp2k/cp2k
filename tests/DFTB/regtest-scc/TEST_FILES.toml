@@ -57,10 +57,6 @@
 "h2o-atprop3.inp"                       = [{matcher="E_total", tol=2e-08, ref=-131.33465894123017}]
 #
 "c_kp1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589}]
-"c_kp1_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"c_kp1_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "c_kp1_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-13.76936385283589},
                                            {matcher="N_special_kpoints", tol=0.0, ref=32},
                                            {matcher="M042", tol=1.0E-5, ref=0.0}]

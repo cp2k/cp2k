@@ -80,6 +80,7 @@ CONTAINS
          ! Use the regular CP2K SCC-variable mixing path below.
       CASE (tblite_scc_mixer_tblite)
          CPASSERT(ASSOCIATED(mixing_store))
+#if defined(__TBLITE)
          mixer_damping = 0.4_dp
          IF (PRESENT(tblite_mixer_damping)) mixer_damping = tblite_mixer_damping
          mixer_memory = MAX(1, mixing_store%nbuffer)
@@ -88,6 +89,13 @@ CONTAINS
                                    mixer_damping, mixer_memory)
          CALL timestop(handle)
          RETURN
+#else
+         IF (iter_count == 1) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "SCC_MIXER TBLITE requested but CP2K was built without tblite; "// &
+                         "falling back to the CP2K SCC mixer.")
+         END IF
+#endif
       CASE (tblite_scc_mixer_none)
          IF (ASSOCIATED(mixing_store)) mixing_store%iter_method = "NoMix"
          CALL timestop(handle)

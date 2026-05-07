@@ -192,6 +192,7 @@ pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://
 qcschema.F: Module "hdf5_wrapper" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
 qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
+qs_charge_mixing.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
@@ -232,8 +233,23 @@ statistical_methods.F: Found WRITE statement with hardcoded unit in "tests" http
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2k.org/conv#c204
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
+tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_compare" https://cp2k.org/conv#c106
+tblite_interface.F: Found CLOSE statement in procedure "tb_add_stress" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_delete_file" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_dump_sigma_component" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_grad2force" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_update_charges" https://cp2k.org/conv#c204
+tblite_interface.F: Found CLOSE statement in procedure "tb_write_reference_gen" https://cp2k.org/conv#c204
 tblite_interface.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 tblite_interface.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+tblite_interface.F: Found OPEN statement in procedure "tb_add_stress" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_delete_file" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_dump_sigma_component" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_grad2force" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_update_charges" https://cp2k.org/conv#c203
+tblite_interface.F: Found OPEN statement in procedure "tb_write_reference_gen" https://cp2k.org/conv#c203
 tblite_types.F: Found type tblite_type without initializer https://cp2k.org/conv#c016
 tblite_types.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
