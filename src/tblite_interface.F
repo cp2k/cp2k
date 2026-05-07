@@ -714,10 +714,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: hij, shpoly
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       REAL(KIND=dp), DIMENSION(3)                        :: rij
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value
-#endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, native_s, native_h, native_lattr
@@ -1081,10 +1077,6 @@ CONTAINS
                                                             skip_scf_dispersion_gradient, skip_scf_dispersion_potential, &
                                                             use_native_mixer, use_no_mixer
       REAL(KIND=dp)                                      :: mix_alpha, norm, moment_alpha, new_charge, new_moment, pao
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value
-#endif
       CHARACTER(LEN=default_path_length)                 :: raw_state_file, state_file
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
@@ -1999,10 +1991,6 @@ CONTAINS
       INTEGER, DIMENSION(3)                       :: cell
       INTEGER, DIMENSION(:, :, :), POINTER        :: cell_to_index
       REAL(KIND=dp), DIMENSION(3)                 :: rij, mp_int_vec, mp_shift_vec
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                     :: debug_status
-      CHARACTER(LEN=32)                           :: debug_value
-#endif
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
@@ -2741,10 +2729,6 @@ CONTAINS
                                                             pot_self_image_deriv_scale, w_self_image_deriv_scale, &
                                                             h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
                                                             cn_image_scale
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value, scale_value
-#endif
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
