@@ -1435,9 +1435,7 @@ CONTAINS
                DEALLOCATE (ao_quad)
             END IF
          ELSE
-            IF ((use_native_mixer .OR. mp_test_mode == 230 .OR. mp_test_mode == 231 .OR. &
-                 mp_test_mode == 232 .OR. mp_test_mode == 233) .AND. &
-                use_rho .AND. (.NOT. calculate_forces)) THEN
+            IF (use_rho .AND. (.NOT. calculate_forces)) THEN
                IF (.NOT. reuse_native_input) THEN
                   tb%wfn%qsh(:, :) = 0.0_dp
                   tb%wfn%qat(:, :) = 0.0_dp
