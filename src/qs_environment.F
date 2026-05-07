@@ -271,12 +271,12 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
-      LOGICAL :: do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, do_debug_forces, &
-         do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, do_ec_hfx, do_et, do_exx, do_gw, &
-         do_hfx, do_kpoints, do_linear_response, do_mp2, do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, &
-         do_tddfpt, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-         dftb_kpoint_sym_restricted, final_kpoint_reinit, is_identical, is_semi, kpoint_verbose, &
-         mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, use_ref_cell
+      LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, &
+         do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, do_ec_hfx, &
+         do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, do_ri_mp2, &
+         do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
+         do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, kpoint_verbose, mp2_present, &
+         my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref

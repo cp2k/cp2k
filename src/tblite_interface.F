@@ -152,8 +152,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_store_density_ref(tb, matrix_p)
 
-      TYPE(tblite_type), POINTER                                :: tb
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER              :: matrix_p
+      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
 
       INTEGER                                            :: img, ispin, nimg, nspin
 
@@ -370,7 +370,8 @@ CONTAINS
    SUBROUTINE tb_get_spin_constants(tb, wll)
 
       TYPE(tblite_type), POINTER                         :: tb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: wll
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: wll
 
       INTEGER                                            :: il, ish, izp, jl, jsh
 
@@ -3224,8 +3225,9 @@ CONTAINS
    SUBROUTINE tb_contract_dens_kp_spin(p_matrix, bra_mat, ket_mat, iop, nops, output, ispin, para_env)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: bra_mat, ket_mat
-      INTEGER, INTENT(IN)                                :: iop, nops, ispin
+      INTEGER, INTENT(IN)                                :: iop, nops
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: output
+      INTEGER, INTENT(IN)                                :: ispin
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: ic, idx, nimg
@@ -4024,20 +4026,20 @@ CONTAINS
                      hp = 2*hij*pij_charge
                      dgrad(:) = dgrad(:) &
                                 + overlap_deriv_fac*(-pot_pair_scale*((ishift + jshift)*pij_charge &
-                                                     + (ishift_mag + jshift_mag)*pij_magnet)*t_d_ov(:, ij) &
+                                                                      + (ishift_mag + jshift_mag)*pij_magnet)*t_d_ov(:, ij) &
                                                      - 2*w_pair_scale*wij_charge*t_d_ov(:, ij) &
                                                      + h0_pair_scale*(hp*shpoly*t_d_ov(:, ij) &
                                                                       + hp*dshpoly*t_ov(ij)*rij)) &
                                 + mp_pair_scale*(pij_charge*( &
-                                  dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip) &
-                                                      + MATMUL(t_j_dip(:, :, ij), jdip)) &
-                                  + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
-                                                         + MATMUL(t_j_quad(:, :, ij), jquad))) &
-                                  + pij_magnet*( &
-                                  dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip_mag) &
-                                                      + MATMUL(t_j_dip(:, :, ij), jdip_mag)) &
-                                  + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad_mag) &
-                                                         + MATMUL(t_j_quad(:, :, ij), jquad_mag))))
+                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip) &
+                                                                     + MATMUL(t_j_dip(:, :, ij), jdip)) &
+                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad) &
+                                                                        + MATMUL(t_j_quad(:, :, ij), jquad))) &
+                                                 + pij_magnet*( &
+                                                 dip_deriv_fac_pair*(MATMUL(t_i_dip(:, :, ij), idip_mag) &
+                                                                     + MATMUL(t_j_dip(:, :, ij), jdip_mag)) &
+                                                 + quad_deriv_fac_pair*(MATMUL(t_i_quad(:, :, ij), iquad_mag) &
+                                                                        + MATMUL(t_j_quad(:, :, ij), jquad_mag))))
 
                   END DO
                END DO
@@ -4121,7 +4123,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_reference_cli_compare'
 
-      CHARACTER(LEN=32)                                  :: acc_str, charge_str, iter_str, spin_str, spinpol_str
+      CHARACTER(LEN=32)                                  :: acc_str, charge_str, iter_str, spin_str, &
+                                                            spinpol_str
       CHARACTER(LEN=8)                                   :: method
       CHARACTER(LEN=8*default_path_length)               :: command
       CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
