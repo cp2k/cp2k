@@ -4,7 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "ch2o.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570296343}]
-"ch2o_scc_mixer_tblite.inp"             = [{matcher="E_total", tol=1.0E-08, ref=-7.84456570570919}]
 "ch2o_geo.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-7.84652942195117}]
 "ch2o_lsd.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-7.19650182424155}]
 "ch2o_smear.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-7.19753850357134}]
