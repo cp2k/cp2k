@@ -1163,7 +1163,7 @@ CONTAINS
             ! select tblite method
             CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method)
             !set up wave function
-            CALL tb_init_wf(qs_env%tb_tblite)
+            CALL tb_init_wf(qs_env%tb_tblite, dft_control)
             !get basis set
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)

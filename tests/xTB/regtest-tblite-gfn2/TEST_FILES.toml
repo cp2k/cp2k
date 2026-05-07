@@ -8,6 +8,8 @@
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
 "NH3_gfn2.inp"                           = [{matcher="E_total", tol=1.0E-8, ref=-4.4259996366}]
 "CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"CH2O_gfn2_uks_force.inp"                = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"O2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_force_cp2k_mixer.inp"         = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_stress.inp"                   = [{matcher="M042", tol=1.0E-7, ref=0.0000000}]
 "CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
