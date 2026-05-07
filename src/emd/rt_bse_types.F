@@ -155,6 +155,10 @@ MODULE rt_bse_types
       REAL(KIND=dp)                                             :: rtbse_energy_cutoff_occ = -1.0_dp, &
                                                                    rtbse_energy_cutoff_empty = -1.0_dp
       LOGICAL                                                   :: active_mo_truncation = .FALSE.
+      ! Tamm-Dancoff approximation switch (linearized RT-BSE only).
+      LOGICAL                                                   :: tda_active = .FALSE.
+      ! Whether to enforce max_dt within stability region of rk4
+      LOGICAL                                                   :: enforce_max_dt = .FALSE.
       ! Owned fm structures sized to the active MO window. Equal to the full n_ao x n_ao
       ! when no truncation is active.
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_mo_active => NULL()
@@ -357,9 +361,25 @@ CONTAINS
                                 i_val=rtbse_env%etrs_max_iter)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%MAT_EXP", &
                                 i_val=rtbse_env%mat_exp_method)
-      ! Active MO window for linearized RT-BSE truncation
-      rtbse_env%rtbse_energy_cutoff_occ = rtbse_env%dft_control%rtp_control%rtbse_energy_cutoff_occ
-      rtbse_env%rtbse_energy_cutoff_empty = rtbse_env%dft_control%rtp_control%rtbse_energy_cutoff_empty
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENERGY_CUTOFF_OCC", &
+                                r_val=rtbse_env%rtbse_energy_cutoff_occ)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENERGY_CUTOFF_EMPTY", &
+                                r_val=rtbse_env%rtbse_energy_cutoff_empty)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%TDA", &
+                                l_val=rtbse_env%tda_active)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT", &
+                                l_val=rtbse_env%enforce_max_dt)
+
+      IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
+         rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
+         rtbse_env%rtbse_energy_cutoff_empty = -1.0_dp
+         rtbse_env%tda_active = .FALSE.
+         rtbse_env%enforce_max_dt = .FALSE.
+      END IF
+                                
+      IF (rtbse_env%tda_active .AND. .NOT. my_linearized) THEN
+         CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
+      END IF
       CALL determine_active_mo_window(rtbse_env, my_linearized, bs_env)
       ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
       ! when no truncation is active; will be used by the linearized RT-BSE allocation path).

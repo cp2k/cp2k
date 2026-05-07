@@ -382,3 +382,5 @@ tags
 # Old arch files
 /arch/local*
 .gitignore
+AGENTS.md
+src/emd/chat_tda_fix.json

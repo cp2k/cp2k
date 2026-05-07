@@ -111,7 +111,7 @@ CONTAINS
          POINTER                                         :: ft_samples, samples, samples_input
       INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
       LOGICAL                                            :: subtract_initial
-      REAL(kind=dp)                                      :: damping, t0, t_total
+      REAL(kind=dp)                                      :: damping, t0, t_total, delta_t
       TYPE(fft_plan_type)                                :: fft_plan
 
 ! For value and result series: Index 1 - different series, Index 2 - single series entry
@@ -120,6 +120,9 @@ CONTAINS
       ! Start with t0
       t0 = 0.0_dp
       IF (PRESENT(t0_opt)) t0 = t0_opt
+      IF (SIZE(time_series) < 2) THEN
+         CPABORT("multi_fft requires at least two time samples.")
+      END IF
       ! Determine zero index
       i0 = 1
       DO i = 1, SIZE(time_series)
@@ -130,8 +133,18 @@ CONTAINS
       END DO
       ! Determine nsamples
       nsamples = SIZE(time_series) - i0 + 1
+      IF (nsamples < 2) THEN
+         CPABORT("multi_fft requires at least two samples in the selected time window.")
+      END IF
       ! Determine total time
       t_total = time_series(SIZE(time_series)) - time_series(i0)
+      delta_t = time_series(i0 + 1) - time_series(i0)
+      IF (t_total /= t_total .OR. ABS(t_total) >= HUGE(t_total) .OR. t_total <= 0.0_dp) THEN
+         CPABORT("multi_fft detected an abnormal total time window (NaN/Inf/non-positive).")
+      END IF
+      IF (delta_t /= delta_t .OR. ABS(delta_t) >= HUGE(delta_t) .OR. delta_t <= 0.0_dp) THEN
+         CPABORT("multi_fft detected an abnormal timestep (NaN/Inf/non-positive).")
+      END IF
       ! Now can determine default damping
       damping = 4.0_dp/(t_total)
       ! Damping option supplied in au units of time
@@ -142,6 +155,9 @@ CONTAINS
             ! Special case - zero damping
             damping = 0.0_dp
          END IF
+      END IF
+      IF (damping /= damping .OR. ABS(damping) >= HUGE(damping)) THEN
+         CPABORT("multi_fft detected an abnormal damping factor (NaN/Inf).")
       END IF
       ! subtract initial
       subtract_initial = .TRUE.
@@ -159,6 +175,10 @@ CONTAINS
       ! Calculate the omega series values, ordered from negative to positive
       IF (PRESENT(omega_series)) THEN
          CALL fft_freqs(nsamples, t_total, omega_series, fft_ordering_opt=.FALSE.)
+         IF (ANY(omega_series /= omega_series) .OR. &
+             ANY(ABS(omega_series) >= HUGE(omega_series))) THEN
+            CPABORT("multi_fft produced abnormal frequencies (NaN/Inf).")
+         END IF
       END IF
 
       ! Use FFTW3 library
@@ -187,7 +207,7 @@ CONTAINS
       CALL fft_create_plan_1dm(fft_plan, fft_library("FFTW3"), -1, .FALSE., nsamples, nseries, samples, ft_samples, 3)
       ! Carry out the transform
       ! Scale by dt - to transform to an integral
-      CALL fft_1dm(fft_plan, samples_input, ft_samples, time_series(2) - time_series(1), stat)
+      CALL fft_1dm(fft_plan, samples_input, ft_samples, delta_t, stat)
       IF (stat /= 0) THEN
          ! Failed fftw3 - go to backup
          ! Uses value_series and result_series - no need to reassign data
@@ -206,6 +226,12 @@ CONTAINS
             CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
             result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
          END DO
+      END IF
+      IF (ANY(REAL(result_series, kind=dp) /= REAL(result_series, kind=dp)) .OR. &
+          ANY(AIMAG(result_series) /= AIMAG(result_series)) .OR. &
+          ANY(ABS(REAL(result_series, kind=dp)) >= HUGE(1.0_dp)) .OR. &
+          ANY(ABS(AIMAG(result_series)) >= HUGE(1.0_dp))) THEN
+         CPABORT("multi_fft produced abnormal Fourier amplitudes (NaN/Inf).")
       END IF
       ! Deallocate
       CALL fft_dealloc(samples)

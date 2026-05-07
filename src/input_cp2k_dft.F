@@ -2102,6 +2102,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! Tamm-Dancoff approximation for the linearized RT-BSE kernel
+      CALL keyword_create(keyword, __LOCATION__, name="TDA", &
+                 description="Apply the Tamm-Dancoff approximation to the linearized RT-BSE kernel: "// &
+                 "the Hartree and screened-exchange contributions are restricted so that the OV and VO "// &
+                 "blocks of the density response remain decoupled (i.e. only A-block coupling is kept, "// &
+                 "B-block coupling is dropped). Only effective when "// &
+                 "LINEARIZED_BSE_PROPAGATION=.TRUE..", &
+                 usage="TDA", &
+                 default_l_val=.FALSE., &
+                 lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
