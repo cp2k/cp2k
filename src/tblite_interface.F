@@ -707,7 +707,7 @@ CONTAINS
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, j, &
                                                             ic, iw, iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, &
                                                             irow, ia, ib, sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, &
-                                                            natorb_a, natorb_b, sgfa0, mp_test_mode, i0, j0
+                                                            natorb_a, natorb_b, sgfa0, i0, j0
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
@@ -753,12 +753,6 @@ CONTAINS
       TYPE(virial_type), POINTER                            :: virial
 
       CALL timeset(routineN, handle)
-
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
       NULLIFY (matrix_h, matrix_s, atprop, dft_control)
@@ -851,60 +845,6 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
-
-      IF (mp_test_mode == 81 .OR. mp_test_mode == 82 .OR. &
-          mp_test_mode == 232 .OR. mp_test_mode == 233) THEN
-         IF (nimg > 1) CPABORT("Native tblite matrix test with k-points not implemented")
-         ALLOCATE (native_s(tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_h(tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_dip(dip_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_s, native_dip, native_quad, native_h)
-
-         NULLIFY (nl_iterator)
-         CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom)
-            icol = MAX(iatom, jatom)
-            irow = MIN(iatom, jatom)
-            i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
-            j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
-
-            NULLIFY (sblock, fblock)
-            CALL dbcsr_get_block_p(matrix=matrix_s(1, 1)%matrix, row=irow, col=icol, BLOCK=sblock, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=matrix_h(1, 1)%matrix, row=irow, col=icol, BLOCK=fblock, found=found)
-            CPASSERT(found)
-
-            DO j = 1, SIZE(sblock, 1)
-               DO i = 1, SIZE(sblock, 2)
-                  sblock(j, i) = native_s(i0 + j, j0 + i)
-                  fblock(j, i) = native_h(i0 + j, j0 + i)
-               END DO
-            END DO
-         END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
-
-         DO img = 1, nimg
-            DO i = 1, SIZE(matrix_s, 1)
-               CALL dbcsr_finalize(matrix_s(i, img)%matrix)
-            END DO
-            DO i = 1, SIZE(matrix_h, 1)
-               CALL dbcsr_finalize(matrix_h(i, img)%matrix)
-            END DO
-         END DO
-
-         IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
-            CALL tb_get_multipole(qs_env, tb)
-
-         DEALLOCATE (native_s, native_h, native_dip, native_quad, native_lattr)
-         DEALLOCATE (basis_set_list)
-         CALL timestop(handle)
-         RETURN
-      END IF
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       NULLIFY (nl_iterator)
@@ -1133,7 +1073,7 @@ CONTAINS
       INTEGER                                            :: iao, jao, ish, ispin, i0, j0, nspin
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
       INTEGER                                            :: n_atom, max_orb, max_shell
-      INTEGER                                            :: mp_test_mode, raw_state_status, raw_state_unit, &
+      INTEGER                                            :: raw_state_status, raw_state_unit, &
                                                             state_status, state_unit, last_mix_slot, ia_local, ns_mix
       LOGICAL                                            :: discard_mixed_output, do_combined_mixing, do_dipole, do_quadrupole, &
                                                             native_sign_mixing, phased_combined_mixing, skip_charge_mixing, &
@@ -1173,11 +1113,6 @@ CONTAINS
       ! also compute multipoles needed by GFN2
       do_dipole = .FALSE.
       do_quadrupole = .FALSE.
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
       skip_scf_dispersion = .FALSE.
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION", debug_value, STATUS=debug_status)
@@ -1340,82 +1275,7 @@ CONTAINS
          CLOSE (raw_state_unit)
       END IF
 
-      IF (mp_test_mode == 150) THEN
-         n_mix_cols = max_shell
-         IF (do_dipole) n_mix_cols = n_mix_cols + dip_n
-         IF (do_quadrupole) n_mix_cols = n_mix_cols + quad_n
-         ALLOCATE (mix_vars(n_atom, n_mix_cols))
-         mix_vars = 0.0_dp
-
-         mix_vars(:, 1:max_shell) = -ch_shell(:, 1:max_shell)
-         mix_offset = max_shell
-         IF (do_dipole) THEN
-            mix_vars(:, mix_offset + 1:mix_offset + dip_n) = -ao_dip(:, 1:dip_n)
-            mix_offset = mix_offset + dip_n
-         END IF
-         IF (do_quadrupole) THEN
-            mix_vars(:, mix_offset + 1:mix_offset + quad_n) = -ao_quad(:, 1:quad_n)
-         END IF
-
-         IF (use_rho .AND. (.NOT. calculate_forces) .AND. scf_env%mixing_store%ncall > 0) THEN
-            mix_vars = 0.0_dp
-            ns_mix = MIN(n_mix_cols, scf_env%mixing_store%max_shell)
-            last_mix_slot = MOD(scf_env%mixing_store%ncall - 1, scf_env%mixing_store%nbuffer) + 1
-            DO ia_local = 1, scf_env%mixing_store%nat_local
-               iatom = scf_env%mixing_store%atlist(ia_local)
-               mix_vars(iatom, 1:ns_mix) = scf_env%mixing_store%acharge(ia_local, 1:ns_mix, last_mix_slot)
-            END DO
-            CALL para_env%sum(mix_vars)
-         ELSEIF ((.NOT. use_rho) .AND. (.NOT. calculate_forces)) THEN
-            ALLOCATE (prev_vars(n_atom, n_mix_cols))
-            prev_vars(:, :) = mix_vars
-            IF (scf_env%mixing_store%ncall > 0) THEN
-               prev_vars = 0.0_dp
-               ns_mix = MIN(n_mix_cols, scf_env%mixing_store%max_shell)
-               last_mix_slot = MOD(scf_env%mixing_store%ncall - 1, scf_env%mixing_store%nbuffer) + 1
-               DO ia_local = 1, scf_env%mixing_store%nat_local
-                  iatom = scf_env%mixing_store%atlist(ia_local)
-                  prev_vars(iatom, 1:ns_mix) = scf_env%mixing_store%acharge(ia_local, 1:ns_mix, last_mix_slot)
-               END DO
-               CALL para_env%sum(prev_vars)
-            END IF
-            mix_alpha = scf_env%mixing_store%alpha
-            prev_vars(:, :) = (1.0_dp - mix_alpha)*prev_vars + mix_alpha*mix_vars
-            scf_env%mixing_store%ncall = scf_env%mixing_store%ncall + 1
-            ns_mix = MIN(n_mix_cols, scf_env%mixing_store%max_shell)
-            last_mix_slot = MOD(scf_env%mixing_store%ncall - 1, scf_env%mixing_store%nbuffer) + 1
-            DO ia_local = 1, scf_env%mixing_store%nat_local
-               iatom = scf_env%mixing_store%atlist(ia_local)
-               scf_env%mixing_store%acharge(ia_local, 1:ns_mix, last_mix_slot) = prev_vars(iatom, 1:ns_mix)
-            END DO
-            DEALLOCATE (prev_vars)
-         END IF
-
-         DO iatom = 1, n_atom
-            ii = tb%calc%bas%ish_at(iatom)
-            DO is = 1, tb%calc%bas%nsh_at(iatom)
-               tb%wfn%qsh(ii + is, 1) = mix_vars(iatom, is)
-            END DO
-            tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
-         END DO
-         mix_offset = max_shell
-         IF (do_dipole) THEN
-            DO iatom = 1, n_atom
-               tb%wfn%dpat(:, iatom, 1) = mix_vars(iatom, mix_offset + 1:mix_offset + dip_n)
-            END DO
-            mix_offset = mix_offset + dip_n
-            DEALLOCATE (ao_dip)
-         END IF
-         IF (do_quadrupole) THEN
-            DO iatom = 1, n_atom
-               tb%wfn%qpat(:, iatom, 1) = mix_vars(iatom, mix_offset + 1:mix_offset + quad_n)
-            END DO
-            DEALLOCATE (ao_quad)
-         END IF
-         DEALLOCATE (mix_vars)
-      ELSEIF (use_native_mixer .OR. mp_test_mode == 120 .OR. mp_test_mode == 220 .OR. &
-              mp_test_mode == 230 .OR. mp_test_mode == 231 .OR. &
-              mp_test_mode == 232 .OR. mp_test_mode == 233) THEN
+      IF (use_native_mixer) THEN
          IF (.NOT. ALLOCATED(tb%mixer)) CPABORT("tblite mixer not initialized")
          IF (use_rho .AND. (.NOT. calculate_forces) .AND. scf_env%iter_count > 1) THEN
             CALL tb%mixer%next(error)
@@ -1482,30 +1342,12 @@ CONTAINS
             !
          ELSE
             ! CP2K SCC mixing has to see all tblite SCC variables, not only shell charges.
-            do_combined_mixing = do_dipole .OR. do_quadrupole .OR. &
-                                 (mp_test_mode == 110 .OR. mp_test_mode == 111 .OR. &
-                                  mp_test_mode == 112 .OR. mp_test_mode == 114 .OR. &
-                                  mp_test_mode == 115 .OR. &
-                                  mp_test_mode == 116 .OR. mp_test_mode == 117 .OR. &
-                                  mp_test_mode == 118 .OR. mp_test_mode == 122 .OR. &
-                                  mp_test_mode == 130 .OR. mp_test_mode == 131 .OR. &
-                                  mp_test_mode == 140 .OR. mp_test_mode == 141 .OR. &
-                                  mp_test_mode == 142 .OR. mp_test_mode == 183)
-            native_sign_mixing = ((do_dipole .OR. do_quadrupole) .AND. mp_test_mode == 0) .OR. &
-                                 (mp_test_mode == 116 .OR. mp_test_mode == 117 .OR. &
-                                  mp_test_mode == 118)
-            phased_combined_mixing = (mp_test_mode == 130 .OR. mp_test_mode == 131)
-            discard_mixed_output = (mp_test_mode == 114 .AND. .NOT. use_rho) .OR. &
-                                   (mp_test_mode == 115 .AND. (.NOT. use_rho .OR. calculate_forces)) .OR. &
-                                   (mp_test_mode == 117 .AND. .NOT. use_rho) .OR. &
-                                   (mp_test_mode == 118 .AND. (.NOT. use_rho .OR. calculate_forces)) .OR. &
-                                   (mp_test_mode == 131 .AND. (.NOT. use_rho .OR. calculate_forces))
-            skip_charge_mixing = use_no_mixer .OR. &
-                                 (mp_test_mode == 111 .AND. use_rho) .OR. &
-                                 (mp_test_mode == 112 .AND. .NOT. use_rho) .OR. &
-                                 (phased_combined_mixing .AND. use_rho)
-            IF (phased_combined_mixing .AND. use_rho .AND. scf_env%mixing_store%ncall > 0 .AND. &
-                (mp_test_mode /= 131 .OR. .NOT. calculate_forces)) THEN
+            do_combined_mixing = do_dipole .OR. do_quadrupole
+            native_sign_mixing = do_dipole .OR. do_quadrupole
+            phased_combined_mixing = .FALSE.
+            discard_mixed_output = .FALSE.
+            skip_charge_mixing = use_no_mixer .OR. (phased_combined_mixing .AND. use_rho)
+            IF (phased_combined_mixing .AND. use_rho .AND. scf_env%mixing_store%ncall > 0) THEN
                n_mix_cols = max_shell
                IF (do_dipole) n_mix_cols = n_mix_cols + dip_n
                IF (do_quadrupole) n_mix_cols = n_mix_cols + quad_n
@@ -1594,26 +1436,16 @@ CONTAINS
          tb%e_es = 0.0_dp
          tb%e_scd = 0.0_dp
          moment_alpha = scf_env%p_mix_alpha
-         IF (mp_test_mode == 61 .OR. mp_test_mode == 91) moment_alpha = 0.05_dp
-         IF (mp_test_mode == 62 .OR. mp_test_mode == 92) moment_alpha = 0.5_dp
          DO iatom = 1, n_atom
             ii = tb%calc%bas%ish_at(iatom)
             DO is = 1, tb%calc%bas%nsh_at(iatom)
                new_charge = -ch_shell(iatom, is)
-               IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                   scf_env%iter_count > 1) THEN
-                  new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qsh(ii + is, 1)
-               END IF
                tb%wfn%qsh(ii + is, 1) = new_charge
             END DO
-            IF (native_sign_mixing .OR. mp_test_mode == 122) THEN
+            IF (native_sign_mixing) THEN
                tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
             ELSE
                new_charge = -ch_atom(iatom, 1)
-               IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                   scf_env%iter_count > 1) THEN
-                  new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qat(iatom, 1)
-               END IF
                tb%wfn%qat(iatom, 1) = new_charge
             END IF
          END DO
@@ -1622,11 +1454,6 @@ CONTAINS
             DO iatom = 1, n_atom
                DO im = 1, dip_n
                   new_moment = -ao_dip(iatom, im)
-                  IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
-                       mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                      scf_env%iter_count > 1) THEN
-                     new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%dpat(im, iatom, 1)
-                  END IF
                   tb%wfn%dpat(im, iatom, 1) = new_moment
                END DO
             END DO
@@ -1636,115 +1463,11 @@ CONTAINS
             DO iatom = 1, n_atom
                DO im = 1, quad_n
                   new_moment = -ao_quad(iatom, im)
-                  IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
-                       mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                      scf_env%iter_count > 1) THEN
-                     new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%qpat(im, iatom, 1)
-                  END IF
                   tb%wfn%qpat(im, iatom, 1) = new_moment
                END DO
             END DO
             DEALLOCATE (ao_quad)
          END IF
-      END IF
-      IF (mp_test_mode == 2 .OR. mp_test_mode == 7 .OR. mp_test_mode == 8 .OR. &
-          mp_test_mode == 13 .OR. mp_test_mode == 14 .OR. mp_test_mode == 15 .OR. &
-          mp_test_mode == 16 .OR. mp_test_mode == 17 .OR. mp_test_mode == 18 .OR. &
-          mp_test_mode == 20 .OR. mp_test_mode == 21 .OR. &
-          mp_test_mode == 32 .OR. mp_test_mode == 33 .OR. &
-          mp_test_mode == 34 .OR. mp_test_mode == 35 .OR. &
-          mp_test_mode == 36 .OR. mp_test_mode == 37 .OR. &
-          mp_test_mode == 10 .OR. mp_test_mode == 11 .OR. mp_test_mode == 12) THEN
-         tb%wfn%dpat(:, :, :) = -tb%wfn%dpat(:, :, :)
-         tb%wfn%qpat(:, :, :) = -tb%wfn%qpat(:, :, :)
-      ELSEIF (mp_test_mode == 4) THEN
-         tb%wfn%dpat(:, :, :) = 0.0_dp
-         tb%wfn%qpat(:, :, :) = 0.0_dp
-      END IF
-
-      IF (mp_test_mode == 100 .OR. mp_test_mode == 101 .OR. mp_test_mode == 102) THEN
-         nspin = SIZE(p_matrix)
-         CALL new_integral(native_ints, tb%calc%bas%nao)
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
-                              native_ints%hamiltonian)
-         ALLOCATE (native_p(tb%calc%bas%nao, tb%calc%bas%nao, nspin))
-         native_p = 0.0_dp
-         DO ispin = 1, nspin
-            CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               NULLIFY (p_block)
-               CALL dbcsr_iterator_next_block(iter, irow, icol, p_block)
-               i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
-               j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
-               DO j = 1, SIZE(p_block, 1)
-                  DO i = 1, SIZE(p_block, 2)
-                     IF (mp_test_mode == 102 .AND. irow /= icol) THEN
-                        native_p(i0 + j, j0 + i, ispin) = 0.5_dp*p_block(j, i)
-                        native_p(j0 + i, i0 + j, ispin) = 0.5_dp*p_block(j, i)
-                     ELSE
-                        native_p(i0 + j, j0 + i, ispin) = p_block(j, i)
-                        IF (mp_test_mode == 100 .AND. irow /= icol) &
-                           native_p(j0 + i, i0 + j, ispin) = p_block(j, i)
-                     END IF
-                  END DO
-               END DO
-            END DO
-            CALL dbcsr_iterator_stop(iter)
-         END DO
-
-         tb%wfn%qsh(:, :) = 0.0_dp
-         DO ispin = 1, nspin
-            DO iao = 1, tb%calc%bas%nao
-               pao = 0.0_dp
-               DO jao = 1, tb%calc%bas%nao
-                  pao = pao + native_p(jao, iao, ispin)*native_ints%overlap(jao, iao)
-               END DO
-               ish = tb%calc%bas%ao2sh(iao)
-               tb%wfn%qsh(ish, ispin) = tb%wfn%qsh(ish, ispin) - pao
-            END DO
-         END DO
-         tb%wfn%qsh(:, 1) = tb%wfn%qsh(:, 1) + tb%wfn%n0sh(:)
-
-         tb%wfn%qat(:, :) = 0.0_dp
-         DO ispin = 1, nspin
-            DO ish = 1, tb%calc%bas%nsh
-               tb%wfn%qat(tb%calc%bas%sh2at(ish), ispin) = &
-                  tb%wfn%qat(tb%calc%bas%sh2at(ish), ispin) + tb%wfn%qsh(ish, ispin)
-            END DO
-         END DO
-
-         IF (do_dipole) THEN
-            tb%wfn%dpat(:, :, :) = 0.0_dp
-            DO ispin = 1, nspin
-               DO iao = 1, tb%calc%bas%nao
-                  atom_a = tb%calc%bas%ao2at(iao)
-                  DO jao = 1, tb%calc%bas%nao
-                     DO im = 1, dip_n
-                        tb%wfn%dpat(im, atom_a, ispin) = tb%wfn%dpat(im, atom_a, ispin) &
-                                                         - native_p(jao, iao, ispin)*native_ints%dipole(im, jao, iao)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-         IF (do_quadrupole) THEN
-            tb%wfn%qpat(:, :, :) = 0.0_dp
-            DO ispin = 1, nspin
-               DO iao = 1, tb%calc%bas%nao
-                  atom_a = tb%calc%bas%ao2at(iao)
-                  DO jao = 1, tb%calc%bas%nao
-                     DO im = 1, quad_n
-                        tb%wfn%qpat(im, atom_a, ispin) = tb%wfn%qpat(im, atom_a, ispin) &
-                                                         - native_p(jao, iao, ispin)*native_ints%quadrupole(im, jao, iao)
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END IF
-         DEALLOCATE (native_p, native_lattr)
       END IF
 
       CALL tb%pot%reset
@@ -1837,7 +1560,6 @@ CONTAINS
       INTEGER                                            :: ic, id1, id2, id3, iq1, iq2, iq3, iq4, iq5, iq6, &
                                                             is, nimg, ni, nj, i, j, i0, j0
       INTEGER                                            :: la, lb, za, zb
-      INTEGER                                            :: mp_test_mode
       LOGICAL                                            :: found
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(25)                             :: naoa, naob
@@ -1875,48 +1597,10 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
 
       nimg = dft_control%nimages
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
       mpfac = -0.5_dp
-      IF (mp_test_mode == 3 .OR. mp_test_mode == 10 .OR. mp_test_mode == 11 .OR. &
-          mp_test_mode == 12) mpfac = 0.5_dp
-      IF (mp_test_mode == 5) mpfac = 0.0_dp
 
       NULLIFY (matrix_s, ks_matrix, n_list, qs_kind_set)
       CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
-
-      IF (mp_test_mode == 83 .OR. mp_test_mode == 183 .OR. &
-          mp_test_mode == 220 .OR. mp_test_mode == 231 .OR. &
-          mp_test_mode == 233) THEN
-         IF (nimg > 1) CPABORT("Native tblite Hamiltonian test with k-points not implemented")
-         CALL new_integral(native_ints, tb%calc%bas%nao)
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
-                              native_ints%hamiltonian)
-         ALLOCATE (native_h1(tb%calc%bas%nao, tb%calc%bas%nao, 1))
-         native_pot = tb%pot
-         CALL add_pot_to_h1(tb%calc%bas, native_ints, native_pot, native_h1)
-
-         CALL dbcsr_iterator_start(iter, ks_matrix(1, 1)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, irow, icol, ksblock)
-            i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
-            j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
-            DO j = 1, SIZE(ksblock, 1)
-               DO i = 1, SIZE(ksblock, 2)
-                  ksblock(j, i) = native_h1(i0 + j, j0 + i, 1)
-               END DO
-            END DO
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-         DEALLOCATE (native_h1, native_lattr)
-         RETURN
-      END IF
 
       !creating sum of shell lists
       ALLOCATE (sum_shell(tb%mol%nat))
@@ -2309,7 +1993,6 @@ CONTAINS
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: ic, idx, id1, id2, id3, img, iq1, iq2, iq3, iq4, iq5, iq6
       INTEGER                                     :: nkind, natom, handle, nimg, i, j, inda, indb
-      INTEGER                                     :: mp_test_mode
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij, i0, j0
       LOGICAL                                     :: found
       REAL(KIND=dp)                               :: r2
@@ -2366,12 +2049,6 @@ CONTAINS
       IF (nimg > 1) THEN
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
-
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
       !set up basis set lists
@@ -2413,98 +2090,6 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(tb%quadket(idx)%matrix, sab_orb)
          END DO
       END DO
-
-      IF (mp_test_mode == 80 .OR. mp_test_mode == 82) THEN
-         IF (nimg > 1) CPABORT("Native tblite multipole test with k-points not implemented")
-         ALLOCATE (native_s(tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_h(tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_dip(dip_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
-         CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
-                              native_s, native_dip, native_quad, native_h)
-
-         CALL dbcsr_iterator_start(iter, tb%dipbra(1)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, irow, icol, dip_bra1)
-            CALL dbcsr_get_block_p(matrix=tb%dipbra(2)%matrix, row=irow, col=icol, BLOCK=dip_bra2, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%dipbra(3)%matrix, row=irow, col=icol, BLOCK=dip_bra3, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%dipket(1)%matrix, row=irow, col=icol, BLOCK=dip_ket1, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%dipket(2)%matrix, row=irow, col=icol, BLOCK=dip_ket2, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%dipket(3)%matrix, row=irow, col=icol, BLOCK=dip_ket3, found=found)
-            CPASSERT(found)
-
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(1)%matrix, row=irow, col=icol, BLOCK=quad_bra1, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(2)%matrix, row=irow, col=icol, BLOCK=quad_bra2, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(3)%matrix, row=irow, col=icol, BLOCK=quad_bra3, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(4)%matrix, row=irow, col=icol, BLOCK=quad_bra4, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(5)%matrix, row=irow, col=icol, BLOCK=quad_bra5, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadbra(6)%matrix, row=irow, col=icol, BLOCK=quad_bra6, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(1)%matrix, row=irow, col=icol, BLOCK=quad_ket1, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(2)%matrix, row=irow, col=icol, BLOCK=quad_ket2, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(3)%matrix, row=irow, col=icol, BLOCK=quad_ket3, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(4)%matrix, row=irow, col=icol, BLOCK=quad_ket4, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(5)%matrix, row=irow, col=icol, BLOCK=quad_ket5, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=tb%quadket(6)%matrix, row=irow, col=icol, BLOCK=quad_ket6, found=found)
-            CPASSERT(found)
-
-            i0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(irow) + 1)
-            j0 = tb%calc%bas%iao_sh(tb%calc%bas%ish_at(icol) + 1)
-            DO j = 1, SIZE(dip_bra1, 1)
-               DO i = 1, SIZE(dip_bra1, 2)
-                  dip_bra1(j, i) = native_dip(1, i0 + j, j0 + i)
-                  dip_bra2(j, i) = native_dip(2, i0 + j, j0 + i)
-                  dip_bra3(j, i) = native_dip(3, i0 + j, j0 + i)
-                  dip_ket1(j, i) = native_dip(1, j0 + i, i0 + j)
-                  dip_ket2(j, i) = native_dip(2, j0 + i, i0 + j)
-                  dip_ket3(j, i) = native_dip(3, j0 + i, i0 + j)
-
-                  quad_bra1(j, i) = native_quad(1, i0 + j, j0 + i)
-                  quad_bra2(j, i) = native_quad(2, i0 + j, j0 + i)
-                  quad_bra3(j, i) = native_quad(3, i0 + j, j0 + i)
-                  quad_bra4(j, i) = native_quad(4, i0 + j, j0 + i)
-                  quad_bra5(j, i) = native_quad(5, i0 + j, j0 + i)
-                  quad_bra6(j, i) = native_quad(6, i0 + j, j0 + i)
-                  quad_ket1(j, i) = native_quad(1, j0 + i, i0 + j)
-                  quad_ket2(j, i) = native_quad(2, j0 + i, i0 + j)
-                  quad_ket3(j, i) = native_quad(3, j0 + i, i0 + j)
-                  quad_ket4(j, i) = native_quad(4, j0 + i, i0 + j)
-                  quad_ket5(j, i) = native_quad(5, j0 + i, i0 + j)
-                  quad_ket6(j, i) = native_quad(6, j0 + i, i0 + j)
-               END DO
-            END DO
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-
-         DO i = 1, dip_n
-            CALL dbcsr_finalize(tb%dipbra(i)%matrix)
-            CALL dbcsr_finalize(tb%dipket(i)%matrix)
-         END DO
-         DO i = 1, quad_n
-            CALL dbcsr_finalize(tb%quadbra(i)%matrix)
-            CALL dbcsr_finalize(tb%quadket(i)%matrix)
-         END DO
-
-         DEALLOCATE (native_s, native_h, native_dip, native_quad, native_lattr, basis_set_list)
-         CALL timestop(handle)
-         RETURN
-      END IF
 
       !loop over all atom pairs with a non-zero overlap (sab_orb)
       NULLIFY (nl_iterator)
@@ -2668,14 +2253,6 @@ CONTAINS
                DO jset = 1, nsetb
                   mp_int_vec = -rij
                   mp_shift_vec = -rij
-                  IF (mp_test_mode == 14) THEN
-                     mp_int_vec = rij
-                     mp_shift_vec = rij
-                  ELSEIF (mp_test_mode == 15) THEN
-                     mp_shift_vec = rij
-                  ELSEIF (mp_test_mode == 16) THEN
-                     mp_int_vec = rij
-                  END IF
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
                       & r2, mp_int_vec, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
@@ -2689,81 +2266,8 @@ CONTAINS
                                                 dtmpj(:, ij), qtmpj(:, ij))
                         IF (icol == irow .AND. r2 >= same_atom**2) THEN
                            IF (nimg > 1) THEN
-                              ! Match the k-point image block orientation used for self-image quadrupoles.
                               qtmp(:, ij) = -qtmp(:, ij)
                               qtmpj(:, ij) = -qtmpj(:, ij)
-                           END IF
-                           IF (mp_test_mode == 30 .OR. mp_test_mode == 32 .OR. mp_test_mode == 33) THEN
-                              dtmpj(:, ij) = dtmp(:, ij)
-                              qtmpj(:, ij) = qtmp(:, ij)
-                           ELSEIF (mp_test_mode == 31) THEN
-                              CALL tb_shift_multipole(-mp_shift_vec, stmp(ij), dtmp(:, ij), qtmp(:, ij), &
-                                                      dtmpj(:, ij), qtmpj(:, ij))
-                           END IF
-                           IF (mp_test_mode == 40 .OR. mp_test_mode == 41 .OR. mp_test_mode == 44) THEN
-                              dtmp(:, ij) = -dtmp(:, ij)
-                           END IF
-                           IF (mp_test_mode == 40 .OR. mp_test_mode == 42 .OR. mp_test_mode == 44) THEN
-                              dtmpj(:, ij) = -dtmpj(:, ij)
-                           END IF
-                           IF (mp_test_mode == 40 .OR. mp_test_mode == 41 .OR. mp_test_mode == 45) THEN
-                              qtmp(:, ij) = -qtmp(:, ij)
-                           END IF
-                           IF (mp_test_mode == 40 .OR. mp_test_mode == 42 .OR. mp_test_mode == 45) THEN
-                              qtmpj(:, ij) = -qtmpj(:, ij)
-                           END IF
-                           IF (mp_test_mode == 43) THEN
-                              dtmp(:, ij) = 0.0_dp
-                              qtmp(:, ij) = 0.0_dp
-                              dtmpj(:, ij) = 0.0_dp
-                              qtmpj(:, ij) = 0.0_dp
-                           END IF
-                        END IF
-                        IF (r2 >= same_atom**2) THEN
-                           IF (mp_test_mode == 46 .OR. mp_test_mode == 48) THEN
-                              dtmp(:, ij) = -dtmp(:, ij)
-                              dtmpj(:, ij) = -dtmpj(:, ij)
-                           END IF
-                           IF (mp_test_mode == 46 .OR. mp_test_mode == 49) THEN
-                              qtmp(:, ij) = -qtmp(:, ij)
-                              qtmpj(:, ij) = -qtmpj(:, ij)
-                           END IF
-                           IF (mp_test_mode == 47) THEN
-                              dtmp(:, ij) = 0.0_dp
-                              qtmp(:, ij) = 0.0_dp
-                              dtmpj(:, ij) = 0.0_dp
-                              qtmpj(:, ij) = 0.0_dp
-                           END IF
-                           IF (mp_test_mode == 50) THEN
-                              dtmp(:, ij) = 0.25_dp*dtmp(:, ij)
-                              qtmp(:, ij) = 0.25_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = 0.25_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = 0.25_dp*qtmpj(:, ij)
-                           ELSEIF (mp_test_mode == 51) THEN
-                              dtmp(:, ij) = 0.5_dp*dtmp(:, ij)
-                              qtmp(:, ij) = 0.5_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = 0.5_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = 0.5_dp*qtmpj(:, ij)
-                           ELSEIF (mp_test_mode == 52) THEN
-                              dtmp(:, ij) = 0.75_dp*dtmp(:, ij)
-                              qtmp(:, ij) = 0.75_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = 0.75_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = 0.75_dp*qtmpj(:, ij)
-                           ELSEIF (mp_test_mode == 53) THEN
-                              dtmp(:, ij) = -0.25_dp*dtmp(:, ij)
-                              qtmp(:, ij) = -0.25_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = -0.25_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = -0.25_dp*qtmpj(:, ij)
-                           ELSEIF (mp_test_mode == 54) THEN
-                              dtmp(:, ij) = -0.5_dp*dtmp(:, ij)
-                              qtmp(:, ij) = -0.5_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = -0.5_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = -0.5_dp*qtmpj(:, ij)
-                           ELSEIF (mp_test_mode == 55) THEN
-                              dtmp(:, ij) = -0.75_dp*dtmp(:, ij)
-                              qtmp(:, ij) = -0.75_dp*qtmp(:, ij)
-                              dtmpj(:, ij) = -0.75_dp*dtmpj(:, ij)
-                              qtmpj(:, ij) = -0.75_dp*qtmpj(:, ij)
                            END IF
                         END IF
 
@@ -2875,24 +2379,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'contract_dens'
 
-      INTEGER                                            :: handle, i, iblock_col, &
-                                                            iblock_row, ispin, j, mp_test_mode, &
-                                                            nspin
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      INTEGER                                            :: debug_status
-      CHARACTER(LEN=32)                                  :: debug_value
-#endif
+      INTEGER                                            :: handle, i, iblock_col, iblock_row, &
+                                                            ispin, j, nspin
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: bra, ket, p_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
-
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
 
       nspin = SIZE(p_matrix)
       output = 0.0_dp
@@ -2911,25 +2404,11 @@ CONTAINS
 
             IF (.NOT. (ASSOCIATED(bra) .AND. ASSOCIATED(p_block))) CYCLE
             IF (iblock_col == iblock_row) THEN
-               IF (mp_test_mode == 70) THEN
-                  DO j = 1, SIZE(p_block, 1)
-                     DO i = 1, SIZE(p_block, 2)
-                        output(iblock_row) = output(iblock_row) + p_block(j, i)*ket(j, i)
-                     END DO
+               DO j = 1, SIZE(p_block, 1)
+                  DO i = 1, SIZE(p_block, 2)
+                     output(iblock_row) = output(iblock_row) + p_block(j, i)*bra(j, i)
                   END DO
-               ELSEIF (mp_test_mode == 71) THEN
-                  DO j = 1, SIZE(p_block, 1)
-                     DO i = 1, SIZE(p_block, 2)
-                        output(iblock_row) = output(iblock_row) + 0.5_dp*p_block(j, i)*(bra(j, i) + ket(j, i))
-                     END DO
-                  END DO
-               ELSE
-                  DO j = 1, SIZE(p_block, 1)
-                     DO i = 1, SIZE(p_block, 2)
-                        output(iblock_row) = output(iblock_row) + p_block(j, i)*bra(j, i)
-                     END DO
-                  END DO
-               END IF
+               END DO
             ELSE
                DO j = 1, SIZE(p_block, 1)
                   DO i = 1, SIZE(p_block, 2)
@@ -3262,7 +2741,6 @@ CONTAINS
                                                             pot_self_image_deriv_scale, w_self_image_deriv_scale, &
                                                             h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
                                                             cn_image_scale
-      INTEGER                                            :: mp_test_mode
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value, scale_value
@@ -3309,35 +2787,8 @@ CONTAINS
       END IF
 
       h0 => tb%calc%h0
-      mp_test_mode = 0
-#if defined(__TBLITE_DEBUG_DIAGNOSTICS)
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
-      IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) mp_test_mode
-#endif
       dip_deriv_fac = -1.0_dp
       quad_deriv_fac = -1.0_dp
-      IF (mp_test_mode == 7 .OR. mp_test_mode == 11) THEN
-         dip_deriv_fac = 1.0_dp
-         quad_deriv_fac = 1.0_dp
-      END IF
-      IF (mp_test_mode == 8 .OR. mp_test_mode == 12) THEN
-         dip_deriv_fac = 0.0_dp
-         quad_deriv_fac = 0.0_dp
-      END IF
-      IF (mp_test_mode == 13 .OR. mp_test_mode == 14 .OR. mp_test_mode == 15 .OR. &
-          mp_test_mode == 16 .OR. mp_test_mode == 21 .OR. mp_test_mode == 33 .OR. &
-          mp_test_mode == 34 .OR. mp_test_mode == 37) THEN
-         dip_deriv_fac = -0.5_dp
-         quad_deriv_fac = -0.5_dp
-      END IF
-      IF (mp_test_mode == 17) THEN
-         dip_deriv_fac = -1.0_dp
-         quad_deriv_fac = 0.0_dp
-      END IF
-      IF (mp_test_mode == 18) THEN
-         dip_deriv_fac = 0.0_dp
-         quad_deriv_fac = -1.0_dp
-      END IF
       pot_deriv_scale = 1.0_dp
       w_deriv_scale = 1.0_dp
       h0_deriv_scale = 1.0_dp
@@ -3437,7 +2888,6 @@ CONTAINS
          r2 = DOT_PRODUCT(rij, rij)
          dr = SQRT(r2)
          IF (icol == jrow .AND. dr < same_atom) CYCLE
-         IF (mp_test_mode == 140 .AND. icol == jrow) CYCLE
          rr = SQRT(dr/(h0%rad(ikind) + h0%rad(jkind)))
 
          !get basis information
@@ -3489,14 +2939,6 @@ CONTAINS
          dip_deriv_fac_pair = dip_deriv_fac
          quad_deriv_fac_pair = quad_deriv_fac
          overlap_deriv_fac = 1.0_dp
-         IF (icol == jrow) THEN
-            IF (mp_test_mode == 141) THEN
-               dip_deriv_fac_pair = 0.0_dp
-               quad_deriv_fac_pair = 0.0_dp
-            ELSEIF (mp_test_mode == 142) THEN
-               overlap_deriv_fac = 0.0_dp
-            END IF
-         END IF
 
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
@@ -3508,23 +2950,9 @@ CONTAINS
                jshift = j_a_shift + tb%pot%vsh(nj + jset, 1)
 
                !get integrals and derivatives
-               IF (mp_test_mode == 20 .OR. mp_test_mode == 21) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
-                     & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
-                     & t_i_dip, t_i_quad)
-               ELSEIF (mp_test_mode == 34 .OR. mp_test_mode == 35) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
-                     & r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
-                     & t_i_dip, t_i_quad)
-               ELSEIF (mp_test_mode == 36 .OR. mp_test_mode == 37) THEN
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                     & r2, -rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
-                     & t_j_dip, t_j_quad)
-               ELSE
-                  CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                     & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
-                     & t_j_dip, t_j_quad)
-               END IF
+               CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
+                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
+                  & t_j_dip, t_j_quad)
 
                shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
                         *(1.0_dp + h0%shpoly(jset, jkind)*rr)
@@ -3545,12 +2973,7 @@ CONTAINS
                   DO indb = 1, nsgfb(jset)
                      ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
 
-                     IF (mp_test_mode == 20 .OR. mp_test_mode == 21 .OR. &
-                         mp_test_mode == 34 .OR. mp_test_mode == 35) THEN
-                        ij = indb + nsgfb(jset)*(inda - 1)
-                     ELSE
-                        ij = inda + nsgfa(iset)*(indb - 1)
-                     END IF
+                     ij = inda + nsgfa(iset)*(indb - 1)
 
                      itemp = itemp + overlap_deriv_fac*idHdc*pblock(ib, ia)*t_ov(ij)
                      jtemp = jtemp + overlap_deriv_fac*jdHdc*pblock(ib, ia)*t_ov(ij)
