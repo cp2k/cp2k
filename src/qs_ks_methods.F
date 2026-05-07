@@ -54,6 +54,7 @@ MODULE qs_ks_methods
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix,&
                                               hfx_ks_matrix_kp
+   USE hfx_ace_methods,                 ONLY: hfx_ace_ks_matrix
    USE input_constants,                 ONLY: do_ppl_grid,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint,&
@@ -61,7 +62,8 @@ MODULE qs_ks_methods
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_release,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -198,6 +200,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
+      INTEGER                                            :: ace_rebuild_frequency
+      LOGICAL                                            :: ace_active
+      TYPE(section_vals_type), POINTER                   :: ace_section
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
@@ -236,6 +241,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
+               ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
                xc_section, xc_section_gapw_xc, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
                poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
@@ -648,13 +654,36 @@ CONTAINS
       ! *** Add Hartree-Fock contribution if required ***
       hfx_sections => section_vals_get_subs_vals(xc_section, "HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
+
+      ace_active = .FALSE.
+      ace_rebuild_frequency = 1
+
       IF (do_hfx) THEN
+         ace_section => section_vals_get_subs_vals(hfx_sections, "ACE")
+         IF (ASSOCIATED(ace_section)) THEN
+            CALL section_vals_val_get(ace_section, "ACTIVE", l_val=ace_active)
+            CALL section_vals_val_get(ace_section, "REBUILD_FREQUENCY", i_val=ace_rebuild_frequency)
+         END IF
+      ENDIF
+
+      IF(do_hfx) THEN
          IF (dokp) THEN
-            CALL hfx_ks_matrix_kp(qs_env, ks_matrix, energy, calculate_forces)
+            IF (ace_active) THEN
+               CPABORT("ACE-HFX for k-points is not implemented yet")
+            ELSE
+               CALL hfx_ks_matrix_kp(qs_env, ks_matrix, energy, calculate_forces)
+            END IF
+
          ELSE
             ! ext_xc_section may contain a hfx section
-            CALL hfx_ks_matrix(qs_env, ks_matrix, rho, energy, calculate_forces, &
-                               just_energy, v_rspace_new, v_tau_rspace, ext_xc_section=xc_section)
+            IF (ace_active) THEN
+               CALL hfx_ace_ks_matrix(qs_env, ks_matrix, rho, energy, calculate_forces, &
+                                      just_energy, v_rspace_new, v_tau_rspace, &
+                                      ace_rebuild_frequency, ext_xc_section=xc_section)
+            ELSE
+               CALL hfx_ks_matrix(qs_env, ks_matrix, rho, energy, calculate_forces, &
+                                  just_energy, v_rspace_new, v_tau_rspace, ext_xc_section=xc_section)
+            END IF
          END IF
       END IF !do_hfx
 
