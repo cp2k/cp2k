@@ -872,6 +872,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
       TYPE(kpoint_type), POINTER                            :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_kp
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                              :: nl_iterator
       TYPE(mp_para_env_type), POINTER                       :: para_env
@@ -893,7 +894,7 @@ CONTAINS
 
       NULLIFY (ks_env, energy, atomic_kind_set, qs_kind_set)
       NULLIFY (matrix_h, matrix_s, atprop, dft_control)
-      NULLIFY (sab_orb, rho, tb, kpoints, cell_to_index)
+      NULLIFY (sab_orb, sab_kp, rho, tb, kpoints, cell_to_index)
 
       CALL get_qs_env(qs_env=qs_env, &
                       ks_env=ks_env, para_env=para_env, &
@@ -905,6 +906,7 @@ CONTAINS
                       atprop=atprop, &
                       dft_control=dft_control, &
                       sab_orb=sab_orb, &
+                      sab_kp=sab_kp, &
                       rho=rho, tb_tblite=tb)
       h0 => tb%calc%h0
 
@@ -933,6 +935,8 @@ CONTAINS
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
       IF (nimg > 1) THEN
+         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing k-point neighbor list for tblite")
+         sab_orb => sab_kp
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
@@ -1046,7 +1050,7 @@ CONTAINS
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
-         IF (icol == jatom) THEN
+         IF (iatom < jatom) THEN
             rij = -rij
             i = ikind
             ikind = jkind
@@ -2068,6 +2072,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: kp_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(potential_type)                               :: native_pot
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
@@ -2083,8 +2089,13 @@ CONTAINS
           mp_test_mode == 12) mpfac = 0.5_dp
       IF (mp_test_mode == 5) mpfac = 0.0_dp
 
-      NULLIFY (matrix_s, ks_matrix, n_list, qs_kind_set)
-      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
+      NULLIFY (matrix_s, ks_matrix, n_list, kp_list, qs_kind_set)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, sab_kp=kp_list, &
+                      matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
+      IF (nimg > 1) THEN
+         IF (.NOT. ASSOCIATED(kp_list)) CPABORT("Missing k-point neighbor list for tblite Hamiltonian")
+         n_list => kp_list
+      END IF
       nspin = SIZE(ks_matrix, 1)
 
       IF (mp_test_mode == 83 .OR. mp_test_mode == 183 .OR. &
@@ -2298,8 +2309,7 @@ CONTAINS
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
 
-            IF (icol == jatom) THEN
-               rij = -rij
+            IF (iatom > jatom) THEN
                i = ikind
                ikind = jkind
                jkind = i
@@ -2542,6 +2552,7 @@ CONTAINS
       TYPE(adjacency_list)                                  :: native_list
       TYPE(kpoint_type), POINTER                            :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_kp
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                              :: nl_iterator
       TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
@@ -2550,11 +2561,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !get info from environment vaiarable
-      NULLIFY (atomic_kind_set, qs_kind_set, sab_orb, particle_set)
+      NULLIFY (atomic_kind_set, qs_kind_set, sab_orb, sab_kp, particle_set)
       NULLIFY (dft_control, matrix_s, kpoints, cell_to_index)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       sab_orb=sab_orb, &
+                      sab_kp=sab_kp, &
                       particle_set=particle_set, &
                       dft_control=dft_control, &
                       kpoints=kpoints, &
@@ -2563,6 +2575,8 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       nimg = dft_control%nimages
       IF (nimg > 1) THEN
+         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing k-point neighbor list for tblite multipoles")
+         sab_orb => sab_kp
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
       mp_test_mode = 0
@@ -2717,7 +2731,7 @@ CONTAINS
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
 
-         IF (icol == jatom) THEN
+         IF (iatom < jatom) THEN
             rij = -rij
             i = ikind
             ikind = jkind
@@ -2887,11 +2901,6 @@ CONTAINS
                         CALL tb_shift_multipole(mp_shift_vec, stmp(ij), dtmp(:, ij), qtmp(:, ij), &
                                                 dtmpj(:, ij), qtmpj(:, ij))
                         IF (icol == irow .AND. r2 >= same_atom**2) THEN
-                           IF (nimg > 1) THEN
-                              ! Match the k-point image block orientation used for self-image quadrupoles.
-                              qtmp(:, ij) = -qtmp(:, ij)
-                              qtmpj(:, ij) = -qtmpj(:, ij)
-                           END IF
                            IF (mp_test_mode == 30 .OR. mp_test_mode == 32 .OR. mp_test_mode == 33) THEN
                               dtmpj(:, ij) = dtmp(:, ij)
                               qtmpj(:, ij) = qtmp(:, ij)
@@ -3545,17 +3554,21 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_kp
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(tblite_type), POINTER                         :: tb
 
       ! compute mulliken charges required for charge update
-      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
+      NULLIFY (scf_env, rho, tb, sab_orb, sab_kp, para_env, kpoints)
       CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
-                      sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
+                      sab_orb=sab_orb, sab_kp=sab_kp, para_env=para_env, kpoints=kpoints)
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
+         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing tblite k-point neighbor list")
+         sab_orb => sab_kp
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
@@ -3643,12 +3656,14 @@ CONTAINS
 #if defined(__TBLITE)
       INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
                                                             sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
-                                                            nseti, nsetj, ia, ib, inda, indb, sampled_odd_axes, nspin
+                                                            nseti, nsetj, ia, ib, inda, indb, n_periodic, &
+                                                            n_sampled_kpoints, sampled_even_axes, sampled_odd_axes, nspin
       INTEGER, DIMENSION(3)                              :: cellind, nkp_grid
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, image_pair, sampled_image_pair
+      LOGICAL                                            :: found, has_multipole_response, image_pair, kpoint_image_pair, &
+                                                            sampled_image_pair
       REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, i_a_shift_mag, j_a_shift_mag, &
                                                             ishift, jshift, ishift_mag, jshift_mag, pij_charge, &
@@ -3661,7 +3676,7 @@ CONTAINS
                                                             pot_pair_scale, w_pair_scale, h0_pair_scale, mp_pair_scale, &
                                                             pot_self_image_deriv_scale, w_self_image_deriv_scale, &
                                                             h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
-                                                            cn_image_scale
+                                                            cn_image_scale, nyquist_self_image_deriv_scale
       INTEGER                                            :: mp_test_mode
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
@@ -3685,6 +3700,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_kp
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -3692,13 +3709,14 @@ CONTAINS
       TYPE(tblite_type), POINTER                         :: tb
 
       ! compute mulliken charges required for charge update
-      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints, matrix_w)
+      NULLIFY (scf_env, rho, tb, sab_orb, sab_kp, para_env, kpoints, matrix_w)
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       scf_env=scf_env, &
                       rho=rho, &
                       tb_tblite=tb, &
                       sab_orb=sab_orb, &
+                      sab_kp=sab_kp, &
                       para_env=para_env, &
                       qs_kind_set=qs_kind_set, &
                       kpoints=kpoints, &
@@ -3706,6 +3724,8 @@ CONTAINS
 
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
+         IF (.NOT. ASSOCIATED(sab_kp)) CPABORT("Missing tblite k-point neighbor list")
+         sab_orb => sab_kp
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index, nkp_grid=nkp_grid)
       ELSE
          nkp_grid = 1
@@ -3714,8 +3734,14 @@ CONTAINS
       IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
       IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
       IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 1) sampled_odd_axes = sampled_odd_axes + 1
+      n_periodic = COUNT(tb%mol%periodic)
+      n_sampled_kpoints = 1
+      DO i = 1, 3
+         IF (tb%mol%periodic(i)) n_sampled_kpoints = n_sampled_kpoints*nkp_grid(i)
+      END DO
 
       h0 => tb%calc%h0
+      has_multipole_response = ASSOCIATED(tb%dipbra) .OR. ASSOCIATED(tb%quadbra)
       mp_test_mode = 0
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_MULTIPOLE_TEST", debug_value, STATUS=debug_status)
@@ -3777,12 +3803,13 @@ CONTAINS
       w_self_image_deriv_scale = w_image_deriv_scale
       h0_self_image_deriv_scale = h0_image_deriv_scale
       mp_self_image_deriv_scale = mp_image_deriv_scale
-      ! Periodic self-images are stored in the sorted on-site image block for
-      ! k-point calculations. Their multipole derivatives need the same
-      ! opposite quarter-weighting as the explicit self-image virial
-      ! contribution below. The Gamma periodic bsf path keeps the native factor.
-      IF (nimg > 1 .AND. ALL(tb%mol%periodic)) &
-         mp_self_image_deriv_scale = -0.25_dp*mp_image_deriv_scale
+      ! K-point self-images are stored in CP2K's sorted on-site image block.
+      ! Keep the sampled-image H0 response on the real-space normalization. The
+      ! corresponding Pulay/W contribution is normalized below from the
+      ! Nyquist multiplicity of the sampled k-point image. Multipole models use
+      ! the sampled matrix block orientation for their self-image derivatives.
+      IF (nimg > 1 .AND. ANY(nkp_grid > 1) .AND. has_multipole_response) &
+         mp_self_image_deriv_scale = -mp_image_deriv_scale
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_POT_SELF_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) pot_self_image_deriv_scale
@@ -3841,7 +3868,7 @@ CONTAINS
          icol = MAX(iatom, jatom)
          jrow = MIN(iatom, jatom)
 
-         IF (icol == jatom) THEN
+         IF (iatom < jatom) THEN
             rij = -rij
             i = ikind
             ikind = jkind
@@ -3876,10 +3903,18 @@ CONTAINS
             CPASSERT(ic > 0)
          END IF
          image_pair = (cellind(1) /= 0 .OR. cellind(2) /= 0 .OR. cellind(3) /= 0)
-         sampled_image_pair = image_pair .AND. &
-                              ((cellind(1) /= 0 .AND. nkp_grid(1) > 1) .OR. &
-                               (cellind(2) /= 0 .AND. nkp_grid(2) > 1) .OR. &
-                               (cellind(3) /= 0 .AND. nkp_grid(3) > 1))
+         kpoint_image_pair = image_pair .AND. &
+                             ((cellind(1) /= 0 .AND. nkp_grid(1) > 1) .OR. &
+                              (cellind(2) /= 0 .AND. nkp_grid(2) > 1) .OR. &
+                              (cellind(3) /= 0 .AND. nkp_grid(3) > 1))
+         sampled_even_axes = 0
+         IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 0 .AND. &
+             ABS(2*cellind(1)) == nkp_grid(1)) sampled_even_axes = sampled_even_axes + 1
+         IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 0 .AND. &
+             ABS(2*cellind(2)) == nkp_grid(2)) sampled_even_axes = sampled_even_axes + 1
+         IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 0 .AND. &
+             ABS(2*cellind(3)) == nkp_grid(3)) sampled_even_axes = sampled_even_axes + 1
+         sampled_image_pair = kpoint_image_pair .AND. sampled_even_axes > 0
          pot_pair_scale = MERGE(pot_image_deriv_scale, pot_deriv_scale, image_pair)
          w_pair_scale = MERGE(w_image_deriv_scale, w_deriv_scale, image_pair)
          h0_pair_scale = MERGE(h0_image_deriv_scale, h0_deriv_scale, image_pair)
@@ -3887,6 +3922,18 @@ CONTAINS
          IF (icol == jrow .AND. sampled_image_pair) THEN
             pot_pair_scale = pot_self_image_deriv_scale
             w_pair_scale = w_self_image_deriv_scale
+            ! sampled_even_axes identifies a Nyquist self-image. The sorted
+            ! self-image block needs one normalization; the multiplicity follows
+            ! from the sampled mesh, periodicity, and active response channels.
+            nyquist_self_image_deriv_scale = 1.0_dp
+            IF (has_multipole_response) THEN
+               IF (n_periodic > 1) &
+                  nyquist_self_image_deriv_scale = 1.0_dp + REAL(n_periodic, dp)/ &
+                                                   REAL(n_sampled_kpoints*(1 + dip_n + quad_n), dp)
+            ELSEIF (n_periodic == 3) THEN
+               nyquist_self_image_deriv_scale = 1.0_dp + 1.0_dp/REAL(n_sampled_kpoints*n_periodic, dp)
+            END IF
+            w_pair_scale = w_pair_scale*nyquist_self_image_deriv_scale
             ! Odd Monkhorst-Pack meshes do not contain a Nyquist image along the
             ! sampled axis. Match the self-image W derivative to the reduced
             ! real-space representation used by the k-point density transform.
