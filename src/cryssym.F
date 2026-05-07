@@ -521,7 +521,13 @@ CONTAINS
       END DO
       csym%ibrot(1:nc) = ib(1:nc)
 
-      IF (spglib_reduction) THEN
+      IF (csym%n_operations > nc) THEN
+         IF (ALLOCATED(srot)) DEALLOCATE (srot)
+         ALLOCATE (srot(3, 3, csym%n_operations))
+         CALL setup_spglib_operations(csym, srot, nrot)
+         CALL reduce_spglib_kpoint_mesh(csym, xkp, wkp, kpop, srot, nrot)
+         DEALLOCATE (srot)
+      ELSE IF (spglib_reduction) THEN
          ALLOCATE (srot(3, 3, csym%n_operations))
          CALL setup_spglib_reduction_rotations(csym, srot, nrot)
          CALL reduce_spglib_kpoint_mesh_k290(csym, xkp, wkp, kpop, srot, nrot, &
