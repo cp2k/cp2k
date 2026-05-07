@@ -45,41 +45,41 @@ MODULE qs_dispersion_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
    PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
-   PUBLIC :: cellhash, xc_functional_to_d4_name, xc_functional_to_d4_name_int, xc_functional_detect_expanded
+   PUBLIC :: cellhash, xc_functional_to_d_name, xc_functional_to_d4_name_int, xc_functional_detect_expanded
 
 ! **************************************************************************************************
 CONTAINS
    ! **************************************************************************************************
 !> \brief ...
 !> \param xc_functional_name ...
-!> \param d4_functional_name ...
+!> \param d_functional_name ...
 ! **************************************************************************************************
-   SUBROUTINE xc_functional_to_d4_name(xc_functional_name, d4_functional_name)
+   SUBROUTINE xc_functional_to_d_name(xc_functional_name, d_functional_name)
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
-      CHARACTER(len=*), INTENT(OUT)                      :: d4_functional_name
+      CHARACTER(len=*), INTENT(OUT)                      :: d_functional_name
 
       SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
       CASE ("PBE")
-         d4_functional_name = "pbe"
+         d_functional_name = "pbe"
       CASE ("PBE0")
-         d4_functional_name = "pbe0"
+         d_functional_name = "pbe0"
       CASE ("B3LYP")
-         d4_functional_name = "b3lyp"
+         d_functional_name = "b3lyp"
       CASE ("BLYP")
-         d4_functional_name = "blyp"
+         d_functional_name = "blyp"
       CASE ("BP")
-         d4_functional_name = "bp"
+         d_functional_name = "bp"
       CASE ("TPSS")
-         d4_functional_name = "tpss"
+         d_functional_name = "tpss"
       CASE ("SCAN")
-         d4_functional_name = "scan"
+         d_functional_name = "scan"
       CASE ("R2SCAN")
-         d4_functional_name = "r2scan"
+         d_functional_name = "r2scan"
       CASE DEFAULT
-         d4_functional_name = "none"
+         d_functional_name = "none"
       END SELECT
 
-   END SUBROUTINE xc_functional_to_d4_name
+   END SUBROUTINE xc_functional_to_d_name
 
 ! **************************************************************************************************
 !> \brief ...
@@ -332,7 +332,7 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CALL xc_functional_to_d4_name(xc_functional_name, dispersion_env%ref_functional)
+                  CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
                ELSE
                   CALL section_vals_val_get(vdw_section, &
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
