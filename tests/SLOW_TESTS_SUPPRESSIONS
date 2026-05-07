@@ -53,6 +53,7 @@ QS/regtest-rel/h2o-3.inp
 xTB/regtest-5/AdeThyvdW.inp
 xTB/regtest-5/ef_stress1.inp
 xTB/regtest-5/ef_stress3.inp
+xTB/regtest-tblite-gfn2/Si_gfn2_kp_stress.inp
 QS/regtest-admm-qps/CH4-ADMMS-stress-tensor-numerical.inp
 QS/regtest-xc/3H2_PBE.inp
 QS/regtest-xc/3H2_PBEsol.inp
