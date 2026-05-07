@@ -1150,7 +1150,7 @@ CONTAINS
          ELSE
             cif_label(iatom) = TRIM(element_symbol)//TRIM(ADJUSTL(cp_to_string(iatom)))
             xyz_label(iatom) = TRIM(element_symbol)
-            elem_loop: DO ielem = 1, nelem + 1
+            elem_loop: DO ielem = 1, elem_seen
                IF (element_list(ielem) == element_symbol) THEN
                   elem_in_list = .TRUE.
                   count_list(ielem) = count_list(ielem) + 1
