@@ -252,7 +252,9 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, j, nkp, nkpts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
       LOGICAL                                            :: fullmesh, inversion_only, &
-                                                            spglib_backend, spglib_reduction
+                                                            orthorhombic_cell, spglib_backend, &
+                                                            spglib_reduction
+      REAL(KIND=dp)                                      :: cell_eps
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
 
@@ -297,6 +299,11 @@ CONTAINS
       END IF
       csym%spglib_backend = spglib_backend
 
+      cell_eps = 10.0_dp*csym%delta*MAX(1.0_dp, MAXVAL(ABS(csym%hmat)))
+      orthorhombic_cell = ABS(csym%hmat(1, 2)) + ABS(csym%hmat(1, 3)) + &
+                          ABS(csym%hmat(2, 1)) + ABS(csym%hmat(2, 3)) + &
+                          ABS(csym%hmat(3, 1)) + ABS(csym%hmat(3, 2)) <= cell_eps
+
       IF (spglib_backend .AND. .NOT. spglib_reduction) THEN
          CALL cp_abort(__LOCATION__, &
                        "SYMMETRY_BACKEND SPGLIB requires SYMMETRY_REDUCTION_METHOD SPGLIB")
@@ -316,6 +323,7 @@ CONTAINS
       ! kp: link
       ALLOCATE (csym%kplink(2, nkpts))
       csym%kplink = 0
+      kpop = 0
 
       ! go through all the options
       IF (csym%symlib) THEN
@@ -351,7 +359,15 @@ CONTAINS
       ELSE
          ! no symmetry library is available
          CALL full_grid_gen(nk, xkp, wkp, shift)
-         IF (csym%istriz /= 1 .AND. fullmesh) THEN
+         IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only .AND. &
+             orthorhombic_cell) THEN
+            ! fall back to the K290 atom mapping for simple cells when SPGLIB is not linked
+            IF (SUM(ABS(csym%wvk0)) /= 0.0_dp) THEN
+               CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
+                             "possible without symmetrization.")
+            END IF
+            CALL kp_symmetry(csym, xkp, wkp, kpop, use_spglib_reduction=.FALSE.)
+         ELSE IF (csym%istriz /= 1 .AND. fullmesh) THEN
             ! full kpoint mesh is used
             DO i = 1, nkpts
                csym%kplink(1, i) = i
@@ -400,7 +416,8 @@ CONTAINS
 
       ! kp: operations
       ALLOCATE (csym%kpop(nkpts))
-      IF (csym%symlib .AND. csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only) THEN
+      IF (csym%nrtot > 0 .AND. csym%istriz == 1 .AND. .NOT. fullmesh .AND. &
+          .NOT. inversion_only) THEN
          ! atomic symmetry operations possible
          csym%kpop(1:nkpts) = kpop(1:nkpts)
          DO ik = 1, nkpts

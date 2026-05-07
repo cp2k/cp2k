@@ -212,8 +212,8 @@ CONTAINS
             NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
-            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid .AND. crys_sym%istriz == 1 .AND. &
-                .NOT. crys_sym%inversion_only) THEN
+            IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
+                crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
                ! set up the symmetrization information
                kpsym%nwght = NINT(crys_sym%wkpoint(ik))
                ns = kpsym%nwght
