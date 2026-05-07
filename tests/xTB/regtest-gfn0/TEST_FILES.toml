@@ -34,6 +34,11 @@
 "Si_gfn0_1d_x_diag_debug.inp"           = [{matcher="DEBUG_stress_sum", tol=2.0E-5, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=5.0E-6, ref=0.0000000},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"H2O_gfn0_mol_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000}]
+"H2O_gfn0_yz_kp_debug.inp"              = [{matcher="DEBUG_stress_sum", tol=2.0E-5, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=2}]
 "ch2o_eeq.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-7.84498764689590}]
 "ch2o_eloc.inp"                         = []
 "ch2o_eper.inp"                         = []

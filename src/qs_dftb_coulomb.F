@@ -292,10 +292,15 @@ CONTAINS
                      gmcharge(iatom, i) = gmcharge(iatom, i) + rij(i - 1)*mcharge(jatom)/dr**3
                      gmcharge(jatom, i) = gmcharge(jatom, i) - rij(i - 1)*mcharge(iatom)/dr**3
                   END DO
+                  IF (use_virial .AND. dr > 1.e-6_dp) THEN
+                     DO i = 1, 3
+                        fij(i) = mcharge(iatom)*mcharge(jatom)*rij(i)/dr**3
+                     END DO
+                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, fij, rij)
+                  END IF
                END DO
             END DO
          END DO
-         CPASSERT(.NOT. use_virial)
       END IF
 
       CALL para_env%sum(gmcharge(:, 1))

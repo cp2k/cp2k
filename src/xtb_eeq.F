@@ -452,6 +452,9 @@ CONTAINS
                   fdik(:) = qq*grc*rij(:)/dr
                   force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + fdik(:)
                   force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) - fdik(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rij)
+                  END IF
                END DO
             END DO
          END DO

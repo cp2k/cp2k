@@ -1,0 +1,71 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT dftb3_h2o_direct_stress
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  DEBUG_FORCES T
+  DEBUG_STRESS_TENSOR T
+  DX 1.0e-4
+  EPS_NO_ERROR_CHECK 1.0e-6
+  MAX_RELATIVE_ERROR 0.5
+  STOP_ON_MISMATCH F
+&END DEBUG
+
+#CPQA INCLUDE DFTB/scc/scc_parameter
+#CPQA INCLUDE DFTB/scc/oo.spl
+#CPQA INCLUDE DFTB/scc/oh.spl
+#CPQA INCLUDE DFTB/scc/ho.spl
+#CPQA INCLUDE DFTB/scc/hh.spl
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        DIAGONAL_DFTB3 T
+        DISPERSION F
+        DO_EWALD F
+        HB_SR_GAMMA T
+        ORTHOGONAL_BASIS F
+        SELF_CONSISTENT T
+        &PARAMETER
+          HB_SR_PARAM 4.0
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH DFTB/scc
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      EPS_SCF 1.0e-10
+      MAX_SCF 500
+      SCF_GUESS ATOMIC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.000000    0.000000    0.000000
+      H     0.758602    0.000000    0.504284
+      H    -0.758602    0.000000    0.504284
+    &END COORD
+    &KIND O
+      DFTB3_PARAM -0.14
+    &END KIND
+    &KIND H
+      DFTB3_PARAM -0.05
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

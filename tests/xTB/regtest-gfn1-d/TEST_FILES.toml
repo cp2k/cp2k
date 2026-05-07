@@ -14,6 +14,11 @@
 "ch2o_t07.inp"                          = []
 "ch2o_t08.inp"                          = []
 "ch2o_cn_stress.inp"                    = []
+"H2O_gfn1_mol_debug.inp"                = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000}]
+"H2O_gfn1_yz_kp_debug.inp"              = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=2}]
 #
 #ch2o_t09.inp                               0
 #ch2o_t10.inp                               0
