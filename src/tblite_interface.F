@@ -312,7 +312,6 @@ CONTAINS
 
       tb%mol%charge = dft_control%charge
       tb%mol%uhf = MAX(0, dft_control%multiplicity - 1)
-      IF (nSpin == 1) tb%mol%uhf = 0
       IF (nSpin == 2) CALL tb_add_spin_polarization(tb)
 
       info = tb%calc%variable_info()
