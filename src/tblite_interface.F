@@ -4748,9 +4748,9 @@ CONTAINS
 
       IF (ALL(periodic == 0)) THEN
          CALL cp_warn(__LOCATION__, &
-                      "tblite stress tensor requested for an isolated system. "// &
-                      "The reported virial is useful for finite-difference checks, "// &
-                      "but it is not a physically meaningful bulk stress for an isolated molecule.")
+                      "tblite molecular stress tensor requested for PERIODIC NONE. "// &
+                      "CP2K will continue and report the finite-molecule virial, "// &
+                      "which is not a physically meaningful bulk stress.")
       END IF
 
       dump_status = 1

@@ -1,0 +1,53 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT NH4_plus_gxtb_auto_reference_cli_stress
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    CHARGE 1
+    MULTIPLICITY 1
+    &QS
+      EPS_DEFAULT 1.00E-12
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        &TBLITE
+          METHOD GXTB
+          SCC_MIXER AUTO
+          &REFERENCE_CLI
+            PROGRAM_NAME tblite
+            WORK_DIRECTORY ref-cli-nh4-stress
+            CHECK_VIRIAL T
+            ACCURACY 0.01
+            ERROR_LIMIT 1.0E-6
+          &END REFERENCE_CLI
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.e-10
+      MAX_SCF 200
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      N     0.000000    0.000000    0.000000
+      H     0.000000    0.000000    1.040000
+      H     0.980000    0.000000   -0.346667
+      H    -0.490000    0.848705   -0.346667
+      H    -0.490000   -0.848705   -0.346667
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

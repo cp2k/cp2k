@@ -221,6 +221,11 @@ registry["DEBUG_force_sum"] = GenericMatcher(
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )
+registry["XTB_reference_cli_gradient_max"] = GenericMatcher(r"Gradient diff sum/max:", col=5)
+registry["XTB_reference_cli_virial_max"] = GenericMatcher(r"Virial diff sum/max:", col=5)
+registry["XTB_molecular_stress_warning"] = TextPresenceMatcher(
+    "tblite molecular stress tensor"
+)
 registry["XTB_scc_mixer_auto"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+AUTO\b")
 registry["XTB_scc_mixer_tblite"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+TBLITE\b")
 registry["XTB_scc_mixer_cp2k"] = RegexPresenceMatcher(r"xTB\|\s+SCC mixer:\s+CP2K\b")

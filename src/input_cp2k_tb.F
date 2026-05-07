@@ -738,7 +738,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CHECK_VIRIAL", &
-                          description="Compare CP2K/tblite virial against the native tblite CLI virial.", &
+                          description="Compare CP2K/tblite virial, i.e. the stress-tensor numerator, "// &
+                          "against the native tblite CLI virial printed by --grad.", &
                           usage="CHECK_VIRIAL T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
