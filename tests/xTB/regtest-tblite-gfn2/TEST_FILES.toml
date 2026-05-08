@@ -19,11 +19,12 @@
 "Si_gfn2_fd_force.inp"                   = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Si_gfn2_fd_stress.inp"                  = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
 # Low-symmetry periodic GFN2/tblite stress diagnostic enabled on this branch.
+# DEBUG_STRESS_TENSOR matches the final finite-difference cell, whose symmetry is lower.
 "Si_gfn2_asym_fd_stress.inp"             = [{matcher="DEBUG_stress_sum", tol=5.0E-6, ref=0.0000000}]
 "Si_gfn2_kp_stress.inp"                  = [{matcher="DEBUG_stress_sum", tol=5.0E-5, ref=0.0000000},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_333_stress.inp"              = [{matcher="DEBUG_stress_sum", tol=2.0E-4, ref=0.0000000},
-                                             {matcher="N_special_kpoints", tol=0.0, ref=6}]
+                                             {matcher="N_special_kpoints", tol=0.0, ref=14}]
 "Si_gfn2_kp_kpsym.inp"                   = [{matcher="E_total", tol=1.0E-8, ref=-13.65677573470654},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-13.65677573470654},
