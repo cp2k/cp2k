@@ -2258,9 +2258,9 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_gw_ri_rs_section(subsection)        
-      CALL section_add_subsection(section, subsection)    
-      CALL section_release(subsection)                   
+      CALL create_gw_ri_rs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL create_soc_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -2518,9 +2518,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID_SELECT", &
-                          description="Selection of grid type (1) def2-TZVPP (2) cc-pVTZ ", & 
+                          description="Selection of grid type (1) def2-TZVPP (2) cc-pVTZ ", &
                           usage="GRID_SELECT 1", &
-                          default_i_val = 1)
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2532,8 +2532,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI_RS", &
-                          description="The cutoff radius (in Angstrom) for the Resolution of Identity"// &
-                          "Real Space Approximation", &
+                          description="The cutoff radius (in Angstrom) for the Resolution "// &
+                          "of Identity Real Space Approximation", &
                           usage="CUTOFF_RADIUS_RI_RS 15.0", &
                           default_r_val=cp_unit_to_cp2k(value=15.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")

@@ -15,8 +15,8 @@ MODULE post_scf_bandstructure_types
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_type,&
-                                              dbcsr_release
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -59,25 +59,25 @@ MODULE post_scf_bandstructure_types
    ! data types for GW RI-RS code
    TYPE rirs_grid_type
       INTEGER                    :: npts
-      REAL(KIND=dp), ALLOCATABLE :: raw_points(:,:)
+      REAL(KIND=dp), ALLOCATABLE :: raw_points(:, :)
    END TYPE rirs_grid_type
 
    TYPE ri_rs_env
 
-     ! Input parameters for RI-RS
-     INTEGER                                          :: grid_select = 1  
-     INTEGER                                          :: chunk_size_dbcsr = 256  
-     REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp 
-     REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
-     
-     ! Data types for building grid points
-     TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
+      ! Input parameters for RI-RS
+      INTEGER                                          :: grid_select = 1
+      INTEGER                                          :: chunk_size_dbcsr = 256
+      REAL(KIND=dp)                                    :: tikhonov = 1.0E-08_dp
+      REAL(KIND=dp)                                    :: cutoff_radius_ri_rs = 30.0_dp
 
-     ! Data types for storing RI-RS matrices
-     TYPE(dbcsr_type)                                 :: mat_phi_mu_l
-     TYPE(dbcsr_type)                                 :: mat_Z_lP
-     REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:,:)
-     LOGICAL                                          :: Z_lP_exists = .FALSE.
+      ! Data types for building grid points
+      TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
+
+      ! Data types for storing RI-RS matrices
+      TYPE(dbcsr_type)                                 :: mat_phi_mu_l
+      TYPE(dbcsr_type)                                 :: mat_Z_lP
+      REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
+      LOGICAL                                          :: Z_lP_exists = .FALSE.
 
    END TYPE ri_rs_env
 
@@ -488,10 +488,10 @@ CONTAINS
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       ! Deallocate RI-RS matrices
-      IF(bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
-      IF(bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
+      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
-      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE(bs_env%ri_rs%grid_cache)
+      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
 
       DEALLOCATE (bs_env)
 

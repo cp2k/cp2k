@@ -62,10 +62,11 @@ MODULE gw_utils
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE input_constants,                 ONLY: do_potential_truncated,&
                                               large_cell_Gamma,&
+                                              large_cell_Gamma_ri_rs,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               rtp_method_bse,&
                                               small_cell_full_kp,&
-                                              xc_none, large_cell_Gamma_ri_rs
+                                              xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1337,11 +1338,11 @@ CONTAINS
       END IF
 
       ! Check for Restart Z_lP file
-      IF(bs_env%do_gw_ri_rs) THEN
+      IF (bs_env%do_gw_ri_rs) THEN
          WRITE (Z_lP_name, '(3A)') TRIM(prefix), "Z_lP", ".matrix"
          INQUIRE (file=TRIM(Z_lP_name), exist=Z_lP_exists)
          bs_env%ri_rs%Z_lP_exists = Z_lP_exists
-      ENDIF
+      END IF
 
       IF (bs_env%all_W_exist) THEN
          bs_env%read_chi(:) = .FALSE.
@@ -1690,13 +1691,13 @@ CONTAINS
          WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
             bs_env%input_memory_per_proc_GB, ' GB'
          IF (bs_env%do_gw_ri_rs) THEN
-             WRITE (u, FMT="(T2,A,ES44.1)") " "
-             WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
-             WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
-                                              bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
-             WRITE (u, FMT="(T2,A,I42)") "INPUT: Chunk size for DBCSR matrices ", bs_env%ri_rs%chunk_size_dbcsr
-             WRITE (u, FMT="(T2,A,ES44.1)") " "
-         ENDIF
+            WRITE (u, FMT="(T2,A,ES44.1)") " "
+            WRITE (u, FMT="(T2,A,ES37.1)") "INPUT: Regularization parameter for RI-RS ", bs_env%ri_rs%tikhonov
+            WRITE (u, FMT="(T2,A,F31.1,A)") "INPUT: Cutoff radius for grid points in RI-RS ", &
+               bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, " Å"
+            WRITE (u, FMT="(T2,A,I42)") "INPUT: Chunk size for DBCSR matrices ", bs_env%ri_rs%chunk_size_dbcsr
+            WRITE (u, FMT="(T2,A,ES44.1)") " "
+         END IF
       END IF
 
       CALL timestop(handle)

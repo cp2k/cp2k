@@ -313,7 +313,9 @@ registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
 
 # RI-RS G0W0 calculation for molecules
 registry["RIRS_Grid"] = GenericMatcher(r"Total grid points used for RI-RS:", col=7)
-registry["RIRS_CUTOFF"] = GenericMatcher(r"INPUT: Cutoff radius for grid points in RI-RS", col=9)
+registry["RIRS_CUTOFF"] = GenericMatcher(
+    r"INPUT: Cutoff radius for grid points in RI-RS", col=9
+)
 registry["E_RIRS_HOMO"] = GenericMatcher(r"G0W0 valence band maximum", col=6)
 registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
 # EOF

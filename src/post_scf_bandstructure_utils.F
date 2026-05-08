@@ -57,8 +57,8 @@ MODULE post_scf_bandstructure_utils
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: int_ldos_z,&
                                               large_cell_Gamma,&
-                                              small_cell_full_kp,&
-                                              large_cell_Gamma_ri_rs
+                                              large_cell_Gamma_ri_rs,&
+                                              small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -190,8 +190,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: string_ptr
       CHARACTER(LEN=max_line_length)                     :: error_msg
       INTEGER                                            :: handle, i, ikp
-      TYPE(section_vals_type), POINTER                   :: gw_sec, kp_bs_sec, ldos_sec, soc_sec, &
-                                                            gw_ri_rs_sec
+      TYPE(section_vals_type), POINTER                   :: gw_ri_rs_sec, gw_sec, kp_bs_sec, &
+                                                            ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
 
@@ -199,12 +199,12 @@ CONTAINS
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       CALL section_vals_get(gw_sec, explicit=bs_env%do_gw)
 
-      NULLIFY (gw_ri_rs_sec)                                        
-      gw_ri_rs_sec => section_vals_get_subs_vals(bs_sec, "GW_RI_RS")   
-      CALL section_vals_get(gw_ri_rs_sec, explicit=bs_env%do_gw_ri_rs)              
-      CALL section_vals_val_get(gw_ri_rs_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)        
-      CALL section_vals_val_get(gw_ri_rs_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)  
-      CALL section_vals_val_get(gw_ri_rs_sec, "CHUNK_SIZE_DBCSR", i_val=bs_env%ri_rs%chunk_size_dbcsr) 
+      NULLIFY (gw_ri_rs_sec)
+      gw_ri_rs_sec => section_vals_get_subs_vals(bs_sec, "GW_RI_RS")
+      CALL section_vals_get(gw_ri_rs_sec, explicit=bs_env%do_gw_ri_rs)
+      CALL section_vals_val_get(gw_ri_rs_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
+      CALL section_vals_val_get(gw_ri_rs_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
+      CALL section_vals_val_get(gw_ri_rs_sec, "CHUNK_SIZE_DBCSR", i_val=bs_env%ri_rs%chunk_size_dbcsr)
       CALL section_vals_val_get(gw_ri_rs_sec, "CUTOFF_RADIUS_RI_RS", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
 
       NULLIFY (soc_sec)
@@ -881,20 +881,20 @@ CONTAINS
       bs_env%nimages_scf = dft_control%nimages
       IF (dft_control%nimages == 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
-              IF (ANY(periodic /= 0)) THEN
-                 CPABORT("RI-RS Not Implemented for Periodic Calculations")
-              ELSE
-                 bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma_ri_rs
-              ENDIF
+            IF (ANY(periodic /= 0)) THEN
+               CPABORT("RI-RS Not Implemented for Periodic Calculations")
+            ELSE
+               bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma_ri_rs
+            END IF
          ELSE
-              bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma
-         ENDIF
+            bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma
+         END IF
       ELSE IF (dft_control%nimages > 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
-              CPABORT("RI-RS Not Implemented for K-point Calculations")
+            CPABORT("RI-RS Not Implemented for K-point Calculations")
          ELSE
-              bs_env%small_cell_full_kp_or_large_cell_Gamma = small_cell_full_kp
-         ENDIF
+            bs_env%small_cell_full_kp_or_large_cell_Gamma = small_cell_full_kp
+         END IF
       ELSE
          CPABORT("Wrong number of cells from DFT calculation.")
       END IF
