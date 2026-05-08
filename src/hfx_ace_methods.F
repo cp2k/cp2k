@@ -70,8 +70,7 @@ MODULE hfx_ace_methods
                                       dbcsr_type
     USE cp_dbcsr_operations,    ONLY: copy_dbcsr_to_fm,        &
                                       cp_dbcsr_plus_fm_fm_t
-    USE cp_fm_basic_linalg,     ONLY: cp_fm_axpy,              &
-                                      cp_fm_column_scale,      &
+    USE cp_fm_basic_linalg,     ONLY: cp_fm_column_scale,      &
                                       cp_fm_gemm,              &
                                       cp_fm_scale,             &
                                       cp_fm_trace,             &
@@ -127,8 +126,8 @@ MODULE hfx_ace_methods
     !   DBG_BUILD    E_x(full), orbital info, matrix norms during BUILD
     !   DBG_ENERGY   E_x(ACE); on BUILD steps also |E_x(ACE) - E_x(full)|
     ! -----------------------------------------------------------------------
-    LOGICAL, PARAMETER, PRIVATE :: DBG_ROUTING = .TRUE.
-    LOGICAL, PARAMETER, PRIVATE :: DBG_BUILD   = .TRUE.
+    LOGICAL, PARAMETER, PRIVATE :: DBG_ROUTING = .FALSE.
+    LOGICAL, PARAMETER, PRIVATE :: DBG_BUILD   = .FALSE.
     LOGICAL, PARAMETER, PRIVATE :: DBG_ENERGY  = .TRUE.
  
     PUBLIC :: hfx_ace_ks_matrix, hfx_ace_release
@@ -430,31 +429,40 @@ MODULE hfx_ace_methods
  
           CALL cp_fm_to_fm(mo_coeff, C_occ_fm)   ! redistribute + copy first nocc cols
           
-           ! ==============================================================
-           ! Diagnostic: compare current rho_ao with density reconstructed
-           ! from the same C_occ used by ACE.
-           ! ==============================================================
-               
-           BLOCK
-               TYPE(cp_fm_type) :: P_rho_fm, P_mo_fm, diff_fm, C_scaled_fm
+           ! --------------------------------------------------------------
+            ! Diagnostic: compare current rho_ao with density reconstructed
+            ! from the same C_occ used by ACE.
+            !
+            ! P_mo = C_occ * Occ * C_occ^T
+            !
+            ! We avoid forming diff = P_rho - P_mo explicitly.
+            ! Instead:
+            !
+            !        ||P_rho - P_mo||_F^2 =
+            !           ||P_rho||_F^2 + ||P_mo||_F^2 - 2 Tr(P_rho^T P_mo)
+            !        --------------------------------------------------------------
+            BLOCK
+               TYPE(cp_fm_type) :: P_rho_fm, P_mo_fm, C_scaled_fm
                TYPE(cp_fm_struct_type), POINTER :: dens_fmstruct
                REAL(dp), ALLOCATABLE :: occ_sqrt(:)
-               REAL(dp) :: norm_rho, norm_mo, norm_diff
+               REAL(dp) :: norm_rho_sq, norm_mo_sq, cross_trace
+               REAL(dp) :: norm_diff_sq, norm_rho, norm_mo, norm_diff
                INTEGER :: iocc
-           
+            
                NULLIFY(dens_fmstruct)
-           
+            
                CALL cp_fm_struct_create(dens_fmstruct, context=blacs_env, para_env=para_env, &
                                         nrow_global=nao, ncol_global=nao)
-           
+            
                CALL cp_fm_create(P_rho_fm, dens_fmstruct, name="P_rho_current")
                CALL cp_fm_create(P_mo_fm,  dens_fmstruct, name="P_from_Cocc")
-               CALL cp_fm_create(diff_fm,  dens_fmstruct, name="P_difference")
-           
+            
                CALL cp_fm_struct_release(dens_fmstruct)
-           
+            
+               ! Current CP2K density matrix used by HFX
                CALL copy_dbcsr_to_fm(rho_ao(ispin,1)%matrix, P_rho_fm)
-           
+            
+               ! Build occupation-weighted C_occ
                ALLOCATE(occ_sqrt(nocc))
                DO iocc = 1, nocc
                   occ_sqrt(iocc) = SQRT(MAX(occ_nums(iocc), 0.0_dp))
@@ -464,28 +472,34 @@ MODULE hfx_ace_methods
                CALL cp_fm_to_fm(C_occ_fm, C_scaled_fm)
                CALL cp_fm_column_scale(C_scaled_fm, occ_sqrt)
            
+               ! P_mo = C_scaled * C_scaled^T
                CALL cp_fm_gemm('N', 'T', nao, nao, nocc, &
                                1.0_dp, C_scaled_fm, C_scaled_fm, 0.0_dp, P_mo_fm)
            
-               CALL cp_fm_to_fm(P_rho_fm, diff_fm)
-               CALL cp_fm_axpy(-1.0_dp, P_mo_fm, diff_fm)
+               ! Norms and cross term
+               CALL cp_fm_trace(P_rho_fm, P_rho_fm, norm_rho_sq)
+               CALL cp_fm_trace(P_mo_fm,  P_mo_fm,  norm_mo_sq)
+               CALL cp_fm_trace(P_rho_fm, P_mo_fm,  cross_trace)
            
-               CALL cp_fm_trace(P_rho_fm, P_rho_fm, norm_rho)
-               CALL cp_fm_trace(P_mo_fm,  P_mo_fm,  norm_mo)
-               CALL cp_fm_trace(diff_fm,  diff_fm,  norm_diff)
+               norm_diff_sq = norm_rho_sq + norm_mo_sq - 2.0_dp * cross_trace
+               norm_diff_sq = MAX(norm_diff_sq, 0.0_dp)
+           
+               norm_rho  = SQRT(MAX(norm_rho_sq,  0.0_dp))
+               norm_mo   = SQRT(MAX(norm_mo_sq,   0.0_dp))
+               norm_diff = SQRT(norm_diff_sq)
            
                IF (iw > 0) THEN
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao||_F        = ', SQRT(MAX(norm_rho, 0.0_dp))
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||P(C_occ)||_F      = ', SQRT(MAX(norm_mo, 0.0_dp))
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao-P(C)||_F   = ', SQRT(MAX(norm_diff, 0.0_dp))
+                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao||_F        = ', norm_rho
+                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||P(C_occ)||_F      = ', norm_mo
+                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG Tr(rho_ao*P(C))    = ', cross_trace
+                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao-P(C)||_F   = ', norm_diff
                   WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG relative difference = ', &
-                     SQRT(MAX(norm_diff,0.0_dp)) / MAX(SQRT(MAX(norm_rho,0.0_dp)), 1.0E-14_dp)
+                     norm_diff / MAX(norm_rho, 1.0E-14_dp)
                   WRITE(iw,'(T4,A,100F10.5)') 'ACE DIAG occ_nums = ', occ_nums(1:nocc)
                END IF
            
                CALL cp_fm_release(P_rho_fm)
                CALL cp_fm_release(P_mo_fm)
-               CALL cp_fm_release(diff_fm)
                CALL cp_fm_release(C_scaled_fm)
                DEALLOCATE(occ_sqrt)
             END BLOCK
