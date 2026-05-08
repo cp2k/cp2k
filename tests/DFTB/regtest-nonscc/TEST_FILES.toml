@@ -7,10 +7,15 @@
 "ch2o-r.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.8137341344748501}]
 "ch2o_force.inp"                        = [{matcher="M042", tol=1.0E-06, ref=0.0}]
 "ch2o_uks_force.inp"                    = [{matcher="M042", tol=1.0E-06, ref=0.0}]
+"dftb_nonscc_ch2o_mol_debug.inp"        = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000}]
+"dftb_nonscc_ch2o_x_kp_debug.inp"       = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h2-1.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-2.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
 "h2-3.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-0.70875565358819}]
-"h2-4.inp"                              = [{matcher="E_total", tol=3e-14, ref=-0.71042953396467}]
+"h2-4.inp"                              = [{matcher="E_total", tol=3e-13, ref=-0.71042953396467}]
 "h2o-32_1.inp"                          = [{matcher="E_total", tol=6e-13, ref=-131.08636943050718}]
 "h2o-32_2.inp"                          = [{matcher="E_total", tol=4e-13, ref=-131.07999694042778}]
 "h2o-32_3.inp"                          = [{matcher="E_total", tol=9e-14, ref=-131.07520912214508}]

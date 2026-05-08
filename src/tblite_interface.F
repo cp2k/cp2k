@@ -3656,9 +3656,12 @@ CONTAINS
 #if defined(__TBLITE)
       INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
                                                             sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
-                                                            nseti, nsetj, ia, ib, inda, indb, n_periodic, &
-                                                            n_sampled_kpoints, sampled_even_axes, sampled_odd_axes, nspin
-      INTEGER, DIMENSION(3)                              :: cellind, nkp_grid
+                                                            nseti, nsetj, ia, ib, inda, indb, fold_index, &
+                                                            has_nyquist_image, n_cn_norm_images, n_periodic, &
+                                                            n_non_nyquist_images, &
+                                                            n_sampled_kpoints, sampled_axes, sampled_even_axes, &
+                                                            sampled_non_nyquist_axes, sampled_odd_axes, nspin
+      INTEGER, DIMENSION(3)                              :: cellind, fold_shape, nkp_cellind, nkp_grid
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -3676,7 +3679,8 @@ CONTAINS
                                                             pot_pair_scale, w_pair_scale, h0_pair_scale, mp_pair_scale, &
                                                             pot_self_image_deriv_scale, w_self_image_deriv_scale, &
                                                             h0_self_image_deriv_scale, mp_self_image_deriv_scale, &
-                                                            cn_image_scale, nyquist_self_image_deriv_scale
+                                                            cn_image_scale, cn_deriv_scale, &
+                                                            nyquist_self_image_deriv_scale
       INTEGER                                            :: mp_test_mode
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
@@ -3686,6 +3690,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, idip_mag, jdip_mag, &
                                                             iquad, jquad, iquad_mag, jquad_mag
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: non_nyquist_folded_seen
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, pblock_beta, wblock, wblock_beta
@@ -3822,6 +3827,7 @@ CONTAINS
 #endif
       cn_image_scale = 1.0_dp
       IF (nimg > 1 .AND. ANY(tb%mol%periodic)) cn_image_scale = -0.25_dp
+      cn_deriv_scale = 1.0_dp
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DH_CN_IMAGE_SCALE", scale_value, STATUS=debug_status)
       IF (debug_status == 0) READ (scale_value, *, IOSTAT=debug_status) cn_image_scale
@@ -3858,6 +3864,10 @@ CONTAINS
       dE = 0.0_dp
       tb%grad = 0.0_dp
       hsigma = 0.0_dp
+      fold_shape = 2*nkp_grid + 1
+      ALLOCATE (non_nyquist_folded_seen(PRODUCT(fold_shape)))
+      non_nyquist_folded_seen = 0
+      has_nyquist_image = 0
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -3903,17 +3913,33 @@ CONTAINS
             CPASSERT(ic > 0)
          END IF
          image_pair = (cellind(1) /= 0 .OR. cellind(2) /= 0 .OR. cellind(3) /= 0)
-         kpoint_image_pair = image_pair .AND. &
-                             ((cellind(1) /= 0 .AND. nkp_grid(1) > 1) .OR. &
-                              (cellind(2) /= 0 .AND. nkp_grid(2) > 1) .OR. &
-                              (cellind(3) /= 0 .AND. nkp_grid(3) > 1))
+         nkp_cellind = 0
+         DO i = 1, 3
+            IF (nkp_grid(i) > 1) THEN
+               nkp_cellind(i) = MODULO(cellind(i), nkp_grid(i))
+               IF (2*nkp_cellind(i) > nkp_grid(i)) nkp_cellind(i) = nkp_cellind(i) - nkp_grid(i)
+            END IF
+         END DO
+         sampled_axes = 0
+         IF (nkp_cellind(1) /= 0) sampled_axes = sampled_axes + 1
+         IF (nkp_cellind(2) /= 0) sampled_axes = sampled_axes + 1
+         IF (nkp_cellind(3) /= 0) sampled_axes = sampled_axes + 1
+         kpoint_image_pair = image_pair .AND. sampled_axes > 0
          sampled_even_axes = 0
          IF (nkp_grid(1) > 1 .AND. MODULO(nkp_grid(1), 2) == 0 .AND. &
-             ABS(2*cellind(1)) == nkp_grid(1)) sampled_even_axes = sampled_even_axes + 1
+             ABS(2*nkp_cellind(1)) == nkp_grid(1)) sampled_even_axes = sampled_even_axes + 1
          IF (nkp_grid(2) > 1 .AND. MODULO(nkp_grid(2), 2) == 0 .AND. &
-             ABS(2*cellind(2)) == nkp_grid(2)) sampled_even_axes = sampled_even_axes + 1
+             ABS(2*nkp_cellind(2)) == nkp_grid(2)) sampled_even_axes = sampled_even_axes + 1
          IF (nkp_grid(3) > 1 .AND. MODULO(nkp_grid(3), 2) == 0 .AND. &
-             ABS(2*cellind(3)) == nkp_grid(3)) sampled_even_axes = sampled_even_axes + 1
+             ABS(2*nkp_cellind(3)) == nkp_grid(3)) sampled_even_axes = sampled_even_axes + 1
+         sampled_non_nyquist_axes = MAX(0, sampled_axes - sampled_even_axes)
+         IF (kpoint_image_pair .AND. sampled_even_axes > 0) has_nyquist_image = 1
+         IF (kpoint_image_pair .AND. sampled_non_nyquist_axes > 0 .AND. sampled_even_axes == 0) THEN
+            fold_index = 1 + (nkp_cellind(1) + nkp_grid(1)) &
+                         + fold_shape(1)*(nkp_cellind(2) + nkp_grid(2)) &
+                         + fold_shape(1)*fold_shape(2)*(nkp_cellind(3) + nkp_grid(3))
+            non_nyquist_folded_seen(fold_index) = 1
+         END IF
          sampled_image_pair = kpoint_image_pair .AND. sampled_even_axes > 0
          pot_pair_scale = MERGE(pot_image_deriv_scale, pot_deriv_scale, image_pair)
          w_pair_scale = MERGE(w_image_deriv_scale, w_deriv_scale, image_pair)
@@ -4128,6 +4154,16 @@ CONTAINS
 
       CALL para_env%sum(hsigma)
       CALL para_env%sum(dE)
+      CALL para_env%max(non_nyquist_folded_seen)
+      CALL para_env%max(has_nyquist_image)
+      n_non_nyquist_images = COUNT(non_nyquist_folded_seen > 0)
+      n_cn_norm_images = 1 + n_non_nyquist_images + has_nyquist_image
+      ! GFN2-like multipole Hamiltonians fold the scalar CN response over
+      ! k-point image classes. Non-Nyquist classes need the central class plus
+      ! the sampled folded images, with one aggregate Nyquist class if present.
+      IF (has_multipole_response .AND. n_periodic == 3 .AND. n_non_nyquist_images > 0) &
+         cn_deriv_scale = 1.0_dp - 0.5_dp/REAL(n_cn_norm_images, dp)
+      dE = cn_deriv_scale*dE
       CALL para_env%sum(tb%grad)
 
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
@@ -4142,6 +4178,7 @@ CONTAINS
       END IF
 
       DEALLOCATE (dE)
+      DEALLOCATE (non_nyquist_folded_seen)
       DEALLOCATE (basis_set_list)
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)

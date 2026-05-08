@@ -70,6 +70,9 @@
                                            {matcher="M042", tol=2.0E-06, ref=0.0000000}]
 "dftb_h2o_direct_stress.inp"            = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000}]
+"dftb_h2o_x_direct_kp_debug.inp"        = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+                                           {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "dftb_h2o_yz_direct_kp_debug.inp"       = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
