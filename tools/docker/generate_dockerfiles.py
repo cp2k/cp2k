@@ -37,6 +37,10 @@ def main() -> None:
         f.write(install_deps_toolchain(base_image="fedora:44"))
         f.write(regtest("toolchain", "psmp"))
 
+    with OutputFile(f"Dockerfile.test_rawhide-psmp", args.check) as f:
+        f.write(install_deps_toolchain(base_image="fedora:rawhide"))
+        f.write(regtest("toolchain", "psmp"))
+
     for version in "ssmp", "psmp":
         mpi_mode = "intelmpi" if version.startswith("p") else "no"
         f.write(install_deps_toolchain(mpi_mode=mpi_mode))
