@@ -87,7 +87,7 @@ def main() -> None:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
-            base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
+            base_image = "ubuntu:26.04" if gcc_version > 12 else "ubuntu:24.04"
             f.write(
                 install_cp2k_spack(
                     version="psmp",
@@ -713,8 +713,8 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 def install_cp2k_spack(
     version: str,
     mpi_mode: str,
-    base_image: str = "ubuntu:24.04",
-    gcc_version: int = 13,
+    base_image: str = "ubuntu:26.04",
+    gcc_version: int = 15,
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
