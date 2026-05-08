@@ -37,8 +37,8 @@
     &END QS
     &SCF
       ADDED_MOS -1 -1
-      EPS_SCF 1.e-8
-      MAX_SCF 120
+      EPS_SCF 1.e-7
+      MAX_SCF 80
       SCF_GUESS MOPAC
       &MIXING
         ALPHA 0.2
