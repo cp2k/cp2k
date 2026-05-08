@@ -24,7 +24,8 @@
 !> \author Teodoro Laino
 ! **************************************************************************************************
 MODULE cp2k_debug
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -81,17 +82,17 @@ CONTAINS
       CHARACTER(LEN=60)                                  :: line
       CHARACTER(LEN=80), DIMENSION(:), POINTER           :: cval2
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: i, ip, irep, iw, j, k, np, nrep, &
-                                                            stress_tensor
+      INTEGER                                            :: i, ip, irep, iw, j, k, n_periodic, np, &
+                                                            nrep, stress_tensor
+      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: check_failed, debug_dipole, &
                                                             debug_forces, debug_polar, &
                                                             debug_stress_tensor, skip, &
                                                             stop_on_mismatch
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: do_dof_atom_coor
       LOGICAL, DIMENSION(3)                              :: do_dof_dipole
-      REAL(KIND=dp)                                      :: amplitude, dd, de, derr, difference, dx, &
-                                                            eps_no_error_check, errmax, maxerr, &
-                                                            std_value, sum_of_differences
+      REAL(KIND=dp) :: amplitude, dd, de, derr, difference, dx, eps_no_error_check, errmax, &
+         maxerr, periodic_stress_sum, std_value, sum_of_differences
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: dipole_moment, dipole_numer, err, &
                                                             my_maxerr, poldir
@@ -248,6 +249,22 @@ CONTAINS
                   WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
                      "DEBUG| Sum of differences", &
                      SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
+                  CALL get_cell(cell=cell, periodic=periodic)
+                  n_periodic = COUNT(periodic /= 0)
+                  IF (n_periodic > 0 .AND. n_periodic < 3) THEN
+                     periodic_stress_sum = 0.0_dp
+                     DO i = 1, 3
+                        DO k = 1, 3
+                           IF (periodic(i) /= 0 .AND. periodic(k) /= 0) THEN
+                              periodic_stress_sum = periodic_stress_sum + &
+                                                    ABS(virial_numerical%pv_virial(i, k) - &
+                                                        virial_analytical%pv_virial(i, k))
+                           END IF
+                        END DO
+                     END DO
+                     WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
+                        "DEBUG| Periodic-subspace sum of differences", periodic_stress_sum
+                  END IF
                END IF
 
                ! Check and abort on failure
