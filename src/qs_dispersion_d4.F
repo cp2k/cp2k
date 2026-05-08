@@ -258,6 +258,9 @@ CONTAINS
 
       IF (dispersion_env%ref_functional == "none") THEN
          CALL get_rational_damping("pbe", param, s9=0.0_dp)
+         IF (.NOT. ALLOCATED(param)) THEN
+            CPABORT("D4: Failed to get rational damping parameters for default functional")
+         END IF
          SELECT TYPE (param)
          TYPE is (rational_damping_param)
             param%s6 = dispersion_env%s6
@@ -268,6 +271,9 @@ CONTAINS
          END SELECT
       ELSE
          CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
+         IF (.NOT. ALLOCATED(param)) THEN
+            CPABORT("D4: Unknown functional '"//TRIM(dispersion_env%ref_functional)//"'")
+         END IF
          SELECT TYPE (param)
          TYPE is (rational_damping_param)
             dispersion_env%s6 = param%s6
