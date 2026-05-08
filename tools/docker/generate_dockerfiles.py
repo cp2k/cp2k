@@ -212,6 +212,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="ssmp-static",
                 mpi_mode="no",
+                base_image="ubuntu:24.04",
                 gcc_version=14,
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -731,7 +732,7 @@ def install_cp2k_spack(
     # Static CP2K builds use the GCC compiler built with spack
     if version.endswith("-static"):
         use_externals = ""
-        # The default GCC compiler is used for static builds
+        # The default GCC 13 compiler is used for static builds
         # A spack build of the same GCC version as the default one
         # of the host system and ignoring all externals at the same
         # time is not supported
