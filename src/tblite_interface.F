@@ -493,7 +493,8 @@ CONTAINS
       IF (ALLOCATED(tb%mixer)) THEN
          raw_error = REAL(tb%mixer%get_error(), KIND=dp)
          IF (eps_scf > 0.0_dp) THEN
-            mixer_error = eps_scf*raw_error/tblite_scc_pconv
+            mixer_error = eps_scf*raw_error/ &
+                          (tblite_scc_pconv*dft_control%qs_control%xtb_control%tblite_accuracy)
          ELSE
             mixer_error = raw_error
          END IF
@@ -510,11 +511,13 @@ CONTAINS
 !> \brief ...
 !> \param tb ...
 !> \param typ ...
+!> \param accuracy ...
 ! **************************************************************************************************
-   SUBROUTINE tb_set_calculator(tb, typ)
+   SUBROUTINE tb_set_calculator(tb, typ, accuracy)
 
       TYPE(tblite_type), POINTER                         :: tb
       INTEGER                                            :: typ
+      REAL(KIND=dp), INTENT(IN)                          :: accuracy
 
 #if defined(__TBLITE)
 
@@ -531,9 +534,12 @@ CONTAINS
          CALL new_ipea1_calculator(tb%calc, tb%mol, error)
       END SELECT
 
+      tb%accuracy = accuracy
+
 #else
       MARK_USED(tb)
       MARK_USED(typ)
+      MARK_USED(accuracy)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -791,7 +797,7 @@ CONTAINS
       CALL process_gto_basis(gto_basis_set, do_ortho, nset, maxl)
 
       !setting additional values in parameter
-      param%rcut = get_cutoff(tb%calc%bas)
+      param%rcut = get_cutoff(tb%calc%bas, tb%accuracy)
       param%natorb = natorb
       param%lmax = maxl !max angular momentum
 
@@ -994,8 +1000,8 @@ CONTAINS
          ALLOCATE (native_h(tb%calc%bas%nao, tb%calc%bas%nao))
          ALLOCATE (native_dip(dip_n, tb%calc%bas%nao, tb%calc%bas%nao))
          ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
+         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, tb%accuracy), native_lattr)
+         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, tb%accuracy))
          CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
                               native_s, native_dip, native_quad, native_h)
 
@@ -1882,8 +1888,8 @@ CONTAINS
       IF (mp_test_mode == 100 .OR. mp_test_mode == 101 .OR. mp_test_mode == 102) THEN
          nspin = SIZE(p_matrix)
          CALL new_integral(native_ints, tb%calc%bas%nao)
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
+         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, tb%accuracy), native_lattr)
+         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, tb%accuracy))
          CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
                               native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
                               native_ints%hamiltonian)
@@ -2103,8 +2109,8 @@ CONTAINS
           mp_test_mode == 233) THEN
          IF (nimg > 1) CPABORT("Native tblite Hamiltonian test with k-points not implemented")
          CALL new_integral(native_ints, tb%calc%bas%nao)
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
+         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, tb%accuracy), native_lattr)
+         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, tb%accuracy))
          CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
                               native_ints%overlap, native_ints%dipole, native_ints%quadrupole, &
                               native_ints%hamiltonian)
@@ -2633,8 +2639,8 @@ CONTAINS
          ALLOCATE (native_h(tb%calc%bas%nao, tb%calc%bas%nao))
          ALLOCATE (native_dip(dip_n, tb%calc%bas%nao, tb%calc%bas%nao))
          ALLOCATE (native_quad(quad_n, tb%calc%bas%nao, tb%calc%bas%nao))
-         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, 1.0_dp), native_lattr)
-         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, 1.0_dp))
+         CALL get_lattice_points(tb%mol%periodic, tb%mol%lattice, get_cutoff(tb%calc%bas, tb%accuracy), native_lattr)
+         CALL new_adjacency_list(native_list, tb%mol, native_lattr, get_cutoff(tb%calc%bas, tb%accuracy))
          CALL get_hamiltonian(tb%mol, native_lattr, native_list, tb%calc%bas, tb%calc%h0, tb%selfenergy, &
                               native_s, native_dip, native_quad, native_h)
 

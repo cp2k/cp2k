@@ -12,6 +12,7 @@
       &XTB
         GFN_TYPE TBLITE
         &TBLITE
+          ACCURACY 0.5
           METHOD GFN2
           &REFERENCE_CLI
             CHECK_FORCES F

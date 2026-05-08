@@ -1683,6 +1683,10 @@ CONTAINS
       IF (qs_control%xtb_control%do_tblite) THEN
          CALL section_vals_val_get(xtb_tblite, "METHOD", &
                                    i_val=qs_control%xtb_control%tblite_method)
+         CALL section_vals_val_get(xtb_tblite, "ACCURACY", &
+                                   r_val=qs_control%xtb_control%tblite_accuracy)
+         IF (qs_control%xtb_control%tblite_accuracy <= 0.0_dp) &
+            CPABORT("XTB/TBLITE/ACCURACY must be positive")
          CALL section_vals_val_get(xtb_tblite, "SCC_MIXER", &
                                    i_val=qs_control%xtb_control%tblite_scc_mixer)
          CALL section_vals_val_get(xtb_tblite, "TBLITE_MIXER_DAMPING", &
@@ -2430,6 +2434,8 @@ CONTAINS
          END SELECT
          WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
             "xTB| SCC mixer:", TRIM(scc_mixer_name)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
+            "xTB| tblite accuracy:", xtb_control%tblite_accuracy
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
             "xTB| tblite SCC mixer damping:", xtb_control%tblite_mixer_damping
          WRITE (UNIT=output_unit, FMT="(/)")

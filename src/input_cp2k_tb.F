@@ -608,6 +608,15 @@ CONTAINS
                                      "AUTO uses tblite's internal SCC mixer.")
 
       NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ACCURACY", &
+                          description="Numerical accuracy factor for the CP2K/tblite backend, matching native "// &
+                          "tblite's --acc option. The default matches native tblite. Smaller values tighten, "// &
+                          "larger values loosen, the SCC convergence target and integral cutoff.", &
+                          usage="ACCURACY 1.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_CLI", &
                           description="Enable the native tblite CLI reference check. If true, the "// &
                           "XTB/TBLITE/REFERENCE_CLI section must be present. The reference check is also "// &

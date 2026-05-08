@@ -1224,7 +1224,8 @@ CONTAINS
             ! put geometry to tblite
             CALL tb_init_geometry(qs_env, qs_env%tb_tblite)
             ! select tblite method
-            CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method)
+            CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method, &
+                                   xtb_control%tblite_accuracy)
             !set up wave function
             CALL tb_init_wf(qs_env%tb_tblite, dft_control)
             !get basis set
