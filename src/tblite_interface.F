@@ -704,10 +704,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
-      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, j, &
+      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, &
                                                             ic, iw, iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, &
                                                             irow, ia, ib, sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, &
-                                                            natorb_a, natorb_b, sgfa0, i0, j0
+                                                            natorb_a, natorb_b, sgfa0
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
@@ -716,8 +716,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER                :: cell_to_index
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, native_s, native_h, native_lattr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint, hint, native_dip, native_quad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint, hint
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -726,7 +726,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock, fblock
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-      TYPE(adjacency_list)                                  :: native_list
       TYPE(atprop_type), POINTER                            :: atprop
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
       TYPE(cp_logger_type), POINTER                         :: logger
@@ -1065,8 +1064,7 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im, irow, icol, i, j
-      INTEGER                                            :: iao, jao, ish, ispin, i0, j0, nspin
+      INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na, n_mix_cols, mix_offset
       INTEGER                                            :: n_atom, max_orb, max_shell
       INTEGER                                            :: raw_state_status, raw_state_unit, &
@@ -1076,26 +1074,21 @@ CONTAINS
                                                             reuse_native_input, skip_scf_dispersion, skip_scf_dispersion_energy, &
                                                             skip_scf_dispersion_gradient, skip_scf_dispersion_potential, &
                                                             use_native_mixer, use_no_mixer
-      REAL(KIND=dp)                                      :: mix_alpha, norm, moment_alpha, new_charge, new_moment, pao
+      REAL(KIND=dp)                                      :: norm, moment_alpha, new_charge, new_moment
       CHARACTER(LEN=default_path_length)                 :: raw_state_file, state_file
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb, mix_vars, prev_vars
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad, native_lattr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: native_p
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb, mix_vars
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, ao_dip, ao_quad
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(adjacency_list)                               :: native_list
-      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
       TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(error_type), ALLOCATABLE                      :: error
-      TYPE(integral_type)                                :: native_ints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -1550,7 +1543,7 @@ CONTAINS
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
       INTEGER                                            :: ic, id1, id2, id3, iq1, iq2, iq3, iq4, iq5, iq6, &
-                                                            is, nimg, ni, nj, i, j, i0, j0
+                                                            is, nimg, ni, nj, i, j
       INTEGER                                            :: la, lb, za, zb
       LOGICAL                                            :: found
       INTEGER, DIMENSION(3)                              :: cellind
@@ -1562,8 +1555,7 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: debug_value
 #endif
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, sum_shell
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ashift, bshift, native_lattr
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: native_h1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ashift, bshift
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ksblock, sblock
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dip_ket1, dip_ket2, dip_ket3, &
@@ -1574,9 +1566,7 @@ CONTAINS
                                                             quad_bra4, quad_bra5, quad_bra6
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(adjacency_list)                               :: native_list
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(integral_type)                                :: native_ints
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1585,7 +1575,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: n_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(potential_type)                               :: native_pot
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
 
       nimg = dft_control%nimages
@@ -1984,8 +1973,8 @@ CONTAINS
 
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: ic, idx, id1, id2, id3, img, iq1, iq2, iq3, iq4, iq5, iq6
-      INTEGER                                     :: nkind, natom, handle, nimg, i, j, inda, indb
-      INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij, i0, j0
+      INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
+      INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
       LOGICAL                                     :: found
       REAL(KIND=dp)                               :: r2
       INTEGER, DIMENSION(3)                       :: cell
@@ -1995,9 +1984,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
       INTEGER, ALLOCATABLE                        :: atom_of_kind(:)
-      REAL(KIND=dp), ALLOCATABLE                  :: stmp(:), native_s(:, :), native_h(:, :), native_lattr(:, :)
-      REAL(KIND=dp), ALLOCATABLE                  :: dtmp(:, :), qtmp(:, :), dtmpj(:, :), qtmpj(:, :)
-      REAL(KIND=dp), ALLOCATABLE                  :: native_dip(:, :, :), native_quad(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE                  :: stmp(:), dtmp(:, :), qtmp(:, :), dtmpj(:, :), qtmpj(:, :)
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: dip_ket1, dip_ket2, dip_ket3, &
                                                      dip_bra1, dip_bra2, dip_bra3
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: quad_ket1, quad_ket2, quad_ket3, &
@@ -2008,10 +1995,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                       :: dft_control
-      TYPE(dbcsr_iterator_type)                             :: iter
       TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
-      TYPE(adjacency_list)                                  :: native_list
       TYPE(kpoint_type), POINTER                            :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
       TYPE(neighbor_list_iterator_p_type), &
