@@ -70,8 +70,7 @@ MODULE hfx_ace_methods
                                       dbcsr_type
     USE cp_dbcsr_operations,    ONLY: copy_dbcsr_to_fm,        &
                                       cp_dbcsr_plus_fm_fm_t
-    USE cp_fm_basic_linalg,     ONLY: cp_fm_column_scale,      &
-                                      cp_fm_gemm,              &
+    USE cp_fm_basic_linalg,     ONLY: cp_fm_gemm,              &
                                       cp_fm_scale,             &
                                       cp_fm_trace,             &
                                       cp_fm_triangular_multiply
@@ -100,6 +99,8 @@ MODULE hfx_ace_methods
                                       mo_set_type
     USE qs_rho_types,           ONLY: qs_rho_get,              &
                                       qs_rho_type
+    USE admm_types,             ONLY: admm_type,              &
+                                      get_admm_env
 #include "./base/base_uses.f90"
  
     IMPLICIT NONE
@@ -173,8 +174,6 @@ MODULE hfx_ace_methods
        IF (n_rep_hf /= 1) CPABORT("ACE: only one &HF section is supported.")
        IF (dft_control%nimages /= 1) &
           CPABORT("ACE: k-points / multiple images are not implemented.")
-       IF (dft_control%do_admm) &
-          CPABORT("ACE: ADMM is not implemented. Remove &ACE or disable ADMM.")
  
        rebuild_freq = MAX(1, ace_rebuild_frequency)
  
@@ -291,19 +290,57 @@ MODULE hfx_ace_methods
        TYPE(cp_fm_struct_type),    POINTER  :: fmstruct
        TYPE(cp_fm_type)                     :: K_fm, C_occ_fm, xi_fm, M_fm
        TYPE(cp_fm_type),           POINTER  :: mo_coeff
-       TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER :: matrix_h, rho_ao
+       TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER :: matrix_h
        TYPE(dbcsr_type)                     :: K_ao_dbcsr
        TYPE(mo_set_type), DIMENSION(:), POINTER    :: mos
        TYPE(mp_para_env_type),     POINTER  :: para_env
        REAL(dp), DIMENSION(:),     POINTER  :: occ_nums
+
+       ! ------------------------------------------------------------------
+       ! ADMM-specific pointers.  Only populated when dft_control%do_admm
+       ! is .TRUE.; untouched otherwise.
+       !
+       !   admm_env      : ADMM environment, holds auxiliary-basis data
+       !   mos_for_ace   : points to mos (non-ADMM) or mos_aux_fit (ADMM);
+       !                   unifies the spin loop for both cases
+       !   ks_aux_fit    : admm_env%matrix_ks_aux_fit — auxiliary exchange
+       !                   matrix filled by hfx_ks_matrix; used directly as
+       !                   K_aux (no H_core subtraction needed for ADMM)
+       ! ------------------------------------------------------------------
+       LOGICAL                              :: do_admm
+       TYPE(dft_control_type),     POINTER  :: dft_control
+       TYPE(admm_type),            POINTER  :: admm_env
+       TYPE(mo_set_type), DIMENSION(:), POINTER :: mos_for_ace
+       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ks_aux_fit
  
        CALL timeset(routineN, handle)
-       NULLIFY(blacs_env, para_env, mos, mo_coeff, matrix_h, occ_nums, fmstruct, rho_ao)
+       NULLIFY(blacs_env, para_env, mos, mo_coeff, matrix_h, occ_nums, fmstruct)
+       NULLIFY(dft_control, admm_env, mos_for_ace, ks_aux_fit)
  
        build_succeeded = .FALSE.
  
        CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env,   &
-                       mos=mos, matrix_h_kp=matrix_h)
+                       mos=mos, matrix_h_kp=matrix_h,                     &
+                       dft_control=dft_control)
+       
+       do_admm = dft_control%do_admm
+
+       ! ------------------------------------------------------------------
+       ! For ADMM: the exchange is computed in the auxiliary basis.
+       ! Fetch the auxiliary KS matrix (K_HFX_aux, already filled by
+       ! hfx_ks_matrix) and point mos_for_ace to the auxiliary MOs.
+       !
+       ! For non-ADMM: point mos_for_ace to the primary MOs.
+       ! The remainder of the spin loop is identical for both cases.
+       ! ------------------------------------------------------------------
+       IF (do_admm) THEN
+          CALL get_qs_env(qs_env, admm_env=admm_env)
+          CALL get_admm_env(admm_env,                                      &
+                            matrix_ks_aux_fit=ks_aux_fit,                  &
+                            mos_aux_fit=mos_for_ace)
+       ELSE
+          mos_for_ace => mos
+       END IF
  
        ! ----------------------------------------------------------------
        ! Step 1: full HFX.
@@ -316,8 +353,6 @@ MODULE hfx_ace_methods
                      v_rspace_new, v_tau_rspace, ext_xc_section)
        ehfx_full = energy%ex
 
-       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
- 
        IF (DBG_BUILD .AND. iw > 0) &
           WRITE(iw,'(/,T2,A,F20.10)') 'ACE BUILD | E_x(full HFX) = ', ehfx_full
  
@@ -333,21 +368,21 @@ MODULE hfx_ace_methods
        DO ispin = 1, nspins
  
           ! --------------------------------------------------------------
-          ! Sync mo_coeff (fm) from mo_coeff_b (dbcsr) when needed.
-          !
-          ! OT uses use_mo_coeff_b=.TRUE.: the live orbitals are stored in
-          ! the sparse mo_coeff_b after each ot_scf_mini step; mo_coeff
-          ! (fm) may be stale.  copy_dbcsr_to_fm makes mo_coeff current.
-          !
-          ! Standard diagonalisation uses use_mo_coeff_b=.FALSE.: mo_coeff
-          ! (fm) is updated directly after each Hamiltonian diagonalisation.
-          ! No action needed.
+          ! Sync MO coefficients from the sparse dbcsr representation
+          ! (needed for OT where use_mo_coeff_b = .TRUE.).
+          ! mos_for_ace points to the correct MO set:
+          !   non-ADMM → primary mos(ispin)
+          !   ADMM     → auxiliary mos_aux_fit(ispin)
           ! --------------------------------------------------------------
-          IF (mos(ispin)%use_mo_coeff_b) &
-             CALL copy_dbcsr_to_fm(mos(ispin)%mo_coeff_b, mos(ispin)%mo_coeff)
- 
-          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
-                          homo=nocc, occupation_numbers=occ_nums)
+          
+          IF (mos_for_ace(ispin)%use_mo_coeff_b) &
+          CALL copy_dbcsr_to_fm(mos_for_ace(ispin)%mo_coeff_b,         &
+                               mos_for_ace(ispin)%mo_coeff)
+
+          CALL get_mo_set(mos_for_ace(ispin), mo_coeff=mo_coeff,           &
+                      nao=nao, nmo=nmo, homo=nocc,                      &
+                      occupation_numbers=occ_nums)
+          ! nao is now nao_orb (non-ADMM) or nao_aux (ADMM)
  
           IF (nocc <= 0) CPABORT("ACE: homo <= 0.")
           IF (nocc > nmo) CPABORT("ACE: homo > nmo.")
@@ -370,7 +405,7 @@ MODULE hfx_ace_methods
              WRITE(iw,'(T4,A,I8)')     'nao  = ', nao
              WRITE(iw,'(T4,A,I8)')     'nmo  = ', nmo
              WRITE(iw,'(T4,A,I8)')     'nocc = ', nocc
-             WRITE(iw,'(T4,A,L1)')     'use_mo_coeff_b = ', mos(ispin)%use_mo_coeff_b
+             WRITE(iw,'(T4,A,L1)')     'use_mo_coeff_b = ', mos_for_ace(ispin)%use_mo_coeff_b
              WRITE(iw,'(T4,A,ES12.4)') '||mo_coeff||_F = ', SQRT(MAX(frob, 0.0_dp))
           END IF
  
@@ -387,18 +422,47 @@ MODULE hfx_ace_methods
           ! ks_matrix(ispin,1) = K_HFX + H_core  (from step 1)
           ! K_AO = K_HFX, the exchange contribution (negative semidefinite).
           ! --------------------------------------------------------------
-          CALL dbcsr_create(K_ao_dbcsr, template=ks_matrix(ispin,1)%matrix, name="K_AO")
-          CALL dbcsr_copy(K_ao_dbcsr, ks_matrix(ispin,1)%matrix)
-          CALL dbcsr_add(K_ao_dbcsr, matrix_h(1,1)%matrix, 1.0_dp, -1.0_dp)
- 
-          NULLIFY(fmstruct)
-          CALL cp_fm_struct_create(fmstruct, context=blacs_env, para_env=para_env, &
-                                    nrow_global=nao, ncol_global=nao)
-          CALL cp_fm_create(K_fm, fmstruct, name="K_AO_dense")
-          CALL cp_fm_struct_release(fmstruct)
- 
-          CALL copy_dbcsr_to_fm(K_ao_dbcsr, K_fm)
-          CALL dbcsr_release(K_ao_dbcsr)
+         IF (do_admm) THEN
+            ! ----------------------------------------------------------
+            ! ADMM: K_aux is already in matrix_ks_aux_fit(ispin).
+            !
+            ! After hfx_ks_matrix with ADMM:
+            !   matrix_ks_aux_fit(ispin)  = K_HFX_aux  (aux basis, no H_core)
+            !   matrix_ks(ispin,1)        = H_core      (primary basis only)
+            !
+            ! We copy K_HFX_aux directly — NO subtraction of H_core because
+            ! hfx_ks_matrix never adds H_core to the auxiliary matrix.
+            ! ----------------------------------------------------------
+            CALL dbcsr_create(K_ao_dbcsr, template=ks_aux_fit(ispin)%matrix, &
+                              name="K_ACE_aux")
+            CALL dbcsr_copy(K_ao_dbcsr, ks_aux_fit(ispin)%matrix)
+            ! K_ao_dbcsr = K_HFX_aux  (negative semidefinite)
+
+         ELSE
+            ! ----------------------------------------------------------
+            ! Non-ADMM: K_AO = ks_matrix(ispin) - H_core  (primary basis).
+            !
+            ! After hfx_ks_matrix (non-ADMM):
+            !   matrix_ks(ispin,1) = K_HFX + H_core
+            ! Subtract H_core to isolate the exchange contribution.
+            ! ----------------------------------------------------------
+            CALL dbcsr_create(K_ao_dbcsr, template=ks_matrix(ispin,1)%matrix, &
+                              name="K_AO")
+            CALL dbcsr_copy(K_ao_dbcsr, ks_matrix(ispin,1)%matrix)
+            CALL dbcsr_add(K_ao_dbcsr, matrix_h(1,1)%matrix, 1.0_dp, -1.0_dp)
+            ! K_ao_dbcsr = K_HFX  (negative semidefinite)
+
+         END IF
+
+         ! Convert sparse K to dense for GEMM.
+         ! K_fm shape: nao_orb x nao_orb (non-ADMM) or nao_aux x nao_aux (ADMM).
+         NULLIFY(fmstruct)
+         CALL cp_fm_struct_create(fmstruct, context=blacs_env, para_env=para_env, &
+                                   nrow_global=nao, ncol_global=nao)
+         CALL cp_fm_create(K_fm, fmstruct, name="K_dense")
+         CALL cp_fm_struct_release(fmstruct)
+         CALL copy_dbcsr_to_fm(K_ao_dbcsr, K_fm)
+         CALL dbcsr_release(K_ao_dbcsr)
  
           IF (DBG_BUILD .AND. iw > 0) THEN
              CALL cp_fm_trace(K_fm, K_fm, frob)
@@ -429,80 +493,7 @@ MODULE hfx_ace_methods
  
           CALL cp_fm_to_fm(mo_coeff, C_occ_fm)   ! redistribute + copy first nocc cols
           
-           ! --------------------------------------------------------------
-            ! Diagnostic: compare current rho_ao with density reconstructed
-            ! from the same C_occ used by ACE.
-            !
-            ! P_mo = C_occ * Occ * C_occ^T
-            !
-            ! We avoid forming diff = P_rho - P_mo explicitly.
-            ! Instead:
-            !
-            !        ||P_rho - P_mo||_F^2 =
-            !           ||P_rho||_F^2 + ||P_mo||_F^2 - 2 Tr(P_rho^T P_mo)
-            !        --------------------------------------------------------------
-            BLOCK
-               TYPE(cp_fm_type) :: P_rho_fm, P_mo_fm, C_scaled_fm
-               TYPE(cp_fm_struct_type), POINTER :: dens_fmstruct
-               REAL(dp), ALLOCATABLE :: occ_sqrt(:)
-               REAL(dp) :: norm_rho_sq, norm_mo_sq, cross_trace
-               REAL(dp) :: norm_diff_sq, norm_rho, norm_mo, norm_diff
-               INTEGER :: iocc
-            
-               NULLIFY(dens_fmstruct)
-            
-               CALL cp_fm_struct_create(dens_fmstruct, context=blacs_env, para_env=para_env, &
-                                        nrow_global=nao, ncol_global=nao)
-            
-               CALL cp_fm_create(P_rho_fm, dens_fmstruct, name="P_rho_current")
-               CALL cp_fm_create(P_mo_fm,  dens_fmstruct, name="P_from_Cocc")
-            
-               CALL cp_fm_struct_release(dens_fmstruct)
-            
-               ! Current CP2K density matrix used by HFX
-               CALL copy_dbcsr_to_fm(rho_ao(ispin,1)%matrix, P_rho_fm)
-            
-               ! Build occupation-weighted C_occ
-               ALLOCATE(occ_sqrt(nocc))
-               DO iocc = 1, nocc
-                  occ_sqrt(iocc) = SQRT(MAX(occ_nums(iocc), 0.0_dp))
-               END DO
            
-               CALL cp_fm_create(C_scaled_fm, C_occ_fm%matrix_struct, name="C_occ_scaled")
-               CALL cp_fm_to_fm(C_occ_fm, C_scaled_fm)
-               CALL cp_fm_column_scale(C_scaled_fm, occ_sqrt)
-           
-               ! P_mo = C_scaled * C_scaled^T
-               CALL cp_fm_gemm('N', 'T', nao, nao, nocc, &
-                               1.0_dp, C_scaled_fm, C_scaled_fm, 0.0_dp, P_mo_fm)
-           
-               ! Norms and cross term
-               CALL cp_fm_trace(P_rho_fm, P_rho_fm, norm_rho_sq)
-               CALL cp_fm_trace(P_mo_fm,  P_mo_fm,  norm_mo_sq)
-               CALL cp_fm_trace(P_rho_fm, P_mo_fm,  cross_trace)
-           
-               norm_diff_sq = norm_rho_sq + norm_mo_sq - 2.0_dp * cross_trace
-               norm_diff_sq = MAX(norm_diff_sq, 0.0_dp)
-           
-               norm_rho  = SQRT(MAX(norm_rho_sq,  0.0_dp))
-               norm_mo   = SQRT(MAX(norm_mo_sq,   0.0_dp))
-               norm_diff = SQRT(norm_diff_sq)
-           
-               IF (iw > 0) THEN
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao||_F        = ', norm_rho
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||P(C_occ)||_F      = ', norm_mo
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG Tr(rho_ao*P(C))    = ', cross_trace
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG ||rho_ao-P(C)||_F   = ', norm_diff
-                  WRITE(iw,'(T4,A,ES14.6)') 'ACE DIAG relative difference = ', &
-                     norm_diff / MAX(norm_rho, 1.0E-14_dp)
-                  WRITE(iw,'(T4,A,100F10.5)') 'ACE DIAG occ_nums = ', occ_nums(1:nocc)
-               END IF
-           
-               CALL cp_fm_release(P_rho_fm)
-               CALL cp_fm_release(P_mo_fm)
-               CALL cp_fm_release(C_scaled_fm)
-               DEALLOCATE(occ_sqrt)
-            END BLOCK
           ! --------------------------------------------------------------
           ! Step 4: xi = K_AO * C_occ  (nao x nocc)
           ! --------------------------------------------------------------
@@ -635,31 +626,102 @@ MODULE hfx_ace_methods
        TYPE(cp_fm_type)                     :: P_fm, PW_fm
        TYPE(dbcsr_p_type), DIMENSION(:,:), POINTER :: matrix_h, rho_ao
        TYPE(mp_para_env_type),     POINTER  :: para_env
+
+       ! ------------------------------------------------------------------
+       ! ADMM-specific pointers (populated only when do_admm = .TRUE.)
+       !
+       !   ks_aux_fit      : admm_env%matrix_ks_aux_fit  — receives -W W^T
+       !   ks_aux_fit_hfx  : admm_env%matrix_ks_aux_fit_hfx — required copy
+       !                     for ADMMS/ADMMP exchange correction terms
+       !   rho_aux_fit     : auxiliary density, used for ACE energy with ADMM
+       ! ------------------------------------------------------------------
+       LOGICAL                                           :: do_admm
+       TYPE(dft_control_type),     POINTER               :: dft_control
+       TYPE(admm_type),            POINTER               :: admm_env
+       TYPE(dbcsr_p_type), DIMENSION(:), POINTER         :: ks_aux_fit
+       TYPE(dbcsr_p_type), DIMENSION(:), POINTER         :: ks_aux_fit_hfx
+       TYPE(qs_rho_type),          POINTER               :: rho_aux_fit
  
        CALL timeset(routineN, handle)
        NULLIFY(blacs_env, para_env, matrix_h, rho_ao, fmstruct)
+       NULLIFY(dft_control, admm_env, ks_aux_fit, ks_aux_fit_hfx, rho_aux_fit)
        CPASSERT(ALLOCATED(ace_W))
  
        CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env,   &
-                       matrix_h_kp=matrix_h)
-       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
+                       matrix_h_kp=matrix_h, dft_control=dft_control)
+       do_admm = dft_control%do_admm
+
+       IF (do_admm) THEN
+          ! Fetch ADMM auxiliary matrices and density.
+          CALL get_qs_env(qs_env, admm_env=admm_env)
+          CALL get_admm_env(admm_env,                                      &
+                            matrix_ks_aux_fit    =ks_aux_fit,              &
+                            matrix_ks_aux_fit_hfx=ks_aux_fit_hfx,         &
+                            rho_aux_fit          =rho_aux_fit)
+          ! Energy uses the auxiliary density (P_aux), not the primary one.
+          CALL qs_rho_get(rho_aux_fit, rho_ao_kp=rho_ao)
+       ELSE
+          ! Non-ADMM: energy uses the primary density.
+          CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
+       END IF
  
-       ! ----------------------------------------------------------------
-       ! KS matrix: ks_matrix(ispin) = H_core - W * W^T
-       !
-       ! cp_dbcsr_plus_fm_fm_t adds  alpha * V * V^T  to a sparse matrix.
-       ! With alpha=-1, V=ace_W: sparse_matrix -= W * W^T
-       ! keep_sparsity=.TRUE.: only fill elements in the existing pattern.
-       ! ----------------------------------------------------------------
-       DO ispin = 1, nspins
-          CALL cp_fm_get_info(ace_W(1,ispin), nrow_global=nao, ncol_global=nocc)
-          CALL dbcsr_set(ks_matrix(ispin,1)%matrix, 0.0_dp)
-          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=ks_matrix(ispin,1)%matrix, &
-                                      matrix_v=ace_W(1,ispin), ncol=nocc,      &
-                                      alpha=-1.0_dp, keep_sparsity=.TRUE.)
-          CALL dbcsr_add(ks_matrix(ispin,1)%matrix, matrix_h(1,1)%matrix,     &
-                         1.0_dp, 1.0_dp)
-       END DO
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(ace_W(1,ispin), nrow_global=nao, ncol_global=nocc)
+
+         IF (do_admm) THEN
+            ! -------------------------------------------------------
+            ! ADMM path: the ACE projector lives in the auxiliary basis.
+            !
+            ! Primary KS matrix: H_core only.
+            !   hfx_ks_matrix (called at BUILD) already wrote H_core
+            !   here; we replicate that initialisation so the APPLY
+            !   path is self-contained (mirrors hfx_ks_matrix exactly).
+            !
+            ! Auxiliary KS matrix: K_ACE_aux = -W_aux * W_aux^T.
+            !   The ADMM machinery back-projects this to the primary
+            !   basis (A^T K_ACE_aux A) outside this module, so we
+            !   must not add anything to the primary matrix here.
+            !
+            ! matrix_ks_aux_fit_hfx: required copy for ADMMS/ADMMP
+            !   exchange-correction terms; mirrors what hfx_ks_matrix
+            !   does at the end of every call with ADMM.
+            ! -------------------------------------------------------
+
+            ! Primary KS ← 0 + H_core
+            CALL dbcsr_set(ks_matrix(ispin,1)%matrix, 0.0_dp)
+            CALL dbcsr_add(ks_matrix(ispin,1)%matrix,                     &
+                           matrix_h(1,1)%matrix, 1.0_dp, 1.0_dp)
+
+            ! Auxiliary KS ← -W_aux * W_aux^T
+            CALL dbcsr_set(ks_aux_fit(ispin)%matrix, 0.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(                                   &
+                 sparse_matrix=ks_aux_fit(ispin)%matrix,                  &
+                 matrix_v    =ace_W(1,ispin),                             &
+                 ncol        =nocc,                                       &
+                 alpha       =-1.0_dp,                                    &
+                 keep_sparsity=.TRUE.)
+
+            ! Copy K_ACE_aux → matrix_ks_aux_fit_hfx
+            !   (0*dest + 1*src is equivalent to a copy)
+            CALL dbcsr_add(ks_aux_fit_hfx(ispin)%matrix,                 &
+                           ks_aux_fit(ispin)%matrix, 0.0_dp, 1.0_dp)
+
+         ELSE
+            ! -------------------------------------------------------
+            ! Non-ADMM path: primary KS matrix = H_core - W * W^T.
+            ! -------------------------------------------------------
+            CALL dbcsr_set(ks_matrix(ispin,1)%matrix, 0.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(                                   &
+                 sparse_matrix=ks_matrix(ispin,1)%matrix,                 &
+                 matrix_v    =ace_W(1,ispin),                             &
+                 ncol        =nocc,                                       &
+                 alpha       =-1.0_dp,                                    &
+                 keep_sparsity=.TRUE.)
+            CALL dbcsr_add(ks_matrix(ispin,1)%matrix,                     &
+                           matrix_h(1,1)%matrix, 1.0_dp, 1.0_dp)
+
+         END IF
+      END DO
  
        ! ----------------------------------------------------------------
        ! Exchange energy: E_x = -0.5 * sum_spin Tr[ W^T * P * W ]
