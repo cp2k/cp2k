@@ -714,14 +714,13 @@ def install_cp2k_spack(
     version: str,
     mpi_mode: str,
     base_image: str = "ubuntu:26.04",
-    gcc_version: int = 15,
+    gcc_version: int = 14,
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
 ) -> str:
-    # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
-    if gcc_version == 15 or "fedora" in base_image:
+    if "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
@@ -732,7 +731,7 @@ def install_cp2k_spack(
     # Static CP2K builds use the GCC compiler built with spack
     if version.endswith("-static"):
         use_externals = ""
-        # The default GCC 13 compiler is used for static builds
+        # The default GCC compiler is used for static builds
         # A spack build of the same GCC version as the default one
         # of the host system and ignoring all externals at the same
         # time is not supported

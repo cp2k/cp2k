@@ -13,7 +13,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    g++ gcc gfortran \
+    g++ g++-15 gcc gcc-15 gfortran gfortran-15 \
     git \
     gnupg \
     libssh-dev \
@@ -60,7 +60,7 @@ RUN ./make_cp2k.sh -cv psmp -gv 15 -gpu none -mpi mpich -ef openpmd
 FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    g++ gcc gfortran \
+    g++ g++-15 gcc gcc-15 gfortran gfortran-15 \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
