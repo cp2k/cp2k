@@ -28,9 +28,9 @@
 #          or renaming the folder cp2k/spack. The latter allows for keeping different
 #          software stacks (see also -bd and -bd_only flags).
 #
-#          It is recommended to install podman to take advantage of a local cache.
+#          It is recommended to store already compiled packages in a cache (default).
 #          This will accelerate the (re)build of the CP2K dependencies with Spack
-#          significantly.
+#          significantly (see -uc flag).
 #
 #          After the CP2K dependencies are built with Spack, CP2K itself is built
 #          and installed using CMake in the subfolders cp2k/build and cp2k/install,
@@ -50,26 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.7
-
-# History: - Creation (19.12.2025, MK)
-#          - Version 0.1: First working version (09.01.2026, MK)
-#          - Version 0.2: Add more flags and checks (19.01.2026, MK)
-#          - Version 0.3: Add no_externals flag and perform more checks (21.01.2026, MK)
-#          - Version 0.4: Improve error handling and provide more hints (22.01.2026, MK)
-#          - Version 0.5: Adapt script for use within a container (24.01.2026, MK)
-#          - Version 0.6: Add MPI flag and revise flag parsing (27.01.2026, MK)
-#          - Version 0.7: Fix container detection (28.01.2026, MK)
-#          - Version 0.8: Add --build_deps_only flag (29.01.2026, MK)
-#          - Version 0.9: Add --disable_local_cache flag (30.01.2026, MK)
-#          - Version 1.0: Add Cray specific configuration (01.02.2026, MK)
-#          - Version 1.1: Allow for selecting the GCC version (02.02.2026, MK)
-#          - Version 1.2: Add option for static build (05.02.2026, MK)
-#          - Version 1.3: Add CUDA GPU support (10.02.2026, MK)
-#          - Version 1.4: Drop download of spack-packages (12.02.2026, MK)
-#          - Version 1.5: Add flags to enable/disable features selectively (15.02.2026, MK)
-#          - Version 1.6: Enable dbg and smp builds (01.03.2026, MK)
-#          - Version 1.7: Add flag for building a static CP2K library libcp2k.a (25.03.2026, MK)
+# Version: 1.8
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -156,10 +137,8 @@ CMAKE_FEATURE_FLAG_MPI="-DCP2K_USE_MPI=ON"        # MPI is switched on by defaul
 CMAKE_FEATURE_FLAGS_GPU="-DCP2K_USE_SPLA_GEMM_OFFLOADING=ON"
 CRAY="no"
 CUDA_SM_CODE=0
-DISABLE_LOCAL_CACHE="no"
 GCC_VERSION="auto"
 GPU_MODEL="none"
-HAS_PODMAN="no"
 HELP="no"
 INSTALL_MESSAGE="NEVER"
 MPI_MODE="mpich"
@@ -176,6 +155,7 @@ REBUILD_CP2K="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
+USE_CACHE="folder"
 USE_EXTERNALS="no"
 VERBOSE=0
 VERBOSE_FLAG="--quiet"
@@ -394,10 +374,6 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    -dlc | --disable_local_cache)
-      DISABLE_LOCAL_CACHE="yes"
-      shift 1
-      ;;
     -gv | --gcc_version)
       if (($# > 1)); then
         case "${2}" in
@@ -551,6 +527,23 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -uc | --use_cache)
+      if (($# > 1)); then
+        case "${2,,}" in
+          folder | minio | no | none)
+            USE_CACHE="${2,,}"
+            ;;
+          *)
+            echo "ERROR: Invalid cache mode \"${2}\" specified (choose folder, minio or no)"
+            ${EXIT_CMD} 1
+            ;;
+        esac
+      else
+        echo "ERROR: No argument found for flag \"${1}\" (choose folder, minio or no)"
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
     -ue | --use_externals)
       USE_EXTERNALS="yes"
       shift 1
@@ -609,8 +602,8 @@ done
 CMAKE_FEATURE_FLAGS="$(printf '%s\n' "${out[*]}")"
 
 export BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CMAKE_FEATURE_FLAGS CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE \
-  CRAY CUDA_SM_CODE DEPS_BUILD_TYPE DISABLE_LOCAL_CACHE GCC_VERSION GPU_MODEL HAS_PODMAN IN_CONTAINER INSTALL_MESSAGE \
-  MPI_MODE NUM_PACKAGES NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
+  CRAY CUDA_SM_CODE DEPS_BUILD_TYPE GCC_VERSION GPU_MODEL IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES \
+  NUM_PROCS REBUILD_CP2K RUN_TEST TESTOPTS USE_CACHE VERBOSE VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
@@ -622,7 +615,6 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
   echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-dlc | --disable_local_cache]"
   echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
   echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
@@ -633,6 +625,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-np | --num_packages #PACKAGES]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | -test \"TESTOPTS\"]"
+  echo "                    [-uc | --use_cache (folder | minio | no | none)]"
   echo "                    [-ue | --use_externals]"
   echo "                    [-v | --verbose]"
   echo ""
@@ -643,7 +636,6 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --build_type          : Set preferred CMake build type for CP2K (default: \"Release\")"
   echo " --cp2k_version        : CP2K version to be built (default: \"psmp\")"
   echo " -cray                 : Use Cray specific spack configuration"
-  echo " --disable_local_cache : Don't add local Spack cache"
   echo " --enable_feature      : Enable feature or package (default: all)"
   echo " --disable_feature     : Disable feature or package"
   echo " --help                : Print this help information"
@@ -655,6 +647,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --num_packages        : Maximum number of packages built by spack in parallel (default: 4)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
+  echo " --use_cache           : Use a \"folder\", a \"MinIO\" object storage container (requires podman) or \"no\" cache"
+  echo "                         Set the environment variable SPACK_CACHE to specify the folder name, e.g."
+  echo "                         SPACK_CACHE=\"file://${CP2K_ROOT}/spack_cache\" (default)"
   echo " --use_externals       : Use external packages installed on the host system. This results in much"
   echo "                         faster build times, but it can also cause conflicts with outdated packages"
   echo "                         pulled in from the host system, e.g. old python or gcc versions"
@@ -685,7 +680,6 @@ echo "CP2K_BUILD_TYPE     = ${CP2K_BUILD_TYPE}"
 echo "CP2K_VERSION        = ${CP2K_VERSION}"
 echo "CRAY                = ${CRAY}"
 echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
-echo "DISABLE_LOCAL_CACHE = ${DISABLE_LOCAL_CACHE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
 if ((CUDA_SM_CODE > 0)); then
   echo "GPU                 = ${GPU_MODEL} (CUDA SM code: ${CUDA_SM_CODE})"
@@ -704,6 +698,7 @@ echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS            = \"${TESTOPTS}\""
 fi
+echo "USE_CACHE           = ${USE_CACHE}"
 echo "USE_EXTERNALS       = ${USE_EXTERNALS}"
 echo "VERBOSE_FLAG        = ${VERBOSE_FLAG}"
 echo "VERBOSE_MAKEFILE    = ${VERBOSE_MAKEFILE}"
@@ -927,7 +922,11 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
   mkdir -p "${SPACK_USER_CACHE_PATH}"
 
-  if [[ "${DISABLE_LOCAL_CACHE}" == "no" ]]; then
+  # Set Spack cache (folder is the default)
+  export SPACK_CACHE="${SPACK_CACHE:-file://${CP2K_ROOT}/spack_cache}"
+
+  # Prepare for package caching
+  if [[ "${USE_CACHE}" == @("folder"|"minio") ]]; then
     # Create and activate a virtual environment (venv) for Python packages
     if command -v python3 -m venv --help &> /dev/null; then
       echo "Installing virtual environment for Python packages"
@@ -951,12 +950,14 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
     fi
   fi
 
-  # Initialize Spack shell hooks
-  # shellcheck source=/dev/null
-  source "${SPACK_ROOT}/share/spack/setup-env.sh"
-
-  if [[ "${IN_CONTAINER}" == "no" ]] && [[ "${DISABLE_LOCAL_CACHE}" == "no" ]]; then
-    # The package podman is required for using a MinIO cache
+  # Prepare for using an MinIO object storage as cache
+  if [[ "${USE_CACHE}" == "minio" ]]; then
+    if [[ "${IN_CONTAINER}" == "yes" ]]; then
+      echo "ERROR: An external MinIO object storage container cannot be used as cache within a container"
+      echo "       Use \"folder\" or \"no\" caching instead of \"MinIO\""
+      ${EXIT_CMD} 1
+    fi
+    # MinIO requires podman
     if command -v podman &> /dev/null; then
       # Check podman version
       ((VERBOSE > 0)) && podman version
@@ -964,17 +965,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       if ((PODMAN_VERSION < 4)); then
         echo "WARNING: Outdated podman version $(podman version --format '{{.Client.Version}}') found"
       fi
-      HAS_PODMAN="yes"
-    else
-      echo "INFO: podman was not found"
-      echo "      Install the package podman to take advantage of a local spack cache"
-      echo "      This accelerates a rebuild of the CP2K dependencies, significantly"
-    fi
-  fi
-
-  # Start Spack cache if we are not within a container and have podman available
-  if [[ "${IN_CONTAINER}" == "no" ]] && [[ "${DISABLE_LOCAL_CACHE}" == "no" ]]; then
-    if [[ "${HAS_PODMAN}" == "yes" ]]; then
+      export SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://localhost:9000}"
       if ! "${CP2K_ROOT}"/tools/docker/spack_cache_start.sh; then
         echo "ERROR: Could not start (new) spack cache"
         echo ""
@@ -985,16 +976,25 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
         echo "log_driver = \"k8s-file\""
         ${EXIT_CMD} 1
       fi
+    else
+      echo "INFO: podman was not found"
+      echo "      Install the package podman to use an MinIO object storage as cache"
+      echo "      This accelerates a rebuild of the CP2K dependencies, significantly"
+      echo "      The folder ${SPACK_CACHE} will be used as cache"
+      USE_CACHE="folder"
     fi
   fi
 
-  # Add local spack cache if possible
-  if [[ "${DISABLE_LOCAL_CACHE}" == "no" ]]; then
-    export SPACK_CACHE=${SPACK_CACHE:-"s3://spack-cache --s3-endpoint-url=http://localhost:9000"}
+  # Initialize Spack shell hooks
+  # shellcheck source=/dev/null
+  source "${SPACK_ROOT}/share/spack/setup-env.sh"
+
+  # Add spack cache as mirror if possible
+  if [[ "${USE_CACHE}" == @("folder"|"minio") ]]; then
     echo "SPACK_CACHE = \"${SPACK_CACHE}\""
     spack mirror list
     if ! spack mirror list | grep -q "local-cache"; then
-      echo "Setting up local spack cache"
+      echo "Setting up spack cache"
       if ((VERBOSE > 0)); then
         "${CP2K_ROOT}"/tools/docker/scripts/setup_spack_cache.sh
       else
@@ -1002,7 +1002,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
       fi
     fi
   else
-    echo "INFO: A local Spack cache is NOT used"
+    echo "INFO: A spack cache is NOT used"
   fi
 
   # Prepare the CP2K spack configuration file

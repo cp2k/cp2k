@@ -744,7 +744,8 @@ def install_cp2k_spack(
 ARG IMAGE_TAG
 ENV IMAGE_TAG=${{IMAGE_TAG:-{image_tag}}}
 
-ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+ARG SPACK_CACHE
+ENV SPACK_CACHE="${{SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://localhost:9000}}"
 
 # Copy CP2K repository into container
 WORKDIR /opt

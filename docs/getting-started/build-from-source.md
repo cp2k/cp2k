@@ -59,7 +59,6 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-cray]
                     [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]
                     [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)
-                    [-dlc | --disable_local_cache]
                     [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)
                     [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]
                     [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]
@@ -70,6 +69,7 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-np | --num_packages #PACKAGES]
                     [-rc | --rebuild_cp2k]
                     [-t | -test "TESTOPTS"]
+                    [-uc | --use_cache (folder | minio | no | none)]
                     [-ue | --use_externals]
                     [-v | --verbose]
 
@@ -92,6 +92,9 @@ Flags:
  --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
  --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
  --test                : Perform a regression test run after a successful build
+ --use_cache           : Use a "folder", a "MinIO" object storage container (requires podman) or "no" cache
+                         Set the environment variable SPACK_CACHE to specify the folder name, e.g.
+                         SPACK_CACHE="file://${CP2K_ROOT}/spack_cache" (default)
  --use_externals       : Use external packages installed on the host system. This results in much
                          faster build times, but it can also cause conflicts with outdated packages
                          pulled in from the host system, e.g. old python or gcc versions
@@ -123,8 +126,8 @@ folder. A rebuild of all CP2K dependencies can be enforced simply by removing or
 `cp2k/spack`. The latter allows for keeping different software stacks (see also `-bd` and `-bd_only`
 flags).
 
-It is recommended to install podman to take advantage of a local cache. This will accelerate the
-(re)build of the CP2K dependencies with Spack significantly.
+It is recommended to store already compiled packages in a cache (default). This will accelerate the
+(re)build of the CP2K dependencies with Spack significantly (see -uc flag).
 
 After the CP2K dependencies are built with Spack, CP2K itself is built and installed using `CMake`
 in the subfolders `cp2k/build` and `cp2k/install`, respectively.
