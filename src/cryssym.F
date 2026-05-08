@@ -233,17 +233,19 @@ CONTAINS
 !> \param symm ...
 !> \param shift ...
 !> \param full_grid ...
+!> \param gamma_centered ...
 !> \param inversion_symmetry_only ...
 !> \param use_spglib_reduction ...
 !> \param use_spglib_backend ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_gen(csym, nk, symm, shift, full_grid, inversion_symmetry_only, &
-                         use_spglib_reduction, use_spglib_backend)
+   SUBROUTINE kpoint_gen(csym, nk, symm, shift, full_grid, gamma_centered, &
+                         inversion_symmetry_only, use_spglib_reduction, use_spglib_backend)
       TYPE(csym_type)                                    :: csym
       INTEGER, INTENT(IN)                                :: nk(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: symm
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: shift(3)
-      LOGICAL, INTENT(IN), OPTIONAL                      :: full_grid, inversion_symmetry_only, &
+      LOGICAL, INTENT(IN), OPTIONAL                      :: full_grid, gamma_centered, &
+                                                            inversion_symmetry_only, &
                                                             use_spglib_reduction, &
                                                             use_spglib_backend
 
@@ -251,7 +253,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ik, j, nkp, nkpts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
-      LOGICAL                                            :: fullmesh, inversion_only, &
+      LOGICAL                                            :: fullmesh, gamma_mesh, inversion_only, &
                                                             orthorhombic_cell, spglib_backend, &
                                                             spglib_reduction
       REAL(KIND=dp)                                      :: cell_eps
@@ -277,6 +279,12 @@ CONTAINS
          fullmesh = .FALSE.
       END IF
       csym%fullgrid = fullmesh
+
+      IF (PRESENT(gamma_centered)) THEN
+         gamma_mesh = gamma_centered
+      ELSE
+         gamma_mesh = .FALSE.
+      END IF
 
       IF (PRESENT(inversion_symmetry_only)) THEN
          inversion_only = inversion_symmetry_only
@@ -330,7 +338,7 @@ CONTAINS
          ! symmetry library is available
          IF (fullmesh) THEN
             ! full mesh requested
-            CALL full_grid_gen(nk, xkp, wkp, shift)
+            CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
             IF (csym%istriz == 1) THEN
                ! use inversion symmetry
                CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
@@ -339,7 +347,7 @@ CONTAINS
             END IF
          ELSE IF (csym%istriz /= 1 .OR. inversion_only) THEN
             ! use inversion symmetry
-            CALL full_grid_gen(nk, xkp, wkp, shift)
+            CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
             CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
          ELSE
             ! use symmetry library to reduce k-points
@@ -348,7 +356,7 @@ CONTAINS
                              "possible without symmetrization.")
             END IF
 
-            CALL full_grid_gen(nk, xkp, wkp, shift)
+            CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
             IF (spglib_backend) THEN
                CALL kp_symmetry_spglib(csym, xkp, wkp, kpop)
             ELSE
@@ -358,7 +366,7 @@ CONTAINS
          END IF
       ELSE
          ! no symmetry library is available
-         CALL full_grid_gen(nk, xkp, wkp, shift)
+         CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
          IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only .AND. &
              orthorhombic_cell) THEN
             ! fall back to the K290 atom mapping for simple cells when SPGLIB is not linked
@@ -1164,15 +1172,25 @@ CONTAINS
 !> \param xkp ...
 !> \param wkp ...
 !> \param shift ...
+!> \param gamma_centered ...
 ! **************************************************************************************************
-   SUBROUTINE full_grid_gen(nk, xkp, wkp, shift)
+   SUBROUTINE full_grid_gen(nk, xkp, wkp, shift, gamma_centered)
       INTEGER, INTENT(IN)                                :: nk(3)
       REAL(KIND=dp), DIMENSION(:, :)                     :: xkp
       REAL(KIND=dp), DIMENSION(:)                        :: wkp
       REAL(KIND=dp), INTENT(IN)                          :: shift(3)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gamma_centered
 
-      INTEGER                                            :: i, ix, iy, iz
+      INTEGER                                            :: i, idim, ix, iy, iz
+      INTEGER, DIMENSION(3)                              :: ik
+      LOGICAL                                            :: gamma_mesh
       REAL(KIND=dp)                                      :: kpt_latt(3)
+
+      IF (PRESENT(gamma_centered)) THEN
+         gamma_mesh = gamma_centered
+      ELSE
+         gamma_mesh = .FALSE.
+      END IF
 
       wkp = 0.0_dp
       i = 0
@@ -1180,9 +1198,18 @@ CONTAINS
          DO iy = 1, nk(2)
             DO iz = 1, nk(3)
                i = i + 1
-               kpt_latt(1) = REAL(2*ix - nk(1) - 1, KIND=dp)/(2._dp*REAL(nk(1), KIND=dp))
-               kpt_latt(2) = REAL(2*iy - nk(2) - 1, KIND=dp)/(2._dp*REAL(nk(2), KIND=dp))
-               kpt_latt(3) = REAL(2*iz - nk(3) - 1, KIND=dp)/(2._dp*REAL(nk(3), KIND=dp))
+               ik(1) = ix
+               ik(2) = iy
+               ik(3) = iz
+               DO idim = 1, 3
+                  IF (gamma_mesh .AND. MOD(nk(idim), 2) == 0) THEN
+                     kpt_latt(idim) = REAL(2*ik(idim) - nk(idim), KIND=dp)/ &
+                                      (2._dp*REAL(nk(idim), KIND=dp))
+                  ELSE
+                     kpt_latt(idim) = REAL(2*ik(idim) - nk(idim) - 1, KIND=dp)/ &
+                                      (2._dp*REAL(nk(idim), KIND=dp))
+                  END IF
+               END DO
                xkp(1:3, i) = kpt_latt(1:3)
                wkp(i) = 1.0_dp
             END DO
