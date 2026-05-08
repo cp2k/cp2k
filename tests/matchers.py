@@ -201,6 +201,11 @@ registry["M082"] = GenericMatcher(r"DEBUG| Sum of differences:", col=5)
 registry["DEBUG_stress_sum"] = GenericMatcher(
     r"DEBUG\|\s+Sum of differences\s+([-+0-9.EeDd]+)$", col=5, regex=True
 )
+registry["DEBUG_periodic_stress_sum"] = GenericMatcher(
+    r"DEBUG\|\s+Periodic-subspace sum of differences\s+([-+0-9.EeDd]+)$",
+    col=5,
+    regex=True,
+)
 registry["DEBUG_force_sum"] = GenericMatcher(
     r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)", col=5, regex=True
 )

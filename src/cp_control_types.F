@@ -201,6 +201,7 @@ MODULE cp_control_types
       INTEGER                              :: h_sto_ng = 0
       INTEGER                              :: tblite_method = 0
       INTEGER                              :: tblite_scc_mixer = tblite_scc_mixer_auto
+      REAL(KIND=dp)                        :: tblite_accuracy = 1.0_dp
       REAL(KIND=dp)                        :: tblite_mixer_damping = 0.4_dp
       !
       INTEGER                              :: vdw_type = -1

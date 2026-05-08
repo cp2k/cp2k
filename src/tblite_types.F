@@ -40,6 +40,7 @@ MODULE tblite_types
       LOGICAL                                            :: use_virial = .FALSE.
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
+      REAL(KIND=dp)                                      :: accuracy = 1.0_dp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
       REAL(KIND=dp), ALLOCATABLE                         :: e_hal(:)
       REAL(KIND=dp), ALLOCATABLE                         :: e_rep(:)
