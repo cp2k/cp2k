@@ -706,9 +706,9 @@ CONTAINS
       END DO
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
-      ! In TDA the propagator evaluates V_H(rho_OV); at rho_0 this is identically 0,
-      ! so no Hartree reference must be subtracted (otherwise the OV/VO blocks of
-      ! V_H(rho_0) leak into ham_reference and shift the static-reference gap).
+      ! In TDA the propagator evaluates separate OV/VO-projected kernel passes.
+      ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections vanish
+      ! and the corresponding Hartree reference is identically zero.
       IF (use_hartree_reference) THEN
          DO i = 1, rtbse_env%n_spin
             CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
@@ -719,7 +719,7 @@ CONTAINS
             ! Apply occupation factor f_n-f_m
             CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(i), i)
             ! Subtract the reference from the reference Hamiltonian
-            ! following H_eff = ... + V_Hartree(delta_rho) - V_Hartree(rho_0),
+            ! following H_eff = ... + V_Hartree(rho) - V_Hartree(rho_0),
             CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(i), mtarget=rtbse_env%ham_workspace(1))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
@@ -778,8 +778,9 @@ CONTAINS
             ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
             ! So far only closed shell tested
             ! Uses rho_orig - same as rho for initial run but different for continued run
-            ! In TDA the propagator evaluates Sigma_SEX(rho_OV); at rho_0 this is
-            ! identically 0, so the SEX reference must NOT be subtracted in TDA.
+            ! In TDA the propagator evaluates separate OV/VO-projected kernel passes.
+            ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
+            ! vanish and the SEX reference must remain zero in TDA.
             IF (use_sex_reference) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
                ! Transform to MO basis (AO scratch -> MO-active result)
@@ -975,19 +976,18 @@ CONTAINS
                                          CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
             END IF
          ELSE
-            ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO blocks
-            ! by feeding ONLY Delta rho_OV when computing the OV output of the kernel,
-            ! and ONLY Delta rho_VO when computing the VO output. Two kernel passes
-            ! per RK4 stage. Reference subtraction is skipped in
-            ! initialize_hartree_potential / initialize_cohsex_selfenergy
-            ! (V_H[Delta rho=0] = Sigma_SEX[Delta rho=0] = 0 at t=0 by construction).
+            ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO
+            ! blocks by feeding only the matching OV/VO block of the full rho when
+            ! computing the corresponding output block. Two kernel passes per RK4
+            ! stage. rho_orig is OO-diagonal in the MO basis, so masking rho or
+            ! rho-rho_orig gives the same OV/VO input and the TDA reference remains 0.
             !
-            ! Per-pass input is non-Hermitian (Delta rho_OV alone has no VO entries),
+            ! Per-pass input is non-Hermitian (rho_OV alone has no VO entries),
             ! so both kernels MUST be complex-linear in the input. get_sigma_complex
             ! already handles this (Re/Im processed separately); for Hartree we use
             ! get_hartree_complex (defined below) which calls the real-input
             ! get_hartree on Re and Im separately. Without this, the Im part of
-            ! Delta rho_AO is silently dropped by get_hartree -> the OV/VO
+            ! rho_AO is silently dropped by get_hartree -> the OV/VO
             ! contributions to ham_effective lose Hermitian conjugacy and the
             ! propagator gains real eigenvalues -> exponential blow-up.
             !
@@ -999,8 +999,6 @@ CONTAINS
 
             ! ===== Pass 1: OV input -> OV output =====
             CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin), &
-                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_orig(ispin))
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.TRUE.)
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
@@ -1029,8 +1027,6 @@ CONTAINS
 
             ! ===== Pass 2: VO input -> VO output =====
             CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin), &
-                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_orig(ispin))
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.FALSE.)
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
