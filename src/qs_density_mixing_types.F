@@ -20,6 +20,7 @@ MODULE qs_density_mixing_types
                               direct_p_mix, &
                               gaussian, &
                               kerker_mix, &
+                              modified_broy_mix, &
                               multisec_mix, &
                               no_mix, &
                               pulay_mix
@@ -48,6 +49,7 @@ MODULE qs_density_mixing_types
    INTEGER, PARAMETER, PUBLIC :: no_mixing_nr = 0, direct_mixing_nr = 1, &
                                  gspace_mixing_nr = 2, pulay_mixing_nr = 3, &
                                  broyden_mixing_nr = 4, &
+                                 modified_broyden_mixing_nr = 5, &
                                  multisecant_mixing_nr = 6
    PUBLIC :: cp_1d_z_p_type, mixing_storage_create, mixing_storage_type, mixing_storage_release, create_mixing_section
 
@@ -210,6 +212,11 @@ CONTAINS
          CALL section_vals_val_get(mixing_section, "PULAY_BETA", r_val=mixing_store%pulay_beta)
       CASE (broyden_mixing_nr)
          CALL section_vals_val_get(mixing_section, "BROY_W0", r_val=mixing_store%broy_w0)
+         mixing_store%bconst = 20.0_dp
+      CASE (modified_broyden_mixing_nr)
+         CALL section_vals_val_get(mixing_section, "BROY_W0", r_val=mixing_store%broy_w0)
+         CALL section_vals_val_get(mixing_section, "BROY_WREF", r_val=mixing_store%wc)
+         CALL section_vals_val_get(mixing_section, "BROY_WMAX", r_val=mixing_store%wmax)
          mixing_store%bconst = 20.0_dp
       CASE (multisecant_mixing_nr)
          CALL section_vals_val_get(mixing_section, "REGULARIZATION", r_val=mixing_store%reg_par)
@@ -534,13 +541,18 @@ CONTAINS
                                           "KERKER_MIXING", &
                                           "PULAY_MIXING", &
                                           "BROYDEN_MIXING", &
+                                          "MODIFIED_BROYDEN_MIXING", &
                                           "MULTISECANT_MIXING"), &
                           enum_i_vals=[no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
+                                       modified_broy_mix, &
                                        multisec_mix], &
                           enum_desc=s2a("No mixing is applied", &
                                         "Direct mixing of new and old density matrices", &
                                         "Mixing of the potential in reciprocal space using the Kerker damping", &
-                                        "Pulay mixing", "Broyden mixing", &
+                                        "Pulay mixing", &
+                                        "Original CP2K Broyden mixing with a constant BROY_W0 regularization", &
+                                        "Modified Broyden mixing with dynamic residual weights controlled by BROY_W0, "// &
+                                        "BROY_WREF, and BROY_WMAX", &
                                         "Multisecant scheme for mixing"))
 
       CALL section_add_keyword(section, keyword)
@@ -640,7 +652,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_W0", &
-                          description=" w0 parameter used in Broyden mixing", &
+                          description="Regularization weight used in Broyden mixing. For the original "// &
+                          "BROYDEN_MIXING method this is the constant diagonal regularization of the "// &
+                          "small Broyden system. For MODIFIED_BROYDEN_MIXING it is the corresponding "// &
+                          "diagonal regularization of the dynamically weighted Broyden system. "// &
+                          "The default follows tblite.", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -651,23 +667,29 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WREF", &
-                          description="", &
+                          description="Reference factor for the dynamic residual weight. This keyword "// &
+                          "is only used by MODIFIED_BROYDEN_MIXING; the original BROYDEN_MIXING path "// &
+                          "is unchanged. The effective history weight is proportional to BROY_WREF "// &
+                          "divided by the residual norm, clipped to the interval [1, BROY_WMAX]. "// &
+                          "The default follows tblite.", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
-                          default_r_val=100.0_dp, &
-                          usage="BROY_WREF 0.2")
+                          default_r_val=0.01_dp, &
+                          usage="BROY_WREF 0.01")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="BROY_WMAX", &
-                          description="", &
+                          description="Upper bound for the dynamic residual weight. This keyword is "// &
+                          "only used by MODIFIED_BROYDEN_MIXING; the original BROYDEN_MIXING path is "// &
+                          "unchanged. The lower bound is fixed to 1.0. The default follows tblite.", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
-                          default_r_val=30.0_dp, &
-                          usage="BROY_WMAX 10.0")
+                          default_r_val=100000.0_dp, &
+                          usage="BROY_WMAX 100000.0")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

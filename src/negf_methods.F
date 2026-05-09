@@ -112,6 +112,7 @@ MODULE negf_methods
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               direct_mixing_nr,&
                                               gspace_mixing_nr,&
+                                              modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
                                               pulay_mixing_nr
    USE qs_energy,                       ONLY: qs_energies
@@ -1136,6 +1137,9 @@ CONTAINS
          END IF
          IF (negf_env%mixing_method == broyden_mixing_nr) THEN
             WRITE (log_unit, '(T3,A)') "Mixing method:                Broyden mixing"
+         END IF
+         IF (negf_env%mixing_method == modified_broyden_mixing_nr) THEN
+            WRITE (log_unit, '(T3,A)') "Mixing method:                Modified Broyden mixing"
          END IF
          IF (negf_env%mixing_method == pulay_mixing_nr) THEN
             WRITE (log_unit, '(T3,A)') "Mixing method:                Pulay mixing"

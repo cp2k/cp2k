@@ -23,6 +23,7 @@ MODULE qs_mixing_utils
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               gspace_mixing_nr,&
                                               mixing_storage_type,&
+                                              modified_broyden_mixing_nr,&
                                               multisecant_mixing_nr,&
                                               pulay_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -310,7 +311,7 @@ CONTAINS
 
          END IF
          !   *** allocate broyden buffer ***
-         IF (mixing_method == broyden_mixing_nr) THEN
+         IF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
                ALLOCATE (mixing_store%rhoin_old(nspins))
                DO ispin = 1, nspins
@@ -326,6 +327,12 @@ CONTAINS
                   END DO
                   NULLIFY (mixing_store%last_res(ispin)%cc)
                END DO
+            END IF
+            IF (mixing_method == modified_broyden_mixing_nr) THEN
+               IF (.NOT. ASSOCIATED(mixing_store%weight)) THEN
+                  ALLOCATE (mixing_store%weight(nbuffer, nspins))
+               END IF
+               mixing_store%weight = 0.0_dp
             END IF
             IF (mixing_store%gmix_p) THEN
 
@@ -590,7 +597,7 @@ CONTAINS
                END DO
             END DO
          END IF
-      ELSEIF (mixing_method == broyden_mixing_nr) THEN
+      ELSEIF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
          DO ispin = 1, nspin
             IF (.NOT. ASSOCIATED(mixing_store%rhoin_old(ispin)%cc)) THEN
                ALLOCATE (mixing_store%rhoin_old(ispin)%cc(ng))
