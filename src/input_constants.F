@@ -1361,6 +1361,40 @@ MODULE input_constants
                                                tblite_scc_mixer_cp2k = 2, &
                                                tblite_scc_mixer_none = 3
 
+   ! tblite SCC mixer defaults matching the tblite library
+   INTEGER, PARAMETER, PUBLIC               :: tblite_mixer_iterations_default = 250, &
+                                               tblite_mixer_memory_inherit = 0
+   REAL(KIND=dp), PARAMETER, PUBLIC         :: tblite_mixer_damping_default = 0.4_dp, &
+                                               tblite_mixer_max_weight_default = 100000.0_dp, &
+                                               tblite_mixer_min_weight_default = 1.0_dp, &
+                                               tblite_mixer_omega0_default = 0.01_dp, &
+                                               tblite_mixer_weight_factor_default = 0.01_dp
+
+   ! tblite reference CLI initial guess selection
+   INTEGER, PARAMETER, PUBLIC               :: tblite_guess_sad = 0, &
+                                               tblite_guess_eeq = 1, &
+                                               tblite_guess_ceh = 2
+
+   ! tblite native electronic solver selection
+   INTEGER, PARAMETER, PUBLIC               :: tblite_solver_gvd = 0, &
+                                               tblite_solver_gvr = 1
+
+   ! tblite reference CLI implicit solvation selection
+   INTEGER, PARAMETER, PUBLIC               :: tblite_cli_solvation_none = 0, &
+                                               tblite_cli_solvation_alpb = 1, &
+                                               tblite_cli_solvation_gbsa = 2, &
+                                               tblite_cli_solvation_gbe = 3, &
+                                               tblite_cli_solvation_gb = 4, &
+                                               tblite_cli_solvation_cpcm = 5
+
+   INTEGER, PARAMETER, PUBLIC               :: tblite_cli_born_kernel_auto = 0, &
+                                               tblite_cli_born_kernel_p16 = 1, &
+                                               tblite_cli_born_kernel_still = 2
+
+   INTEGER, PARAMETER, PUBLIC               :: tblite_cli_solution_state_gsolv = 0, &
+                                               tblite_cli_solution_state_bar1mol = 1, &
+                                               tblite_cli_solution_state_reference = 2
+
    ! SMEAGOL interface
    INTEGER, PARAMETER, PUBLIC               :: smeagol_bulklead_leftright = 1, &
                                                smeagol_bulklead_left = 2, &

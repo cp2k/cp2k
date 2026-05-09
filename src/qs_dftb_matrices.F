@@ -585,8 +585,17 @@ CONTAINS
             CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
                                mix_charge, para_env, scf_env%iter_count, &
                                scc_mixer=dft_control%qs_control%dftb_control%tblite_scc_mixer, &
+                               tblite_mixer_iterations= &
+                               dft_control%qs_control%dftb_control%tblite_mixer_iterations, &
                                tblite_mixer_damping=dft_control%qs_control%dftb_control%tblite_mixer_damping, &
-                               tblite_mixer_memory=qs_env%scf_control%max_scf)
+                               tblite_mixer_memory=dft_control%qs_control%dftb_control%tblite_mixer_memory, &
+                               tblite_mixer_omega0=dft_control%qs_control%dftb_control%tblite_mixer_omega0, &
+                               tblite_mixer_min_weight= &
+                               dft_control%qs_control%dftb_control%tblite_mixer_min_weight, &
+                               tblite_mixer_max_weight= &
+                               dft_control%qs_control%dftb_control%tblite_mixer_max_weight, &
+                               tblite_mixer_weight_factor= &
+                               dft_control%qs_control%dftb_control%tblite_mixer_weight_factor)
             mcharge(:) = mix_charge(:, 1)
             DEALLOCATE (mix_charge)
          END IF

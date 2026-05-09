@@ -23,11 +23,16 @@
         ORTHOGONAL_BASIS F
         SCC_MIXER TBLITE
         SELF_CONSISTENT T
-        TBLITE_MIXER_DAMPING 0.005
         &PARAMETER
           PARAM_FILE_NAME scc_parameter
           PARAM_FILE_PATH DFTB/scc
         &END PARAMETER
+        &TBLITE_MIXER
+          DAMPING 0.005
+          ITERATIONS 500
+          MEMORY 500
+          SOLVER GVD
+        &END TBLITE_MIXER
       &END DFTB
     &END QS
     &SCF

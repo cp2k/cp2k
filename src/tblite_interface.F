@@ -25,7 +25,7 @@ MODULE tblite_interface
    USE tblite_data_spin, ONLY: get_spin_constant
    USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, maxl, msao
    USE tblite_integral_type, ONLY: integral_type, new_integral
-   USE tblite_scf, ONLY: get_mixer_dimension, new_mixer
+   USE tblite_scf, ONLY: get_mixer_dimension
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                               orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential, add_pot_to_h1
@@ -59,11 +59,24 @@ MODULE tblite_interface
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_type, cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_should_output, &
-                                 cp_print_key_unit_nr, cp_print_key_finished_output
+                                 cp_print_key_unit_nr, cp_print_key_finished_output, &
+                                 debug_print_level, high_print_level, silent_print_level
    USE cp_units, ONLY: cp_unit_from_cp2k
-   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb, &
+   USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb, smear_energy_window, &
+                              smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
+                              tblite_cli_born_kernel_auto, tblite_cli_born_kernel_p16, &
+                              tblite_cli_born_kernel_still, tblite_cli_solution_state_bar1mol, &
+                              tblite_cli_solution_state_gsolv, tblite_cli_solution_state_reference, &
+                              tblite_cli_solvation_alpb, tblite_cli_solvation_cpcm, &
+                              tblite_cli_solvation_gb, tblite_cli_solvation_gbe, &
+                              tblite_cli_solvation_gbsa, &
+                              tblite_guess_ceh, tblite_guess_eeq, tblite_guess_sad, &
+                              tblite_mixer_damping_default, &
+                              tblite_mixer_max_weight_default, tblite_mixer_min_weight_default, &
+                              tblite_mixer_omega0_default, tblite_mixer_weight_factor_default, &
                               tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
-                              tblite_scc_mixer_none, tblite_scc_mixer_tblite
+                              tblite_scc_mixer_none, tblite_scc_mixer_tblite, &
+                              tblite_solver_gvd, tblite_solver_gvr
    USE input_section_types, ONLY: section_vals_val_get
    USE kinds, ONLY: default_path_length, default_string_length, dp
    USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
@@ -90,6 +103,9 @@ MODULE tblite_interface
    USE scf_control_types, ONLY: scf_control_type
    USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type
    USE string_utilities, ONLY: integer_to_string
+#if defined(__TBLITE)
+   USE tblite_scc_mixer, ONLY: new_cp2k_tblite_mixer
+#endif
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
@@ -403,9 +419,10 @@ CONTAINS
 
       info = tb%calc%variable_info()
       IF (ALLOCATED(tb%mixer)) DEALLOCATE (tb%mixer)
-      CALL new_mixer(tb%mixer, tb%calc%max_iter, &
-                     tb%wfn%nspin*get_mixer_dimension(tb%mol, tb%calc%bas, info), &
-                     tb%calc%mixer_damping)
+      CALL new_cp2k_tblite_mixer(tb%mixer, tb%mixer_memory, &
+                                 tb%wfn%nspin*get_mixer_dimension(tb%mol, tb%calc%bas, info), &
+                                 tb%mixer_damping, tb%mixer_omega0, tb%mixer_min_weight, &
+                                 tb%mixer_max_weight, tb%mixer_weight_factor)
 
 #else
       MARK_USED(tb)
@@ -417,27 +434,60 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Configure tblite's internal SCC mixer from CP2K input.
 !> \param tb ...
-!> \param max_scf ...
+!> \param iterations ...
+!> \param memory ...
 !> \param damping ...
+!> \param omega0 ...
+!> \param min_weight ...
+!> \param max_weight ...
+!> \param weight_factor ...
+!> \param solver ...
 ! **************************************************************************************************
-   SUBROUTINE tb_configure_mixer(tb, max_scf, damping)
+   SUBROUTINE tb_configure_mixer(tb, iterations, memory, damping, omega0, min_weight, max_weight, &
+                                 weight_factor, solver)
 
       TYPE(tblite_type), POINTER                         :: tb
-      INTEGER, INTENT(IN)                                :: max_scf
-      REAL(KIND=dp), INTENT(IN)                          :: damping
+      INTEGER, INTENT(IN)                                :: iterations, memory, solver
+      REAL(KIND=dp), INTENT(IN)                          :: damping, max_weight, min_weight, omega0, &
+                                                            weight_factor
 
 #if defined(__TBLITE)
 
-      IF (max_scf < 1) CPABORT("tblite SCC mixer MAX_SCF must be positive")
+      IF (iterations < 1) CPABORT("tblite SCC mixer ITERATIONS must be positive")
+      IF (memory < 1) CPABORT("tblite SCC mixer MEMORY must be positive")
       IF (damping <= 0.0_dp) CPABORT("tblite SCC mixer damping must be positive")
+      IF (omega0 <= 0.0_dp) CPABORT("tblite SCC mixer OMEGA0 must be positive")
+      IF (min_weight <= 0.0_dp) CPABORT("tblite SCC mixer MIN_WEIGHT must be positive")
+      IF (max_weight <= 0.0_dp) CPABORT("tblite SCC mixer MAX_WEIGHT must be positive")
+      IF (max_weight < min_weight) &
+         CPABORT("tblite SCC mixer MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+      IF (weight_factor <= 0.0_dp) CPABORT("tblite SCC mixer WEIGHT_FACTOR must be positive")
+      SELECT CASE (solver)
+      CASE (tblite_solver_gvd, tblite_solver_gvr)
+      CASE DEFAULT
+         CPABORT("Unknown tblite SCC mixer SOLVER")
+      END SELECT
 
-      tb%calc%max_iter = max_scf
+      tb%calc%max_iter = iterations
+      tb%mixer_memory = memory
+      tb%mixer_solver = solver
+      tb%mixer_damping = damping
       tb%calc%mixer_damping = damping
+      tb%mixer_omega0 = omega0
+      tb%mixer_min_weight = min_weight
+      tb%mixer_max_weight = max_weight
+      tb%mixer_weight_factor = weight_factor
 
 #else
       MARK_USED(tb)
-      MARK_USED(max_scf)
+      MARK_USED(iterations)
+      MARK_USED(memory)
       MARK_USED(damping)
+      MARK_USED(omega0)
+      MARK_USED(min_weight)
+      MARK_USED(max_weight)
+      MARK_USED(weight_factor)
+      MARK_USED(solver)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -470,10 +520,10 @@ CONTAINS
    END FUNCTION tb_native_scc_mixer_active
 
 ! **************************************************************************************************
-!> \brief Return the native tblite SCC mixer residual for CP2K SCF convergence.
+!> \brief Return the native tblite SCC mixer residual on the CP2K iter_delta scale.
 !> \param dft_control ...
 !> \param tb ...
-!> \param eps_scf ...
+!> \param eps_scf CP2K reporting scale for the native residual.
 !> \return ...
 ! **************************************************************************************************
    FUNCTION tb_scf_mixer_error(dft_control, tb, eps_scf) RESULT(mixer_error)
@@ -512,27 +562,38 @@ CONTAINS
 !> \param tb ...
 !> \param typ ...
 !> \param accuracy ...
+!> \param param_file ...
 ! **************************************************************************************************
-   SUBROUTINE tb_set_calculator(tb, typ, accuracy)
+   SUBROUTINE tb_set_calculator(tb, typ, accuracy, param_file)
 
       TYPE(tblite_type), POINTER                         :: tb
       INTEGER                                            :: typ
       REAL(KIND=dp), INTENT(IN)                          :: accuracy
+      CHARACTER(LEN=*), INTENT(IN)                       :: param_file
 
 #if defined(__TBLITE)
 
       TYPE(error_type), ALLOCATABLE                      :: error
 
-      SELECT CASE (typ)
-      CASE default
-         CPABORT("Unknown xtb type")
-      CASE (gfn1xtb)
-         CALL new_gfn1_calculator(tb%calc, tb%mol, error)
-      CASE (gfn2xtb)
-         CALL new_gfn2_calculator(tb%calc, tb%mol, error)
-      CASE (ipea1xtb)
-         CALL new_ipea1_calculator(tb%calc, tb%mol, error)
-      END SELECT
+      IF (ALLOCATED(tb%param)) DEALLOCATE (tb%param)
+      IF (LEN_TRIM(param_file) > 0) THEN
+         ALLOCATE (tb%param)
+         CALL tb%param%load(TRIM(param_file), error)
+         IF (ALLOCATED(error)) CPABORT("Could not load tblite PARAM file: "//TRIM(param_file))
+         CALL new_xtb_calculator(tb%calc, tb%mol, tb%param, error)
+      ELSE
+         SELECT CASE (typ)
+         CASE default
+            CPABORT("Unknown xtb type")
+         CASE (gfn1xtb)
+            CALL new_gfn1_calculator(tb%calc, tb%mol, error)
+         CASE (gfn2xtb)
+            CALL new_gfn2_calculator(tb%calc, tb%mol, error)
+         CASE (ipea1xtb)
+            CALL new_ipea1_calculator(tb%calc, tb%mol, error)
+         END SELECT
+      END IF
+      IF (ALLOCATED(error)) CPABORT("tblite calculator setup failed")
 
       tb%accuracy = accuracy
 
@@ -540,6 +601,7 @@ CONTAINS
       MARK_USED(tb)
       MARK_USED(typ)
       MARK_USED(accuracy)
+      MARK_USED(param_file)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -1279,9 +1341,11 @@ CONTAINS
       LOGICAL                                            :: discard_mixed_output, do_combined_mixing, do_dipole, do_quadrupole, &
                                                             native_sign_mixing, phased_combined_mixing, skip_charge_mixing, &
                                                             reuse_native_input, skip_scf_dispersion, skip_scf_dispersion_energy, &
+                                                            seed_native_from_rho, &
                                                             skip_scf_dispersion_gradient, skip_scf_dispersion_potential, &
                                                             use_native_mixer, use_no_mixer
-      REAL(KIND=dp)                                      :: mix_alpha, norm, moment_alpha, new_charge, new_moment, pao
+      REAL(KIND=dp)                                      :: mix_alpha, native_seed_charge, norm, moment_alpha, &
+                                                            new_charge, new_moment, pao
 #if defined(__TBLITE_DEBUG_DIAGNOSTICS)
       INTEGER                                            :: debug_status
       CHARACTER(LEN=32)                                  :: debug_value
@@ -1359,9 +1423,19 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho, para_env=para_env, &
                       scf_control=scf_control)
       IF (use_native_mixer .AND. use_rho .AND. (.NOT. calculate_forces) .AND. &
+          scf_env%iter_count > dft_control%qs_control%xtb_control%tblite_mixer_iterations) THEN
+         CPABORT("tblite SCC mixer exceeded TBLITE_MIXER/ITERATIONS")
+      END IF
+      IF (use_native_mixer .AND. use_rho .AND. (.NOT. calculate_forces) .AND. &
           scf_env%iter_count == 1) THEN
-         CALL tb_configure_mixer(tb, scf_control%max_scf, &
-                                 dft_control%qs_control%xtb_control%tblite_mixer_damping)
+         CALL tb_configure_mixer(tb, dft_control%qs_control%xtb_control%tblite_mixer_iterations, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_memory, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_damping, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_omega0, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_min_weight, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_max_weight, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, &
+                                 dft_control%qs_control%xtb_control%tblite_mixer_solver)
          CALL tb_reset_mixer(tb)
       END IF
       nspin = dft_control%nspins
@@ -1377,8 +1451,6 @@ CONTAINS
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
-      IF (nspin > 1 .AND. (.NOT. use_native_mixer)) &
-         CPABORT("tblite UKS/LSD currently requires SCC_MIXER AUTO or TBLITE")
       IF (nspin > 1 .AND. mp_test_mode /= 0) &
          CPABORT("tblite UKS/LSD debug multipole modes are not implemented")
       IF (nspin > 1 .AND. (.NOT. calculate_forces)) CALL tb_store_density_ref(tb, matrix_p)
@@ -1518,6 +1590,9 @@ CONTAINS
             END DO
          END DO
       END DO
+      native_seed_charge = -SUM(ch_atom(:, 1))
+      seed_native_from_rho = SUM(ABS(aocg_spin)) > 1.0E-10_dp .AND. &
+                             ABS(native_seed_charge - REAL(dft_control%charge, dp)) < 1.0E-5_dp
       DEALLOCATE (aocg, aocg_spin)
 
       raw_state_status = 1
@@ -1653,10 +1728,39 @@ CONTAINS
                  mp_test_mode == 232 .OR. mp_test_mode == 233) .AND. &
                 use_rho .AND. (.NOT. calculate_forces)) THEN
                IF (.NOT. reuse_native_input) THEN
-                  tb%wfn%qsh(:, :) = 0.0_dp
-                  tb%wfn%qat(:, :) = 0.0_dp
-                  IF (do_dipole) tb%wfn%dpat(:, :, :) = 0.0_dp
-                  IF (do_quadrupole) tb%wfn%qpat(:, :, :) = 0.0_dp
+                  IF (seed_native_from_rho) THEN
+                     ! Seed the native tblite mixer from CP2K's current density so SCF_GUESS/RESTART
+                     ! controls the initial SCC state.
+                     DO iatom = 1, n_atom
+                        ii = tb%calc%bas%ish_at(iatom)
+                        DO ispin = 1, nspin
+                           DO is = 1, tb%calc%bas%nsh_at(iatom)
+                              tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
+                           END DO
+                           tb%wfn%qat(iatom, ispin) = &
+                              SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
+                        END DO
+                     END DO
+                     IF (do_dipole) THEN
+                        DO iatom = 1, n_atom
+                           DO ispin = 1, nspin
+                              tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
+                           END DO
+                        END DO
+                     END IF
+                     IF (do_quadrupole) THEN
+                        DO iatom = 1, n_atom
+                           DO ispin = 1, nspin
+                              tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
+                           END DO
+                        END DO
+                     END IF
+                  ELSE
+                     tb%wfn%qsh(:, :) = 0.0_dp
+                     tb%wfn%qat(:, :) = 0.0_dp
+                     IF (do_dipole) tb%wfn%dpat(:, :, :) = 0.0_dp
+                     IF (do_quadrupole) tb%wfn%qpat(:, :, :) = 0.0_dp
+                  END IF
                END IF
                IF (do_dipole) DEALLOCATE (ao_dip)
                IF (do_quadrupole) DEALLOCATE (ao_quad)
@@ -1701,8 +1805,66 @@ CONTAINS
          END IF
       ELSE
          ! charge mixing
+         native_sign_mixing = .FALSE.
          IF (dft_control%qs_control%do_ls_scf) THEN
-            !
+            IF (nspin > 1) CPABORT("CP2K/tblite UKS/LSD with LS_SCF is not implemented")
+         ELSEIF (nspin > 1) THEN
+            n_mix_cols = nspin*max_shell
+            IF (do_dipole) n_mix_cols = n_mix_cols + nspin*dip_n
+            IF (do_quadrupole) n_mix_cols = n_mix_cols + nspin*quad_n
+            ALLOCATE (mix_vars(n_atom, n_mix_cols))
+            mix_vars = 0.0_dp
+
+            mix_offset = 0
+            DO ispin = 1, nspin
+               mix_vars(:, mix_offset + 1:mix_offset + max_shell) = &
+                  -ch_shell_spin(:, 1:max_shell, ispin)
+               mix_offset = mix_offset + max_shell
+            END DO
+            IF (do_dipole) THEN
+               DO ispin = 1, nspin
+                  mix_vars(:, mix_offset + 1:mix_offset + dip_n) = &
+                     -ao_dip_spin(:, 1:dip_n, ispin)
+                  mix_offset = mix_offset + dip_n
+               END DO
+            END IF
+            IF (do_quadrupole) THEN
+               DO ispin = 1, nspin
+                  mix_vars(:, mix_offset + 1:mix_offset + quad_n) = &
+                     -ao_quad_spin(:, 1:quad_n, ispin)
+                  mix_offset = mix_offset + quad_n
+               END DO
+            END IF
+
+            IF (.NOT. use_no_mixer) THEN
+               CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
+                                  mix_vars, para_env, scf_env%iter_count)
+            END IF
+
+            mix_offset = 0
+            DO ispin = 1, nspin
+               ch_shell_spin(:, 1:max_shell, ispin) = &
+                  -mix_vars(:, mix_offset + 1:mix_offset + max_shell)
+               mix_offset = mix_offset + max_shell
+            END DO
+            ch_shell(:, 1:max_shell) = ch_shell_spin(:, 1:max_shell, 1)
+            IF (do_dipole) THEN
+               DO ispin = 1, nspin
+                  ao_dip_spin(:, 1:dip_n, ispin) = &
+                     -mix_vars(:, mix_offset + 1:mix_offset + dip_n)
+                  mix_offset = mix_offset + dip_n
+               END DO
+               ao_dip(:, 1:dip_n) = ao_dip_spin(:, 1:dip_n, 1)
+            END IF
+            IF (do_quadrupole) THEN
+               DO ispin = 1, nspin
+                  ao_quad_spin(:, 1:quad_n, ispin) = &
+                     -mix_vars(:, mix_offset + 1:mix_offset + quad_n)
+                  mix_offset = mix_offset + quad_n
+               END DO
+               ao_quad(:, 1:quad_n) = ao_quad_spin(:, 1:quad_n, 1)
+            END IF
+            DEALLOCATE (mix_vars)
          ELSE
             ! CP2K SCC mixing has to see all tblite SCC variables, not only shell charges.
             do_combined_mixing = do_dipole .OR. do_quadrupole .OR. &
@@ -1819,55 +1981,84 @@ CONTAINS
          moment_alpha = scf_env%p_mix_alpha
          IF (mp_test_mode == 61 .OR. mp_test_mode == 91) moment_alpha = 0.05_dp
          IF (mp_test_mode == 62 .OR. mp_test_mode == 92) moment_alpha = 0.5_dp
-         DO iatom = 1, n_atom
-            ii = tb%calc%bas%ish_at(iatom)
-            DO is = 1, tb%calc%bas%nsh_at(iatom)
-               new_charge = -ch_shell(iatom, is)
-               IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                   scf_env%iter_count > 1) THEN
-                  new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qsh(ii + is, 1)
-               END IF
-               tb%wfn%qsh(ii + is, 1) = new_charge
+         IF (nspin > 1) THEN
+            DO iatom = 1, n_atom
+               ii = tb%calc%bas%ish_at(iatom)
+               DO ispin = 1, nspin
+                  DO is = 1, tb%calc%bas%nsh_at(iatom)
+                     tb%wfn%qsh(ii + is, ispin) = -ch_shell_spin(iatom, is, ispin)
+                  END DO
+                  tb%wfn%qat(iatom, ispin) = &
+                     SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), ispin))
+               END DO
             END DO
-            IF (native_sign_mixing .OR. mp_test_mode == 122) THEN
-               tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
-            ELSE
-               new_charge = -ch_atom(iatom, 1)
-               IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                   scf_env%iter_count > 1) THEN
-                  new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qat(iatom, 1)
-               END IF
-               tb%wfn%qat(iatom, 1) = new_charge
+            IF (do_dipole) THEN
+               DO iatom = 1, n_atom
+                  DO ispin = 1, nspin
+                     tb%wfn%dpat(:, iatom, ispin) = -ao_dip_spin(iatom, :, ispin)
+                  END DO
+               END DO
+               DEALLOCATE (ao_dip)
             END IF
-         END DO
+            IF (do_quadrupole) THEN
+               DO iatom = 1, n_atom
+                  DO ispin = 1, nspin
+                     tb%wfn%qpat(:, iatom, ispin) = -ao_quad_spin(iatom, :, ispin)
+                  END DO
+               END DO
+               DEALLOCATE (ao_quad)
+            END IF
+         ELSE
+            DO iatom = 1, n_atom
+               ii = tb%calc%bas%ish_at(iatom)
+               DO is = 1, tb%calc%bas%nsh_at(iatom)
+                  new_charge = -ch_shell(iatom, is)
+                  IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
+                      scf_env%iter_count > 1) THEN
+                     new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qsh(ii + is, 1)
+                  END IF
+                  tb%wfn%qsh(ii + is, 1) = new_charge
+               END DO
+               IF (native_sign_mixing .OR. mp_test_mode == 122) THEN
+                  tb%wfn%qat(iatom, 1) = SUM(tb%wfn%qsh(ii + 1:ii + tb%calc%bas%nsh_at(iatom), 1))
+               ELSE
+                  new_charge = -ch_atom(iatom, 1)
+                  IF ((mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
+                      scf_env%iter_count > 1) THEN
+                     new_charge = moment_alpha*new_charge + (1.0_dp - moment_alpha)*tb%wfn%qat(iatom, 1)
+                  END IF
+                  tb%wfn%qat(iatom, 1) = new_charge
+               END IF
+            END DO
 
-         IF (do_dipole) THEN
-            DO iatom = 1, n_atom
-               DO im = 1, dip_n
-                  new_moment = -ao_dip(iatom, im)
-                  IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
-                       mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                      scf_env%iter_count > 1) THEN
-                     new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%dpat(im, iatom, 1)
-                  END IF
-                  tb%wfn%dpat(im, iatom, 1) = new_moment
+            IF (do_dipole) THEN
+               DO iatom = 1, n_atom
+                  DO im = 1, dip_n
+                     new_moment = -ao_dip(iatom, im)
+                     IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
+                          mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
+                         scf_env%iter_count > 1) THEN
+                        new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%dpat(im, iatom, 1)
+                     END IF
+                     tb%wfn%dpat(im, iatom, 1) = new_moment
+                  END DO
                END DO
-            END DO
-            DEALLOCATE (ao_dip)
-         END IF
-         IF (do_quadrupole) THEN
-            DO iatom = 1, n_atom
-               DO im = 1, quad_n
-                  new_moment = -ao_quad(iatom, im)
-                  IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
-                       mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
-                      scf_env%iter_count > 1) THEN
-                     new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%qpat(im, iatom, 1)
-                  END IF
-                  tb%wfn%qpat(im, iatom, 1) = new_moment
+               DEALLOCATE (ao_dip)
+            END IF
+            IF (do_quadrupole) THEN
+               DO iatom = 1, n_atom
+                  DO im = 1, quad_n
+                     new_moment = -ao_quad(iatom, im)
+                     IF ((mp_test_mode == 60 .OR. mp_test_mode == 61 .OR. mp_test_mode == 62 .OR. &
+                          mp_test_mode == 90 .OR. mp_test_mode == 91 .OR. mp_test_mode == 92) .AND. &
+                         scf_env%iter_count > 1) THEN
+                        new_moment = moment_alpha*new_moment + (1.0_dp - moment_alpha)*tb%wfn%qpat(im, iatom, 1)
+                     END IF
+                     tb%wfn%qpat(im, iatom, 1) = new_moment
+                  END DO
                END DO
-            END DO
-            DEALLOCATE (ao_quad)
+               DEALLOCATE (ao_quad)
+            END IF
          END IF
       END IF
       IF (mp_test_mode == 2 .OR. mp_test_mode == 7 .OR. mp_test_mode == 8 .OR. &
@@ -4212,22 +4403,29 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_reference_cli_compare'
 
-      CHARACTER(LEN=32)                                  :: acc_str, charge_str, iter_str, spin_str, &
-                                                            spinpol_str
-      CHARACTER(LEN=8)                                   :: method
+      CHARACTER(LEN=16)                                  :: solvation_model_name
+      CHARACTER(LEN=32) :: acc_str, charge_str, efield_x_str, efield_y_str, efield_z_str, &
+         etemp_guess_val_str, etemp_str, iter_str, spin_str, spinpol_str
+      CHARACTER(LEN=4*default_path_length+16) :: efield_str, etemp_guess_str, param_str, &
+         post_processing_output_str, post_processing_str, restart_str, solvation_str, verbosity_str
+      CHARACTER(LEN=8)                                   :: guess, method, solver
       CHARACTER(LEN=8*default_path_length)               :: command
       CHARACTER(LEN=default_path_length)                 :: file_base, gen_file, grad_file, &
-                                                            json_file, log_file
+                                                            json_file, log_file, &
+                                                            post_processing_output_file
       INTEGER                                            :: cmdstat, exitstat, handle, iounit, &
-                                                            natom, nkp, spin
+                                                            n_periodic, natom, nkp, &
+                                                            reference_iterations, spin
+      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: do_kpoints, have_energy, have_gradient, &
                                                             have_virial, too_large, &
                                                             unsupported_kpoints
-      REAL(KIND=dp)                                      :: cli_energy, cp_energy, ediff, fmax, &
-                                                            fsum, vmax, vsum
+      REAL(KIND=dp)                                      :: cli_energy, cp_energy, ediff, etemp, &
+                                                            etemp_guess, fmax, fsum, vmax, vsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cli_gradient, cli_virial, cp_gradient
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -4235,17 +4433,18 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_reference_cli_type)                       :: ref
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (atomic_kind_set, dft_control, energy, force, kpoints, logger, para_env, particle_set, &
-               virial, xkp)
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+      NULLIFY (atomic_kind_set, cell, dft_control, energy, force, kpoints, logger, para_env, particle_set, &
+               scf_control, virial, xkp)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                       dft_control=dft_control, energy=energy, force=force, &
-                      para_env=para_env, particle_set=particle_set, virial=virial, &
-                      do_kpoints=do_kpoints, kpoints=kpoints)
+                      para_env=para_env, particle_set=particle_set, scf_control=scf_control, &
+                      virial=virial, do_kpoints=do_kpoints, kpoints=kpoints)
 
       ref = dft_control%qs_control%xtb_control%reference_cli
       IF (.NOT. ref%enabled) THEN
@@ -4259,6 +4458,31 @@ CONTAINS
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
+      verbosity_str = ""
+      IF (logger%iter_info%print_level == silent_print_level) THEN
+         verbosity_str = " --silent"
+      ELSE IF (logger%iter_info%print_level == high_print_level .OR. &
+               logger%iter_info%print_level == debug_print_level) THEN
+         verbosity_str = " --verbose"
+      END IF
+      IF (ref%solvation_active) THEN
+         periodic = 0
+         IF (ASSOCIATED(cell)) CALL get_cell(cell=cell, periodic=periodic)
+         n_periodic = COUNT(periodic == 1)
+         IF (n_periodic == 3) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+               "tblite reference CLI implicit solvation is not supported for PERIODIC XYZ."
+            WRITE (UNIT=iounit, FMT="(T2,A)") &
+               "Use PERIODIC NONE for molecular solvation diagnostics, or remove IMPLICIT_SOLVATION."
+            CPABORT("REFERENCE_CLI implicit solvation is incompatible with PERIODIC XYZ")
+         ELSE IF (n_periodic > 0) THEN
+            WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+               "WARNING: tblite reference CLI implicit solvation with finite periodicity is diagnostic only."
+            WRITE (UNIT=iounit, FMT="(T2,A,I0,A)") &
+               "The generated native tblite reference geometry has ", n_periodic, &
+               " periodic direction(s); continuum-solvation conventions are primarily molecular."
+         END IF
+      END IF
       unsupported_kpoints = .FALSE.
       IF (do_kpoints .AND. ASSOCIATED(kpoints)) THEN
          nkp = 0
@@ -4277,30 +4501,195 @@ CONTAINS
       END IF
       natom = SIZE(particle_set)
       method = tb_reference_method_name(dft_control%qs_control%xtb_control%tblite_method)
+      guess = tb_reference_guess_name(ref%guess)
+      solver = tb_reference_solver_name(dft_control%qs_control%xtb_control%tblite_mixer_solver)
       file_base = tb_join_path(ref%work_directory, ref%prefix)
       gen_file = TRIM(file_base)//".gen"
       grad_file = TRIM(file_base)//".grad"
       json_file = TRIM(file_base)//".json"
       log_file = TRIM(file_base)//".log"
+      post_processing_output_file = ""
+      IF (LEN_TRIM(ref%grad_file) > 0) grad_file = ref%grad_file
+      IF (LEN_TRIM(ref%json_file) > 0) json_file = ref%json_file
+      IF (LEN_TRIM(ref%post_processing_output_file) > 0) &
+         post_processing_output_file = ref%post_processing_output_file
 
       WRITE (charge_str, "(I0)") dft_control%charge
       spin = MAX(0, dft_control%multiplicity - 1)
       WRITE (spin_str, "(I0)") spin
-      WRITE (acc_str, "(ES16.8)") ref%accuracy
-      WRITE (iter_str, "(I0)") ref%iterations
+      WRITE (acc_str, "(ES16.8)") dft_control%qs_control%xtb_control%tblite_accuracy
+      reference_iterations = dft_control%qs_control%xtb_control%tblite_mixer_iterations
+      WRITE (iter_str, "(I0)") reference_iterations
+      efield_str = ""
+      IF (ref%efield_active) THEN
+         WRITE (efield_x_str, "(ES16.8)") ref%efield(1)
+         WRITE (efield_y_str, "(ES16.8)") ref%efield(2)
+         WRITE (efield_z_str, "(ES16.8)") ref%efield(3)
+         efield_str = " --efield "//TRIM(ADJUSTL(efield_x_str))//","// &
+                      TRIM(ADJUSTL(efield_y_str))//","//TRIM(ADJUSTL(efield_z_str))
+      END IF
+      solvation_str = ""
+      solvation_model_name = ""
+      IF (ref%solvation_active) THEN
+         SELECT CASE (ref%solvation_model)
+         CASE (tblite_cli_solvation_alpb)
+            solvation_model_name = "ALPB"
+            solvation_str = " --alpb "
+         CASE (tblite_cli_solvation_gbsa)
+            solvation_model_name = "GBSA"
+            solvation_str = " --gbsa "
+         CASE (tblite_cli_solvation_gbe)
+            solvation_model_name = "GBE"
+            solvation_str = " --gbe "
+         CASE (tblite_cli_solvation_gb)
+            solvation_model_name = "GB"
+            solvation_str = " --gb "
+         CASE (tblite_cli_solvation_cpcm)
+            solvation_model_name = "CPCM"
+            solvation_str = " --cpcm "
+         CASE DEFAULT
+            CPABORT("Unknown tblite reference CLI implicit-solvation model")
+         END SELECT
+         solvation_str = TRIM(solvation_str)//" "//TRIM(tb_shell_quote(ref%solvation_solvent))
+         SELECT CASE (ref%solvation_born_kernel)
+         CASE (tblite_cli_born_kernel_auto)
+         CASE (tblite_cli_born_kernel_p16)
+            solvation_str = TRIM(solvation_str)//" --born-kernel p16"
+         CASE (tblite_cli_born_kernel_still)
+            solvation_str = TRIM(solvation_str)//" --born-kernel still"
+         CASE DEFAULT
+            CPABORT("Unknown tblite reference CLI Born kernel")
+         END SELECT
+         SELECT CASE (ref%solvation_state)
+         CASE (tblite_cli_solution_state_gsolv)
+         CASE (tblite_cli_solution_state_bar1mol)
+            solvation_str = TRIM(solvation_str)//" --solv-state bar1mol"
+         CASE (tblite_cli_solution_state_reference)
+            solvation_str = TRIM(solvation_str)//" --solv-state reference"
+         CASE DEFAULT
+            CPABORT("Unknown tblite reference CLI solution state")
+         END SELECT
+      END IF
+      IF (dft_control%qs_control%xtb_control%tblite_mixer_memory /= reference_iterations) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MEMORY."
+         WRITE (UNIT=iounit, FMT="(T2,A,I0,A,I0,A)") &
+            "The native reference run uses tblite's internal mixer memory tied to --iterations (", &
+            reference_iterations, "), while CP2K uses MEMORY ", &
+            dft_control%qs_control%xtb_control%tblite_mixer_memory, "."
+         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MEMORY")
+      END IF
+      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_damping - &
+              tblite_mixer_damping_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/DAMPING."
+         WRITE (UNIT=iounit, FMT="(T2,A,F8.4,A,F8.4,A)") &
+            "The native reference run uses tblite's library default ", tblite_mixer_damping_default, &
+            ", while CP2K uses DAMPING ", dft_control%qs_control%xtb_control%tblite_mixer_damping, "."
+         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/DAMPING")
+      END IF
+      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_omega0 - &
+              tblite_mixer_omega0_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/OMEGA0."
+         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
+            "The native reference run uses tblite's library default ", tblite_mixer_omega0_default, &
+            ", while CP2K uses OMEGA0 ", dft_control%qs_control%xtb_control%tblite_mixer_omega0, "."
+         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/OMEGA0")
+      END IF
+      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_min_weight - &
+              tblite_mixer_min_weight_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MIN_WEIGHT."
+         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
+            "The native reference run uses tblite's library default ", tblite_mixer_min_weight_default, &
+            ", while CP2K uses MIN_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_min_weight, "."
+         IF (ref%stop_on_error) &
+            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MIN_WEIGHT")
+      END IF
+      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_max_weight - &
+              tblite_mixer_max_weight_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/MAX_WEIGHT."
+         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
+            "The native reference run uses tblite's library default ", tblite_mixer_max_weight_default, &
+            ", while CP2K uses MAX_WEIGHT ", dft_control%qs_control%xtb_control%tblite_mixer_max_weight, "."
+         IF (ref%stop_on_error) &
+            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/MAX_WEIGHT")
+      END IF
+      IF (ABS(dft_control%qs_control%xtb_control%tblite_mixer_weight_factor - &
+              tblite_mixer_weight_factor_default) > 10.0_dp*EPSILON(1.0_dp)) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/TBLITE_MIXER/WEIGHT_FACTOR."
+         WRITE (UNIT=iounit, FMT="(T2,A,ES12.4,A,ES12.4,A)") &
+            "The native reference run uses tblite's library default ", tblite_mixer_weight_factor_default, &
+            ", while CP2K uses WEIGHT_FACTOR ", &
+            dft_control%qs_control%xtb_control%tblite_mixer_weight_factor, "."
+         IF (ref%stop_on_error) &
+            CPABORT("tblite reference CLI cannot reproduce TBLITE_MIXER/WEIGHT_FACTOR")
+      END IF
+      etemp = 300.0_dp
+      IF (ASSOCIATED(scf_control) .AND. ASSOCIATED(scf_control%smear)) THEN
+         IF (scf_control%smear%do_smear) THEN
+            etemp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature, "K")
+            IF (scf_control%smear%method /= smear_fermi_dirac) THEN
+               WRITE (UNIT=iounit, FMT="(/,T2,A,A,A)") &
+                  "WARNING: tblite reference CLI cannot reproduce CP2K smearing method ", &
+                  TRIM(tb_reference_smear_method_name(scf_control%smear%method)), "."
+               WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") &
+                  "The native reference run uses Fermi-Dirac electronic temperature ", etemp, " K instead."
+            END IF
+         END IF
+      END IF
+      WRITE (etemp_str, "(ES16.8)") etemp
+      etemp_guess = 0.0_dp
+      etemp_guess_str = ""
+      IF (ref%electronic_temperature_guess > 0.0_dp) THEN
+         etemp_guess = cp_unit_from_cp2k(ref%electronic_temperature_guess, "K")
+         WRITE (etemp_guess_val_str, "(ES16.8)") etemp_guess
+         etemp_guess_str = " --etemp-guess "//TRIM(ADJUSTL(etemp_guess_val_str))
+      END IF
+      param_str = ""
+      IF (LEN_TRIM(dft_control%qs_control%xtb_control%tblite_param_file) > 0) &
+         param_str = " --param "//TRIM(tb_shell_quote(dft_control%qs_control%xtb_control%tblite_param_file))
       spinpol_str = ""
       IF (dft_control%lsd) spinpol_str = " --spin-polarized"
+      post_processing_str = ""
+      IF (LEN_TRIM(ref%post_processing) > 0) &
+         post_processing_str = " --post-processing "//TRIM(tb_shell_quote(ref%post_processing))
+      post_processing_output_str = ""
+      IF (LEN_TRIM(post_processing_output_file) > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI POST_PROCESSING_OUTPUT was requested explicitly."
+         WRITE (UNIT=iounit, FMT="(T2,A)") &
+            "Some tblite 0.5.0 command-line builds document --post-processing-output but do not parse it."
+         post_processing_output_str = " --post-processing-output "// &
+                                      TRIM(tb_shell_quote(post_processing_output_file))
+      END IF
+      restart_str = " --no-restart"
+      IF (LEN_TRIM(ref%restart_file) > 0) &
+         restart_str = " --restart "//TRIM(tb_shell_quote(ref%restart_file))
 
       CALL tb_write_reference_gen(qs_env, TRIM(gen_file))
 
       command = TRIM(tb_shell_quote(ref%program_name))//" run --method "//TRIM(method)// &
+                TRIM(param_str)// &
                 TRIM(spinpol_str)// &
                 " --charge "//TRIM(ADJUSTL(charge_str))// &
                 " --spin "//TRIM(ADJUSTL(spin_str))// &
                 " --acc "//TRIM(ADJUSTL(acc_str))// &
+                " --guess "//TRIM(guess)// &
+                " --solver "//TRIM(solver)// &
                 " --iterations "//TRIM(ADJUSTL(iter_str))// &
-                " --etemp 0.0"// &
-                " --no-restart --input gen --grad "//TRIM(tb_shell_quote(grad_file))// &
+                " --etemp "//TRIM(ADJUSTL(etemp_str))// &
+                TRIM(etemp_guess_str)// &
+                TRIM(efield_str)// &
+                TRIM(solvation_str)// &
+                TRIM(post_processing_str)// &
+                TRIM(post_processing_output_str)// &
+                TRIM(restart_str)// &
+                TRIM(verbosity_str)//" --input "//TRIM(tb_shell_quote(ref%input_format))// &
+                " --grad "//TRIM(tb_shell_quote(grad_file))// &
                 " --json "//TRIM(tb_shell_quote(json_file))//" "//TRIM(tb_shell_quote(gen_file))// &
                 " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
 
@@ -4312,7 +4701,7 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,A)") "Command: ", TRIM(command)
          WRITE (UNIT=iounit, FMT="(T2,A,I0,T32,A,I0)") "cmdstat:", cmdstat, "exitstat:", exitstat
          IF (ref%stop_on_error) CPABORT("tblite reference CLI command failed")
-         CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file)
+         CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
          CALL timestop(handle)
          RETURN
       END IF
@@ -4324,6 +4713,22 @@ CONTAINS
       WRITE (UNIT=iounit, FMT="(/,T2,A)") "tblite reference CLI check"
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Executable: ", TRIM(ref%program_name)
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Method:     ", TRIM(method)
+      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Guess:      ", TRIM(guess)
+      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Solver:     ", TRIM(solver)
+      WRITE (UNIT=iounit, FMT="(T2,A,L1)") "Spin-pol.:  ", dft_control%lsd
+      IF (ref%efield_active) &
+         WRITE (UNIT=iounit, FMT="(T2,A,3ES16.8,A)") "Efield:     ", ref%efield, " V/Angstrom"
+      IF (ref%solvation_active) &
+         WRITE (UNIT=iounit, FMT="(T2,A,A,1X,A)") "Solvation:  ", TRIM(solvation_model_name), &
+         TRIM(ref%solvation_solvent)
+      IF (LEN_TRIM(ref%post_processing) > 0) &
+         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Post proc.: ", TRIM(ref%post_processing)
+      IF (LEN_TRIM(post_processing_output_file) > 0) &
+         WRITE (UNIT=iounit, FMT="(T2,A,A)") "PP output:  ", TRIM(post_processing_output_file)
+      IF (ref%electronic_temperature_guess > 0.0_dp) &
+         WRITE (UNIT=iounit, FMT="(T2,A,F12.3,A)") "Guess etemp:", etemp_guess, " K"
+      WRITE (UNIT=iounit, FMT="(T2,A,A)") "Grad file:  ", TRIM(grad_file)
+      WRITE (UNIT=iounit, FMT="(T2,A,A)") "JSON file:  ", TRIM(json_file)
       WRITE (UNIT=iounit, FMT="(T2,A,A)") "Log file:   ", TRIM(log_file)
 
       too_large = .FALSE.
@@ -4372,7 +4777,9 @@ CONTAINS
          IF (ref%stop_on_error) CPABORT("tblite reference CLI deviation exceeded ERROR_LIMIT")
       END IF
 
-      CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file)
+      CALL tb_reference_cli_aux_commands(ref, dft_control, gen_file, file_base, verbosity_str, iounit)
+
+      CALL tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
       DEALLOCATE (cli_gradient, cli_virial)
 
       CALL timestop(handle)
@@ -4400,6 +4807,234 @@ CONTAINS
       END SELECT
 
    END FUNCTION tb_reference_method_name
+
+! **************************************************************************************************
+!> \brief Map CP2K tblite reference CLI guess id to native tblite CLI guess name.
+!> \param guess_id ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_reference_guess_name(guess_id) RESULT(guess)
+      INTEGER, INTENT(IN)                                :: guess_id
+      CHARACTER(LEN=8)                                   :: guess
+
+      SELECT CASE (guess_id)
+      CASE (tblite_guess_sad)
+         guess = "sad"
+      CASE (tblite_guess_eeq)
+         guess = "eeq"
+      CASE (tblite_guess_ceh)
+         guess = "ceh"
+      CASE DEFAULT
+         CPABORT("Unknown tblite reference CLI guess")
+      END SELECT
+
+   END FUNCTION tb_reference_guess_name
+
+! **************************************************************************************************
+!> \brief Map CP2K tblite solver id to native tblite CLI solver name.
+!> \param solver_id ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_reference_solver_name(solver_id) RESULT(solver)
+      INTEGER, INTENT(IN)                                :: solver_id
+      CHARACTER(LEN=8)                                   :: solver
+
+      SELECT CASE (solver_id)
+      CASE (tblite_solver_gvd)
+         solver = "gvd"
+      CASE (tblite_solver_gvr)
+         solver = "gvr"
+      CASE DEFAULT
+         CPABORT("Unknown tblite reference CLI solver")
+      END SELECT
+
+   END FUNCTION tb_reference_solver_name
+
+! **************************************************************************************************
+!> \brief Map CP2K smearing method id to a diagnostic label.
+!> \param method_id ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION tb_reference_smear_method_name(method_id) RESULT(method)
+      INTEGER, INTENT(IN)                                :: method_id
+      CHARACTER(LEN=24)                                  :: method
+
+      SELECT CASE (method_id)
+      CASE (smear_fermi_dirac)
+         method = "FERMI_DIRAC"
+      CASE (smear_energy_window)
+         method = "ENERGY_WINDOW"
+      CASE (smear_list)
+         method = "LIST"
+      CASE (smear_gaussian)
+         method = "GAUSSIAN"
+      CASE (smear_mp)
+         method = "METHFESSEL_PAXTON"
+      CASE (smear_mv)
+         method = "MARZARI_VANDERBILT"
+      CASE DEFAULT
+         method = "UNKNOWN"
+      END SELECT
+
+   END FUNCTION tb_reference_smear_method_name
+
+! **************************************************************************************************
+!> \brief Run optional native tblite auxiliary subcommands.
+!> \param ref ...
+!> \param dft_control ...
+!> \param gen_file ...
+!> \param file_base ...
+!> \param verbosity_str ...
+!> \param iounit ...
+! **************************************************************************************************
+   SUBROUTINE tb_reference_cli_aux_commands(ref, dft_control, gen_file, file_base, verbosity_str, iounit)
+
+      TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
+      TYPE(dft_control_type), INTENT(IN)                 :: dft_control
+      CHARACTER(LEN=*), INTENT(IN)                       :: gen_file, file_base, verbosity_str
+      INTEGER, INTENT(IN)                                :: iounit
+
+      CHARACTER(LEN=32)                                  :: charge_str, efield_x_str, efield_y_str, &
+                                                            efield_z_str, etemp_guess_val_str, &
+                                                            spin_str
+      CHARACTER(LEN=4*default_path_length+16)            :: copy_str, dry_run_str, efield_str, &
+                                                            etemp_guess_str, grad_str, json_str, &
+                                                            method_str, output_str
+      CHARACTER(LEN=8*default_path_length)               :: command
+      CHARACTER(LEN=default_path_length)                 :: guess_input, log_file
+      INTEGER                                            :: spin
+      REAL(KIND=dp)                                      :: etemp_guess
+
+      WRITE (charge_str, "(I0)") dft_control%charge
+      spin = MAX(0, dft_control%multiplicity - 1)
+      WRITE (spin_str, "(I0)") spin
+
+      IF (ref%guess_cli%enabled) THEN
+         guess_input = ref%guess_cli%input_file
+         IF (LEN_TRIM(guess_input) == 0) guess_input = gen_file
+         etemp_guess_str = ""
+         IF (ref%guess_cli%electronic_temperature_guess > 0.0_dp) THEN
+            etemp_guess = cp_unit_from_cp2k(ref%guess_cli%electronic_temperature_guess, "K")
+            WRITE (etemp_guess_val_str, "(ES16.8)") etemp_guess
+            etemp_guess_str = " --etemp-guess "//TRIM(ADJUSTL(etemp_guess_val_str))
+         END IF
+         efield_str = ""
+         IF (ref%guess_cli%efield_active) THEN
+            WRITE (efield_x_str, "(ES16.8)") ref%guess_cli%efield(1)
+            WRITE (efield_y_str, "(ES16.8)") ref%guess_cli%efield(2)
+            WRITE (efield_z_str, "(ES16.8)") ref%guess_cli%efield(3)
+            efield_str = " --efield "//TRIM(ADJUSTL(efield_x_str))//","// &
+                         TRIM(ADJUSTL(efield_y_str))//","//TRIM(ADJUSTL(efield_z_str))
+         END IF
+         grad_str = ""
+         IF (ref%guess_cli%grad) grad_str = " --grad"
+         json_str = ""
+         IF (LEN_TRIM(ref%guess_cli%json_file) > 0) &
+            json_str = " --json "//TRIM(tb_shell_quote(ref%guess_cli%json_file))
+         log_file = TRIM(file_base)//".guess.log"
+         command = TRIM(tb_shell_quote(ref%program_name))// &
+                   " guess --charge "//TRIM(ADJUSTL(charge_str))// &
+                   " --spin "//TRIM(ADJUSTL(spin_str))// &
+                   " --method "//TRIM(tb_reference_guess_name(ref%guess_cli%method))// &
+                   " --solver "//TRIM(tb_reference_solver_name(ref%guess_cli%solver))// &
+                   TRIM(etemp_guess_str)// &
+                   TRIM(efield_str)// &
+                   TRIM(grad_str)// &
+                   TRIM(json_str)// &
+                   TRIM(verbosity_str)//" --input "//TRIM(tb_shell_quote(ref%guess_cli%input_format))// &
+                   " "//TRIM(tb_shell_quote(guess_input))// &
+                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
+         CALL tb_reference_cli_execute(ref, "guess", command, log_file, iounit)
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%guess_cli%json_file) > 0) &
+            CALL tb_delete_file(ref%guess_cli%json_file)
+      END IF
+
+      IF (ref%param_cli%enabled) THEN
+         method_str = ""
+         IF (ref%param_cli%method_explicit .OR. LEN_TRIM(ref%param_cli%input_file) == 0) &
+            method_str = " --method "// &
+                         TRIM(tb_reference_method_name(MERGE(ref%param_cli%method, &
+                                                             dft_control%qs_control%xtb_control%tblite_method, &
+                                                             ref%param_cli%method_explicit)))
+         output_str = ""
+         IF (LEN_TRIM(ref%param_cli%output_file) > 0) &
+            output_str = " --output "//TRIM(tb_shell_quote(ref%param_cli%output_file))
+         log_file = TRIM(file_base)//".param.log"
+         command = TRIM(tb_shell_quote(ref%program_name))//" param"// &
+                   TRIM(method_str)// &
+                   TRIM(output_str)
+         IF (LEN_TRIM(ref%param_cli%input_file) > 0) &
+            command = TRIM(command)//" "//TRIM(tb_shell_quote(ref%param_cli%input_file))
+         command = TRIM(command)//" > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
+         CALL tb_reference_cli_execute(ref, "param", command, log_file, iounit)
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%param_cli%output_file) > 0) &
+            CALL tb_delete_file(ref%param_cli%output_file)
+      END IF
+
+      IF (ref%fit_cli%enabled) THEN
+         dry_run_str = ""
+         IF (ref%fit_cli%dry_run) dry_run_str = " --dry-run"
+         copy_str = ""
+         IF (LEN_TRIM(ref%fit_cli%copy_file) > 0) &
+            copy_str = " --copy "//TRIM(tb_shell_quote(ref%fit_cli%copy_file))
+         log_file = TRIM(file_base)//".fit.log"
+         command = TRIM(tb_shell_quote(ref%program_name))//" fit"// &
+                   TRIM(dry_run_str)// &
+                   TRIM(copy_str)// &
+                   TRIM(verbosity_str)//" "//TRIM(tb_shell_quote(ref%fit_cli%param_file))// &
+                   " "//TRIM(tb_shell_quote(ref%fit_cli%input_file))// &
+                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
+         CALL tb_reference_cli_execute(ref, "fit", command, log_file, iounit)
+         IF (.NOT. ref%keep_files .AND. LEN_TRIM(ref%fit_cli%copy_file) > 0) &
+            CALL tb_delete_file(ref%fit_cli%copy_file)
+      END IF
+
+      IF (ref%tagdiff_cli%enabled) THEN
+         method_str = ""
+         IF (ref%tagdiff_cli%fit) method_str = " --fit"
+         log_file = TRIM(file_base)//".tagdiff.log"
+         command = TRIM(tb_shell_quote(ref%program_name))//" tagdiff"// &
+                   TRIM(method_str)//" "//TRIM(tb_shell_quote(ref%tagdiff_cli%actual_file))// &
+                   " "//TRIM(tb_shell_quote(ref%tagdiff_cli%reference_file))// &
+                   " > "//TRIM(tb_shell_quote(log_file))//" 2>&1"
+         CALL tb_reference_cli_execute(ref, "tagdiff", command, log_file, iounit)
+      END IF
+
+   END SUBROUTINE tb_reference_cli_aux_commands
+
+! **************************************************************************************************
+!> \brief Execute one native tblite REFERENCE_CLI auxiliary command.
+!> \param ref ...
+!> \param label ...
+!> \param command ...
+!> \param log_file ...
+!> \param iounit ...
+! **************************************************************************************************
+   SUBROUTINE tb_reference_cli_execute(ref, label, command, log_file, iounit)
+
+      TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
+      CHARACTER(LEN=*), INTENT(IN)                       :: label, command, log_file
+      INTEGER, INTENT(IN)                                :: iounit
+
+      INTEGER                                            :: cmdstat, exitstat
+
+      cmdstat = 0
+      exitstat = 0
+      CALL execute_command_line(TRIM(command), exitstat=exitstat, cmdstat=cmdstat)
+      IF (cmdstat /= 0 .OR. exitstat /= 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A,A)") "tblite reference CLI auxiliary command failed: ", &
+            TRIM(label)
+         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Command: ", TRIM(command)
+         WRITE (UNIT=iounit, FMT="(T2,A,I0,T32,A,I0)") "cmdstat:", cmdstat, "exitstat:", exitstat
+         IF (ref%stop_on_error) CPABORT("tblite reference CLI auxiliary command failed")
+      ELSE
+         WRITE (UNIT=iounit, FMT="(/,T2,A,A)") "tblite reference CLI auxiliary command completed: ", &
+            TRIM(label)
+         WRITE (UNIT=iounit, FMT="(T2,A,A)") "Log file: ", TRIM(log_file)
+      END IF
+      IF (.NOT. ref%keep_files) CALL tb_delete_file(log_file)
+
+   END SUBROUTINE tb_reference_cli_execute
 
 ! **************************************************************************************************
 !> \brief Join directory and filename.
@@ -4670,17 +5305,21 @@ CONTAINS
 !> \param grad_file ...
 !> \param json_file ...
 !> \param log_file ...
+!> \param post_processing_output_file ...
 ! **************************************************************************************************
-   SUBROUTINE tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file)
+   SUBROUTINE tb_reference_cleanup(ref, gen_file, grad_file, json_file, log_file, post_processing_output_file)
 
       TYPE(xtb_reference_cli_type), INTENT(IN)           :: ref
-      CHARACTER(LEN=*), INTENT(IN)                       :: gen_file, grad_file, json_file, log_file
+      CHARACTER(LEN=*), INTENT(IN)                       :: gen_file, grad_file, json_file, &
+                                                            log_file, post_processing_output_file
 
       IF (ref%keep_files) RETURN
       CALL tb_delete_file(gen_file)
       CALL tb_delete_file(grad_file)
       CALL tb_delete_file(json_file)
       CALL tb_delete_file(log_file)
+      IF (LEN_TRIM(post_processing_output_file) > 0) &
+         CALL tb_delete_file(post_processing_output_file)
 
    END SUBROUTINE tb_reference_cleanup
 

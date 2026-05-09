@@ -20,10 +20,18 @@ MODULE tblite_types
    USE tblite_scf_mixer, ONLY: mixer_type
    USE tblite_wavefunction_type, ONLY: wavefunction_type
    USE tblite_scf_potential, ONLY: potential_type
+   USE tblite_param, ONLY: param_record
 #endif
 
    USE cp_dbcsr_api, ONLY: dbcsr_p_type
    USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
+   USE input_constants, ONLY: tblite_mixer_damping_default, &
+                              tblite_mixer_iterations_default, &
+                              tblite_mixer_max_weight_default, &
+                              tblite_mixer_min_weight_default, &
+                              tblite_mixer_omega0_default, &
+                              tblite_mixer_weight_factor_default, &
+                              tblite_solver_gvd
    USE kinds, ONLY: dp
 
 #include "./base/base_uses.f90"
@@ -62,6 +70,13 @@ MODULE tblite_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quadbra => Null(), &
                                                             quadket => Null()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp_ref => Null()
+      INTEGER                                            :: mixer_memory = tblite_mixer_iterations_default
+      INTEGER                                            :: mixer_solver = tblite_solver_gvd
+      REAL(KIND=dp)                                      :: mixer_damping = tblite_mixer_damping_default
+      REAL(KIND=dp)                                      :: mixer_max_weight = tblite_mixer_max_weight_default
+      REAL(KIND=dp)                                      :: mixer_min_weight = tblite_mixer_min_weight_default
+      REAL(KIND=dp)                                      :: mixer_omega0 = tblite_mixer_omega0_default
+      REAL(KIND=dp)                                      :: mixer_weight_factor = tblite_mixer_weight_factor_default
 
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol = structure_type()
@@ -72,6 +87,7 @@ MODULE tblite_types
       TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
       TYPE(potential_type)                               :: pot = potential_type()
       CLASS(mixer_type), ALLOCATABLE                     :: mixer
+      TYPE(param_record), ALLOCATABLE                    :: param
 #endif
 
    END TYPE tblite_type
@@ -129,6 +145,7 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(tb_tblite%rho_ao_kp_ref)
 #if defined(__TBLITE)
          IF (ALLOCATED(tb_tblite%mixer)) DEALLOCATE (tb_tblite%mixer)
+         IF (ALLOCATED(tb_tblite%param)) DEALLOCATE (tb_tblite%param)
 #endif
 
          DEALLOCATE (tb_tblite)

@@ -40,7 +40,7 @@ MODULE qs_mixing_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mixing_utils'
    INTEGER, PARAMETER, PRIVATE          :: max_dftb_scc_vars = 1, &
-                                           max_xtb_scc_vars = 14
+                                           max_xtb_scc_vars = 28
 
    PUBLIC :: mixing_allocate, mixing_init, charge_mixing_init, &
              self_consistency_check
