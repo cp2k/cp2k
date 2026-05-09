@@ -69,6 +69,15 @@ else
   EXIT_CMD="exit"
 fi
 
+# Check platform
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo "ERROR: A build for Apple macOS (Darwin, Homebrew) is not supported yet,"
+  echo "       but CP2K can be built within a container using podman."
+  echo "       Check the Dockerfiles in the folder cp2k/tools/docker like"
+  echo "       Dockerfile.test_spack_openmpi-psmp and the usage description in their header"
+  ${EXIT_CMD} 1
+fi
+
 # Help finding ldconfig
 if ! command -v ldconfig &> /dev/null; then
   PATH="${PATH}:/sbin"
@@ -82,13 +91,6 @@ for package in awk bzip2 find g++ gcc gfortran git gzip ldconfig make patch pyth
     ${EXIT_CMD} 1
   fi
 done
-
-# Check platform
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  echo "ERROR: A build for Apple macOS (Darwin, Homebrew) is not supported yet,"
-  echo "       but CP2K can be built within a container, e.g. using Ubuntu"
-  ${EXIT_CMD} 1
-fi
 
 # Print OS info if available
 if [[ -f /etc/os-release ]]; then

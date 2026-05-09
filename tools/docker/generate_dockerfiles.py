@@ -87,7 +87,7 @@ def main() -> None:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
-            base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
+            base_image = "ubuntu:26.04" if gcc_version > 12 else "ubuntu:24.04"
             f.write(
                 install_cp2k_spack(
                     version="psmp",
@@ -212,6 +212,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="ssmp-static",
                 mpi_mode="no",
+                base_image="ubuntu:24.04",
                 gcc_version=14,
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -713,15 +714,14 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 def install_cp2k_spack(
     version: str,
     mpi_mode: str,
-    base_image: str = "ubuntu:24.04",
-    gcc_version: int = 13,
+    base_image: str = "ubuntu:26.04",
+    gcc_version: int = 14,
     gpu_model: str = "none",
     feature_flags: str = "",
     testopts: str = "",
     image_tag: str = "",
 ) -> str:
-    # Ubuntu 24.04 provides no gcc-15 package whereas GCC 15 is the default for fedora:43
-    if gcc_version == 15 or "fedora" in base_image:
+    if "fedora" in base_image:
         gcc_compilers = "g++ gcc gfortran"
     elif "opensuse/leap" in base_image:
         gcc_compilers = f"gcc gcc{gcc_version} gcc-c++ gcc{gcc_version}-c++ gcc-fortran gcc{gcc_version}-fortran"
@@ -729,6 +729,8 @@ def install_cp2k_spack(
         gcc_compilers = f"gcc gcc-c++ gcc-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
+    # Use external packages if possible
+    use_externals = "-ue"
     # Static CP2K builds use the GCC compiler built with spack
     if version.endswith("-static"):
         use_externals = ""
@@ -737,8 +739,8 @@ def install_cp2k_spack(
         # of the host system and ignoring all externals at the same
         # time is not supported
         gcc_compilers = "g++ gcc gfortran"
-    else:
-        use_externals = "-ue"
+    if mpi_mode == "openmpi":
+        use_externals = ""
     # Assemble docker file
     output = (
         install_base_image(
@@ -908,6 +910,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
+    zlib1g \
+    zlib1g-dev \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 """
