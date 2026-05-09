@@ -729,6 +729,8 @@ def install_cp2k_spack(
         gcc_compilers = f"gcc gcc-c++ gcc-fortran"
     else:
         gcc_compilers = f"g++ g++-{gcc_version} gcc gcc-{gcc_version} gfortran gfortran-{gcc_version}"
+    # Use external packages if possible
+    use_externals = "-ue"
     # Static CP2K builds use the GCC compiler built with spack
     if version.endswith("-static"):
         use_externals = ""
@@ -737,8 +739,8 @@ def install_cp2k_spack(
         # of the host system and ignoring all externals at the same
         # time is not supported
         gcc_compilers = "g++ gcc gfortran"
-    else:
-        use_externals = "-ue"
+    if mpi_mode == "openmpi":
+        use_externals = ""
     # Assemble docker file
     output = (
         install_base_image(

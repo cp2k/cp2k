@@ -49,7 +49,7 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none -gv 14 -mpi openmpi -ue -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv pdbg -gpu none -gv 14 -mpi openmpi  -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
