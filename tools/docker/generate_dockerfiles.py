@@ -908,6 +908,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
+    zlib1g \
+    zlib1g-dev \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 """
