@@ -10,11 +10,11 @@
 ! **************************************************************************************************
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
-        Andreussi2012, Asgeirsson2017, Bannwarth2019, Caldeweyher2017, Caldeweyher2020, Dewar1977, &
-        Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, Krack2000, Lippert1997, &
-        Lippert1999, Porezag1995, Pracht2019, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-        Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, &
-        VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
+        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
+        Katbashev2025, Krack2000, Lippert1997, Lippert1999, Porezag1995, Pracht2019, Repasky2002, &
+        Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, &
+        Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, &
+        Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
@@ -1726,11 +1726,7 @@ CONTAINS
             CALL read_xtb_reference_cli_section(xtb_tblite_ref_cli, qs_control%xtb_control%reference_cli)
             qs_control%xtb_control%reference_cli%enabled = .TRUE.
          END IF
-         CALL cite_reference(Caldeweyher2017)
-         CALL cite_reference(Caldeweyher2020)
-         CALL cite_reference(Asgeirsson2017)
-         CALL cite_reference(Grimme2017)
-         CALL cite_reference(Bannwarth2019)
+         CALL cite_reference(Katbashev2025)
          ! tblite handles periodic long-range terms internally from the CP2K cell periodicity.
          ! Keep xtb_control%do_ewald as read above from XTB/DO_EWALD or SUBSYS/CELL/PERIODIC,
          ! matching the DFTB and CP2K-internal xTB setup.

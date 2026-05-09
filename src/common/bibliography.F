@@ -77,7 +77,7 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
-                            Grimme2017, Asgeirsson2017, Bannwarth2019, Kondov2007, Clabaut2020, &
+                            Grimme2017, Asgeirsson2017, Bannwarth2019, Katbashev2025, Kondov2007, Clabaut2020, &
                             Clabaut2021, Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
@@ -784,6 +784,14 @@ CONTAINS
                          "and Density-Dependent Dispersion Contributions", &
                          source="J. Chem. Theory Comput.", volume="15", pages="1652-1671", &
                          year=2019, doi="10.1021/acs.jctc.8b01176")
+
+      CALL add_reference(key=Katbashev2025, &
+                         authors=s2a("A. Katbashev", "M. Stahn", "T. Rose", "V. Alizadeh", &
+                                     "M. Friede", "C. Plett", "P. Steinbach", "S. Ehlert"), &
+                         title="Overview on Building Blocks and Applications of Efficient and Robust "// &
+                         "Extended Tight Binding", &
+                         source="J. Phys. Chem. A", volume="129", pages="2667-2682", &
+                         year=2025, doi="10.1021/acs.jpca.4c08263")
 
       CALL add_reference(key=Branduardi2007, &
                          authors=s2a("D. Branduardi", "F. L. Gervasio", "M. Parrinello"), &

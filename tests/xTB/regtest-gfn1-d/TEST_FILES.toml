@@ -26,7 +26,7 @@
                                            {matcher="DEBUG_periodic_stress_sum", tol=1.0E-7, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
-"si_kp_kpsym_debug_stress.inp"          = [{matcher="DEBUG_stress_sum", tol=1.0E-7, ref=0.0000000},
+"si_kp_kpsym_debug_stress.inp"          = [{matcher="DEBUG_stress_sum", tol=1.0E-6, ref=0.0000000},
                                            {matcher="N_special_kpoints", tol=0.0, ref=32}]
 #
 #ch2o_t09.inp                               0

@@ -12,9 +12,13 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_tb
-   USE bibliography,                    ONLY: &
-        Asgeirsson2017, Bannwarth2019, Caldeweyher2017, Caldeweyher2020, Elstner1998, Grimme2017, &
-        Hu2007, Porezag1995, Seifert1996, Zhechkov2005
+   USE bibliography,                    ONLY: Elstner1998,&
+                                              Grimme2017,&
+                                              Hu2007,&
+                                              Katbashev2025,&
+                                              Porezag1995,&
+                                              Seifert1996,&
+                                              Zhechkov2005
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
@@ -609,8 +613,7 @@ CONTAINS
                           "magnetization SCC variables through CP2K's TB charge-mixing infrastructure. Native "// &
                           "tblite SCC convergence follows ACCURACY; SCC_MIXER CP2K follows the regular CP2K "// &
                           "SCF convergence settings such as DFT/SCF/EPS_SCF.", &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE., citations=[Caldeweyher2017, Caldeweyher2020, &
-                                                                                     Asgeirsson2017, Grimme2017, Bannwarth2019])
+                          n_keywords=1, n_subsections=1, repeats=.FALSE., citations=[Katbashev2025])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
