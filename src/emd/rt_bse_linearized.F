@@ -688,10 +688,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_hartree_potential"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, handle
+      LOGICAL                                      :: use_hartree_reference
 
       CALL timeset(routineN, handle)
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
+      use_hartree_reference = (.NOT. rtbse_env%tda_active) .AND. &
+                  (.NOT. rtbse_env%debug_disable_hartree)
 
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! Calculate Coulomb RI elements, necessary for Hartree calculation
@@ -706,7 +709,7 @@ CONTAINS
       ! In TDA the propagator evaluates V_H(rho_OV); at rho_0 this is identically 0,
       ! so no Hartree reference must be subtracted (otherwise the OV/VO blocks of
       ! V_H(rho_0) leak into ham_reference and shift the static-reference gap).
-      IF (.NOT. rtbse_env%tda_active) THEN
+      IF (use_hartree_reference) THEN
          DO i = 1, rtbse_env%n_spin
             CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
             ! Scaling by spin degeneracy
@@ -737,8 +740,12 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_cohsex_selfenergy"
       INTEGER                                      :: i, handle
+      LOGICAL                                      :: use_coh_reference, use_sex_reference
 
       CALL timeset(routineN, handle)
+      use_coh_reference = .NOT. rtbse_env%debug_disable_coh
+      use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. &
+                 (.NOT. rtbse_env%debug_disable_sex)
 
       ! ****** START COHSEX REFERENCE CALCULATION
       ! w_dbcsr and screened_dbt are needed for get_sigma routines
@@ -756,22 +763,24 @@ CONTAINS
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          DO i = 1, rtbse_env%n_spin
-            ! TODO : Allow no COH calculation for static screening
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
-            ! Copy and subtract from the complex reference hamiltonian
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+            IF (use_coh_reference) THEN
+               ! TODO : Allow no COH calculation for static screening
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
+               ! Transform to MO basis (AO scratch -> MO-active result)
+               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
+               ! Apply occupation factor f_n-f_m
+               CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
+               ! Copy and subtract from the complex reference hamiltonian
+               CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
+               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+            END IF
             ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
             ! So far only closed shell tested
             ! Uses rho_orig - same as rho for initial run but different for continued run
             ! In TDA the propagator evaluates Sigma_SEX(rho_OV); at rho_0 this is
             ! identically 0, so the SEX reference must NOT be subtracted in TDA.
-            IF (.NOT. rtbse_env%tda_active) THEN
+            IF (use_sex_reference) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
@@ -785,7 +794,7 @@ CONTAINS
       ELSE
          ! KS Hamiltonian - use time-dependent Fock exchange
          ! Same TDA reasoning as above: skip the SEX reference subtraction in TDA.
-         IF (.NOT. rtbse_env%tda_active) THEN
+         IF (use_sex_reference) THEN
             DO i = 1, rtbse_env%n_spin
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
                ! Transform to MO basis (AO scratch -> MO-active result)
@@ -885,14 +894,13 @@ CONTAINS
       TYPE(cp_cfm_type)           :: rho, ham_effective
       INTEGER                                           :: ispin
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham_MO"
-      LOGICAL, PARAMETER                                 :: debug_disable_sex = .FALSE.
-      LOGICAL, PARAMETER                                 :: debug_disable_hartree = .FALSE.
-      LOGICAL, PARAMETER                                 :: debug_disable_coh = .FALSE.
-      INTEGER                                            :: k, nspin, handle
+      LOGICAL                                            :: use_coh, use_hartree, use_sex
+      INTEGER                                            :: k, handle
 
       CALL timeset(routineN, handle)
-      ! Shorthand
-      !nspin = rtbse_env%n_spin
+      use_coh = .NOT. rtbse_env%debug_disable_coh
+      use_hartree = .NOT. rtbse_env%debug_disable_hartree
+      use_sex = .NOT. rtbse_env%debug_disable_sex
 
       ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
       CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_lrrtbse(ispin), ispin)
@@ -927,7 +935,7 @@ CONTAINS
             ! CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), ham_effective, &
             !                           CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END DO
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. .NOT. debug_disable_coh) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
             ! Add the COH part - so far static but can be dynamic in principle through the W updates
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, rtbse_env%S_inv_fm)
             ! Transform to MO basis (AO scratch -> MO-active result)
@@ -942,7 +950,7 @@ CONTAINS
             ! ----- Standard (non-TDA) kernel: single AO density built once at routine entry -----
             ! Calculate the (S)EX part - based on provided rho
             ! iGW = - rho W
-            IF (.NOT. debug_disable_sex) THEN
+            IF (use_sex) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
@@ -954,7 +962,7 @@ CONTAINS
             END IF
             ! Calculate Hartree potential
             ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
-            IF (.NOT. debug_disable_hartree) THEN
+            IF (use_hartree) THEN
                CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                 rtbse_env%hartree_curr_ao(ispin))
                ! Transform to MO basis (AO scratch -> MO-active result)
@@ -997,7 +1005,7 @@ CONTAINS
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
             ! Hartree (complex, OV pass) - must run before SEX (uses sigma_SEX_ao as scratch)
-            IF (.NOT. debug_disable_hartree) THEN
+            IF (use_hartree) THEN
                CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                         rtbse_env%sigma_SEX_ao(ispin), ispin)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
@@ -1009,7 +1017,7 @@ CONTAINS
                                          rtbse_env%ham_workspace(1))
             END IF
             ! SEX (OV pass)
-            IF (.NOT. debug_disable_sex) THEN
+            IF (use_sex) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
@@ -1027,7 +1035,7 @@ CONTAINS
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
             ! Hartree (complex, VO pass)
-            IF (.NOT. debug_disable_hartree) THEN
+            IF (use_hartree) THEN
                CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                         rtbse_env%sigma_SEX_ao(ispin), ispin)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
@@ -1039,7 +1047,7 @@ CONTAINS
                                          rtbse_env%ham_workspace(1))
             END IF
             ! SEX (VO pass)
-            IF (.NOT. debug_disable_sex) THEN
+            IF (use_sex) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)

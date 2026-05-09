@@ -2115,6 +2115,34 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_HARTREE", &
+              description="Debug option for linearized RT-BSE: disables the Hartree kernel in both "// &
+              "the static reference initialization and the propagation. The Coulomb RI setup is "// &
+              "still built so the run stays internally consistent.", &
+              usage="DEBUG_DISABLE_HARTREE", &
+              default_l_val=.FALSE., &
+              lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_SEX", &
+              description="Debug option for linearized RT-BSE: disables the screened-exchange kernel "// &
+              "in both the static reference initialization and the propagation.", &
+              usage="DEBUG_DISABLE_SEX", &
+              default_l_val=.FALSE., &
+              lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_COH", &
+              description="Debug option for linearized RT-BSE: disables the Coulomb-hole contribution "// &
+              "in both the static reference initialization and the propagation.", &
+              usage="DEBUG_DISABLE_COH", &
+              default_l_val=.FALSE., &
+              lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output

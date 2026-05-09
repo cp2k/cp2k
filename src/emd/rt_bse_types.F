@@ -158,6 +158,10 @@ MODULE rt_bse_types
       LOGICAL                                                   :: linearized = .FALSE.
       ! Tamm-Dancoff approximation switch (linearized RT-BSE only).
       LOGICAL                                                   :: tda_active = .FALSE.
+      ! Debug-only kernel switches shared by initialization and propagation.
+      LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
+                                     debug_disable_sex = .FALSE., &
+                                     debug_disable_coh = .FALSE.
       ! Whether to enforce max_dt within stability region of rk4
       LOGICAL                                                   :: enforce_max_dt = .FALSE.
       ! Owned fm structures sized to the active MO window. Equal to the full n_ao x n_ao
@@ -365,12 +369,21 @@ CONTAINS
                                 l_val=rtbse_env%tda_active)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT", &
                                 l_val=rtbse_env%enforce_max_dt)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_HARTREE", &
+                                l_val=rtbse_env%debug_disable_hartree)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_SEX", &
+                                l_val=rtbse_env%debug_disable_sex)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_COH", &
+                                l_val=rtbse_env%debug_disable_coh)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
          rtbse_env%rtbse_energy_cutoff_empty = -1.0_dp
          rtbse_env%tda_active = .FALSE.
          rtbse_env%enforce_max_dt = .FALSE.
+         rtbse_env%debug_disable_hartree = .FALSE.
+         rtbse_env%debug_disable_sex = .FALSE.
+         rtbse_env%debug_disable_coh = .FALSE.
       END IF
                                 
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
