@@ -977,80 +977,69 @@ CONTAINS
             END IF
          ELSE
             ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO
-            ! blocks by feeding only the matching OV/VO block of the full rho when
-            ! computing the corresponding output block. Two kernel passes per RK4
-            ! stage. rho_orig is OO-diagonal in the MO basis, so masking rho or
-            ! rho-rho_orig gives the same OV/VO input and the TDA reference remains 0.
+            ! blocks. Single OV pass + Hermitian conjugate for VO.
+            !   Delta rho_VO = (Delta rho_OV)^C (Delta rho is Hermitian).
+            !   The (mu nu|lambda sigma) and W kernels are symmetric in their AO-pair
+            !   indices and C_active is real, so the AO<->MO transforms commute with
+            !   conjugate transpose: K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C for
+            !   both K = V_H and K = Sigma_SEX. We therefore evaluate each kernel only
+            !   once on Delta rho_OV, mask the MO result to OV, and add the VO-block
+            !   contribution as the conjugate transpose of the OV result.
+            !   rho_orig is OO-diagonal in the MO basis, so masking rho gives the same
+            !   OV input as masking rho - rho_orig (TDA reference remains 0 by
+            !   construction).
             !
-            ! Per-pass input is non-Hermitian (rho_OV alone has no VO entries),
-            ! so both kernels MUST be complex-linear in the input. get_sigma_complex
-            ! already handles this (Re/Im processed separately); for Hartree we use
-            ! get_hartree_complex (defined below) which calls the real-input
-            ! get_hartree on Re and Im separately. Without this, the Im part of
-            ! rho_AO is silently dropped by get_hartree -> the OV/VO
-            ! contributions to ham_effective lose Hermitian conjugacy and the
-            ! propagator gains real eigenvalues -> exponential blow-up.
+            ! Kernel inputs are non-Hermitian (Delta rho_OV alone has no VO entries),
+            ! so the kernels MUST be complex-linear: get_sigma_complex (Re/Im handled
+            ! separately) and get_hartree_complex (Re/Im fed to real-input get_hartree
+            ! separately, then reassembled). Real-input get_hartree on a non-Hermitian
+            ! input would silently drop Im and break Hermitian conjugacy of the
+            ! OV+VO contributions to ham_effective, giving the propagator real
+            ! eigenvalues -> exponential blow-up.
             !
-            ! Hartree must run before SEX in each pass: we use sigma_SEX_ao(ispin) as
-            ! the AO scratch holding the complex Hartree result; get_sigma below
-            ! overwrites it for the SEX contribution.
+            ! Hartree runs before SEX: sigma_SEX_ao(ispin) is reused as the AO
+            ! scratch holding the complex Hartree result, then overwritten by
+            ! get_sigma for the SEX contribution.
             !
-            ! Signs: (f_n - f_m) is -1 on OV and +1 on VO; applied explicitly per pass.
+            ! Signs: (f_n - f_m) is -1 on OV and +1 on VO; applied explicitly.
 
-            ! ===== Pass 1: OV input -> OV output =====
+            ! Build Delta rho_OV (in MO) and project to AO
             CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
             CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.TRUE.)
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
-            ! Hartree (complex, OV pass) - must run before SEX (uses sigma_SEX_ao as scratch)
+
+            ! Hartree must run before SEX: sigma_SEX_ao(ispin) is reused as the AO
+            ! scratch for the complex Hartree result, then overwritten by get_sigma.
             IF (use_hartree) THEN
                CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
                                         rtbse_env%sigma_SEX_ao(ispin), ispin)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%ham_workspace(1), ispin)
                CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
-               ! sign on OV is -1; spin_degeneracy carries the closed-shell factor
+               ! OV contribution: sign -1 * spin_degeneracy
                CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
                                          CMPLX(-rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
                                          rtbse_env%ham_workspace(1))
+               ! VO contribution: (OV result)^C, sign +1 * spin_degeneracy.
+               ! Use rho_delta_mo(ispin) as scratch (idle since the AO projection above).
+               CALL cp_cfm_transpose(rtbse_env%ham_workspace(1), 'C', rtbse_env%rho_delta_mo(ispin))
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                         rtbse_env%rho_delta_mo(ispin))
             END IF
-            ! SEX (OV pass)
             IF (use_sex) THEN
                CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
                CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)
-               ! sign on OV is -1
+               ! OV contribution: sign -1
                CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
                                          CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
-            END IF
-
-            ! ===== Pass 2: VO input -> VO output =====
-            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
-            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.FALSE.)
-            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
-                                                      rtbse_env%rho_ao_lrrtbse(ispin), ispin)
-            ! Hartree (complex, VO pass)
-            IF (use_hartree) THEN
-               CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                        rtbse_env%sigma_SEX_ao(ispin), ispin)
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                     rtbse_env%ham_workspace(1), ispin)
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.FALSE.)
-               ! sign on VO is +1
+               ! VO contribution: (OV result)^C, sign +1
+               CALL cp_cfm_transpose(rtbse_env%sigma_SEX(ispin), 'C', rtbse_env%rho_delta_mo(ispin))
                CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
-                                         rtbse_env%ham_workspace(1))
-            END IF
-            ! SEX (VO pass)
-            IF (use_sex) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                                     rtbse_env%sigma_SEX(ispin), ispin)
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.FALSE.)
-               ! sign on VO is +1
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin))
             END IF
 
             ! Restore rho_ao_lrrtbse to the AO image of the current full rho, so any
