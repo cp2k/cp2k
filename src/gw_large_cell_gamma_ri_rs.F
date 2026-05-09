@@ -47,9 +47,6 @@ MODULE gw_large_cell_Gamma_ri_rs
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
-   USE mpi,                             ONLY: MPI_COMM_RANK,&
-                                              MPI_COMM_SIZE,&
-                                              MPI_COMM_WORLD
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
@@ -355,8 +352,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atomic_basis_at_grid_point'
 
-      INTEGER :: c_size, chunk_size, dimen_ORB, handle, i, i_blk, iatom, ierr, mpi_rank, natom, &
-         npcol, nprow, num_grid_chunks, num_procs, r_end, r_start, total_grid_npts
+      INTEGER :: c_size, chunk_size, dimen_ORB, handle, i, i_blk, iatom, natom, npcol, nprow, &
+         num_grid_chunks, r_end, r_start, total_grid_npts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf
       INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, col_dist_ks, &
                                                             r_blk_sizes, row_dist, row_dist_ks
@@ -374,9 +371,6 @@ CONTAINS
       ! Setup Grid Blocking
       ! Right now using 256
       chunk_size = bs_env%ri_rs%chunk_size_dbcsr
-
-      CALL MPI_COMM_RANK(MPI_COMM_WORLD, mpi_rank, ierr)
-      CALL MPI_COMM_SIZE(MPI_COMM_WORLD, num_procs, ierr)
 
       ! Extract environment variables
       CALL get_qs_env(qs_env, cell=cell, atomic_kind_set=atomic_kind_set, &
@@ -439,7 +433,7 @@ CONTAINS
       ! 2. STREAM DATA DIRECTLY INTO SPARSE MATRIX
       ! =========================================================================
       ! Iterate over the atoms assigned to this specific MPI rank
-      DO iatom = mpi_rank + 1, natom, num_procs
+      DO iatom = para_env%mepos + 1, natom, para_env%num_pe
 
          c_size = c_blk_sizes(iatom)
 
@@ -618,9 +612,9 @@ CONTAINS
          routineN = 'compute_coeff_Z_lP'
 
       INTEGER :: atom_P, chunk_size, col, current_chunk_size, global_i, global_j, group_handle, &
-         handle, i, i_blk, ierr, info, istart_ao, j, j_ri, l, loc_idx, max_ao_size, max_loc_ri, &
-         mpi_rank, n_ao_total, n_grid_total, n_loc_ri, n_local_grid, natom, num_grid_chunks, &
-         num_procs, r_end, r_start, row
+         handle, i, i_blk, info, istart_ao, j, j_ri, l, loc_idx, max_ao_size, max_loc_ri, &
+         n_ao_total, n_grid_total, n_loc_ri, n_local_grid, natom, num_grid_chunks, r_end, r_start, &
+         row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, map_global_to_local, &
                                                             row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_phi, col_dist_ri, r_blk_sizes, &
@@ -646,9 +640,6 @@ CONTAINS
       cutoff_ri = bs_env%ri_rs%cutoff_radius_ri_rs
 
       t1 = m_walltime()
-
-      CALL MPI_COMM_RANK(MPI_COMM_WORLD, mpi_rank, ierr)
-      CALL MPI_COMM_SIZE(MPI_COMM_WORLD, num_procs, ierr)
 
       CALL get_qs_env(qs_env, para_env=para_env, particle_set=particle_set, input=input)
 
@@ -737,7 +728,7 @@ CONTAINS
          ! 3. MPI LOOP OVER ATOMS (Fully independent, no MPI barriers inside)
          ! This distributes the N_atoms among the available MPI processors.
          ! =========================================================================
-         DO atom_P = mpi_rank + 1, natom, num_procs
+         DO atom_P = para_env%mepos + 1, natom, para_env%num_pe
 
             n_loc_ri = ri_blk_sizes(atom_P)
             pos_P(:) = particle_set(atom_P)%r(:)
