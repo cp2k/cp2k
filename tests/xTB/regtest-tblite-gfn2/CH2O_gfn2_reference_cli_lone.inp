@@ -17,10 +17,24 @@
           &REFERENCE_CLI
             CHECK_FORCES F
             CHECK_VIRIAL F
+            EFIELD 0.0 0.0 0.0
+            GRAD tblite-reference-test.grad
+            JSON tblite-reference-test.json
+            POST_PROCESSING molmom
+            POST_PROCESSING_OUTPUT tblite-reference-test.npz
             PROGRAM_NAME /bin/false
             STOP_ON_ERROR F
+            &IMPLICIT_SOLVATION
+              BORN_KERNEL P16
+              MODEL ALPB
+              SOLUTION_STATE BAR1MOL
+              SOLVENT water
+            &END IMPLICIT_SOLVATION
           &END REFERENCE_CLI
         &END TBLITE
+        &TBLITE_MIXER
+          SOLVER GVD
+        &END TBLITE_MIXER
       &END XTB
     &END QS
     &SCF

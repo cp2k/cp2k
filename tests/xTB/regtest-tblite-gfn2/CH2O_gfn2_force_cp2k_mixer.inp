@@ -16,9 +16,9 @@
       METHOD xTB
       &XTB
         GFN_TYPE TBLITE
+        SCC_MIXER CP2K
         &TBLITE
           METHOD GFN2
-          SCC_MIXER CP2K
         &END TBLITE
       &END XTB
     &END QS

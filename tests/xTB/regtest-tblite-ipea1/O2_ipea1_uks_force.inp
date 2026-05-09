@@ -20,9 +20,9 @@
       METHOD xTB
       &XTB
         GFN_TYPE TBLITE
+        SCC_MIXER TBLITE
         &TBLITE
           METHOD IPEA1
-          SCC_MIXER TBLITE
         &END TBLITE
       &END XTB
     &END QS

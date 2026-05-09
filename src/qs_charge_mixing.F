@@ -10,9 +10,15 @@ MODULE qs_charge_mixing
 
 #if defined(__TBLITE)
    USE mctc_env, ONLY: error_type
-   USE tblite_scf, ONLY: new_mixer
+   USE tblite_scc_mixer, ONLY: new_cp2k_tblite_mixer
 #endif
-   USE input_constants, ONLY: tblite_scc_mixer_auto, &
+   USE input_constants, ONLY: tblite_mixer_damping_default, &
+                              tblite_mixer_iterations_default, &
+                              tblite_mixer_max_weight_default, &
+                              tblite_mixer_min_weight_default, &
+                              tblite_mixer_omega0_default, &
+                              tblite_mixer_weight_factor_default, &
+                              tblite_scc_mixer_auto, &
                               tblite_scc_mixer_cp2k, &
                               tblite_scc_mixer_none, &
                               tblite_scc_mixer_tblite
@@ -46,28 +52,41 @@ CONTAINS
 !> \param para_env ...
 !> \param iter_count ...
 !> \param scc_mixer ...
+!> \param tblite_mixer_iterations ...
 !> \param tblite_mixer_damping ...
 !> \param tblite_mixer_memory ...
+!> \param tblite_mixer_omega0 ...
+!> \param tblite_mixer_min_weight ...
+!> \param tblite_mixer_max_weight ...
+!> \param tblite_mixer_weight_factor ...
 !> \par History
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE charge_mixing(mixing_method, mixing_store, charges, para_env, iter_count, &
-                            scc_mixer, tblite_mixer_damping, tblite_mixer_memory)
+                            scc_mixer, tblite_mixer_iterations, tblite_mixer_damping, &
+                            tblite_mixer_memory, tblite_mixer_omega0, tblite_mixer_min_weight, &
+                            tblite_mixer_max_weight, tblite_mixer_weight_factor)
       INTEGER, INTENT(IN)                                :: mixing_method
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: iter_count
-      INTEGER, INTENT(IN), OPTIONAL                      :: scc_mixer
+      INTEGER, INTENT(IN), OPTIONAL                      :: scc_mixer, tblite_mixer_iterations
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: tblite_mixer_damping
       INTEGER, INTENT(IN), OPTIONAL                      :: tblite_mixer_memory
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: tblite_mixer_omega0, &
+                                                            tblite_mixer_min_weight, &
+                                                            tblite_mixer_max_weight, &
+                                                            tblite_mixer_weight_factor
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'charge_mixing'
 
       INTEGER                                            :: effective_scc_mixer, handle, ia, ii, &
-                                                            imin, inow, mixer_memory, nbuffer, ns, &
-                                                            nvec
-      REAL(dp)                                           :: alpha, mixer_damping
+                                                            imin, inow, mixer_iterations, &
+                                                            mixer_memory, nbuffer, ns, nvec
+      REAL(dp)                                           :: alpha, mixer_damping, mixer_max_weight, &
+                                                            mixer_min_weight, mixer_omega0, &
+                                                            mixer_weight_factor
 
       CALL timeset(routineN, handle)
 
@@ -81,12 +100,33 @@ CONTAINS
       CASE (tblite_scc_mixer_tblite)
          CPASSERT(ASSOCIATED(mixing_store))
 #if defined(__TBLITE)
-         mixer_damping = 0.4_dp
+         mixer_damping = tblite_mixer_damping_default
          IF (PRESENT(tblite_mixer_damping)) mixer_damping = tblite_mixer_damping
+         IF (mixer_damping <= 0.0_dp) CPABORT("tblite SCC mixer DAMPING must be positive")
+         mixer_omega0 = tblite_mixer_omega0_default
+         IF (PRESENT(tblite_mixer_omega0)) mixer_omega0 = tblite_mixer_omega0
+         IF (mixer_omega0 <= 0.0_dp) CPABORT("tblite SCC mixer OMEGA0 must be positive")
+         mixer_min_weight = tblite_mixer_min_weight_default
+         IF (PRESENT(tblite_mixer_min_weight)) mixer_min_weight = tblite_mixer_min_weight
+         IF (mixer_min_weight <= 0.0_dp) CPABORT("tblite SCC mixer MIN_WEIGHT must be positive")
+         mixer_max_weight = tblite_mixer_max_weight_default
+         IF (PRESENT(tblite_mixer_max_weight)) mixer_max_weight = tblite_mixer_max_weight
+         IF (mixer_max_weight <= 0.0_dp) CPABORT("tblite SCC mixer MAX_WEIGHT must be positive")
+         IF (mixer_max_weight < mixer_min_weight) &
+            CPABORT("tblite SCC mixer MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+         mixer_weight_factor = tblite_mixer_weight_factor_default
+         IF (PRESENT(tblite_mixer_weight_factor)) mixer_weight_factor = tblite_mixer_weight_factor
+         IF (mixer_weight_factor <= 0.0_dp) CPABORT("tblite SCC mixer WEIGHT_FACTOR must be positive")
+         mixer_iterations = tblite_mixer_iterations_default
+         IF (PRESENT(tblite_mixer_iterations)) mixer_iterations = tblite_mixer_iterations
+         IF (mixer_iterations < 1) CPABORT("tblite SCC mixer ITERATIONS must be positive")
+         IF (iter_count > mixer_iterations) CPABORT("tblite SCC mixer exceeded ITERATIONS")
          mixer_memory = MAX(1, mixing_store%nbuffer)
-         IF (PRESENT(tblite_mixer_memory)) mixer_memory = MAX(1, tblite_mixer_memory)
+         IF (PRESENT(tblite_mixer_memory)) mixer_memory = tblite_mixer_memory
+         IF (mixer_memory < 1) CPABORT("tblite SCC mixer MEMORY must be positive")
          CALL tblite_charge_mixing(mixing_store, charges, para_env, iter_count, &
-                                   mixer_damping, mixer_memory)
+                                   mixer_damping, mixer_memory, mixer_omega0, mixer_min_weight, &
+                                   mixer_max_weight, mixer_weight_factor)
          CALL timestop(handle)
          RETURN
 #else
@@ -158,7 +198,7 @@ CONTAINS
    END SUBROUTINE charge_mixing
 
 ! **************************************************************************************************
-!> \brief Return the tblite SCC-mixer residual on the CP2K EPS_SCF scale.
+!> \brief Return the CP2K-side tblite SCC-mixer residual on the CP2K EPS_SCF scale.
 !> \param mixing_store ...
 !> \param eps_scf ...
 !> \return ...
@@ -188,13 +228,19 @@ CONTAINS
 !> \param iter_count ...
 !> \param damping ...
 !> \param memory ...
+!> \param omega0 ...
+!> \param min_weight ...
+!> \param max_weight ...
+!> \param weight_factor ...
 ! **************************************************************************************************
-   SUBROUTINE tblite_charge_mixing(mixing_store, charges, para_env, iter_count, damping, memory)
+   SUBROUTINE tblite_charge_mixing(mixing_store, charges, para_env, iter_count, damping, memory, omega0, &
+                                   min_weight, max_weight, weight_factor)
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: iter_count, memory
-      REAL(KIND=dp), INTENT(IN)                          :: damping
+      REAL(KIND=dp), INTENT(IN)                          :: damping, max_weight, min_weight, omega0, &
+                                                            weight_factor
 
 #if defined(__TBLITE)
       TYPE(error_type), ALLOCATABLE                      :: error
@@ -219,7 +265,8 @@ CONTAINS
       IF (reset_mixer) THEN
          IF (ALLOCATED(mixing_store%tb_scc_mixer)) DEALLOCATE (mixing_store%tb_scc_mixer)
          IF (on_source) THEN
-            CALL new_mixer(mixing_store%tb_scc_mixer, memory, ndim, damping)
+            CALL new_cp2k_tblite_mixer(mixing_store%tb_scc_mixer, memory, ndim, damping, omega0, &
+                                       min_weight, max_weight, weight_factor)
             CALL mixing_store%tb_scc_mixer%set(qvec)
          END IF
          mixing_store%tb_scc_mixer_natom = natom
@@ -252,6 +299,10 @@ CONTAINS
       MARK_USED(iter_count)
       MARK_USED(damping)
       MARK_USED(memory)
+      MARK_USED(omega0)
+      MARK_USED(min_weight)
+      MARK_USED(max_weight)
+      MARK_USED(weight_factor)
       CPABORT("SCC_MIXER TBLITE requires CP2K to be built with tblite")
 #endif
 
@@ -304,8 +355,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: i, ia, ii, imin, j, nbuffer, nv
-      REAL(KIND=dp)                                      :: alpha, maxw, minw, omega0, rskip, wdf, &
-                                                            wfac
+      REAL(KIND=dp)                                      :: alpha, broy_w0, rskip, wdf, wprod
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cvec, gammab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, beta
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dq_last, dq_now, q_last, q_now
@@ -338,20 +388,8 @@ CONTAINS
          END DO
       END IF
 
-      omega0 = 0.01_dp
-      minw = 1.0_dp
-      maxw = 100000.0_dp
-      wfac = 0.01_dp
-
-      mixing_store%wbroy(nv) = SUM(dq_now(:, 1:ns)**2)
-      CALL para_env%sum(mixing_store%wbroy(nv))
-      mixing_store%wbroy(nv) = SQRT(mixing_store%wbroy(nv))
-      IF (mixing_store%wbroy(nv) > (wfac/maxw)) THEN
-         mixing_store%wbroy(nv) = wfac/mixing_store%wbroy(nv)
-      ELSE
-         mixing_store%wbroy(nv) = maxw
-      END IF
-      IF (mixing_store%wbroy(nv) < minw) mixing_store%wbroy(nv) = minw
+      broy_w0 = mixing_store%broy_w0
+      mixing_store%wbroy(nv) = 1.0_dp
 
       ! dfbroy
       mixing_store%dfbroy(:, :, nv) = 0.0_dp
@@ -363,25 +401,25 @@ CONTAINS
 
       ! abroy matrix
       DO i = 1, nv
-         wfac = SUM(mixing_store%dfbroy(:, 1:ns, i)*mixing_store%dfbroy(:, 1:ns, nv))
-         CALL para_env%sum(wfac)
-         mixing_store%abroy(i, nv) = wfac
-         mixing_store%abroy(nv, i) = wfac
+         wprod = SUM(mixing_store%dfbroy(:, 1:ns, i)*mixing_store%dfbroy(:, 1:ns, nv))
+         CALL para_env%sum(wprod)
+         mixing_store%abroy(i, nv) = wprod
+         mixing_store%abroy(nv, i) = wprod
       END DO
 
       ! broyden matrices
       ALLOCATE (amat(nv, nv), beta(nv, nv), cvec(nv), gammab(nv))
       DO i = 1, nv
-         wfac = SUM(mixing_store%dfbroy(:, 1:ns, i)*dq_now(:, 1:ns))
-         CALL para_env%sum(wfac)
-         cvec(i) = mixing_store%wbroy(i)*wfac
+         wprod = SUM(mixing_store%dfbroy(:, 1:ns, i)*dq_now(:, 1:ns))
+         CALL para_env%sum(wprod)
+         cvec(i) = mixing_store%wbroy(i)*wprod
       END DO
 
       DO i = 1, nv
          DO j = 1, nv
             beta(j, i) = mixing_store%wbroy(j)*mixing_store%wbroy(i)*mixing_store%abroy(j, i)
          END DO
-         beta(i, i) = beta(i, i) + omega0*omega0
+         beta(i, i) = beta(i, i) + broy_w0
       END DO
 
       rskip = 1.e-12_dp

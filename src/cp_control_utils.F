@@ -57,9 +57,13 @@ MODULE cp_control_utils
         numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tblite_scc_mixer_auto, tblite_scc_mixer_cp2k, &
-        tblite_scc_mixer_none, tblite_scc_mixer_tblite, tddfpt_dipole_length, tddfpt_kernel_stda, &
-        use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        sic_mauri_us, sic_none, slater, tblite_cli_born_kernel_auto, &
+        tblite_cli_solution_state_gsolv, tblite_cli_solvation_alpb, tblite_cli_solvation_cpcm, &
+        tblite_cli_solvation_gb, tblite_cli_solvation_gbe, tblite_cli_solvation_gbsa, &
+        tblite_guess_ceh, tblite_mixer_memory_inherit, tblite_scc_mixer_auto, &
+        tblite_scc_mixer_cp2k, tblite_scc_mixer_none, tblite_scc_mixer_tblite, tblite_solver_gvd, &
+        tblite_solver_gvr, tddfpt_dipole_length, tddfpt_kernel_stda, use_mom_ref_user, &
+        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -877,16 +881,17 @@ CONTAINS
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, eeq_section, genpot_section, lri_optbas_section, &
-         mull_section, nonbonded_section, s2_restraint_section, se_section, xtb_parameter, &
-         xtb_section, xtb_tblite, xtb_tblite_ref_cli
+         dftb_parameter, dftb_section, dftb_tblite_mixer, eeq_section, genpot_section, &
+         lri_optbas_section, mull_section, nonbonded_section, s2_restraint_section, se_section, &
+         xtb_parameter, xtb_section, xtb_tblite, xtb_tblite_mixer, xtb_tblite_ref_cli
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
       NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, &
                se_section, dftb_section, xtb_section, dftb_parameter, xtb_parameter, lri_optbas_section, &
-               cdft_control_section, genpot_section, eeq_section, xtb_tblite_ref_cli)
+               cdft_control_section, genpot_section, eeq_section, dftb_tblite_mixer, &
+               xtb_tblite_mixer, xtb_tblite_ref_cli)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
       ddapc_restraint_section => section_vals_get_subs_vals(qs_section, "DDAPC_RESTRAINT")
@@ -895,12 +900,14 @@ CONTAINS
       dftb_section => section_vals_get_subs_vals(qs_section, "DFTB")
       xtb_section => section_vals_get_subs_vals(qs_section, "xTB")
       dftb_parameter => section_vals_get_subs_vals(dftb_section, "PARAMETER")
+      dftb_tblite_mixer => section_vals_get_subs_vals(dftb_section, "TBLITE_MIXER")
       xtb_parameter => section_vals_get_subs_vals(xtb_section, "PARAMETER")
       eeq_section => section_vals_get_subs_vals(xtb_section, "EEQ")
       lri_optbas_section => section_vals_get_subs_vals(qs_section, "OPTIMIZE_LRI_BASIS")
       cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
       nonbonded_section => section_vals_get_subs_vals(xtb_section, "NONBONDED")
       genpot_section => section_vals_get_subs_vals(nonbonded_section, "GENPOT")
+      xtb_tblite_mixer => section_vals_get_subs_vals(xtb_section, "TBLITE_MIXER")
       xtb_tblite => section_vals_get_subs_vals(xtb_section, "TBLITE")
       xtb_tblite_ref_cli => section_vals_get_subs_vals(xtb_tblite, "REFERENCE_CLI")
 
@@ -1296,8 +1303,18 @@ CONTAINS
                                    l_val=qs_control%dftb_control%hb_sr_damp)
          CALL section_vals_val_get(dftb_section, "SCC_MIXER", &
                                    i_val=qs_control%dftb_control%tblite_scc_mixer)
-         CALL section_vals_val_get(dftb_section, "TBLITE_MIXER_DAMPING", &
-                                   r_val=qs_control%dftb_control%tblite_mixer_damping)
+         CALL read_tblite_mixer_section(dftb_tblite_mixer, &
+                                        qs_control%dftb_control%tblite_mixer_iterations, &
+                                        qs_control%dftb_control%tblite_mixer_memory, &
+                                        qs_control%dftb_control%tblite_mixer_solver, &
+                                        qs_control%dftb_control%tblite_mixer_damping, &
+                                        qs_control%dftb_control%tblite_mixer_omega0, &
+                                        qs_control%dftb_control%tblite_mixer_min_weight, &
+                                        qs_control%dftb_control%tblite_mixer_max_weight, &
+                                        qs_control%dftb_control%tblite_mixer_weight_factor, &
+                                        "DFTB/TBLITE_MIXER")
+         IF (qs_control%dftb_control%tblite_mixer_damping <= 0.0_dp) &
+            CPABORT("DFTB/TBLITE_MIXER/DAMPING must be positive")
          CALL section_vals_val_get(dftb_section, "EPS_DISP", &
                                    r_val=qs_control%dftb_control%eps_disp)
          CALL section_vals_val_get(dftb_section, "DO_EWALD", explicit=explicit)
@@ -1366,8 +1383,18 @@ CONTAINS
          END IF
          CALL section_vals_val_get(xtb_section, "SCC_MIXER", &
                                    i_val=qs_control%xtb_control%tblite_scc_mixer)
-         CALL section_vals_val_get(xtb_section, "TBLITE_MIXER_DAMPING", &
-                                   r_val=qs_control%xtb_control%tblite_mixer_damping)
+         CALL read_tblite_mixer_section(xtb_tblite_mixer, &
+                                        qs_control%xtb_control%tblite_mixer_iterations, &
+                                        qs_control%xtb_control%tblite_mixer_memory, &
+                                        qs_control%xtb_control%tblite_mixer_solver, &
+                                        qs_control%xtb_control%tblite_mixer_damping, &
+                                        qs_control%xtb_control%tblite_mixer_omega0, &
+                                        qs_control%xtb_control%tblite_mixer_min_weight, &
+                                        qs_control%xtb_control%tblite_mixer_max_weight, &
+                                        qs_control%xtb_control%tblite_mixer_weight_factor, &
+                                        "XTB/TBLITE_MIXER")
+         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) &
+            CPABORT("XTB/TBLITE_MIXER/DAMPING must be positive")
          CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)
          IF (explicit) THEN
             CALL section_vals_val_get(xtb_section, "DO_EWALD", &
@@ -1683,14 +1710,14 @@ CONTAINS
       IF (qs_control%xtb_control%do_tblite) THEN
          CALL section_vals_val_get(xtb_tblite, "METHOD", &
                                    i_val=qs_control%xtb_control%tblite_method)
+         CALL section_vals_val_get(xtb_tblite, "PARAM", &
+                                   c_val=qs_control%xtb_control%tblite_param_file)
          CALL section_vals_val_get(xtb_tblite, "ACCURACY", &
                                    r_val=qs_control%xtb_control%tblite_accuracy)
          IF (qs_control%xtb_control%tblite_accuracy <= 0.0_dp) &
             CPABORT("XTB/TBLITE/ACCURACY must be positive")
-         CALL section_vals_val_get(xtb_tblite, "SCC_MIXER", &
-                                   i_val=qs_control%xtb_control%tblite_scc_mixer)
-         CALL section_vals_val_get(xtb_tblite, "TBLITE_MIXER_DAMPING", &
-                                   r_val=qs_control%xtb_control%tblite_mixer_damping)
+         IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) &
+            CPABORT("XTB/TBLITE_MIXER/DAMPING must be positive")
          CALL section_vals_val_get(xtb_tblite, "REFERENCE_CLI", l_val=tblite_reference_cli)
          CALL section_vals_get(xtb_tblite_ref_cli, explicit=tblite_reference_cli_section)
          IF (tblite_reference_cli .AND. (.NOT. tblite_reference_cli_section)) &
@@ -1713,6 +1740,62 @@ CONTAINS
    END SUBROUTINE read_qs_section
 
 ! **************************************************************************************************
+!> \brief Read a TBLITE_MIXER section.
+!> \param mixer_section input section
+!> \param iterations tblite SCC iteration limit
+!> \param memory Broyden history length
+!> \param solver native tblite electronic solver id
+!> \param damping mixer damping parameter
+!> \param omega0 Broyden regularization weight
+!> \param min_weight minimum dynamic Broyden weight
+!> \param max_weight maximum dynamic Broyden weight
+!> \param weight_factor residual-to-weight scaling factor
+!> \param section_name diagnostic section name
+! **************************************************************************************************
+   SUBROUTINE read_tblite_mixer_section(mixer_section, iterations, memory, solver, damping, omega0, min_weight, &
+                                        max_weight, weight_factor, section_name)
+      TYPE(section_vals_type), POINTER                   :: mixer_section
+      INTEGER, INTENT(INOUT)                             :: iterations, memory, solver
+      REAL(KIND=dp), INTENT(INOUT)                       :: damping, omega0, min_weight, max_weight, &
+                                                            weight_factor
+      CHARACTER(LEN=*), INTENT(IN)                       :: section_name
+
+      LOGICAL                                            :: explicit, memory_explicit
+
+      CALL section_vals_get(mixer_section, explicit=explicit)
+      IF (.NOT. explicit) RETURN
+
+      CALL section_vals_val_get(mixer_section, "ITERATIONS", i_val=iterations)
+      CALL section_vals_val_get(mixer_section, "MEMORY", explicit=memory_explicit)
+      IF (memory_explicit) CALL section_vals_val_get(mixer_section, "MEMORY", i_val=memory)
+      IF (.NOT. memory_explicit .OR. memory == tblite_mixer_memory_inherit) THEN
+         memory = iterations
+      END IF
+      CALL section_vals_val_get(mixer_section, "SOLVER", i_val=solver)
+      CALL section_vals_val_get(mixer_section, "DAMPING", r_val=damping)
+      CALL section_vals_val_get(mixer_section, "OMEGA0", r_val=omega0)
+      CALL section_vals_val_get(mixer_section, "MIN_WEIGHT", r_val=min_weight)
+      CALL section_vals_val_get(mixer_section, "MAX_WEIGHT", r_val=max_weight)
+      CALL section_vals_val_get(mixer_section, "WEIGHT_FACTOR", r_val=weight_factor)
+
+      IF (iterations < 1) CPABORT(TRIM(section_name)//"/ITERATIONS must be positive")
+      IF (memory < 1) CPABORT(TRIM(section_name)//"/MEMORY must be positive")
+      SELECT CASE (solver)
+      CASE (tblite_solver_gvd, tblite_solver_gvr)
+      CASE DEFAULT
+         CPABORT(TRIM(section_name)//"/SOLVER must be GVD or GVR")
+      END SELECT
+      IF (damping <= 0.0_dp) CPABORT(TRIM(section_name)//"/DAMPING must be positive")
+      IF (omega0 <= 0.0_dp) CPABORT(TRIM(section_name)//"/OMEGA0 must be positive")
+      IF (min_weight <= 0.0_dp) CPABORT(TRIM(section_name)//"/MIN_WEIGHT must be positive")
+      IF (max_weight <= 0.0_dp) CPABORT(TRIM(section_name)//"/MAX_WEIGHT must be positive")
+      IF (max_weight < min_weight) &
+         CPABORT(TRIM(section_name)//"/MAX_WEIGHT must not be smaller than MIN_WEIGHT")
+      IF (weight_factor <= 0.0_dp) CPABORT(TRIM(section_name)//"/WEIGHT_FACTOR must be positive")
+
+   END SUBROUTINE read_tblite_mixer_section
+
+! **************************************************************************************************
 !> \brief Read native tblite CLI reference options.
 !> \param ref_cli_section input section
 !> \param ref_cli reference CLI control data
@@ -1721,18 +1804,113 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ref_cli_section
       TYPE(xtb_reference_cli_type), INTENT(INOUT)        :: ref_cli
 
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: efield
+      TYPE(section_vals_type), POINTER                   :: fit_section, guess_section, &
+                                                            param_section, solvation_section, &
+                                                            tagdiff_section
+
       CALL section_vals_val_get(ref_cli_section, "_SECTION_PARAMETERS_", l_val=ref_cli%enabled)
       CALL section_vals_val_get(ref_cli_section, "PROGRAM_NAME", c_val=ref_cli%program_name)
+      CALL section_vals_val_get(ref_cli_section, "GUESS", i_val=ref_cli%guess)
       CALL section_vals_val_get(ref_cli_section, "WORK_DIRECTORY", c_val=ref_cli%work_directory)
       CALL section_vals_val_get(ref_cli_section, "PREFIX", c_val=ref_cli%prefix)
+      CALL section_vals_val_get(ref_cli_section, "INPUT_FORMAT", c_val=ref_cli%input_format)
+      CALL section_vals_val_get(ref_cli_section, "RESTART", c_val=ref_cli%restart_file)
+      CALL section_vals_val_get(ref_cli_section, "GRAD", c_val=ref_cli%grad_file)
+      CALL section_vals_val_get(ref_cli_section, "JSON", c_val=ref_cli%json_file)
+      CALL section_vals_val_get(ref_cli_section, "POST_PROCESSING", c_val=ref_cli%post_processing)
+      CALL section_vals_val_get(ref_cli_section, "POST_PROCESSING_OUTPUT", &
+                                c_val=ref_cli%post_processing_output_file)
+      CALL section_vals_val_get(ref_cli_section, "EFIELD", explicit=ref_cli%efield_active)
+      IF (ref_cli%efield_active) THEN
+         NULLIFY (efield)
+         CALL section_vals_val_get(ref_cli_section, "EFIELD", r_vals=efield)
+         ref_cli%efield = efield(1:3)
+      END IF
+      solvation_section => section_vals_get_subs_vals(ref_cli_section, "IMPLICIT_SOLVATION")
+      CALL section_vals_get(solvation_section, explicit=ref_cli%solvation_active)
+      IF (ref_cli%solvation_active) THEN
+         CALL section_vals_val_get(solvation_section, "MODEL", i_val=ref_cli%solvation_model)
+         CALL section_vals_val_get(solvation_section, "SOLVENT", c_val=ref_cli%solvation_solvent)
+         CALL section_vals_val_get(solvation_section, "BORN_KERNEL", i_val=ref_cli%solvation_born_kernel)
+         CALL section_vals_val_get(solvation_section, "SOLUTION_STATE", i_val=ref_cli%solvation_state)
+         IF (LEN_TRIM(ref_cli%solvation_solvent) == 0) &
+            CPABORT("REFERENCE_CLI implicit solvation needs SOLVENT")
+         IF (ref_cli%solvation_model == tblite_cli_solvation_cpcm .AND. &
+             ref_cli%solvation_born_kernel /= tblite_cli_born_kernel_auto) &
+            CPABORT("BORN_KERNEL is invalid with MODEL CPCM")
+         IF (ref_cli%solvation_state /= tblite_cli_solution_state_gsolv) THEN
+            SELECT CASE (ref_cli%solvation_model)
+            CASE (tblite_cli_solvation_alpb, tblite_cli_solvation_gbsa)
+               ! Native tblite supports solution-state shifts for parametrized named-solvent ALPB/GBSA.
+            CASE (tblite_cli_solvation_gbe, tblite_cli_solvation_gb, tblite_cli_solvation_cpcm)
+               CPABORT("SOLUTION_STATE is valid only for ALPB/GBSA")
+            END SELECT
+         END IF
+      END IF
+      CALL section_vals_val_get(ref_cli_section, "ELECTRONIC_TEMPERATURE_GUESS", &
+                                r_val=ref_cli%electronic_temperature_guess)
+      IF (ref_cli%electronic_temperature_guess < 0.0_dp) &
+         CPABORT("XTB/TBLITE/REFERENCE_CLI/ELECTRONIC_TEMPERATURE_GUESS must not be negative")
+      IF (ref_cli%electronic_temperature_guess > 0.0_dp .AND. ref_cli%guess /= tblite_guess_ceh) &
+         CPABORT("XTB/TBLITE/REFERENCE_CLI/ELECTRONIC_TEMPERATURE_GUESS requires GUESS CEH")
+      guess_section => section_vals_get_subs_vals(ref_cli_section, "GUESS_CLI")
+      CALL section_vals_get(guess_section, explicit=ref_cli%guess_cli%enabled)
+      IF (ref_cli%guess_cli%enabled) THEN
+         CALL section_vals_val_get(guess_section, "METHOD", i_val=ref_cli%guess_cli%method)
+         CALL section_vals_val_get(guess_section, "ELECTRONIC_TEMPERATURE_GUESS", &
+                                   r_val=ref_cli%guess_cli%electronic_temperature_guess)
+         IF (ref_cli%guess_cli%electronic_temperature_guess < 0.0_dp) &
+            CPABORT("REFERENCE_CLI/GUESS_CLI/ELECTRONIC_TEMPERATURE_GUESS must not be negative")
+         CALL section_vals_val_get(guess_section, "SOLVER", i_val=ref_cli%guess_cli%solver)
+         CALL section_vals_val_get(guess_section, "EFIELD", explicit=ref_cli%guess_cli%efield_active)
+         IF (ref_cli%guess_cli%efield_active) THEN
+            NULLIFY (efield)
+            CALL section_vals_val_get(guess_section, "EFIELD", r_vals=efield)
+            ref_cli%guess_cli%efield = efield(1:3)
+         END IF
+         CALL section_vals_val_get(guess_section, "GRAD", l_val=ref_cli%guess_cli%grad)
+         CALL section_vals_val_get(guess_section, "JSON", c_val=ref_cli%guess_cli%json_file)
+         CALL section_vals_val_get(guess_section, "INPUT_FORMAT", c_val=ref_cli%guess_cli%input_format)
+         CALL section_vals_val_get(guess_section, "INPUT_FILE", c_val=ref_cli%guess_cli%input_file)
+      END IF
+      param_section => section_vals_get_subs_vals(ref_cli_section, "PARAM_CLI")
+      CALL section_vals_get(param_section, explicit=ref_cli%param_cli%enabled)
+      IF (ref_cli%param_cli%enabled) THEN
+         CALL section_vals_val_get(param_section, "METHOD", explicit=ref_cli%param_cli%method_explicit, &
+                                   i_val=ref_cli%param_cli%method)
+         CALL section_vals_val_get(param_section, "OUTPUT", c_val=ref_cli%param_cli%output_file)
+         CALL section_vals_val_get(param_section, "INPUT_FILE", c_val=ref_cli%param_cli%input_file)
+      END IF
+      fit_section => section_vals_get_subs_vals(ref_cli_section, "FIT_CLI")
+      CALL section_vals_get(fit_section, explicit=ref_cli%fit_cli%enabled)
+      IF (ref_cli%fit_cli%enabled) THEN
+         CALL section_vals_val_get(fit_section, "PARAM_FILE", c_val=ref_cli%fit_cli%param_file)
+         CALL section_vals_val_get(fit_section, "INPUT_FILE", c_val=ref_cli%fit_cli%input_file)
+         CALL section_vals_val_get(fit_section, "DRY_RUN", l_val=ref_cli%fit_cli%dry_run)
+         CALL section_vals_val_get(fit_section, "COPY", c_val=ref_cli%fit_cli%copy_file)
+         IF (LEN_TRIM(ref_cli%fit_cli%param_file) == 0) &
+            CPABORT("XTB/TBLITE/REFERENCE_CLI/FIT_CLI needs PARAM_FILE")
+         IF (LEN_TRIM(ref_cli%fit_cli%input_file) == 0) &
+            CPABORT("XTB/TBLITE/REFERENCE_CLI/FIT_CLI needs INPUT_FILE")
+      END IF
+      tagdiff_section => section_vals_get_subs_vals(ref_cli_section, "TAGDIFF_CLI")
+      CALL section_vals_get(tagdiff_section, explicit=ref_cli%tagdiff_cli%enabled)
+      IF (ref_cli%tagdiff_cli%enabled) THEN
+         CALL section_vals_val_get(tagdiff_section, "ACTUAL", c_val=ref_cli%tagdiff_cli%actual_file)
+         CALL section_vals_val_get(tagdiff_section, "REFERENCE", c_val=ref_cli%tagdiff_cli%reference_file)
+         CALL section_vals_val_get(tagdiff_section, "FIT", l_val=ref_cli%tagdiff_cli%fit)
+         IF (LEN_TRIM(ref_cli%tagdiff_cli%actual_file) == 0) &
+            CPABORT("XTB/TBLITE/REFERENCE_CLI/TAGDIFF_CLI needs ACTUAL")
+         IF (LEN_TRIM(ref_cli%tagdiff_cli%reference_file) == 0) &
+            CPABORT("XTB/TBLITE/REFERENCE_CLI/TAGDIFF_CLI needs REFERENCE")
+      END IF
       CALL section_vals_val_get(ref_cli_section, "KEEP_FILES", l_val=ref_cli%keep_files)
       CALL section_vals_val_get(ref_cli_section, "ERROR_LIMIT", r_val=ref_cli%error_limit)
       CALL section_vals_val_get(ref_cli_section, "STOP_ON_ERROR", l_val=ref_cli%stop_on_error)
       CALL section_vals_val_get(ref_cli_section, "CHECK_ENERGY", l_val=ref_cli%check_energy)
       CALL section_vals_val_get(ref_cli_section, "CHECK_FORCES", l_val=ref_cli%check_forces)
       CALL section_vals_val_get(ref_cli_section, "CHECK_VIRIAL", l_val=ref_cli%check_virial)
-      CALL section_vals_val_get(ref_cli_section, "ACCURACY", r_val=ref_cli%accuracy)
-      CALL section_vals_val_get(ref_cli_section, "ITERATIONS", i_val=ref_cli%iterations)
 
    END SUBROUTINE read_xtb_reference_cli_section
 
@@ -2362,7 +2540,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_xtb_control'
 
-      CHARACTER(LEN=16)                                  :: scc_mixer_name
+      CHARACTER(LEN=16)                                  :: scc_mixer_name, solver_name
       INTEGER                                            :: handle, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -2432,12 +2610,38 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown tblite SCC mixer")
          END SELECT
+         SELECT CASE (xtb_control%tblite_mixer_solver)
+         CASE (tblite_solver_gvd)
+            solver_name = "GVD"
+         CASE (tblite_solver_gvr)
+            solver_name = "GVR"
+         CASE DEFAULT
+            CPABORT("Unknown tblite SCC mixer solver")
+         END SELECT
          WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
             "xTB| SCC mixer:", TRIM(scc_mixer_name)
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
             "xTB| tblite accuracy:", xtb_control%tblite_accuracy
+         IF (LEN_TRIM(xtb_control%tblite_param_file) > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T33,A)") &
+               "xTB| tblite parameter file:", TRIM(xtb_control%tblite_param_file)
+         END IF
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
             "xTB| tblite SCC mixer damping:", xtb_control%tblite_mixer_damping
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+            "xTB| tblite SCC mixer iterations:", xtb_control%tblite_mixer_iterations
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+            "xTB| tblite SCC mixer memory:", xtb_control%tblite_mixer_memory
+         WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
+            "xTB| tblite SCC mixer solver:", TRIM(solver_name)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
+            "xTB| tblite SCC mixer omega0:", xtb_control%tblite_mixer_omega0
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
+            "xTB| tblite SCC mixer min weight:", xtb_control%tblite_mixer_min_weight
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
+            "xTB| tblite SCC mixer max weight:", xtb_control%tblite_mixer_max_weight
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,ES10.3)") &
+            "xTB| tblite SCC mixer weight factor:", xtb_control%tblite_mixer_weight_factor
          WRITE (UNIT=output_unit, FMT="(/)")
 
       END IF

@@ -506,7 +506,8 @@ sub processSubroutineDefinition {
     # Split the subroutine or function definition by space or comma
     my @string = split(/([,\(\)\s+]+)/x, $functionLine);
 
-    while (my ($idx, $p) = each @string) {
+    for (my $idx = 0; $idx < scalar(@string); $idx++) {
+        my $p = $string[$idx];
         defined $p or next;  # continue with the next item if $p is undefined
 
         $p =~ s/^\s+|\s+$//gx;
