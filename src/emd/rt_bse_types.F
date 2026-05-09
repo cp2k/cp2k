@@ -155,6 +155,7 @@ MODULE rt_bse_types
       REAL(KIND=dp)                                             :: rtbse_energy_cutoff_occ = -1.0_dp, &
                                                                    rtbse_energy_cutoff_empty = -1.0_dp
       LOGICAL                                                   :: active_mo_truncation = .FALSE.
+      LOGICAL                                                   :: linearized = .FALSE.
       ! Tamm-Dancoff approximation switch (linearized RT-BSE only).
       LOGICAL                                                   :: tda_active = .FALSE.
       ! Whether to enforce max_dt within stability region of rk4
@@ -217,7 +218,7 @@ MODULE rt_bse_types
                                                                    hartree_curr => NULL()
       ! AO-sized scratch buffers used in the linearized RT-BSE path so that the MO-sized
       ! sigma_COH/sigma_SEX/hartree_curr matrices above can be allocated on
-      ! fm_struct_mo_active. Only allocated when my_linearized=.TRUE..
+      ! fm_struct_mo_active. Only allocated when linearized=.TRUE..
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: sigma_SEX_ao => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: sigma_COH_ao => NULL(), &
                                                                    hartree_curr_ao => NULL()
@@ -229,7 +230,8 @@ MODULE rt_bse_types
                                                                    rho_new_last => NULL(), &
                                                                    rho_M => NULL(), &
                                                                    rho_orig => NULL(), &
-                                                                   rho_ao_lrrtbse => NULL()
+                                                                   rho_ao_lrrtbse => NULL(), &
+                                                                   rho_delta_mo => NULL()
       ! Workspace for rk4 in linearized RTBSE
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rk4_coefficients => NULL()
 
@@ -308,18 +310,12 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
       INTEGER                                                   :: i, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
-      LOGICAL :: my_linearized
       TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
-
-      IF (PRESENT(linearized)) THEN
-         my_linearized = linearized
-      ELSE
-         my_linearized = .FALSE.
-      END IF
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
       ALLOCATE (rtbse_env)
+      IF (PRESENT(linearized)) rtbse_env%linearized = linearized
       ! Extract the other types first
       CALL get_qs_env(force_env%qs_env, &
                       bs_env=bs_env, &
@@ -377,10 +373,10 @@ CONTAINS
          rtbse_env%enforce_max_dt = .FALSE.
       END IF
                                 
-      IF (rtbse_env%tda_active .AND. .NOT. my_linearized) THEN
+      IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
-      CALL determine_active_mo_window(rtbse_env, my_linearized, bs_env)
+      CALL determine_active_mo_window(rtbse_env, bs_env)
       ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
       ! when no truncation is active; will be used by the linearized RT-BSE allocation path).
       NULLIFY (rtbse_env%fm_struct_mo_active)
@@ -396,7 +392,7 @@ CONTAINS
                                rtbse_env%n_ao, rtbse_env%mo_active)
       ! Choose the matrix struct used for MO-side persistent matrices.
       ! Linearized RT-BSE: mo_active x mo_active. Full RT-BSE: full AO struct (unchanged).
-      IF (my_linearized) THEN
+      IF (rtbse_env%linearized) THEN
          mo_struct => rtbse_env%fm_struct_mo_active
       ELSE
          mo_struct => bs_env%fm_ks_Gamma(1)%matrix_struct
@@ -484,14 +480,18 @@ CONTAINS
 
       ! Allocate real workspace
       NULLIFY (rtbse_env%real_workspace)
-      SELECT CASE (rtbse_env%mat_exp_method)
-      CASE (do_exact)
-         ALLOCATE (rtbse_env%real_workspace(4))
-      CASE (do_bch)
+      IF (rtbse_env%linearized) THEN
          ALLOCATE (rtbse_env%real_workspace(2))
-      CASE DEFAULT
-         CPABORT("Only exact and BCH matrix propagation implemented in RT-BSE")
-      END SELECT
+      ELSE
+         SELECT CASE (rtbse_env%mat_exp_method)
+         CASE (do_exact)
+            ALLOCATE (rtbse_env%real_workspace(4))
+         CASE (do_bch)
+            ALLOCATE (rtbse_env%real_workspace(2))
+         CASE DEFAULT
+            CPABORT("Only exact and BCH matrix propagation implemented in RT-BSE")
+         END SELECT
+      END IF
       DO i = 1, SIZE(rtbse_env%real_workspace)
          CALL cp_fm_create(rtbse_env%real_workspace(i), bs_env%fm_ks_Gamma(1)%matrix_struct)
          CALL cp_fm_set_all(rtbse_env%real_workspace(i), 0.0_dp)
@@ -508,7 +508,7 @@ CONTAINS
       END DO
       ! Allocate additional space for AO density matrix
       ! in linearised RTBSE, where default is MO
-      IF (my_linearized) THEN
+      IF (rtbse_env%linearized) THEN
          NULLIFY (rtbse_env%rho_ao_lrrtbse)
          ALLOCATE (rtbse_env%rho_ao_lrrtbse(rtbse_env%n_spin))
          DO i = 1, rtbse_env%n_spin
@@ -538,7 +538,7 @@ CONTAINS
          CALL cp_cfm_create(rtbse_env%ham_reference(i), mo_struct)
       END DO
       ! Single particle Hamiltonian (Δε * Δρ(t)) for updates during timesteps in LR-RTBSE
-      IF (my_linearized) THEN
+      IF (rtbse_env%linearized) THEN
          NULLIFY (rtbse_env%ham_reference_singleparticle)
          ALLOCATE (rtbse_env%ham_reference_singleparticle(rtbse_env%n_spin))
          DO i = 1, rtbse_env%n_spin
@@ -570,7 +570,7 @@ CONTAINS
       END DO
 
       !For LR-RTBSE we need RK4 coefficients - create new workspace
-      IF (my_linearized) THEN
+      IF (rtbse_env%linearized) THEN
          NULLIFY (rtbse_env%rk4_coefficients)
          ALLOCATE (rtbse_env%rk4_coefficients(4))
          DO i = 1, 4
@@ -614,7 +614,7 @@ CONTAINS
          CALL cp_fm_set_all(rtbse_env%hartree_curr(i), 0.0_dp)
       END DO
       ! AO-sized scratch buffers used by the linearized RT-BSE path
-      IF (my_linearized) THEN
+      IF (rtbse_env%linearized) THEN
          NULLIFY (rtbse_env%hartree_curr_ao)
          NULLIFY (rtbse_env%sigma_SEX_ao)
          NULLIFY (rtbse_env%sigma_COH_ao)
@@ -648,6 +648,15 @@ CONTAINS
             CALL cp_fm_create(rtbse_env%C_active(i), rtbse_env%fm_struct_ao_mo_active)
             CALL cp_fm_set_all(rtbse_env%C_active(i), 0.0_dp)
          END DO
+         ! TDA-only scratch: holds OV+VO-masked Delta rho_MO before AO projection.
+         IF (rtbse_env%tda_active) THEN
+            NULLIFY (rtbse_env%rho_delta_mo)
+            ALLOCATE (rtbse_env%rho_delta_mo(rtbse_env%n_spin))
+            DO i = 1, rtbse_env%n_spin
+               CALL cp_cfm_create(rtbse_env%rho_delta_mo(i), rtbse_env%fm_struct_mo_active)
+               CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            END DO
+         END IF
       END IF
 
       ! Allocate workspaces for get_sigma
@@ -733,6 +742,7 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%real_workspace_mo)) CALL cp_fm_release(rtbse_env%real_workspace_mo)
       IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
+      IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
       ! Release owned active-MO matrix structures
       IF (ASSOCIATED(rtbse_env%fm_struct_mo_active)) THEN
          CALL cp_fm_struct_release(rtbse_env%fm_struct_mo_active)
@@ -757,12 +767,10 @@ CONTAINS
 !> linearized RT-BSE), the window is set to the full MO range.
 !> \param rtbse_env RT-BSE environment with cutoff values, n_ao, n_occ, n_spin, ham_reference_type
 !>                  already populated.
-!> \param my_linearized .TRUE. if linearized propagation is requested.
 !> \param bs_env Bandstructure environment providing the eigenvalues.
 ! **************************************************************************************************
-   SUBROUTINE determine_active_mo_window(rtbse_env, my_linearized, bs_env)
+   SUBROUTINE determine_active_mo_window(rtbse_env, bs_env)
       TYPE(rtbse_env_type), POINTER                       :: rtbse_env
-      LOGICAL, INTENT(IN)                                 :: my_linearized
       TYPE(post_scf_bandstructure_type), POINTER          :: bs_env
       CHARACTER(LEN=*), PARAMETER                         :: routineN = "determine_active_mo_window"
 
@@ -778,7 +786,7 @@ CONTAINS
       n_ao_full = rtbse_env%n_ao
       cutoff_occ = rtbse_env%rtbse_energy_cutoff_occ
       cutoff_empty = rtbse_env%rtbse_energy_cutoff_empty
-      do_truncation = my_linearized .AND. (cutoff_occ > 0.0_dp .OR. cutoff_empty > 0.0_dp)
+      do_truncation = rtbse_env%linearized .AND. (cutoff_occ > 0.0_dp .OR. cutoff_empty > 0.0_dp)
 
       ! Default: full MO window
       rtbse_env%first_active_mo = 1

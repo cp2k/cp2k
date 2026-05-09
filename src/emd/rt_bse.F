@@ -967,7 +967,7 @@ CONTAINS
                                CMPLX(1.0, 0.0, kind=dp), exponential(j), rtbse_env%rho_workspace(1), &
                                CMPLX(0.0, 0.0, kind=dp), rho_new(j))
          END DO
-      ELSE IF (rtbse_env%mat_exp_method == do_bch) THEN
+      ELSE IF (rtbse_env%mat_exp_method == do_bch .OR. rtbse_env%linearized) THEN
          ! Same number of iterations as ETRS
          CALL bch_propagate(exponential, rho_old, rho_new, rtbse_env%rho_workspace, threshold_opt=rtbse_env%exp_accuracy, &
                             max_iter_opt=rtbse_env%etrs_max_iter)

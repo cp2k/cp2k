@@ -118,6 +118,7 @@ MODULE rt_bse_linearized
                                  cp_iterate
    USE rt_propagation_output, ONLY: print_ft
    USE rt_propagation_utils, ONLY: read_moments
+   USE machine, ONLY: m_walltime
    USE mathconstants, ONLY: twopi
    USE physcon,                         ONLY: evolt, &
    seconds
@@ -148,7 +149,8 @@ CONTAINS
                                                             idempotence_dev, a_metric_1, a_metric_2, &
                                                             full_max, oo_max, vv_max, ov_max, vo_max, &
                                                             full_max_old, oo_max_old, vv_max_old, ov_max_old, vo_max_old, &
-                                                            ov_growth, vo_growth
+                                                            ov_growth, vo_growth, &
+                                                            timestep_walltime, timestep_walltime_start
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -193,6 +195,9 @@ CONTAINS
          CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%rho_ao_lrrtbse(i), i)
       END DO
       !  - calculates the Hartree reference potential
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_cfm_set_all(rtbse_env%ham_reference(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+      END DO
       CALL initialize_hartree_potential(rtbse_env)
       !  - calculates the COHSEX reference self-energy
       CALL initialize_cohsex_selfenergy(rtbse_env)
@@ -201,7 +206,7 @@ CONTAINS
       ! Liouvillian L by power iteration on a random Hermitian seed restricted
       ! to the OV+VO subspace. Prints rho(L) and the corresponding RK4-stable
       ! dt = 2*sqrt(2)/rho(L) next to the gap-based estimate. Compile-time flag.
-      IF (.TRUE.) THEN
+      IF (.FALSE.) THEN
          CALL estimate_omega_max_krylov(rtbse_env, n_iter=15, rel_tol=1.0E-2_dp)
       END IF
 
@@ -223,6 +228,7 @@ CONTAINS
       ! ********************** Start the time loop **********************
       ! NOTE : Time-loop starts at index sim_start = 0, unless restarted or configured otherwise
       DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps - 1
+         timestep_walltime_start = m_walltime()
 
          ! Update the simulation time
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
@@ -257,7 +263,8 @@ CONTAINS
                                     workspace=rtbse_env%rho_workspace, metric=a_metric_2)
             END DO
          END IF
-         CALL print_timestep_info(rtbse_env, i, enum_re)
+         timestep_walltime = m_walltime() - timestep_walltime_start
+         CALL print_timestep_info(rtbse_env, i, enum_re, step_walltime=timestep_walltime)
          !IF (.NOT. converged) CPABORT("ETRS did not converge")
          CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps-1))
 
@@ -619,11 +626,11 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_singleparticle_hamiltonian"
       !MG to remove - H2 energies from N^4 GW
-      ! REAL(KIND=dp), DIMENSION(12), PARAMETER      :: last_column = [ &
-      !    -15.7854_dp,   9.0657_dp,  21.3465_dp,  33.0050_dp, &
-      !     37.8467_dp,  37.8467_dp,  57.2756_dp,  56.9618_dp, &
-      !     56.9619_dp,  83.8232_dp,  99.2828_dp, 116.7532_dp  &
-      ! ]
+      REAL(KIND=dp), DIMENSION(12), PARAMETER      :: last_column = [ &
+         -15.7854_dp,   9.0657_dp,  21.3465_dp,  33.0050_dp, &
+          37.8467_dp,  37.8467_dp,  57.2756_dp,  56.9618_dp, &
+          56.9619_dp,  83.8232_dp,  99.2828_dp, 116.7532_dp  &
+      ]
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, ii,jj, handle, nrow_global, ncol_global, &
                                                       nrow_local, ncol_local, &
@@ -659,7 +666,7 @@ CONTAINS
                      END IF
                      ! For testing purposes, use the hacked eigenvalues to check the correctness of the implementation
                      !MG to remove
-                     !rtbse_env%real_workspace(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
+                     rtbse_env%real_workspace(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
                   END IF
             END DO
          END DO
@@ -689,22 +696,32 @@ CONTAINS
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
       ! Calculate Coulomb RI elements, necessary for Hartree calculation
       CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
+      ! Always zero ham_reference here (this routine is the first to touch it).
+      ! The Hartree reference subtraction is then conditionally added below.
+      DO i = 1, rtbse_env%n_spin
+         CALL cp_cfm_set_all(rtbse_env%ham_reference(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+      END DO
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
-      DO i = 1, rtbse_env%n_spin
-         CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
-         ! Scaling by spin degeneracy
-         CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr_ao(i))
-         ! Transform to MO basis (AO scratch -> MO-active result)
-         CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(i), rtbse_env%hartree_curr(i), i)
-         ! Apply occupation factor f_n-f_m
-         CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(i), i)
-         ! Subtract the reference from the reference Hamiltonian
-         ! following H_eff = ... + V_Hartree(delta_rho) - V_Hartree(rho_0), 
-         CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(i), mtarget=rtbse_env%ham_workspace(1))
-         CALL cp_cfm_scale_and_add(CMPLX(0.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                   CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
-      END DO
+      ! In TDA the propagator evaluates V_H(rho_OV); at rho_0 this is identically 0,
+      ! so no Hartree reference must be subtracted (otherwise the OV/VO blocks of
+      ! V_H(rho_0) leak into ham_reference and shift the static-reference gap).
+      IF (.NOT. rtbse_env%tda_active) THEN
+         DO i = 1, rtbse_env%n_spin
+            CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
+            ! Scaling by spin degeneracy
+            CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr_ao(i))
+            ! Transform to MO basis (AO scratch -> MO-active result)
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(i), rtbse_env%hartree_curr(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%hartree_curr(i), i)
+            ! Subtract the reference from the reference Hamiltonian
+            ! following H_eff = ... + V_Hartree(delta_rho) - V_Hartree(rho_0),
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(i), mtarget=rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+         END DO
+      END IF
       ! ****** END HARTREE POTENTIAL REFERENCE CALCULATION
 
       CALL timestop(handle)
@@ -752,26 +769,33 @@ CONTAINS
             ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
             ! So far only closed shell tested
             ! Uses rho_orig - same as rho for initial run but different for continued run
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
-            ! Subtract from the complex reference Hamiltonian
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
+            ! In TDA the propagator evaluates Sigma_SEX(rho_OV); at rho_0 this is
+            ! identically 0, so the SEX reference must NOT be subtracted in TDA.
+            IF (.NOT. rtbse_env%tda_active) THEN
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               ! Transform to MO basis (AO scratch -> MO-active result)
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
+               ! Apply occupation factor f_n-f_m
+               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
+               ! Subtract from the complex reference Hamiltonian
+               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
+            END IF
          END DO
       ELSE
          ! KS Hamiltonian - use time-dependent Fock exchange
-         DO i = 1, rtbse_env%n_spin
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
-            ! Transform to MO basis (AO scratch -> MO-active result)
-            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
-            ! Apply occupation factor f_n-f_m
-            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
-         END DO
+         ! Same TDA reasoning as above: skip the SEX reference subtraction in TDA.
+         IF (.NOT. rtbse_env%tda_active) THEN
+            DO i = 1, rtbse_env%n_spin
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               ! Transform to MO basis (AO scratch -> MO-active result)
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
+               ! Apply occupation factor f_n-f_m
+               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
+               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
+            END DO
+         END IF
       END IF
       ! ****** END COHSEX REFERENCE CALCULATION
 
@@ -790,16 +814,12 @@ CONTAINS
    SUBROUTINE solve_rk4_timestep(rtbse_env, rho_start, rho_end, converged, k, metric)
       TYPE(rtbse_env_type), POINTER                     :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER          :: rho_start, &
-                                                           rho_mid, &
                                                            rho_end
       LOGICAL                                           :: converged
       INTEGER                                           :: k
       REAL(kind=dp)                                     :: metric
       CHARACTER(len=*), PARAMETER                       :: routineN = "solve_rk4_timestep"
       INTEGER                                           :: i, handle
-      REAL(kind=dp)                                     :: norm_k1, norm_rho, omega_runtime
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER        :: a_ptr, b_ptr, c_ptr
-      TYPE(mp_para_env_type), POINTER                   :: para_env
 
       CALL timeset(routineN, handle)
       ! RK4 follows the typical scheme
@@ -817,44 +837,6 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          ! k_1
          CALL update_effective_ham_MO(rtbse_env, rho_start(i), rtbse_env%rk4_coefficients(1), i)
-         ! Runtime estimate of the highest oscillating frequency contained in the
-         ! linearised RT-BSE RHS f(t,rho) = -i [H_eff, rho]. The static
-         ! occupied-diagonal block of rho does not oscillate, so we measure the
-         ! deviation from the reference density:
-         !   ||f||_F = ||d(drho)/dt||_F  <=  ||L||_2 ||drho||_F,    drho = rho - rho_orig
-         ! the ratio ||k_1||_F / ||drho||_F is a sharp instantaneous lower bound
-         ! on the spectral radius of the linear propagator L acting on drho and
-         ! can be compared against the gap-based omega_max estimate to refine
-         ! the stability region. Printed only at the first integrated step to
-         ! keep the runtime overhead negligible.
-         IF (rtbse_env%sim_step == rtbse_env%sim_start) THEN
-            ! NOTE: para_env%sum is collective. ALL ranks must enter this branch,
-            ! not just the I/O rank, otherwise the run deadlocks inside MPI.
-            para_env => rho_start(i)%matrix_struct%para_env
-            a_ptr => rtbse_env%rk4_coefficients(1)%local_data
-            b_ptr => rho_start(i)%local_data
-            c_ptr => rtbse_env%rho_orig(i)%local_data
-
-            norm_k1 = SUM(REAL(a_ptr*CONJG(a_ptr), kind=dp))
-            norm_rho = SUM(REAL((b_ptr - c_ptr)*CONJG(b_ptr - c_ptr), kind=dp))
-
-            CALL para_env%sum(norm_k1)
-            CALL para_env%sum(norm_rho)
-
-            norm_k1 = SQRT(norm_k1)
-            norm_rho = SQRT(norm_rho)
-            IF (norm_rho > 0.0_dp) THEN
-               omega_runtime = norm_k1/norm_rho
-            ELSE
-               omega_runtime = 0.0_dp
-            END IF
-
-            IF (rtbse_env%unit_nr > 0) THEN
-               WRITE (rtbse_env%unit_nr, '(A,I3,A,F16.6)') &
-                  ' Runtime instantaneous max oscillation frequency (spin', i, &
-                  ') ||drho/dt||_F/||delta_rho||_F [eV]:', omega_runtime*evolt
-            END IF
-         END IF
          ! MG TODO: dt/2 needs to implemented in field
          !          Problem: sim_step is needed as integer for envelope
          ! k_2 - needs to be evaluated at t + dt/2 and rho + dt/2 * k_1
@@ -907,8 +889,6 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: debug_disable_hartree = .FALSE.
       LOGICAL, PARAMETER                                 :: debug_disable_coh = .FALSE.
       INTEGER                                            :: k, nspin, handle
-      LOGICAL                                            :: keep_OV
-      TYPE(cp_cfm_type), POINTER                         :: tda_kernel_accumulator
 
       CALL timeset(routineN, handle)
       ! Shorthand
@@ -987,52 +967,91 @@ CONTAINS
                                          CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
             END IF
          ELSE
-            ! ----- Tamm-Dancoff approximation: single-pass OV + Hermitian-conjugate shortcut -----
-            ! The two TDA passes (OV with sign -1, VO with sign +1) are related by
-            !    (VO contribution) = - (OV contribution)^C
-            ! provided V_H has a real-symmetric AO output (true: get_hartree forwards only Re(rho))
-            ! and Sigma_SEX is complex-linear in rho (true: get_sigma_complex). We therefore
-            ! evaluate only the OV pass, accumulate SEX + spin_deg*Hartree into a per-spin scratch
-            ! (aliased to sigma_SEX(ispin) to avoid extra allocation), and form
-            !   ham_effective += h1 - h1^C   using ham_workspace(1) as transpose scratch.
-            tda_kernel_accumulator => rtbse_env%sigma_SEX(ispin)
-            keep_OV = .TRUE.
-            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_workspace(2))
-            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_workspace(2), ispin, keep_OV)
-            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_workspace(2), &
+            ! ----- Tamm-Dancoff approximation: drop B-coupling between OV and VO blocks
+            ! by feeding ONLY Delta rho_OV when computing the OV output of the kernel,
+            ! and ONLY Delta rho_VO when computing the VO output. Two kernel passes
+            ! per RK4 stage. Reference subtraction is skipped in
+            ! initialize_hartree_potential / initialize_cohsex_selfenergy
+            ! (V_H[Delta rho=0] = Sigma_SEX[Delta rho=0] = 0 at t=0 by construction).
+            !
+            ! Per-pass input is non-Hermitian (Delta rho_OV alone has no VO entries),
+            ! so both kernels MUST be complex-linear in the input. get_sigma_complex
+            ! already handles this (Re/Im processed separately); for Hartree we use
+            ! get_hartree_complex (defined below) which calls the real-input
+            ! get_hartree on Re and Im separately. Without this, the Im part of
+            ! Delta rho_AO is silently dropped by get_hartree -> the OV/VO
+            ! contributions to ham_effective lose Hermitian conjugacy and the
+            ! propagator gains real eigenvalues -> exponential blow-up.
+            !
+            ! Hartree must run before SEX in each pass: we use sigma_SEX_ao(ispin) as
+            ! the AO scratch holding the complex Hartree result; get_sigma below
+            ! overwrites it for the SEX contribution.
+            !
+            ! Signs: (f_n - f_m) is -1 on OV and +1 on VO; applied explicitly per pass.
+
+            ! ===== Pass 1: OV input -> OV output =====
+            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin), &
+                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_orig(ispin))
+            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.TRUE.)
+            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
-            ! Reset the OV-pass kernel accumulator
-            CALL cp_cfm_set_all(tda_kernel_accumulator, CMPLX(0.0_dp, 0.0_dp, kind=dp))
-            ! SEX contribution into the accumulator (with the OV-pass sign -1 already applied)
-            IF (.NOT. debug_disable_sex) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+            ! Hartree (complex, OV pass) - must run before SEX (uses sigma_SEX_ao as scratch)
+            IF (.NOT. debug_disable_hartree) THEN
+               CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                        rtbse_env%sigma_SEX_ao(ispin), ispin)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%ham_workspace(1), ispin)
-               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV)
-               CALL cp_cfm_scale_and_add(CMPLX(0.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator, &
-                                         CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
-            END IF
-            ! Hartree contribution (real -> cfm) into the same accumulator
-            IF (.NOT. debug_disable_hartree) THEN
-               CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                rtbse_env%hartree_curr_ao(ispin))
-               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
-                                                    rtbse_env%hartree_curr(ispin), ispin)
-               CALL mask_mo_block_fm(rtbse_env, rtbse_env%hartree_curr(ispin), ispin, keep_OV)
-               CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(ispin), mtarget=rtbse_env%ham_workspace(1))
-               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator, &
+               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
+               ! sign on OV is -1; spin_degeneracy carries the closed-shell factor
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
                                          CMPLX(-rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
                                          rtbse_env%ham_workspace(1))
             END IF
-            ! Add OV pass: ham_effective += h1
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                      CMPLX(1.0_dp, 0.0_dp, kind=dp), tda_kernel_accumulator)
-            ! Add VO pass = -h1^C : ham_effective += -h1^C
-            CALL cp_cfm_transpose(tda_kernel_accumulator, 'C', rtbse_env%ham_workspace(1))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
-                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1))
-            ! Restore the un-masked AO density so observables (moments, polarisability, ...)
-            ! computed elsewhere from rho_ao_lrrtbse see the physical Δρ, not the OV mask.
+            ! SEX (OV pass)
+            IF (.NOT. debug_disable_sex) THEN
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%sigma_SEX(ispin), ispin)
+               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)
+               ! sign on OV is -1
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+            END IF
+
+            ! ===== Pass 2: VO input -> VO output =====
+            CALL cp_cfm_to_cfm(rho, rtbse_env%rho_delta_mo(ispin))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_delta_mo(ispin), &
+                                      CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%rho_orig(ispin))
+            CALL mask_mo_block_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), ispin, keep_OV=.FALSE.)
+            CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%rho_delta_mo(ispin), &
+                                                      rtbse_env%rho_ao_lrrtbse(ispin), ispin)
+            ! Hartree (complex, VO pass)
+            IF (.NOT. debug_disable_hartree) THEN
+               CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                        rtbse_env%sigma_SEX_ao(ispin), ispin)
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%ham_workspace(1), ispin)
+               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.FALSE.)
+               ! sign on VO is +1
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                         rtbse_env%ham_workspace(1))
+            END IF
+            ! SEX (VO pass)
+            IF (.NOT. debug_disable_sex) THEN
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                     rtbse_env%sigma_SEX(ispin), ispin)
+               CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.FALSE.)
+               ! sign on VO is +1
+               CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), ham_effective, &
+                                         CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+            END IF
+
+            ! Restore rho_ao_lrrtbse to the AO image of the current full rho, so any
+            ! post-routine consumer (output_mos, COH refresh) sees the same invariant
+            ! as on the non-TDA path.
             CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, &
                                                       rtbse_env%rho_ao_lrrtbse(ispin), ispin)
          END IF
@@ -1225,6 +1244,55 @@ CONTAINS
    END SUBROUTINE transform_mo_occupation_factor_diff_fm
 
 ! **************************************************************************************************
+!> \brief Mask an MO-active cfm: keep either OV or VO block, zero everything else.
+!> \param rtbse_env RT-BSE environment
+!> \param cfm MO-active cfm to mask in place
+!> \param i_spin Spin index
+!> \param keep_OV .TRUE. keeps the (occ row, virt col) block; .FALSE. keeps (virt row, occ col)
+! **************************************************************************************************
+   SUBROUTINE mask_mo_block_cfm(rtbse_env, cfm, i_spin, keep_OV)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type)                                  :: cfm
+      INTEGER, INTENT(IN)                                :: i_spin
+      LOGICAL, INTENT(IN)                                :: keep_OV
+      CHARACTER(len=*), PARAMETER                        :: routineN = "mask_mo_block_cfm"
+      INTEGER                                            :: handle, i_local, j_local, i_global, j_global, n_occ, &
+                                                            i_global_mo, j_global_mo, shift
+      INTEGER                                            :: nrow_local, ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
+      LOGICAL                                            :: keep
+
+      CALL timeset(routineN, handle)
+
+      n_occ = rtbse_env%n_occ(i_spin)
+      shift = rtbse_env%first_active_mo - 1
+
+      CALL cp_cfm_get_info(matrix=cfm, &
+                           nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      local_data => cfm%local_data
+
+      DO i_local = 1, nrow_local
+         i_global = row_indices(i_local)
+         i_global_mo = i_global + shift
+         DO j_local = 1, ncol_local
+            j_global = col_indices(j_local)
+            j_global_mo = j_global + shift
+            IF (keep_OV) THEN
+               keep = (i_global_mo <= n_occ .AND. j_global_mo > n_occ)
+            ELSE
+               keep = (i_global_mo > n_occ .AND. j_global_mo <= n_occ)
+            END IF
+            IF (.NOT. keep) local_data(i_local, j_local) = CMPLX(0.0_dp, 0.0_dp, kind=dp)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE mask_mo_block_cfm
+
+! **************************************************************************************************
 !> \brief Mask an MO-active fm: keep either OV or VO block, zero everything else.
 !> \param rtbse_env RT-BSE environment
 !> \param fm MO-active fm to mask in place
@@ -1274,53 +1342,59 @@ CONTAINS
    END SUBROUTINE mask_mo_block_fm
 
 ! **************************************************************************************************
-!> \brief Mask an MO-active cfm: keep either OV or VO block, zero everything else.
+!> \brief Complex-linear Hartree contraction. Calls the real-input get_hartree on
+!>        Re(rho_AO) and on Im(rho_AO) separately and assembles
+!>           v_AO = V_H[Re(rho_AO)] + i * V_H[Im(rho_AO)] .
+!>        Required by the TDA propagator where the per-pass input Delta rho_OV (or
+!>        Delta rho_VO) is non-Hermitian, so the imaginary part must be carried.
 !> \param rtbse_env RT-BSE environment
-!> \param cfm MO-active cfm to mask in place
-!> \param i_spin Spin index
-!> \param keep_OV .TRUE. keeps the (occ row, virt col) block; .FALSE. keeps (virt row, occ col)
+!> \param rho_cfm AO complex input density
+!> \param v_cfm AO complex Hartree output (overwritten)
+!> \param ispin Spin index (selects scratch slots in rtbse_env)
 ! **************************************************************************************************
-   SUBROUTINE mask_mo_block_cfm(rtbse_env, cfm, i_spin, keep_OV)
+   SUBROUTINE get_hartree_complex(rtbse_env, rho_cfm, v_cfm, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_cfm_type)                                  :: cfm
-      INTEGER, INTENT(IN)                                :: i_spin
-      LOGICAL, INTENT(IN)                                :: keep_OV
-      CHARACTER(len=*), PARAMETER                        :: routineN = "mask_mo_block_cfm"
-      INTEGER                                            :: handle, i_local, j_local, i_global, j_global, n_occ, &
-                                                            i_global_mo, j_global_mo, shift
-      INTEGER                                            :: nrow_local, ncol_local
-      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: local_data
-      LOGICAL                                            :: keep
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rho_cfm
+      TYPE(cp_cfm_type)                                  :: v_cfm
+      INTEGER, INTENT(IN)                                :: ispin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree_complex"
+      INTEGER                                            :: handle
+
+      MARK_USED(ispin)
 
       CALL timeset(routineN, handle)
 
-      n_occ = rtbse_env%n_occ(i_spin)
-      shift = rtbse_env%first_active_mo - 1
+      ! Mirrors get_sigma_complex: split rho_cfm into real and imaginary fm parts,
+      ! call the real-input Hartree contraction on each, then assemble
+      ! v_cfm = V_H[Re(rho_cfm)] + i*V_H[Im(rho_cfm)].
+      ! Scratch usage:
+      !   real_workspace(1) - holds Re(rho) then V_H[Re]
+      !   real_workspace(2) - holds Im(rho) then V_H[Im]
+      !   sigma_complex_workspace(1) - cfm wrapper feeding the real-input slot of get_hartree
 
-      CALL cp_cfm_get_info(matrix=cfm, &
-                           nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices)
+      ! Real part
+      CALL cp_cfm_to_fm(msource=rho_cfm, mtargetr=rtbse_env%real_workspace(1))
+      CALL cp_cfm_set_all(rtbse_env%sigma_complex_workspace(1), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
+                        mtarget=rtbse_env%sigma_complex_workspace(1))
+      CALL get_hartree(rtbse_env, rtbse_env%sigma_complex_workspace(1), &
+                       rtbse_env%real_workspace(1))
 
-      local_data => cfm%local_data
+      ! Imaginary part: extract Im(rho_cfm) into real_workspace(2)
+      CALL cp_cfm_to_fm(msource=rho_cfm, mtargeti=rtbse_env%real_workspace(2))
+      CALL cp_cfm_set_all(rtbse_env%sigma_complex_workspace(1), CMPLX(0.0_dp, 0.0_dp, kind=dp))
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(2), &
+                        mtarget=rtbse_env%sigma_complex_workspace(1))
+      CALL get_hartree(rtbse_env, rtbse_env%sigma_complex_workspace(1), &
+                       rtbse_env%real_workspace(2))
 
-      DO i_local = 1, nrow_local
-         i_global = row_indices(i_local)
-         i_global_mo = i_global + shift
-         DO j_local = 1, ncol_local
-            j_global = col_indices(j_local)
-            j_global_mo = j_global + shift
-            IF (keep_OV) THEN
-               keep = (i_global_mo <= n_occ .AND. j_global_mo > n_occ)
-            ELSE
-               keep = (i_global_mo > n_occ .AND. j_global_mo <= n_occ)
-            END IF
-            IF (.NOT. keep) local_data(i_local, j_local) = CMPLX(0.0_dp, 0.0_dp, kind=dp)
-         END DO
-      END DO
+      ! Assemble v_cfm = real_workspace(1) + i * real_workspace(2)
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), &
+                        msourcei=rtbse_env%real_workspace(2), &
+                        mtarget=v_cfm)
 
       CALL timestop(handle)
-   END SUBROUTINE mask_mo_block_cfm
+   END SUBROUTINE get_hartree_complex
 
 ! **************************************************************************************************
 !> \brief Custom reimplementation of the delta pulse routines
