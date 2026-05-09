@@ -626,11 +626,11 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_singleparticle_hamiltonian"
       !MG to remove - H2 energies from N^4 GW
-      REAL(KIND=dp), DIMENSION(12), PARAMETER      :: last_column = [ &
-         -15.7854_dp,   9.0657_dp,  21.3465_dp,  33.0050_dp, &
-          37.8467_dp,  37.8467_dp,  57.2756_dp,  56.9618_dp, &
-          56.9619_dp,  83.8232_dp,  99.2828_dp, 116.7532_dp  &
-      ]
+      ! REAL(KIND=dp), DIMENSION(12), PARAMETER      :: last_column = [ &
+      !    -15.7854_dp,   9.0657_dp,  21.3465_dp,  33.0050_dp, &
+      !     37.8467_dp,  37.8467_dp,  57.2756_dp,  56.9618_dp, &
+      !     56.9619_dp,  83.8232_dp,  99.2828_dp, 116.7532_dp  &
+      ! ]
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, ii,jj, handle, nrow_global, ncol_global, &
                                                       nrow_local, ncol_local, &
@@ -666,7 +666,7 @@ CONTAINS
                      END IF
                      ! For testing purposes, use the hacked eigenvalues to check the correctness of the implementation
                      !MG to remove
-                     rtbse_env%real_workspace(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
+                     !rtbse_env%real_workspace(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
                   END IF
             END DO
          END DO

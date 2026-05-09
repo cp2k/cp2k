@@ -379,7 +379,6 @@ CONTAINS
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
          rtbse_env%rtbse_energy_cutoff_empty = -1.0_dp
-         rtbse_env%tda_active = .FALSE.
          rtbse_env%enforce_max_dt = .FALSE.
          rtbse_env%debug_disable_hartree = .FALSE.
          rtbse_env%debug_disable_sex = .FALSE.
