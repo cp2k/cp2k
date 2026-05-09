@@ -1,0 +1,21 @@
+"01_RIRS_G0W0_PBE_H2O.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=608},
+                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.152},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.695},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.846}]
+
+"02_RIRS_G0W0_PBE0_H2O.inp"              = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=24.168}]
+
+"03_RIRS_G0W0_PBE0_O2.inp"               = [{matcher="RIRS_Grid", tol=1e-03, ref=672},
+                                          {matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.683},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=10.743},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=21.699}]
+
+"04_RIRS_G0W0_GPW_PBE_H2O.inp"           = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.419},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=16.905},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.324}]
+
+"05_RIRS_RESTART_G0W0_PBE_H2O.inp"       = [{matcher="E_RIRS_HOMO", tol=1e-03, ref=-6.091},
+                                          {matcher="E_RIRS_LUMO", tol=1e-03, ref=17.531},
+                                          {matcher="E_G0W0_direct_gap", tol=1e-03, ref=23.621}]
+
+#EOF

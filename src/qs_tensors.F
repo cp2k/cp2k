@@ -3364,7 +3364,7 @@ CONTAINS
                       iatom == jatom .AND. iset == jset .AND. &
                       cell_j(1) == 0 .AND. cell_j(2) == 0 .AND. cell_j(3) == 0) THEN
                      DO i_diag = 1, nsgfi(iset)
-                        min_zet = MINVAL(zeti(:, iset))
+                        min_zet = MINVAL(zeti(1:npgfi(iset), iset))
                         CPASSERT(min_zet > 1.0E-10_dp)
                         sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
                                                  regularization_RI*MAX(1.0_dp, 1.0_dp/min_zet)

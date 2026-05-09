@@ -2258,6 +2258,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_gw_ri_rs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_soc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -2479,6 +2483,64 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_gw_section
+
+! **************************************************************************************************
+!> \brief creates an input section for Real-Space Resolution of Identity GW
+!> \param section section to create
+!> \par History
+!>    * 04.2026 created [Ritaj Tyagi]
+! **************************************************************************************************
+   SUBROUTINE create_gw_ri_rs_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GW_RI_RS", &
+                          description="Parameters needed to set up a RI-RS based GW calculation", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the GW RI-RS calculation.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="TIKHONOV", &
+                          description="Parameter for regularization used in RI-RS. "// &
+                          "See Equation (9) in 10.1063/1.5090605 for more details", &
+                          usage="TIKHONOV 1.0E-8", &
+                          default_r_val=1.0E-08_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GRID_SELECT", &
+                          description="Selection of grid type (1) def2-TZVPP (2) cc-pVTZ ", &
+                          usage="GRID_SELECT 1", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CHUNK_SIZE_DBCSR", &
+                          description="Chunk size for DBCSR matrices", &
+                          usage="CHUNK_SIZE_DBCSR 256", &
+                          default_i_val=256)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RI_RS", &
+                          description="The cutoff radius (in Angstrom) for the Resolution "// &
+                          "of Identity Real Space Approximation", &
+                          usage="CUTOFF_RADIUS_RI_RS 15.0", &
+                          default_r_val=cp_unit_to_cp2k(value=15.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_gw_ri_rs_section
 
 ! **************************************************************************************************
 !> \brief creates an input section for calculation SOC for the electronic band structure
