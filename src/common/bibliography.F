@@ -92,8 +92,8 @@ MODULE bibliography
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
-                            Hanasaki2025, Tan2025, FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, &
-                            Mermin1965
+                            Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
+                            FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965
 
 CONTAINS
 
@@ -2076,6 +2076,24 @@ CONTAINS
                          title="Thermal Properties of the Inhomogeneous Electron Gas", &
                          source="Phys. Rev.", volume="137", pages="A1441-A1443", &
                          year=1965, doi="10.1103/PhysRev.137.A1441")
+
+      CALL add_reference(key=Broyden1965, &
+                         authors=s2a("C. G. Broyden"), &
+                         title="A class of methods for solving nonlinear simultaneous equations", &
+                         source="Math. Comput.", volume="19", pages="577-593", &
+                         year=1965, doi="10.1090/S0025-5718-1965-0198670-6")
+
+      CALL add_reference(key=Kerker1981, &
+                         authors=s2a("G. P. Kerker"), &
+                         title="Efficient iteration scheme for self-consistent pseudopotential calculations", &
+                         source="Phys. Rev. B", volume="23", pages="3082-3084", &
+                         year=1981, doi="10.1103/PhysRevB.23.3082")
+
+      CALL add_reference(key=Johnson1988, &
+                         authors=s2a("D. D. Johnson"), &
+                         title="Modified Broyden's method for accelerating convergence in self-consistent calculations", &
+                         source="Phys. Rev. B", volume="38", pages="12807-12813", &
+                         year=1988, doi="10.1103/PhysRevB.38.12807")
 
       CALL add_reference(key=FuHo1983, &
                          authors=s2a("C.-L. Fu", "K.-M. Ho"), &

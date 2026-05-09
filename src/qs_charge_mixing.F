@@ -28,6 +28,7 @@ MODULE qs_charge_mixing
    USE qs_density_mixing_types, ONLY: broyden_mixing_nr, &
                                       gspace_mixing_nr, &
                                       mixing_storage_type, &
+                                      modified_broyden_mixing_nr, &
                                       multisecant_mixing_nr, &
                                       pulay_mixing_nr
 #include "./base/base_uses.f90"
@@ -181,6 +182,8 @@ CONTAINS
          ELSEIF (mixing_method == broyden_mixing_nr) THEN
             CALL broyden_mixing(mixing_store, charges, imin, nvec, ns, para_env)
             mixing_store%iter_method = "Broy."
+         ELSEIF (mixing_method == modified_broyden_mixing_nr) THEN
+            CPABORT("Modified Broyden mixing is only available for DFT density mixing")
          ELSEIF (mixing_method == multisecant_mixing_nr) THEN
             CPABORT("Multisecant_mixing method not available for Charge Mixing")
          END IF

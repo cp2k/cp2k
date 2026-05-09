@@ -921,7 +921,7 @@ MODULE input_constants
                                                kerker_mix = 2, &
                                                pulay_mix = 3, &
                                                broy_mix = 4, &
-                                               broy_mix_new = 5, &
+                                               modified_broy_mix = 5, &
                                                multisec_mix = 6
 
    ! FFT library
