@@ -384,8 +384,6 @@ CONTAINS
       REAL(dp), DIMENSION(6), OPTIONAL                   :: weights
       INTEGER, OPTIONAL                                  :: dim_op
 
-      INTEGER                                            :: i
-
       IF (PRESENT(cell)) THEN
          CALL cell_retain(cell)
          CALL cell_release(qs_loc_env%cell)

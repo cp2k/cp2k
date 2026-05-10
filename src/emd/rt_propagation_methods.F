@@ -56,12 +56,9 @@ MODULE rt_propagation_methods
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_em,&
-                                              do_loc_both,&
-                                              do_loc_homo,&
                                               do_pade,&
                                               do_taylor
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -889,28 +886,28 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rtp_localize(qs_env, rtp)
 
-      TYPE(qs_environment_type), INTENT(IN), POINTER :: qs_env
-      TYPE(rt_prop_type), INTENT(IN), POINTER        :: rtp
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(rt_prop_type), INTENT(IN), POINTER            :: rtp
 
-      CHARACTER(len=*), PARAMETER                    :: routineN = 'rtp_localize'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rtp_localize'
 
-      INTEGER                                        :: handle, ispin, output_unit
-      INTEGER, DIMENSION(:, :, :), POINTER           :: marked_states
-      LOGICAL                                        :: do_homo, do_mo_cubes, do_wannier_cubes, &
-                                                        p_loc
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER    :: occupied_evals
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)    :: mo_localized, occupied_orbs
-      TYPE(cp_fm_type), DIMENSION(:), POINTER        :: mo_coeff
-      TYPE(cp_logger_type), POINTER                  :: logger
-      TYPE(dft_control_type), POINTER                :: dft_control
-      TYPE(particle_list_type), POINTER              :: particles
-      TYPE(pw_c1d_gs_type)                           :: wf_g
-      TYPE(pw_env_type), POINTER                     :: pw_env
-      TYPE(pw_pool_type), POINTER                    :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type)                           :: wf_r
-      TYPE(qs_loc_env_type), POINTER                 :: qs_loc_env
-      TYPE(section_vals_type), POINTER               :: dft_section, input, loc_print_section, &
-                                                        loc_section, print_key
+      INTEGER                                            :: handle, ispin, output_unit
+      INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
+      LOGICAL                                            :: do_homo, do_mo_cubes, do_wannier_cubes, &
+                                                            p_loc
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_localized, occupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_c1d_gs_type)                               :: wf_g
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, loc_print_section, &
+                                                            loc_section, print_key
 
       CALL timeset(routineN, handle)
 

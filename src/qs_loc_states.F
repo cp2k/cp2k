@@ -84,8 +84,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info'
 
-      INTEGER                                            :: handle, ispin, max_moment, mystate, &
-                                                            ns, nspins, output_unit
+      INTEGER                                            :: handle, ispin, max_moment, mystate, ns, &
+                                                            nspins, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
       LOGICAL                                            :: com_nl, do_homo, do_mixed, magnetic, &
                                                             vel_reprs

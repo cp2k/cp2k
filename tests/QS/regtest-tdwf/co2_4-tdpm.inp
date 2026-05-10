@@ -31,6 +31,15 @@
       OPERATOR PIPEK
       OUT_ITER_EACH 1
       &PRINT
+        &LOCALIZED_MOMENTS
+          ADD_LAST NUMERIC
+          COMMON_ITERATION_LEVELS 5
+          COM_NL .TRUE.
+          FILENAME __STD_OUT__
+          MAGNETIC .TRUE.
+          MAX_MOMENT 1
+          VEL_REPRS .TRUE.
+        &END LOCALIZED_MOMENTS
         &WANNIER_CENTERS
           ADD_LAST NUMERIC
           COMMON_ITERATION_LEVELS 5
@@ -42,15 +51,6 @@
           COMMON_ITERATION_LEVELS 5
           FILENAME ""
         &END WANNIER_STATES
-        &LOCALIZED_MOMENTS
-          ADD_LAST NUMERIC
-          COMMON_ITERATION_LEVELS 5
-          FILENAME __STD_OUT__
-          MAX_MOMENT 1
-          MAGNETIC .TRUE.
-          VEL_REPRS .TRUE.
-          COM_NL .TRUE.
-        &END LOCALIZED_MOMENTS
       &END PRINT
     &END LOCALIZE
     &MGRID

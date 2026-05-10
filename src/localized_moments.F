@@ -27,9 +27,8 @@ MODULE localized_moments
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_readonly_block_p, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_readonly_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -50,6 +49,7 @@ MODULE localized_moments
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: use_mom_ref_com
    USE input_section_types,             ONLY: section_vals_type
+   USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -64,7 +64,6 @@ MODULE localized_moments
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE kg_environment_types,            ONLY: kg_environment_type
    USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_moments,                      ONLY: build_local_magmom_matrix,&
                                               build_local_moment_matrix,&
@@ -77,7 +76,6 @@ MODULE localized_moments
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -86,7 +84,7 @@ MODULE localized_moments
 
 ! *** public subroutines ***
 
-   PUBLIC :: calculate_kg_moments,&
+   PUBLIC :: calculate_kg_moments, &
              calculate_localized_moments
 
 ! *** body ***
@@ -113,19 +111,20 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: magnetic, vel_reprs, com_nl
       TYPE(section_vals_type), POINTER                   :: loc_print_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_localized_moments"
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_localized_moments'
 
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: mol_name
       INTEGER :: akind, first_atom, handle, i, iatom, idir, imo_im, imo_re, imol, iounit, iproc, &
-                 ispin, ix, iy, iz, l, last_atom, nao, natom, nm, nmom, nmols, nspins, ns, order, &
-                 rmom_vel_size
+         ispin, ix, iy, iz, l, last_atom, nao, natom, nm, nmols, nmom, ns, nspins, order, &
+         rmom_vel_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: states
       INTEGER, DIMENSION(2)                              :: nstates
       LOGICAL                                            :: do_rtp, floating, ghost
       REAL(dp)                                           :: charge, dd, im_part, re_part, zwfc
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: mmom, nlcom_rrv, nlcom_rrv_vrr, nlcom_rv, nlcom_rvr, &
-                                             nlcom_rxrv, qupole_der, rmom_vel
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, nlcom_rrv, nlcom_rrv_vrr, &
+                                                            nlcom_rv, nlcom_rvr, nlcom_rxrv, &
+                                                            qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       REAL(dp), DIMENSION(:), POINTER                    :: ref_point
@@ -525,7 +524,7 @@ CONTAINS
       CALL cp_cfm_release(o_cfm)
 
    END SUBROUTINE trace_op_in_mo
-   
+
 ! **************************************************************************************************
 !> \brief Calculates multipole moments per molecule from the Kim-Gordon AO density matrix
 !> \param qs_env ...
@@ -540,17 +539,20 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr, max_moment
       LOGICAL, INTENT(IN)                                :: magnetic, vel_reprs, com_nl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_kg_moments"
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kg_moments'
 
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: mol_name
-      INTEGER :: akind, first_atom, handle, i, iatom, idir, imol, ispin, ix, iy, iz, &
-                 jatom, l, last_atom, natom, nm, nmol, nmom, nspins, rmom_vel_size
+      INTEGER                                            :: akind, first_atom, handle, i, iatom, &
+                                                            idir, imol, ispin, ix, iy, iz, jatom, &
+                                                            l, last_atom, natom, nm, nmol, nmom, &
+                                                            nspins, rmom_vel_size
       INTEGER, DIMENSION(:), POINTER                     :: atom_to_molecule
       LOGICAL                                            :: do_rtp, floating, found, ghost
       REAL(dp)                                           :: charge, dd, factor
-      REAL(dp), ALLOCATABLE, DIMENSION(:) :: mmom, nlcom_rrv, nlcom_rrv_vrr, nlcom_rv, &
-                                             nlcom_rvr, nlcom_rxrv, qupole_der, rmom_vel
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, nlcom_rrv, nlcom_rrv_vrr, &
+                                                            nlcom_rv, nlcom_rvr, nlcom_rxrv, &
+                                                            qupole_der, rmom_vel
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       REAL(dp), DIMENSION(:), POINTER                    :: ref_point
@@ -558,8 +560,8 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, &
-                                                            momentum, rho_ao, rho_ao_im
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, momentum, &
+                                                            rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_der
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
