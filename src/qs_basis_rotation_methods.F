@@ -101,8 +101,7 @@ CONTAINS
                   END DO
                   IF (ira > 0) THEN
                      IF (.NOT. ASSOCIATED(kpoints%kind_rotmat(ira, 1)%rmat)) THEN
-                        rotmat(1:3, 1:3) = MATMUL(cell%h_inv, &
-                                                  MATMUL(kpsym%rot(:, :, irot), cell%hmat))
+                        rotmat(1:3, 1:3) = kpsym%rot(1:3, 1:3, irot)
                         CALL calculate_rotmat(orbrot, rotmat, lval)
                         IF (dft_control%qs_control%method_id == do_method_dftb) THEN
                            DO ikind = 1, nkind

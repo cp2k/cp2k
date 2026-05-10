@@ -89,9 +89,10 @@ MODULE force_env_methods
                                               globenv_retain
    USE grrm_utils,                      ONLY: write_grrm
    USE input_constants,                 ONLY: &
-        debug_run, dfet, dmfet, mix_cdft, mix_coupled, mix_generic, mix_linear_combination, &
-        mix_minimum, mix_restrained, mixed_cdft_serial, use_bazant_eip, use_lenosky_eip, &
-        use_stillinger_weber_eip, use_tersoff_eip
+        cell_opt_run, debug_run, dfet, dmfet, driver_run, ehrenfest, geo_opt_run, mix_cdft, &
+        mix_coupled, mix_generic, mix_linear_combination, mix_minimum, mix_restrained, &
+        mixed_cdft_serial, mol_dyn_run, use_bazant_eip, use_lenosky_eip, use_stillinger_weber_eip, &
+        use_tersoff_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
@@ -107,6 +108,7 @@ MODULE force_env_methods
                                               kpoint_initialize_mos
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_reset_initialization,&
+                                              kpoint_sym_type,&
                                               kpoint_type,&
                                               set_kpoint_info
    USE machine,                         ONLY: m_memory
@@ -277,7 +279,7 @@ CONTAINS
          CASE (use_fist_force)
             CALL fist_calc_energy_force(force_env%fist_env)
          CASE (use_qs_force)
-            CALL force_env_refresh_debug_kpoints(force_env, fd_energy=.NOT. calculate_forces)
+            CALL force_env_refresh_kpoint_symmetry(force_env, fd_energy=.NOT. calculate_forces)
             CALL qs_calc_energy_force(force_env%qs_env, calculate_forces, energy_consistency, linres_run)
          CASE (use_pwdft_force)
             IF (virial%pv_availability .AND. calculate_stress_tensor) THEN
@@ -530,20 +532,21 @@ CONTAINS
    END SUBROUTINE force_env_calc_energy_force
 
 ! **************************************************************************************************
-!> \brief Rebuild k-point data for DEBUG finite-difference geometries.
-!>        Atomic k-point symmetry may change when a single atom or cell element is displaced.
+!> \brief Rebuild k-point data for geometries whose atomic symmetry can change.
+!>        Atomic k-point symmetry may change when atoms or cell vectors move.
 !> \param force_env ...
 !> \param fd_energy ...
 ! **************************************************************************************************
-   SUBROUTINE force_env_refresh_debug_kpoints(force_env, fd_energy)
+   SUBROUTINE force_env_refresh_kpoint_symmetry(force_env, fd_energy)
 
       TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: fd_energy
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme
-      LOGICAL :: debug_inversion_only, do_kpoints, full_grid, input_full_grid, &
-         input_inversion_symmetry_only, inversion_symmetry_only, kpoint_symmetry, use_full_grid, &
-         use_inversion_symmetry_only
+      INTEGER                                            :: run_type_id
+      LOGICAL :: debug_full_kpoint_symmetry, debug_inversion_only, do_kpoints, dynamic_symmetry, &
+         full_grid, input_full_grid, input_inversion_symmetry_only, inversion_symmetry_only, &
+         kpoint_symmetry, moving_geometry, use_full_grid, use_inversion_symmetry_only
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -561,7 +564,15 @@ CONTAINS
       NULLIFY (globenv)
       CALL force_env_get(force_env, globenv=globenv)
       IF (.NOT. ASSOCIATED(globenv)) RETURN
-      IF (globenv%run_type_id /= debug_run) RETURN
+      run_type_id = globenv%run_type_id
+      moving_geometry = .FALSE.
+      SELECT CASE (run_type_id)
+      CASE (cell_opt_run, driver_run, ehrenfest, geo_opt_run, mol_dyn_run)
+         moving_geometry = .TRUE.
+      CASE DEFAULT
+         moving_geometry = .FALSE.
+      END SELECT
+      IF (run_type_id /= debug_run .AND. .NOT. moving_geometry) RETURN
 
       NULLIFY (blacs_env, cell, dft_control, input, kpoint_section, kpoints, mos, para_env, &
                particle_set, wf_history)
@@ -585,19 +596,28 @@ CONTAINS
 
       input_full_grid = full_grid
       input_inversion_symmetry_only = inversion_symmetry_only
+      debug_full_kpoint_symmetry = .FALSE.
       IF (ASSOCIATED(input)) THEN
          kpoint_section => section_vals_get_subs_vals(input, "DFT%KPOINTS")
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=input_full_grid)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=input_inversion_symmetry_only)
+         CALL section_vals_val_get(kpoint_section, "DEBUG_FULL_KPOINT_SYMMETRY", &
+                                   l_val=debug_full_kpoint_symmetry)
       END IF
-      ! DEBUG finite differences must not reuse atomic symmetry from another geometry.
-      ! Rebuild the k-point symmetry for each DEBUG point. Keep numerical finite-difference
-      ! energies and DFTB DEBUG checks on the established inversion/time-reversal reduction.
-      debug_inversion_only = fd_energy .OR. dft_control%qs_control%dftb
+      ! Moving geometries and DEBUG finite differences must not reuse atomic symmetry from
+      ! another geometry. Rebuild the k-point symmetry from the current cell and positions.
+      ! Keep numerical finite-difference energies and DFTB DEBUG checks on the established
+      ! inversion/time-reversal reduction.
+      debug_inversion_only = run_type_id == debug_run .AND. .NOT. debug_full_kpoint_symmetry .AND. &
+                             (fd_energy .OR. dft_control%qs_control%dftb)
       use_full_grid = input_full_grid
       use_inversion_symmetry_only = (input_inversion_symmetry_only .OR. debug_inversion_only) .AND. &
                                     (.NOT. use_full_grid)
+      dynamic_symmetry = kpoint_symmetry .AND. .NOT. use_full_grid .AND. &
+                         .NOT. use_inversion_symmetry_only
+      IF (moving_geometry .AND. .NOT. dynamic_symmetry) RETURN
+      IF (moving_geometry .AND. .NOT. kpoint_has_nontrivial_atomic_symmetry(kpoints)) RETURN
       CALL set_kpoint_info(kpoints, full_grid=use_full_grid, &
                            inversion_symmetry_only=use_inversion_symmetry_only)
 
@@ -608,7 +628,56 @@ CONTAINS
       CALL wfi_clear(wf_history)
       CALL qs_basis_rotation(force_env%qs_env, kpoints)
 
-   END SUBROUTINE force_env_refresh_debug_kpoints
+   END SUBROUTINE force_env_refresh_kpoint_symmetry
+
+! **************************************************************************************************
+!> \brief Return whether the current reduced mesh uses nontrivial atomic symmetry operations.
+!> \param kpoints ...
+!> \return has_symmetry
+! **************************************************************************************************
+   FUNCTION kpoint_has_nontrivial_atomic_symmetry(kpoints) RESULT(has_symmetry)
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL                                            :: has_symmetry
+
+      INTEGER                                            :: iatom, ik, isym, natom
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye3
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      has_symmetry = .FALSE.
+      IF (.NOT. ASSOCIATED(kpoints)) RETURN
+      IF (.NOT. ASSOCIATED(kpoints%kp_sym)) RETURN
+
+      eye3 = 0.0_dp
+      eye3(1, 1) = 1.0_dp
+      eye3(2, 2) = 1.0_dp
+      eye3(3, 3) = 1.0_dp
+
+      DO ik = 1, kpoints%nkp
+         kpsym => kpoints%kp_sym(ik)%kpoint_sym
+         IF (.NOT. ASSOCIATED(kpsym)) CYCLE
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%rot)) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%f0)) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%fcell)) CYCLE
+
+         natom = SIZE(kpsym%f0, 1)
+         DO isym = 1, SIZE(kpsym%rot, 3)
+            IF (MAXVAL(ABS(kpsym%rot(1:3, 1:3, isym) - eye3(1:3, 1:3))) > 1.e-12_dp .OR. &
+                ANY(kpsym%fcell(1:3, 1:natom, isym) /= 0)) THEN
+               has_symmetry = .TRUE.
+               RETURN
+            END IF
+            DO iatom = 1, natom
+               IF (kpsym%f0(iatom, isym) /= iatom) THEN
+                  has_symmetry = .TRUE.
+                  RETURN
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END FUNCTION kpoint_has_nontrivial_atomic_symmetry
 
 ! **************************************************************************************************
 !> \brief Evaluates the stress tensor and pressure numerically

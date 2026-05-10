@@ -778,9 +778,10 @@ CONTAINS
          END SELECT
 
          CALL section_vals_val_get(kpoint_section, "GAMMA_CENTERED", l_val=kpoint%gamma_centered)
-         IF (kpoint%gamma_centered .AND. kpoint%kp_scheme /= "MONKHORST-PACK") THEN
+         IF (kpoint%gamma_centered .AND. kpoint%kp_scheme /= "MONKHORST-PACK" .AND. &
+             kpoint%kp_scheme /= "MACDONALD") THEN
             CALL cp_abort(__LOCATION__, &
-                          "KPOINTS%GAMMA_CENTERED is only supported with SCHEME MONKHORST-PACK")
+                          "KPOINTS%GAMMA_CENTERED is only supported with SCHEME MONKHORST-PACK or MACDONALD")
          END IF
 
          CALL section_vals_val_get(kpoint_section, "SYMMETRY", l_val=kpoint%symmetry)
@@ -889,6 +890,9 @@ CONTAINS
             WRITE (punit, '(A,T71,A10)') ' BRILLOUIN| K-point scheme ', ' MacDonald'
             WRITE (punit, '(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kpoint%nkp_grid
             WRITE (punit, '(A,T51,3F10.4)') ' BRILLOUIN| K-Point shift', kpoint%kp_shift
+            IF (kpoint%gamma_centered) THEN
+               WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Gamma-centered k-point mesh', ' ON'
+            END IF
             WRITE (punit, '(A,T66,G15.6)') &
                ' BRILLOUIN| K-point symmetry accuracy', kpoint%eps_geo
          CASE ("GENERAL")
