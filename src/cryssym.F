@@ -351,11 +351,6 @@ CONTAINS
             CALL inversion_symm(xkp, wkp, csym%kplink(1, :))
          ELSE
             ! use symmetry library to reduce k-points
-            IF (SUM(ABS(csym%wvk0)) /= 0.0_dp) THEN
-               CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
-                             "possible without symmetrization.")
-            END IF
-
             CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
             IF (spglib_backend) THEN
                CALL kp_symmetry_spglib(csym, xkp, wkp, kpop)
@@ -370,10 +365,6 @@ CONTAINS
          IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only .AND. &
              orthorhombic_cell) THEN
             ! fall back to the K290 atom mapping for simple cells when SPGLIB is not linked
-            IF (SUM(ABS(csym%wvk0)) /= 0.0_dp) THEN
-               CALL cp_abort(__LOCATION__, "MacDonald shifted k-point meshes are only "// &
-                             "possible without symmetrization.")
-            END IF
             CALL kp_symmetry(csym, xkp, wkp, kpop, use_spglib_reduction=.FALSE.)
          ELSE IF (csym%istriz /= 1 .AND. fullmesh) THEN
             ! full kpoint mesh is used
@@ -485,7 +476,9 @@ CONTAINS
       iq2 = csym%mesh(2)
       iq3 = csym%mesh(3)
       nkpoint = 10*iq1*iq2*iq3
-      wvk0 = csym%wvk0
+      ! K290 is used here to identify the atomic symmetry operations. The actual
+      ! shifted k-point mesh is reduced afterwards by reduce_kpoint_mesh.
+      wvk0 = 0.0_dp
       istriz = csym%istriz
       IF (PRESENT(use_spglib_reduction)) THEN
          spglib_reduction = use_spglib_reduction
@@ -619,7 +612,7 @@ CONTAINS
 
       INTEGER                                            :: iop, jop, pass
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: perm
-      INTEGER, DIMENSION(3, 3)                           :: eye, irot
+      INTEGER, DIMENSION(3, 3)                           :: eye, frot, irot
       LOGICAL                                            :: duplicate, identity, valid, &
                                                             zero_translation
       REAL(KIND=dp)                                      :: eps
@@ -655,7 +648,8 @@ CONTAINS
       DO pass = 1, 4
          DO iop = 1, csym%n_operations
             irot(1:3, 1:3) = csym%rotations(1:3, 1:3, iop)
-            identity = ALL(irot == eye)
+            frot(1:3, 1:3) = TRANSPOSE(irot(1:3, 1:3))
+            identity = ALL(frot == eye)
             zero_translation = ALL(ABS(csym%translations(1:3, iop) - &
                                        ANINT(csym%translations(1:3, iop))) <= eps)
             IF (pass == 1 .AND. (.NOT. identity .OR. .NOT. zero_translation)) CYCLE
@@ -665,7 +659,7 @@ CONTAINS
 
             duplicate = .FALSE.
             DO jop = 1, nrot
-               IF (ALL(irot == srot(:, :, jop)) .AND. &
+               IF (ALL(frot == srot(:, :, jop)) .AND. &
                    ALL(ABS(csym%translations(1:3, iop) - csym%vt(1:3, jop) - &
                            ANINT(csym%translations(1:3, iop) - csym%vt(1:3, jop))) <= eps)) THEN
                   duplicate = .TRUE.
@@ -674,13 +668,13 @@ CONTAINS
             END DO
             IF (duplicate) CYCLE
 
-            CALL spglib_atom_permutation(csym, irot, csym%translations(:, iop), perm, valid)
+            CALL spglib_atom_permutation(csym, frot, csym%translations(:, iop), perm, valid)
             IF (.NOT. valid) CYCLE
 
             nrot = nrot + 1
 
-            srot(1:3, 1:3, nrot) = irot(1:3, 1:3)
-            rfrac(1:3, 1:3) = REAL(irot(1:3, 1:3), KIND=dp)
+            srot(1:3, 1:3, nrot) = frot(1:3, 1:3)
+            rfrac(1:3, 1:3) = REAL(frot(1:3, 1:3), KIND=dp)
             csym%rt(1:3, 1:3, nrot) = MATMUL(csym%hmat, MATMUL(rfrac, h_inv))
             csym%vt(1:3, nrot) = csym%translations(1:3, iop)
             csym%ibrot(nrot) = nrot
@@ -706,7 +700,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nrot
 
       INTEGER                                            :: iop, jop, pass
-      INTEGER, DIMENSION(3, 3)                           :: eye, irot
+      INTEGER, DIMENSION(3, 3)                           :: eye, frot, irot
       LOGICAL                                            :: duplicate, identity
 
       CPASSERT(csym%symlib)
@@ -722,13 +716,14 @@ CONTAINS
       DO pass = 1, 2
          DO iop = 1, csym%n_operations
             irot(1:3, 1:3) = csym%rotations(1:3, 1:3, iop)
-            identity = ALL(irot == eye)
+            frot(1:3, 1:3) = TRANSPOSE(irot(1:3, 1:3))
+            identity = ALL(frot == eye)
             IF (pass == 1 .AND. .NOT. identity) CYCLE
             IF (pass == 2 .AND. identity) CYCLE
 
             duplicate = .FALSE.
             DO jop = 1, nrot
-               IF (ALL(irot == srot(:, :, jop))) THEN
+               IF (ALL(frot == srot(:, :, jop))) THEN
                   duplicate = .TRUE.
                   EXIT
                END IF
@@ -736,7 +731,7 @@ CONTAINS
             IF (duplicate) CYCLE
 
             nrot = nrot + 1
-            srot(1:3, 1:3, nrot) = irot(1:3, 1:3)
+            srot(1:3, 1:3, nrot) = frot(1:3, 1:3)
          END DO
       END DO
 

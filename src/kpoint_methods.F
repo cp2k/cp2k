@@ -1762,9 +1762,11 @@ CONTAINS
                                                             jcol, jkind, jp, jrow, mynode, natom, &
                                                             numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
-      LOGICAL                                            :: dorot, found, has_phase, perm, trans
+      LOGICAL                                            :: dorot, found, has_phase, perm, &
+                                                            self_inverse, trans
       REAL(KIND=dp)                                      :: arg, coskl, dr, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye3, rot2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
                                                             srblock
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -1773,6 +1775,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       natom = SIZE(f0)
+      eye3 = 0.0_dp
+      eye3(1, 1) = 1.0_dp
+      eye3(2, 2) = 1.0_dp
+      eye3(3, 3) = 1.0_dp
+      rot2 = MATMUL(rot, rot)
+      self_inverse = MAXVAL(ABS(rot2 - eye3)) < 1.e-8_dp
       perm = .FALSE.
       DO iatom = 1, natom
          IF (f0(iatom) == iatom) CYCLE
@@ -1826,9 +1834,13 @@ CONTAINS
          kroti => kmat(ikind)%rmat
          krotj => kmat(jkind)%rmat
 
-         shift = fcell(1:3, icol) - fcell(1:3, irow)
+         IF (self_inverse) THEN
+            shift = fcell(1:3, icol) - fcell(1:3, irow)
+         ELSE
+            shift = fcell(1:3, irow) - fcell(1:3, icol)
+         END IF
          arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
-         ! The Bloch phase depends only on the mapped atom-cell shifts and the target k-point.
+         ! Self-inverse and higher-order rotations use opposite stored cell-shift conventions.
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
          IF (real_only) THEN

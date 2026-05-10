@@ -90,13 +90,12 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        cell_opt_run, debug_run, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, &
-        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
-        do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, driver_run, ehrenfest, &
-        general_roks, geo_opt_run, hden_atomic, kg_tnadd_embed_ri, linear_response_run, &
-        mol_dyn_run, rel_none, rel_trans_atom, smear_fermi_dirac, tblite_scc_mixer_tblite, &
+        debug_run, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, do_method_am1, &
+        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
+        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
+        do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, hden_atomic, kg_tnadd_embed_ri, &
+        linear_response_run, rel_none, rel_trans_atom, smear_fermi_dirac, tblite_scc_mixer_tblite, &
         vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
         wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
         wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
@@ -275,10 +274,9 @@ CONTAINS
       LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, &
          do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, do_ec_hfx, &
          do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, do_ri_mp2, &
-         do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_unpreserved_motion, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, &
-         kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, &
-         use_ref_cell
+         do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
+         do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, kpoint_verbose, mp2_present, &
+         my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -427,16 +425,6 @@ CONTAINS
          END IF
          do_linear_response = .FALSE.
          IF (PRESENT(globenv)) do_linear_response = globenv%run_type_id == linear_response_run
-         do_unpreserved_motion = .FALSE.
-         IF (PRESENT(globenv)) THEN
-            IF (PRESENT(root_section)) THEN
-               do_unpreserved_motion = moving_geometry_without_kpoint_symmetry_revalidation( &
-                                       globenv%run_type_id, root_section)
-            ELSE
-               do_unpreserved_motion = moving_geometry_without_kpoint_symmetry_revalidation( &
-                                       globenv%run_type_id)
-            END IF
-         END IF
          do_debug_fdiff = .FALSE.
          IF (PRESENT(globenv)) do_debug_fdiff = globenv%run_type_id == debug_run
          IF (do_debug_fdiff .AND. PRESENT(root_section)) THEN
@@ -478,7 +466,7 @@ CONTAINS
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-                                                          do_xtb_tblite, do_unpreserved_motion, .FALSE.)
+                                                          do_xtb_tblite, .FALSE.)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
       END IF
 
@@ -497,8 +485,7 @@ CONTAINS
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-                                                          do_xtb_tblite, do_unpreserved_motion, &
-                                                          do_dftb_scc_high_l, &
+                                                          do_xtb_tblite, do_dftb_scc_high_l, &
                                                           restricted=dftb_kpoint_sym_restricted)
          final_kpoint_reinit = dftb_kpoint_sym_restricted .OR. kpoint_verbose
          IF (final_kpoint_reinit) THEN
@@ -723,7 +710,6 @@ CONTAINS
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
 !> \param do_xtb_tblite ...
-!> \param do_unpreserved_motion ...
 !> \param do_dftb_scc_high_l ...
 !> \param restricted ...
 ! **************************************************************************************************
@@ -732,13 +718,12 @@ CONTAINS
                                                           do_debug_fdiff, &
                                                           do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                           do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                          do_unpreserved_motion, do_dftb_scc_high_l, &
-                                                          restricted)
+                                                          do_dftb_scc_high_l, restricted)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
          do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_unpreserved_motion, do_dftb_scc_high_l
+         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_dftb_scc_high_l
       LOGICAL, INTENT(OUT), OPTIONAL                     :: restricted
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
@@ -783,7 +768,7 @@ CONTAINS
                                                          do_debug_fdiff, &
                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                          do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                         do_unpreserved_motion, do_dftb_scc_high_l)
+                                                         do_dftb_scc_high_l)
       IF (LEN_TRIM(reason) == 0) RETURN
 
       CALL cp_warn(__LOCATION__, &
@@ -859,7 +844,6 @@ CONTAINS
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
 !> \param do_xtb_tblite ...
-!> \param do_unpreserved_motion ...
 !> \param do_dftb_scc_high_l ...
 !> \return reason
 ! **************************************************************************************************
@@ -867,11 +851,11 @@ CONTAINS
                                                       do_active_space, do_linear_response, do_debug_fdiff, &
                                                       do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                       do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                      do_unpreserved_motion, do_dftb_scc_high_l) RESULT(reason)
+                                                      do_dftb_scc_high_l) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
          do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_unpreserved_motion, do_dftb_scc_high_l
+         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_dftb_scc_high_l
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
@@ -893,14 +877,10 @@ CONTAINS
       END SELECT
 
       IF (LEN_TRIM(reason) > 0) RETURN
-      IF (do_unpreserved_motion) THEN
-         reason = "geometry-changing runs without preserved space-group symmetry"
-      ELSE IF (do_bse) THEN
+      IF (do_bse) THEN
          reason = "BSE"
       ELSE IF (do_gw) THEN
          reason = "GW"
-      ELSE IF (do_hfx .OR. do_exx) THEN
-         reason = "HFX/HF"
       ELSE IF (do_tddfpt) THEN
          reason = "TDDFPT/TDDFT"
       ELSE IF (do_active_space) THEN
@@ -918,51 +898,6 @@ CONTAINS
       END IF
 
    END FUNCTION unsupported_atomic_kpoint_symmetry_reason
-
-! **************************************************************************************************
-!> \brief Return whether atomic k-point symmetry would have to be revalidated during motion
-!> \param run_type_id ...
-!> \param root_section ...
-!> \return unpreserved
-! **************************************************************************************************
-   FUNCTION moving_geometry_without_kpoint_symmetry_revalidation(run_type_id, root_section) RESULT(unpreserved)
-      INTEGER, INTENT(IN)                                :: run_type_id
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
-      LOGICAL                                            :: unpreserved
-
-      LOGICAL                                            :: keep_space_group
-      TYPE(section_vals_type), POINTER                   :: motion_section
-
-      NULLIFY (motion_section)
-      unpreserved = .FALSE.
-      keep_space_group = .FALSE.
-
-      SELECT CASE (run_type_id)
-      CASE (cell_opt_run)
-         unpreserved = .TRUE.
-         IF (PRESENT(root_section)) THEN
-            motion_section => section_vals_get_subs_vals(root_section, "MOTION%CELL_OPT")
-            IF (ASSOCIATED(motion_section)) THEN
-               CALL section_vals_val_get(motion_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
-               unpreserved = .NOT. keep_space_group
-            END IF
-         END IF
-      CASE (geo_opt_run)
-         unpreserved = .TRUE.
-         IF (PRESENT(root_section)) THEN
-            motion_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
-            IF (ASSOCIATED(motion_section)) THEN
-               CALL section_vals_val_get(motion_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
-               unpreserved = .NOT. keep_space_group
-            END IF
-         END IF
-      CASE (mol_dyn_run, ehrenfest, driver_run)
-         unpreserved = .TRUE.
-      CASE DEFAULT
-         unpreserved = .FALSE.
-      END SELECT
-
-   END FUNCTION moving_geometry_without_kpoint_symmetry_revalidation
 
 ! **************************************************************************************************
 !> \brief Return whether the DFTB kind set contains d orbitals

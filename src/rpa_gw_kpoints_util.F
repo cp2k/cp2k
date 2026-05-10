@@ -1517,9 +1517,12 @@ CONTAINS
 !> \param mp_grid ...
 !> \param kpgeneral ...
 !> \param with_xc_terms ...
+!> \param kp_shift ...
+!> \param gamma_centered ...
 ! **************************************************************************************************
    SUBROUTINE create_kp_and_calc_kp_orbitals(qs_env, kpoints, scheme, &
-                                             group_size_ext, mp_grid, kpgeneral, with_xc_terms)
+                                             group_size_ext, mp_grid, kpgeneral, with_xc_terms, &
+                                             kp_shift, gamma_centered)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1529,6 +1532,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: kpgeneral
       LOGICAL, OPTIONAL                                  :: with_xc_terms
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: kp_shift
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gamma_centered
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kp_and_calc_kp_orbitals'
 
@@ -1566,7 +1571,8 @@ CONTAINS
 
       ! get kpoints
       CALL calculate_kpoints_for_bs(kpoints, scheme, kpgeneral=kpgeneral, mp_grid=mp_grid, &
-                                    group_size_ext=group_size_ext)
+                                    group_size_ext=group_size_ext, kp_shift=kp_shift, &
+                                    gamma_centered=gamma_centered)
 
       CALL kpoint_env_initialize(kpoints, para_env, blacs_env)
 
