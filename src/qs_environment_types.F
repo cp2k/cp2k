@@ -523,8 +523,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, &
                          lri_env, lri_density, exstate_env, ec_env, harris_env, dispersion_env, gcp_env, vee, &
                          rho_external, external_vxc, mask, mp2_env, bs_env, kg_env, &
-                         WannierCentres, atprop, ls_scf_env, &
-                         do_transport, transport_env, v_hartree_rspace, &
+                         WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
                          eeq, rhs, do_rixs, tb_tblite)
@@ -1102,8 +1101,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
-                         kpoints, WannierCentres, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, &
+                         kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, do_rixs, tb_tblite)
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
@@ -1672,10 +1670,10 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
-      ! Resp charges
-      IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
       ! EEQ charges
       IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
+      ! Resp chargeqq
+      IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
       ! tblite
       IF (ASSOCIATED(qs_env%tb_tblite)) THEN

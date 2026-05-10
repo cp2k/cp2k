@@ -137,7 +137,7 @@ CONTAINS
 !>       The centers files is appended if already exists
 !> \param method indicates localization algorithm
 !> \param qs_loc_env new environment for the localization calculations
-!> \param vectors ...
+!> \param vectors selected mos to be localized
 !> \param op_sm_set sparse matrices containing the integrals of the kind <mi e{iGr} nu>
 !> \param zij_fm_set set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
 !>                    as defined by Silvestrelli et al

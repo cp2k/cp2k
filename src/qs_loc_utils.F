@@ -20,9 +20,6 @@ MODULE qs_loc_utils
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_p_type,&
-                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
@@ -251,7 +248,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: complex_moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: moloc_coeff
       TYPE(cp_fm_type), POINTER                          :: mat_ptr, mo_coeff
@@ -263,7 +259,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mos, matrix_s, moloc_coeff, complex_moloc_coeff, particle_set, para_env, cell, &
+      NULLIFY (mos, matrix_s, moloc_coeff, particle_set, para_env, cell, &
                local_molecules, occupations, mat_ptr)
       IF (PRESENT(do_localize)) qs_loc_env%do_localize = do_localize
       IF (qs_loc_env%do_localize) THEN
@@ -278,7 +274,6 @@ CONTAINS
             l_spin = myspin
          END IF
          IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
-            ALLOCATE (complex_moloc_coeff(s_spin:l_spin))
             ALLOCATE (moloc_coeff(s_spin:s_spin + 2*(l_spin - s_spin) + 1))
          ELSE
             ALLOCATE (moloc_coeff(s_spin:l_spin))
@@ -290,8 +285,6 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
             IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
-               ALLOCATE (complex_moloc_coeff(ispin)%matrix)
-               CALL cp_cfm_create(complex_moloc_coeff(ispin)%matrix, tmp_fm_struct)
                CALL cp_fm_create(moloc_coeff(2*ispin - 1), tmp_fm_struct)
                CALL cp_fm_create(moloc_coeff(2*ispin), tmp_fm_struct)
             ELSE
@@ -369,7 +362,6 @@ CONTAINS
                IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
                   CALL cp_fm_to_fm(loc_coeff(2*ispin - 1), moloc_coeff(2*ispin - 1))
                   CALL cp_fm_to_fm(loc_coeff(2*ispin), moloc_coeff(2*ispin))
-                  CALL cp_fm_to_cfm(mat_ptr, loc_coeff(2*ispin), complex_moloc_coeff(ispin)%matrix)
                ELSE
                   CALL cp_fm_to_fm(mat_ptr, moloc_coeff(ispin), nmosub, lb, 1)
                END IF
@@ -389,8 +381,7 @@ CONTAINS
          IF (PRESENT(loc_coeff)) DEALLOCATE (mat_ptr)
 
          CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules, &
-                             moloc_coeff=moloc_coeff, complex_moloc_coeff=complex_moloc_coeff, &
-                             particle_set=particle_set, para_env=para_env, &
+                             moloc_coeff=moloc_coeff, particle_set=particle_set, para_env=para_env, &
                              localized_wfn_control=localized_wfn_control)
 
          ! Prepare the operators

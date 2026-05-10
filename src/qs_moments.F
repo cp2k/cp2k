@@ -2922,8 +2922,7 @@ CONTAINS
          calc_rrv_vrr = .TRUE.
       END IF
 
-      IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv &
-                 .OR. calc_rvr .OR. calc_rrv_vrr)) THEN
+      IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv .OR. calc_rvr .OR. calc_rrv_vrr)) THEN
          CALL timestop(handle)
          RETURN
       END IF
