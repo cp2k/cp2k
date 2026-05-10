@@ -859,6 +859,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
+      MARK_USED(do_hfx)
+      MARK_USED(do_exx)
       MARK_USED(do_debug_fdiff)
       MARK_USED(do_xtb_tblite)
 
