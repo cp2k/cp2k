@@ -167,6 +167,7 @@ MODULE kpoint_types
       CHARACTER(LEN=default_string_length)    :: kp_scheme = ""
       INTEGER, DIMENSION(3)                   :: nkp_grid = -1
       REAL(KIND=dp), DIMENSION(3)             :: kp_shift = 0.0_dp
+      LOGICAL                                 :: gamma_centered = .FALSE.
       LOGICAL                                 :: use_real_wfn = .FALSE.
       LOGICAL                                 :: symmetry = .FALSE.
       LOGICAL                                 :: full_grid = .FALSE.
@@ -231,6 +232,7 @@ CONTAINS
       kpoint%kp_scheme = ""
       kpoint%nkp_grid = 0
       kpoint%kp_shift = 0.0_dp
+      kpoint%gamma_centered = .FALSE.
       kpoint%symmetry = .FALSE.
       kpoint%verbose = .FALSE.
       kpoint%full_grid = .FALSE.
@@ -490,6 +492,7 @@ CONTAINS
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
 !> \param symmetry_backend k-point symmetry backend
 !> \param symmetry_reduction_method k-point symmetry reduction method
+!> \param gamma_centered ...
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
@@ -497,7 +500,7 @@ CONTAINS
                               para_env, blacs_env_all, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, kp_aux_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, index_to_cell, &
                               sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_backend, &
-                              symmetry_reduction_method)
+                              symmetry_reduction_method, gamma_centered)
       TYPE(kpoint_type), INTENT(IN)                      :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
@@ -527,10 +530,12 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: inversion_symmetry_only
       INTEGER, OPTIONAL                                  :: symmetry_backend, &
                                                             symmetry_reduction_method
+      LOGICAL, OPTIONAL                                  :: gamma_centered
 
       IF (PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
       IF (PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
       IF (PRESENT(kp_shift)) kp_shift = kpoint%kp_shift
+      IF (PRESENT(gamma_centered)) gamma_centered = kpoint%gamma_centered
       IF (PRESENT(symmetry)) symmetry = kpoint%symmetry
       IF (PRESENT(verbose)) verbose = kpoint%verbose
       IF (PRESENT(full_grid)) full_grid = kpoint%full_grid
@@ -602,6 +607,7 @@ CONTAINS
 !> \param inversion_symmetry_only reduce kpoints only by inversion symmetry
 !> \param symmetry_backend k-point symmetry backend
 !> \param symmetry_reduction_method k-point symmetry reduction method
+!> \param gamma_centered ...
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
@@ -609,7 +615,7 @@ CONTAINS
                               para_env, blacs_env_all, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, kp_aux_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, index_to_cell, &
                               sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_backend, &
-                              symmetry_reduction_method)
+                              symmetry_reduction_method, gamma_centered)
       TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
@@ -639,10 +645,12 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: inversion_symmetry_only
       INTEGER, OPTIONAL                                  :: symmetry_backend, &
                                                             symmetry_reduction_method
+      LOGICAL, OPTIONAL                                  :: gamma_centered
 
       IF (PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
       IF (PRESENT(nkp_grid)) kpoint%nkp_grid = nkp_grid
       IF (PRESENT(kp_shift)) kpoint%kp_shift = kp_shift
+      IF (PRESENT(gamma_centered)) kpoint%gamma_centered = gamma_centered
       IF (PRESENT(symmetry)) kpoint%symmetry = symmetry
       IF (PRESENT(verbose)) kpoint%verbose = verbose
       IF (PRESENT(full_grid)) kpoint%full_grid = full_grid
@@ -769,6 +777,12 @@ CONTAINS
             CPABORT("")
          END SELECT
 
+         CALL section_vals_val_get(kpoint_section, "GAMMA_CENTERED", l_val=kpoint%gamma_centered)
+         IF (kpoint%gamma_centered .AND. kpoint%kp_scheme /= "MONKHORST-PACK") THEN
+            CALL cp_abort(__LOCATION__, &
+                          "KPOINTS%GAMMA_CENTERED is only supported with SCHEME MONKHORST-PACK")
+         END IF
+
          CALL section_vals_val_get(kpoint_section, "SYMMETRY", l_val=kpoint%symmetry)
          CALL section_vals_val_get(kpoint_section, "WAVEFUNCTIONS", i_val=wfntype)
          CALL section_vals_val_get(kpoint_section, "VERBOSE", l_val=kpoint%verbose)
@@ -866,6 +880,9 @@ CONTAINS
          CASE ("MONKHORST-PACK")
             WRITE (punit, '(A,T61,A20)') ' BRILLOUIN| K-point scheme ', '      Monkhorst-Pack'
             WRITE (punit, '(A,T66,3I5)') ' BRILLOUIN| K-Point grid', kpoint%nkp_grid
+            IF (kpoint%gamma_centered) THEN
+               WRITE (punit, '(A,T76,A)') ' BRILLOUIN| Gamma-centered k-point mesh', ' ON'
+            END IF
             WRITE (punit, '(A,T66,G15.6)') &
                ' BRILLOUIN| K-point symmetry accuracy', kpoint%eps_geo
          CASE ("MACDONALD")

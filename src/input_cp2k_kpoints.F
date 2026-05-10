@@ -99,6 +99,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="GAMMA_CENTERED", &
+                          description="Generate a gamma-centered variant of the "// &
+                          "Monkhorst-Pack mesh. This shifts the original mesh so "// &
+                          "it can include Gamma point, and makes sense only when an "// &
+                          "even number of subdivisions is used.", &
+                          usage="GAMMA_CENTERED <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="KPOINT", &
                           description="Specify kpoint coordinates and weight. ", &
                           usage="KPOINT x  y  z  w", repeats=.TRUE., &
