@@ -173,8 +173,7 @@ MODULE qs_environment_types
 
    ! Public data types
 
-   PUBLIC :: qs_environment_type, &
-             persistent_states_type
+   PUBLIC :: qs_environment_type
 
    ! Public subroutines
 
@@ -183,10 +182,6 @@ MODULE qs_environment_types
              qs_env_release, &
              qs_env_part_release, &
              set_qs_env
-
-   TYPE persistent_states_type
-      INTEGER, POINTER, DIMENSION(:) :: states
-   END TYPE persistent_states_type
 
 ! **************************************************************************************************
 !> \param local_rho_set contains the atomic, compensations and core densities
@@ -310,8 +305,6 @@ MODULE qs_environment_types
       TYPE(post_scf_bandstructure_type), POINTER                                :: bs_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env => NULL()
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
-      TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierOrigins => NULL()
-      INTEGER, DIMENSION(:), POINTER                        :: wcs_ions_map => NULL()
       TYPE(molecular_scf_guess_env_type), POINTER           :: molecular_scf_guess_env => NULL()
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens => NULL()
@@ -327,7 +320,6 @@ MODULE qs_environment_types
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
       LOGICAL                                               :: surface_dipole_switch_off = .FALSE.
       TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_last_converged => NULL()
-      TYPE(persistent_states_type), POINTER, DIMENSION(:, :) :: persistent_states => NULL()
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
    END TYPE qs_environment_type
@@ -481,8 +473,6 @@ CONTAINS
 !> \param bs_env ...
 !> \param kg_env ...
 !> \param WannierCentres ...
-!> \param WannierOrigins ...
-!> \param wcs_ions_map ...
 !> \param atprop ...
 !> \param ls_scf_env ...
 !> \param do_transport ...
@@ -533,7 +523,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, &
                          lri_env, lri_density, exstate_env, ec_env, harris_env, dispersion_env, gcp_env, vee, &
                          rho_external, external_vxc, mask, mp2_env, bs_env, kg_env, &
-                         WannierCentres, WannierOrigins, wcs_ions_map, atprop, ls_scf_env, &
+                         WannierCentres, atprop, ls_scf_env, &
                          do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
@@ -660,8 +650,7 @@ CONTAINS
          POINTER                                         :: bs_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(wannier_centres_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: WannierCentres, WannierOrigins
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: wcs_ions_map
+         OPTIONAL, POINTER                               :: WannierCentres
       TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
       TYPE(ls_scf_env_type), OPTIONAL, POINTER           :: ls_scf_env
       LOGICAL, OPTIONAL                                  :: do_transport
@@ -801,8 +790,6 @@ CONTAINS
       IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential
       IF (PRESENT(efield)) efield => qs_env%efield
       IF (PRESENT(WannierCentres)) WannierCentres => qs_env%WannierCentres
-      IF (PRESENT(WannierOrigins)) WannierOrigins => qs_env%WannierOrigins
-      IF (PRESENT(wcs_ions_map)) wcs_ions_map => qs_env%wcs_ions_map
 
       CALL get_ks_env(qs_env%ks_env, &
                       v_hartree_rspace=v_hartree_rspace, &
@@ -972,9 +959,6 @@ CONTAINS
       NULLIFY (qs_env%bs_env)
       NULLIFY (qs_env%kg_env)
       NULLIFY (qs_env%WannierCentres)
-      NULLIFY (qs_env%WannierOrigins)
-      NULLIFY (qs_env%wcs_ions_map)
-      NULLIFY (qs_env%persistent_states)
 
       qs_env%outer_scf_ihistory = 0
       qs_env%broyden_adaptive_sigma = -1.0_dp
@@ -1089,8 +1073,6 @@ CONTAINS
 !> \param force ...
 !> \param kpoints ...
 !> \param WannierCentres ...
-!> \param WannierOrigins ...
-!> \param wcs_ions_map ...
 !> \param almo_scf_env ...
 !> \param gradient_history ...
 !> \param variable_history ...
@@ -1120,7 +1102,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
-                         kpoints, WannierCentres, WannierOrigins, wcs_ions_map, almo_scf_env, &
+                         kpoints, WannierCentres, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, do_rixs, tb_tblite)
 
@@ -1194,8 +1176,7 @@ CONTAINS
          POINTER                                         :: force
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(wannier_centres_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: WannierCentres, WannierOrigins
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: wcs_ions_map
+         OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
@@ -1430,8 +1411,6 @@ CONTAINS
       IF (PRESENT(dispersion_env)) qs_env%dispersion_env => dispersion_env
       IF (PRESENT(gcp_env)) qs_env%gcp_env => gcp_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
-      IF (PRESENT(WannierOrigins)) qs_env%WannierOrigins => WannierOrigins
-      IF (PRESENT(wcs_ions_map)) qs_env%wcs_ions_map => wcs_ions_map
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
 
       ! EEQ charges
@@ -1475,7 +1454,7 @@ CONTAINS
    SUBROUTINE qs_env_release(qs_env)
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
 
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i
 
       CALL cell_release(qs_env%super_cell)
       IF (ASSOCIATED(qs_env%mos)) THEN
@@ -1693,26 +1672,8 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
-      IF (ASSOCIATED(qs_env%WannierOrigins)) THEN
-         DO i = 1, SIZE(qs_env%WannierOrigins)
-            DEALLOCATE (qs_env%WannierOrigins(i)%WannierHamDiag)
-            DEALLOCATE (qs_env%WannierOrigins(i)%centres)
-         END DO
-         DEALLOCATE (qs_env%WannierOrigins)
-      END IF
-      IF (ASSOCIATED(qs_env%wcs_ions_map)) DEALLOCATE (qs_env%wcs_ions_map)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
-      IF (ASSOCIATED(qs_env%persistent_states)) THEN
-         DO i = 1, SIZE(qs_env%persistent_states, 1)
-            DO j = 1, SIZE(qs_env%persistent_states, 2)
-               IF (ASSOCIATED(qs_env%persistent_states(i, j)%states)) THEN
-                  DEALLOCATE (qs_env%persistent_states(i, j)%states)
-               END IF
-            END DO
-         END DO
-         DEALLOCATE (qs_env%persistent_states)
-      END IF
       ! EEQ charges
       IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
 

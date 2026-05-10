@@ -163,7 +163,7 @@ CONTAINS
                f2 = f2 + SQRT(C%local_data(i, p)**2 + f2_eps)
             END DO
          END DO
-         CALL C%matrix_struct%para_env%SUM(f2)
+         CALL C%matrix_struct%para_env%sum(f2)
          !write(*,*) 'qs_localize: f_2=',f2
          !-------------------------------------------------------------------
          ! compute the derivative of f_2
@@ -982,7 +982,7 @@ CONTAINS
             !WRITE(*,*) 'spread_ii', spread_ii
             sum_spread(istate) = spread_ii
          END DO
-         CALL c_zij(1)%matrix_struct%para_env%SUM(spread_ii)
+         CALL c_zij(1)%matrix_struct%para_env%sum(spread_ii)
          spread_sum = accurate_sum(sum_spread)
 
          IF (nextra > 0) THEN
@@ -1550,10 +1550,10 @@ CONTAINS
 !> \param tolerance ...
 !> \param value ...
 ! **************************************************************************************************
-   SUBROUTINE check_tolerance_new(weights, zij, tolerance, VALUE)
+   SUBROUTINE check_tolerance_new(weights, zij, tolerance, value)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :)
-      REAL(KIND=dp)                                      :: tolerance, VALUE
+      REAL(KIND=dp)                                      :: tolerance, value
 
       COMPLEX(KIND=dp)                                   :: kii, kij, kjj
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
@@ -1567,13 +1567,13 @@ CONTAINS
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, SIZE(zij, 2)))
-      VALUE = 0.0_dp
+      value = 0.0_dp
       DO idim = 1, SIZE(zij, 2)
          DO istate = 1, nrow_global
             CALL cp_fm_get_element(zij(1, idim), istate, istate, ra)
             CALL cp_fm_get_element(zij(2, idim), istate, istate, rb)
             diag(istate, idim) = CMPLX(ra, rb, dp)
-            VALUE = VALUE + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
+            value = value + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
          END DO
       END DO
       tolerance = 0.0_dp
@@ -1592,7 +1592,7 @@ CONTAINS
             tolerance = MAX(ABS(grad_ij), tolerance)
          END DO
       END DO
-      CALL zij(1, 1)%matrix_struct%para_env%MAX(tolerance)
+      CALL zij(1, 1)%matrix_struct%para_env%max(tolerance)
 
       DEALLOCATE (diag)
 
@@ -1638,7 +1638,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_emd
       REAL(KIND=dp)                                      :: eps_exp, limit_crazy_angle, maxeval, &
-                                                            norm, ra, rb, theta, tolerance, VALUE
+                                                            norm, ra, rb, theta, tolerance, value
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
       TYPE(cp_cfm_type)                                  :: cmat_A, cmat_R, cmat_t1
       TYPE(cp_fm_type)                                   :: mat_R, mat_t, mat_theta, mat_U
@@ -1767,11 +1767,11 @@ CONTAINS
          CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
          CALL cp_fm_to_fm(mat_t, mat_R)
 
-         CALL check_tolerance_new(weights, zij, tolerance, VALUE)
+         CALL check_tolerance_new(weights, zij, tolerance, value)
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A7,I6,1X,G20.15,E12.4,E12.4,E12.4)') &
-               "CRAZY| ", iterations, VALUE, tolerance, maxeval, limit_crazy_angle
+               "CRAZY| ", iterations, value, tolerance, maxeval, limit_crazy_angle
             CALL m_flush(unit_nr)
          END IF
          IF (tolerance < eps_localization .OR. iterations >= max_iter) EXIT
@@ -2912,7 +2912,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%MAX(gmax)
+         CALL para_env%max(gmax)
          tolerance = gmax
          IF (PRESENT(tol_out)) tol_out = tolerance
 
@@ -2925,7 +2925,7 @@ CONTAINS
                func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
             END DO
          END DO
-         CALL para_env%SUM(func)
+         CALL para_env%sum(func)
          t2 = m_walltime()
 
          IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN

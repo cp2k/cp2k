@@ -21,10 +21,6 @@
 ! **************************************************************************************************
 MODULE qs_mo_types
 
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
-                                              cp_cfm_to_cfm,&
-                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_init_p,&
                                               dbcsr_release_p,&
@@ -54,8 +50,6 @@ MODULE qs_mo_types
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b => NULL()
       ! we are using the dbcsr mo_coeff_b
       LOGICAL                                            :: use_mo_coeff_b = .FALSE.
-      ! used to store localized orbitals i.e. wannier functions
-      TYPE(cp_cfm_type), POINTER                        :: wannier_coeff => NULL()
       ! Number of molecular orbitals (# cols in mo_coeff)
       INTEGER                                            :: nmo = -1
       ! Number of atomic orbitals (# rows in mo_coeff)
@@ -138,10 +132,6 @@ CONTAINS
       !END IF
       !mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
-      IF (ASSOCIATED(mo_set_old%wannier_coeff)) THEN
-         CALL cp_cfm_to_cfm(mo_set_old%wannier_coeff, mo_set_new%wannier_coeff)
-      END IF
-
       mo_set_new%eigenvalues = mo_set_old%eigenvalues
 
       mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
@@ -187,12 +177,6 @@ CONTAINS
          CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
       END IF
       mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
-
-      NULLIFY (mo_set_new%wannier_coeff)
-      IF (ASSOCIATED(mo_set_old%wannier_coeff)) THEN
-         CALL cp_cfm_create(mo_set_new%wannier_coeff, mo_set_old%wannier_coeff%matrix_struct)
-         CALL cp_cfm_to_cfm(mo_set_old%wannier_coeff, mo_set_new%wannier_coeff)
-      END IF
 
       ALLOCATE (mo_set_new%eigenvalues(nmo))
       mo_set_new%eigenvalues = mo_set_old%eigenvalues
@@ -241,7 +225,6 @@ CONTAINS
       NULLIFY (mo_set%occupation_numbers)
       NULLIFY (mo_set%mo_coeff)
       NULLIFY (mo_set%mo_coeff_b)
-      NULLIFY (mo_set%wannier_coeff)
       mo_set%use_mo_coeff_b = .FALSE.
 
    END SUBROUTINE allocate_mo_set
@@ -385,7 +368,6 @@ CONTAINS
          NULLIFY (mo_set%mo_coeff)
       END IF
       IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
-      IF (ASSOCIATED(mo_set%wannier_coeff)) CALL cp_cfm_release(mo_set%wannier_coeff)
 
    END SUBROUTINE deallocate_mo_set
 
@@ -403,7 +385,6 @@ CONTAINS
 !> \param occupation_numbers ...
 !> \param mo_coeff ...
 !> \param mo_coeff_b ...
-!> \param wannier_coeff ...
 !> \param uniform_occupation ...
 !> \param kTS ...
 !> \param mu ...
@@ -413,7 +394,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_mo_set(mo_set, maxocc, homo, lfomo, nao, nelectron, n_el_f, nmo, &
-                         eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, wannier_coeff, &
+                         eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, &
                          uniform_occupation, kTS, mu, flexible_electron_count)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
@@ -424,7 +405,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eigenvalues, occupation_numbers
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_b
-      TYPE(cp_cfm_type), OPTIONAL, POINTER               :: wannier_coeff
       LOGICAL, INTENT(OUT), OPTIONAL                     :: uniform_occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kTS, mu, flexible_electron_count
 
@@ -441,7 +421,6 @@ CONTAINS
       END IF
       IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
       IF (PRESENT(mo_coeff_b)) mo_coeff_b => mo_set%mo_coeff_b
-      IF (PRESENT(wannier_coeff)) wannier_coeff => mo_set%wannier_coeff
       IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
       IF (PRESENT(kTS)) kTS = mo_set%kTS
       IF (PRESENT(mu)) mu = mo_set%mu
@@ -465,14 +444,13 @@ CONTAINS
 !> \param kTS ...
 !> \param mu ...
 !> \param flexible_electron_count ...
-!> \param wannier_coeff ...
 !> \date    22.04.2002
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_mo_set(mo_set, maxocc, homo, lfomo, nao, nelectron, n_el_f, nmo, &
                          eigenvalues, occupation_numbers, uniform_occupation, &
-                         kTS, mu, flexible_electron_count, wannier_coeff)
+                         kTS, mu, flexible_electron_count)
 
       TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: maxocc
@@ -482,7 +460,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eigenvalues, occupation_numbers
       LOGICAL, INTENT(IN), OPTIONAL                      :: uniform_occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS, mu, flexible_electron_count
-      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: wannier_coeff
 
       IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
       IF (PRESENT(homo)) mo_set%homo = homo
@@ -507,7 +484,6 @@ CONTAINS
       IF (PRESENT(kTS)) mo_set%kTS = kTS
       IF (PRESENT(mu)) mo_set%mu = mu
       IF (PRESENT(flexible_electron_count)) mo_set%flexible_electron_count = flexible_electron_count
-      IF (PRESENT(wannier_coeff)) mo_set%wannier_coeff = wannier_coeff
 
    END SUBROUTINE set_mo_set
 

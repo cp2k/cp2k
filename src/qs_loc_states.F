@@ -157,8 +157,6 @@ CONTAINS
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "MOLECULAR_STATES"), cp_p_file) .OR. &
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                  "WANNIER_MOMENTS"), cp_p_file) .OR. &
-                 BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "LOCALIZED_MOMENTS"), cp_p_file))) THEN
                CALL wfc_to_molecule(qs_loc_env, scenter, molecule_set, ispin, dft_control%nspins)
             END IF
@@ -167,7 +165,7 @@ CONTAINS
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                  "WANNIER_STATES"), cp_p_file) .OR. &
                 (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                  "WANNIER_MOMENTS"), cp_p_file))) THEN
+                                                  "LOCALIZED_MOMENTS"), cp_p_file))) THEN
                ns = SIZE(qs_loc_env%localized_wfn_control%loc_states, 1)
                IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
                   ALLOCATE (wc(ispin)%WannierHamDiag(ns))

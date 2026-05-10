@@ -13,7 +13,6 @@ MODULE qs_tddfpt2_soc
                                               cp_cfm_get_info,&
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_all,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type,&
@@ -1457,12 +1456,9 @@ CONTAINS
                                nrow_global=ntot, ncol_global=1)
 
       CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
-      CALL cp_cfm_create(dip_cfm, dip_struct)
-      CALL cp_cfm_set_all(dip_cfm, (0.0_dp, 0.0_dp))
-      CALL cp_cfm_create(work1_cfm, full_struct)
-      CALL cp_cfm_set_all(work1_cfm, (0.0_dp, 0.0_dp))
-      CALL cp_cfm_create(work2_cfm, full_struct)
-      CALL cp_cfm_set_all(work2_cfm, (0.0_dp, 0.0_dp))
+      CALL cp_cfm_create(dip_cfm, dip_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(work1_cfm, full_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(work2_cfm, full_struct, set_zero=.TRUE.)
 
       ALLOCATE (transdip(ntot, 1))
 

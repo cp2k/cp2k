@@ -331,13 +331,6 @@ CONTAINS
       !
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)
-      ! localized Wannier moments
-      CALL cp_print_key_section_create(subsection, __LOCATION__, name="WANNIER_MOMENTS", &
-                                       description="Section controlling the calculation of "// &
-                                       "Wannier-based electric moments", &
-                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
       !
       CALL cp_print_key_section_create(subsection, __LOCATION__, name="LOCALIZED_MOMENTS", &
                                        description="Section controlling the calculation of "// &

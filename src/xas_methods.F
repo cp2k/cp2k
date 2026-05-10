@@ -1263,8 +1263,7 @@ CONTAINS
       END IF
 
       CALL qs_print_cubes(qs_env, all_vectors, nstates, xas_control%list_cubes, &
-                          centers, print_key, my_mittle, &
-                          state0=istate0, file_position=my_pos)
+                          centers, print_key, my_mittle, state0=istate0, file_position=my_pos)
 
       DEALLOCATE (centers)
 

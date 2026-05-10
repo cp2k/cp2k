@@ -1907,7 +1907,7 @@ CONTAINS
             rmom(2:4, 2) = MATMUL(cell%hmat, ci)
          CASE (2)
             ! Quadrupole
-            CPABORT("Berry phase moments bigger than 1 not implemented")  ! looks like it is though?
+            CPABORT("Berry phase moments bigger than 1 not implemented")
             zij(:, :) = CMPLX(1._dp, 0._dp, dp)
             DO ia = 1, SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
