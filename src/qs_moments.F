@@ -2923,7 +2923,10 @@ CONTAINS
       END IF
 
       IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv &
-                 .OR. calc_rvr .OR. calc_rrv_vrr)) RETURN
+                 .OR. calc_rvr .OR. calc_rrv_vrr)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_all, sab_orb, sap_ppnl)
       CALL get_qs_env(qs_env, &

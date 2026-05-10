@@ -241,6 +241,7 @@ registry["E_G0W0_beta_gap_old"] = GenericMatcher(r"Beta GW direct gap", col=9)
 registry["E_G0W0_SOC_gap_old"] = GenericMatcher(r"GW+SOC bandgap (eV)", col=4)
 
 registry["Spread_Berry"] = GenericMatcher(r"Total Spread (Berry) :", col=6)
+registry["Spread"] = GenericMatcher(r"   Iteration: ", col=4)
 registry["M100"] = GenericMatcher(r"NVP |   1  2", col=8)
 registry["M104"] = GenericMatcher(r"Ground state stabilisation:", col=4)
 registry["M105"] = GenericMatcher(r"TDDFT+SOC", col=5)

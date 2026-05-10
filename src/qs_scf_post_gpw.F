@@ -1709,7 +1709,7 @@ CONTAINS
                CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
             END IF
             IF (do_kg) THEN
-               CALL calculate_kg_moments(qs_env, maxmom, magnetic, vel_reprs, com_nl)
+               CALL calculate_kg_moments(qs_env, unit_nr, maxmom, magnetic, vel_reprs, com_nl)
             END IF
          END IF
 

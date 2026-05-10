@@ -42,6 +42,15 @@
           COMMON_ITERATION_LEVELS 5
           FILENAME ""
         &END WANNIER_STATES
+        &LOCALIZED_MOMENTS
+          ADD_LAST NUMERIC
+          COMMON_ITERATION_LEVELS 5
+          FILENAME __STD_OUT__
+          MAX_MOMENT 1
+          MAGNETIC .TRUE.
+          VEL_REPRS .TRUE.
+          COM_NL .TRUE.
+        &END LOCALIZED_MOMENTS
       &END PRINT
     &END LOCALIZE
     &MGRID
@@ -92,18 +101,18 @@
       ABC 14.0 24.278702929071397 16.183834499223575
     &END CELL
     &COORD
-      C  7.00000 10.57416  8.09192  frag
-      O  7.00000 10.13037  7.00000  frag
-      O  7.00000 11.01796  9.18383  frag
-      C  7.00000 16.83491  8.09192  env
-      O  7.00000 16.39112  7.00000  env
-      O  7.00000 17.27870  9.18383  env
-      C  7.00000 13.70454  8.09192  env
-      O  7.00000 13.26075  7.00000  env
-      O  7.00000 14.14833  9.18383  env
-      C  7.00000  7.44379  8.09192  env
-      O  7.00000  7.00000  7.00000  env
-      O  7.00000  7.88758  9.18383  env
+      C  7.00000 10.57416  8.09192  co2_1
+      O  7.00000 10.13037  7.00000  co2_1
+      O  7.00000 11.01796  9.18383  co2_1
+      C  7.00000 16.83491  8.09192  co2_2
+      O  7.00000 16.39112  7.00000  co2_2
+      O  7.00000 17.27870  9.18383  co2_2
+      C  7.00000 13.70454  8.09192  co2_3
+      O  7.00000 13.26075  7.00000  co2_3
+      O  7.00000 14.14833  9.18383  co2_3
+      C  7.00000  7.44379  8.09192  co2_4
+      O  7.00000  7.00000  7.00000  co2_4
+      O  7.00000  7.88758  9.18383  co2_4
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH-PBE

@@ -26,7 +26,10 @@ MODULE localized_moments
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_copy, dbcsr_create, dbcsr_get_readonly_block_p, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_readonly_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -61,6 +64,7 @@ MODULE localized_moments
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE kg_environment_types,            ONLY: kg_environment_type
    USE qs_loc_types,                    ONLY: qs_loc_env_type
    USE qs_moments,                      ONLY: build_local_magmom_matrix,&
                                               build_local_moment_matrix,&
@@ -71,6 +75,8 @@ MODULE localized_moments
                                               set_label
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
 
 #include "./base/base_uses.f90"
 
@@ -115,7 +121,7 @@ CONTAINS
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: mol_name
       INTEGER :: akind, first_atom, handle, i, iatom, idir, imo_im, imo_re, imol, iounit, iproc, &
-                 ispin, ix, iy, iz, l, nao, natom, nm, nmom, nmols, nspins, ns, order, &
+                 ispin, ix, iy, iz, l, last_atom, nao, natom, nm, nmom, nmols, nspins, ns, order, &
                  rmom_vel_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: states
       INTEGER, DIMENSION(2)                              :: nstates
@@ -190,11 +196,12 @@ CONTAINS
       DO imol = 1, nmols
          molecule_kind => molecule_set(imol)%molecule_kind
          first_atom = molecule_set(imol)%first_atom
+         last_atom = molecule_set(imol)%last_atom
          CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom, name=mol_name)
          NULLIFY (ref_point)
          CALL get_reference_point(rcc, qs_env=qs_env, reference=use_mom_ref_com, &
                                   ref_point=ref_point, ifirst=first_atom, &
-                                  ilast=first_atom + natom - 1)
+                                  ilast=last_atom)
 
          rmom = 0.0_dp
          rlab = ""
@@ -546,33 +553,343 @@ CONTAINS
    END SUBROUTINE trace_op_in_mo
    
 ! **************************************************************************************************
-!> \brief Calculates localized electric and magnetic moments from Kim-Gordon subdensities
+!> \brief Calculates electric (and optionally magnetic / velocity-representation) multipole
+!>        moments per molecule from the Kim-Gordon AO density matrix. Mirrors
+!>        calculate_localized_moments but uses Tr[rho_mol * O] (density-matrix trace restricted
+!>        to each molecule's AO blocks) instead of the Wannier MO trace.
 !> \param qs_env ...
-!> \param mo_local ...
+!> \param unit_nr  output unit (the open DFT%PRINT%MOMENTS unit from the caller)
 !> \param max_moment ...
 !> \param magnetic ...
 !> \param vel_reprs ...
 !> \param com_nl ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_kg_moments(qs_env, max_moment, magnetic, vel_reprs, com_nl)
-      TYPE(qs_environment_type), POINTER :: qs_env
-      INTEGER                            :: max_moment
-      LOGICAL                            :: magnetic, vel_reprs, com_nl
+   SUBROUTINE calculate_kg_moments(qs_env, unit_nr, max_moment, magnetic, vel_reprs, com_nl)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: unit_nr, max_moment
+      LOGICAL, INTENT(IN)                                :: magnetic, vel_reprs, com_nl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_localized_moments"
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_kg_moments"
 
-      INTEGER :: handle
+      CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
+      CHARACTER(LEN=default_string_length)               :: mol_name
+      INTEGER :: akind, first_atom, handle, i, iatom, idir, imol, ispin, ix, iy, iz, &
+                 jatom, l, last_atom, natom, nm, nmol, nmom, nspins, rmom_vel_size
+      INTEGER, DIMENSION(:), POINTER                     :: atom_to_molecule
+      LOGICAL                                            :: do_rtp, floating, found, ghost
+      REAL(dp)                                           :: charge, dd, factor
+      REAL(dp), ALLOCATABLE, DIMENSION(:) :: mmom, nlcom_rrv, nlcom_rrv_vrr, nlcom_rv, &
+                                             nlcom_rvr, nlcom_rxrv, qupole_der, rmom_vel
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
+      REAL(dp), DIMENSION(3)                             :: rcc, ria
+      REAL(dp), DIMENSION(:), POINTER                    :: ref_point
+      REAL(dp), DIMENSION(:, :), POINTER                 :: oblock, pblock, sblock
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, &
+                                                            momentum, rho_ao, rho_ao_im
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_der
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_type), POINTER                       :: molecule_set(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), POINTER                       :: particle_set(:)
+      TYPE(qs_kind_type), POINTER                        :: qs_kind_set(:)
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Schreder2021)
-      CALL cite_reference(Schreder2024a)
+      IF (max_moment > 1 .OR. magnetic .OR. vel_reprs .OR. com_nl) THEN
+         CALL cite_reference(Schreder2024a)
+      END IF
 
-      PRINT *, qs_env%qmmm
-      PRINT *, max_moment
-      PRINT *, magnetic
-      PRINT *, vel_reprs
-      PRINT *, com_nl
+      NULLIFY (cell, dft_control, kg_env, matrix_s, para_env, particle_set, &
+               qs_kind_set, rho, sab_orb)
+      CALL get_qs_env(qs_env, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      kg_env=kg_env, &
+                      matrix_s=matrix_s, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      rho=rho, &
+                      sab_orb=sab_orb)
+
+      CPASSERT(ASSOCIATED(kg_env))
+      molecule_set => kg_env%molecule_set
+      atom_to_molecule => kg_env%atom_to_molecule
+
+      nspins = dft_control%nspins
+      do_rtp = qs_env%run_rtp
+
+      nmom = MIN(max_moment, current_maxl)
+      nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+      nmol = SIZE(molecule_set)
+
+      NULLIFY (rho_ao, rho_ao_im)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      IF (do_rtp) CALL qs_rho_get(rho, rho_ao_im=rho_ao_im)
+
+      ALLOCATE (rmom(nm + 1, 3), rlab(nm + 1))
+      IF (magnetic) ALLOCATE (mmom(3))
+      IF (vel_reprs) THEN
+         IF (com_nl .AND. (nmom >= 2)) THEN
+            rmom_vel_size = 21
+         ELSE
+            rmom_vel_size = MAX(nm, 9)
+         END IF
+         ALLOCATE (rmom_vel(rmom_vel_size))
+      END IF
+
+      DO imol = 1, nmol
+         molecule_kind => molecule_set(imol)%molecule_kind
+         first_atom = molecule_set(imol)%first_atom
+         last_atom = molecule_set(imol)%last_atom
+         CALL get_molecule_kind(molecule_kind=molecule_kind, natom=natom, name=mol_name)
+         NULLIFY (ref_point)
+         CALL get_reference_point(rcc, qs_env=qs_env, reference=use_mom_ref_com, &
+                                  ref_point=ref_point, ifirst=first_atom, ilast=last_atom)
+
+         rmom = 0.0_dp
+         rlab = ""
+
+         NULLIFY (moments)
+         CALL dbcsr_allocate_matrix_set(moments, nm)
+         DO i = 1, nm
+            ALLOCATE (moments(i)%matrix)
+            IF (vel_reprs .AND. (nmom >= 2)) THEN
+               CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
+                                 matrix_type=dbcsr_type_symmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
+            ELSE
+               CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
+            END IF
+            CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
+         END DO
+         IF (vel_reprs .AND. (nmom >= 2)) THEN
+            NULLIFY (moments_der)
+            CALL dbcsr_allocate_matrix_set(moments_der, 3, 3)
+            DO i = 1, 3
+               DO idir = 1, 3
+                  CALL dbcsr_init_p(moments_der(i, idir)%matrix)
+                  CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
+                                    matrix_type=dbcsr_type_antisymmetric)
+                  CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
+                  CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
+               END DO
+            END DO
+            CALL build_local_moments_der_matrix(qs_env, moments_der, 1, 2, ref_point=rcc, &
+                                                moments=moments)
+         ELSE
+            CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
+         END IF
+
+         IF (magnetic) THEN
+            NULLIFY (magmom)
+            CALL dbcsr_allocate_matrix_set(magmom, 3)
+            DO i = 1, 3
+               CALL dbcsr_init_p(magmom(i)%matrix)
+               CALL dbcsr_create(magmom(i)%matrix, template=matrix_s(1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(magmom(i)%matrix, sab_orb)
+               CALL dbcsr_set(magmom(i)%matrix, 0.0_dp)
+            END DO
+            CALL build_local_magmom_matrix(qs_env, magmom, nmom, ref_point=rcc)
+            mmom = 0.0_dp
+         END IF
+
+         IF (vel_reprs) THEN
+            NULLIFY (momentum)
+            CALL dbcsr_allocate_matrix_set(momentum, 3)
+            DO i = 1, 3
+               CALL dbcsr_init_p(momentum(i)%matrix)
+               CALL dbcsr_create(momentum(i)%matrix, template=matrix_s(1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL cp_dbcsr_alloc_block_from_nbl(momentum(i)%matrix, sab_orb)
+               CALL dbcsr_set(momentum(i)%matrix, 0.0_dp)
+            END DO
+            CALL build_lin_mom_matrix(qs_env, momentum)
+            rmom_vel = 0.0_dp
+         END IF
+
+         ! qupole_der is accumulated across all spins, computed once after spin loop
+         IF (vel_reprs .AND. (nmom >= 2)) THEN
+            ALLOCATE (qupole_der(9))
+            qupole_der = 0.0_dp
+         END IF
+
+         DO ispin = 1, nspins
+            ! Electric moments: Tr[rho_mol * O] from real density.
+            ! For antisymmetric O, Tr[P_sym * O_antisym] = 0, so only symmetric
+            ! moment operators contribute here.
+            CALL dbcsr_iterator_readonly_start(iter, rho_ao(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
+               IF (SIZE(pblock) == 0) CYCLE
+               IF (atom_to_molecule(iatom) /= imol) CYCLE
+               IF (atom_to_molecule(jatom) /= imol) CYCLE
+               ! off-diagonal blocks stored once; symmetric matrices need factor 2
+               factor = MERGE(2.0_dp, 1.0_dp, iatom /= jatom)
+               CALL dbcsr_get_readonly_block_p(matrix_s(1)%matrix, iatom, jatom, sblock, found)
+               IF (found) rmom(1, 1) = rmom(1, 1) + factor*SUM(pblock*sblock)
+               DO i = 1, nm
+                  CALL dbcsr_get_readonly_block_p(moments(i)%matrix, iatom, jatom, oblock, found)
+                  IF (found) rmom(i + 1, 1) = rmom(i + 1, 1) + factor*SUM(pblock*oblock)
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+
+            ! Magnetic, momentum, and quadrupole-velocity from imaginary density (RTP only).
+            ! For antisymmetric O: Tr[rho_im_antisym * O_antisym] gives non-zero contributions.
+            IF (do_rtp .AND. (magnetic .OR. vel_reprs)) THEN
+               CALL dbcsr_iterator_readonly_start(iter, rho_ao_im(ispin)%matrix)
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
+                  CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
+                  IF (SIZE(pblock) == 0) CYCLE
+                  IF (atom_to_molecule(iatom) /= imol) CYCLE
+                  IF (atom_to_molecule(jatom) /= imol) CYCLE
+                  factor = MERGE(2.0_dp, 1.0_dp, iatom /= jatom)
+                  IF (magnetic) THEN
+                     DO i = 1, 3
+                        CALL dbcsr_get_readonly_block_p(magmom(i)%matrix, iatom, jatom, oblock, found)
+                        IF (found) mmom(i) = mmom(i) + factor*SUM(pblock*oblock)
+                     END DO
+                  END IF
+                  IF (vel_reprs) THEN
+                     DO i = 1, 3
+                        CALL dbcsr_get_readonly_block_p(momentum(i)%matrix, iatom, jatom, oblock, found)
+                        IF (found) rmom_vel(i) = rmom_vel(i) + factor*SUM(pblock*oblock)
+                     END DO
+                     IF (nmom >= 2) THEN
+                        DO i = 1, 3
+                           DO idir = 1, 3
+                              CALL dbcsr_get_readonly_block_p(moments_der(i, idir)%matrix, &
+                                                              iatom, jatom, oblock, found)
+                              IF (found) &
+                                 qupole_der((i - 1)*3 + idir) = &
+                                 qupole_der((i - 1)*3 + idir) - factor*SUM(pblock*oblock)
+                           END DO
+                        END DO
+                     END IF
+                  END IF
+               END DO
+               CALL dbcsr_iterator_stop(iter)
+            END IF
+         END DO
+
+         ! Assemble quadrupole-velocity components after all spins have been accumulated
+         IF (vel_reprs .AND. (nmom >= 2)) THEN
+            rmom_vel(4) = -2.0_dp*qupole_der(1) - rmom(1, 1)
+            rmom_vel(5) = -qupole_der(2) - qupole_der(4)
+            rmom_vel(6) = -qupole_der(3) - qupole_der(7)
+            rmom_vel(7) = -2.0_dp*qupole_der(5) - rmom(1, 1)
+            rmom_vel(8) = -qupole_der(6) - qupole_der(8)
+            rmom_vel(9) = -2.0_dp*qupole_der(9) - rmom(1, 1)
+            DEALLOCATE (qupole_der)
+         END IF
+
+         CALL para_env%sum(rmom(:, 1))
+         IF (magnetic) CALL para_env%sum(mmom)
+         IF (vel_reprs) CALL para_env%sum(rmom_vel)
+
+         ! Nuclear contribution
+         DO iatom = first_atom, first_atom + natom - 1
+            ria = pbc(particle_set(iatom)%r - rcc, cell) + rcc
+            ria = ria - rcc
+            atomic_kind => particle_set(iatom)%atomic_kind
+            CALL get_atomic_kind(atomic_kind, kind_number=akind)
+            CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating, &
+                             core_charge=charge)
+            IF (ghost .OR. floating) CYCLE
+            rmom(1, 2) = rmom(1, 2) - charge
+            DO l = 1, nm
+               ix = indco(1, l + 1)
+               iy = indco(2, l + 1)
+               iz = indco(3, l + 1)
+               dd = 1.0_dp
+               IF (ix > 0) dd = dd*ria(1)**ix
+               IF (iy > 0) dd = dd*ria(2)**iy
+               IF (iz > 0) dd = dd*ria(3)**iz
+               rmom(l + 1, 2) = rmom(l + 1, 2) - charge*dd
+               CALL set_label(rlab(l + 1), ix, iy, iz)
+            END DO
+         END DO
+         rmom(:, :) = -rmom(:, :)
+         rmom(:, 3) = rmom(:, 1) + rmom(:, 2)
+
+         IF (com_nl) THEN
+            IF ((nmom >= 1) .AND. vel_reprs) THEN
+               ALLOCATE (nlcom_rv(3))
+               nlcom_rv(:) = 0.0_dp
+            END IF
+            IF ((nmom >= 2) .AND. vel_reprs) THEN
+               ALLOCATE (nlcom_rrv(6), nlcom_rvr(6), nlcom_rrv_vrr(6))
+               nlcom_rrv(:) = 0.0_dp
+               nlcom_rvr(:) = 0.0_dp
+               nlcom_rrv_vrr(:) = 0.0_dp
+            END IF
+            IF (magnetic) THEN
+               ALLOCATE (nlcom_rxrv(3))
+               nlcom_rxrv(:) = 0.0_dp
+            END IF
+            CALL calculate_commutator_nl_terms(qs_env, nlcom_rv, nlcom_rxrv, nlcom_rrv, &
+                                               nlcom_rvr, nlcom_rrv_vrr, rcc)
+         END IF
+
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT='(/,T3,A,I6,2X,A)') &
+               "# Molecule:", imol, TRIM(mol_name)
+            IF (magnetic .AND. vel_reprs) THEN
+               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
+                                  mmom=mmom, rmom_vel=rmom_vel)
+            ELSE IF (magnetic) THEN
+               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
+                                  mmom=mmom)
+            ELSE IF (vel_reprs) THEN
+               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE., &
+                                  rmom_vel=rmom_vel)
+            ELSE
+               CALL print_moments(unit_nr, nmom, rmom, rlab, rcc, cell, periodic=.FALSE.)
+            END IF
+
+            IF (com_nl) THEN
+               IF (magnetic) mmom(:) = nlcom_rxrv(:)
+               IF (vel_reprs .AND. (nmom >= 1)) rmom_vel(1:3) = nlcom_rv
+               IF (vel_reprs .AND. (nmom >= 2)) THEN
+                  rmom_vel(4:9) = nlcom_rrv
+                  rmom_vel(10:15) = nlcom_rvr
+                  rmom_vel(16:21) = nlcom_rrv_vrr
+               END IF
+               IF (magnetic .AND. vel_reprs) THEN
+                  CALL print_moments_nl(unit_nr, nmom, rlab, mmom=mmom, rmom_vel=rmom_vel)
+               ELSE IF (magnetic) THEN
+                  CALL print_moments_nl(unit_nr, nmom, rlab, mmom=mmom)
+               ELSE IF (vel_reprs) THEN
+                  CALL print_moments_nl(unit_nr, nmom, rlab, rmom_vel=rmom_vel)
+               END IF
+            END IF
+         END IF
+
+         IF (com_nl) THEN
+            IF ((nmom >= 1) .AND. vel_reprs) DEALLOCATE (nlcom_rv)
+            IF ((nmom >= 2) .AND. vel_reprs) DEALLOCATE (nlcom_rrv, nlcom_rvr, nlcom_rrv_vrr)
+            IF (magnetic) DEALLOCATE (nlcom_rxrv)
+         END IF
+         CALL dbcsr_deallocate_matrix_set(moments)
+         IF (vel_reprs .AND. (nmom >= 2)) CALL dbcsr_deallocate_matrix_set(moments_der)
+         IF (magnetic) CALL dbcsr_deallocate_matrix_set(magmom)
+         IF (vel_reprs) CALL dbcsr_deallocate_matrix_set(momentum)
+      END DO
+
+      DEALLOCATE (rmom, rlab)
+      IF (magnetic) DEALLOCATE (mmom)
+      IF (vel_reprs) DEALLOCATE (rmom_vel)
 
       CALL timestop(handle)
 
