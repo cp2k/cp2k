@@ -290,6 +290,7 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
             IF (PRESENT(loc_coeff) .AND. nspins*2 == SIZE(loc_coeff)) THEN
+               ALLOCATE (complex_moloc_coeff(ispin)%matrix)
                CALL cp_cfm_create(complex_moloc_coeff(ispin)%matrix, tmp_fm_struct)
                CALL cp_fm_create(moloc_coeff(2*ispin - 1), tmp_fm_struct)
                CALL cp_fm_create(moloc_coeff(2*ispin), tmp_fm_struct)

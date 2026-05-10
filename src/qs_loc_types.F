@@ -220,7 +220,10 @@ CONTAINS
       IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff)) THEN
          DO i = 1, SIZE(qs_loc_env%complex_moloc_coeff, 1)
             ii = LBOUND(qs_loc_env%complex_moloc_coeff, 1) + i - 1
-            CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(ii)%matrix)
+            IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff(ii)%matrix)) THEN
+               CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(ii)%matrix)
+               DEALLOCATE (qs_loc_env%complex_moloc_coeff(ii)%matrix)
+            END IF
          END DO
          DEALLOCATE (qs_loc_env%complex_moloc_coeff)
       END IF
@@ -437,7 +440,10 @@ CONTAINS
       IF (PRESENT(complex_moloc_coeff)) THEN
          IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff)) THEN
             DO i = 1, SIZE(qs_loc_env%complex_moloc_coeff, 1)
-               CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(i)%matrix)
+               IF (ASSOCIATED(qs_loc_env%complex_moloc_coeff(i)%matrix)) THEN
+                  CALL cp_cfm_release(qs_loc_env%complex_moloc_coeff(i)%matrix)
+                  DEALLOCATE (qs_loc_env%complex_moloc_coeff(i)%matrix)
+               END IF
             END DO
             DEALLOCATE (qs_loc_env%complex_moloc_coeff)
          END IF

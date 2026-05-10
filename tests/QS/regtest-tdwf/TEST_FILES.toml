@@ -1,5 +1,5 @@
 #
-"H2-tdwf.inp"    = [{matcher="E_total", tol=3e-13, ref=  -0.90223263564778}]
-"ala2-tdwf.inp"  = [{matcher="E_total", tol=3e-13, ref=-125.80814990331054}]
-"co2_4-tdpm.inp" = [{matcher="E_total", tol=3e-13, ref=-150.06370928962536}]
+"H2-tdwf.inp"    = [{matcher="Spread_Berry", tol=1e-10, ref=   5.1069182617}]
+"ala2-tdwf.inp"  = [{matcher="Spread_Berry", tol=1e-10, ref= 807.7262984558}]
+"co2_4-tdpm.inp" = [{matcher="E_total", tol=3e-13, ref=-150.06370937104845}]
 #EOF

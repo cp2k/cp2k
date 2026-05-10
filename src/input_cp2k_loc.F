@@ -336,6 +336,13 @@ CONTAINS
                                        description="Section controlling the calculation of "// &
                                        "Wannier-based electric moments", &
                                        print_level=debug_print_level + 1, filename="__STD_OUT__")
+      CALL section_add_subsection(print_section, subsection)
+      CALL section_release(subsection)
+      !
+      CALL cp_print_key_section_create(subsection, __LOCATION__, name="LOCALIZED_MOMENTS", &
+                                       description="Section controlling the calculation of "// &
+                                       "localized moments", &
+                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
       !
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX_MOMENT", &
@@ -369,7 +376,7 @@ CONTAINS
                           n_var=1, &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
+      CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       !
       CALL keyword_create(keyword, __LOCATION__, &
@@ -381,7 +388,8 @@ CONTAINS
                           n_var=1, &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       !
       CALL section_add_subsection(print_section, subsection)
       CALL section_release(subsection)

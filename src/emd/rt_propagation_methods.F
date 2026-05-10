@@ -889,29 +889,28 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rtp_localize(qs_env, rtp)
 
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(rt_prop_type), INTENT(IN), POINTER            :: rtp
+      TYPE(qs_environment_type), INTENT(IN), POINTER :: qs_env
+      TYPE(rt_prop_type), INTENT(IN), POINTER        :: rtp
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rtp_localize'
+      CHARACTER(len=*), PARAMETER                    :: routineN = 'rtp_localize'
 
-      INTEGER                                            :: handle, ispin, nhomo, output_unit
-      INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL                                            :: do_homo, do_mo_cubes, do_wannier_cubes, &
-                                                            loc_explicit, loc_print_explicit, &
-                                                            p_loc, p_loc_homo
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: homo_localized, occupied_orbs
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(pw_c1d_gs_type)                               :: wf_g
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type)                               :: wf_r
-      TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env_homo
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, loc_print_section, &
-                                                            loc_section, print_key
+      INTEGER                                        :: handle, ispin, output_unit
+      INTEGER, DIMENSION(:, :, :), POINTER           :: marked_states
+      LOGICAL                                        :: do_homo, do_mo_cubes, do_wannier_cubes, &
+                                                        p_loc
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER    :: occupied_evals
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)    :: mo_localized, occupied_orbs
+      TYPE(cp_fm_type), DIMENSION(:), POINTER        :: mo_coeff
+      TYPE(cp_logger_type), POINTER                  :: logger
+      TYPE(dft_control_type), POINTER                :: dft_control
+      TYPE(particle_list_type), POINTER              :: particles
+      TYPE(pw_c1d_gs_type)                           :: wf_g
+      TYPE(pw_env_type), POINTER                     :: pw_env
+      TYPE(pw_pool_type), POINTER                    :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                           :: wf_r
+      TYPE(qs_loc_env_type), POINTER                 :: qs_loc_env
+      TYPE(section_vals_type), POINTER               :: dft_section, input, loc_print_section, &
+                                                        loc_section, print_key
 
       CALL timeset(routineN, handle)
 
@@ -919,13 +918,10 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool, dft_control, dft_section, input, loc_print_section, &
                loc_section, logger, marked_states, mo_coeff, occupied_evals, &
-               particles, print_key, pw_env, qs_loc_env_homo)
+               particles, print_key, pw_env, qs_loc_env)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
-
-      loc_explicit = .TRUE.
-      loc_print_explicit = .TRUE.
 
       IF (output_unit > 0) THEN
          WRITE (unit=output_unit, fmt="(A)") "LOCALIZE| Localizing propagated orbitals"
@@ -964,59 +960,45 @@ CONTAINS
       print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_MOMENTS")
       p_loc = p_loc &
               .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
-
-      IF (loc_explicit) THEN
-         p_loc_homo = (section_get_ival(loc_section, "STATES") == do_loc_homo .OR. &
-                       section_get_ival(loc_section, "STATES") == do_loc_both) .AND. p_loc
-      ELSE
-         p_loc_homo = .FALSE.
-      END IF
-
       print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
-      p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+      p_loc = p_loc &
+              .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
 
-      IF (loc_print_explicit) THEN
-         do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                             "WANNIER_CUBES"), cp_p_file)
-      ELSE
-         do_wannier_cubes = .FALSE.
-      END IF
-      nhomo = section_get_ival(dft_section, "PRINT%MO_CUBES%NHOMO")
+      do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                                          "WANNIER_CUBES"), cp_p_file)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(wf_g)
 
       IF (p_loc) THEN
-         IF (p_loc_homo) THEN
-            ALLOCATE (occupied_evals(dft_control%nspins))
-            CALL get_rtp(rtp, mos_new=mo_coeff)
-            ALLOCATE (occupied_orbs(SIZE(mo_coeff)))
-            ALLOCATE (homo_localized(SIZE(mo_coeff)))
-            DO ispin = 1, SIZE(mo_coeff)
-               occupied_orbs(ispin) = mo_coeff(ispin)
-               CALL cp_fm_create(homo_localized(ispin), mo_coeff(ispin)%matrix_struct)
-               CALL cp_fm_to_fm(mo_coeff(ispin), homo_localized(ispin))
-            END DO
+         ALLOCATE (occupied_evals(dft_control%nspins))
+         CALL get_rtp(rtp, mos_new=mo_coeff)
+         ALLOCATE (occupied_orbs(SIZE(mo_coeff)))
+         ALLOCATE (mo_localized(SIZE(mo_coeff)))
+         DO ispin = 1, SIZE(mo_coeff)
+            occupied_orbs(ispin) = mo_coeff(ispin)
+            CALL cp_fm_create(mo_localized(ispin), mo_coeff(ispin)%matrix_struct)
+            CALL cp_fm_to_fm(mo_coeff(ispin), mo_localized(ispin))
+         END DO
 
-            do_homo = .TRUE.
-            CALL qs_loc_env_create(qs_loc_env_homo)
-            CALL qs_loc_control_init(qs_loc_env_homo, loc_section, do_homo=do_homo)
-            CALL qs_loc_init(qs_env, qs_loc_env_homo, loc_section, homo_localized, do_homo, &
-                             do_mo_cubes)
-            CALL get_localization_info(qs_env, qs_loc_env_homo, loc_section, homo_localized, &
-                                       wf_r, wf_g, particles, occupied_orbs, occupied_evals, &
-                                       marked_states)
-            CALL loc_dipole(input, dft_control, qs_loc_env_homo, logger, qs_env)
+         do_homo = .TRUE.
+         ALLOCATE (qs_loc_env)
+         CALL qs_loc_env_create(qs_loc_env)
+         CALL qs_loc_control_init(qs_loc_env, loc_section, do_homo=do_homo)
+         CALL qs_loc_init(qs_env, qs_loc_env, loc_section, mo_localized, do_homo, do_mo_cubes)
+         CALL get_localization_info(qs_env, qs_loc_env, loc_section, mo_localized, wf_r, wf_g, &
+                                    particles, occupied_orbs, occupied_evals, marked_states)
+         CALL loc_dipole(input, dft_control, qs_loc_env, logger, qs_env)
 
-            DO ispin = 1, SIZE(homo_localized)
-               CALL cp_fm_release(homo_localized(ispin))
-            END DO
-            DEALLOCATE (homo_localized)
-            DEALLOCATE (occupied_orbs)
-            DEALLOCATE (occupied_evals)
-            CALL qs_loc_env_release(qs_loc_env_homo)
-         END IF
+         DO ispin = 1, SIZE(mo_localized)
+            CALL cp_fm_release(mo_localized(ispin))
+         END DO
+         DEALLOCATE (mo_localized)
+         DEALLOCATE (occupied_orbs)
+         DEALLOCATE (occupied_evals)
+         CALL qs_loc_env_release(qs_loc_env)
+         DEALLOCATE (qs_loc_env)
       END IF
 
       CALL auxbas_pw_pool%give_back_pw(wf_r)

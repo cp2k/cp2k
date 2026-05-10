@@ -490,6 +490,8 @@ CONTAINS
       DEALLOCATE (first_sgf, last_sgf, nsgf)
 
       CALL cp_fm_release(opvec)
+      CALL cp_fm_release(ov_fm)
+      DEALLOCATE (ov_fm)
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
       CALL timestop(handle)

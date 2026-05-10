@@ -47,7 +47,8 @@ MODULE qs_localization_methods
                                               cp_fm_transpose,&
                                               cp_fm_triangular_multiply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: cp_fm_syevd
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
@@ -65,6 +66,7 @@ MODULE qs_localization_methods
    USE mathconstants,                   ONLY: gaussi,&
                                               pi,&
                                               twopi,&
+                                              z_one,&
                                               z_zero
    USE matrix_exp,                      ONLY: exp_pade_real,&
                                               get_nsquare_norder
@@ -161,7 +163,7 @@ CONTAINS
                f2 = f2 + SQRT(C%local_data(i, p)**2 + f2_eps)
             END DO
          END DO
-         CALL C%matrix_struct%para_env%sum(f2)
+         CALL C%matrix_struct%para_env%SUM(f2)
          !write(*,*) 'qs_localize: f_2=',f2
          !-------------------------------------------------------------------
          ! compute the derivative of f_2
@@ -795,7 +797,7 @@ CONTAINS
             CALL cp_fm_get_submatrix(matrix_V_all, tmp_mat)
             DO istate = 1, ndummy
                tmp_arr(:) = tmp_mat(:, istate)
-               norm = norm2(tmp_arr)
+               norm = NORM2(tmp_arr)
                tmp_arr(:) = tmp_arr(:)/norm
                tmp_mat(:, istate) = tmp_arr(:)
             END DO
@@ -810,7 +812,7 @@ CONTAINS
             ALLOCATE (tmp_arr(ndummy))
             tmp_arr = 0.0_dp
             DO istate = 1, ndummy
-               tmp_arr(istate) = norm2(tmp_mat(:, istate))
+               tmp_arr(istate) = NORM2(tmp_mat(:, istate))
             END DO
             ! find edfs
             DO istate = 1, nextra
@@ -980,7 +982,7 @@ CONTAINS
             !WRITE(*,*) 'spread_ii', spread_ii
             sum_spread(istate) = spread_ii
          END DO
-         CALL c_zij(1)%matrix_struct%para_env%sum(spread_ii)
+         CALL c_zij(1)%matrix_struct%para_env%SUM(spread_ii)
          spread_sum = accurate_sum(sum_spread)
 
          IF (nextra > 0) THEN
@@ -1398,6 +1400,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE check_tolerance
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rmat ...
@@ -1415,6 +1418,25 @@ CONTAINS
       CALL cp_fm_to_fm(wf, vectors)
       CALL cp_fm_release(wf)
    END SUBROUTINE rotate_orbitals
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rmat ...
+!> \param vectors ...
+! **************************************************************************************************
+   SUBROUTINE rotate_orbitals_cfm(rmat, vectors)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat, vectors
+
+      INTEGER                                            :: k, n
+      TYPE(cp_cfm_type)                                  :: wf
+
+      CALL cp_cfm_create(wf, vectors%matrix_struct)
+      CALL cp_cfm_get_info(vectors, nrow_global=n, ncol_global=k)
+      CALL parallel_gemm("N", "N", n, k, k, z_one, vectors, rmat, z_zero, wf)
+      CALL cp_cfm_to_cfm(wf, vectors)
+      CALL cp_cfm_release(wf)
+   END SUBROUTINE rotate_orbitals_cfm
+   
 ! **************************************************************************************************
 !> \brief ...
 !> \param rmat ...
@@ -1528,10 +1550,10 @@ CONTAINS
 !> \param tolerance ...
 !> \param value ...
 ! **************************************************************************************************
-   SUBROUTINE check_tolerance_new(weights, zij, tolerance, value)
+   SUBROUTINE check_tolerance_new(weights, zij, tolerance, VALUE)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :)
-      REAL(KIND=dp)                                      :: tolerance, value
+      REAL(KIND=dp)                                      :: tolerance, VALUE
 
       COMPLEX(KIND=dp)                                   :: kii, kij, kjj
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
@@ -1545,13 +1567,13 @@ CONTAINS
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, SIZE(zij, 2)))
-      value = 0.0_dp
+      VALUE = 0.0_dp
       DO idim = 1, SIZE(zij, 2)
          DO istate = 1, nrow_global
             CALL cp_fm_get_element(zij(1, idim), istate, istate, ra)
             CALL cp_fm_get_element(zij(2, idim), istate, istate, rb)
             diag(istate, idim) = CMPLX(ra, rb, dp)
-            value = value + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
+            VALUE = VALUE + weights(idim) - weights(idim)*ABS(diag(istate, idim))**2
          END DO
       END DO
       tolerance = 0.0_dp
@@ -1570,7 +1592,7 @@ CONTAINS
             tolerance = MAX(ABS(grad_ij), tolerance)
          END DO
       END DO
-      CALL zij(1, 1)%matrix_struct%para_env%max(tolerance)
+      CALL zij(1, 1)%matrix_struct%para_env%MAX(tolerance)
 
       DEALLOCATE (diag)
 
@@ -1616,7 +1638,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_emd
       REAL(KIND=dp)                                      :: eps_exp, limit_crazy_angle, maxeval, &
-                                                            norm, ra, rb, theta, tolerance, value
+                                                            norm, ra, rb, theta, tolerance, VALUE
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
       TYPE(cp_cfm_type)                                  :: cmat_A, cmat_R, cmat_t1
       TYPE(cp_fm_type)                                   :: mat_R, mat_t, mat_theta, mat_U
@@ -1745,11 +1767,11 @@ CONTAINS
          CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
          CALL cp_fm_to_fm(mat_t, mat_R)
 
-         CALL check_tolerance_new(weights, zij, tolerance, value)
+         CALL check_tolerance_new(weights, zij, tolerance, VALUE)
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A7,I6,1X,G20.15,E12.4,E12.4,E12.4)') &
-               "CRAZY| ", iterations, value, tolerance, maxeval, limit_crazy_angle
+               "CRAZY| ", iterations, VALUE, tolerance, maxeval, limit_crazy_angle
             CALL m_flush(unit_nr)
          END IF
          IF (tolerance < eps_localization .OR. iterations >= max_iter) EXIT
@@ -2890,7 +2912,7 @@ CONTAINS
             END DO
          END DO
 
-         CALL para_env%max(gmax)
+         CALL para_env%MAX(gmax)
          tolerance = gmax
          IF (PRESENT(tol_out)) tol_out = tolerance
 
@@ -2903,7 +2925,7 @@ CONTAINS
                func = func + weights(idim)*(1.0_dp - (zr*zr + zc*zc))/twopi/twopi
             END DO
          END DO
-         CALL para_env%sum(func)
+         CALL para_env%SUM(func)
          t2 = m_walltime()
 
          IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
@@ -3119,20 +3141,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac'
 
-      COMPLEX(KIND=dp)           :: s
-      COMPLEX(KIND=dp), POINTER  :: mii(:), mij(:), mji(:), mjj(:)
-      INTEGER                    :: dim1, dim2, handle, idim, jdim, istate, jstate, nstate, &
-                                    unit_nr
-      REAL(KIND=dp)              :: t1, t2, tolerance, c, old_spread, spread
-      TYPE(cp_cfm_type), POINTER :: c_zij(:), c_rmat
+      COMPLEX(KIND=dp)               :: s
+      COMPLEX(KIND=dp), ALLOCATABLE  :: mii(:), mij(:), mji(:), mjj(:)
+      INTEGER                        :: dim1, dim2, handle, idim, jdim, istate, jstate, nstate, unit_nr
+      REAL(KIND=dp)                  :: t1, t2, tolerance, c, old_spread, spread
+      TYPE(cp_cfm_type), POINTER     :: c_zij(:), c_rmat
 
       CALL timeset(routineN, handle)
 
       dim1 = SIZE(zij, 1)
       dim2 = SIZE(zij, 2)
-      NULLIFY (c_rmat, c_zij, mii, mij, mji, mjj)
-      ALLOCATE (c_zij(dim1*dim2), mii(dim1*dim2), mij(dim1*dim2), mji(dim1*dim2), mjj(dim1*dim2))
 
+      NULLIFY(c_rmat, c_zij)
+      ALLOCATE (c_rmat, c_zij(dim1*dim2), mii(dim1*dim2), mij(dim1*dim2), mji(dim1*dim2), mjj(dim1*dim2))
       CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix_struct)
       CALL cp_cfm_set_all(c_rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))  ! start with the identity transformation
       DO idim = 1, dim2
@@ -3203,10 +3224,11 @@ CONTAINS
          END DO
       END DO
 
-      CALL rotate_complex_orbitals(c_rmat, vectors)
+      CALL rotate_orbitals_cfm(c_rmat, vectors)
 
       DEALLOCATE (c_zij, mii, mij, mji, mjj)
       CALL cp_cfm_release(c_rmat)
+      DEALLOCATE (c_rmat)
 
       CALL timestop(handle)
 
@@ -3226,94 +3248,102 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cardoso_souloumiac_pipek(zij, vec, sweeps, max_iter, eps, out_each)
 
-     type(cp_cfm_type), pointer   :: zij(:,:), vec
-     integer                        :: sweeps, max_iter, out_each
-     real(dp)                       :: eps
-     character(*), parameter :: routineN = 'cardoso_souloumiac_pipek'
+     TYPE(cp_cfm_type), POINTER   :: zij(:,:), vec
+     INTEGER                        :: sweeps, max_iter, out_each
+     REAL(dp)                       :: eps
+     CHARACTER(*), PARAMETER :: routineN = 'cardoso_souloumiac_pipek'
 
-     complex(dp)                  :: s, c_spread
-     complex(dp), pointer         :: qii(:), qij(:), qji(:), qjj(:)
-     integer                      :: handle, output_unit, n_dim, i, j, k, n_states
-     real(dp)                     :: t1, t2, tol, spread, old_spread, c
-     type(cp_cfm_type), pointer   :: c_zij(:), rmat
+     COMPLEX(dp)                  :: s, c_spread
+     COMPLEX(dp), POINTER         :: qii(:), qij(:), qji(:), qjj(:)
+     INTEGER                      :: handle, output_unit, n_dim, i, j, k, n_states
+     REAL(dp)                     :: t1, t2, tol, spread, old_spread, c
+     TYPE(cp_cfm_type), POINTER   :: c_zij(:), rmat
 
-     call timeset(routineN, handle)
+     CALL timeset(routineN, handle)
 
-     call cite_reference(Schreder2024b)
+     CALL cite_reference(Schreder2024b)
 
-     n_dim = size(zij)
-     call cp_cfm_create(rmat, zij(1, 1)%matrix_struct)
-     call cp_cfm_set_all(rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))
-     allocate(c_zij(n_dim), qii(n_dim), qij(n_dim), qji(n_dim), qjj(n_dim))
+     n_dim = SIZE(zij)
+
+     ALLOCATE(rmat)
+     CALL cp_cfm_create(rmat, zij(1, 1)%matrix_struct)
+
+     CALL cp_cfm_set_all(rmat, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))
+     ALLOCATE(c_zij(n_dim), qii(n_dim), qij(n_dim), qji(n_dim), qjj(n_dim))
 
      ! build Qij matrix
-     do k = 1, n_dim
+     DO k = 1, n_dim
         c_zij(k) = zij(k, 1)
-     end do
+     END DO
 
-     call cp_cfm_get_info(c_zij(1), ncol_global=n_states)
+     CALL cp_cfm_get_info(c_zij(1), ncol_global=n_states)
 
      tol = 1.0e10_dp
      c_spread = (0.0_dp, 0.0_dp)
-     do k = 1, n_dim
-        do i = 1, n_states
-           call cp_cfm_get_element(c_zij(k), i, i, s)
+     DO k = 1, n_dim
+        DO i = 1, n_states
+           CALL cp_cfm_get_element(c_zij(k), i, i, s)
            c_spread = c_spread + s * s
-        end do
-     end do
-     spread = real(c_spread)
+        END DO
+     END DO
+     spread = REAL(c_spread)
      old_spread = spread
 
      sweeps = 0
      output_unit = cp_logger_get_default_unit_nr()
-     write (output_unit, "(T4,A )") " Localization by iterative Jacobi rotation using "// &
+     WRITE (output_unit, "(T4,A )") " Localization by iterative Jacobi rotation using "// &
           "Cardoso-Souloumiac angles"
-     write (output_unit, "(T4,A )") " and Pipek-Mezey spread functional"
+     WRITE (output_unit, "(T4,A )") " and Pipek-Mezey spread functional"
 
-     if (output_unit > 0 .and. modulo(sweeps, out_each) == 0) then
-        write (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
+     IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
+        WRITE (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
              "Iteration:", sweeps, " Functional", spread, " Tolerance:", tol, " Time:", 0.0_dp
-     end if
+     END IF
 
-     do while (tol >= eps .and. sweeps < max_iter)
+     DO WHILE (tol >= eps .AND. sweeps < max_iter)
         t1 = m_walltime()
         sweeps = sweeps + 1
 
-        do i = 1, n_states
-           do j = i + 1, n_states
-              do k = 1, n_dim
-                 call cp_cfm_get_element(c_zij(k), i, i, qii(k))
-                 call cp_cfm_get_element(c_zij(k), i, j, qij(k))
-                 call cp_cfm_get_element(c_zij(k), j, i, qji(k))
-                 call cp_cfm_get_element(c_zij(k), j, j, qjj(k))
-              end do
-              call get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
-              call rotate_cardoso_zij(i, j, c, s, c_zij)
-              call rotate_cardoso_rmat(i, j, c, s, rmat)
-           end do
-        end do
+        DO i = 1, n_states
+           DO j = i + 1, n_states
+              DO k = 1, n_dim
+                 CALL cp_cfm_get_element(c_zij(k), i, i, qii(k))
+                 CALL cp_cfm_get_element(c_zij(k), i, j, qij(k))
+                 CALL cp_cfm_get_element(c_zij(k), j, i, qji(k))
+                 CALL cp_cfm_get_element(c_zij(k), j, j, qjj(k))
+              END DO
+              CALL get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
+              CALL rotate_cardoso_zij(i, j, c, s, c_zij)
+              CALL rotate_cardoso_rmat(i, j, c, s, rmat)
+           END DO
+        END DO
 
         c_spread = (0.0_dp, 0.0_dp)
-        do i = 1, n_states
-           do k = 1, n_dim
-              call cp_cfm_get_element(c_zij(k), i, i, s)
+        DO i = 1, n_states
+           DO k = 1, n_dim
+              CALL cp_cfm_get_element(c_zij(k), i, i, s)
               c_spread = c_spread + s * s
-           end do
-        end do
-        spread = real(c_spread)
+           END DO
+        END DO
+        spread = REAL(c_spread)
         
-        tol = abs(spread - old_spread)
+        tol = ABS(spread - old_spread)
         old_spread = spread
         t2 = m_walltime()
-        if (output_unit > 0 .and. modulo(sweeps, out_each) == 0) then
-           write (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
+        IF (output_unit > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
+           WRITE (output_unit, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
                 "Iteration:", sweeps, " Functional", spread, " Tolerance:", tol, " Time:", t2 - t1
-        end if
-     end do
+        END IF
+     END DO
 
-     call rotate_complex_orbitals(rmat, vec)
+     CALL rotate_orbitals_cfm(rmat, vec)
 
-     call timestop(handle)
+     ! c_zij(k) was assigned (shallow copy of zij(k,1)); do not release contents
+     DEALLOCATE (c_zij, qii, qij, qji, qjj)
+     CALL cp_cfm_release(rmat)
+     DEALLOCATE (rmat)
+
+     CALL timestop(handle)
 
    END SUBROUTINE cardoso_souloumiac_pipek
 
@@ -3351,6 +3381,7 @@ CONTAINS
                                template_fmstruct=tmp_fm_struct)
       CALL cp_fm_struct_create(G_fm_struct, nrow_global=3, ncol_global=3, &
                                template_fmstruct=tmp_fm_struct)
+      ALLOCATE (hmat, c_Gmat, Gmat, evects)
       CALL cp_cfm_create(hmat, h_fm_struct)
       CALL cp_cfm_create(c_Gmat, G_fm_struct)
       CALL cp_cfm_set_all(c_Gmat, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp))
@@ -3388,6 +3419,7 @@ CONTAINS
       CALL cp_cfm_release(c_Gmat)
       CALL cp_fm_release(Gmat)
       CALL cp_fm_release(evects)
+      DEALLOCATE (hmat, c_Gmat, Gmat, evects)
 
    END SUBROUTINE get_cardoso_angles
 

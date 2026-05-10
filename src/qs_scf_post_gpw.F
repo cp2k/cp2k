@@ -90,6 +90,7 @@ MODULE qs_scf_post_gpw
                                               dp
    USE kpoint_mo_dump,                  ONLY: write_kpoint_mo_data
    USE kpoint_types,                    ONLY: kpoint_type
+   USE localized_moments,               ONLY: calculate_kg_moments
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
@@ -1708,7 +1709,7 @@ CONTAINS
                CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
             END IF
             IF (do_kg) THEN
-               !CALL calculate_kg_moments(qs_env, maxmom, input)
+               CALL calculate_kg_moments(qs_env, maxmom, magnetic, vel_reprs, com_nl)
             END IF
          END IF
 

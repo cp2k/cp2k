@@ -23,7 +23,7 @@ MODULE qs_loc_states
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   !USE localized_moments,               ONLY: calculate_localized_moments
+   USE localized_moments,               ONLY: calculate_localized_moments
    USE molecular_dipoles,               ONLY: calculate_molecular_dipole
    USE molecular_moments,               ONLY: calculate_molecular_moments
    USE molecular_states,                ONLY: construct_molecular_states
@@ -84,10 +84,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info'
 
-      INTEGER                                            :: handle, ispin, mystate, ns, nspins, &
-                                                            output_unit
-      INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin, maxmom
-      LOGICAL                                            :: do_homo, do_mixed
+      INTEGER                                            :: handle, ispin, max_moment, mystate, &
+                                                            ns, nspins, output_unit
+      INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
+      LOGICAL                                            :: com_nl, do_homo, do_mixed, magnetic, &
+                                                            vel_reprs
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
@@ -156,7 +157,9 @@ CONTAINS
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                   "MOLECULAR_STATES"), cp_p_file) .OR. &
                  BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
-                                                  "WANNIER_MOMENTS"), cp_p_file))) THEN
+                                                  "WANNIER_MOMENTS"), cp_p_file) .OR. &
+                 BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
+                                                  "LOCALIZED_MOMENTS"), cp_p_file))) THEN
                CALL wfc_to_molecule(qs_loc_env, scenter, molecule_set, ispin, dft_control%nspins)
             END IF
 
@@ -229,8 +232,12 @@ CONTAINS
       !
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "LOCALIZED_MOMENTS"), cp_p_file)) THEN
-         maxmom = section_get_ival(loc_print_section, "LOCALIZED_MOMENTS%MAX_MOMENT")
-         !CALL calculate_localized_moments(qs_env, maxmom, mo_local)
+         max_moment = section_get_ival(loc_print_section, "LOCALIZED_MOMENTS%MAX_MOMENT")
+         magnetic = section_get_lval(loc_print_section, "LOCALIZED_MOMENTS%MAGNETIC")
+         vel_reprs = section_get_lval(loc_print_section, "LOCALIZED_MOMENTS%VEL_REPRS")
+         com_nl = section_get_lval(loc_print_section, "LOCALIZED_MOMENTS%COM_NL")
+         CALL calculate_localized_moments(qs_env, qs_loc_env, mo_local, max_moment, magnetic, &
+                                          vel_reprs, com_nl, loc_print_section)
       END IF
 
       CALL timestop(handle)
