@@ -1486,9 +1486,8 @@ CONTAINS
       nc = SIZE(kp%mos, 1)
       nimg = SIZE(denmat, 2)
       real_only = (nc == 1)
-      ! Shifted meshes store atom-cell shifts in the opposite Bloch-phase convention.
-      reverse_phase = ANY(ABS(kpoint%kp_shift(1:3)) > 1.e-12_dp) .OR. &
-                      (kpoint%gamma_centered .AND. ANY(MOD(kpoint%nkp_grid(1:3), 2) == 0))
+      ! Gamma-centered even grids store atom-cell shifts in the opposite Bloch-phase convention.
+      reverse_phase = kpoint%gamma_centered .AND. ANY(MOD(kpoint%nkp_grid(1:3), 2) == 0)
 
       para_env => kpoint%blacs_env_all%para_env
       ALLOCATE (info(nspin*nkp*nc))

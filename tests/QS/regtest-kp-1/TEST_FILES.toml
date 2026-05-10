@@ -26,7 +26,8 @@
 "h_inv_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_ortho_sym_red.inp"                   = [{matcher="E_total", tol=1e-8, ref=-2.73592238316042}]
 "h_mono_sym_red.inp"                    = [{matcher="E_total", tol=1e-10, ref=-3.15139711262736}]
-"h_hex_c3_sym_red.inp"                  = [{matcher="E_total", tol=1e-8, ref=-9.17691856252346}]
+"h_hex_c3_sym_red.inp"                  = [{matcher="E_total", tol=1e-8, ref=-9.17691856252346},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=9}]
 "h_hex_c3_gamma_k290.inp"               = [{matcher="E_total", tol=1e-7, ref=-9.41333967352938},
                                            {matcher="N_special_kpoints", tol=0.0, ref=8}]
 "h_hex_c3_gamma_spglib.inp"             = [{matcher="E_total", tol=1e-7, ref=-9.41333967352940},

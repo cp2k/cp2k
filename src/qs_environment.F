@@ -866,9 +866,14 @@ CONTAINS
 
       reason = ""
       MARK_USED(do_debug_fdiff)
-      MARK_USED(do_xtb_tblite)
 
       SELECT CASE (method_id)
+      CASE (do_method_xtb)
+         IF (do_xtb_tblite) THEN
+            reason = "xTB/tblite"
+         ELSE
+            reason = "xTB"
+         END IF
       CASE (do_method_dftb)
          IF (do_dftb_scc_high_l) reason = "SCC-DFTB with d orbitals"
       CASE (do_method_lrigpw)
