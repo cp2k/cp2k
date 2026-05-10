@@ -234,6 +234,7 @@ QS/regtest-stress
 QS/regtest-mom-2                                            libint !ifx
 QS/regtest-admm-2                                           libint !ifx
 QS/regtest-as-dft                                           libint libxc !ifx
+QS/regtest-as-fci                                           libfci libint libxc !ifx
 QS/regtest-mp2-admm-grad                                    libint !ifx
 QS/regtest-admm-dm                                          libint !ifx
 NNP/regtest-1

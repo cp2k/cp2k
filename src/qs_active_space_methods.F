@@ -62,7 +62,7 @@ MODULE qs_active_space_methods
       casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
       eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, &
       eri_operator_trunc, eri_operator_lr_trunc, &
-      manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
+      fci_solver, manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
       eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt, high_spin_roks
    USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
@@ -118,6 +118,7 @@ MODULE qs_active_space_methods
                        qcschema_env_release, &
                        qcschema_to_hdf5, &
                        qcschema_type
+   USE qs_active_space_fci, ONLY: solve_active_space_fci
    USE qs_active_space_types, ONLY: active_space_type, &
                                     create_active_space_type, &
                                     csr_idx_from_combined, &
@@ -1146,7 +1147,7 @@ CONTAINS
       ! associate the active space environment with the qs environment
       CALL set_qs_env(qs_env, active_space=active_space_env)
 
-      ! Perform the embedding calculation only if qiskit is specified
+      ! Perform the embedding calculation when an active-space solver is specified
       CALL section_vals_val_get(as_input, "AS_SOLVER", i_val=as_solver)
       SELECT CASE (as_solver)
       CASE (no_solver)
@@ -1157,6 +1158,9 @@ CONTAINS
          CALL para_env%sync()
       CASE (qiskit_solver)
          CALL rsdft_embedding(qs_env, active_space_env, as_input)
+         CALL qs_scf_compute_properties(qs_env, wf_type="MC-DFT", do_mp2=.FALSE.)
+      CASE (fci_solver)
+         CALL local_fci_embedding(qs_env, active_space_env, as_input)
          CALL qs_scf_compute_properties(qs_env, wf_type="MC-DFT", do_mp2=.FALSE.)
       CASE DEFAULT
          CPABORT("Unknown active space solver")
@@ -3015,6 +3019,157 @@ CONTAINS
       DEALLOCATE (pmat)
 
    END SUBROUTINE print_pmat_noon
+
+! **************************************************************************************************
+!> \brief Run range-separated DFT embedding with the local FCI active-space solver.
+!> \param qs_env Quickstep environment
+!> \param active_space_env active-space environment
+!> \param as_input ACTIVE_SPACE input section
+! **************************************************************************************************
+   SUBROUTINE local_fci_embedding(qs_env, active_space_env, as_input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(section_vals_type), POINTER                   :: as_input
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'local_fci_embedding'
+
+      INTEGER                                            :: handle, iter, iw, max_iter
+      LOGICAL                                            :: converged, do_scf_embedding
+      REAL(KIND=dp)                                      :: delta_E, energy_corr, energy_new, &
+                                                            energy_old, energy_scf, eps_iter, t1, &
+                                                            t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: p_act_mo_a, p_act_mo_b
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      t1 = m_walltime()
+      logger => cp_get_default_logger()
+      iw = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control)
+      IF (dft_control%roks) CPABORT("AS_SOLVER FCI is not supported for ROKS calculations.")
+
+      CALL section_vals_val_get(as_input, "SCF_EMBEDDING", l_val=do_scf_embedding)
+      active_space_env%do_scf_embedding = do_scf_embedding
+      CALL section_vals_val_get(as_input, "MAX_ITER", i_val=max_iter)
+      IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
+      CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
+      IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
+
+      CALL get_qs_env(qs_env, rho=rho, energy=energy, ks_env=ks_env)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A,/)") &
+            "RANGE-SEPARATED DFT EMBEDDING WITH LIBFCI SOLVER"
+         WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
+         WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
+         WRITE (iw, '(T3,A,T68,A)') "Density mixer", TRIM(active_space_mixing_label(active_space_env))
+         WRITE (iw, '(T3,A,T66,F14.2)') "Mixing alpha", active_space_env%alpha
+         WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
+            "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
+      END IF
+
+      iter = 0
+      converged = .FALSE.
+      energy_scf = active_space_env%energy_ref
+      energy_new = energy_scf
+      mos_active => active_space_env%mos_active
+
+      DO WHILE (iter < max_iter)
+         iter = iter + 1
+
+         IF (active_space_env%nspins == 2) THEN
+            CALL solve_active_space_fci(active_space_env, para_env, p_act_mo_a, p_act_mo_b)
+            active_space_env%energy_total = active_space_env%energy_inactive + active_space_env%energy_active
+            CALL update_active_density(p_act_mo_a, active_space_env, p_act_mo_b)
+            DEALLOCATE (p_act_mo_a, p_act_mo_b)
+         ELSE
+            CALL solve_active_space_fci(active_space_env, para_env, p_act_mo_a)
+            active_space_env%energy_total = active_space_env%energy_inactive + active_space_env%energy_active
+            CALL update_active_density(p_act_mo_a, active_space_env)
+            DEALLOCATE (p_act_mo_a)
+         END IF
+
+         energy_old = energy_new
+         energy_new = active_space_env%energy_total
+         energy_corr = energy_new - energy_scf
+         delta_E = energy_new - energy_old
+
+         t2 = t1
+         t1 = m_walltime()
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, &
+                   FMT="(T3,I4,T11,A,T19,F6.1,T28,F18.10,T49,F18.10,T70,ES11.2)") &
+               iter, TRIM(active_space_mixing_label(active_space_env)), &
+               t1 - t2, energy_corr, energy_new, delta_E
+            CALL m_flush(iw)
+         END IF
+
+         CALL update_density_ao(active_space_env, rho_ao)
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+         CALL evaluate_core_matrix_traces(qs_env)
+         CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., &
+                                           just_energy=.FALSE., &
+                                           ext_xc_section=active_space_env%xc_section)
+
+         active_space_env%energy_ref = energy%total
+         CALL calculate_operators(mos_active, qs_env, active_space_env)
+         CALL subspace_fock_matrix(active_space_env, dft_control%roks)
+
+         IF (.NOT. active_space_env%do_scf_embedding) THEN
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
+                  "*** one-shot embedding correction finished ***"
+            END IF
+            converged = .TRUE.
+            EXIT
+         ELSEIF (ABS(delta_E) <= eps_iter) THEN
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
+                  "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"
+            END IF
+            converged = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+      IF (.NOT. converged) THEN
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
+               "*** rs-DFT embedding did not converged after ", iter, " iteration(s) ***"
+         END IF
+      END IF
+
+      energy%total = active_space_env%energy_total
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T3,A)") &
+            "Final energy contributions:"
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Inactive energy:", active_space_env%energy_inactive
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Active energy:", active_space_env%energy_active
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Correlation energy:", energy_corr
+         WRITE (UNIT=iw, FMT="(T6,A,T56,F20.10)") &
+            "Total rs-DFT energy:", active_space_env%energy_total
+      END IF
+
+      CALL print_pmat_noon(active_space_env, iw)
+      CALL para_env%sync()
+      CALL timestop(handle)
+
+   END SUBROUTINE local_fci_embedding
 
 ! **************************************************************************************************
 !> \brief ...

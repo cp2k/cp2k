@@ -282,6 +282,9 @@ CONTAINS
 #if defined(__TREXIO)
       flags = TRIM(flags)//" trexio"
 #endif
+#if defined(__LIBFCI)
+      flags = TRIM(flags)//" libfci"
+#endif
 #if defined(__OFFLOAD_UNIFIED_MEMORY)
       flags = TRIM(flags)//" offload_unified_memory"
 #endif

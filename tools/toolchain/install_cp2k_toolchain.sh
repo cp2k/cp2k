@@ -337,6 +337,8 @@ Specific options of --with-PKG:
                           Default = no
   --with-trexio           Enable the trexio library for TREXIO file format.
                           Default = no
+  --with-libfci           Enable the libfci active-space solver library.
+                          Default = no
   --with-mcl              Install MCL library for MiMiC with toolchain.
                           Default = no
   --with-dbcsr            Install DBCSR library with toolchain.
@@ -462,7 +464,7 @@ math_list="mkl acml openblas"
 lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
-          fmt trexio greenx gmp mcl"
+          fmt trexio libfci greenx gmp mcl"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -491,6 +493,7 @@ with_fmt="__DONTUSE__"
 with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_trexio="__DONTUSE__"
+with_libfci="__DONTUSE__"
 with_elpa="__INSTALL__"
 with_cusolvermp="__DONTUSE__"
 with_libvdwxc="__DONTUSE__"
@@ -905,6 +908,9 @@ Otherwise use option no."
     --with-trexio*)
       with_trexio=$(read_with "${1}")
       ;;
+    --with-libfci*)
+      with_libfci=$(read_with "${1}")
+      ;;
     --with-greenx*)
       with_greenx=$(read_with "${1}")
       ;;
@@ -1091,6 +1097,7 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_spla}" = "__INSTALL__" ] ||
   [ "${with_ninja}" = "__INSTALL__" ] ||
   [ "${with_greenx}" = "__INSTALL__" ] ||
+  [ "${with_libfci}" = "__INSTALL__" ] ||
   [ "${with_dftd4}" = "__INSTALL__" ] ||
   [ "${with_mcl}" = "__INSTALL__" ] ||
   [ "${with_tblite}" = "__INSTALL__" ]; then

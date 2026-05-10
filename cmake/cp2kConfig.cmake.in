@@ -89,6 +89,11 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(Libint2 REQUIRED)
   endif()
 
+  if(@CP2K_USE_LIBFCI@)
+    set(CP2K_USE_LIBFCI @CP2K_USE_LIBFCI@)
+    find_dependency(LibFCI REQUIRED)
+  endif()
+
   if(@CP2K_USE_SPGLIB@)
     set(CP2K_USE_SPGLIB @CP2K_USE_SPGLIB@)
     find_dependency(LibSPG REQUIRED)

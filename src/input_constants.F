@@ -1146,7 +1146,8 @@ MODULE input_constants
 
    ! Active space external solvers
    INTEGER, PARAMETER, PUBLIC               :: no_solver = 200, &
-                                               qiskit_solver = 201
+                                               qiskit_solver = 201, &
+                                               fci_solver = 202
 
    ! callgraph parameters
    INTEGER, PARAMETER, PUBLIC               :: callgraph_none = 0, &
