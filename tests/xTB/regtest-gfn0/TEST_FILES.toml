@@ -13,17 +13,17 @@
 "ch2o_8.inp"                            = []
 "ch2o_9.inp"                            = []
 "si_kp.inp"                             = []
-"si_kp_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350112312},
+"si_kp_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-13.92597061208093},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M072", tol=1.0E-12, ref=0.0},
                                            {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
-"si_kp_kpsym_atomdisp.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348551223},
+"si_kp_kpsym_atomdisp.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92597059653838},
                                            {matcher="N_special_kpoints", tol=0.0, ref=12}]
-"si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350112312},
+"si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92597061208093},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M072", tol=1.0E-12, ref=0.0},
                                            {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
-"si_kp_spglib_reduction_atomdisp.inp"   = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348551223},
+"si_kp_spglib_reduction_atomdisp.inp"   = [{matcher="E_total", tol=1.0E-11, ref=-13.92597059653838},
                                            {matcher="N_special_kpoints", tol=0.0, ref=12}]
 "si_kp_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-11, ref=-13.92597057189198},
                                            {matcher="N_special_kpoints", tol=0.0, ref=32},

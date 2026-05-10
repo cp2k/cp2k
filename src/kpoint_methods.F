@@ -1423,7 +1423,7 @@ CONTAINS
                                                             ispin, jr, nc, nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_ext, do_symmetric, my_kpgrp, &
-                                                            real_only
+                                                            real_only, reverse_phase
       REAL(KIND=dp)                                      :: wkpx
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -1486,6 +1486,9 @@ CONTAINS
       nc = SIZE(kp%mos, 1)
       nimg = SIZE(denmat, 2)
       real_only = (nc == 1)
+      ! Shifted meshes store atom-cell shifts in the opposite Bloch-phase convention.
+      reverse_phase = ANY(ABS(kpoint%kp_shift(1:3)) > 1.e-12_dp) .OR. &
+                      (kpoint%gamma_centered .AND. ANY(MOD(kpoint%nkp_grid(1:3), 2) == 0))
 
       para_env => kpoint%blacs_env_all%para_env
       ALLOCATE (info(nspin*nkp*nc))
@@ -1568,7 +1571,7 @@ CONTAINS
                   CALL symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kind_rot, &
                                       kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
                                       kpsym%fcell(:, :, is), kpoint%atype, kpsym%xkp(1:3, is), &
-                                      kpsym%rotp(is) < 0)
+                                      kpsym%rotp(is) < 0, reverse_phase)
                   CALL transform_dmat(denmat, srpmat, scpmat, ispin, real_only, sab_nl, &
                                       cell_to_index, kpsym%xkp(1:3, is), wkpx)
                END DO
@@ -1742,9 +1745,10 @@ CONTAINS
 !> \param atype atom to kind pointer
 !> \param xkp target k-point coordinates
 !> \param time_reversal ...
+!> \param reverse_phase ...
 ! **************************************************************************************************
    SUBROUTINE symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kmat, rot, f0, fcell, atype, &
-                             xkp, time_reversal)
+                             xkp, time_reversal, reverse_phase)
 
       TYPE(dbcsr_type), POINTER                          :: srpmat, scpmat, rpmat, cpmat
       LOGICAL, INTENT(IN)                                :: real_only
@@ -1754,7 +1758,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: fcell
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      LOGICAL, INTENT(IN)                                :: time_reversal
+      LOGICAL, INTENT(IN)                                :: time_reversal, reverse_phase
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans_phase'
 
@@ -1762,11 +1766,9 @@ CONTAINS
                                                             jcol, jkind, jp, jrow, mynode, natom, &
                                                             numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
-      LOGICAL                                            :: dorot, found, has_phase, perm, &
-                                                            self_inverse, trans
+      LOGICAL                                            :: dorot, found, has_phase, perm, trans
       REAL(KIND=dp)                                      :: arg, coskl, dr, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye3, rot2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
                                                             srblock
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -1775,12 +1777,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       natom = SIZE(f0)
-      eye3 = 0.0_dp
-      eye3(1, 1) = 1.0_dp
-      eye3(2, 2) = 1.0_dp
-      eye3(3, 3) = 1.0_dp
-      rot2 = MATMUL(rot, rot)
-      self_inverse = MAXVAL(ABS(rot2 - eye3)) < 1.e-8_dp
       perm = .FALSE.
       DO iatom = 1, natom
          IF (f0(iatom) == iatom) CYCLE
@@ -1834,13 +1830,13 @@ CONTAINS
          kroti => kmat(ikind)%rmat
          krotj => kmat(jkind)%rmat
 
-         IF (self_inverse) THEN
-            shift = fcell(1:3, icol) - fcell(1:3, irow)
-         ELSE
+         IF (reverse_phase) THEN
             shift = fcell(1:3, irow) - fcell(1:3, icol)
+         ELSE
+            shift = fcell(1:3, icol) - fcell(1:3, irow)
          END IF
          arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
-         ! Self-inverse and higher-order rotations use opposite stored cell-shift conventions.
+         ! The Bloch phase depends only on the mapped atom-cell shifts and the target k-point.
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
          IF (real_only) THEN

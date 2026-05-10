@@ -271,12 +271,13 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
                                                             nkind, nkp_grid(3)
-      LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm_rpa, do_bse, do_debug_fdiff, &
-         do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, do_ec_hfx, &
-         do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, do_ri_mp2, &
-         do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-         do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, kpoint_verbose, mp2_present, &
-         my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, use_ref_cell
+      LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm, do_admm_rpa, do_bse, &
+         do_debug_fdiff, do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, &
+         do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, &
+         do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, &
+         do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, &
+         kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, &
+         use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -295,9 +296,9 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER :: active_space_section, dft_section, ec_hfx_section, &
-         ec_section, et_coupling_section, gw_section, hfx_section, kpoint_section, mp2_section, &
-         rpa_hfx_section, tddfpt_section, transport_section
+      TYPE(section_vals_type), POINTER :: active_space_section, admm_section, dft_section, &
+         ec_hfx_section, ec_section, et_coupling_section, gw_section, hfx_section, kpoint_section, &
+         mp2_section, rpa_hfx_section, tddfpt_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
@@ -392,6 +393,9 @@ CONTAINS
          do_exx = .FALSE.
          rpa_hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
          CALL section_vals_get(rpa_hfx_section, explicit=do_exx)
+         do_admm = .FALSE.
+         admm_section => section_vals_get_subs_vals(qs_env%input, "DFT%AUXILIARY_DENSITY_MATRIX_METHOD")
+         CALL section_vals_get(admm_section, explicit=do_admm)
          do_gw = .FALSE.
          gw_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%GW")
          CALL section_vals_get(gw_section, explicit=do_gw)
@@ -466,7 +470,7 @@ CONTAINS
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-                                                          do_xtb_tblite, .FALSE.)
+                                                          do_xtb_tblite, do_admm, .FALSE.)
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
       END IF
 
@@ -485,7 +489,7 @@ CONTAINS
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
                                                           do_wfc_low_scaling, do_wfc_low_scaling_kpoints, &
-                                                          do_xtb_tblite, do_dftb_scc_high_l, &
+                                                          do_xtb_tblite, do_admm, do_dftb_scc_high_l, &
                                                           restricted=dftb_kpoint_sym_restricted)
          final_kpoint_reinit = dftb_kpoint_sym_restricted .OR. kpoint_verbose
          IF (final_kpoint_reinit) THEN
@@ -710,6 +714,7 @@ CONTAINS
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
 !> \param do_xtb_tblite ...
+!> \param do_admm ...
 !> \param do_dftb_scc_high_l ...
 !> \param restricted ...
 ! **************************************************************************************************
@@ -718,12 +723,12 @@ CONTAINS
                                                           do_debug_fdiff, &
                                                           do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                           do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                          do_dftb_scc_high_l, restricted)
+                                                          do_admm, do_dftb_scc_high_l, restricted)
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
          do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_dftb_scc_high_l
+         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_admm, do_dftb_scc_high_l
       LOGICAL, INTENT(OUT), OPTIONAL                     :: restricted
 
       CHARACTER(LEN=default_string_length)               :: kp_scheme, reason
@@ -768,7 +773,7 @@ CONTAINS
                                                          do_debug_fdiff, &
                                                          do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                          do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                         do_dftb_scc_high_l)
+                                                         do_admm, do_dftb_scc_high_l)
       IF (LEN_TRIM(reason) == 0) RETURN
 
       CALL cp_warn(__LOCATION__, &
@@ -844,6 +849,7 @@ CONTAINS
 !> \param do_wfc_low_scaling ...
 !> \param do_wfc_low_scaling_kpoints ...
 !> \param do_xtb_tblite ...
+!> \param do_admm ...
 !> \param do_dftb_scc_high_l ...
 !> \return reason
 ! **************************************************************************************************
@@ -851,16 +857,14 @@ CONTAINS
                                                       do_active_space, do_linear_response, do_debug_fdiff, &
                                                       do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
                                                       do_wfc_low_scaling_kpoints, do_xtb_tblite, &
-                                                      do_dftb_scc_high_l) RESULT(reason)
+                                                      do_admm, do_dftb_scc_high_l) RESULT(reason)
       INTEGER, INTENT(IN)                                :: method_id
       LOGICAL, INTENT(IN) :: do_hfx, do_exx, do_gw, do_tddfpt, do_active_space, &
          do_linear_response, do_debug_fdiff, do_mp2, do_rpa, do_bse, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_dftb_scc_high_l
+         do_wfc_low_scaling_kpoints, do_xtb_tblite, do_admm, do_dftb_scc_high_l
       CHARACTER(LEN=default_string_length)               :: reason
 
       reason = ""
-      MARK_USED(do_hfx)
-      MARK_USED(do_exx)
       MARK_USED(do_debug_fdiff)
       MARK_USED(do_xtb_tblite)
 
@@ -879,7 +883,9 @@ CONTAINS
       END SELECT
 
       IF (LEN_TRIM(reason) > 0) RETURN
-      IF (do_bse) THEN
+      IF ((do_hfx .OR. do_exx) .AND. do_admm) THEN
+         reason = "HFX/HF with ADMM"
+      ELSE IF (do_bse) THEN
          reason = "BSE"
       ELSE IF (do_gw) THEN
          reason = "GW"

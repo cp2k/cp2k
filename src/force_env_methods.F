@@ -108,6 +108,7 @@ MODULE force_env_methods
                                               kpoint_initialize_mos
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_reset_initialization,&
+                                              kpoint_sym_type,&
                                               kpoint_type,&
                                               set_kpoint_info
    USE machine,                         ONLY: m_memory
@@ -616,6 +617,7 @@ CONTAINS
       dynamic_symmetry = kpoint_symmetry .AND. .NOT. use_full_grid .AND. &
                          .NOT. use_inversion_symmetry_only
       IF (moving_geometry .AND. .NOT. dynamic_symmetry) RETURN
+      IF (moving_geometry .AND. .NOT. kpoint_has_nontrivial_atomic_symmetry(kpoints)) RETURN
       CALL set_kpoint_info(kpoints, full_grid=use_full_grid, &
                            inversion_symmetry_only=use_inversion_symmetry_only)
 
@@ -627,6 +629,55 @@ CONTAINS
       CALL qs_basis_rotation(force_env%qs_env, kpoints)
 
    END SUBROUTINE force_env_refresh_kpoint_symmetry
+
+! **************************************************************************************************
+!> \brief Return whether the current reduced mesh uses nontrivial atomic symmetry operations.
+!> \param kpoints ...
+!> \return has_symmetry
+! **************************************************************************************************
+   FUNCTION kpoint_has_nontrivial_atomic_symmetry(kpoints) RESULT(has_symmetry)
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL                                            :: has_symmetry
+
+      INTEGER                                            :: iatom, ik, isym, natom
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eye3
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      has_symmetry = .FALSE.
+      IF (.NOT. ASSOCIATED(kpoints)) RETURN
+      IF (.NOT. ASSOCIATED(kpoints%kp_sym)) RETURN
+
+      eye3 = 0.0_dp
+      eye3(1, 1) = 1.0_dp
+      eye3(2, 2) = 1.0_dp
+      eye3(3, 3) = 1.0_dp
+
+      DO ik = 1, kpoints%nkp
+         kpsym => kpoints%kp_sym(ik)%kpoint_sym
+         IF (.NOT. ASSOCIATED(kpsym)) CYCLE
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%rot)) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%f0)) CYCLE
+         IF (.NOT. ASSOCIATED(kpsym%fcell)) CYCLE
+
+         natom = SIZE(kpsym%f0, 1)
+         DO isym = 1, SIZE(kpsym%rot, 3)
+            IF (MAXVAL(ABS(kpsym%rot(1:3, 1:3, isym) - eye3(1:3, 1:3))) > 1.e-12_dp .OR. &
+                ANY(kpsym%fcell(1:3, 1:natom, isym) /= 0)) THEN
+               has_symmetry = .TRUE.
+               RETURN
+            END IF
+            DO iatom = 1, natom
+               IF (kpsym%f0(iatom, isym) /= iatom) THEN
+                  has_symmetry = .TRUE.
+                  RETURN
+               END IF
+            END DO
+         END DO
+      END DO
+
+   END FUNCTION kpoint_has_nontrivial_atomic_symmetry
 
 ! **************************************************************************************************
 !> \brief Evaluates the stress tensor and pressure numerically

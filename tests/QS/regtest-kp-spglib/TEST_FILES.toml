@@ -1,4 +1,4 @@
 # runs are executed in the same order as in this file
-"c_k290_space_group_ops.inp" = [{matcher="E_total", tol=1e-8, ref=-46.619328041359672},
+"c_k290_space_group_ops.inp" = [{matcher="E_total", tol=1e-8, ref=-46.619328305735600},
                                 {matcher="N_special_kpoints", tol=0.0, ref=10}]
 #EOF
