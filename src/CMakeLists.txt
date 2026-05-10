@@ -507,6 +507,7 @@ list(
   qmmmx_util.F
   qs_2nd_kernel_ao.F
   qs_active_space_methods.F
+  qs_active_space_mixing.F
   qs_active_space_types.F
   qs_active_space_utils.F
   qcschema.F

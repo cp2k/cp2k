@@ -25,6 +25,9 @@ MODULE qs_active_space_types
                                               mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type
+   USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
+                                              mixing_storage_release,&
+                                              mixing_storage_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
 #include "./base/base_uses.f90"
@@ -98,11 +101,20 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                                :: energy_inactive = 0.0_dp
       REAL(KIND=dp)                                :: energy_active = 0.0_dp
       REAL(KIND=dp)                                :: alpha = 0.0_dp
+      INTEGER                                      :: as_mixing_method = direct_mixing_nr
+      INTEGER                                      :: as_mixing_iter = 0
+      INTEGER                                      :: as_mixing_dim = 0
       LOGICAL                                      :: do_scf_embedding = .FALSE.
       LOGICAL                                      :: qcschema = .FALSE.
       LOGICAL                                      :: fcidump = .FALSE.
       CHARACTER(LEN=default_path_length)           :: qcschema_filename = ''
       TYPE(eri_type)                               :: eri = eri_type()
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: as_mix_r_old => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: as_mix_weight => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: as_mix_x_old => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: as_mix_r_buffer => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER      :: as_mix_x_buffer => NULL()
+      TYPE(mixing_storage_type), POINTER           :: as_mixing_store => NULL()
       TYPE(mo_set_type), DIMENSION(:), POINTER     :: mos_active => NULL()
       TYPE(mo_set_type), DIMENSION(:), POINTER     :: mos_inactive => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: p_active => NULL()
@@ -155,6 +167,10 @@ CONTAINS
       NULLIFY (active_space_env%ks_sub, active_space_env%p_active)
       NULLIFY (active_space_env%vxc_sub, active_space_env%h_sub)
       NULLIFY (active_space_env%fock_sub, active_space_env%pmat_inactive)
+      NULLIFY (active_space_env%as_mixing_store)
+      NULLIFY (active_space_env%as_mix_r_old, active_space_env%as_mix_weight)
+      NULLIFY (active_space_env%as_mix_x_old)
+      NULLIFY (active_space_env%as_mix_r_buffer, active_space_env%as_mix_x_buffer)
 
    END SUBROUTINE create_active_space_type
 
@@ -199,6 +215,26 @@ CONTAINS
          CALL cp_fm_release(active_space_env%h_sub)
          CALL cp_fm_release(active_space_env%fock_sub)
          CALL cp_fm_release(active_space_env%sab_sub)
+
+         IF (ASSOCIATED(active_space_env%as_mixing_store)) THEN
+            CALL mixing_storage_release(active_space_env%as_mixing_store)
+            DEALLOCATE (active_space_env%as_mixing_store)
+         END IF
+         IF (ASSOCIATED(active_space_env%as_mix_r_old)) THEN
+            DEALLOCATE (active_space_env%as_mix_r_old)
+         END IF
+         IF (ASSOCIATED(active_space_env%as_mix_weight)) THEN
+            DEALLOCATE (active_space_env%as_mix_weight)
+         END IF
+         IF (ASSOCIATED(active_space_env%as_mix_x_old)) THEN
+            DEALLOCATE (active_space_env%as_mix_x_old)
+         END IF
+         IF (ASSOCIATED(active_space_env%as_mix_r_buffer)) THEN
+            DEALLOCATE (active_space_env%as_mix_r_buffer)
+         END IF
+         IF (ASSOCIATED(active_space_env%as_mix_x_buffer)) THEN
+            DEALLOCATE (active_space_env%as_mix_x_buffer)
+         END IF
 
          IF (ASSOCIATED(active_space_env%pmat_inactive)) &
             CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)

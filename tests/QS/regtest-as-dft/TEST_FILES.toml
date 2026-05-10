@@ -29,4 +29,5 @@
 "h2_manual_UKS_1+2.inp"                 = [{matcher="M092", tol=1e-8, ref=8.52386602}]
 "h2_lr_trunc.inp"                       = [{matcher="M092", tol=1e-8, ref=6.68026227}]
 "h2_as_xc_section.inp"                  = [{matcher="M092", tol=1e-8, ref=6.70128392}]
+"h2_as_mixing.inp"                      = [{matcher="M092", tol=1e-8, ref=3.69373843}]
 #EOF

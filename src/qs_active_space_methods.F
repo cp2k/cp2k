@@ -124,6 +124,9 @@ MODULE qs_active_space_methods
                                     csr_idx_to_combined, &
                                     eri_type, &
                                     eri_type_eri_element_func
+   USE qs_active_space_mixing, ONLY: active_space_mixing_label, &
+                                     initialize_active_space_mixing, &
+                                     update_active_density
    USE qs_active_space_utils, ONLY: eri_to_array, &
                                     subspace_matrix_to_array
    USE qs_collocate_density, ONLY: calculate_wavefunction
@@ -227,8 +230,8 @@ CONTAINS
                                                             ex_operator, ex_perd, ex_rcut, &
                                                             explicit, stop_after_print, store_wfn, &
                                                             use_real_wfn
-      REAL(KIND=dp) :: alpha, eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, &
-         eri_op_omega, eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
+      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_omega, &
+         eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -360,10 +363,6 @@ CONTAINS
          CPABORT("The remaining number of inactive electrons has to be even.")
       END IF
 
-      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
-      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
-      active_space_env%alpha = alpha
-
       IF (iw > 0) THEN
          WRITE (iw, '(T3,A,T70,I10)') "Total number of electrons", nelec_total
          WRITE (iw, '(T3,A,T70,I10)') "Number of inactive electrons", nelec_inactive
@@ -388,6 +387,8 @@ CONTAINS
       ! this is safe because nelec_inactive is always even
       nmo_inactive = nelec_inactive/2
       active_space_env%nmo_inactive = nmo_inactive
+
+      CALL initialize_active_space_mixing(active_space_env, as_input)
 
       CALL section_vals_val_get(as_input, "ORBITAL_SELECTION", i_val=mselect)
       IF (iw > 0) THEN
@@ -2953,39 +2954,6 @@ CONTAINS
    END FUNCTION eri_fcidump_checksum_func
 
 ! **************************************************************************************************
-!> \brief Update active space density matrix from a fortran array
-!> \param p_act_mo density matrix in active space MO basis
-!> \param active_space_env active space environment
-!> \param ispin spin index
-!> \author Vladimir Rybkin
-! **************************************************************************************************
-   SUBROUTINE update_active_density(p_act_mo, active_space_env, ispin)
-      REAL(KIND=dp), DIMENSION(:)                        :: p_act_mo
-      TYPE(active_space_type), POINTER                   :: active_space_env
-      INTEGER                                            :: ispin
-
-      INTEGER                                            :: i1, i2, m1, m2, nmo_active
-      REAL(KIND=dp)                                      :: alpha, pij_new, pij_old
-      TYPE(cp_fm_type), POINTER                          :: p_active
-
-      p_active => active_space_env%p_active(ispin)
-      nmo_active = active_space_env%nmo_active
-      alpha = active_space_env%alpha
-
-      DO i1 = 1, nmo_active
-         m1 = active_space_env%active_orbitals(i1, ispin)
-         DO i2 = 1, nmo_active
-            m2 = active_space_env%active_orbitals(i2, ispin)
-            CALL cp_fm_get_element(p_active, m1, m2, pij_old)
-            pij_new = p_act_mo(i2 + (i1 - 1)*nmo_active)
-            pij_new = alpha*pij_new + (1.0_dp - alpha)*pij_old
-            CALL cp_fm_set_element(p_active, m1, m2, pij_new)
-         END DO
-      END DO
-
-   END SUBROUTINE update_active_density
-
-! **************************************************************************************************
 !> \brief Compute and print the AS rdm and the natural orbitals occupation numbers
 !> \param active_space_env active space environment
 !> \param iw output unit
@@ -3118,7 +3086,8 @@ CONTAINS
 
          WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
          WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
-         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", active_space_env%alpha
+         WRITE (iw, '(T3,A,T68,A)') "Density mixer", TRIM(active_space_mixing_label(active_space_env))
+         WRITE (iw, '(T3,A,T66,F14.2)') "Mixing alpha", active_space_env%alpha
 
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
@@ -3154,7 +3123,8 @@ CONTAINS
          IF ((iw > 0)) THEN
             WRITE (UNIT=iw, &
                    FMT="(T3,I4,T11,A,T19,F6.1,T28,F18.10,T49,F18.10,T70,ES11.2)") &
-               iter, 'P_Mix', t1 - t2, energy_corr, energy_new, delta_E
+               iter, TRIM(active_space_mixing_label(active_space_env)), &
+               t1 - t2, energy_corr, energy_new, delta_E
             CALL m_flush(iw)
          END IF
 
@@ -3423,7 +3393,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE send_fock_to_client(client_fd, active_space_env, para_env)
       INTEGER, INTENT(IN)                                :: client_fd
-      TYPE(active_space_type), INTENT(IN), POINTER       :: active_space_env
+      TYPE(active_space_type), INTENT(INOUT), POINTER    :: active_space_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'send_fock_to_client'
@@ -3516,9 +3486,10 @@ CONTAINS
             active_space_env%energy_total = active_space_env%energy_inactive + active_space_env%energy_active
 
             ! update the active density matrix in the active space environment
-            CALL update_active_density(p_act_mo_a, active_space_env, 1)
             IF (active_space_env%nspins == 2) THEN
-               CALL update_active_density(p_act_mo_b, active_space_env, 2)
+               CALL update_active_density(p_act_mo_a, active_space_env, p_act_mo_b)
+            ELSE
+               CALL update_active_density(p_act_mo_a, active_space_env)
             END IF
 
             ! the non-iterative part is done, we can continue
