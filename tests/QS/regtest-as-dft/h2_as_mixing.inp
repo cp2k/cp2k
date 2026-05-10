@@ -1,0 +1,93 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT h2_as_mixing
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    &ACTIVE_SPACE
+      ACTIVE_ELECTRONS 2
+      ACTIVE_ORBITALS 2
+      &ERI
+        EPS_INTEGRAL 1E-10
+        METHOD FULL_GPW
+        OMEGA 1.0
+        OPERATOR LONGRANGE
+        PERIODICITY 0 0 0
+      &END ERI
+      &ERI_GPW
+        CUTOFF 250
+      &END ERI_GPW
+      &FCIDUMP
+        FILENAME __STD_OUT__
+      &END FCIDUMP
+      &MIXING
+        ALPHA 0.5
+        BROY_W0 0.02
+        BROY_WMAX 100000.0
+        BROY_WREF 0.01
+        METHOD MODIFIED_BROYDEN_MIXING
+        NBUFFER 4
+        N_SIMPLE_MIX 1
+      &END MIXING
+    &END ACTIVE_SPACE
+    &MGRID
+      CUTOFF 300
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      ADDED_MOS 3
+      EPS_DIIS 1E-003
+      EPS_EIGVAL 1E-009
+      EPS_SCF 1E-009
+      MAX_SCF 20
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &HF
+        FRACTION 1.0
+        &INTERACTION_POTENTIAL
+          OMEGA 1.0
+          POTENTIAL_TYPE LONGRANGE
+        &END INTERACTION_POTENTIAL
+      &END HF
+      &XC_FUNCTIONAL
+        &LDA_C_PMGB06
+          SCALE -1.0
+          _OMEGA 1.0
+        &END LDA_C_PMGB06
+        &LDA_C_PW
+        &END LDA_C_PW
+        &LDA_X_ERF
+          _OMEGA 1.0
+          SCALE 1.0
+        &END LDA_X_ERF
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H 0.0 0.0  0.356
+      H 0.0 0.0 -0.356
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

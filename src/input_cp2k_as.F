@@ -40,6 +40,7 @@ MODULE input_cp2k_as
                                               logical_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE qs_density_mixing_types,         ONLY: create_mixing_section
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -171,7 +172,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
-                          description="Fraction of new density to be mixed with previous one in SCF embedding.", &
+                          description="Fraction of new density to be mixed with previous one in SCF embedding. "// &
+                          "Kept for backwards compatibility; prefer ACTIVE_SPACE%MIXING%ALPHA.", &
                           usage="ALPHA 0.25", type_of_var=real_t, &
                           default_r_val=0.8_dp)
       CALL section_add_keyword(section, keyword)
@@ -197,6 +199,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_localize_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_mixing_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
