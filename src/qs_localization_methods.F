@@ -16,7 +16,7 @@
 !> \author CJM (04.2003)
 ! **************************************************************************************************
 MODULE qs_localization_methods
-   USE bibliography,                    ONLY: Schreder2024b,&
+   USE bibliography,                    ONLY: Schreder2024_2,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -3263,7 +3263,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cite_reference(Schreder2024b)
+      CALL cite_reference(Schreder2024_2)
 
       n_dim = SIZE(zij)
 

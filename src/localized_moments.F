@@ -14,7 +14,7 @@ MODULE localized_moments
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE bibliography,                    ONLY: Schreder2021,&
-                                              Schreder2024a,&
+                                              Schreder2024_1,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -149,7 +149,7 @@ CONTAINS
 
       CALL cite_reference(Schreder2021)
       IF (max_moment > 1 .OR. magnetic .OR. vel_reprs .OR. com_nl) THEN
-         CALL cite_reference(Schreder2024a)
+         CALL cite_reference(Schreder2024_1)
       END IF
 
       logger => cp_get_default_logger()
@@ -578,7 +578,7 @@ CONTAINS
 
       CALL cite_reference(Schreder2021)
       IF (max_moment > 1 .OR. magnetic .OR. vel_reprs .OR. com_nl) THEN
-         CALL cite_reference(Schreder2024a)
+         CALL cite_reference(Schreder2024_1)
       END IF
 
       NULLIFY (cell, dft_control, kg_env, matrix_s, para_env, particle_set, &

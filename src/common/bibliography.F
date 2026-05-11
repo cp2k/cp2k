@@ -93,7 +93,8 @@ MODULE bibliography
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
-                            FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965
+                            FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
+                            Schreder2021, Schreder2024_1, Schreder2024_2
 
 CONTAINS
 
@@ -2128,14 +2129,14 @@ CONTAINS
                          source="J. Chem. Phys.", volume="155", pages="134116", &
                          year=2021, doi="10.1063/5.0058793")
 
-      CALL add_reference(key=Schreder2024a, &
+      CALL add_reference(key=Schreder2024_1, &
                          authors=s2a("L. Schreder, S. Luber"), &
                          title="Chiral Spectroscopy of Bulk Systems with Propagated Localized "// &
                          "Orbitals", &
                          source="J. Chem. Theory Comput.", volume="20", pages="3894", &
                          year=2024, doi="10.1021/acs.jctc.4c00235")
 
-      CALL add_reference(key=Schreder2024b, &
+      CALL add_reference(key=Schreder2024_2, &
                          authors=s2a("L. Schreder, S. Luber"), &
                          title="Propagated (fragment) Pipek–Mezey Wannier functions in "// &
                          "real-time time-dependent density functional theory", &
