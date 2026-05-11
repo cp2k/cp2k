@@ -272,7 +272,7 @@ CONTAINS
       ELSE
          CALL get_rational_damping(dispersion_env%ref_functional, param, s9=dispersion_env%s9)
          IF (.NOT. ALLOCATED(param)) THEN
-            CPABORT("D4: Unknown functional '"//TRIM(dispersion_env%ref_functional)//"'")
+            CPABORT("D4: Unknown reference functional '"//TRIM(dispersion_env%ref_functional)//"'")
          END IF
          SELECT TYPE (param)
          TYPE is (rational_damping_param)
