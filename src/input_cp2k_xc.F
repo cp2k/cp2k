@@ -995,10 +995,10 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
                           description="Use parameters for this specific density functional. "// &
+                          "For available DFT-D4 functionals and parameters see: "// &
+                          "<https://github.com/dftd4/dftd4/blob/main/src/dftd4/param.f90>. "// &
                           "For available D3 and D3(BJ) parameters see: "// &
-                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>. "// &
-                          "For the defintion of D4 parameters see: "// &
-                          "<https://github.com/dftd4/dftd4>.", &
+                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>.", &
                           usage="REFERENCE_FUNCTIONAL <functional>", &
                           type_of_var=char_t)
       CALL section_add_keyword(subsection, keyword)
