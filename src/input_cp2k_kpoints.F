@@ -77,7 +77,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="KPOINTS", &
-                          description="Controls Brillouin-zone sampling with k-points.", &
+                          description="Controls Brillouin-zone sampling with k-points. K-point "// &
+                          "calculations require the cell vectors to follow CP2K's cell convention: "// &
+                          "A lies along the X-axis and B lies in the XY plane. For general lattice "// &
+                          "vectors, rotate the cell or use ABC with ALPHA_BETA_GAMMA.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)

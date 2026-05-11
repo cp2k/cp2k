@@ -123,6 +123,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
+      REAL(KIND=dp), PARAMETER :: eps_cell = 100.0_dp*EPSILON(1.0_dp)
 
       INTEGER                                            :: handle, i, ic, ik, iounit, ir, ira, is, &
                                                             j, natom, nkind, nr, ns
@@ -140,6 +141,20 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(kpoint))
+      CPASSERT(ASSOCIATED(cell))
+
+      SELECT CASE (kpoint%kp_scheme)
+      CASE ("MONKHORST-PACK", "MACDONALD", "GENERAL")
+         IF ((ABS(cell%hmat(2, 1)) > eps_cell) .OR. &
+             (ABS(cell%hmat(3, 1)) > eps_cell) .OR. &
+             (ABS(cell%hmat(3, 2)) > eps_cell)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "K-point calculations require the cell vectors to follow CP2K's "// &
+                          "cell convention: A must lie along the X-axis and B must lie in the "// &
+                          "XY plane. Please rotate the cell or specify it through ABC and "// &
+                          "ALPHA_BETA_GAMMA before using KPOINTS.")
+         END IF
+      END SELECT
 
       SELECT CASE (kpoint%kp_scheme)
       CASE ("NONE")
