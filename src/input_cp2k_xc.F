@@ -998,8 +998,7 @@ CONTAINS
                           "For available DFT-D4 functionals and parameters see: "// &
                           "<https://github.com/dftd4/dftd4/blob/main/src/dftd4/param.f90>. "// &
                           "For available D3 and D3(BJ) parameters see: "// &
-                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>. "// &
-                          "If omitted, the default parameters are used (PBE values).", &
+                          "<https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>.", &
                           usage="REFERENCE_FUNCTIONAL <functional>", &
                           type_of_var=char_t)
       CALL section_add_keyword(subsection, keyword)
