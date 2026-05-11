@@ -17,12 +17,15 @@ MODULE qs_dispersion_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE input_constants,                 ONLY: &
+USE input_constants,                 ONLY: &
         vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_no_shortcut, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
+        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                               section_vals_get_subs_vals2,&
+                                               section_vals_type,&
+                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE physcon,                         ONLY: bohr,&
@@ -43,11 +46,63 @@ MODULE qs_dispersion_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
    PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
-   PUBLIC :: cellhash
+   PUBLIC :: cellhash, xc_functional_to_d4_name, xc_functional_to_d4_name_int
 
 ! **************************************************************************************************
 CONTAINS
+   ! **************************************************************************************************
+!> \brief ...
+!> \param cp2k_functional ...
+!> \param d4_functional ...
 ! **************************************************************************************************
+   SUBROUTINE xc_functional_to_d4_name(xc_functional_name, d4_functional_name)
+      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
+      CHARACTER(len=*), INTENT(OUT)                      :: d4_functional_name
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_to_d4_name'
+
+      SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
+      CASE ("PBE")
+         d4_functional_name = "pbe"
+      CASE ("PBE0")
+         d4_functional_name = "pbe0"
+      CASE ("B3LYP")
+         d4_functional_name = "b3lyp"
+      CASE ("BLYP")
+         d4_functional_name = "blyp"
+      CASE ("BP")
+         d4_functional_name = "bp"
+      CASE ("TPSS")
+         d4_functional_name = "tpss"
+      CASE DEFAULT
+         d4_functional_name = "none"
+      END SELECT
+
+   END SUBROUTINE xc_functional_to_d4_name
+
+! **************************************************************************************************
+   SUBROUTINE xc_functional_to_d4_name_int(xc_functional_id, d4_functional_name)
+      INTEGER, INTENT(IN)                                :: xc_functional_id
+      CHARACTER(len=*), INTENT(OUT)                      :: d4_functional_name
+
+      SELECT CASE (xc_functional_id)
+      CASE (xc_funct_pbe)
+         d4_functional_name = "pbe"
+      CASE (xc_funct_pbe0)
+         d4_functional_name = "pbe0"
+      CASE (xc_funct_b3lyp)
+         d4_functional_name = "b3lyp"
+      CASE (xc_funct_blyp)
+         d4_functional_name = "blyp"
+      CASE (xc_funct_bp)
+         d4_functional_name = "bp"
+      CASE (xc_funct_tpss)
+         d4_functional_name = "tpss"
+      CASE DEFAULT
+         d4_functional_name = "none"
+      END SELECT
+
+   END SUBROUTINE xc_functional_to_d4_name_int
 !> \brief ...
 !> \param dispersion_env ...
 !> \param xc_section ...
@@ -56,6 +111,8 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(section_vals_type), POINTER                   :: xc_section
 
+      CHARACTER(len=60)                                  :: xc_functional_name
+      INTEGER                                            :: xc_functional_id
       LOGICAL                                            :: exfun, explicit
       REAL(dp), POINTER                                  :: params(:), scal(:)
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, vdw_section, &
@@ -76,11 +133,22 @@ CONTAINS
       NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
                dispersion_env%d2y_dx2)
       NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
-      NULLIFY (dispersion_env%dftd_section)
-      NULLIFY (vdw_section, xc_fun_section)
-      vdw_section => section_vals_get_subs_vals(xc_section, "vdw_potential")
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type)
+NULLIFY (dispersion_env%dftd_section)
+       NULLIFY (vdw_section, xc_fun_section)
+       vdw_section => section_vals_get_subs_vals(xc_section, "vdw_potential")
+       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=xc_functional_id)
+       IF (xc_functional_id == xc_funct_no_shortcut .OR. xc_functional_id == xc_none) THEN
+          xc_fun_section => section_vals_get_subs_vals2(xc_fun_section, i_section=1)
+          IF (ASSOCIATED(xc_fun_section)) THEN
+             xc_functional_name = xc_fun_section%section%name
+          ELSE
+             xc_functional_name = "NONE"
+          END IF
+       ELSE
+          CALL xc_functional_to_d4_name_int(xc_functional_id, xc_functional_name)
+       END IF
+       CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type)
       IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
          NULLIFY (pp_section)
          pp_section => section_vals_get_subs_vals(vdw_section, "PAIR_POTENTIAL")
@@ -171,16 +239,23 @@ CONTAINS
             dispersion_env%a2 = 0._dp
             dispersion_env%eps_cn = 0._dp
          END IF
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
             CALL section_vals_val_get(pp_section, "D4_SCALING", explicit=explicit)
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CPABORT("Missing REFERENCE_FUNCTIONAL or D4_SCALING for D4")
+                  CALL xc_functional_to_d4_name(xc_functional_name, dispersion_env%ref_functional)
                ELSE
                   CALL section_vals_val_get(vdw_section, &
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
                                             c_val=dispersion_env%ref_functional)
+               END IF
+               IF (TRIM(ADJUSTL(dispersion_env%ref_functional)) == "none") THEN
+                  IF (exfun) THEN
+                     CPABORT("D4: Unknown REFERENCE_FUNCTIONAL. Check supported functionals.")
+                  ELSE
+                     CPABORT("D4: XC_FUNCTIONAL not supported. Set REFERENCE_FUNCTIONAL explicitly.")
+                  END IF
                END IF
             ELSE
                CALL section_vals_val_get(pp_section, "D4_SCALING", r_vals=scal)
@@ -190,9 +265,6 @@ CONTAINS
                dispersion_env%a2 = scal(4)
                dispersion_env%sr6 = 0.0_dp
                dispersion_env%ref_functional = "none"
-            END IF
-            IF (TRIM(ADJUSTL(dispersion_env%ref_functional)) == "none") THEN
-               CPABORT("Missing REFERENCE_FUNCTIONAL or D4_SCALING for D4")
             END IF
             CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn)
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
