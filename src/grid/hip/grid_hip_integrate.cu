@@ -114,9 +114,9 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
         const auto &a = coset_inv[ico];
         const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
                                               task.n1, smem_cab);
-        __shared__ T shared_forces_a[3];
-        __shared__ T shared_forces_b[3];
-        __shared__ T shared_virial[9];
+        T *shared_forces_a = &shared_memory[0];
+        T *shared_forces_b = &shared_memory[3];
+        T *shared_virial = &shared_memory[6];
 
         if (CALCULATE_FORCES) {
           if (tid < 3) {
@@ -141,30 +141,21 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
           for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
             const T sphia_times_sphib =
                 task.sphia[j * task.maxcoa + ico] * sphib;
-            // T block_val = hab * sphia_times_sphib;
 
             if (CALCULATE_FORCES) {
               if (task.block_transposed) {
-                block_val1 +=
-                  task.pab_block[j * task.nsgfb + i] * task.off_diag_twice * sphia_times_sphib;
+                block_val1 += task.pab_block[j * task.nsgfb + i] *
+                              task.off_diag_twice * sphia_times_sphib;
               } else {
-                block_val1 +=
-                  task.pab_block[i * task.nsgfa + j] * task.off_diag_twice * sphia_times_sphib;
+                block_val1 += task.pab_block[i * task.nsgfa + j] *
+                              task.off_diag_twice * sphia_times_sphib;
               }
             }
-            // we can use shuffle_down if it exists for T
 
-            // these atomic operations are not needed since the blocks are
-            // updated by one single block thread. However the grid_miniapp will
-            // fail if not there.
             if (task.block_transposed) {
               task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
-              //              atomicAdd(task.hab_block + j * task.nsgfb + i, hab
-              //              *  sphia_times_sphib);
             } else {
               task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
-              // atomicAdd(task.hab_block + i * task.nsgfa + j, hab *
-              // sphia_times_sphib);
             }
           }
         }
@@ -172,11 +163,7 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
         if (CALCULATE_FORCES) {
           for (int k = 0; k < 3; k++) {
             fa[k] += block_val1 * shared_forces_a[k];
-            // get_force_a<COMPUTE_TAU, T>(
-            //     a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
             fb[k] += block_val1 * shared_forces_b[k];
-            // get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
-            //                             task.rab, task.n1, smem_cab);
           }
           if (dev_.ptr_dev[5] != nullptr) {
             for (int k = 0; k < 3; k++) {
@@ -580,43 +567,48 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
     // we know there is only 1 wavefront in each block
     // lbatch threads could reduce the values saved by all threads of the warp
     // and save results do a shuffle_down by hand
-    for (int i = 0; i < min(length - ico, lbatch); i++) {
-      if (tid < 32) {
+    if (tid < 32) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
         accumulator[i][tid] += accumulator[i][tid + 32];
       }
-      __syncthreads();
-      if (tid < 16) {
+    }
+    __syncthreads();
+    if (tid < 16) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
         accumulator[i][tid] += accumulator[i][tid + 16];
       }
-      __syncthreads();
-      if (tid < 8) {
+    }
+    __syncthreads();
+    if (tid < 8) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
         accumulator[i][tid] += accumulator[i][tid + 8];
       }
-      __syncthreads();
-      if (tid < 4) {
+    }
+    __syncthreads();
+    if (tid < 4) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
         accumulator[i][tid] += accumulator[i][tid + 4];
       }
-      __syncthreads();
-      if (tid < 2) {
+    }
+    __syncthreads();
+    if (tid < 2) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
         accumulator[i][tid] += accumulator[i][tid + 2];
       }
-      __syncthreads();
-      if (tid == 0) {
-        sum[i] = accumulator[i][0] + accumulator[i][1];
-      }
-
-      //   dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset + i +
-      //                   ico] = accumulator[i][0] + accumulator[i][1];
-
     }
     __syncthreads();
 
-    for (int i = tid; i < min(length - ico, lbatch); i += lbatch)
-       dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset + i +
-                       ico] = sum[i];
+    if (tid == 0) {
+      for (int i = 0; i < min(length - ico, lbatch); i++) {
+        sum[i] = accumulator[i][0] + accumulator[i][1];
+      }
+    }
     __syncthreads();
-    // if (tid == 0)
-    //   printf("%.15lf\n", sum[0]);
+
+    if (tid < min(length - ico, lbatch))
+      dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset +
+                      tid + ico] = sum[tid];
+    __syncthreads();
   }
 }
 
