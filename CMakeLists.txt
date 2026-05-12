@@ -129,6 +129,8 @@ option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBFCI "Enable LibFCI active-space solver support"
+       ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
@@ -801,6 +803,10 @@ if(CP2K_USE_LIBINT2)
   include_directories(BEFORE ${CP2K_LIBINT2_INCLUDE_DIRS})
 endif()
 
+if(CP2K_USE_LIBFCI)
+  find_package(LibFCI REQUIRED)
+endif()
+
 # Spglib
 if(CP2K_USE_SPGLIB)
   find_package(Spglib REQUIRED CONFIG)
@@ -1179,6 +1185,12 @@ if(CP2K_USE_LIBINT2)
           "   - libraries: ${CP2K_LIBINT2_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_LIBFCI)
+  message(" - LibFCI\n"
+          "   - include directories: ${CP2K_LIBFCI_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_LIBFCI_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_VORI)
   message(" - Libvori\n" "   - libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
 endif()
@@ -1292,6 +1304,10 @@ endif()
 
 if(NOT CP2K_USE_LIBINT2)
   message("   - Libint2")
+endif()
+
+if(NOT CP2K_USE_LIBFCI)
+  message("   - LibFCI")
 endif()
 
 if(NOT CP2K_USE_LIBXC)

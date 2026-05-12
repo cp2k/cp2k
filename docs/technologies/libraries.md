@@ -219,6 +219,13 @@ TREXIO - Open-source file format and library. Support for TREXIO can be enabled 
 - TREXIO library can be downloaded from <https://github.com/trex-coe/trexio>
 - For more information see <https://trex-coe.github.io/trexio/index.html>.
 
+## LibFCI (full-CI active-space solver)
+
+LibFCI is an external library providing a full-CI solver for CP2K active-space calculations. Support
+for LibFCI can be enabled by passing `-DCP2K_USE_LIBFCI=ON` to CMake.
+
+- LibFCI can be downloaded from <https://github.com/DCM-Uni-Paderborn/libfci>
+
 ## GREENX (basically functionality for GreenX methods (RPA, GW, Laplace-MP2 etc.)
 
 greenX - Open-source file format and library. Support for greenX can be enabled by passing

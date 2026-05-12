@@ -235,7 +235,7 @@ def process_file(fn: str, allow_modifications: bool) -> None:
 
     if re.match(r".*\.(cc|cpp|cxx|hcc|hpp|hxx)$", fn):
         if basename in ["torch_c_api.cpp", "ace_c_api.cpp", "openpmd_c_api.cpp"]:
-            # Begrudgingly tolerated because some libraries have no C API.
+            # Begrudgingly tolerated for C++ code with a narrow C ABI.
             run_remote_tool("clangformat", fn)
         else:
             raise Exception(f"C++ is not supported.")
