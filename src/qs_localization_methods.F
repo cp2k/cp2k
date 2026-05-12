@@ -3129,22 +3129,22 @@ CONTAINS
    SUBROUTINE cardoso_souloumiac(weights, zij, max_iter, eps_localization, sweeps, &
                                  out_each, vectors)
 
-      REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: zij(:, :)
-      INTEGER, INTENT(IN)                                :: max_iter
-      REAL(KIND=dp), INTENT(IN)                          :: eps_localization
-      INTEGER                                            :: sweeps
-      INTEGER, INTENT(IN)                                :: out_each
-      TYPE(cp_cfm_type), POINTER                         :: vectors
+      REAL(KIND=dp), INTENT(IN)        :: weights(:)
+      TYPE(cp_cfm_type), INTENT(INOUT) :: zij(:, :)
+      INTEGER, INTENT(IN)              :: max_iter
+      REAL(KIND=dp), INTENT(IN)        :: eps_localization
+      INTEGER                          :: sweeps
+      INTEGER, INTENT(IN)              :: out_each
+      TYPE(cp_cfm_type), POINTER       :: vectors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac'
 
-      COMPLEX(KIND=dp)                                   :: s
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: mii(:), mij(:), mji(:), mjj(:)
-      INTEGER                                            :: dim1, dim2, handle, idim, istate, jdim, &
-                                                            jstate, nstate, unit_nr
-      REAL(KIND=dp)                                      :: c, old_spread, spread, t1, t2, tolerance
-      TYPE(cp_cfm_type), POINTER                         :: c_rmat, c_zij(:)
+      COMPLEX(KIND=dp)              :: s
+      COMPLEX(KIND=dp), ALLOCATABLE :: mii(:), mij(:), mji(:), mjj(:)
+      INTEGER                       :: dim1, dim2, handle, idim, istate, jdim, jstate, nstate, &
+                                       unit_nr
+      REAL(KIND=dp)                 :: c, old_spread, s_real, spread, t1, t2, tolerance
+      TYPE(cp_cfm_type), POINTER    :: c_rmat, c_zij(:)
 
       CALL timeset(routineN, handle)
 
@@ -3167,7 +3167,7 @@ CONTAINS
       old_spread = 1.0e10_dp
       sweeps = 0
       unit_nr = -1
-      IF (c_rmat%matrix_struct%para_env%mepos == c_rmat%matrix_struct%para_env%source) THEN
+      IF (c_rmat%matrix_struct%para_env%is_source()) THEN
          unit_nr = cp_logger_get_default_unit_nr()
          WRITE (unit_nr, "(T4,A )") " Localization by iterative Jacobi rotation using "// &
             "Cardoso-Souloumiac angles"
@@ -3196,17 +3196,6 @@ CONTAINS
          tolerance = ABS(spread - old_spread)
          old_spread = spread
 
-         !c_spread = (0.0_dp, 0.0_dp)
-         !do istate = 1, nstate
-         !   do idim = 1, dim1*dim2
-         !      call cp_cfm_get_element(c_zij(idim)%matrix, istate, istate, s)
-         !      c_spread = c_spread + s * s
-         !   end do
-         !end do
-         !spread = real(c_spread)
-
-         !tolerance = abs(spread - old_spread)
-         !old_spread = spread
          t2 = m_walltime()
          IF (unit_nr > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
             WRITE (unit_nr, "(T4,A,I7,A,E12.4,A,E12.4,A,F8.3)") &
@@ -3254,12 +3243,11 @@ CONTAINS
 
       CHARACTER(*), PARAMETER :: routineN = 'cardoso_souloumiac_pipek'
 
-      COMPLEX(dp)                                        :: c_spread, s
-      COMPLEX(dp), POINTER                               :: qii(:), qij(:), qji(:), qjj(:)
-      INTEGER                                            :: handle, i, j, k, n_dim, n_states, &
-                                                            output_unit
-      REAL(dp)                                           :: c, old_spread, spread, t1, t2, tol
-      TYPE(cp_cfm_type), POINTER                         :: c_zij(:), rmat
+      COMPLEX(dp)                :: c_spread, s
+      COMPLEX(dp), POINTER       :: qii(:), qij(:), qji(:), qjj(:)
+      INTEGER                    :: handle, i, j, k, n_dim, n_states, output_unit
+      REAL(dp)                   :: c, old_spread, s_real, spread, t1, t2, tol
+      TYPE(cp_cfm_type), POINTER :: c_zij(:), rmat
 
       CALL timeset(routineN, handle)
 

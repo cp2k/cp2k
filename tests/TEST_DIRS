@@ -421,3 +421,5 @@ QS/regtest-trexio-2                                         trexio
 QS/regtest-rtbse-gxac                                       libint greenx !ifx
 QS/regtest-cneo
 QS/regtest-tddfpt-bse                                       libint libxc
+QS/regtest-tdwf
+
