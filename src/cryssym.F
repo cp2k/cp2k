@@ -138,20 +138,22 @@ CONTAINS
 !> \param hmat ...
 !> \param delta ...
 !> \param iounit ...
+!> \param use_spglib ...
 ! **************************************************************************************************
-   SUBROUTINE crys_sym_gen(csym, scoor, types, hmat, delta, iounit)
+   SUBROUTINE crys_sym_gen(csym, scoor, types, hmat, delta, iounit, use_spglib)
       TYPE(csym_type)                                    :: csym
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: scoor
       INTEGER, DIMENSION(:), INTENT(IN)                  :: types
       REAL(KIND=dp), INTENT(IN)                          :: hmat(3, 3)
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: delta
       INTEGER, INTENT(IN), OPTIONAL                      :: iounit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_spglib
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'crys_sym_gen'
 
       INTEGER                                            :: handle, ierr, major, micro, minor, nat, &
                                                             nop, tra_mat(3, 3)
-      LOGICAL                                            :: spglib
+      LOGICAL                                            :: my_use_spglib, spglib
 
       CALL timeset(routineN, handle)
 
@@ -187,37 +189,43 @@ CONTAINS
       csym%n_operations = 0
 
       !..try spglib
-      major = spg_get_major_version()
-      minor = spg_get_minor_version()
-      micro = spg_get_micro_version()
-      IF (major == 0) THEN
-         CALL cp_warn(__LOCATION__, "Symmetry library SPGLIB not available")
+      my_use_spglib = .TRUE.
+      IF (PRESENT(use_spglib)) my_use_spglib = use_spglib
+      IF (.NOT. my_use_spglib) THEN
          spglib = .FALSE.
       ELSE
-         spglib = .TRUE.
-         CALL cite_reference(Togo2018)
-         ierr = spg_get_international(csym%international_symbol, TRANSPOSE(hmat), scoor, types, nat, delta)
-         IF (ierr == 0) THEN
-            CALL cp_warn(__LOCATION__, "Symmetry Library SPGLIB failed")
+         major = spg_get_major_version()
+         minor = spg_get_minor_version()
+         micro = spg_get_micro_version()
+         IF (major == 0) THEN
+            CALL cp_warn(__LOCATION__, "Symmetry library SPGLIB not available")
             spglib = .FALSE.
          ELSE
-            nop = spg_get_multiplicity(TRANSPOSE(hmat), scoor, types, nat, delta)
-            ALLOCATE (csym%rotations(3, 3, nop), csym%translations(3, nop))
-            csym%n_operations = nop
-            ierr = spg_get_symmetry(csym%rotations, csym%translations, nop, &
-                                    TRANSPOSE(hmat), scoor, types, nat, delta)
-            ! Schoenflies Symbol
-            csym%schoenflies = ' '
-            ierr = spg_get_schoenflies(csym%schoenflies, TRANSPOSE(hmat), scoor, types, nat, delta)
-            ! Point Group
-            csym%pointgroup_symbol = ' '
-            tra_mat = 0
-            ierr = spg_get_pointgroup(csym%pointgroup_symbol, tra_mat, &
-                                      csym%rotations, csym%n_operations)
+            spglib = .TRUE.
+            CALL cite_reference(Togo2018)
+            ierr = spg_get_international(csym%international_symbol, TRANSPOSE(hmat), scoor, types, nat, delta)
+            IF (ierr == 0) THEN
+               CALL cp_warn(__LOCATION__, "Symmetry Library SPGLIB failed")
+               spglib = .FALSE.
+            ELSE
+               nop = spg_get_multiplicity(TRANSPOSE(hmat), scoor, types, nat, delta)
+               ALLOCATE (csym%rotations(3, 3, nop), csym%translations(3, nop))
+               csym%n_operations = nop
+               ierr = spg_get_symmetry(csym%rotations, csym%translations, nop, &
+                                       TRANSPOSE(hmat), scoor, types, nat, delta)
+               ! Schoenflies Symbol
+               csym%schoenflies = ' '
+               ierr = spg_get_schoenflies(csym%schoenflies, TRANSPOSE(hmat), scoor, types, nat, delta)
+               ! Point Group
+               csym%pointgroup_symbol = ' '
+               tra_mat = 0
+               ierr = spg_get_pointgroup(csym%pointgroup_symbol, tra_mat, &
+                                         csym%rotations, csym%n_operations)
 
-            CALL strip_control_codes(csym%international_symbol)
-            CALL strip_control_codes(csym%schoenflies)
-            CALL strip_control_codes(csym%pointgroup_symbol)
+               CALL strip_control_codes(csym%international_symbol)
+               CALL strip_control_codes(csym%schoenflies)
+               CALL strip_control_codes(csym%pointgroup_symbol)
+            END IF
          END IF
       END IF
       csym%symlib = spglib

@@ -269,6 +269,8 @@ CONTAINS
 !> \param cell_section ...
 !> \param topology_section ...
 !> \param check_for_ref ...
+!> \param canonicalize_cell rotate a general cell into the CP2K cell convention
+!> \param input_cell cell as it was read before enforcing the CP2K cell convention
 !> \param para_env ...
 !> \par History
 !>      03.2005 created [teo]
@@ -276,12 +278,13 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE read_cell(cell, cell_ref, use_ref_cell, cell_section, &
-                                  topology_section, check_for_ref, para_env)
+                                  topology_section, check_for_ref, canonicalize_cell, input_cell, para_env)
 
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: use_ref_cell
       TYPE(section_vals_type), OPTIONAL, POINTER         :: cell_section, topology_section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
+      LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref, canonicalize_cell
+      TYPE(cell_type), OPTIONAL, POINTER                 :: input_cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-14_dp
@@ -291,8 +294,9 @@ CONTAINS
       INTEGER                                            :: cell_file_format, coord_file_format, &
                                                             my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
-      LOGICAL :: cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, cell_read_b, cell_read_c, &
-         cell_read_file, my_check_ref, tmp_comb_abc, tmp_comb_cell, tmp_comb_top, topo_read_coord
+      LOGICAL :: canonicalized_cell, cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, &
+         cell_read_b, cell_read_c, cell_read_file, my_canonicalize_cell, my_check_ref, &
+         tmp_comb_abc, tmp_comb_cell, tmp_comb_top, topo_read_coord
       REAL(KIND=dp), DIMENSION(3)                        :: read_ang, read_len
       REAL(KIND=dp), DIMENSION(3, 3)                     :: read_mat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
@@ -300,6 +304,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: cell_ref_section
 
       my_check_ref = .TRUE.
+      my_canonicalize_cell = .FALSE.
       NULLIFY (cell_ref_section, cell_par, cell_tmp, multiple_unit_cell)
       ! cell_tmp has two purposes:
       ! 1. for transferring matrix of cell vectors from individual
@@ -311,6 +316,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(cell)) CALL cell_create(cell, tag="CELL")
       IF (.NOT. ASSOCIATED(cell_ref)) CALL cell_create(cell_ref, tag="CELL_REF")
       IF (PRESENT(check_for_ref)) my_check_ref = check_for_ref
+      IF (PRESENT(canonicalize_cell)) my_canonicalize_cell = canonicalize_cell
 
       cell%deth = 0.0_dp
       cell%orthorhombic = .FALSE.
@@ -500,18 +506,47 @@ CONTAINS
 
       ! Load requested cell symmetry
       CALL section_vals_val_get(cell_section, "SYMMETRY", i_val=cell%symmetry_id)
+      IF (PRESENT(input_cell)) THEN
+         IF (.NOT. ASSOCIATED(input_cell)) CALL cell_create(input_cell, tag="CELL_INPUT")
+         CALL cell_clone(cell, input_cell)
+         input_cell%deth = ABS(det_3x3(input_cell%hmat))
+         input_cell%h_inv = inv_3x3(input_cell%hmat)
+         input_cell%orthorhombic = (ABS(input_cell%hmat(1, 2)) + &
+                                    ABS(input_cell%hmat(1, 3)) + &
+                                    ABS(input_cell%hmat(2, 1)) + &
+                                    ABS(input_cell%hmat(2, 3)) + &
+                                    ABS(input_cell%hmat(3, 1)) + &
+                                    ABS(input_cell%hmat(3, 2)) < eps)
+      END IF
       ! Try enforcing symmetry by initializing a temporary copy of cell
       ! and see if the resulting cell matrix differ significantly
       CALL cell_clone(cell, cell_tmp)
+      canonicalized_cell = my_canonicalize_cell .AND. cell%symmetry_id == cell_sym_none .AND. &
+                           ((ABS(cell%hmat(2, 1)) > eps) .OR. &
+                            (ABS(cell%hmat(3, 1)) > eps) .OR. &
+                            (ABS(cell%hmat(3, 2)) > eps))
+      IF (canonicalized_cell) THEN
+         CALL get_cell(cell=cell, abc=read_len, alpha=read_ang(1), beta=read_ang(2), gamma=read_ang(3))
+         read_ang = read_ang/degree
+         CALL set_cell_param(cell_tmp, cell_length=read_len, cell_angle=read_ang, do_init_cell=.FALSE.)
+         cell_tmp%perd = cell%perd
+         cell_tmp%symmetry_id = cell%symmetry_id
+      END IF
       CALL init_cell(cell_tmp)
       IF (ANY(ABS(cell_tmp%hmat - cell%hmat) > eps)) THEN
-         WRITE (UNIT=error_msg, FMT="(A)") &
-            "When initializing cell vectors with requested symmetry, one "// &
-            "or more elements of the cell matrix has varied significantly. "// &
-            "The input parameters are either deviating from the symmetry, "// &
-            "or not conforming to the program convention that cell matrix "// &
-            "is a lower triangle. The symmetrized cell vectors will be used "// &
-            "anyway with the input atomic coordinates."
+         IF (canonicalized_cell) THEN
+            WRITE (UNIT=error_msg, FMT="(A)") &
+               "The cell vectors were rotated into the CP2K cell convention for the k-point calculation. "// &
+               "Input coordinates are interpreted in the original cell frame and transformed consistently."
+         ELSE
+            WRITE (UNIT=error_msg, FMT="(A)") &
+               "When initializing cell vectors with requested symmetry, one "// &
+               "or more elements of the cell matrix has varied significantly. "// &
+               "The input parameters are either deviating from the symmetry, "// &
+               "or not conforming to the program convention that cell matrix "// &
+               "is a lower triangle. The symmetrized cell vectors will be used "// &
+               "anyway with the input atomic coordinates."
+         END IF
          CALL cp_warn(__LOCATION__, error_msg)
       END IF
       CALL cell_clone(cell_tmp, cell)

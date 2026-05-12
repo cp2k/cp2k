@@ -44,6 +44,8 @@ MODULE topology
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE mathlib,                         ONLY: det_3x3,&
+                                              inv_3x3
    USE message_passing,                 ONLY: mp_para_env_type
    USE mm_mapping_library,              ONLY: create_ff_map,&
                                               destroy_ff_map
@@ -57,6 +59,7 @@ MODULE topology
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
                                               str2id
+   USE string_utilities,                ONLY: uppercase
    USE topology_amber,                  ONLY: read_connectivity_amber,&
                                               read_coordinate_crd
    USE topology_cif,                    ONLY: read_coordinate_cif
@@ -150,19 +153,25 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'topology_control'
 
+      CHARACTER(LEN=default_string_length)               :: kpoint_scheme
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: kpoint_scheme_vals
       INTEGER                                            :: handle, iw, iw2
-      LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
-                                                            my_qmmm, use_ref_cell
-      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
+      LOGICAL                                            :: binary_coord_read, canonicalize_cell, &
+                                                            el_as_kind, explicit, my_qmmm, &
+                                                            use_ref_cell
+      TYPE(cell_type), POINTER                           :: my_cell, my_cell_input, my_cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cell_ref_section, cell_section, &
-                                                            constraint_section, topology_section
+                                                            constraint_section, dft_section, &
+                                                            kpoint_section, topology_section
       TYPE(topology_parameters_type)                     :: topology
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
-      NULLIFY (cell_section, cell_ref_section, constraint_section, topology_section)
+      NULLIFY (cell_section, cell_ref_section, constraint_section, dft_section, &
+               kpoint_scheme_vals, kpoint_section, topology_section)
 
       cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       IF (use_motion_section) THEN
@@ -189,24 +198,37 @@ CONTAINS
       CALL init_topology(topology)
 
       ! 2. Get the cell info
-      NULLIFY (my_cell, my_cell_ref)
+      canonicalize_cell = .FALSE.
+      IF (ASSOCIATED(force_env_section)) THEN
+         dft_section => section_vals_get_subs_vals(force_env_section, "DFT")
+         kpoint_section => section_vals_get_subs_vals(dft_section, "KPOINTS")
+         CALL section_vals_get(kpoint_section, explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(kpoint_section, "SCHEME", c_vals=kpoint_scheme_vals)
+            IF (SIZE(kpoint_scheme_vals) >= 1) THEN
+               kpoint_scheme = kpoint_scheme_vals(1)
+               CALL uppercase(kpoint_scheme)
+               canonicalize_cell = kpoint_scheme /= "NONE" .AND. kpoint_scheme /= "GAMMA"
+            END IF
+         END IF
+      END IF
+      NULLIFY (my_cell, my_cell_input, my_cell_ref)
       CALL read_cell(my_cell, my_cell_ref, cell_section=cell_section, &
-                     topology_section=topology_section, para_env=para_env)
+                     topology_section=topology_section, canonicalize_cell=canonicalize_cell, &
+                     input_cell=my_cell_input, para_env=para_env)
       use_ref_cell = .FALSE.
       cell_ref_section => section_vals_get_subs_vals(cell_section, "CELL_REF")
       CALL section_vals_get(cell_ref_section, explicit=use_ref_cell)
       IF (.NOT. ASSOCIATED(topology%cell)) CALL cell_create(topology%cell)
       IF (.NOT. ASSOCIATED(topology%cell_ref)) CALL cell_create(topology%cell_ref)
-      CALL cell_clone(my_cell, topology%cell)
+      CALL cell_clone(my_cell_input, topology%cell)
       CALL cell_clone(my_cell_ref, topology%cell_ref)
-      CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
+      CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section, preserve_orientation=.TRUE.)
       IF (PRESENT(subsys)) THEN ! subsys is passed from cp_subsys_create
          CALL cp_subsys_set(subsys, cell=my_cell, cell_ref=my_cell_ref, &
                             use_ref_cell=use_ref_cell)
       END IF
-      CALL write_cell(my_cell, subsys_section, tag="CELL")
       CALL write_cell(my_cell_ref, subsys_section, tag="CELL_REF")
-      CALL cell_release(my_cell)
       CALL cell_release(my_cell_ref)
 
       ! 3. Read in the topology section in the input file if any
@@ -221,6 +243,10 @@ CONTAINS
       IF (.NOT. binary_coord_read) THEN
          CALL coordinate_control(topology, root_section, para_env, subsys_section)
       END IF
+      CALL topology_apply_canonical_cell(topology, my_cell_input, my_cell, subsys_section)
+      CALL write_cell(my_cell, subsys_section, tag="CELL")
+      CALL cell_release(my_cell)
+      CALL cell_release(my_cell_input)
 
       ! 6. Read in or generate the molecular connectivity
       CALL connectivity_control(topology, para_env, my_qmmm, qmmm_env, subsys_section, &
@@ -651,20 +677,68 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief  Setup the cell used for handling properly the multiple_unit_cell option
-!> \param cell_muc ...
-!> \param cell ...
+!> \param topology ...
+!> \param input_cell ...
+!> \param canonical_cell ...
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - 06.2009
 ! **************************************************************************************************
-   SUBROUTINE setup_cell_muc(cell_muc, cell, subsys_section)
+   SUBROUTINE topology_apply_canonical_cell(topology, input_cell, canonical_cell, subsys_section)
+
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(cell_type), POINTER                           :: input_cell, canonical_cell
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+
+      REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-14_dp
+
+      INTEGER                                            :: iatom
+      LOGICAL                                            :: rotate_coordinates
+      REAL(KIND=dp), DIMENSION(3)                        :: scoord
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
+
+      CPASSERT(ASSOCIATED(input_cell))
+      CPASSERT(ASSOCIATED(canonical_cell))
+
+      rotate_coordinates = MAXVAL(ABS(input_cell%hmat - canonical_cell%hmat)) > &
+                           eps_cell*MAX(1.0_dp, MAXVAL(ABS(canonical_cell%hmat)))
+      IF (rotate_coordinates .AND. ASSOCIATED(topology%atom_info%r)) THEN
+         h_inv = inv_3x3(input_cell%hmat)
+         DO iatom = 1, SIZE(topology%atom_info%r, 2)
+            scoord(1:3) = MATMUL(h_inv, topology%atom_info%r(1:3, iatom))
+            topology%atom_info%r(1:3, iatom) = MATMUL(canonical_cell%hmat, scoord(1:3))
+         END DO
+      END IF
+
+      CALL cell_release(topology%cell_muc)
+      CALL cell_release(topology%cell)
+      CALL cell_create(topology%cell)
+      CALL cell_clone(canonical_cell, topology%cell)
+      CALL setup_cell_muc(topology%cell_muc, topology%cell, subsys_section)
+
+   END SUBROUTINE topology_apply_canonical_cell
+
+! **************************************************************************************************
+!> \brief  Setup the cell used for handling properly the multiple_unit_cell option
+!> \param cell_muc ...
+!> \param cell ...
+!> \param subsys_section ...
+!> \param preserve_orientation keep the input cell orientation instead of reinitializing it
+!> \author Teodoro Laino [tlaino] - 06.2009
+! **************************************************************************************************
+   SUBROUTINE setup_cell_muc(cell_muc, cell, subsys_section, preserve_orientation)
 
       TYPE(cell_type), POINTER                           :: cell_muc, cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: preserve_orientation
 
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
+      LOGICAL                                            :: keep_orientation
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_ref
 
       CPASSERT(.NOT. ASSOCIATED(cell_muc))
+
+      keep_orientation = .FALSE.
+      IF (PRESENT(preserve_orientation)) keep_orientation = preserve_orientation
 
       CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL", &
                                 i_vals=multiple_unit_cell)
@@ -674,7 +748,19 @@ CONTAINS
          hmat_ref(:, 2) = cell%hmat(:, 2)/multiple_unit_cell(2)
          hmat_ref(:, 3) = cell%hmat(:, 3)/multiple_unit_cell(3)
          ! Create the MUC cell
-         CALL cell_create(cell_muc, hmat=hmat_ref, periodic=cell%perd, tag="CELL_UC")
+         IF (keep_orientation) THEN
+            CALL cell_create(cell_muc, tag="CELL_UC")
+            cell_muc%hmat = hmat_ref
+            cell_muc%h_inv = inv_3x3(hmat_ref)
+            cell_muc%deth = ABS(det_3x3(hmat_ref))
+            cell_muc%perd = cell%perd
+            cell_muc%symmetry_id = cell%symmetry_id
+            cell_muc%orthorhombic = (ABS(hmat_ref(1, 2)) + ABS(hmat_ref(1, 3)) + &
+                                     ABS(hmat_ref(2, 1)) + ABS(hmat_ref(2, 3)) + &
+                                     ABS(hmat_ref(3, 1)) + ABS(hmat_ref(3, 2)) < 1.0E-14_dp)
+         ELSE
+            CALL cell_create(cell_muc, hmat=hmat_ref, periodic=cell%perd, tag="CELL_UC")
+         END IF
          CALL write_cell(cell_muc, subsys_section)
       ELSE
          ! If a multiple_unit_cell was not requested just point to the original cell

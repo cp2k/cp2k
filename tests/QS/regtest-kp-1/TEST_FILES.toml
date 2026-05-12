@@ -22,6 +22,8 @@
 "c_spglib_backend_gamma_real_wfn.inp"   = [{matcher="E_total", tol=1e-13, ref=-45.10384660417728},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_spglib_sym_red.inp"                  = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
+"alas_fcc_standard_cell.inp"            = [{matcher="E_total", tol=1e-10, ref=-8.41383496499098}]
+"alas_fcc_noncanonical_cell.inp"        = [{matcher="E_total", tol=1e-10, ref=-8.41383496502973}]
 "h_spglib_sym_red_restart.inp"          = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
 "h_inv_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_ortho_sym_red.inp"                   = [{matcher="E_total", tol=1e-8, ref=-2.73592238316042}]

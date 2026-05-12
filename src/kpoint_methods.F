@@ -123,7 +123,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
-      REAL(KIND=dp), PARAMETER :: eps_cell = 100.0_dp*EPSILON(1.0_dp)
 
       INTEGER                                            :: handle, i, ic, ik, iounit, ir, ira, is, &
                                                             j, natom, nkind, nr, ns
@@ -142,19 +141,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(kpoint))
       CPASSERT(ASSOCIATED(cell))
-
-      SELECT CASE (kpoint%kp_scheme)
-      CASE ("MONKHORST-PACK", "MACDONALD", "GENERAL")
-         IF ((ABS(cell%hmat(2, 1)) > eps_cell) .OR. &
-             (ABS(cell%hmat(3, 1)) > eps_cell) .OR. &
-             (ABS(cell%hmat(3, 2)) > eps_cell)) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "K-point calculations require the cell vectors to follow CP2K's "// &
-                          "cell convention: A must lie along the X-axis and B must lie in the "// &
-                          "XY plane. Please rotate the cell or specify it through ABC and "// &
-                          "ALPHA_BETA_GAMMA before using KPOINTS.")
-         END IF
-      END SELECT
 
       SELECT CASE (kpoint%kp_scheme)
       CASE ("NONE")
@@ -202,7 +188,8 @@ CONTAINS
             agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
          END DO
 
-         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
+         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
+                           use_spglib=kpoint%symmetry)
          CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
                          full_grid=kpoint%full_grid, gamma_centered=kpoint%gamma_centered, &
                          inversion_symmetry_only=kpoint%inversion_symmetry_only, &
