@@ -592,7 +592,8 @@ CONTAINS
       CALL get_kpoint_info(kpoints, kp_scheme=kp_scheme, symmetry=kpoint_symmetry, full_grid=full_grid, &
                            inversion_symmetry_only=inversion_symmetry_only)
       IF (.NOT. kpoint_symmetry) RETURN
-      IF (TRIM(kp_scheme) /= "MONKHORST-PACK" .AND. TRIM(kp_scheme) /= "MACDONALD") RETURN
+      IF (TRIM(kp_scheme) /= "MONKHORST-PACK" .AND. TRIM(kp_scheme) /= "MACDONALD" .AND. &
+          TRIM(kp_scheme) /= "GENERAL") RETURN
 
       input_full_grid = full_grid
       input_inversion_symmetry_only = inversion_symmetry_only

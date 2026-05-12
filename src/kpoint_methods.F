@@ -46,6 +46,7 @@ MODULE kpoint_methods
    USE cryssym,                         ONLY: crys_sym_gen,&
                                               csym_type,&
                                               kpoint_gen,&
+                                              kpoint_gen_general,&
                                               print_crys_symmetry,&
                                               print_kp_symmetry,&
                                               release_csym_type
@@ -54,9 +55,7 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: use_k290_kpoint_backend,&
-                                              use_k290_kpoint_symmetry,&
-                                              use_spglib_kpoint_backend,&
+   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -134,6 +133,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
       REAL(KIND=dp), DIMENSION(3)                        :: srot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_full
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp_full
       TYPE(csym_type)                                    :: crys_sym
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
@@ -187,7 +188,8 @@ CONTAINS
             agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
          END DO
 
-         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
+         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
+                           use_spglib=kpoint%symmetry)
          CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
                          full_grid=kpoint%full_grid, gamma_centered=kpoint%gamma_centered, &
                          inversion_symmetry_only=kpoint%inversion_symmetry_only, &
@@ -276,23 +278,145 @@ CONTAINS
          DEALLOCATE (agauge)
 
       CASE ("GENERAL")
-         IF (kpoint%symmetry) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "KPOINTS%SYMMETRY is not supported with SCHEME GENERAL; "// &
-                          "explicit k-points are used as supplied.")
+         NULLIFY (xkp_full, wkp_full)
+         IF (ASSOCIATED(kpoint%xkp_input)) THEN
+            xkp_full => kpoint%xkp_input
+            wkp_full => kpoint%wkp_input
+         ELSE
+            xkp_full => kpoint%xkp
+            wkp_full => kpoint%wkp
          END IF
-         IF (kpoint%symmetry_backend /= use_k290_kpoint_backend .OR. &
-             kpoint%symmetry_reduction_method /= use_k290_kpoint_symmetry) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "KPOINTS%SYMMETRY_BACKEND and SYMMETRY_REDUCTION_METHOD are ignored with "// &
-                         "SCHEME GENERAL; explicit k-points are used as supplied.")
+         CPASSERT(ASSOCIATED(xkp_full))
+         CPASSERT(ASSOCIATED(wkp_full))
+         IF (.NOT. ASSOCIATED(kpoint%xkp_input)) THEN
+            ALLOCATE (kpoint%xkp_input(3, SIZE(wkp_full)), kpoint%wkp_input(SIZE(wkp_full)))
+            kpoint%xkp_input(1:3, 1:SIZE(wkp_full)) = xkp_full(1:3, 1:SIZE(wkp_full))
+            kpoint%wkp_input(1:SIZE(wkp_full)) = wkp_full(1:SIZE(wkp_full))
+            xkp_full => kpoint%xkp_input
+            wkp_full => kpoint%wkp_input
          END IF
-         ! default: no symmetry settings
-         ALLOCATE (kpoint%kp_sym(kpoint%nkp))
-         DO i = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
-            CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
-         END DO
+         IF (.NOT. kpoint%symmetry) THEN
+            IF (.NOT. ASSOCIATED(kpoint%xkp)) THEN
+               kpoint%nkp = SIZE(wkp_full)
+               ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
+               kpoint%xkp(1:3, 1:kpoint%nkp) = xkp_full(1:3, 1:kpoint%nkp)
+               kpoint%wkp(1:kpoint%nkp) = wkp_full(1:kpoint%nkp)
+            END IF
+            ! default: no symmetry settings
+            ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+            DO i = 1, kpoint%nkp
+               NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+               CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
+            END DO
+         ELSE
+            IF (kpoint%verbose) THEN
+               iounit = cp_logger_get_default_io_unit()
+            ELSE
+               iounit = -1
+            END IF
+            natom = SIZE(particle_set)
+            ALLOCATE (scoord(3, natom), atype(natom))
+            DO i = 1, natom
+               CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=atype(i))
+               CALL real_to_scaled(scoord(1:3, i), particle_set(i)%r(1:3), cell)
+            END DO
+            ALLOCATE (kpoint%atype(natom))
+            kpoint%atype = atype
+            ALLOCATE (agauge(3, natom))
+            DO i = 1, natom
+               agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
+            END DO
+
+            CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
+                              use_spglib=(kpoint%symmetry_backend == use_spglib_kpoint_backend .OR. &
+                                          kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry))
+            CALL kpoint_gen_general(crys_sym, xkp_full, wkp_full, symm=kpoint%symmetry, &
+                                    full_grid=kpoint%full_grid, &
+                                    inversion_symmetry_only=kpoint%inversion_symmetry_only, &
+                                    use_spglib_reduction= &
+                                    kpoint%symmetry_reduction_method == use_spglib_kpoint_symmetry, &
+                                    use_spglib_backend=kpoint%symmetry_backend == use_spglib_kpoint_backend)
+            IF (ASSOCIATED(kpoint%xkp)) THEN
+               DEALLOCATE (kpoint%xkp)
+               NULLIFY (kpoint%xkp)
+            END IF
+            IF (ASSOCIATED(kpoint%wkp)) THEN
+               DEALLOCATE (kpoint%wkp)
+               NULLIFY (kpoint%wkp)
+            END IF
+            kpoint%nkp = crys_sym%nkpoint
+            ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
+            wsum = SUM(crys_sym%wkpoint)
+            DO ik = 1, kpoint%nkp
+               kpoint%xkp(1:3, ik) = crys_sym%xkpoint(1:3, ik)
+               kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
+            END DO
+
+            CALL print_crys_symmetry(crys_sym)
+            CALL print_kp_symmetry(crys_sym)
+
+            ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+            DO ik = 1, kpoint%nkp
+               NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
+               CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
+               kpsym => kpoint%kp_sym(ik)%kpoint_sym
+               IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
+                   crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
+                  kpsym%nwght = NINT(crys_sym%wkpoint(ik))
+                  ns = kpsym%nwght
+                  IF (ns > 1) THEN
+                     kpsym%apply_symmetry = .TRUE.
+                     ALLOCATE (kpsym%rot(3, 3, ns))
+                     ALLOCATE (kpsym%xkp(3, ns))
+                     ALLOCATE (kpsym%rotp(ns))
+                     ALLOCATE (kpsym%f0(natom, ns))
+                     ALLOCATE (kpsym%fcell(3, natom, ns))
+                     nr = 0
+                     DO is = 1, SIZE(crys_sym%kplink, 2)
+                        IF (crys_sym%kplink(2, is) == ik) THEN
+                           nr = nr + 1
+                           ir = crys_sym%kpop(is)
+                           ira = ABS(ir)
+                           DO ic = 1, crys_sym%nrtot
+                              IF (crys_sym%ibrot(ic) == ira) THEN
+                                 kpsym%rotp(nr) = ir
+                                 kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+                                 srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                                 frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                                 kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                                 kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+                                 DO j = 1, natom
+                                    srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+                                    kpsym%fcell(1:3, j, nr) = &
+                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
+                                       MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
+                                       agauge(1:3, kpsym%f0(j, nr))
+                                 END DO
+                                 EXIT
+                              END IF
+                           END DO
+                           CPASSERT(ic <= crys_sym%nrtot)
+                        END IF
+                     END DO
+                     kpsym%nwred = nr
+                  END IF
+               END IF
+            END DO
+            nkind = MAXVAL(atype)
+            ns = crys_sym%nrtot
+            ALLOCATE (kpoint%kind_rotmat(ns, nkind))
+            DO i = 1, ns
+               DO j = 1, nkind
+                  NULLIFY (kpoint%kind_rotmat(i, j)%rmat)
+               END DO
+            END DO
+            ALLOCATE (kpoint%ibrot(ns))
+            kpoint%ibrot(1:ns) = crys_sym%ibrot(1:ns)
+
+            CALL release_csym_type(crys_sym)
+            DEALLOCATE (scoord, atype)
+            DEALLOCATE (agauge)
+         END IF
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
@@ -307,7 +431,6 @@ CONTAINS
          CPASSERT(kpoint%wkp(1) == 1.0_dp)
          CPASSERT(.NOT. kpoint%symmetry)
       CASE ("GENERAL")
-         CPASSERT(.NOT. kpoint%symmetry)
          CPASSERT(kpoint%nkp >= 1)
       CASE ("MONKHORST-PACK", "MACDONALD")
          CPASSERT(kpoint%nkp >= 1)
