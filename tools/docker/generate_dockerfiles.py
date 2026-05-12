@@ -429,7 +429,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install sources.
 ARG GIT_COMMIT_SHA
 COPY ./src ./src
-COPY ./exts ./exts
 COPY ./data ./data
 COPY ./docs ./docs
 COPY ./tools ./tools

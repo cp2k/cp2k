@@ -196,7 +196,7 @@ def _integrate_imdho_time_domain(
         if spectrum_type == "absorption":
             integrand *= 1 / np.pi
 
-        slice_integral = float(np.trapz(integrand, dx=delta_time))
+        slice_integral = float(np.trapezoid(integrand, dx=delta_time))
 
         if abs(slice_integral) < convergence:
             convergence_reached = True
