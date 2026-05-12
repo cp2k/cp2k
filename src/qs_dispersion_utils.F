@@ -58,8 +58,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       CHARACTER(len=*), INTENT(OUT)                      :: d4_functional_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_to_d4_name'
-
       SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
       CASE ("PBE")
          d4_functional_name = "pbe"
