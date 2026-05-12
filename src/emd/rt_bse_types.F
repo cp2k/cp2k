@@ -158,6 +158,14 @@ MODULE rt_bse_types
       LOGICAL                                                   :: linearized = .FALSE.
       ! Tamm-Dancoff approximation switch (linearized RT-BSE only).
       LOGICAL                                                   :: tda_active = .FALSE.
+      ! First-peak shift for the TDA path (linearized RT-BSE only).
+      ! Shifts active-MO single-particle diagonals by +Omega_0/2 (occ) / -Omega_0/2 (virt)
+      ! with Omega_0 = eps_min_ai so the lowest active OV mode oscillates at zero in the
+      ! rotating frame (RK4-exact for peak 1). omega_max becomes the full active OV width
+      ! Delta = eps_max_ai - eps_min_ai. The resulting rotating-frame density is undone
+      ! at I/O so observables stay lab-frame.
+      LOGICAL                                                   :: tda_shift_to_first_peak = .FALSE.
+      REAL(kind=dp)                                             :: omega_shift = 0.0_dp
       ! Debug-only kernel switches shared by initialization and propagation.
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
                                      debug_disable_sex = .FALSE., &
@@ -367,6 +375,8 @@ CONTAINS
                                 r_val=rtbse_env%rtbse_energy_cutoff_empty)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%TDA", &
                                 l_val=rtbse_env%tda_active)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%TDA_SHIFT_TO_FIRST_PEAK", &
+                                l_val=rtbse_env%tda_shift_to_first_peak)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%ENFORCE_MAX_DT", &
                                 l_val=rtbse_env%enforce_max_dt)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_HARTREE", &
@@ -383,7 +393,11 @@ CONTAINS
          rtbse_env%debug_disable_hartree = .FALSE.
          rtbse_env%debug_disable_sex = .FALSE.
          rtbse_env%debug_disable_coh = .FALSE.
+         rtbse_env%tda_shift_to_first_peak = .FALSE.
       END IF
+      ! First-peak shift only makes sense within TDA; force-disable otherwise.
+      IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.
+      rtbse_env%omega_shift = 0.0_dp
                                 
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")

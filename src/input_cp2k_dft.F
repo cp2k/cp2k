@@ -2115,6 +2115,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! First-peak shift for the TDA path
+      CALL keyword_create(keyword, __LOCATION__, name="TDA_SHIFT_TO_FIRST_PEAK", &
+                 description="For the linearized RT-BSE TDA path, shift the active-MO single-particle "// &
+                 "diagonals by +Omega_0/2 (occupied) and -Omega_0/2 (virtual) with "// &
+                 "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
+                 "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
+                 "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
+                 "observables remain in the lab frame. Only effective when TDA=.TRUE..", &
+                 usage="TDA_SHIFT_TO_FIRST_PEAK", &
+                 default_l_val=.TRUE., &
+                 lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_HARTREE", &
               description="Debug option for linearized RT-BSE: disables the Hartree kernel in both "// &
               "the static reference initialization and the propagation. The Coulomb RI setup is "// &
