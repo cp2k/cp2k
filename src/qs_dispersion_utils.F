@@ -73,6 +73,10 @@ CONTAINS
          d4_functional_name = "bp"
       CASE ("TPSS")
          d4_functional_name = "tpss"
+      CASE ("SCAN")
+         d4_functional_name = "scan"
+      CASE ("R2SCAN")
+         d4_functional_name = "r2scan"
       CASE DEFAULT
          d4_functional_name = "none"
       END SELECT
@@ -118,8 +122,8 @@ CONTAINS
 
       CHARACTER(len=20), ALLOCATABLE                     :: sub_names(:)
       INTEGER                                            :: i, n_explicit
-      LOGICAL                                            :: has_becke88, has_lyp, has_optx, &
-                                                            has_p86c, has_vwn, has_xalpha
+      LOGICAL :: has_becke88, has_lyp, has_mgga_c_r2scan, has_mgga_c_scan, has_mgga_x_r2scan, &
+         has_mgga_x_scan, has_optx, has_p86c, has_vwn, has_xalpha
       TYPE(section_vals_type), POINTER                   :: sub_section
 
       n_explicit = 0
@@ -136,6 +140,10 @@ CONTAINS
       has_p86c = .FALSE.
       has_xalpha = .FALSE.
       has_optx = .FALSE.
+      has_mgga_c_r2scan = .FALSE.
+      has_mgga_x_r2scan = .FALSE.
+      has_mgga_c_scan = .FALSE.
+      has_mgga_x_scan = .FALSE.
 
       n_explicit = 0
       DO i = 1, xc_fun_section%section%n_subsections
@@ -156,6 +164,14 @@ CONTAINS
                has_xalpha = .TRUE.
             CASE ("OPTX")
                has_optx = .TRUE.
+            CASE ("MGGA_C_R2SCAN")
+               has_mgga_c_r2scan = .TRUE.
+            CASE ("MGGA_X_R2SCAN")
+               has_mgga_x_r2scan = .TRUE.
+            CASE ("MGGA_C_SCAN")
+               has_mgga_c_scan = .TRUE.
+            CASE ("MGGA_X_SCAN")
+               has_mgga_x_scan = .TRUE.
             END SELECT
          END IF
       END DO
@@ -168,6 +184,10 @@ CONTAINS
          xc_functional_name = "BP"
       ELSE IF (has_optx .AND. has_lyp) THEN
          xc_functional_name = "OLYP"
+      ELSE IF (has_mgga_c_r2scan .AND. has_mgga_x_r2scan) THEN
+         xc_functional_name = "R2SCAN"
+      ELSE IF (has_mgga_c_scan .AND. has_mgga_x_scan) THEN
+         xc_functional_name = "SCAN"
       ELSE IF (n_explicit == 1) THEN
          xc_functional_name = sub_names(1)
       ELSE
