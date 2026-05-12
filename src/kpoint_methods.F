@@ -187,7 +187,8 @@ CONTAINS
             agauge(1:3, i) = -FLOOR(scoord(1:3, i) + 0.5_dp - kpoint%eps_geo)
          END DO
 
-         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
+         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit, &
+                           use_spglib=kpoint%symmetry)
          CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
                          full_grid=kpoint%full_grid, gamma_centered=kpoint%gamma_centered, &
                          inversion_symmetry_only=kpoint%inversion_symmetry_only, &
