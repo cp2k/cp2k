@@ -23,6 +23,7 @@ MODULE xc_derivatives
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
    USE xc_exchange_gga,                 ONLY: xgga_eval,&
                                               xgga_info
+   USE xc_gauxc_functional,             ONLY: skala_info
    USE xc_hcth,                         ONLY: hcth_lda_eval,&
                                               hcth_lda_info
    USE xc_ke_gga,                       ONLY: ke_gga_info,&
@@ -279,6 +280,10 @@ CONTAINS
          ELSE
             CALL pbe_lda_info(functional, reference, shortform, needs, max_deriv)
          END IF
+      CASE ("GAUXC")
+         CALL skala_info(functional, lsd, reference, shortform, needs, max_deriv)
+         ! Note: SKALA functional routes through apply_gauxc in qs_ks_methods.F
+         ! when USE_GAUXC = .TRUE. (requires dft_control%use_gauxc to be set)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_info(reference, shortform, needs, max_deriv)
@@ -346,7 +351,9 @@ CONTAINS
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval'
+      CHARACTER(len=*), PARAMETER :: abort_message_skala = &
+         "Control flow error: Computation of the Skala functional should not "// &
+         "proceed to this point, but occur at a higher level.", routineN = 'xc_functional_eval'
 
       INTEGER                                            :: handle, i_param
       LOGICAL                                            :: fun_active
@@ -498,6 +505,8 @@ CONTAINS
          ELSE
             CALL pbe_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
+      CASE ("GAUXC")
+         CPABORT(abort_message_skala)
       CASE ("XWPBE")
          IF (lsd) THEN
             CALL xwpbe_lsd_eval(rho_set, deriv_set, deriv_order, functional)

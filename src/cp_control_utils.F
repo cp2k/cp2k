@@ -131,13 +131,13 @@ CONTAINS
       TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, kg_xc_fun_section, &
          kg_xc_section, maxwell_section, sccs_section, scf_section, tmp_section, xc_fun_section, &
-         xc_section
+         xc_gauxc_subsection, xc_section
 
       was_present = .FALSE.
 
       logger => cp_get_default_logger()
 
-      NULLIFY (kg_xc_fun_section, kg_xc_section, tmp_section, xc_fun_section, xc_section)
+      NULLIFY (kg_xc_fun_section, kg_xc_section, tmp_section, xc_fun_section, xc_section, xc_gauxc_subsection)
       ALLOCATE (dft_control)
       CALL dft_control_create(dft_control)
       ! determine wheather this is a semiempirical or DFTB run
@@ -184,6 +184,13 @@ CONTAINS
       IF (.NOT. is_present .AND. not_SE) THEN
          CPABORT("XC_FUNCTIONAL section missing.")
       END IF
+
+      dft_control%use_gauxc = .FALSE.
+      IF (is_present) THEN
+         xc_gauxc_subsection => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
+         CALL section_vals_get(xc_gauxc_subsection, explicit=dft_control%use_gauxc)
+      END IF
+
       scf_section => section_vals_get_subs_vals(dft_section, "SCF")
       CALL section_vals_val_get(dft_section, "UKS", l_val=dft_control%uks)
       CALL section_vals_val_get(dft_section, "ROKS", l_val=dft_control%roks)
