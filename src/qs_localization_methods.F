@@ -3457,7 +3457,7 @@ CONTAINS
          CALL pzrot(nstate, zij(i)%local_data(1, 1), 1, istate, desc, 1, zij(i)%local_data(1, 1), &
                     1, jstate, desc, 1, c, s)
          CALL pzrot(nstate, zij(i)%local_data(1, 1), istate, 1, desc, nstate, &
-                    zij(i)%matrix%local_data(1, 1), jstate, 1, desc, nstate, c, CONJG(s))
+                    zij(i)%local_data(1, 1), jstate, 1, desc, nstate, c, CONJG(s))
 #else
          CALL zrot(nstate, zij(i)%local_data(1, istate), 1, zij(i)%local_data(1, jstate), 1, c, s)
          stride = SIZE(zij(i)%local_data, 1)
