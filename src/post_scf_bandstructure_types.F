@@ -58,7 +58,7 @@ MODULE post_scf_bandstructure_types
 
    ! data types for GW RI-RS code
    TYPE rirs_grid_type
-      INTEGER                    :: npts
+      INTEGER                    :: npts = 0
       REAL(KIND=dp), ALLOCATABLE :: raw_points(:, :)
    END TYPE rirs_grid_type
 

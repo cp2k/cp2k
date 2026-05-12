@@ -59,7 +59,11 @@ MODULE gw_large_cell_Gamma_ri_rs
 
    IMPLICIT NONE
 
+   PRIVATE
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_Gamma_ri_rs'
+
+   PUBLIC :: gw_calc_large_cell_Gamma_ri_rs
 
 CONTAINS
 
@@ -760,7 +764,10 @@ CONTAINS
             ! ---------------------------------------------------------------------
             ALLOCATE (phi_local(n_local_grid, n_ao_total))
 
-            !$OMP PARALLEL DO PRIVATE(global_j, loc_idx, global_i) SCHEDULE(STATIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_ao_total, n_local_grid, local_grid_idx, phi_local, phi_global) &
+            !$OMP PRIVATE(global_j, loc_idx, global_i) &
+            !$OMP SCHEDULE(STATIC)
             DO global_j = 1, n_ao_total
                DO loc_idx = 1, n_local_grid
                   global_i = local_grid_idx(loc_idx)
@@ -777,7 +784,10 @@ CONTAINS
 
             CALL dsyrk("L", "N", n_local_grid, n_ao_total, 1.0_dp, phi_local, n_local_grid, 0.0_dp, D_local, n_local_grid)
 
-            !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(STATIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_local_grid, D_local, d_vec_local, bs_env) &
+            !$OMP PRIVATE(i) &
+            !$OMP SCHEDULE(STATIC)
             DO i = 1, n_local_grid
                D_local(i, i) = D_local(i, i)**2
                d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), 1.0E-16_dp))
@@ -785,7 +795,10 @@ CONTAINS
             END DO
             !$OMP END PARALLEL DO
 
-            !$OMP PARALLEL DO PRIVATE(j, i) SCHEDULE(DYNAMIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
+            !$OMP PRIVATE(j, i) &
+            !$OMP SCHEDULE(DYNAMIC)
             DO j = 1, n_local_grid
                DO i = j + 1, n_local_grid
                   D_local(i, j) = D_local(i, j)**2
@@ -808,7 +821,10 @@ CONTAINS
             CALL compute_d_lp(qs_env, bs_env, phi_local, d_lp_local, n_local_grid, &
                               n_loc_ri, atom_P, rho_pair_local, int_3c_local, int_2d_local, max_ao_size)
 
-            !$OMP PARALLEL DO PRIVATE(j_ri, i) SCHEDULE(STATIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
+            !$OMP PRIVATE(j_ri, i) &
+            !$OMP SCHEDULE(STATIC)
             DO j_ri = 1, n_loc_ri
                DO i = 1, n_local_grid
                   d_lp_local(i, j_ri) = d_lp_local(i, j_ri)*d_vec_local(i)
@@ -824,7 +840,10 @@ CONTAINS
 
             CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, d_lp_local, n_local_grid, info)
 
-            !$OMP PARALLEL DO PRIVATE(j_ri, i) SCHEDULE(STATIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
+            !$OMP PRIVATE(j_ri, i) &
+            !$OMP SCHEDULE(STATIC)
             DO j_ri = 1, n_loc_ri
                DO i = 1, n_local_grid
                   d_lp_local(i, j_ri) = d_lp_local(i, j_ri)*d_vec_local(i)
@@ -838,7 +857,10 @@ CONTAINS
             ALLOCATE (Z_global_temp(n_grid_total, n_loc_ri))
             Z_global_temp = 0.0_dp
 
-            !$OMP PARALLEL DO PRIVATE(loc_idx, global_i) SCHEDULE(STATIC)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_local_grid, local_grid_idx, Z_global_temp, n_loc_ri, d_lp_local) &
+            !$OMP PRIVATE(loc_idx, global_i) &
+            !$OMP SCHEDULE(STATIC)
             DO loc_idx = 1, n_local_grid
                global_i = local_grid_idx(loc_idx)
                Z_global_temp(global_i, 1:n_loc_ri) = d_lp_local(loc_idx, 1:n_loc_ri)
@@ -953,7 +975,10 @@ CONTAINS
                                          atom_k=atom_k, atom_j=atom_j, atom_i=atom_P)
 
             ! Build Pair Density: ρ(l, μν) = Φ_μ(r_l) \times Φ_ν(r_l)
-            !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(k, j, l, jk_idx) COLLAPSE(2)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(ksize, jsize, n_grid_total, rho_pair, phi_val, jstart, kstart) &
+            !$OMP PRIVATE(k, j, l, jk_idx) &
+            !$OMP COLLAPSE(2)
             DO k = 1, ksize
                DO j = 1, jsize
                   jk_idx = (k - 1)*jsize + j
@@ -965,7 +990,10 @@ CONTAINS
             !$OMP END PARALLEL DO
 
             ! Flatten 3D B_{μν, P} tensor to 2D B_{(μν), P} matrix for BLAS
-            !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ri, k, j, jk_idx) COLLAPSE(2)
+            !$OMP PARALLEL DO DEFAULT(NONE) &
+            !$OMP SHARED(n_loc_ri, ksize, jsize, int_2d, int_3c) &
+            !$OMP PRIVATE(ri, k, j, jk_idx) &
+            !$OMP COLLAPSE(2)
             DO ri = 1, n_loc_ri
                DO k = 1, ksize
                   DO j = 1, jsize
