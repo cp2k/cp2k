@@ -3,14 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"blyp_dftd4.inp"                        = []
 "blyp_dftd4_auto.inp"                   = []
-"bp_dftd4.inp"                          = []
 "bp_dftd4_auto.inp"                     = []
-"b3lyp_dftd4.inp"                       = []
 "b3lyp_dftd4_auto.inp"                  = []
-"pbe0_dftd4.inp"                        = []
 "pbe0_dftd4_auto.inp"                   = []
-"tpss_dftd4.inp"                        = []
 "tpss_dftd4_auto.inp"                   = []
+"dftd4_auto_ref_func.inp"               = [{matcher="M033", tol=1.0E-14, ref=-0.00283102230287}]
 #EOF
