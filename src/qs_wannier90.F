@@ -47,6 +47,7 @@ MODULE qs_wannier90
                                               dp
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_init_cell_index,&
+                                              kpoint_initialize,&
                                               kpoint_initialize_mo_set,&
                                               kpoint_initialize_mos,&
                                               rskp_transform
@@ -81,6 +82,8 @@ MODULE qs_wannier90
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wannier90'
+   INTEGER, PARAMETER, PRIVATE :: w90_kpoints_mp_grid = 0, &
+                                  w90_kpoints_scf = 1
 
    TYPE berry_matrix_type
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat => NULL(), cosmat => NULL()
@@ -153,28 +156,27 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: asym
       CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: atom_symbols
-      CHARACTER(len=default_string_length)               :: filename, seed_name
+      CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
       INTEGER :: i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, ispin, iunit, ix, iy, iz, k, &
-         n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, &
-         num_bands_tot, num_kpts, num_wann
+         kpoints_source, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, &
+         num_bands, num_bands_tot, num_kpts, num_wann
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(3)                              :: mp_grid
+      INTEGER, DIMENSION(3)                              :: input_nkp_grid, mp_grid
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: diis_step, do_kpoints, gamma_only, &
-                                                            input_kpoint_symmetry, my_kpgrp, &
-                                                            mygrp, spinors
-      REAL(KIND=dp)                                      :: cmmn, ksign, rmmn
+      LOGICAL :: diis_step, do_kpoints, gamma_only, input_full_grid, input_gamma_centered, &
+         input_kpoint_symmetry, mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, spinors
+      REAL(KIND=dp)                                      :: cmmn, ksign, rmmn, wkp_ref
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
-      REAL(KIND=dp), DIMENSION(3)                        :: bvec
+      REAL(KIND=dp), DIMENSION(3)                        :: bvec, input_kp_shift
       REAL(KIND=dp), DIMENSION(3, 3)                     :: real_lattice, recip_lattice
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, wkp, wkp_source
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp, xkp_source
       TYPE(berry_matrix_type), DIMENSION(:), POINTER     :: berry_matrix
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -202,11 +204,11 @@ CONTAINS
 
       ! generate all arrays needed for the setup call
       CALL section_vals_val_get(input, "SEED_NAME", c_val=seed_name)
-      CALL section_vals_val_get(input, "MP_GRID", i_vals=invals)
+      CALL section_vals_val_get(input, "MP_GRID", i_vals=invals, explicit=mp_grid_explicit)
+      CALL section_vals_val_get(input, "KPOINTS_SOURCE", i_val=kpoints_source)
       CALL section_vals_val_get(input, "WANNIER_FUNCTIONS", i_val=num_wann)
       CALL section_vals_val_get(input, "ADDED_MOS", i_val=nadd)
       mp_grid(1:3) = invals(1:3)
-      num_kpts = mp_grid(1)*mp_grid(2)*mp_grid(3)
       ! excluded bands
       CALL section_vals_val_get(input, "EXCLUDE_BANDS", n_rep_val=n_rep)
       nexcl = 0
@@ -230,35 +232,150 @@ CONTAINS
       real_lattice(1:3, 1:3) = angstrom*real_lattice(1:3, 1:3)
       recip_lattice(1:3, 1:3) = (twopi/angstrom)*TRANSPOSE(recip_lattice(1:3, 1:3))
       ! k-points
-      ALLOCATE (kpt_latt(3, num_kpts))
       CALL get_qs_env(qs_env, particle_set=particle_set)
-      NULLIFY (kpoint, qs_kpoint)
+      NULLIFY (kpoint, qs_kpoint, xkp, wkp, xkp_source, wkp_source)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=qs_kpoint)
+      input_kpoint_symmetry = .FALSE.
+      input_full_grid = .FALSE.
+      input_kp_scheme = ""
+      IF (do_kpoints .AND. ASSOCIATED(qs_kpoint)) THEN
+         CALL get_kpoint_info(qs_kpoint, kp_scheme=input_kp_scheme, nkp_grid=input_nkp_grid, &
+                              kp_shift=input_kp_shift, symmetry=input_kpoint_symmetry, &
+                              full_grid=input_full_grid, gamma_centered=input_gamma_centered, &
+                              nkp=nkp, xkp=xkp, wkp=wkp)
+      END IF
       CALL kpoint_create(kpoint)
-      kpoint%kp_scheme = "MONKHORST-PACK"
-      kpoint%symmetry = .FALSE.
-      kpoint%nkp_grid(1:3) = mp_grid(1:3)
-      kpoint%verbose = .FALSE.
-      kpoint%full_grid = .TRUE.
-      kpoint%eps_geo = 1.0e-6_dp
-      kpoint%use_real_wfn = .FALSE.
-      kpoint%parallel_group_size = 0
-      i = 0
-      DO ix = 0, mp_grid(1) - 1
-         DO iy = 0, mp_grid(2) - 1
-            DO iz = 0, mp_grid(3) - 1
-               i = i + 1
-               kpt_latt(1, i) = REAL(ix, KIND=dp)/REAL(mp_grid(1), KIND=dp)
-               kpt_latt(2, i) = REAL(iy, KIND=dp)/REAL(mp_grid(2), KIND=dp)
-               kpt_latt(3, i) = REAL(iz, KIND=dp)/REAL(mp_grid(3), KIND=dp)
+
+      SELECT CASE (kpoints_source)
+      CASE (w90_kpoints_mp_grid)
+         num_kpts = mp_grid(1)*mp_grid(2)*mp_grid(3)
+         ALLOCATE (kpt_latt(3, num_kpts))
+         kpoint%kp_scheme = "MONKHORST-PACK"
+         kpoint%symmetry = .FALSE.
+         kpoint%nkp_grid(1:3) = mp_grid(1:3)
+         kpoint%verbose = .FALSE.
+         kpoint%full_grid = .TRUE.
+         kpoint%eps_geo = 1.0e-6_dp
+         kpoint%use_real_wfn = .FALSE.
+         kpoint%parallel_group_size = 0
+         i = 0
+         DO ix = 0, mp_grid(1) - 1
+            DO iy = 0, mp_grid(2) - 1
+               DO iz = 0, mp_grid(3) - 1
+                  i = i + 1
+                  kpt_latt(1, i) = REAL(ix, KIND=dp)/REAL(mp_grid(1), KIND=dp)
+                  kpt_latt(2, i) = REAL(iy, KIND=dp)/REAL(mp_grid(2), KIND=dp)
+                  kpt_latt(3, i) = REAL(iz, KIND=dp)/REAL(mp_grid(3), KIND=dp)
+               END DO
             END DO
          END DO
-      END DO
-      kpoint%nkp = num_kpts
-      ALLOCATE (kpoint%xkp(3, num_kpts), kpoint%wkp(num_kpts))
-      kpoint%wkp(:) = 1._dp/REAL(num_kpts, KIND=dp)
-      DO i = 1, num_kpts
-         kpoint%xkp(1:3, i) = (angstrom/twopi)*MATMUL(recip_lattice, kpt_latt(:, i))
-      END DO
+         kpoint%nkp = num_kpts
+         ALLOCATE (kpoint%xkp(3, num_kpts), kpoint%wkp(num_kpts))
+         kpoint%wkp(:) = 1._dp/REAL(num_kpts, KIND=dp)
+         DO i = 1, num_kpts
+            kpoint%xkp(1:3, i) = (angstrom/twopi)*MATMUL(recip_lattice, kpt_latt(:, i))
+         END DO
+
+      CASE (w90_kpoints_scf)
+         IF (.NOT. do_kpoints .OR. .NOT. ASSOCIATED(qs_kpoint)) THEN
+            CPABORT("WANNIER90%KPOINTS_SOURCE SCF requires an active DFT%KPOINTS section.")
+         END IF
+         SELECT CASE (TRIM(input_kp_scheme))
+         CASE ("GAMMA")
+            mp_grid(:) = 1
+            num_kpts = 1
+            ALLOCATE (kpt_latt(3, num_kpts))
+            kpt_latt(1:3, 1) = 0.0_dp
+            kpoint%kp_scheme = "GAMMA"
+            kpoint%symmetry = .FALSE.
+            kpoint%verbose = .FALSE.
+            kpoint%full_grid = .TRUE.
+            kpoint%eps_geo = 1.0e-6_dp
+            kpoint%use_real_wfn = .FALSE.
+            kpoint%parallel_group_size = 0
+            kpoint%nkp = num_kpts
+            ALLOCATE (kpoint%xkp(3, num_kpts), kpoint%wkp(num_kpts))
+            kpoint%xkp(1:3, 1) = 0.0_dp
+            kpoint%wkp(1) = 1.0_dp
+
+         CASE ("MONKHORST-PACK", "MACDONALD")
+            mp_grid(1:3) = input_nkp_grid(1:3)
+            kpoint%kp_scheme = input_kp_scheme
+            kpoint%symmetry = .FALSE.
+            kpoint%nkp_grid(1:3) = input_nkp_grid(1:3)
+            kpoint%kp_shift(1:3) = input_kp_shift(1:3)
+            kpoint%gamma_centered = input_gamma_centered
+            kpoint%verbose = .FALSE.
+            kpoint%full_grid = .TRUE.
+            kpoint%eps_geo = 1.0e-6_dp
+            kpoint%use_real_wfn = .FALSE.
+            kpoint%parallel_group_size = 0
+            CALL kpoint_initialize(kpoint, particle_set, cell)
+            num_kpts = kpoint%nkp
+            ALLOCATE (kpt_latt(3, num_kpts))
+            kpt_latt(1:3, 1:num_kpts) = kpoint%xkp(1:3, 1:num_kpts)
+            IF (input_kpoint_symmetry .AND. .NOT. input_full_grid .AND. iw > 0) THEN
+               WRITE (iw, '(T2,A)') &
+                  "WANNIER90| SCF k-points are symmetry-reduced; regenerating the full SCF mesh."
+               WRITE (iw, '(T2,A)') &
+                  "WANNIER90| The full exported mesh is diagonalized for the Wannier90 files."
+            END IF
+
+         CASE ("GENERAL")
+            IF (ASSOCIATED(qs_kpoint%xkp_input)) THEN
+               xkp_source => qs_kpoint%xkp_input
+               wkp_source => qs_kpoint%wkp_input
+            ELSE
+               xkp_source => xkp
+               wkp_source => wkp
+            END IF
+            IF (.NOT. ASSOCIATED(xkp_source) .OR. .NOT. ASSOCIATED(wkp_source)) THEN
+               CPABORT("Could not access the SCF GENERAL k-point set for the Wannier90 export.")
+            END IF
+            num_kpts = SIZE(wkp_source)
+            ALLOCATE (kpt_latt(3, num_kpts))
+            kpt_latt(1:3, 1:num_kpts) = xkp_source(1:3, 1:num_kpts)
+            IF (mp_grid_explicit) THEN
+               IF (mp_grid(1)*mp_grid(2)*mp_grid(3) /= num_kpts) THEN
+                  CPABORT("WANNIER90%MP_GRID must contain exactly as many points as the SCF GENERAL mesh.")
+               END IF
+            ELSE
+               CALL infer_wannier_mp_grid(kpt_latt, mp_grid, mp_grid_valid)
+               IF (.NOT. mp_grid_valid) THEN
+                  CPABORT("Could not infer WANNIER90%MP_GRID from the SCF GENERAL mesh.")
+               END IF
+            END IF
+            wkp_ref = 1.0_dp/REAL(num_kpts, KIND=dp)
+            DO i = 1, num_kpts
+               IF (ABS(wkp_source(i) - wkp_ref) > 1.0e-10_dp) THEN
+                  CPABORT("WANNIER90%KPOINTS_SOURCE SCF requires equally weighted GENERAL k-points.")
+               END IF
+            END DO
+            kpoint%kp_scheme = "GENERAL"
+            kpoint%symmetry = .FALSE.
+            kpoint%nkp_grid(1:3) = mp_grid(1:3)
+            kpoint%verbose = .FALSE.
+            kpoint%full_grid = .TRUE.
+            kpoint%eps_geo = 1.0e-6_dp
+            kpoint%use_real_wfn = .FALSE.
+            kpoint%parallel_group_size = 0
+            kpoint%nkp = num_kpts
+            ALLOCATE (kpoint%xkp(3, num_kpts), kpoint%wkp(num_kpts))
+            kpoint%xkp(1:3, 1:num_kpts) = xkp_source(1:3, 1:num_kpts)
+            kpoint%wkp(1:num_kpts) = wkp_ref
+            IF (input_kpoint_symmetry .AND. .NOT. input_full_grid .AND. iw > 0) THEN
+               WRITE (iw, '(T2,A)') &
+                  "WANNIER90| SCF k-points are symmetry-reduced; using the full input GENERAL mesh."
+               WRITE (iw, '(T2,A)') &
+                  "WANNIER90| The full exported mesh is diagonalized for the Wannier90 files."
+            END IF
+
+         CASE DEFAULT
+            CPABORT("WANNIER90%KPOINTS_SOURCE SCF does not support this DFT%KPOINTS scheme.")
+         END SELECT
+      CASE DEFAULT
+         CPABORT("Unknown WANNIER90%KPOINTS_SOURCE setting.")
+      END SELECT
       ! number of bands in calculation
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=num_bands_tot)
@@ -332,12 +449,7 @@ CONTAINS
 
       ! calculate bands
       NULLIFY (qs_env_kp)
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=qs_kpoint)
-      input_kpoint_symmetry = .FALSE.
-      IF (do_kpoints .AND. ASSOCIATED(qs_kpoint)) THEN
-         CALL get_kpoint_info(qs_kpoint, symmetry=input_kpoint_symmetry)
-      END IF
-      IF (input_kpoint_symmetry .AND. iw > 0) THEN
+      IF (kpoints_source == w90_kpoints_mp_grid .AND. input_kpoint_symmetry .AND. iw > 0) THEN
          WRITE (iw, '(T2,A)') &
             "WANNIER90| Atomic k-point symmetry from the SCF calculation is not reused."
          WRITE (iw, '(T2,A)') &
@@ -614,5 +726,76 @@ CONTAINS
       CALL kpoint_release(kpoint)
 
    END SUBROUTINE wannier90_files
+
+! **************************************************************************************************
+!> \brief Infer a tensor-product Wannier90 mesh from explicit fractional k-point coordinates.
+!> \param kpt_latt explicit k-point coordinates in reciprocal-lattice units
+!> \param mp_grid inferred mesh dimensions
+!> \param valid true if the coordinate set is compatible with a tensor-product mesh
+! **************************************************************************************************
+   SUBROUTINE infer_wannier_mp_grid(kpt_latt, mp_grid, valid)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kpt_latt
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: mp_grid
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      INTEGER                                            :: coord_id, i, idim, idx, n_unique, &
+                                                            num_kpts, stride, unique_id
+      LOGICAL                                            :: known
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: seen
+      REAL(KIND=dp)                                      :: coord
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: unique_coord
+
+      num_kpts = SIZE(kpt_latt, 2)
+      mp_grid(:) = 0
+      ALLOCATE (unique_coord(3, num_kpts))
+      DO idim = 1, 3
+         n_unique = 0
+         DO i = 1, num_kpts
+            coord = kpt_latt(idim, i) - FLOOR(kpt_latt(idim, i))
+            IF (ABS(coord - 1.0_dp) < 1.0e-8_dp) coord = 0.0_dp
+            known = .FALSE.
+            DO unique_id = 1, n_unique
+               IF (ABS(unique_coord(idim, unique_id) - coord) < 1.0e-8_dp) THEN
+                  known = .TRUE.
+                  EXIT
+               END IF
+            END DO
+            IF (.NOT. known) THEN
+               n_unique = n_unique + 1
+               unique_coord(idim, n_unique) = coord
+            END IF
+         END DO
+         mp_grid(idim) = n_unique
+      END DO
+      valid = (mp_grid(1)*mp_grid(2)*mp_grid(3) == num_kpts)
+      IF (valid) THEN
+         ALLOCATE (seen(num_kpts))
+         seen(:) = .FALSE.
+         DO i = 1, num_kpts
+            idx = 1
+            stride = 1
+            DO idim = 1, 3
+               coord = kpt_latt(idim, i) - FLOOR(kpt_latt(idim, i))
+               IF (ABS(coord - 1.0_dp) < 1.0e-8_dp) coord = 0.0_dp
+               coord_id = 0
+               DO unique_id = 1, mp_grid(idim)
+                  IF (ABS(unique_coord(idim, unique_id) - coord) < 1.0e-8_dp) THEN
+                     coord_id = unique_id
+                     EXIT
+                  END IF
+               END DO
+               CPASSERT(coord_id > 0)
+               idx = idx + (coord_id - 1)*stride
+               stride = stride*mp_grid(idim)
+            END DO
+            IF (seen(idx)) valid = .FALSE.
+            seen(idx) = .TRUE.
+         END DO
+         valid = valid .AND. ALL(seen)
+         DEALLOCATE (seen)
+      END IF
+      DEALLOCATE (unique_coord)
+
+   END SUBROUTINE infer_wannier_mp_grid
 
 END MODULE qs_wannier90

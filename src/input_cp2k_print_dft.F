@@ -145,6 +145,7 @@ MODULE input_cp2k_print_dft
                                   section_release, &
                                   section_type
    USE input_val_types, ONLY: char_t, &
+                              enum_t, &
                               integer_t, &
                               lchar_t, &
                               logical_t, &
@@ -2733,6 +2734,22 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
                           description="The dimensions of the Monkhorst-Pack k-point grid. ", &
                           usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=[10, 10, 10], type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINTS_SOURCE", &
+                          description="Select the k-point source for the Wannier90 export. MP_GRID keeps "// &
+                          "the historical behavior and builds a full grid from WANNIER90%MP_GRID. SCF uses "// &
+                          "the full k-point mesh from DFT%KPOINTS for Monkhorst-Pack, MacDonald, Gamma, or "// &
+                          "explicit GENERAL k-points. If the SCF calculation uses K290 or SPGLIB symmetry "// &
+                          "reduction, the corresponding unreduced mesh is used for Wannier90 because "// &
+                          "Wannier90 requires a complete mesh.", &
+                          usage="KPOINTS_SOURCE MP_GRID", type_of_var=enum_t, &
+                          enum_c_vals=s2a("MP_GRID", "SCF"), &
+                          enum_i_vals=[0, 1], &
+                          enum_desc=s2a("Build the Wannier90 k-point mesh from WANNIER90%MP_GRID.", &
+                                        "Use the full k-point mesh from DFT%KPOINTS."), &
+                          default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

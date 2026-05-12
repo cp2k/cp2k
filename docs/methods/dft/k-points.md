@@ -103,11 +103,14 @@ space-group-related positions.
 
 ## Wannier90
 
-The Wannier90 interface already has its own k-point path controlled by
-`DFT%PRINT%WANNIER90%MP_GRID`. It builds and diagonalizes a full Monkhorst-Pack grid for the
-Wannier90 export. Atomic k-point symmetry from the SCF setup is not reused, because Wannier90
-expects the full mesh and its nearest-neighbour connectivity. Explicit `SCHEME GENERAL` lists and
-symmetry-reduced SCF k-point sets are therefore not exported directly to Wannier90.
+The Wannier90 interface can either keep its historical k-point path controlled by
+`DFT%PRINT%WANNIER90%MP_GRID`, or use the full SCF k-point mesh via
+`DFT%PRINT%WANNIER90%KPOINTS_SOURCE SCF`. The SCF source supports Gamma, Monkhorst-Pack, MacDonald,
+and explicit `SCHEME GENERAL` k-point meshes. If the SCF calculation used K290 or SPGLIB symmetry
+reduction, the corresponding unreduced mesh is regenerated or recovered for the Wannier90 export,
+because Wannier90 expects the full mesh and its nearest-neighbour connectivity. The Wannier90
+interface still diagonalizes the full export mesh instead of reconstructing full-mesh MO
+coefficients from the irreducible SCF orbitals.
 
 ## Related Pages
 
