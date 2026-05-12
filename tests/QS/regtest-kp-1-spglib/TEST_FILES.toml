@@ -19,6 +19,8 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_fcc_general_spglib_backend.inp"      = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_general_wannier90_spglib.inp"    = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_fcc_general_spglib_method_k290_backend.inp" = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
                                                   {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_fcc_general_geo_opt_spglib_backend.inp" = [{matcher="E_total", tol=1e-8, ref=-4.34524388162712},

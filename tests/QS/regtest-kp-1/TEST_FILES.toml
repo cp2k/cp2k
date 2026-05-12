@@ -38,5 +38,9 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=12}]
 "h_fcc_general_k290.inp"                = [{matcher="E_total", tol=1e-13, ref=-4.34524388359535},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_general_wannier90_k290.inp"      = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_wannier90_scf_mp.inp"            = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_tetra_c4_sym_red.inp"                = [{matcher="E_total", tol=1e-8, ref=-3.95113501866984}]
 #EOF
