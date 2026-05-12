@@ -8,7 +8,6 @@
 MODULE xc_gauxc_functional
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_finalize,&
                                               dbcsr_get_info,&
@@ -24,6 +23,7 @@ MODULE xc_gauxc_functional
    USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -123,84 +123,15 @@ CONTAINS
 
    END FUNCTION dbcsr_to_dense
 
-   ! **************************************************************************************************
-   !> \brief Convert a dense matrix to dbcsr format using a template matrix
-   !         If the input matrix contains data wherever the template matrix does not,
-   !         this data will be lost. Look to dense_to_dbcsr_dense() for writeback of the full dense
-   !         matrix.
-   !> \param dense_mat Input dense matrix
-   !> \param template_dbcsr Template dbcsr matrix for structure
-   !> \param dbcsr_mat Output dbcsr matrix
-   ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param dense_mat ...
-!> \param template_dbcsr ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dense_to_dbcsr_sparse(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
-      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
-                              dbcsr_iterator_start, dbcsr_iterator_next_block, &
-                              dbcsr_iterator_blocks_left, dbcsr_iterator_stop, &
-                              dbcsr_put_block, dbcsr_finalize, dbcsr_work_create, &
-                              dbcsr_init_p, dbcsr_create, dbcsr_copy, dbcsr_release
-      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
-      TYPE(dbcsr_p_type)                                 :: dbcsr_mat
-
-      INTEGER                                            :: col, icol, irow, nblkcols_total, &
-                                                            nblkrows_total, ncols, nrows, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      REAL(c_double), POINTER                            :: block(:, :)
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL dbcsr_get_info(template_dbcsr%matrix, &
-                          row_blk_size=row_blk_size, &
-                          col_blk_size=col_blk_size, &
-                          nblkrows_total=nblkrows_total, &
-                          nblkcols_total=nblkcols_total, &
-                          nfullrows_total=nrows, &
-                          nfullcols_total=ncols)
-
-      CALL dbcsr_init_p(dbcsr_mat%matrix)
-      CALL dbcsr_create(dbcsr_mat%matrix, template=template_dbcsr%matrix, name="VXC from GauXC")
-      CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
-      CALL dbcsr_finalize(dbcsr_mat%matrix)
-
-      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
-
-      r_offset(1) = 1
-      DO row = 2, nblkrows_total
-         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
-      END DO
-      c_offset(1) = 1
-      DO col = 2, nblkcols_total
-         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
-      END DO
-
-      CALL dbcsr_iterator_start(iter, template_dbcsr%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
-         CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
-                              dense_mat(r_offset(irow):r_offset(irow) + SIZE(block, 1) - 1, &
-                                        c_offset(icol):c_offset(icol) + SIZE(block, 2) - 1))
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-      DEALLOCATE (r_offset, c_offset)
-
-   END FUNCTION dense_to_dbcsr_sparse
-
 ! **************************************************************************************************
 !> \brief Convert a dense symmetric matrix to a DBCSR matrix with full upper block structure.
-!>        Unlike dense_to_dbcsr, this creates all upper-triangular blocks, not just those present
-!>        in a template. This is needed because GauXC computes VXC for the full dense density matrix.
+!>        This creates all upper-triangular blocks, not just those present in a template.
+!>        This is needed because GauXC computes VXC for the full dense density matrix.
 !> \param dense_mat Input dense matrix
 !> \param template_dbcsr Template DBCSR matrix for distribution and block sizes
 !> \return dbcsr_mat Output DBCSR matrix with full upper block structure
 ! **************************************************************************************************
-   FUNCTION dense_to_dbcsr_dense(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
+   FUNCTION dense_to_dbcsr(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
       USE cp_dbcsr_api, ONLY: &
          dbcsr_create, &
          dbcsr_finalize, &
@@ -261,7 +192,7 @@ CONTAINS
 
       DEALLOCATE (r_offset, c_offset)
 
-   END FUNCTION dense_to_dbcsr_dense
+   END FUNCTION dense_to_dbcsr
 
 ! **************************************************************************************************
 !> \brief ...
@@ -336,7 +267,7 @@ CONTAINS
    END SUBROUTINE skala_info
 
 ! GauXC returns dense VXC matrices. We create DBCSR matrices with full dense block
-! structure using dense_to_dbcsr_dense to preserve all computed values.
+! structure using dense_to_dbcsr to preserve all computed values.
 
 ! **************************************************************************************************
 !> \brief ...
@@ -364,6 +295,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -376,6 +308,7 @@ CONTAINS
          energy, &
          ks_env, &
          matrix_vxc, &
+         para_env, &
          particle_set, &
          qs_kind_set, &
          rho, &
@@ -388,9 +321,18 @@ CONTAINS
          ks_env=ks_env, &
          matrix_vxc=matrix_vxc, &
          natom=natom, &
+         para_env=para_env, &
          particle_set=particle_set, &
          qs_kind_set=qs_kind_set, &
          rho=rho)
+
+      BLOCK
+         INTEGER :: mpi_size
+         CALL para_env%get_size(mpi_size)
+         IF (mpi_size > 1) THEN
+            CPABORT("GauXC currently not supported for parallel runs.")
+         END IF
+      END BLOCK
 
       CALL qs_rho_get( &
          rho, &
@@ -449,7 +391,7 @@ CONTAINS
          IF (nspins == 1) THEN
             ! xmat factor 2 is applied by both CP2K and GauXC
             ! "unapply" it here to even things back out
-            density_scalar = 0.5_dp * density_scalar
+            density_scalar = 0.5_dp*density_scalar
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
@@ -484,8 +426,8 @@ CONTAINS
             IF (img == 1) THEN
                ! xmat factor 2 is applied by both CP2K and GauXC
                ! "unapply" it here to even things back out
-               gauxc_xc_result%vxc_scalar = 0.5_dp * gauxc_xc_result%vxc_scalar
-               matrix_vxc(1) = dense_to_dbcsr_dense(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+               gauxc_xc_result%vxc_scalar = 0.5_dp*gauxc_xc_result%vxc_scalar
+               matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
                CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
@@ -493,10 +435,10 @@ CONTAINS
             CPASSERT(nspins == 2)
             ! rho_ao(1, :) = (scalar + zeta) / 2
             ! rho_ao(2, :) = (scalar - zeta) / 2
-            vxc_zeta_tmp = dense_to_dbcsr_dense(0.5_dp*gauxc_xc_result%vxc_zeta, rho_ao(1, img))
+            vxc_zeta_tmp = dense_to_dbcsr(0.5_dp*gauxc_xc_result%vxc_zeta, rho_ao(1, img))
             IF (img == 1) THEN
                DO ispin = 1, 2
-                  matrix_vxc(ispin) = dense_to_dbcsr_dense(0.5_dp*gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
+                  matrix_vxc(ispin) = dense_to_dbcsr(0.5_dp*gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
                   CALL dbcsr_add( &
                      matrix_vxc(ispin)%matrix, &
                      vxc_zeta_tmp%matrix, &
