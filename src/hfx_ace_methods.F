@@ -202,6 +202,16 @@ MODULE hfx_ace_methods
           CALL hfx_call(qs_env, ks_matrix, rho, energy,                  &
                          calculate_forces, just_energy,                    &
                          v_rspace_new, v_tau_rspace, ext_xc_section)
+          ! ------------------------------------------------------------------
+          ! Reset ACE state after the force call.
+          !
+          ! calculate_forces=.TRUE. marks the end of one geometry step.
+          ! The next call will be the first SCF of a new geometry (MD step
+          ! or geometry opt step) where R_I, K_AO, and C_occ have all
+          ! changed.  W must be rebuilt from scratch for the new geometry.
+          ! ------------------------------------------------------------------
+            ace_is_built     = .FALSE.
+            ace_step_counter = 0
           CALL timestop(handle)
           RETURN
        END IF
@@ -598,7 +608,7 @@ MODULE hfx_ace_methods
     END SUBROUTINE hfx_ace_build_projector
  
  ! **************************************************************************************************
- !> \brief Apply the stored ACE projector.
+ !> Apply the stored ACE projector.
  !>
  !>  For each spin:
  !>    ks_matrix(ispin) = H_core - W(ispin) * W(ispin)^T
