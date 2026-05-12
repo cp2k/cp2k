@@ -133,7 +133,7 @@ def _integrate_lq3_time_domain(
             energy_difference * time_array + gammas[state_idx - 1] * time_array**3
         )
 
-        slice_integral = float(np.trapz(integrand, dx=delta_time))
+        slice_integral = float(np.trapezoid(integrand, dx=delta_time))
 
         if abs(slice_integral) < convergence:
             convergence_reached = True
