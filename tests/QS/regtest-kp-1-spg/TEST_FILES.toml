@@ -5,11 +5,16 @@
 #      for details see cp2k/tools/do_regtest
 #
 # spglib-dependent tests
+"c_cell_opt_kpsym_guard.inp"            = [{matcher="N_special_kpoints", tol=0.0, ref=1}]
+"c_debug_kpsym_default.inp"             = [{matcher="N_special_kpoints", tol=0.0, ref=4}]
+"c_debug_kpsym_full.inp"                = [{matcher="N_special_kpoints", tol=0.0, ref=3}]
 "c_geo_opt_kpsym_spglib.inp"            = [{matcher="N_special_kpoints", tol=0.0, ref=1}]
 "c_spglib_backend_gamma_real_wfn.inp"   = [{matcher="E_total", tol=1e-13, ref=-45.10384660417728},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_spglib_sym_red.inp"                  = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_spglib_sym_red_restart.inp"          = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
+"h_hex_c3_sym_red.inp"                  = [{matcher="E_total", tol=1e-8, ref=-9.17691856252346},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=9}]
 "h_hex_c3_gamma_spglib.inp"             = [{matcher="E_total", tol=1e-7, ref=-9.41333967352940},
                                            {matcher="N_special_kpoints", tol=0.0, ref=8}]
 "h_hex_c3_gamma_macdonald_spglib.inp"   = [{matcher="E_total", tol=1e-7, ref=-9.41375200649571},
