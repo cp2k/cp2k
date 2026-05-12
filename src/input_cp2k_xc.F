@@ -60,7 +60,7 @@ MODULE input_cp2k_xc
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_xc'
 
-   PUBLIC :: create_xc_section, create_xc_fun_section
+   PUBLIC :: create_xc_section, create_xc_fun_section, create_skala_section
 
 CONTAINS
 
@@ -547,6 +547,10 @@ CONTAINS
                           default_r_val=1._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_skala_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1282,6 +1286,105 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_gcp_potential_section
+
+! **************************************************************************************************
+!> \brief creates the structure of the SKALA section for GauXC
+!> \param section the section that will be created
+!> \author fawzi
+! **************************************************************************************************
+   SUBROUTINE create_skala_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GAUXC", &
+                          description="Use GauXC-provided functionals, e.g. Skala", &
+                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="activates the functional", &
+                          lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="functional", &
+                          description="Underlying functional name to use in GauXC. For Skala, a path to the Skala checkpoint to be used.", &
+                          default_c_val="PBE")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GRID", &
+                          description="Atomic grid size for GauXC", &
+                          usage="GRID fine", &
+                          enum_c_vals=s2a("FINE", "ULTRAFINE", "SUPERFINE", "GM3", "GM5"), &
+                          enum_i_vals=[1, 2, 3, 4, 5], &
+                          enum_desc=s2a("Fine grid (default)", &
+                                        "Ultra fine grid", &
+                                        "Super fine grid", &
+                                        "GM3 grid", &
+                                        "GM5 grid"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RADIAL_QUADRATURE", &
+                          description="Radial quadrature scheme for GauXC", &
+                          usage="RADIAL_QUADRATURE muraknowles", &
+                          enum_c_vals=s2a("BECKE", "MURAKNOWLES", "TREUTLERAHLRICHS", "MURRAYHANDYLAMING"), &
+                          enum_i_vals=[1, 2, 3, 4], &
+                          enum_desc=s2a("Becke radial quadrature", &
+                                        "Mura-Knowles radial quadrature (default)", &
+                                        "Treutler-Ahlrichs radial quadrature", &
+                                        "Murray-Handy-Laming radial quadrature"), &
+                          default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRUNING_SCHEME", &
+                          description="Pruning scheme for GauXC", &
+                          usage="PRUNING_SCHEME robust", &
+                          enum_c_vals=s2a("UNPRUNED", "ROBUST", "TREUTLER"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Unpruned grid", &
+                                        "Robust pruning (default)", &
+                                        "Treutler pruning"), &
+                          default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BATCH_SIZE", &
+                          description="Batch size for GauXC evaluation", &
+                          usage="BATCH_SIZE 512", &
+                          default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="LB_EXECUTION_SPACE", &
+                          description="Execution space for load balancer in GauXC", &
+                          usage="LB_EXECUTION_SPACE host", &
+                          enum_c_vals=s2a("HOST", "DEVICE"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Run on host (default)", &
+                                        "Run on device"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="INT_EXECUTION_SPACE", &
+                          description="Execution space for integrator in GauXC", &
+                          usage="INT_EXECUTION_SPACE host", &
+                          enum_c_vals=s2a("HOST", "DEVICE"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Run on host (default)", &
+                                        "Run on device"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_skala_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the xc part
