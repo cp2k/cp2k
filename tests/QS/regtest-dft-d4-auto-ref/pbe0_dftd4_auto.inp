@@ -62,7 +62,7 @@
     &TOPOLOGY
       CONNECTIVITY OFF
       COORDINATE XYZ
-      COORD_FILE_NAME /workspace/tests/QS/sample_xyz/ch4-ch4-in.xyz
+      COORD_FILE_NAME ../sample_xyz/ch4-ch4-in.xyz
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY
