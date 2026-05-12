@@ -17,6 +17,12 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_fcc_macdonald_spglib_backend.inp"    = [{matcher="E_total", tol=1e-13, ref=-4.35025489265897},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_general_spglib_backend.inp"      = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_general_spglib_method_k290_backend.inp" = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
+                                                  {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"h_fcc_general_geo_opt_spglib_backend.inp" = [{matcher="E_total", tol=1e-8, ref=-4.34524388162712},
+                                              {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "h_fcc_spglib_backend_4.inp"            = [{matcher="E_total", tol=1e-13, ref=-4.31445892211372},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 #EOF

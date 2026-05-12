@@ -32,7 +32,7 @@ MODULE cryssym
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: csym_type, release_csym_type, print_crys_symmetry, print_kp_symmetry
-   PUBLIC :: crys_sym_gen, kpoint_gen
+   PUBLIC :: crys_sym_gen, kpoint_gen, kpoint_gen_general
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cryssym'
 
@@ -448,6 +448,116 @@ CONTAINS
    END SUBROUTINE kpoint_gen
 
 ! **************************************************************************************************
+!> \brief Reduce an explicitly supplied GENERAL k-point set.
+!> \param csym ...
+!> \param xkp_in explicit k-point coordinates in reciprocal lattice coordinates
+!> \param wkp_in explicit k-point weights
+!> \param symm ...
+!> \param full_grid ...
+!> \param inversion_symmetry_only ...
+!> \param use_spglib_reduction ...
+!> \param use_spglib_backend ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_gen_general(csym, xkp_in, wkp_in, symm, full_grid, &
+                                 inversion_symmetry_only, use_spglib_reduction, use_spglib_backend)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_in
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_in
+      LOGICAL, INTENT(IN), OPTIONAL                      :: symm, full_grid, &
+                                                            inversion_symmetry_only, &
+                                                            use_spglib_reduction, &
+                                                            use_spglib_backend
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_gen_general'
+
+      INTEGER                                            :: handle, i, nfull
+      LOGICAL                                            :: atomic_symmetry, fullmesh, &
+                                                            inversion_only, spglib_backend, &
+                                                            spglib_reduction
+      REAL(KIND=dp)                                      :: weight_eps
+
+      CALL timeset(routineN, handle)
+
+      nfull = SIZE(wkp_in)
+      CPASSERT(SIZE(xkp_in, 1) == 3)
+      CPASSERT(SIZE(xkp_in, 2) == nfull)
+
+      atomic_symmetry = .FALSE.
+      IF (PRESENT(symm)) atomic_symmetry = symm
+      csym%istriz = -1
+      IF (atomic_symmetry) csym%istriz = 1
+      fullmesh = .FALSE.
+      IF (PRESENT(full_grid)) fullmesh = full_grid
+      inversion_only = .FALSE.
+      IF (PRESENT(inversion_symmetry_only)) inversion_only = inversion_symmetry_only
+      spglib_reduction = .FALSE.
+      IF (PRESENT(use_spglib_reduction)) spglib_reduction = use_spglib_reduction
+      spglib_backend = .FALSE.
+      IF (PRESENT(use_spglib_backend)) spglib_backend = use_spglib_backend
+
+      csym%fullgrid = fullmesh
+      csym%inversion_only = inversion_only
+      csym%spglib_reduction = spglib_reduction
+      csym%spglib_backend = spglib_backend
+      csym%nkpoint = 0
+      csym%mesh(1:3) = 0
+      csym%nrtot = 0
+      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
+      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
+      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
+      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
+      ALLOCATE (csym%rt(3, 3, 0), csym%vt(3, 0), csym%ibrot(0), csym%f0(csym%nat, 0))
+      IF (ALLOCATED(csym%xkpoint)) DEALLOCATE (csym%xkpoint)
+      IF (ALLOCATED(csym%wkpoint)) DEALLOCATE (csym%wkpoint)
+      IF (ALLOCATED(csym%kpmesh)) DEALLOCATE (csym%kpmesh)
+      IF (ALLOCATED(csym%kplink)) DEALLOCATE (csym%kplink)
+      IF (ALLOCATED(csym%kpop)) DEALLOCATE (csym%kpop)
+
+      ALLOCATE (csym%kpmesh(3, nfull), csym%kplink(2, nfull), csym%kpop(nfull))
+      csym%kpmesh(1:3, 1:nfull) = xkp_in(1:3, 1:nfull)
+      csym%kplink = 0
+      csym%kpop = 1
+
+      IF (.NOT. atomic_symmetry .OR. fullmesh) THEN
+         csym%nkpoint = nfull
+         ALLOCATE (csym%xkpoint(3, nfull), csym%wkpoint(nfull))
+         csym%xkpoint(1:3, 1:nfull) = xkp_in(1:3, 1:nfull)
+         csym%wkpoint(1:nfull) = wkp_in(1:nfull)
+         DO i = 1, nfull
+            csym%kplink(1:2, i) = i
+         END DO
+      ELSE IF (inversion_only) THEN
+         CALL reduce_general_inversion(csym, xkp_in, wkp_in)
+      ELSE
+         weight_eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+         IF (ANY(ABS(wkp_in(1:nfull) - wkp_in(1)) > weight_eps)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "KPOINTS%SYMMETRY with SCHEME GENERAL requires equal explicit weights.")
+         END IF
+         IF (spglib_backend) THEN
+            IF (.NOT. csym%symlib) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "SCHEME GENERAL with SYMMETRY_BACKEND SPGLIB requires SPGLIB.")
+            END IF
+            CALL reduce_general_spglib(csym, xkp_in)
+         ELSE IF (spglib_reduction) THEN
+            IF (.NOT. csym%symlib) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "SCHEME GENERAL with SYMMETRY_REDUCTION_METHOD SPGLIB requires SPGLIB.")
+            END IF
+            CALL setup_k290_operations(csym)
+            CALL reduce_general_spglib_k290(csym, xkp_in)
+         ELSE
+            CALL setup_k290_operations(csym)
+            CALL reduce_general_k290(csym, xkp_in)
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_gen_general
+
+! **************************************************************************************************
 !> \brief ...
 !> \param csym ...
 !> \param xkp ...
@@ -606,6 +716,128 @@ CONTAINS
       END IF
 
    END SUBROUTINE kp_symmetry_spglib
+
+! **************************************************************************************************
+!> \brief Store K290 atomic symmetry operations without reducing a generated mesh.
+!> \param csym ...
+! **************************************************************************************************
+   SUBROUTINE setup_k290_operations(csym)
+      TYPE(csym_type)                                    :: csym
+
+      INTEGER                                            :: i, ihc, ihg, indpg, iou, iq1, iq2, iq3, &
+                                                            isy, li, nat, nc, nhash, nkpoint, nsp, &
+                                                            ntvec
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list, lwght, ty
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0, lrot
+      INTEGER, DIMENSION(48)                             :: ib
+      REAL(KIND=dp)                                      :: alat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl, xkapa
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, origin, wvk0
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: strain
+      REAL(KIND=dp), DIMENSION(3, 3, 48)                 :: r
+      REAL(KIND=dp), DIMENSION(3, 48)                    :: vt
+
+      iou = csym%punit
+      nat = csym%nat
+      CALL setup_k290_lattice(csym, a1, a2, a3, b1, b2, b3, alat)
+      iq1 = MAX(1, csym%mesh(1))
+      iq2 = MAX(1, csym%mesh(2))
+      iq3 = MAX(1, csym%mesh(3))
+      nkpoint = MAX(10, 10*iq1*iq2*iq3)
+      strain = 0.0_dp
+      wvk0 = 0.0_dp
+
+      ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, 200), ty(nat), isc(nat), f0(49, nat))
+      ty(1:nat) = csym%atype(1:nat)
+      nsp = MAXVAL(ty)
+      DO i = 1, nat
+         xkapa(1:3, i) = MATMUL(csym%hmat, csym%scoord(1:3, i))
+      END DO
+      nhash = 1000
+      ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
+      ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
+
+      IF (iou > 0) THEN
+         WRITE (iou, '(/,(T2,A79))') &
+            "*******************************************************************************", &
+            "**                      Special K-Point Generation by K290                   **", &
+            "*******************************************************************************"
+      END IF
+      CALL cite_reference(Worlton1972)
+
+      CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, csym%istriz, &
+                 a1, a2, a3, alat, strain, xkapa, rx, tvec, &
+                 ty, isc, f0, ntvec, wvk0, wvkl, lwght, lrot, &
+                 nhash, includ, list, rlist, csym%delta)
+
+      CALL GROUP1s(0, a1, a2, a3, nat, ty, xkapa, b1, b2, b3, &
+                   ihg, ihc, isy, li, nc, indpg, ib, ntvec, &
+                   vt, f0, r, tvec, origin, rx, isc, csym%delta)
+
+      IF (iou > 0) THEN
+         WRITE (iou, '((T2,A79))') &
+            "*******************************************************************************", &
+            "**                              Finished K290                                **", &
+            "*******************************************************************************"
+      END IF
+
+      csym%nrtot = nc
+      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
+      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
+      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
+      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
+      ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc))
+      csym%vt(1:3, 1:nc) = vt(1:3, 1:nc)
+      ALLOCATE (csym%f0(nat, nc))
+      DO i = 1, nc
+         csym%rt(1:3, 1:3, i) = r(1:3, 1:3, ib(i))
+         csym%f0(1:nat, i) = f0(i, 1:nat)
+      END DO
+      csym%ibrot(1:nc) = ib(1:nc)
+
+      DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
+      DEALLOCATE (wvkl, rlist, includ, list)
+      DEALLOCATE (lrot, lwght)
+
+   END SUBROUTINE setup_k290_operations
+
+! **************************************************************************************************
+!> \brief Return K290 lattice vectors and reciprocal vectors.
+!> \param csym ...
+!> \param a1 first lattice vector
+!> \param a2 second lattice vector
+!> \param a3 third lattice vector
+!> \param b1 first reciprocal lattice vector
+!> \param b2 second reciprocal lattice vector
+!> \param b3 third reciprocal lattice vector
+!> \param alat lattice scaling used by K290
+! **************************************************************************************************
+   SUBROUTINE setup_k290_lattice(csym, a1, a2, a3, b1, b2, b3, alat)
+      TYPE(csym_type), INTENT(IN)                        :: csym
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: a1, a2, a3, b1, b2, b3
+      REAL(KIND=dp), INTENT(OUT)                         :: alat
+
+      REAL(KIND=dp)                                      :: volum
+
+      a1(1:3) = csym%hmat(1:3, 1)
+      a2(1:3) = csym%hmat(1:3, 2)
+      a3(1:3) = csym%hmat(1:3, 3)
+      alat = csym%hmat(1, 1)
+      volum = a1(1)*a2(2)*a3(3) + a2(1)*a3(2)*a1(3) + &
+              a3(1)*a1(2)*a2(3) - a1(3)*a2(2)*a3(1) - &
+              a2(3)*a3(2)*a1(1) - a3(3)*a1(2)*a2(1)
+      volum = ABS(volum)
+      b1(1) = (a2(2)*a3(3) - a2(3)*a3(2))/volum
+      b1(2) = (a2(3)*a3(1) - a2(1)*a3(3))/volum
+      b1(3) = (a2(1)*a3(2) - a2(2)*a3(1))/volum
+      b2(1) = (a3(2)*a1(3) - a3(3)*a1(2))/volum
+      b2(2) = (a3(3)*a1(1) - a3(1)*a1(3))/volum
+      b2(3) = (a3(1)*a1(2) - a3(2)*a1(1))/volum
+      b3(1) = (a1(2)*a2(3) - a1(3)*a2(2))/volum
+      b3(2) = (a1(3)*a2(1) - a1(1)*a2(3))/volum
+      b3(3) = (a1(1)*a2(2) - a1(2)*a2(1))/volum
+
+   END SUBROUTINE setup_k290_lattice
 
 ! **************************************************************************************************
 !> \brief Store usable SPGLIB space-group operations for k-point symmetry
@@ -888,6 +1120,372 @@ CONTAINS
    END SUBROUTINE reduce_spglib_kpoint_mesh
 
 ! **************************************************************************************************
+!> \brief Reduce an explicit k-point set by inversion/time-reversal.
+!> \param csym ...
+!> \param xkp_full explicit k-point coordinates
+!> \param wkp_full explicit k-point weights
+! **************************************************************************************************
+   SUBROUTINE reduce_general_inversion(csym, xkp_full, wkp_full)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_full
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_full
+
+      INTEGER                                            :: i, j, nfull, nred
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp)                                      :: eps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wred
+      REAL(KIND=dp), DIMENSION(3)                        :: diff
+
+      nfull = SIZE(wkp_full)
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      ALLOCATE (rep(nfull), used(nfull), wred(nfull))
+      used = .FALSE.
+      rep = 0
+      wred = 0.0_dp
+      nred = 0
+
+      DO i = 1, nfull
+         IF (used(i)) CYCLE
+         nred = nred + 1
+         rep(nred) = i
+         used(i) = .TRUE.
+         csym%kplink(1, i) = i
+         csym%kpop(i) = 1
+         wred(nred) = wkp_full(i)
+         DO j = i + 1, nfull
+            IF (used(j)) CYCLE
+            diff(1:3) = xkp_full(1:3, j) + xkp_full(1:3, i)
+            diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+            IF (ALL(ABS(diff(1:3)) < eps)) THEN
+               IF (ABS(wkp_full(j) - wkp_full(i)) > eps) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "KPOINTS%INVERSION_SYMMETRY_ONLY with SCHEME GENERAL requires "// &
+                                "equal weights for inversion-related k-points.")
+               END IF
+               used(j) = .TRUE.
+               csym%kplink(1, j) = i
+               csym%kpop(j) = -1
+               wred(nred) = wred(nred) + wkp_full(j)
+            END IF
+         END DO
+      END DO
+
+      csym%nkpoint = nred
+      ALLOCATE (csym%xkpoint(3, nred), csym%wkpoint(nred))
+      DO i = 1, nred
+         csym%xkpoint(1:3, i) = xkp_full(1:3, rep(i))
+         csym%wkpoint(i) = wred(i)
+      END DO
+      DO i = 1, nfull
+         DO j = 1, nred
+            IF (csym%kplink(1, i) == rep(j)) THEN
+               csym%kplink(2, i) = j
+               EXIT
+            END IF
+         END DO
+      END DO
+
+      DEALLOCATE (rep, used, wred)
+
+   END SUBROUTINE reduce_general_inversion
+
+! **************************************************************************************************
+!> \brief Reduce an explicit k-point set with K290 symmetry operations.
+!> \param csym ...
+!> \param xkp_full explicit k-point coordinates
+! **************************************************************************************************
+   SUBROUTINE reduce_general_k290(csym, xkp_full)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_full
+
+      INTEGER                                            :: i, ibsign, iop, j, kr, nfull, nred
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep
+      LOGICAL                                            :: found
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp)                                      :: alat, eps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wred
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, diff, rr, wcart
+
+      nfull = SIZE(xkp_full, 2)
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      CALL setup_k290_lattice(csym, a1, a2, a3, b1, b2, b3, alat)
+
+      ALLOCATE (rep(nfull), used(nfull), wred(nfull))
+      used = .FALSE.
+      rep = 0
+      wred = 0.0_dp
+      nred = 0
+
+      DO i = 1, nfull
+         IF (used(i)) CYCLE
+         nred = nred + 1
+         rep(nred) = i
+         used(i) = .TRUE.
+         csym%kplink(1, i) = i
+         csym%kpop(i) = 1
+         wred(nred) = 1.0_dp
+
+         DO iop = 1, csym%nrtot
+            DO ibsign = 1, 2
+               kr = csym%ibrot(iop)
+               wcart(1:3) = alat*(xkp_full(1, i)*b1(1:3) + &
+                                  xkp_full(2, i)*b2(1:3) + &
+                                  xkp_full(3, i)*b3(1:3))
+               wcart(1:3) = kp_apply_operation(wcart(1:3), csym%rt(1:3, 1:3, iop))
+               IF (ibsign == 2) THEN
+                  wcart(1:3) = -wcart(1:3)
+                  kr = -kr
+               END IF
+               rr(1) = DOT_PRODUCT(a1(1:3), wcart(1:3))/alat
+               rr(2) = DOT_PRODUCT(a2(1:3), wcart(1:3))/alat
+               rr(3) = DOT_PRODUCT(a3(1:3), wcart(1:3))/alat
+
+               found = .FALSE.
+               DO j = 1, nfull
+                  diff(1:3) = xkp_full(1:3, j) - rr(1:3)
+                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
+                     found = .TRUE.
+                     IF (.NOT. used(j)) THEN
+                        used(j) = .TRUE.
+                        csym%kplink(1, j) = i
+                        csym%kpop(j) = kr
+                        wred(nred) = wred(nred) + 1.0_dp
+                     ELSE
+                        CPASSERT(csym%kplink(1, j) == i)
+                     END IF
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. found) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "KPOINTS%SYMMETRY with SCHEME GENERAL requires the explicit k-point set "// &
+                                "to be closed under the K290 symmetry operations.")
+               END IF
+            END DO
+         END DO
+      END DO
+
+      CALL store_general_reduction(csym, xkp_full, rep, wred, nred)
+
+      DEALLOCATE (rep, used, wred)
+
+   END SUBROUTINE reduce_general_k290
+
+! **************************************************************************************************
+!> \brief Reduce an explicit k-point set with SPGLIB symmetry operations.
+!> \param csym ...
+!> \param xkp_full explicit k-point coordinates
+! **************************************************************************************************
+   SUBROUTINE reduce_general_spglib(csym, xkp_full)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_full
+
+      INTEGER                                            :: i, iop, isign, j, kr, nfull, nred, nrot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: srot
+      INTEGER, DIMENSION(3, 3)                           :: krot
+      LOGICAL                                            :: found
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp)                                      :: eps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wred
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr
+
+      nfull = SIZE(xkp_full, 2)
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      ALLOCATE (srot(3, 3, csym%n_operations))
+      CALL setup_spglib_operations(csym, srot, nrot)
+
+      ALLOCATE (rep(nfull), used(nfull), wred(nfull))
+      used = .FALSE.
+      rep = 0
+      wred = 0.0_dp
+      nred = 0
+
+      DO i = 1, nfull
+         IF (used(i)) CYCLE
+         nred = nred + 1
+         rep(nred) = i
+         used(i) = .TRUE.
+         csym%kplink(1, i) = i
+         csym%kpop(i) = 1
+         wred(nred) = 1.0_dp
+
+         DO iop = 1, nrot
+            kr = csym%ibrot(iop)
+            krot = reciprocal_rotation(srot(:, :, kr))
+            DO isign = 1, 2
+               rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp_full(1:3, i))
+               IF (isign == 2) THEN
+                  rr(1:3) = -rr(1:3)
+                  kr = -csym%ibrot(iop)
+               ELSE
+                  kr = csym%ibrot(iop)
+               END IF
+
+               found = .FALSE.
+               DO j = 1, nfull
+                  diff(1:3) = xkp_full(1:3, j) - rr(1:3)
+                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
+                     found = .TRUE.
+                     IF (.NOT. used(j)) THEN
+                        used(j) = .TRUE.
+                        csym%kplink(1, j) = i
+                        csym%kpop(j) = kr
+                        wred(nred) = wred(nred) + 1.0_dp
+                     ELSE
+                        CPASSERT(csym%kplink(1, j) == i)
+                     END IF
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. found) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "KPOINTS%SYMMETRY with SCHEME GENERAL requires the explicit k-point set "// &
+                                "to be closed under the requested symmetry operations.")
+               END IF
+            END DO
+         END DO
+      END DO
+
+      CALL store_general_reduction(csym, xkp_full, rep, wred, nred)
+
+      DEALLOCATE (rep, srot, used, wred)
+
+   END SUBROUTINE reduce_general_spglib
+
+! **************************************************************************************************
+!> \brief Reduce an explicit k-point set with SPGLIB rotations and K290 operations.
+!> \param csym ...
+!> \param xkp_full explicit k-point coordinates
+! **************************************************************************************************
+   SUBROUTINE reduce_general_spglib_k290(csym, xkp_full)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_full
+
+      INTEGER                                            :: i, iop, isign, j, k290_op, nfull, nred, &
+                                                            nrot, nskipped
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: srot
+      INTEGER, DIMENSION(3, 3)                           :: krot
+      LOGICAL                                            :: found, valid
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp)                                      :: alat, eps
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wred
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, diff, rr
+
+      nfull = SIZE(xkp_full, 2)
+      eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      CALL setup_k290_lattice(csym, a1, a2, a3, b1, b2, b3, alat)
+      ALLOCATE (srot(3, 3, csym%n_operations))
+      CALL setup_spglib_reduction_rotations(csym, srot, nrot)
+
+      ALLOCATE (rep(nfull), used(nfull), wred(nfull))
+      used = .FALSE.
+      rep = 0
+      wred = 0.0_dp
+      nred = 0
+      nskipped = 0
+
+      DO i = 1, nfull
+         IF (used(i)) CYCLE
+         nred = nred + 1
+         rep(nred) = i
+         used(i) = .TRUE.
+         csym%kplink(1, i) = i
+         csym%kpop(i) = 1
+         wred(nred) = 1.0_dp
+
+         DO iop = 1, nrot
+            krot = reciprocal_rotation(srot(:, :, iop))
+            DO isign = 1, 2
+               rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp_full(1:3, i))
+               IF (isign == 2) rr(1:3) = -rr(1:3)
+
+               found = .FALSE.
+               DO j = 1, nfull
+                  diff(1:3) = xkp_full(1:3, j) - rr(1:3)
+                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
+                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
+                     found = .TRUE.
+                     CALL find_k290_kpoint_operation(csym, xkp_full(1:3, i), xkp_full(1:3, j), &
+                                                     a1, a2, a3, b1, b2, b3, alat, &
+                                                     k290_op, valid)
+                     IF (.NOT. valid) THEN
+                        nskipped = nskipped + 1
+                        EXIT
+                     END IF
+                     IF (.NOT. used(j)) THEN
+                        used(j) = .TRUE.
+                        csym%kplink(1, j) = i
+                        csym%kpop(j) = k290_op
+                        wred(nred) = wred(nred) + 1.0_dp
+                     ELSE
+                        CPASSERT(csym%kplink(1, j) == i)
+                     END IF
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. found) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "KPOINTS%SYMMETRY with SCHEME GENERAL requires the explicit k-point set "// &
+                                "to be closed under the SPGLIB symmetry operations.")
+               END IF
+            END DO
+         END DO
+      END DO
+
+      IF (nskipped > 0) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Some SPGLIB k-point mappings are not represented by the K290 backend; "// &
+                      "the GENERAL k-point set was reduced only by the compatible mappings.")
+      END IF
+
+      CALL store_general_reduction(csym, xkp_full, rep, wred, nred)
+
+      DEALLOCATE (rep, srot, used, wred)
+
+   END SUBROUTINE reduce_general_spglib_k290
+
+! **************************************************************************************************
+!> \brief Store reduced GENERAL k-point representatives.
+!> \param csym ...
+!> \param xkp_full explicit k-point coordinates
+!> \param rep representative indices
+!> \param wred representative multiplicities
+!> \param nred number of reduced representatives
+! **************************************************************************************************
+   SUBROUTINE store_general_reduction(csym, xkp_full, rep, wred, nred)
+      TYPE(csym_type)                                    :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp_full
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: rep
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wred
+      INTEGER, INTENT(IN)                                :: nred
+
+      INTEGER                                            :: i, j, nfull
+
+      nfull = SIZE(xkp_full, 2)
+      csym%nkpoint = nred
+      ALLOCATE (csym%xkpoint(3, nred), csym%wkpoint(nred))
+      DO i = 1, nred
+         csym%xkpoint(1:3, i) = xkp_full(1:3, rep(i))
+         csym%wkpoint(i) = wred(i)
+      END DO
+      DO i = 1, nfull
+         DO j = 1, nred
+            IF (csym%kplink(1, i) == rep(j)) THEN
+               csym%kplink(2, i) = j
+               EXIT
+            END IF
+         END DO
+         CPASSERT(csym%kplink(2, i) /= 0)
+      END DO
+
+   END SUBROUTINE store_general_reduction
+
+! **************************************************************************************************
 !> \brief Reduce a k-point mesh with SPGLIB rotations and K290 operations
 !> \param csym ...
 !> \param xkp full k-point mesh in reciprocal lattice coordinates
@@ -914,7 +1512,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: a1, a2, a3, b1, b2, b3
       REAL(KIND=dp), INTENT(IN)                          :: alat
 
-      INTEGER                                            :: i, iop, isign, j, k290_op, nkpts
+      INTEGER                                            :: i, iop, isign, j, k290_op, nkpts, &
+                                                            nskipped
       INTEGER, DIMENSION(3, 3)                           :: krot
       LOGICAL                                            :: valid
       REAL(KIND=dp)                                      :: eps
@@ -922,6 +1521,7 @@ CONTAINS
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
+      nskipped = 0
 
       wkp = 0.0_dp
       kpop = 0
@@ -954,8 +1554,8 @@ CONTAINS
                                                      a1, a2, a3, b1, b2, b3, alat, &
                                                      k290_op, valid)
                      IF (.NOT. valid) THEN
-                        CALL cp_abort(__LOCATION__, &
-                                      "SPGLIB k-point mapping is not represented by K290 backend")
+                        nskipped = nskipped + 1
+                        EXIT
                      END IF
                      csym%kplink(1, j) = i
                      wkp(i) = wkp(i) + 1.0_dp
@@ -972,6 +1572,11 @@ CONTAINS
          CPASSERT(csym%kplink(1, i) /= 0)
          CPASSERT(kpop(i) /= 0)
       END DO
+      IF (nskipped > 0) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Some SPGLIB k-point mappings are not represented by the K290 backend; "// &
+                      "the mesh was reduced only by the compatible mappings.")
+      END IF
 
    END SUBROUTINE reduce_spglib_kpoint_mesh_k290
 
@@ -1314,7 +1919,7 @@ CONTAINS
    SUBROUTINE print_kp_symmetry(csym)
       TYPE(csym_type), INTENT(IN)                        :: csym
 
-      INTEGER                                            :: i, iunit, nat, plevel
+      INTEGER                                            :: i, iunit, nat, nmesh, plevel
 
       iunit = csym%punit
       IF (iunit >= 0) THEN
@@ -1325,9 +1930,15 @@ CONTAINS
          DO i = 1, csym%nkpoint
             WRITE (iunit, '(T2,i10,3F10.5,T71,I10)') i, csym%xkpoint(1:3, i), NINT(csym%wkpoint(i))
          END DO
-         WRITE (iunit, '(/,A,T63,3I6)') "       K-point Mesh: ", csym%mesh(1), csym%mesh(2), csym%mesh(3)
+         nmesh = csym%mesh(1)*csym%mesh(2)*csym%mesh(3)
+         IF (nmesh > 0) THEN
+            WRITE (iunit, '(/,A,T63,3I6)') "       K-point Mesh: ", csym%mesh(1), csym%mesh(2), csym%mesh(3)
+         ELSE
+            nmesh = SIZE(csym%kpmesh, 2)
+            WRITE (iunit, '(/,A,T70,I10)') "       Explicit K-point Set: ", nmesh
+         END IF
          WRITE (iunit, '(T19,A,T54,A)') " Wavevector Basis ", " Special Points    Rotation"
-         DO i = 1, csym%mesh(1)*csym%mesh(2)*csym%mesh(3)
+         DO i = 1, nmesh
             WRITE (iunit, '(T2,i10,3F10.5,T45,3I12)') i, csym%kpmesh(1:3, i), &
                csym%kplink(1:2, i), csym%kpop(i)
          END DO

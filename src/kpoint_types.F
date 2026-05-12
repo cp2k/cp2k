@@ -150,6 +150,8 @@ MODULE kpoint_types
 !> \param nkp     number of kpoints
 !> \param xkp     kpoint coordinates
 !> \param wkp     kpoint weights
+!> \param xkp_input explicit GENERAL kpoint coordinates as read from the input
+!> \param wkp_input explicit GENERAL kpoint weights as read from the input
 !> \param para_env 'global' parallel environment
 !> \param para_env_kp parallel environment of the kpoint calculation
 !> \param para_env_inter_kp parallel environment between kpoints
@@ -180,6 +182,8 @@ MODULE kpoint_types
       INTEGER                                 :: nkp = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp_input => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp_input => Null()
       ! parallel environment
       TYPE(mp_para_env_type), POINTER         :: para_env => Null()
       TYPE(cp_blacs_env_type), POINTER        :: blacs_env_all => Null()
@@ -246,6 +250,7 @@ CONTAINS
       kpoint%nkp = 0
 
       NULLIFY (kpoint%xkp, kpoint%wkp)
+      NULLIFY (kpoint%xkp_input, kpoint%wkp_input)
       NULLIFY (kpoint%kp_dist)
 
       NULLIFY (kpoint%para_env)
@@ -284,6 +289,12 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kpoint%wkp)) THEN
             DEALLOCATE (kpoint%wkp)
+         END IF
+         IF (ASSOCIATED(kpoint%xkp_input)) THEN
+            DEALLOCATE (kpoint%xkp_input)
+         END IF
+         IF (ASSOCIATED(kpoint%wkp_input)) THEN
+            DEALLOCATE (kpoint%wkp_input)
          END IF
          IF (ASSOCIATED(kpoint%kp_dist)) THEN
             DEALLOCATE (kpoint%kp_dist)
@@ -365,6 +376,13 @@ CONTAINS
       IF (ASSOCIATED(kpoint%wkp)) THEN
          DEALLOCATE (kpoint%wkp)
          NULLIFY (kpoint%wkp)
+      END IF
+      IF (kpoint%kp_scheme == "GENERAL" .AND. ASSOCIATED(kpoint%xkp_input) .AND. &
+          ASSOCIATED(kpoint%wkp_input)) THEN
+         kpoint%nkp = SIZE(kpoint%wkp_input)
+         ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
+         kpoint%xkp(1:3, 1:kpoint%nkp) = kpoint%xkp_input(1:3, 1:kpoint%nkp)
+         kpoint%wkp(1:kpoint%nkp) = kpoint%wkp_input(1:kpoint%nkp)
       END IF
       IF (ASSOCIATED(kpoint%kp_dist)) THEN
          DEALLOCATE (kpoint%kp_dist)
@@ -451,7 +469,7 @@ CONTAINS
       ALLOCATE (kpoint%index_to_cell(0:0, 0:0))
       kpoint%index_to_cell(:, :) = 0
 
-      kpoint%nkp = 0
+      IF (.NOT. ASSOCIATED(kpoint%wkp)) kpoint%nkp = 0
       kpoint%nkp_groups = 0
       kpoint%kp_range = 0
       kpoint%iogrp = .FALSE.
@@ -749,6 +767,14 @@ CONTAINS
             CALL uppercase(ustr)
             CALL section_vals_val_get(kpoint_section, "KPOINT", n_rep_val=n_rep)
             kpoint%nkp = n_rep
+            IF (ASSOCIATED(kpoint%xkp_input)) THEN
+               DEALLOCATE (kpoint%xkp_input)
+               NULLIFY (kpoint%xkp_input)
+            END IF
+            IF (ASSOCIATED(kpoint%wkp_input)) THEN
+               DEALLOCATE (kpoint%wkp_input)
+               NULLIFY (kpoint%wkp_input)
+            END IF
             ALLOCATE (kpoint%xkp(3, n_rep), kpoint%wkp(n_rep))
             DO i = 1, n_rep
                CALL section_vals_val_get(kpoint_section, "KPOINT", i_rep_val=i, &
@@ -773,6 +799,9 @@ CONTAINS
             END DO
             ff = 1.0_dp/SUM(kpoint%wkp(:))
             kpoint%wkp(:) = ff*kpoint%wkp(:)
+            ALLOCATE (kpoint%xkp_input(3, n_rep), kpoint%wkp_input(n_rep))
+            kpoint%xkp_input(1:3, 1:n_rep) = kpoint%xkp(1:3, 1:n_rep)
+            kpoint%wkp_input(1:n_rep) = kpoint%wkp(1:n_rep)
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -911,7 +940,8 @@ CONTAINS
             END IF
             IF (kpoint%symmetry .AND. .NOT. kpoint%full_grid .AND. &
                 .NOT. kpoint%inversion_symmetry_only .AND. &
-                (kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD")) THEN
+                (kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD" .OR. &
+                 kpoint%kp_scheme == "GENERAL")) THEN
                SELECT CASE (kpoint%symmetry_backend)
                CASE (use_k290_kpoint_backend)
                   WRITE (punit, '(A,T73,A)') ' BRILLOUIN| Symmetry backend', '   K290'

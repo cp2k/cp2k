@@ -92,8 +92,8 @@ CONTAINS
                           "For `MONKHORST-PACK` the number of k points in all 3 dimensions has to"// &
                           " be supplied along with the keyword. For `MACDONALD` also the list of shifts."// &
                           " E.g. `MONKHORST-PACK 12 12 8`, `MACDONALD 4 4 4 0.25 0.25 0.25`."// &
-                          " `GENERAL` uses the explicitly listed k-points as supplied and does not apply"// &
-                          " SYMMETRY_BACKEND or SYMMETRY_REDUCTION_METHOD.", &
+                          " `GENERAL` uses explicitly listed k-points. If symmetry reduction is requested,"// &
+                          " the explicit set must be equally weighted and closed under the selected operations.", &
                           usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
                           citations=[Monkhorst1976, MacDonald1978], &
                           n_var=-1, type_of_var=char_t)
@@ -164,8 +164,8 @@ CONTAINS
                           description="Select the backend used to provide and apply atomic "// &
                           "k-point symmetry operations. K290 is the established default. "// &
                           "SPGLIB uses the symmetry operations returned by SPGLIB, including "// &
-                          "their fractional translations. This applies to Monkhorst-Pack and MacDonald "// &
-                          "meshes. For GENERAL, the explicit k-point list is used as supplied. If "// &
+                          "their fractional translations. This applies to Monkhorst-Pack, MacDonald, and "// &
+                          "closed GENERAL k-point sets. If "// &
                           "SYMMETRY_REDUCTION_METHOD is not specified, it follows the selected backend.", &
                           usage="SYMMETRY_BACKEND K290", type_of_var=enum_t, &
                           enum_c_vals=s2a("K290", "SPGLIB"), &
@@ -180,7 +180,8 @@ CONTAINS
                           description="Select the method used to reduce Monkhorst-Pack and MacDonald "// &
                           "k-point meshes when atomic symmetry is enabled. K290 is the established "// &
                           "default. SPGLIB uses the symmetry operations returned by SPGLIB for the "// &
-                          "k-point reduction. GENERAL k-point lists are not reduced. With "// &
+                          "k-point reduction. GENERAL k-point lists can be reduced when the explicit set is "// &
+                          "equally weighted and closed under the selected operations. With "// &
                           "SYMMETRY_BACKEND K290 this can be used as a comparison mode using K290 "// &
                           "operations for SPGLIB-generated mappings.", &
                           usage="SYMMETRY_REDUCTION_METHOD K290", type_of_var=enum_t, &

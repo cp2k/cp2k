@@ -166,7 +166,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: diis_step, do_kpoints, gamma_only, &
-                                                            my_kpgrp, mygrp, spinors
+                                                            input_kpoint_symmetry, my_kpgrp, &
+                                                            mygrp, spinors
       REAL(KIND=dp)                                      :: cmmn, ksign, rmmn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
@@ -185,7 +186,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -231,7 +232,7 @@ CONTAINS
       ! k-points
       ALLOCATE (kpt_latt(3, num_kpts))
       CALL get_qs_env(qs_env, particle_set=particle_set)
-      NULLIFY (kpoint)
+      NULLIFY (kpoint, qs_kpoint)
       CALL kpoint_create(kpoint)
       kpoint%kp_scheme = "MONKHORST-PACK"
       kpoint%symmetry = .FALSE.
@@ -331,7 +332,17 @@ CONTAINS
 
       ! calculate bands
       NULLIFY (qs_env_kp)
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=qs_kpoint)
+      input_kpoint_symmetry = .FALSE.
+      IF (do_kpoints .AND. ASSOCIATED(qs_kpoint)) THEN
+         CALL get_kpoint_info(qs_kpoint, symmetry=input_kpoint_symmetry)
+      END IF
+      IF (input_kpoint_symmetry .AND. iw > 0) THEN
+         WRITE (iw, '(T2,A)') &
+            "WANNIER90| Atomic k-point symmetry from the SCF calculation is not reused."
+         WRITE (iw, '(T2,A)') &
+            "WANNIER90| A full Monkhorst-Pack grid is generated for the Wannier90 interface."
+      END IF
       IF (do_kpoints) THEN
          ! we already do kpoints
          qs_env_kp => qs_env
