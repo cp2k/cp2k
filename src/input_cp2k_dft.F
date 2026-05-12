@@ -2122,9 +2122,10 @@ CONTAINS
                  "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
                  "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
                  "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
-                 "observables remain in the lab frame. Only effective when TDA=.TRUE..", &
+                 "observables remain in the lab frame. Only effective when TDA=.TRUE.."// &
+                 "Use with caution, additional convergence checks w.r.t. dt needed.", &
                  usage="TDA_SHIFT_TO_FIRST_PEAK", &
-                 default_l_val=.TRUE., &
+                 default_l_val=.FALSE., &
                  lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
