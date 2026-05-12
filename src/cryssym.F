@@ -47,6 +47,7 @@ MODULE cryssym
       LOGICAL                                     :: inversion_only = .FALSE.
       LOGICAL                                     :: spglib_reduction = .FALSE.
       LOGICAL                                     :: spglib_backend = .FALSE.
+      LOGICAL                                     :: spglib_requested = .TRUE.
       INTEGER                                     :: plevel = 0
       INTEGER                                     :: punit = -1
       INTEGER                                     :: istriz = -1
@@ -191,6 +192,7 @@ CONTAINS
       !..try spglib
       my_use_spglib = .TRUE.
       IF (PRESENT(use_spglib)) my_use_spglib = use_spglib
+      csym%spglib_requested = my_use_spglib
       IF (.NOT. my_use_spglib) THEN
          spglib = .FALSE.
       ELSE
@@ -262,9 +264,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, j, nkp, nkpts
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
       LOGICAL                                            :: fullmesh, gamma_mesh, inversion_only, &
-                                                            orthorhombic_cell, spglib_backend, &
-                                                            spglib_reduction
-      REAL(KIND=dp)                                      :: cell_eps
+                                                            spglib_backend, spglib_reduction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp
 
@@ -315,14 +315,14 @@ CONTAINS
       END IF
       csym%spglib_backend = spglib_backend
 
-      cell_eps = 10.0_dp*csym%delta*MAX(1.0_dp, MAXVAL(ABS(csym%hmat)))
-      orthorhombic_cell = ABS(csym%hmat(1, 2)) + ABS(csym%hmat(1, 3)) + &
-                          ABS(csym%hmat(2, 1)) + ABS(csym%hmat(2, 3)) + &
-                          ABS(csym%hmat(3, 1)) + ABS(csym%hmat(3, 2)) <= cell_eps
-
       IF (spglib_backend .AND. .NOT. spglib_reduction) THEN
          CALL cp_abort(__LOCATION__, &
                        "SYMMETRY_BACKEND SPGLIB requires SYMMETRY_REDUCTION_METHOD SPGLIB")
+      END IF
+      IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only .AND. &
+          (spglib_backend .OR. spglib_reduction) .AND. .NOT. csym%symlib) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "SPGLIB k-point symmetry was requested, but SPGLIB is not available")
       END IF
 
       csym%nkpoint = 0
@@ -370,9 +370,8 @@ CONTAINS
       ELSE
          ! no symmetry library is available
          CALL full_grid_gen(nk, xkp, wkp, shift, gamma_centered=gamma_mesh)
-         IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only .AND. &
-             orthorhombic_cell) THEN
-            ! fall back to the K290 atom mapping for simple cells when SPGLIB is not linked
+         IF (csym%istriz == 1 .AND. .NOT. fullmesh .AND. .NOT. inversion_only) THEN
+            ! fall back to the K290 atom mapping when SPGLIB is not linked
             CALL kp_symmetry(csym, xkp, wkp, kpop, use_spglib_reduction=.FALSE.)
          ELSE IF (csym%istriz /= 1 .AND. fullmesh) THEN
             ! full kpoint mesh is used
@@ -657,7 +656,7 @@ CONTAINS
       END DO
       csym%ibrot(1:nc) = ib(1:nc)
 
-      IF (csym%n_operations > nc) THEN
+      IF (csym%n_operations > nc .AND. .NOT. spglib_reduction) THEN
          IF (ALLOCATED(srot)) DEALLOCATE (srot)
          ALLOCATE (srot(3, 3, csym%n_operations))
          CALL setup_spglib_operations(csym, srot, nrot)
@@ -1906,7 +1905,11 @@ CONTAINS
                END DO
             END IF
          ELSE
-            WRITE (iunit, "(T2,A)") "SPGLIB for Crystal Symmetry Information determination is not availale"
+            IF (csym%spglib_requested) THEN
+               WRITE (iunit, "(T2,A)") "SPGLIB for Crystal Symmetry Information determination is not available"
+            ELSE
+               WRITE (iunit, "(T2,A)") "SPGLIB Crystal Symmetry Information was not requested"
+            END IF
          END IF
       END IF
 
