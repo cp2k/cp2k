@@ -3188,7 +3188,7 @@ CONTAINS
                END DO
                CALL get_cardoso_angles(mii, mij, mji, mjj, c, s, vectors%matrix_struct)
                CALL rotate_cardoso_zij(istate, jstate, c, s, c_zij)
-               CALL rotate_cardoso_rmat(istate, jstate, c, s, c_rmat)
+               CALL cp_cfm_rot_cols(c_rmat, istate, jstate, c, REAL(s))
             END DO
          END DO
          CALL check_tolerance(c_zij, weights, spread)
@@ -3304,7 +3304,7 @@ CONTAINS
                END DO
                CALL get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
                CALL rotate_cardoso_zij(i, j, c, s, c_zij)
-               CALL rotate_cardoso_rmat(i, j, c, s, rmat)
+               CALL cp_cfm_rot_cols(rmat, i, j, c, REAL(s))
             END DO
          END DO
 
@@ -3454,40 +3454,5 @@ CONTAINS
 #endif
       END DO
    END SUBROUTINE rotate_cardoso_zij
-
-! **************************************************************************************************
-!> \brief performs a Jacobi rotation given as the Cardoso angles on the total rotation matrix
-!> \param istate ...
-!> \param jstate ...
-!> \param c ...
-!> \param s ...
-!> \param rmat ...
-!> \par History
-!>      2020-04 created [LS]
-!> \author Lukas Schreder
-! **************************************************************************************************
-   SUBROUTINE rotate_cardoso_rmat(istate, jstate, c, s, rmat)
-
-      INTEGER, INTENT(IN)              :: istate, jstate
-      REAL(kind=dp), INTENT(INOUT)     :: c
-      COMPLEX(kind=dp), INTENT(INOUT)  :: s
-      TYPE(cp_cfm_type), POINTER       :: rmat
-
-      INTEGER                          :: nrow
-#if defined(__parallel)
-      INTEGER, DIMENSION(9)            ::desc
-#endif
-
-      CALL cp_cfm_get_info(rmat, nrow_global=nrow)
-#if defined(__parallel)
-      desc(:) = rmat%matrix_struct%descriptor(:)
-      CALL pzrot(nrow, rmat%local_data(1, 1), 1, istate, desc, 1, &
-                 rmat%local_data(1, 1), 1, jstate, desc, 1, c, s)
-#else
-      CALL zrot(nrow, rmat%local_data(1, istate), 1, &
-                rmat%local_data(1, jstate), 1, c, s)
-#endif
-
-   END SUBROUTINE rotate_cardoso_rmat
 
 END MODULE qs_localization_methods
