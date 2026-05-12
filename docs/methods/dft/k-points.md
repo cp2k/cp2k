@@ -84,16 +84,10 @@ because the order and weights of the points are part of the requested property.
 
 ## Cell Convention
 
-CP2K's k-point machinery uses the standard CP2K cell convention internally: vector `A` lies along
-the Cartesian X axis and vector `B` lies in the XY plane. When a k-point calculation is requested
-for explicit `A`, `B`, and `C` vectors that do not follow this convention, CP2K rotates the cell
-into the internal convention before the electronic-structure setup. Coordinates are first read in
-the input cell frame and then transformed consistently into the internal cell frame.
-
-Using `ABC` together with `ALPHA_BETA_GAMMA` is still the most explicit way to describe a general
-lattice independent of its Cartesian orientation. When CP2K enforces a cell symmetry and rewrites
-the cell into the same internal convention, the topology reader applies the same cell-frame
-transformation to the input coordinates before the calculation starts.
+CP2K's k-point machinery assumes the standard CP2K cell convention: vector `A` lies along the
+Cartesian X axis and vector `B` lies in the XY plane. Using `ABC` together with `ALPHA_BETA_GAMMA`,
+or reading a CIF file, lets CP2K construct the cell in that convention from orientation-independent
+lattice parameters.
 
 ## Moving Geometries
 
@@ -109,9 +103,11 @@ space-group-related positions.
 
 ## Wannier90
 
-The Wannier90 interface writes a full Monkhorst-Pack grid for the requested `MP_GRID`. Atomic
-k-point symmetry from the SCF setup is not reused for the Wannier90 export, because Wannier90
-expects the full mesh and its nearest neighbour connectivity.
+The Wannier90 interface already has its own k-point path controlled by
+`DFT%PRINT%WANNIER90%MP_GRID`. It builds and diagonalizes a full Monkhorst-Pack grid for the
+Wannier90 export. Atomic k-point symmetry from the SCF setup is not reused, because Wannier90
+expects the full mesh and its nearest-neighbour connectivity. Explicit `SCHEME GENERAL` lists and
+symmetry-reduced SCF k-point sets are therefore not exported directly to Wannier90.
 
 ## Related Pages
 
