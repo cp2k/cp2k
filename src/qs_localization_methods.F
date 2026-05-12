@@ -3129,22 +3129,22 @@ CONTAINS
    SUBROUTINE cardoso_souloumiac(weights, zij, max_iter, eps_localization, sweeps, &
                                  out_each, vectors)
 
-      REAL(KIND=dp), INTENT(IN)        :: weights(:)
-      TYPE(cp_cfm_type), INTENT(INOUT) :: zij(:, :)
-      INTEGER, INTENT(IN)              :: max_iter
-      REAL(KIND=dp), INTENT(IN)        :: eps_localization
-      INTEGER                          :: sweeps
-      INTEGER, INTENT(IN)              :: out_each
-      TYPE(cp_cfm_type), POINTER       :: vectors
+      REAL(KIND=dp), INTENT(IN)                          :: weights(:)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: zij(:, :)
+      INTEGER, INTENT(IN)                                :: max_iter
+      REAL(KIND=dp), INTENT(IN)                          :: eps_localization
+      INTEGER                                            :: sweeps
+      INTEGER, INTENT(IN)                                :: out_each
+      TYPE(cp_cfm_type), POINTER                         :: vectors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cardoso_souloumiac'
 
-      COMPLEX(KIND=dp)              :: s
-      COMPLEX(KIND=dp), ALLOCATABLE :: mii(:), mij(:), mji(:), mjj(:)
-      INTEGER                       :: dim1, dim2, handle, idim, istate, jdim, jstate, nstate, &
-                                       unit_nr
-      REAL(KIND=dp)                 :: c, old_spread, s_real, spread, t1, t2, tolerance
-      TYPE(cp_cfm_type), POINTER    :: c_rmat, c_zij(:)
+      COMPLEX(KIND=dp)                                   :: s
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: mii(:), mij(:), mji(:), mjj(:)
+      INTEGER                                            :: dim1, dim2, handle, idim, istate, jdim, &
+                                                            jstate, nstate, unit_nr
+      REAL(KIND=dp)                                      :: c, old_spread, spread, t1, t2, tolerance
+      TYPE(cp_cfm_type), POINTER                         :: c_rmat, c_zij(:)
 
       CALL timeset(routineN, handle)
 
@@ -3243,11 +3243,12 @@ CONTAINS
 
       CHARACTER(*), PARAMETER :: routineN = 'cardoso_souloumiac_pipek'
 
-      COMPLEX(dp)                :: c_spread, s
-      COMPLEX(dp), POINTER       :: qii(:), qij(:), qji(:), qjj(:)
-      INTEGER                    :: handle, i, j, k, n_dim, n_states, output_unit
-      REAL(dp)                   :: c, old_spread, s_real, spread, t1, t2, tol
-      TYPE(cp_cfm_type), POINTER :: c_zij(:), rmat
+      COMPLEX(dp)                                        :: c_spread, s
+      COMPLEX(dp), POINTER                               :: qii(:), qij(:), qji(:), qjj(:)
+      INTEGER                                            :: handle, i, j, k, n_dim, n_states, &
+                                                            output_unit
+      REAL(dp)                                           :: c, old_spread, spread, t1, t2, tol
+      TYPE(cp_cfm_type), POINTER                         :: c_zij(:), rmat
 
       CALL timeset(routineN, handle)
 
