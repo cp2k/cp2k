@@ -107,6 +107,12 @@ CONTAINS
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"
 #endif
+#if defined(__GAUXC)
+      flags = TRIM(flags)//" gauxc"
+#endif
+#if defined(GAUXC_HAS_MPI)
+      flags = TRIM(flags)//" gauxc_mpi"
+#endif
 #if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif

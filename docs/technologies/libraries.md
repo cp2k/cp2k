@@ -94,6 +94,13 @@ respectivly to CMake.
   created.
 - Pass `-DCP2K_USE_LIBXC=ON` to CMake.
 
+## GauXC (xc integration library)
+
+GauXC can be used to evaluate selected exchange-correlation functionals through an external
+integrator.
+
+- Pass `-DCP2K_USE_GAUXC=ON` to CMake.
+
 ## PEXSI (low scaling SCF method)
 
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library and two

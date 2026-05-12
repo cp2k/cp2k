@@ -1311,7 +1311,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="functional", &
-                          description="Underlying functional name to use in GauXC. For Skala, a path to the Skala checkpoint to be used.", &
+                          description="Underlying functional name to use in GauXC. "// &
+                          "For Skala, a path to the Skala checkpoint to be used.", &
                           default_c_val="PBE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

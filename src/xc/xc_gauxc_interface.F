@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
 #include "gauxc/gauxc_config.f"
 
 #define GAUXC_RETURN_IF_ERROR(status) IF (status%status%code /= 0) RETURN
@@ -101,8 +108,6 @@ MODULE xc_gauxc_interface
       gauxc_integrator_eval_exc_vxc_uks, &
       gauxc_integrator_new, &
       gauxc_integrator_type
-   USE gauxc_external_hdf5_read, ONLY: &
-      gauxc_read_hdf5_record
    USE string_utilities, ONLY: &
       uppercase
 #endif
@@ -211,7 +216,12 @@ CONTAINS
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: world_rank
 
+#ifdef GAUXC_HAS_MPI
       rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+#else
+      MARK_USED(mpi_comm)
+      rt = gauxc_runtime_environment_new(status%status)
+#endif
       GAUXC_RETURN_IF_ERROR(status)
 
       world_rank = gauxc_runtime_environment_comm_rank(status%status, rt)
@@ -240,7 +250,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param particle_set ...
-!> \param natoms ...
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
@@ -284,7 +293,6 @@ CONTAINS
 !> \brief ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
-!> \param natoms ...
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
@@ -354,7 +362,8 @@ CONTAINS
                   shells(shell_index)%exponents(iprim) = &
                      REAL(gto_basis%zet(iprim, iset), c_double)
                   shells(shell_index)%coefficients(iprim) = &
-                     REAL(gto_basis%gcc(iprim, ishell, iset), c_double)
+                     REAL(gto_basis%norm_cgf(gto_basis%first_cgf(ishell, iset))* &
+                          gto_basis%gcc(iprim, ishell, iset), c_double)
                END DO
             END DO
          END DO
@@ -363,7 +372,7 @@ CONTAINS
       res%basis = gauxc_basisset_new_from_shells( &
                   status%status, &
                   shells, &
-                  normalize=.TRUE.)
+                  normalize=.FALSE.)
       GAUXC_RETURN_IF_ERROR(status)
 
       DEALLOCATE (shells)

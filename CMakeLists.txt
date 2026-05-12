@@ -684,9 +684,13 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_GAUXC)
+  find_package(Threads REQUIRED)
   find_package(gauxc REQUIRED CONFIG)
   if(CP2K_USE_MPI AND NOT GAUXC_HAS_MPI)
-      message(FATAL_ERROR "CP2K is being configured with MPI, but a non-MPI installation of GauXC has been found.")
+    message(
+      FATAL_ERROR
+        "CP2K is being configured with MPI, but a non-MPI installation of GauXC has been found."
+    )
   endif()
 endif()
 

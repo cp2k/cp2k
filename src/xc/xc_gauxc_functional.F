@@ -56,17 +56,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param dbcsr_mat ...
-!> \param dense_mat ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_to_dense(dbcsr_mat) RESULT(dense_mat)
-      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_iterator_type, &
+      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
-                              dbcsr_iterator_stop
+                              dbcsr_iterator_stop, dbcsr_type_antisymmetric, dbcsr_type_symmetric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: dense_mat
 
-      INTEGER                                            :: col, i, icol, irow, j, nblkcols_total, &
-                                                            nblkrows_total, ncols, nrows, row
+      CHARACTER                                          :: matrix_type
+      INTEGER                                            :: col, col_end, col_start, icol, irow, &
+                                                            nblkcols_total, nblkrows_total, ncols, &
+                                                            nrows, row, row_end, row_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(c_double), POINTER                            :: block(:, :)
@@ -79,11 +81,12 @@ CONTAINS
                           nblkcols_total=nblkcols_total, &
                           nfullrows_total=nrows, &
                           nfullcols_total=ncols)
+      matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
 
       IF (.NOT. ALLOCATED(dense_mat)) THEN
          ALLOCATE (dense_mat(nrows, ncols))
       ELSE
-         CPASSERT(ALL(SHAPE(dense_mat) == (/nrows, ncols/)))
+         CPASSERT(ALL(SHAPE(dense_mat) == [nrows, ncols]))
       END IF
       dense_mat = 0._dp
 
@@ -101,11 +104,18 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
-         DO j = 1, SIZE(block, 2)
-            DO i = 1, SIZE(block, 1)
-               dense_mat(r_offset(irow) + i - 1, c_offset(icol) + j - 1) = block(i, j)
-            END DO
-         END DO
+         row_start = r_offset(irow)
+         row_end = row_start + SIZE(block, 1) - 1
+         col_start = c_offset(icol)
+         col_end = col_start + SIZE(block, 2) - 1
+         dense_mat(row_start:row_end, col_start:col_end) = block
+         IF (irow /= icol) THEN
+            IF (matrix_type == dbcsr_type_symmetric) THEN
+               dense_mat(col_start:col_end, row_start:row_end) = TRANSPOSE(block)
+            ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
+               dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
+            END IF
+         END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
 
@@ -183,13 +193,12 @@ CONTAINS
    END FUNCTION dense_to_dbcsr_sparse
 
 ! **************************************************************************************************
-!> \brief Convert a dense matrix to a DBCSR matrix with full dense block structure.
-!>        Unlike dense_to_dbcsr, this creates a matrix that stores ALL blocks,
-!>        not just those present in a template. This is needed because GauXC
-!>        computes VXC for the full dense density matrix.
+!> \brief Convert a dense symmetric matrix to a DBCSR matrix with full upper block structure.
+!>        Unlike dense_to_dbcsr, this creates all upper-triangular blocks, not just those present
+!>        in a template. This is needed because GauXC computes VXC for the full dense density matrix.
 !> \param dense_mat Input dense matrix
 !> \param template_dbcsr Template DBCSR matrix for distribution and block sizes
-!> \return dbcsr_mat Output DBCSR matrix with full dense block structure
+!> \return dbcsr_mat Output DBCSR matrix with full upper block structure
 ! **************************************************************************************************
    FUNCTION dense_to_dbcsr_dense(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
       USE cp_dbcsr_api, ONLY: &
@@ -199,7 +208,7 @@ CONTAINS
          dbcsr_init_p, &
          dbcsr_put_block, &
          dbcsr_release, &
-         dbcsr_type_no_symmetry, &
+         dbcsr_type_symmetric, &
          dbcsr_work_create
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
       TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
@@ -225,7 +234,7 @@ CONTAINS
       CALL dbcsr_create(dbcsr_mat%matrix, &
                         template=template_dbcsr%matrix, &
                         name="VXC from GauXC (dense)", &
-                        matrix_type=dbcsr_type_no_symmetry)
+                        matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
 
       ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
@@ -241,6 +250,7 @@ CONTAINS
 
       DO irow = 1, nblkrows_total
          DO icol = 1, nblkcols_total
+            IF (irow > icol) CYCLE
             CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
                                  dense_mat(r_offset(irow):r_offset(irow) + row_blk_size(irow) - 1, &
                                            c_offset(icol):c_offset(icol) + col_blk_size(icol) - 1))
@@ -339,7 +349,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: abort_message = &
          "GauXC does not support dispersion corrections. "// &
-         "Please disable the VDW_POTENTIAL section or use the legacy XC (USE_GAUXC = .FALSE.)."
+         "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection."
 
       CHARACTER(len=default_string_length)               :: xc_fun_name
       INTEGER                                            :: img, ispin, natom, nimages, nspins
@@ -433,13 +443,10 @@ CONTAINS
 
       DO img = 1, nimages
          IF (img > 1) THEN
-            CPABORT("The implementation for img>1 is currently incorrect.")
+            CPABORT("UNIMPLEMENTED: Handling nimg>1 in k-point integration")
          END IF
          density_scalar = dbcsr_to_dense(rho_ao(1, img))
          IF (nspins == 1) THEN
-            ! xmat factor 2 is applied by both CP2K and GauXC
-            ! "unapply" it here to even things back out
-            density_scalar = 0.5_dp * density_scalar
             gauxc_xc_result = gauxc_compute_xc( &
                               gauxc_integrator_result, &
                               density_scalar, &
@@ -472,11 +479,9 @@ CONTAINS
 
          IF (nspins == 1) THEN
             IF (img == 1) THEN
-               ! TODO check if it is really necessary to apply the xmat factor here
-               gauxc_xc_result%vxc_scalar = 2.0_dp * gauxc_xc_result%vxc_scalar
                matrix_vxc(1) = dense_to_dbcsr_dense(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
             ELSE
-               CPABORT("UNIMPLEMENTED: Handling for multiple result matrixes in k-point integration")
+               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
          ELSE
             CPASSERT(nspins == 2)
@@ -494,7 +499,7 @@ CONTAINS
                      1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
                END DO
             ELSE
-               CPABORT("UNIMPLEMENTED: Handling for multiple result matrixes in k-point integration")
+               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
             END IF
             CALL dbcsr_release(vxc_zeta_tmp%matrix)
             DEALLOCATE (vxc_zeta_tmp%matrix)
