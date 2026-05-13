@@ -1411,6 +1411,23 @@ CONTAINS
                                         qs_control%xtb_control%tblite_mixer_max_weight, &
                                         qs_control%xtb_control%tblite_mixer_weight_factor, &
                                         "XTB/TBLITE_MIXER")
+         IF (xtb_tblite_mixer_explicit) &
+            CALL section_vals_val_get(xtb_tblite_mixer, "DAMPING", &
+                                      explicit=qs_control%xtb_control%tblite_mixer_damping_explicit)
+         IF ((.NOT. qs_control%xtb_control%do_tblite) .AND. &
+             qs_control%xtb_control%gfn_type == 0) THEN
+            IF (xtb_scc_mixer_explicit .AND. &
+                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_auto .AND. &
+                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+               CALL cp_warn(__LOCATION__, &
+                            "XTB/SCC_MIXER is reset to NONE for CP2K-internal GFN0-xTB; "// &
+                            "GFN0-xTB has no SCC variables to mix.")
+            IF (xtb_tblite_mixer_explicit) &
+               CALL cp_warn(__LOCATION__, &
+                            "XTB/TBLITE_MIXER settings are ignored for CP2K-internal GFN0-xTB; "// &
+                            "GFN0-xTB has no SCC variables to mix.")
+            qs_control%xtb_control%tblite_scc_mixer = tblite_scc_mixer_none
+         END IF
          IF (qs_control%do_ls_scf) THEN
             IF (xtb_scc_mixer_explicit .AND. &
                 qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &

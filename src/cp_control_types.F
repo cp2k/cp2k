@@ -258,6 +258,7 @@ MODULE cp_control_types
       !
       LOGICAL                              :: do_ewald = .FALSE.
       LOGICAL                              :: do_tblite = .FALSE.
+      LOGICAL                              :: tblite_mixer_damping_explicit = .FALSE.
       !
       INTEGER                              :: sto_ng = 0
       INTEGER                              :: h_sto_ng = 0
