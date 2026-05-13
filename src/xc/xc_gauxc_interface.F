@@ -118,6 +118,10 @@ MODULE xc_gauxc_interface
 #endif
    USE string_utilities, ONLY: &
       uppercase
+   USE OMP_LIB, ONLY: &
+      omp_get_max_threads, &
+      omp_get_num_threads, &
+      omp_set_num_threads
 #endif
 
 #include "../base/base_uses.f90"
@@ -206,6 +210,10 @@ MODULE xc_gauxc_interface
       gauxc_init
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param status ...
+! **************************************************************************************************
    SUBROUTINE print_gauxc_status_message(status)
       ! IMPORT :: c_ptr
       TYPE(cp_gauxc_status_type)                         :: status
@@ -424,7 +432,11 @@ CONTAINS
 !> \brief ...
 !> \param molecule ...
 !> \param basis ...
-!> \param gauxc_section ...
+!> \param grid_type ...
+!> \param radial_quadrature ...
+!> \param pruning_scheme ...
+!> \param lb_exec_space ...
+!> \param batch_size ...
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
@@ -514,7 +526,7 @@ CONTAINS
 !> \brief ...
 !> \param xc_functional_name ...
 !> \param grid ...
-!> \param gauxc_section ...
+!> \param int_exec_space ...
 !> \param nspins ...
 !> \param status ...
 !> \return ...
@@ -587,6 +599,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_onedft
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+      INTEGER                                            :: omp_num_threads_restore, omp_max_threads_restore
 
       use_onedft = .FALSE.
       IF (PRESENT(model)) THEN
@@ -606,6 +619,8 @@ CONTAINS
 #ifndef GAUXC_HAS_ONEDFT
          CPABORT("GauXC lacks OneDFT support")
 #else
+         omp_num_threads_restore = omp_get_num_threads()
+         omp_max_threads_restore = omp_get_max_threads()
          IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
             ALLOCATE (res%vxc_zeta, mold=density_scalar)
          ELSE
@@ -638,6 +653,8 @@ CONTAINS
                res%vxc_scalar, &
                res%vxc_zeta)
          END IF
+         CALL omp_set_num_threads(omp_max_threads_restore)
+         CALL omp_set_num_threads(omp_num_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
 #endif
@@ -708,6 +725,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_onedft
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+      INTEGER                                            :: omp_num_threads_restore, omp_max_threads_restore
 
       ALLOCATE (exc_grad(3*natom))
       exc_grad = 0._dp
@@ -723,6 +741,8 @@ CONTAINS
 #ifndef GAUXC_HAS_ONEDFT
          CPABORT("GauXC lacks OneDFT support")
 #else
+         omp_num_threads_restore = omp_get_num_threads()
+         omp_max_threads_restore = omp_get_max_threads()
          IF (nspins == 1) THEN
             ALLOCATE (density_zeta_zero, mold=density_scalar)
             density_zeta_zero = 0._dp
@@ -744,6 +764,8 @@ CONTAINS
                TRIM(model), &
                exc_grad)
          END IF
+         CALL omp_set_num_threads(omp_max_threads_restore)
+         CALL omp_set_num_threads(omp_num_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
 #endif
