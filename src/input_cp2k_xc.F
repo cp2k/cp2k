@@ -60,7 +60,7 @@ MODULE input_cp2k_xc
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_xc'
 
-   PUBLIC :: create_xc_section, create_xc_fun_section, create_skala_section
+   PUBLIC :: create_xc_section, create_xc_fun_section
 
 CONTAINS
 
@@ -550,7 +550,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_skala_section(subsection)
+      CALL create_gauxc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1292,7 +1292,7 @@ CONTAINS
 !> \param section the section that will be created
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE create_skala_section(section)
+   SUBROUTINE create_gauxc_section(section)
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
@@ -1342,25 +1342,25 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RADIAL_QUADRATURE", &
                           description="Radial quadrature scheme for GauXC", &
                           usage="RADIAL_QUADRATURE muraknowles", &
-                          enum_c_vals=s2a("BECKE", "MURAKNOWLES", "TREUTLERAHLRICHS", "MURRAYHANDYLAMING"), &
+                          enum_c_vals=s2a("MURAKNOWLES", "BECKE", "TREUTLERAHLRICHS", "MURRAYHANDYLAMING"), &
                           enum_i_vals=[1, 2, 3, 4], &
-                          enum_desc=s2a("Becke radial quadrature", &
-                                        "Mura-Knowles radial quadrature (default)", &
+                          enum_desc=s2a("Mura-Knowles radial quadrature (default)", &
+                                        "Becke radial quadrature", &
                                         "Treutler-Ahlrichs radial quadrature", &
                                         "Murray-Handy-Laming radial quadrature"), &
-                          default_i_val=2)
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRUNING_SCHEME", &
                           description="Pruning scheme for GauXC", &
                           usage="PRUNING_SCHEME robust", &
-                          enum_c_vals=s2a("UNPRUNED", "ROBUST", "TREUTLER"), &
+                          enum_c_vals=s2a("ROBUST", "TREUTLER", "UNPRUNED"), &
                           enum_i_vals=[1, 2, 3], &
-                          enum_desc=s2a("Unpruned grid", &
-                                        "Robust pruning (default)", &
-                                        "Treutler pruning"), &
-                          default_i_val=2)
+                          enum_desc=s2a("Robust pruning (default)", &
+                                        "Treutler pruning", &
+                                        "Unpruned grid"), &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1393,7 +1393,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_skala_section
+   END SUBROUTINE create_gauxc_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the xc part

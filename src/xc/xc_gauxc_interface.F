@@ -31,9 +31,6 @@ MODULE xc_gauxc_interface
    USE qs_kind_types, ONLY: &
       get_qs_kind, &
       qs_kind_type
-   USE input_section_types, ONLY: &
-      section_vals_type, &
-      section_vals_val_get
    USE cp_dbcsr_api, ONLY: &
       dbcsr_p_type
 
@@ -427,56 +424,40 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_grid(molecule, basis, gauxc_section, status) RESULT(res)
+   FUNCTION gauxc_create_grid( &
+      molecule, &
+      basis, &
+      grid_type, &
+      radial_quadrature, &
+      pruning_scheme, &
+      lb_exec_space, &
+      batch_size, &
+      status) RESULT(res)
+
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
-      TYPE(section_vals_type), POINTER                   :: gauxc_section
+      CHARACTER(len=*)               :: grid_type, lb_exec_space, &
+                                        pruning_scheme, radial_quadrature
+      INTEGER                                            :: batch_size
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
-      CHARACTER(len=default_string_length)               :: grid_spec, lb_exec_space_str, &
-                                                            prune_spec, rad_quad_spec
-      INTEGER                                            :: batch_val
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
-      INTEGER(c_int64_t)                                 :: batch_size
 
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "GRID", &
-         c_val=grid_spec)
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "RADIAL_QUADRATURE", &
-         c_val=rad_quad_spec)
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "PRUNING_SCHEME", &
-         c_val=prune_spec)
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "BATCH_SIZE", &
-         i_val=batch_val)
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "LB_EXECUTION_SPACE", &
-         c_val=lb_exec_space_str)
-
-      batch_size = INT(batch_val, c_int64_t)
-
-      grid_type_local = read_atomic_grid_size(grid_spec)
-      radial_quad_local = read_radial_quad(rad_quad_spec)
-      pruning_scheme_local = read_pruning_scheme(prune_spec)
-      lb_exec_space_local = read_execution_space(lb_exec_space_str)
+      grid_type_local = read_atomic_grid_size(grid_type)
+      radial_quad_local = read_radial_quad(radial_quadrature)
+      pruning_scheme_local = read_pruning_scheme(pruning_scheme)
+      lb_exec_space_local = read_execution_space(lb_exec_space)
       int_exec_space_local = read_execution_space("host")
 
       res%grid = gauxc_molgrid_new_default( &
                  status%status, &
                  molecule%molecule, &
                  pruning_scheme_local, &
-                 batch_size, &
+                 INT(batch_size, c_int64_t), &
                  radial_quad_local, &
                  grid_type_local)
       GAUXC_RETURN_IF_ERROR(status)
@@ -530,10 +511,9 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_integrator(xc_functional_name, grid, gauxc_section, nspins, status) RESULT(res)
-      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
-      TYPE(cp_gauxc_grid_type), INTENT(IN)         :: grid
-      TYPE(section_vals_type), POINTER                   :: gauxc_section
+   FUNCTION gauxc_create_integrator(xc_functional_name, grid, int_exec_space, nspins, status) RESULT(res)
+      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name, int_exec_space
+      TYPE(cp_gauxc_grid_type), INTENT(IN)               :: grid
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       TYPE(cp_gauxc_integrator_type)                     :: res
@@ -543,11 +523,6 @@ CONTAINS
       INTEGER(c_int)                                     :: int_exec_space_local
       LOGICAL(c_bool)                                    :: polarized
 
-      CALL section_vals_val_get( &
-         gauxc_section, &
-         "INT_EXECUTION_SPACE", &
-         c_val=int_exec_space_str)
-
       polarized = (nspins == 2)
       res%func = gauxc_functional_from_string( &
                  status%status, &
@@ -555,7 +530,7 @@ CONTAINS
                  polarized)
       GAUXC_RETURN_IF_ERROR(status)
 
-      int_exec_space_local = read_execution_space(int_exec_space_str)
+      int_exec_space_local = read_execution_space(int_exec_space)
       res%integrator = gauxc_integrator_new( &
                        status%status, &
                        res%func, &
@@ -564,7 +539,6 @@ CONTAINS
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
-      MARK_USED(gauxc_section)
       MARK_USED(grid)
       MARK_USED(nspins)
       MARK_USED(res)

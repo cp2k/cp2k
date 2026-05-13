@@ -348,8 +348,12 @@ CONTAINS
          "MPI eval_exc_grad_onedft yet. Use one MPI rank with OpenMP for ENERGY_FORCE."
 
       CHARACTER(len=default_path_length)                 :: model_name
-      CHARACTER(len=default_string_length)               :: model_key, xc_fun_name
-      INTEGER                                            :: img, ispin, natom, nimages, nspins
+      CHARACTER(len=default_string_length)               :: grid_type, int_exec_space, &
+                                                            lb_exec_space, model_key, &
+                                                            pruning_scheme, radial_quadrature, &
+                                                            xc_fun_name
+      INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
+                                                            nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -424,11 +428,41 @@ CONTAINS
       NULLIFY (vxc_zeta_tmp%matrix)
 
       gauxc_functional_section => get_gauxc_functional(xc_section)
-      CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=xc_fun_name)
-      CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "FUNCTIONAL", &
+         c_val=xc_fun_name)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MODEL", &
+         c_val=model_name)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "GRID", &
+         c_val=grid_type)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "RADIAL_QUADRATURE", &
+         c_val=radial_quadrature)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "PRUNING_SCHEME", &
+         c_val=pruning_scheme)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "BATCH_SIZE", &
+         i_val=batch_size)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "LB_EXECUTION_SPACE", &
+         c_val=lb_exec_space)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "INT_EXECUTION_SPACE", &
+         c_val=int_exec_space)
+
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
-
       IF (calculate_forces .AND. TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
           para_env%num_pe > 1) THEN
          CPABORT(gradient_mpi_abort_message)
@@ -446,13 +480,17 @@ CONTAINS
       gauxc_grid_result = gauxc_create_grid( &
                           gauxc_mol, &
                           gauxc_basis, &
-                          gauxc_functional_section, &
+                          grid_type, &
+                          radial_quadrature, &
+                          pruning_scheme, &
+                          lb_exec_space, &
+                          batch_size, &
                           gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &
                                 gauxc_grid_result, &
-                                gauxc_functional_section, &
+                                int_exec_space, &
                                 nspins, &
                                 gauxc_status)
       CALL gauxc_check_status(gauxc_status)
