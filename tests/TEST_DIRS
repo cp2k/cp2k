@@ -14,7 +14,7 @@ QS/regtest-spgr-id                                          spglib
 HP-DFT
 xTB/regtest-tblite-gfn1-periodic                            tblite
 xTB/regtest-tblite-ipea1                                    tblite
-xTB/regtest-tblite-gfn2                                     tblite
+xTB/regtest-tblite-gfn2                                     tblite spglib
 xTB/regtest-tblite-gfn1                                     tblite
 QS/regtest-hf-3c                                            libint !ifx
 Fist/regtest-ace                                            ace
@@ -46,7 +46,7 @@ QS/regtest-rtp-5
 QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-gpw-3
 DFTB/regtest-scc
-DFTB/regtest-scc-spglib                                      spglib
+DFTB/regtest-scc-spglib                                     spglib
 Fist/regtest-opt
 QS/regtest-ec                                               libint libvori !ifx
 QS/regtest-as-1                                             libint !ifx
