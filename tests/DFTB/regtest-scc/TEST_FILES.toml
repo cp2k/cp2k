@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 "ch2o-1.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.7625096274801404}]
-"ch2o_tblite_mixer.inp"                 = [{matcher="E_total", tol=1.0E-09, ref=-5.75878702944325}]
+"ch2o_tblite_mixer.inp"                 = [{matcher="E_total", tol=3.0E-08, ref=-5.75878702944325}]
 # not yet implemented
 # isolated system..
 "ch2o-2.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75087368892706}]

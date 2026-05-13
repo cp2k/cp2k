@@ -35,6 +35,7 @@
       METHOD GPW
     &END QS
     &SCF
+      CHOLESKY OFF
       EPS_SCF 1.0E-6
       IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 6

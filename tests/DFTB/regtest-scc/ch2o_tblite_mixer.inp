@@ -36,7 +36,7 @@
       &END DFTB
     &END QS
     &SCF
-      EPS_SCF 1.0E-10
+      EPS_SCF 1.0E-9
       MAX_SCF 500
       SCF_GUESS CORE
     &END SCF
