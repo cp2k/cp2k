@@ -20,13 +20,22 @@ MODULE qs_tddfpt2_methods
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rixs_control_type,&
                                               tddfpt2_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
@@ -57,6 +66,7 @@ MODULE qs_tddfpt2_methods
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
@@ -67,6 +77,7 @@ MODULE qs_tddfpt2_methods
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_para_env_type
    USE min_basis_set,                   ONLY: create_minbas_set
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -77,8 +88,11 @@ MODULE qs_tddfpt2_methods
                                               kernel_env_type,&
                                               release_kernel_env
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_tddfpt2_assign,               ONLY: assign_state
@@ -676,6 +690,9 @@ CONTAINS
             CPABORT("Smeared-occupation TDDFPT is not implemented for k-points")
          IF (tddfpt_control%oe_corr /= oe_none) &
             CPABORT("Orbital-energy-corrected TDDFPT is not implemented for k-points")
+         IF (tddfpt_control%dipole_form /= 0 .AND. &
+             tddfpt_control%dipole_form /= tddfpt_dipole_velocity) &
+            CPABORT("K-point TDDFPT supports only velocity-form transition dipoles")
       END IF
 
       IF (tddfpt_control%nstates <= 0) THEN
@@ -970,32 +987,58 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_independent_particle'
 
-      INTEGER :: handle, ikp, ikp_local, iocc, ispin, istate, itrans, ivirt, log_unit, nkp, &
-         nkp_local, nspins, nstates, ntrans_kpoint, ntrans_spin, ntrans_total, spin_offset, &
-         trans_index
+      INTEGER :: handle, ideriv, ikp, ikp_local, iocc, ispin, istate, itrans, ivirt, log_unit, &
+         nao, nkp, nkp_local, nspins, nstates, ntrans_kpoint, ntrans_spin, ntrans_total, &
+         spin_offset, trans_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nmo_spin, nvirt_spin
-      REAL(kind=dp)                                      :: checksum
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, transition_energy
+      REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, gap, &
+                                                            oscillator_factor, spin_factor
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, oscillator_strength, &
+                                                            transition_energy
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: transition_dipole_im, &
+                                                            transition_dipole_re
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, wkp
+      REAL(kind=dp), DIMENSION(nderivs)                  :: transition_dipole_abs
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, moment_struct
+      TYPE(cp_fm_type)                                   :: fm_tmp, moment_im, moment_re
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp, para_env_kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_kp, sab_orb
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, eigenvalues, kp, kp_env, kpoints, mos_kp, para_env_inter_kp, wkp)
-      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
+      NULLIFY (blacs_env, cell_to_index, cmatrix, dft_control, eigenvalues, fm_struct, kp, &
+               kp_env, kpoints, ks_env, mo_coeff_im, mo_coeff_re, moment_struct, mos_kp, &
+               overlap_deriv, para_env_inter_kp, para_env_kp, rmatrix, sab_kp, sab_orb, wkp)
+      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints, ks_env=ks_env, &
+                      sab_orb=sab_orb)
       CPASSERT(ASSOCIATED(kpoints))
 
       CALL get_kpoint_info(kpoints, nkp=nkp, kp_range=kp_range, kp_env=kp_env, &
-                           para_env_inter_kp=para_env_inter_kp, wkp=wkp)
+                           para_env_inter_kp=para_env_inter_kp, para_env_kp=para_env_kp, &
+                           blacs_env=blacs_env, wkp=wkp, cell_to_index=cell_to_index, &
+                           sab_nl=sab_kp)
       CPASSERT(ASSOCIATED(para_env_inter_kp))
+      CPASSERT(ASSOCIATED(para_env_kp))
+      CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(ASSOCIATED(kp_env))
+      CPASSERT(ASSOCIATED(ks_env))
+      CPASSERT(ASSOCIATED(sab_orb))
+      CPASSERT(ASSOCIATED(sab_kp))
+      CPASSERT(ASSOCIATED(cell_to_index))
 
       nspins = dft_control%nspins
       nmo_spin = 0
@@ -1024,8 +1067,25 @@ CONTAINS
       IF (ntrans_total <= 0) &
          CPABORT("No independent-particle k-point transitions available")
 
-      ALLOCATE (transition_energy(ntrans_total), inds(ntrans_total))
+      ALLOCATE (transition_energy(ntrans_total), transition_dipole_re(ntrans_total, nderivs), &
+                transition_dipole_im(ntrans_total, nderivs), oscillator_strength(ntrans_total), &
+                inds(ntrans_total))
       transition_energy = 0.0_dp
+      transition_dipole_re = 0.0_dp
+      transition_dipole_im = 0.0_dp
+      oscillator_strength = 0.0_dp
+
+      CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
+                                basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
+                                ext_kpoints=kpoints)
+
+      ALLOCATE (rmatrix, cmatrix)
+      CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
 
       DO ikp_local = 1, nkp_local
          ikp = kp_range(1) + ikp_local - 1
@@ -1033,19 +1093,98 @@ CONTAINS
          mos_kp => kp%mos
          spin_offset = 0
          DO ispin = 1, nspins
-            CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues)
+            CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues, mo_coeff=mo_coeff_re, &
+                            nao=nao)
+            CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
             CPASSERT(ASSOCIATED(eigenvalues))
+            CPASSERT(ASSOCIATED(mo_coeff_re))
+            CPASSERT(ASSOCIATED(mo_coeff_im))
+
+            CALL cp_fm_get_info(mo_coeff_re, matrix_struct=fm_struct)
+            CALL cp_fm_create(fm_tmp, fm_struct)
+            CALL cp_fm_struct_create(moment_struct, nrow_global=nmo_spin(ispin), &
+                                     ncol_global=nmo_spin(ispin), para_env=para_env_kp, &
+                                     context=blacs_env)
+            CALL cp_fm_create(moment_re, moment_struct)
+            CALL cp_fm_create(moment_im, moment_struct)
+            CALL cp_fm_struct_release(moment_struct)
+
+            spin_factor = 1.0_dp
+            IF (nspins == 1) THEN
+               IF (tddfpt_control%rks_triplets) THEN
+                  spin_factor = 0.0_dp
+               ELSE
+                  spin_factor = 2.0_dp
+               END IF
+            END IF
+
+            DO ideriv = 1, nderivs
+               CALL dbcsr_set(rmatrix, 0.0_dp)
+               CALL dbcsr_set(cmatrix, 0.0_dp)
+               CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=overlap_deriv, &
+                                   ispin=ideriv + 1, xkp=kp%xkp, &
+                                   cell_to_index=cell_to_index, sab_nl=sab_kp)
+
+               CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re, fm_tmp, nmo_spin(ispin))
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  1.0_dp, mo_coeff_re, fm_tmp, 0.0_dp, moment_re)
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  1.0_dp, mo_coeff_im, fm_tmp, 0.0_dp, moment_im)
+
+               CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im, fm_tmp, nmo_spin(ispin))
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  1.0_dp, mo_coeff_re, fm_tmp, 1.0_dp, moment_im)
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  -1.0_dp, mo_coeff_im, fm_tmp, 1.0_dp, moment_re)
+
+               CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re, fm_tmp, nmo_spin(ispin))
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  1.0_dp, mo_coeff_re, fm_tmp, 1.0_dp, moment_im)
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  -1.0_dp, mo_coeff_im, fm_tmp, 1.0_dp, moment_re)
+
+               CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im, fm_tmp, nmo_spin(ispin))
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  -1.0_dp, mo_coeff_re, fm_tmp, 1.0_dp, moment_re)
+               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                  -1.0_dp, mo_coeff_im, fm_tmp, 1.0_dp, moment_im)
+
+               DO iocc = 1, homo_spin(ispin)
+                  DO ivirt = homo_spin(ispin) + 1, nmo_spin(ispin)
+                     trans_index = (ikp - 1)*ntrans_kpoint + spin_offset + &
+                                   (iocc - 1)*nvirt_spin(ispin) + ivirt - homo_spin(ispin)
+                     gap = eigenvalues(ivirt) - eigenvalues(iocc)
+                     IF (gap <= 0.0_dp) &
+                        CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
+                     oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
+                     CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
+                     CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     transition_dipole_re(trans_index, ideriv) = oscillator_factor*dipole_re
+                     transition_dipole_im(trans_index, ideriv) = oscillator_factor*dipole_im
+                  END DO
+               END DO
+            END DO
+
             DO iocc = 1, homo_spin(ispin)
                DO ivirt = homo_spin(ispin) + 1, nmo_spin(ispin)
                   trans_index = (ikp - 1)*ntrans_kpoint + spin_offset + &
                                 (iocc - 1)*nvirt_spin(ispin) + ivirt - homo_spin(ispin)
                   transition_energy(trans_index) = eigenvalues(ivirt) - eigenvalues(iocc)
+                  oscillator_strength(trans_index) = 2.0_dp/3.0_dp*transition_energy(trans_index)* &
+                                                     SUM(transition_dipole_re(trans_index, :)**2 + &
+                                                         transition_dipole_im(trans_index, :)**2)
                END DO
             END DO
+            CALL cp_fm_release(moment_im)
+            CALL cp_fm_release(moment_re)
+            CALL cp_fm_release(fm_tmp)
             spin_offset = spin_offset + homo_spin(ispin)*nvirt_spin(ispin)
          END DO
       END DO
       CALL para_env_inter_kp%sum(transition_energy)
+      CALL para_env_inter_kp%sum(transition_dipole_re)
+      CALL para_env_inter_kp%sum(transition_dipole_im)
+      CALL para_env_inter_kp%sum(oscillator_strength)
 
       IF (ANY(transition_energy <= 0.0_dp)) &
          CPABORT("K-point TDDFPT KERNEL NONE requires positive occupied-virtual energy gaps")
@@ -1067,7 +1206,7 @@ CONTAINS
             "-             TDDFPT K-point Independent-particle Transitions                 -", &
             "-------------------------------------------------------------------------------"
          WRITE (log_unit, "(1X,A)") &
-            "Only KERNEL NONE is active for k-point TDDFPT; oscillator strengths are not evaluated."
+            "Only KERNEL NONE is active for k-point TDDFPT; transition dipole magnitudes are shown."
          WRITE (log_unit, '(/,T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", &
             "Transition dipole (a.u.)", "Oscillator"
          WRITE (log_unit, '(T10,A,T19,A,T37,A,T49,A,T61,A,T67,A)') "number", "energy (eV)", &
@@ -1092,8 +1231,12 @@ CONTAINS
          END DO
 
          IF (log_unit > 0) THEN
+            transition_dipole_abs(1:nderivs) = &
+               SQRT(transition_dipole_re(inds(istate), 1:nderivs)**2 + &
+                    transition_dipole_im(inds(istate), 1:nderivs)**2)
             WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T31,3(1X,ES11.4E2),T69,ES12.5E2)') &
-               "TDDFPT|", istate, evals(istate)*evolt, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp
+               "TDDFPT|", istate, evals(istate)*evolt, transition_dipole_abs, &
+               oscillator_strength(inds(istate))
             WRITE (log_unit, '(1X,A,T18,I7,T28,I7,T38,I7,T50,I7,T62,I7,T74,F10.5)') &
                "TDDFPT_KPOINT|", istate, ikp, ispin, iocc, ivirt, wkp(ikp)
          END IF
@@ -1105,7 +1248,12 @@ CONTAINS
             "-------------------------------------------------------------------------------"
       END IF
 
-      DEALLOCATE (evals, inds, transition_energy)
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+      CALL dbcsr_deallocate_matrix_set(overlap_deriv)
+
+      DEALLOCATE (evals, inds, oscillator_strength, transition_dipole_im, transition_dipole_re, &
+                  transition_energy)
 
       CALL timestop(handle)
 
