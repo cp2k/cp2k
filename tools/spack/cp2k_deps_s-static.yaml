@@ -102,6 +102,7 @@ spack:
 #   - "dftd4@4.0.2"
     - "fftw@3.3.11"
 #   - "hdf5@2.1.0"
+    - "libfci@0.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
     - "libxc@7.0.0"
