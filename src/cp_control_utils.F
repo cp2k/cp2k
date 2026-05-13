@@ -875,9 +875,9 @@ CONTAINS
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
                                                             ngauss, ngp, nrep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
-      LOGICAL                                            :: explicit, tblite_reference_cli, &
-                                                            tblite_reference_cli_section, &
-                                                            tblite_section_active, was_present
+      LOGICAL :: dftb_scc_mixer_explicit, dftb_tblite_mixer_explicit, explicit, &
+         tblite_reference_cli, tblite_reference_cli_section, tblite_section_active, was_present, &
+         xtb_scc_mixer_explicit, xtb_tblite_mixer_explicit
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
@@ -1302,7 +1302,10 @@ CONTAINS
          CALL section_vals_val_get(dftb_section, "HB_SR_GAMMA", &
                                    l_val=qs_control%dftb_control%hb_sr_damp)
          CALL section_vals_val_get(dftb_section, "SCC_MIXER", &
+                                   explicit=dftb_scc_mixer_explicit)
+         CALL section_vals_val_get(dftb_section, "SCC_MIXER", &
                                    i_val=qs_control%dftb_control%tblite_scc_mixer)
+         CALL section_vals_get(dftb_tblite_mixer, explicit=dftb_tblite_mixer_explicit)
          CALL read_tblite_mixer_section(dftb_tblite_mixer, &
                                         qs_control%dftb_control%tblite_mixer_iterations, &
                                         qs_control%dftb_control%tblite_mixer_memory, &
@@ -1313,6 +1316,18 @@ CONTAINS
                                         qs_control%dftb_control%tblite_mixer_max_weight, &
                                         qs_control%dftb_control%tblite_mixer_weight_factor, &
                                         "DFTB/TBLITE_MIXER")
+         IF (qs_control%do_ls_scf) THEN
+            IF (dftb_scc_mixer_explicit .AND. &
+                qs_control%dftb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+               CALL cp_warn(__LOCATION__, &
+                            "DFTB/SCC_MIXER is reset to NONE with QS/LS_SCF; LS_SCF optimizes "// &
+                            "the density matrix directly.")
+            IF (dftb_tblite_mixer_explicit) &
+               CALL cp_warn(__LOCATION__, &
+                            "DFTB/TBLITE_MIXER settings are ignored with QS/LS_SCF; LS_SCF controls "// &
+                            "the density-matrix optimization.")
+            qs_control%dftb_control%tblite_scc_mixer = tblite_scc_mixer_none
+         END IF
          IF (qs_control%dftb_control%tblite_mixer_damping <= 0.0_dp) &
             CPABORT("DFTB/TBLITE_MIXER/DAMPING must be positive")
          CALL section_vals_val_get(dftb_section, "EPS_DISP", &
@@ -1382,7 +1397,10 @@ CONTAINS
             CPABORT("The XTB/TBLITE section requires XTB/GFN_TYPE TBLITE")
          END IF
          CALL section_vals_val_get(xtb_section, "SCC_MIXER", &
+                                   explicit=xtb_scc_mixer_explicit)
+         CALL section_vals_val_get(xtb_section, "SCC_MIXER", &
                                    i_val=qs_control%xtb_control%tblite_scc_mixer)
+         CALL section_vals_get(xtb_tblite_mixer, explicit=xtb_tblite_mixer_explicit)
          CALL read_tblite_mixer_section(xtb_tblite_mixer, &
                                         qs_control%xtb_control%tblite_mixer_iterations, &
                                         qs_control%xtb_control%tblite_mixer_memory, &
@@ -1393,6 +1411,18 @@ CONTAINS
                                         qs_control%xtb_control%tblite_mixer_max_weight, &
                                         qs_control%xtb_control%tblite_mixer_weight_factor, &
                                         "XTB/TBLITE_MIXER")
+         IF (qs_control%do_ls_scf) THEN
+            IF (xtb_scc_mixer_explicit .AND. &
+                qs_control%xtb_control%tblite_scc_mixer /= tblite_scc_mixer_none) &
+               CALL cp_warn(__LOCATION__, &
+                            "XTB/SCC_MIXER is reset to NONE with QS/LS_SCF; LS_SCF optimizes "// &
+                            "the density matrix directly.")
+            IF (xtb_tblite_mixer_explicit) &
+               CALL cp_warn(__LOCATION__, &
+                            "XTB/TBLITE_MIXER settings are ignored with QS/LS_SCF; LS_SCF controls "// &
+                            "the density-matrix optimization.")
+            qs_control%xtb_control%tblite_scc_mixer = tblite_scc_mixer_none
+         END IF
          IF (qs_control%xtb_control%tblite_mixer_damping <= 0.0_dp) &
             CPABORT("XTB/TBLITE_MIXER/DAMPING must be positive")
          CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)

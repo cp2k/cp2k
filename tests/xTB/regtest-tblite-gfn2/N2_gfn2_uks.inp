@@ -1,0 +1,42 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT N2_gfn2_uks
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    LSD
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        SCC_MIXER TBLITE
+        &TBLITE
+          METHOD GFN2
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      EPS_SCF 1.e-10
+      MAX_SCF 200
+      SCF_GUESS MOPAC
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      N     0.000000    0.000000    0.000000
+      N     1.000000    0.000000    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

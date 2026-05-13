@@ -520,6 +520,8 @@ CONTAINS
       ! more kpoint stuff
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, blacs_env=blacs_env)
       IF (do_kpoints) THEN
+         IF (dft_control%qs_control%do_ls_scf) &
+            CPABORT("DFT%KPOINTS are not implemented with QS/LS_SCF; use a real-space supercell instead.")
          CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
          CALL kpoint_initialize_mos(kpoints, qs_env%mos)
          CALL get_qs_env(qs_env=qs_env, wf_history=wf_history)
@@ -1573,14 +1575,16 @@ CONTAINS
       END IF
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control, dft_section)
-      SELECT CASE (dft_control%qs_control%method_id)
-      CASE (do_method_dftb)
-         IF (dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
-            scf_control%max_scf = dft_control%qs_control%dftb_control%tblite_mixer_iterations
-      CASE (do_method_xtb)
-         IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
-            scf_control%max_scf = dft_control%qs_control%xtb_control%tblite_mixer_iterations
-      END SELECT
+      IF (.NOT. dft_control%qs_control%do_ls_scf) THEN
+         SELECT CASE (dft_control%qs_control%method_id)
+         CASE (do_method_dftb)
+            IF (dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
+               scf_control%max_scf = dft_control%qs_control%dftb_control%tblite_mixer_iterations
+         CASE (do_method_xtb)
+            IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) &
+               scf_control%max_scf = dft_control%qs_control%xtb_control%tblite_mixer_iterations
+         END SELECT
+      END IF
 
       ! Allocate the data structure for Quickstep energies
       CALL allocate_qs_energy(energy)

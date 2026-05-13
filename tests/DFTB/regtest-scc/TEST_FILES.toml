@@ -11,6 +11,7 @@
 "ch2o-4.inp"                            = [{matcher="E_total", tol=3e-14, ref=-5.75087391612954}]
 "ch2o-5.inp"                            = [{matcher="E_total", tol=6e-14, ref=-5.7546307316870697}]
 "ch2o.inp"                              = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
+"ch2o_ls.inp"                           = [{matcher="M011", tol=1.0E-10, ref=-5.75087390937201}]
 "ch2o-r.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
 "ch2o-p.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
 "ch2o_force.inp"                        = [{matcher="M042", tol=1.0E-06, ref=0.0}]
@@ -31,6 +32,7 @@
 "h2o-5.inp"                             = [{matcher="E_total", tol=4e-09, ref=-130.55701170331295}]
 # first check for LSD
 "test-lsd.inp"                          = [{matcher="E_total", tol=4e-14, ref=-5.75878702495205}]
+"test-lsd-ls.inp"                       = [{matcher="M011", tol=1.0E-10, ref=-5.75878701862599}]
 # atomic properties
 "fa_atprop.inp"                         = [{matcher="E_total", tol=1.0E-14, ref=-5.7546307318903498}]
 "fa2_atprop.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
@@ -57,6 +59,7 @@
 "h2o-atprop3.inp"                       = [{matcher="E_total", tol=2e-08, ref=-131.33465894123017}]
 #
 "c_kp1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-13.76936385283589}]
+"c_gamma_ls.inp"                        = [{matcher="M011", tol=1.0E-10, ref=-13.37701309109568}]
 "c_kp1_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-12, ref=-13.76936385283589},
                                            {matcher="N_special_kpoints", tol=0.0, ref=32},
                                            {matcher="M042", tol=1.0E-5, ref=0.0}]

@@ -7,10 +7,19 @@
 "COBe_gfn2.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-6.6920408600}]
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
 "NH3_gfn2.inp"                           = [{matcher="E_total", tol=1.0E-8, ref=-4.4259996366}]
+"N2_gfn2.inp"                            = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_ls.inp"                         = [{matcher="M011", tol=1.0E-8, ref=-5.72892260298788}]
+"N2_gfn2_uks.inp"                        = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_uks_cp2k_mixer.inp"             = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_uks_ls_cp2k_mixer.inp"          = [{matcher="M011", tol=1.0E-8, ref=-5.72892260429441}]
 "CH2O_gfn2_force.inp"                    = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_uks_force.inp"                = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"N2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"N2_gfn2_uks_cp2k_mixer_force.inp"       = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "O2_gfn2_uks_force.inp"                  = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
+"O2_gfn2_uks_xyz_ls_cp2k_mixer.inp"      = [{matcher="M011", tol=1.0E-8, ref=-7.93196513956454}]
 "O2plus_gfn2_uks_cp2k_mixer.inp"         = [{matcher="E_total", tol=1.0E-8, ref=-7.2659684002}]
+"O2plus_gfn2_uks_cp2k_mixer_force.inp"   = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_force_cp2k_mixer.inp"         = [{matcher="M082", tol=5.0E-6, ref=0.0000000}]
 "CH2O_gfn2_stress.inp"                   = [{matcher="M042", tol=1.0E-7, ref=0.0000000}]
 "CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
@@ -30,6 +39,7 @@
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "Si_gfn2_kp_spglib_backend.inp"          = [{matcher="E_total", tol=1.0E-8, ref=-13.65677573470654},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Ar_fcc_gfn2_ls.inp"                     = [{matcher="M011", tol=1.0E-8, ref=-17.12154132132343}]
 "Ar_fcc_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
 "Ar_fcc_gfn2_stress.inp"                 = [{matcher="M042", tol=1.0E-5, ref=0.0000000}]
 "Ar_fcc_gfn2_kp_debug.inp"               = [{matcher="DEBUG_stress_sum", tol=1.0E-5, ref=0.0000000},
