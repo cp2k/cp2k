@@ -1043,7 +1043,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, j, k, unit_nr
       INTEGER(kind=int_8)                                :: flop1, flop2
-      LOGICAL                                            :: converged, do_non_monotonic
+      LOGICAL                                            :: converged, do_non_monotonic, &
+                                                            tc2_converged
       REAL(KIND=dp)                                      :: beta, betaB, eps_max, eps_min, gama, &
                                                             max_eig, min_eig, occ_matrix, t1, t2, &
                                                             trace_fx, trace_gx
@@ -1131,6 +1132,7 @@ CONTAINS
       trace_fx = nelectron
       trace_gx = 0
 
+      tc2_converged = .FALSE.
       DO i = 1, max_iter
          t1 = m_walltime()
          flop1 = 0; flop2 = 0
@@ -1199,8 +1201,12 @@ CONTAINS
          CALL dbcsr_add(matrix_xsq, matrix_tmp, 1.0_dp, 1.0_dp)
          CALL dbcsr_trace(matrix_xsq, trace_gx)
 ! TC2 has quadratic convergence, using the frobeniums norm as an idempotency deviation test.
-         IF (ABS(nu(i)) < (threshold)) EXIT
+         IF (ABS(nu(i)) < (threshold)) THEN
+            tc2_converged = .TRUE.
+            EXIT
+         END IF
       END DO
+      IF (.NOT. tc2_converged) i = max_iter
 
       occ_matrix = dbcsr_get_occupation(matrix_x)
       IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,I3,1X,1F10.8,1X,1F10.8)') 'Final TC2 iteration  ', i, occ_matrix, ABS(nu(i))
@@ -1221,7 +1227,9 @@ CONTAINS
       X(4) = 0.0_dp
       gama = 6.0_dp - 4.0_dp*(SQRT(2.0_dp))
       gama = gama - gama*gama
-      DO WHILE (nu(i) < gama)
+      DO
+         IF (i < 1) EXIT
+         IF (nu(i) >= gama) EXIT
          ! safeguard against negative root, is skipping correct?
          IF (wu(i) < 1.0e-14_dp) THEN
             i = i - 1
