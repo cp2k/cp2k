@@ -505,6 +505,7 @@ CONTAINS
 
       use_native_mixer = .FALSE.
       IF (.NOT. ASSOCIATED(dft_control)) RETURN
+      IF (dft_control%qs_control%do_ls_scf) RETURN
 
       SELECT CASE (dft_control%qs_control%xtb_control%tblite_scc_mixer)
       CASE (tblite_scc_mixer_auto)
@@ -1329,22 +1330,27 @@ CONTAINS
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_POTENTIAL", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_potential
 #endif
-      SELECT CASE (dft_control%qs_control%xtb_control%tblite_scc_mixer)
-      CASE (tblite_scc_mixer_auto)
-         use_native_mixer = tb_native_scc_mixer_active(dft_control)
-         use_no_mixer = .FALSE.
-      CASE (tblite_scc_mixer_tblite)
-         use_native_mixer = .TRUE.
-         use_no_mixer = .FALSE.
-      CASE (tblite_scc_mixer_cp2k)
-         use_native_mixer = .FALSE.
-         use_no_mixer = .FALSE.
-      CASE (tblite_scc_mixer_none)
+      IF (dft_control%qs_control%do_ls_scf) THEN
          use_native_mixer = .FALSE.
          use_no_mixer = .TRUE.
-      CASE DEFAULT
-         CPABORT("Unknown tblite SCC mixer")
-      END SELECT
+      ELSE
+         SELECT CASE (dft_control%qs_control%xtb_control%tblite_scc_mixer)
+         CASE (tblite_scc_mixer_auto)
+            use_native_mixer = tb_native_scc_mixer_active(dft_control)
+            use_no_mixer = .FALSE.
+         CASE (tblite_scc_mixer_tblite)
+            use_native_mixer = .TRUE.
+            use_no_mixer = .FALSE.
+         CASE (tblite_scc_mixer_cp2k)
+            use_native_mixer = .FALSE.
+            use_no_mixer = .FALSE.
+         CASE (tblite_scc_mixer_none)
+            use_native_mixer = .FALSE.
+            use_no_mixer = .TRUE.
+         CASE DEFAULT
+            CPABORT("Unknown tblite SCC mixer")
+         END SELECT
+      END IF
 
       ! compute mulliken charges required for charge update
       NULLIFY (particle_set, qs_kind_set, atomic_kind_set, scf_control)
@@ -1657,7 +1663,9 @@ CONTAINS
          ! charge mixing
          native_sign_mixing = .FALSE.
          IF (dft_control%qs_control%do_ls_scf) THEN
-            IF (nspin > 1) CPABORT("CP2K/tblite UKS/LSD with LS_SCF is not implemented")
+            ! LS_SCF optimizes the density matrix directly. Use the current
+            ! shell/multipole response from that density without an extra SCC
+            ! variable mixing step.
          ELSEIF (nspin > 1) THEN
             n_mix_cols = nspin*max_shell
             IF (do_dipole) n_mix_cols = n_mix_cols + nspin*dip_n
@@ -3845,6 +3853,13 @@ CONTAINS
          IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot check CP2K k-point calculations")
          CALL timestop(handle)
          RETURN
+      END IF
+      IF (dft_control%qs_control%xtb_control%tblite_scc_mixer == tblite_scc_mixer_cp2k) THEN
+         WRITE (UNIT=iounit, FMT="(/,T2,A)") &
+            "WARNING: tblite reference CLI cannot reproduce XTB/SCC_MIXER CP2K."
+         WRITE (UNIT=iounit, FMT="(T2,A)") &
+            "The external native tblite run uses tblite's own SCC mixer; only the converged result is compared."
+         IF (ref%stop_on_error) CPABORT("tblite reference CLI cannot reproduce SCC_MIXER CP2K")
       END IF
       natom = SIZE(particle_set)
       method = tb_reference_method_name(dft_control%qs_control%xtb_control%tblite_method)

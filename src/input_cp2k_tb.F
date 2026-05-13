@@ -180,7 +180,9 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="GFN_TYPE", &
                           description="Selects the xTB backend. GFN_TYPE 1 uses the CP2K-internal GFN1-xTB "// &
-                          "implementation. GFN_TYPE TBLITE uses the tblite backend and requires an XTB/TBLITE "// &
+                          "implementation. GFN_TYPE 0 uses the CP2K-internal GFN0-xTB implementation, which "// &
+                          "has no SCC variables to mix, so XTB/SCC_MIXER AUTO is treated as NONE. "// &
+                          "GFN_TYPE TBLITE uses the tblite backend and requires an XTB/TBLITE "// &
                           "section, where the actual tblite method is selected.", &
                           usage="GFN_TYPE (0|1|TBLITE)", &
                           enum_c_vals=s2a("0", "1", "TBLITE"), &
@@ -193,7 +195,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL add_tb_scc_mixer_keywords(section, "xTB", &
-                                     "AUTO keeps the CP2K charge mixer for CP2K-internal xTB and uses "// &
+                                     "AUTO is treated as NONE for CP2K-internal GFN0-xTB, keeps the CP2K "// &
+                                     "charge mixer for CP2K-internal GFN1-xTB, and uses "// &
                                      "tblite's native SCC mixer for XTB/GFN_TYPE TBLITE.")
 
       CALL keyword_create(keyword, __LOCATION__, name="DO_EWALD", &
@@ -612,7 +615,8 @@ CONTAINS
                           "SCC mixer for XTB/GFN_TYPE TBLITE, while SCC_MIXER CP2K mixes both total-charge and "// &
                           "magnetization SCC variables through CP2K's TB charge-mixing infrastructure. Native "// &
                           "tblite SCC convergence follows ACCURACY; SCC_MIXER CP2K follows the regular CP2K "// &
-                          "SCF convergence settings such as DFT/SCF/EPS_SCF.", &
+                          "SCF convergence settings such as DFT/SCF/EPS_SCF. With QS/LS_SCF, CP2K disables the "// &
+                          "separate SCC-variable mixer and lets LS_SCF optimize the density matrix directly.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., citations=[Katbashev2025])
 
       NULLIFY (keyword)
@@ -719,7 +723,9 @@ CONTAINS
                           "not truncated by CP2K's default SCF limit. With SCC_MIXER AUTO or CP2K, DFT/SCF/MAX_SCF "// &
                           "keeps its normal CP2K meaning. This section configures the tblite SCC mixer, not the "// &
                           "regular CP2K charge mixer. With SCC_MIXER CP2K, the CP2K-side SCC-variable mixer is "// &
-                          "controlled by DFT/SCF/MIXING. Native tblite "// &
+                          "controlled by DFT/SCF/MIXING. With QS/LS_SCF, this section is ignored and CP2K resets "// &
+                          "SCC_MIXER to NONE internally, because LS_SCF performs the density-matrix optimization "// &
+                          "instead of a separate SCC-variable mixing step. Native tblite "// &
                           "REFERENCE_CLI diagnostics inherit this section. ITERATIONS and SOLVER are representable "// &
                           "by tblite run directly; CP2K reports inherited MEMORY, DAMPING, or Broyden-weight settings "// &
                           "that native tblite CLI cannot reproduce.", &
@@ -768,7 +774,8 @@ CONTAINS
                           "size of the population/multipole update retained by the native tblite mixer between SCC "// &
                           "iterations. Smaller values damp oscillatory SCC cycles more strongly but may slow "// &
                           "convergence; larger values can accelerate well-behaved cases but may destabilize difficult "// &
-                          "ones.", &
+                          "ones. For CP2K-internal GFN1-xTB UKS k-point calculations with explicit SCC_MIXER TBLITE, "// &
+                          "CP2K uses a conservative damping of 0.25 unless DAMPING is set explicitly.", &
                           usage="DAMPING 0.4", default_r_val=tblite_mixer_damping_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -830,11 +837,14 @@ CONTAINS
                           "native SCC convergence follows XTB/TBLITE/ACCURACY and the tblite-side SCC update limit "// &
                           "follows TBLITE_MIXER/ITERATIONS. If SCC_MIXER is explicitly set to TBLITE, CP2K also "// &
                           "sets DFT/SCF/MAX_SCF to TBLITE_MIXER/ITERATIONS. With SCC_MIXER AUTO or CP2K, MAX_SCF "// &
-                          "keeps its normal CP2K meaning. When CP2K is active, convergence follows the normal CP2K SCF "// &
+                          "keeps its normal CP2K meaning. With QS/LS_SCF, explicit SCC_MIXER settings are reset to "// &
+                          "NONE internally and CP2K emits a warning; LS_SCF controls the density-matrix optimization. "// &
+                          "When CP2K is active, convergence follows the normal CP2K SCF "// &
                           "controls, in particular DFT/SCF/EPS_SCF and DFT/SCF/MIXING. For GFN2/tblite, the CP2K "// &
                           "mixer acts on the full SCC-variable set: shell charges plus atomic dipole and quadrupole "// &
-                          "variables. For CP2K-internal GFN1 and DFTB/DFTB3, the SCC variables are only charge or "// &
-                          "shell-charge like. The "// &
+                          "variables. CP2K-internal GFN0-xTB has no SCC variables to mix, so AUTO and NONE are "// &
+                          "equivalent there and explicit CP2K or TBLITE mixer choices are reset to NONE. For "// &
+                          "CP2K-internal GFN1 and DFTB/DFTB3, the SCC variables are only charge or shell-charge like. The "// &
                           "initial SCC variables are seeded from CP2K's current density, so DFT/SCF/SCF_GUESS and "// &
                           "DFT/WFN_RESTART_FILE_NAME define the starting point. NONE performs direct updates without "// &
                           "mixing and is intended for debugging, since it can be unstable.", &

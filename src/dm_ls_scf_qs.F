@@ -71,6 +71,8 @@ MODULE dm_ls_scf_qs
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE tblite_interface,                ONLY: tb_get_energy
+   USE tblite_types,                    ONLY: tblite_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -522,6 +524,7 @@ CONTAINS
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+         CALL ls_scf_tblite_energy(qs_env, qs_energy)
          energy = qs_energy%total
       ELSE
          CALL ls_nonscf_ks(qs_env, ls_scf_env, energy)
@@ -606,6 +609,7 @@ CONTAINS
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., &
                                just_energy=.FALSE., print_active=.TRUE.)
+      CALL ls_scf_tblite_energy(qs_env, energy)
       energy_new = energy%total
 
       CALL timestop(handle)
@@ -658,6 +662,7 @@ CONTAINS
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., &
                                just_energy=.FALSE., print_active=.TRUE.)
+      CALL ls_scf_tblite_energy(qs_env, energy)
       energy_new = energy%total
 
       CALL timestop(handle)
@@ -710,6 +715,28 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ls_nonscf_energy
+
+! **************************************************************************************************
+!> \brief update CP2K/tblite total energy after an LS_SCF KS rebuild.
+!> \param qs_env ...
+!> \param energy ...
+! **************************************************************************************************
+   SUBROUTINE ls_scf_tblite_energy(qs_env, energy)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(tblite_type), POINTER                         :: tb
+
+      NULLIFY (dft_control, tb)
+      CALL get_qs_env(qs_env, dft_control=dft_control, tb_tblite=tb)
+
+      IF (dft_control%qs_control%xtb .AND. dft_control%qs_control%xtb_control%do_tblite) THEN
+         CPASSERT(ASSOCIATED(tb))
+         CALL tb_get_energy(qs_env, tb, energy)
+      END IF
+
+   END SUBROUTINE ls_scf_tblite_energy
 
 ! **************************************************************************************************
 !> \brief ...

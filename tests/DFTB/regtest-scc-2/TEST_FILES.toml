@@ -4,6 +4,8 @@
 "base1.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08612338013299}]
 "base2.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08612338013299}]
 "base3.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08520460432732}]
+"dftb3_h2o_ls.inp"                      = [{matcher="M011", tol=1.0E-10, ref=-4.08389557447290}]
+"dftb3_o2_uks_ls.inp"                   = [{matcher="M011", tol=1.0E-10, ref=-6.47675727324273}]
 "dftb3_h2o_force.inp"                   = [{matcher="M042", tol=1.0E-6, ref=0.0}]
 "dftb3_h2o_uks_force.inp"               = [{matcher="M042", tol=1.0E-6, ref=0.0}]
 "dftb3_h2o_gamma_stress.inp"            = [{matcher="M042", tol=1.0E-6, ref=0.0}]

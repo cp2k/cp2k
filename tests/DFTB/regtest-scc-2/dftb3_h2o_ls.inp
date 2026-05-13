@@ -1,0 +1,59 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT dftb3_h2o_ls
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+#CPQA INCLUDE DFTB/scc/scc_parameter
+#CPQA INCLUDE DFTB/scc/oo.spl
+#CPQA INCLUDE DFTB/scc/oh.spl
+#CPQA INCLUDE DFTB/scc/ho.spl
+#CPQA INCLUDE DFTB/scc/hh.spl
+&FORCE_EVAL
+  &DFT
+    &LS_SCF
+      EPS_FILTER 1.0E-7
+      EPS_SCF 1.0E-8
+      MATRIX_CLUSTER_TYPE ATOMIC
+      MAX_SCF 50
+      MU -0.20
+      NON_MONOTONIC T
+      PURIFICATION_METHOD TC2
+      REPORT_ALL_SPARSITIES OFF
+      S_PRECONDITIONER MOLECULAR
+    &END LS_SCF
+    &QS
+      LS_SCF
+      METHOD DFTB
+      &DFTB
+        DIAGONAL_DFTB3 T
+        DISPERSION F
+        DO_EWALD F
+        HB_SR_GAMMA T
+        SELF_CONSISTENT T
+        &PARAMETER
+          HB_SR_PARAM 4.0
+          PARAM_FILE_NAME scc_parameter
+          PARAM_FILE_PATH DFTB/scc
+        &END PARAMETER
+      &END DFTB
+    &END QS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.000000    0.000000    0.000000
+      H     0.758602    0.000000    0.504284
+      H    -0.758602    0.000000    0.504284
+    &END COORD
+    &KIND O
+      DFTB3_PARAM -0.14
+    &END KIND
+    &KIND H
+      DFTB3_PARAM -0.05
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
