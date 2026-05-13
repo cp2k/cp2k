@@ -1006,10 +1006,10 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nderivs)                  :: transition_dipole_abs
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_all
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, moment_struct
-      TYPE(cp_fm_type)                                   :: fm_tmp, mo_coeff_im_global, &
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_tmp, mo_coeff_im_global, &
                                                             mo_coeff_re_global, moment_im, &
                                                             moment_re
-      TYPE(cp_fm_type), POINTER                          :: fm_dummy, mo_coeff_im, mo_coeff_re
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1025,7 +1025,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (blacs_env, blacs_env_all, cell_to_index, cmatrix, dft_control, eigenvalues, &
-               fm_dummy, fm_struct, kp, kp_env, kpoints, ks_env, mo_coeff_im, mo_coeff_re, &
+               fm_struct, kp, kp_env, kpoints, ks_env, mo_coeff_im, mo_coeff_re, &
                moment_struct, mos_kp, overlap_deriv, para_env, para_env_inter_kp, para_env_kp, &
                rmatrix, sab_kp, sab_orb, wkp)
       CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints, ks_env=ks_env, &
