@@ -1276,6 +1276,7 @@ CONTAINS
          lwork = 2*ncol + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
+         info = 0
          CALL pzrot(ncol, &
                     matrix%local_data(1, 1), irow, 1, desc, ncol, &
                     matrix%local_data(1, 1), jrow, 1, desc, ncol, &
@@ -1322,6 +1323,7 @@ CONTAINS
          lwork = 2*nrow + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
+         info = 0
          CALL pzrot(nrow, &
                     matrix%local_data(1, 1), 1, icol, desc, 1, &
                     matrix%local_data(1, 1), 1, jcol, desc, 1, &

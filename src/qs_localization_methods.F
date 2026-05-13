@@ -3187,7 +3187,10 @@ CONTAINS
                   CALL cp_cfm_get_element(c_zij(idim), jstate, jstate, mjj(idim))
                END DO
                CALL get_cardoso_angles(mii, mij, mji, mjj, c, s, vectors%matrix_struct)
-               CALL rotate_cardoso_zij(istate, jstate, c, s, c_zij)
+               DO idim = 1, dim1*dim2
+                  CALL cp_cfm_rot_cols(c_zij(idim), istate, jstate, c, REAL(s))
+                  CALL cp_cfm_rot_rows(c_zij(idim), istate, jstate, c, REAL(s))
+               END DO
                CALL cp_cfm_rot_cols(c_rmat, istate, jstate, c, REAL(s))
             END DO
          END DO
@@ -3304,7 +3307,10 @@ CONTAINS
                   CALL cp_cfm_get_element(c_zij(k), j, j, qjj(k))
                END DO
                CALL get_cardoso_angles(qii, qij, qji, qjj, c, s, vec%matrix_struct)
-               CALL rotate_cardoso_zij(i, j, c, s, c_zij)
+               DO k = 1, n_dim
+                  CALL cp_cfm_rot_cols(c_zij(k), i, j, c, REAL(s))
+                  CALL cp_cfm_rot_rows(c_zij(k), i, j, c, REAL(s))
+               END DO
                CALL cp_cfm_rot_cols(rmat, i, j, c, REAL(s))
             END DO
          END DO
@@ -3412,48 +3418,5 @@ CONTAINS
       DEALLOCATE (hmat, c_Gmat, Gmat, evects)
 
    END SUBROUTINE get_cardoso_angles
-
-! **************************************************************************************************
-!> \brief performs a Jacobi rotation given as the Cardoso angles on the spread operator matrix
-!> \param istate ...
-!> \param jstate ...
-!> \param c ...
-!> \param s ...
-!> \param zij ...
-!> \par History
-!>      2020-04 created [LS]
-!> \author Lukas Schreder
-! **************************************************************************************************
-   SUBROUTINE rotate_cardoso_zij(istate, jstate, c, s, zij)
-
-      INTEGER, INTENT(IN)             :: istate, jstate
-      REAL(kind=dp), INTENT(INOUT)    :: c
-      COMPLEX(kind=dp), INTENT(INOUT) :: s
-      TYPE(cp_cfm_type), POINTER    :: zij(:)
-
-      INTEGER               :: i, nstate
-#if defined(__parallel)
-      INTEGER, DIMENSION(9) :: desc
-#else
-      INTEGER               :: stride
-#endif
-
-      CALL cp_cfm_get_info(zij(1), nrow_global=nstate)
-
-      DO i = 1, SIZE(zij)
-#if defined(__parallel)
-         desc(:) = zij(i)%matrix_struct%descriptor(:)
-         CALL pzrot(nstate, zij(i)%local_data(1, 1), 1, istate, desc, 1, zij(i)%local_data(1, 1), &
-                    1, jstate, desc, 1, c, s)
-         CALL pzrot(nstate, zij(i)%local_data(1, 1), istate, 1, desc, nstate, &
-                    zij(i)%local_data(1, 1), jstate, 1, desc, nstate, c, CONJG(s))
-#else
-         CALL zrot(nstate, zij(i)%local_data(1, istate), 1, zij(i)%local_data(1, jstate), 1, c, s)
-         stride = SIZE(zij(i)%local_data, 1)
-         CALL zrot(nstate, zij(i)%local_data(istate, 1), stride, zij(i)%local_data(jstate, 1), &
-                   stride, c, CONJG(s))
-#endif
-      END DO
-   END SUBROUTINE rotate_cardoso_zij
 
 END MODULE qs_localization_methods
