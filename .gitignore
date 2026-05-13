@@ -98,7 +98,8 @@ build*/
 # Spack
 build-*
 .spack_patched
-spack*
+/spack
+/spack_cache
 
 ### CMake Patch ###
 # External projects
