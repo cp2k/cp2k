@@ -653,19 +653,23 @@ CONTAINS
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: exar, exf, exgcp, exhf, exhfxk, exk, &
-                                                            explicit_root, expot, exvdw, exwfn, &
-                                                            found, same_hfx
+                                                            explicit, explicit_root, expot, exvdw, &
+                                                            exwfn, found, same_hfx, use_real_wfn
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_section_gs, input, &
-                                                            xc_root, xc_sub
+                                                            print_sub, xc_root, xc_sub
 
-      NULLIFY (dft_control, input)
-      CALL get_qs_env(qs_env, dft_control=dft_control, input=input)
+      NULLIFY (dft_control, input, kpoints)
+      CALL get_qs_env(qs_env, dft_control=dft_control, input=input, kpoints=kpoints)
 
       IF (dft_control%nimages > 1) THEN
          IF (tddfpt_control%kernel /= tddfpt_kernel_none) &
             CPABORT("TDDFPT with k-points currently supports only KERNEL NONE")
+         CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
+         IF (use_real_wfn) &
+            CPABORT("K-point TDDFPT requires complex wavefunctions")
          IF (tddfpt_control%spinflip /= no_sf_tddfpt) &
             CPABORT("Spin-flip TDDFPT is not implemented for k-points")
          IF (tddfpt_control%do_smearing) &
@@ -683,6 +687,18 @@ CONTAINS
 
       NULLIFY (tddfpt_print_section)
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
+
+      IF (dft_control%nimages > 1) THEN
+         IF (tddfpt_control%do_exciton_descriptors .OR. &
+             tddfpt_control%do_directional_exciton_descriptors) &
+            CPABORT("Exciton descriptors are not implemented for k-point TDDFPT")
+         print_sub => section_vals_get_subs_vals(tddfpt_print_section, "NTO_ANALYSIS")
+         CALL section_vals_get(print_sub, explicit=explicit)
+         IF (explicit) CPABORT("NTO analysis is not implemented for k-point TDDFPT")
+         print_sub => section_vals_get_subs_vals(tddfpt_print_section, "NAMD_PRINT")
+         CALL section_vals_get(print_sub, explicit=explicit)
+         IF (explicit) CPABORT("NAMD_PRINT is not implemented for k-point TDDFPT")
+      END IF
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          NULLIFY (xc_root)

@@ -278,7 +278,7 @@ CONTAINS
          do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_tddfpt_unsupported_kpoints, &
          do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, &
          is_identical, is_semi, kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, &
-         same_except_frac, use_ref_cell
+         same_except_frac, use_real_wfn, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -412,6 +412,11 @@ CONTAINS
          IF (do_tddfpt) THEN
             CALL section_vals_val_get(tddfpt_section, "KERNEL", i_val=tddfpt_kernel)
             do_tddfpt_unsupported_kpoints = tddfpt_kernel /= tddfpt_kernel_none
+            IF (.NOT. do_tddfpt_unsupported_kpoints) THEN
+               CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
+               IF (use_real_wfn) &
+                  CALL cp_abort(__LOCATION__, "K-point TDDFPT requires complex wavefunctions.")
+            END IF
             CALL section_vals_val_get(tddfpt_section, "DO_BSE", l_val=do_bse)
             IF (.NOT. do_bse) &
                CALL section_vals_val_get(tddfpt_section, "DO_BSE_W_ONLY", l_val=do_bse)
