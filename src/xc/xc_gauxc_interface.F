@@ -298,6 +298,7 @@ CONTAINS
       DEALLOCATE (atoms)
 #else
       MARK_USED(particle_set)
+      MARK_USED(res)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -393,8 +394,9 @@ CONTAINS
       DEALLOCATE (basis_set_list)
 
 #else
-      MARK_USED(qs_kind_set)
       MARK_USED(particle_set)
+      MARK_USED(qs_kind_set)
+      MARK_USED(res)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -493,9 +495,10 @@ CONTAINS
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
-      MARK_USED(molecule)
       MARK_USED(basis)
       MARK_USED(gauxc_section)
+      MARK_USED(molecule)
+      MARK_USED(res)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -544,11 +547,12 @@ CONTAINS
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
-      MARK_USED(xc_functional_name)
-      MARK_USED(grid)
       MARK_USED(gauxc_section)
+      MARK_USED(grid)
       MARK_USED(nspins)
+      MARK_USED(res)
       MARK_USED(status)
+      MARK_USED(xc_functional_name)
       CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_create_integrator
@@ -757,13 +761,14 @@ CONTAINS
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
-      MARK_USED(integrator)
       MARK_USED(density_scalar)
       MARK_USED(density_zeta)
-      MARK_USED(nspins)
-      MARK_USED(natom)
-      MARK_USED(status)
+      MARK_USED(exc_grad)
+      MARK_USED(integrator)
       MARK_USED(model)
+      MARK_USED(natom)
+      MARK_USED(nspins)
+      MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_compute_xc_gradient
