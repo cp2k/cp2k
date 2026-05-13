@@ -22,6 +22,7 @@ MODULE xc_gauxc_interface
       c_int, &
       c_int32_t, &
       c_int64_t, &
+      c_null_char, &
       c_null_ptr, &
       c_ptr, &
       c_size_t
@@ -148,13 +149,6 @@ MODULE xc_gauxc_interface
 
 #else
 
-   INTERFACE
-      SUBROUTINE print_gauxc_status_message(c_message) BIND(C, name="print_c_string")
-         IMPORT :: c_ptr
-         TYPE(c_ptr), VALUE :: c_message
-      END SUBROUTINE print_gauxc_status_message
-   END INTERFACE
-
    ! TODO can we make the single fields private somehow?
 
    TYPE cp_gauxc_molecule_type
@@ -214,6 +208,29 @@ MODULE xc_gauxc_interface
       gauxc_finalize, &
       gauxc_init
 CONTAINS
+
+   SUBROUTINE print_gauxc_status_message(status)
+      ! IMPORT :: c_ptr
+      TYPE(cp_gauxc_status_type)                         :: status
+
+      CHARACTER(kind=c_char), POINTER                    :: s(:)
+      INTEGER                                            :: i
+
+      WRITE (0, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+      IF (c_associated(status%status%message)) THEN
+         WRITE (0, '(a)', ADVANCE='no') "GauXC status message: ["
+
+         CALL c_f_pointer(status%status%message, s, [default_string_length])
+         DO i = 1, SIZE(s)
+            IF (s(i) == c_null_char) EXIT
+            WRITE (0, '(A)', advance='no') s(i)
+         END DO
+
+         WRITE (0, '(a)') "]"
+      ELSE
+         WRITE (0, '(a)') "GauXC status message: [null]"
+      END IF
+   END SUBROUTINE print_gauxc_status_message
 
 ! **************************************************************************************************
 !> \brief ...
@@ -868,14 +885,7 @@ CONTAINS
 
 #ifdef __GAUXC
       IF (status%status%code /= 0) THEN
-         WRITE (0, '(a,1x,i0)') "GauXC returned with status code", status%status%code
-         IF (c_associated(status%status%message)) THEN
-            WRITE (0, '(a)', ADVANCE='no') "GauXC status message: ["
-            CALL print_gauxc_status_message(status%status%message)
-            WRITE (0, '(a)') "]"
-         ELSE
-            WRITE (0, '(a)') "GauXC status message: [null]"
-         END IF
+         CALL print_gauxc_status_message(status)
          CPABORT("GauXC returned with non-zero status code")
       END IF
 #else

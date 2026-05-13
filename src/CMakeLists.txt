@@ -1060,7 +1060,7 @@ list(
   fm/cp_fm_struct.F
   fm/cp_linked_list_fm.F)
 
-list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c xc/xc_gauxc_c.c)
+list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
 
 list(APPEND CP2K_SRCS_F fm/cp_dlaf_utils_api.F fm/cp_fm_dlaf_api.F
      fm/cp_cfm_dlaf_api.F)
