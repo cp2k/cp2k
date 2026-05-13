@@ -305,7 +305,11 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
+#if defined(__parallel)
          CALL gauxc_init(default_para_env%get_handle(), gauxc_status)
+#else
+         CALL gauxc_init(status=gauxc_status)
+#endif
          CALL gauxc_check_status(gauxc_status)
          CALL pw_fpga_init()
          CALL pw_gpu_init()

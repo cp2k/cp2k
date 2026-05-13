@@ -221,14 +221,18 @@ CONTAINS
 !> \param status ...
 ! **************************************************************************************************
    SUBROUTINE gauxc_init(mpi_comm, status)
-      INTEGER, INTENT(IN)                                :: mpi_comm
+      INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: world_rank
 
-#ifdef GAUXC_HAS_MPI
-      rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+      IF (PRESENT(mpi_comm)) THEN
+         rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+      ELSE
+         rt = gauxc_runtime_environment_new(status%status)
+      END IF
 #else
       MARK_USED(mpi_comm)
       rt = gauxc_runtime_environment_new(status%status)
