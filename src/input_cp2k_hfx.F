@@ -840,10 +840,13 @@ CONTAINS
                            description="Parameters for the Adaptively Compressed Exchange (ACE) "// &
                            "operator. ACE replaces the full exchange matrix with a "// &
                            "low-rank projector K_ACE = -W*W^T after an initial "// &
-                           "full HFX build, reducing cost of subsequent SCF steps. ", &
+                           "full HFX build, reducing cost of subsequent SCF steps. "// &
+                           "NOTE: ACE requires diagonalization-based SCF. "// &
+                           "It is incompatible with orbital transformation (OT) methods "// &
+                           "because OT does not construct MO coefficients.", &
                            n_keywords=2, &
                            n_subsections=0, &
-                           repeats=.TRUE., &
+                           repeats=.FALSE., &
                            citations=[Lin2016ACE])
 
       NULLIFY(keyword)
