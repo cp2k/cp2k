@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 1.8
+# Version: 1.9
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -228,7 +228,7 @@ while [[ $# -gt 0 ]]; do
             case "${CP2K_VERSION}" in
               ssmp-static)
                 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
-                for package in libint2 libxc libxsmm spglib vori tblite; do
+                for package in libfci libint2 libxc libxsmm spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
                 for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
@@ -264,8 +264,8 @@ while [[ $# -gt 0 ]]; do
           all)
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
-            for package in adios2 cosma deepmdkit dla-future dla-future-fortran \
-              elpa greenx hdf5 libfabric libint libvdwxc libsmeagol libvori libxc \
+            for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
+              greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
               libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
@@ -275,16 +275,16 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
             fi
             ;;
-          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 | \
-            libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | \
-            spglib | tblite | trexio | vori)
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 | \
+            libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | spglib | \
+            tblite | trexio | vori)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             # Translate package selection to sed pattern
             case "${2,,}" in
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | elpa | greenx | hdf5 | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
+              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -664,7 +664,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "   (see also --build_deps flag)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
-  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libint2 |"
+  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 |"
   echo "          libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed | sirius |"
   echo "          spfft | spglib | spla | tblite | trexio | vori "
   echo ""
