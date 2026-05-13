@@ -96,10 +96,11 @@ MODULE qs_environment
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
         do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, gfn1xtb, hden_atomic, &
         kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, smear_fermi_dirac, &
-        tblite_scc_mixer_tblite, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-        vdw_pairpot_dftd4, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
-        xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, &
+        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
+        xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -270,14 +271,14 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: ikind, method_id, nelectron_total, &
-                                                            nkind, nkp_grid(3)
+                                                            nkind, nkp_grid(3), tddfpt_kernel
       LOGICAL :: dftb_kpoint_sym_restricted, do_active_space, do_admm, do_admm_rpa, do_bse, &
          do_debug_fdiff, do_debug_forces, do_debug_stress_tensor, do_dftb_scc, do_dftb_scc_high_l, &
          do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, &
-         do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_wfc_low_scaling, &
-         do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, is_identical, is_semi, &
-         kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, same_except_frac, &
-         use_ref_cell
+         do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_tddfpt_unsupported_kpoints, &
+         do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, &
+         is_identical, is_semi, kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, &
+         same_except_frac, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -404,10 +405,13 @@ CONTAINS
             CALL section_vals_get(gw_section, explicit=do_gw)
          END IF
          do_tddfpt = .FALSE.
+         do_tddfpt_unsupported_kpoints = .FALSE.
          do_bse = .FALSE.
          tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
          CALL section_vals_get(tddfpt_section, explicit=do_tddfpt)
          IF (do_tddfpt) THEN
+            CALL section_vals_val_get(tddfpt_section, "KERNEL", i_val=tddfpt_kernel)
+            do_tddfpt_unsupported_kpoints = tddfpt_kernel /= tddfpt_kernel_none
             CALL section_vals_val_get(tddfpt_section, "DO_BSE", l_val=do_bse)
             IF (.NOT. do_bse) &
                CALL section_vals_val_get(tddfpt_section, "DO_BSE_W_ONLY", l_val=do_bse)
@@ -465,7 +469,8 @@ CONTAINS
                                          l_val=do_bse)
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
-                                                          do_tddfpt, do_active_space, do_linear_response, &
+                                                          do_tddfpt_unsupported_kpoints, &
+                                                          do_active_space, do_linear_response, &
                                                           do_debug_fdiff, &
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
@@ -484,7 +489,8 @@ CONTAINS
             do_dftb_scc_high_l = dftb_kind_set_has_high_l(qs_kind_set)
          END IF
          CALL restrict_unsupported_atomic_kpoint_symmetry(kpoints, method_id, do_hfx, do_exx, do_gw, &
-                                                          do_tddfpt, do_active_space, do_linear_response, &
+                                                          do_tddfpt_unsupported_kpoints, &
+                                                          do_active_space, do_linear_response, &
                                                           do_debug_fdiff, &
                                                           do_mp2 .OR. do_ri_mp2 .OR. do_ri_sos_mp2, &
                                                           do_ri_rpa .AND. .NOT. do_gw, do_bse, &
