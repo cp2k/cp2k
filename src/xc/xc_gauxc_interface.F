@@ -210,6 +210,7 @@ CONTAINS
       ! IMPORT :: c_ptr
       TYPE(cp_gauxc_status_type)                         :: status
 
+#ifdef __GAUXC
       CHARACTER(kind=c_char), POINTER                    :: s(:)
       INTEGER                                            :: i
 
@@ -227,6 +228,9 @@ CONTAINS
       ELSE
          WRITE (0, '(a)') "GauXC status message: [null]"
       END IF
+#else
+      MARK_USED(status)
+#endif
    END SUBROUTINE print_gauxc_status_message
 
 ! **************************************************************************************************
@@ -494,8 +498,12 @@ CONTAINS
 
 #else
       MARK_USED(basis)
-      MARK_USED(gauxc_section)
+      MARK_USED(batch_size)
+      MARK_USED(grid_type)
+      MARK_USED(lb_exec_space)
       MARK_USED(molecule)
+      MARK_USED(pruning_scheme)
+      MARK_USED(radial_quadrature)
       MARK_USED(res)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
@@ -511,7 +519,13 @@ CONTAINS
 !> \param status ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_create_integrator(xc_functional_name, grid, int_exec_space, nspins, status) RESULT(res)
+   FUNCTION gauxc_create_integrator( &
+      xc_functional_name, &
+      grid, &
+      int_exec_space, &
+      nspins, &
+      status) RESULT(res)
+
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name, int_exec_space
       TYPE(cp_gauxc_grid_type), INTENT(IN)               :: grid
       INTEGER, INTENT(IN)                                :: nspins
@@ -540,6 +554,7 @@ CONTAINS
 
 #else
       MARK_USED(grid)
+      MARK_USED(int_exec_space)
       MARK_USED(nspins)
       MARK_USED(res)
       MARK_USED(status)
