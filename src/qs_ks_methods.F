@@ -598,10 +598,7 @@ CONTAINS
 
          ! Everything else, either via GauXC or manual XC computation
          IF (dft_control%use_gauxc) THEN
-            IF (calculate_forces) THEN
-               CPABORT("GauXC/SKALA does not support forces. Use RUN_TYPE ENERGY or RUN_TYPE SP instead.")
-            END IF
-            CALL apply_gauxc(qs_env, xc_section)
+            CALL apply_gauxc(qs_env, xc_section, calculate_forces)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &

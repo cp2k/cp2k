@@ -5,7 +5,9 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
+#ifdef __GAUXC
 #include "gauxc/gauxc_config.f"
+#endif
 
 #define GAUXC_RETURN_IF_ERROR(status) IF (status%status%code /= 0) RETURN
 
@@ -37,6 +39,7 @@ MODULE xc_gauxc_interface
 #ifdef __GAUXC
 
    USE kinds, ONLY: &
+      default_path_length, &
       default_string_length, &
       dp
    USE physcon, ONLY: &
@@ -104,10 +107,17 @@ MODULE xc_gauxc_interface
       gauxc_functional_type
    USE gauxc_integrator, ONLY: &
       gauxc_delete, &
+      gauxc_integrator_eval_exc_grad_rks, &
+      gauxc_integrator_eval_exc_grad_uks, &
       gauxc_integrator_eval_exc_vxc_rks, &
       gauxc_integrator_eval_exc_vxc_uks, &
       gauxc_integrator_new, &
       gauxc_integrator_type
+#ifdef GAUXC_HAS_ONEDFT
+   USE gauxc_integrator, ONLY: &
+      gauxc_integrator_eval_exc_grad_onedft_uks, &
+      gauxc_integrator_eval_exc_vxc_onedft_uks
+#endif
    USE string_utilities, ONLY: &
       uppercase
 #endif
@@ -191,6 +201,7 @@ MODULE xc_gauxc_interface
       cp_gauxc_status_type, &
       cp_gauxc_xc_type, &
       gauxc_check_status, &
+      gauxc_compute_xc_gradient, &
       gauxc_compute_xc, &
       gauxc_create_basisset, &
       gauxc_create_grid, &
@@ -283,7 +294,6 @@ CONTAINS
       DEALLOCATE (atoms)
 #else
       MARK_USED(particle_set)
-      MARK_USED(natoms)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -381,7 +391,6 @@ CONTAINS
 #else
       MARK_USED(qs_kind_set)
       MARK_USED(particle_set)
-      MARK_USED(natoms)
       MARK_USED(status)
       CPABORT(no_gauxc_message)
 #endif
@@ -547,18 +556,30 @@ CONTAINS
 !> \param density_zeta ...
 !> \param nspins ...
 !> \param status ...
+!> \param model ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, nspins, status) RESULT(res)
+   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, nspins, status, model) RESULT(res)
       TYPE(cp_gauxc_integrator_type), INTENT(IN)            :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
       TYPE(cp_gauxc_xc_type)                             :: res
 
 #ifdef __GAUXC
+      CHARACTER(len=default_path_length)                 :: model_key
+      LOGICAL                                            :: use_onedft
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+
+      use_onedft = .FALSE.
+      IF (PRESENT(model)) THEN
+         model_key = ADJUSTL(model)
+         CALL uppercase(model_key)
+         use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      END IF
 
       IF (.NOT. ALLOCATED(res%vxc_scalar)) THEN
          ALLOCATE (res%vxc_scalar, mold=density_scalar)
@@ -566,6 +587,47 @@ CONTAINS
          CPASSERT(ALL(SHAPE(res%vxc_scalar) == SHAPE(density_scalar)))
       END IF
       res%vxc_scalar = 0._dp
+
+      IF (use_onedft) THEN
+#ifndef GAUXC_HAS_ONEDFT
+         CPABORT("GauXC lacks OneDFT support")
+#else
+         IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
+            ALLOCATE (res%vxc_zeta, mold=density_scalar)
+         ELSE
+            CPASSERT(ALL(SHAPE(res%vxc_zeta) == SHAPE(density_scalar)))
+         END IF
+         res%vxc_zeta = 0._dp
+
+         IF (nspins == 1) THEN
+            ALLOCATE (density_zeta_zero, mold=density_scalar)
+            density_zeta_zero = 0._dp
+            CALL gauxc_integrator_eval_exc_vxc_onedft_uks( &
+               status%status, &
+               integrator%integrator, &
+               density_scalar, &
+               density_zeta_zero, &
+               TRIM(model), &
+               res%exc, &
+               res%vxc_scalar, &
+               res%vxc_zeta)
+            DEALLOCATE (density_zeta_zero)
+         ELSE
+            CPASSERT(PRESENT(density_zeta))
+            CALL gauxc_integrator_eval_exc_vxc_onedft_uks( &
+               status%status, &
+               integrator%integrator, &
+               density_scalar, &
+               density_zeta, &
+               TRIM(model), &
+               res%exc, &
+               res%vxc_scalar, &
+               res%vxc_zeta)
+         END IF
+         GAUXC_RETURN_IF_ERROR(status)
+         RETURN
+#endif
+      END IF
 
       IF (nspins == 1) THEN
          CALL gauxc_integrator_eval_exc_vxc_rks( &
@@ -601,9 +663,106 @@ CONTAINS
       MARK_USED(density_zeta)
       MARK_USED(nspins)
       MARK_USED(status)
+      MARK_USED(model)
       CPABORT(no_gauxc_message)
 #endif
    END FUNCTION gauxc_compute_xc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param integrator ...
+!> \param density_scalar ...
+!> \param density_zeta ...
+!> \param nspins ...
+!> \param natom ...
+!> \param status ...
+!> \param model ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_compute_xc_gradient( &
+      integrator, density_scalar, density_zeta, nspins, natom, status, model) RESULT(exc_grad)
+      TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
+      REAL(c_double), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+      INTEGER, INTENT(IN)                                :: nspins, natom
+      TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
+      REAL(c_double), ALLOCATABLE, DIMENSION(:)          :: exc_grad
+
+#ifdef __GAUXC
+      CHARACTER(len=default_path_length)                 :: model_key
+      LOGICAL                                            :: use_onedft
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
+
+      ALLOCATE (exc_grad(3*natom))
+      exc_grad = 0._dp
+
+      use_onedft = .FALSE.
+      IF (PRESENT(model)) THEN
+         model_key = ADJUSTL(model)
+         CALL uppercase(model_key)
+         use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      END IF
+
+      IF (use_onedft) THEN
+#ifndef GAUXC_HAS_ONEDFT
+         CPABORT("GauXC lacks OneDFT support")
+#else
+         IF (nspins == 1) THEN
+            ALLOCATE (density_zeta_zero, mold=density_scalar)
+            density_zeta_zero = 0._dp
+            CALL gauxc_integrator_eval_exc_grad_onedft_uks( &
+               status%status, &
+               integrator%integrator, &
+               density_scalar, &
+               density_zeta_zero, &
+               TRIM(model), &
+               exc_grad)
+            DEALLOCATE (density_zeta_zero)
+         ELSE
+            CPASSERT(PRESENT(density_zeta))
+            CALL gauxc_integrator_eval_exc_grad_onedft_uks( &
+               status%status, &
+               integrator%integrator, &
+               density_scalar, &
+               density_zeta, &
+               TRIM(model), &
+               exc_grad)
+         END IF
+         GAUXC_RETURN_IF_ERROR(status)
+         RETURN
+#endif
+      END IF
+
+      IF (nspins == 1) THEN
+         CALL gauxc_integrator_eval_exc_grad_rks( &
+            status%status, &
+            integrator%integrator, &
+            density_scalar, &
+            exc_grad)
+      ELSE
+         CPASSERT(PRESENT(density_zeta))
+         CALL gauxc_integrator_eval_exc_grad_uks( &
+            status%status, &
+            integrator%integrator, &
+            density_scalar, &
+            density_zeta, &
+            exc_grad)
+      END IF
+      GAUXC_RETURN_IF_ERROR(status)
+
+#else
+      MARK_USED(integrator)
+      MARK_USED(density_scalar)
+      MARK_USED(density_zeta)
+      MARK_USED(nspins)
+      MARK_USED(natom)
+      MARK_USED(status)
+      MARK_USED(model)
+      CPABORT(no_gauxc_message)
+#endif
+   END FUNCTION gauxc_compute_xc_gradient
 
 ! **************************************************************************************************
 !> \brief ...

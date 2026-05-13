@@ -99,6 +99,8 @@ respectivly to CMake.
 GauXC can be used to evaluate selected exchange-correlation functionals through an external
 integrator.
 
+- Pass `--with-gauxc=install` to the toolchain installer. The toolchain build enables GauXC
+  OneDFT/SKALA support and therefore also installs libtorch.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake.
 
 ## PEXSI (low scaling SCF method)

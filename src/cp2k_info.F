@@ -5,6 +5,10 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
+#ifdef __GAUXC
+#include "gauxc/gauxc_config.f"
+#endif
+
 ! **************************************************************************************************
 !> \brief some minimal info about CP2K, including its version and license
 !> \par History
@@ -112,6 +116,15 @@ CONTAINS
 #endif
 #if defined(GAUXC_HAS_MPI)
       flags = TRIM(flags)//" gauxc_mpi"
+#endif
+#if defined(GAUXC_HAS_ONEDFT)
+      flags = TRIM(flags)//" gauxc_onedft"
+#endif
+#if defined(GAUXC_HAS_HOST)
+      flags = TRIM(flags)//" gauxc_host"
+#endif
+#if defined(GAUXC_HAS_DEVICE)
+      flags = TRIM(flags)//" gauxc_device"
 #endif
 #if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"

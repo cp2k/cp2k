@@ -30,7 +30,8 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          FUNCTIONAL PBE
+          FUNCTIONAL PBE0
+          MODEL PBE
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

@@ -1299,8 +1299,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
-                          description="Use GauXC-provided functionals, e.g. Skala", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+                          description="Use exchange-correlation functionals provided by GauXC", &
+                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1310,10 +1310,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="functional", &
-                          description="Underlying functional name to use in GauXC. "// &
-                          "For Skala, a path to the Skala checkpoint to be used.", &
+      CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
+                          description="Functional name used to create the GauXC integrator. "// &
+                          "If MODEL is set, this is the base functional used by the OneDFT path.", &
                           default_c_val="PBE")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
+                          description="GauXC OneDFT model name or path. Use NONE for conventional GauXC. "// &
+                          "SKALA models are supplied as OneDFT .fun files.", &
+                          usage="MODEL skala-1.0.fun", &
+                          default_c_val="NONE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

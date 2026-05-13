@@ -252,6 +252,10 @@ Specific options of --with-PKG:
   --with-libxc            Enable libxc for exchange-correlation in QuickStep
                           DFT (pure and hybrid functionals) calculations.
                           Default = install
+  --with-gauxc            Enable GauXC for external exchange-correlation
+                          integration. Installing GauXC with SKALA/OneDFT
+                          support also enables libtorch.
+                          Default = no
   --with-libint           Enable libint for two-body molecular integrals in
                           Hartree-Fock and hybrid functional calculations.
                           Default = install
@@ -459,7 +463,7 @@ EOF
 tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc libxsmm cosma scalapack elpa dbcsr
+lib_list="fftw libint libxc gauxc libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol
           fmt trexio greenx gmp mcl"
@@ -484,6 +488,7 @@ with_fftw="__INSTALL__"
 with_libint="__INSTALL__"
 with_libxsmm="__INSTALL__"
 with_libxc="__INSTALL__"
+with_gauxc="__DONTUSE__"
 with_scalapack="__INSTALL__"
 with_sirius="__INSTALL__"
 with_gsl="__DONTUSE__"
@@ -815,6 +820,9 @@ Otherwise use option no."
     --with-libxc*)
       with_libxc=$(read_with "${1}")
       ;;
+    --with-gauxc*)
+      with_gauxc=$(read_with "${1}")
+      ;;
     --with-fftw*)
       with_fftw=$(read_with "${1}")
       ;;
@@ -1071,6 +1079,12 @@ if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   fi
 fi
 
+if [ "${with_gauxc}" != "__DONTUSE__" ] &&
+  [ "${with_libxc}" = "__DONTUSE__" ]; then
+  report_warning ${LINENO} "GauXC requires Libxc through ExchCXX, so Libxc is enabled."
+  with_libxc="__INSTALL__"
+fi
+
 # Since tblite includes dftd4, a separate dftd4 is not needed.
 if [ "${with_tblite}" != "__DONTUSE__" ]; then
   if [ "${with_dftd4}" != "__DONTUSE__" ]; then
@@ -1090,6 +1104,7 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
   [ "${with_spla}" = "__INSTALL__" ] ||
   [ "${with_ninja}" = "__INSTALL__" ] ||
+  [ "${with_gauxc}" = "__INSTALL__" ] ||
   [ "${with_greenx}" = "__INSTALL__" ] ||
   [ "${with_dftd4}" = "__INSTALL__" ] ||
   [ "${with_mcl}" = "__INSTALL__" ] ||
@@ -1132,6 +1147,10 @@ if [ "${with_plumed}" = "__INSTALL__" ]; then
 fi
 
 if [ "${with_deepmd}" = "__INSTALL__" ]; then
+  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+fi
+
+if [ "${with_gauxc}" = "__INSTALL__" ]; then
   [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
 fi
 
