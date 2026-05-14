@@ -35,9 +35,121 @@ MODULE qs_tddfpt2_kpoint_utils
       REAL(kind=dp) :: energy = 0.0_dp
    END TYPE tddfpt_kpoint_transition_type
 
-   PUBLIC :: tddfpt_kpoint_init_transitions, tddfpt_kpoint_transition_offset
+   TYPE, PUBLIC :: tddfpt_kpoint_response_type
+      INTEGER                                      :: ntrans = 0
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: coeff_re
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: coeff_im
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: sigma_re
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: sigma_im
+   END TYPE tddfpt_kpoint_response_type
+
+   PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_init_transitions, &
+             tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, &
+             tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
+             tddfpt_kpoint_response_zero, tddfpt_kpoint_transition_offset
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Allocate a k-point TDDFPT response vector in transition space.
+!> \param response ...
+!> \param ntrans ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_create(response, ntrans)
+      TYPE(tddfpt_kpoint_response_type), INTENT(out)     :: response
+      INTEGER, INTENT(in)                                :: ntrans
+
+      CPASSERT(ntrans >= 0)
+
+      response%ntrans = ntrans
+      ALLOCATE (response%coeff_re(ntrans), response%coeff_im(ntrans), &
+                response%sigma_re(ntrans), response%sigma_im(ntrans))
+      CALL tddfpt_kpoint_response_zero(response)
+
+   END SUBROUTINE tddfpt_kpoint_response_create
+
+! **************************************************************************************************
+!> \brief Release a k-point TDDFPT response vector.
+!> \param response ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_release(response)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+
+      IF (ALLOCATED(response%coeff_re)) DEALLOCATE (response%coeff_re)
+      IF (ALLOCATED(response%coeff_im)) DEALLOCATE (response%coeff_im)
+      IF (ALLOCATED(response%sigma_re)) DEALLOCATE (response%sigma_re)
+      IF (ALLOCATED(response%sigma_im)) DEALLOCATE (response%sigma_im)
+      response%ntrans = 0
+
+   END SUBROUTINE tddfpt_kpoint_response_release
+
+! **************************************************************************************************
+!> \brief Reset coefficients and operator result of a k-point TDDFPT response vector.
+!> \param response ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_zero(response)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+
+      IF (ALLOCATED(response%coeff_re)) response%coeff_re = 0.0_dp
+      IF (ALLOCATED(response%coeff_im)) response%coeff_im = 0.0_dp
+      IF (ALLOCATED(response%sigma_re)) response%sigma_re = 0.0_dp
+      IF (ALLOCATED(response%sigma_im)) response%sigma_im = 0.0_dp
+
+   END SUBROUTINE tddfpt_kpoint_response_zero
+
+! **************************************************************************************************
+!> \brief Set a single real unit transition in a k-point TDDFPT response vector.
+!> \param response ...
+!> \param itrans ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_set_unit(response, itrans)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+      INTEGER, INTENT(in)                                :: itrans
+
+      CPASSERT(itrans >= 1)
+      CPASSERT(itrans <= response%ntrans)
+
+      CALL tddfpt_kpoint_response_zero(response)
+      response%coeff_re(itrans) = 1.0_dp
+
+   END SUBROUTINE tddfpt_kpoint_response_set_unit
+
+! **************************************************************************************************
+!> \brief Apply the independent-particle energy-difference term in transition space.
+!> \param response ...
+!> \param transitions ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_apply_energy_diff(response, transitions)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+
+      CPASSERT(response%ntrans == SIZE(transitions))
+
+      response%sigma_re(:) = response%sigma_re(:) + transitions(:)%energy*response%coeff_re(:)
+      response%sigma_im(:) = response%sigma_im(:) + transitions(:)%energy*response%coeff_im(:)
+
+   END SUBROUTINE tddfpt_kpoint_apply_energy_diff
+
+! **************************************************************************************************
+!> \brief Weighted complex dot product between response coefficients.
+!> \param left ...
+!> \param right ...
+!> \param transitions ...
+!> \return ...
+! **************************************************************************************************
+   REAL(kind=dp) FUNCTION tddfpt_kpoint_response_dot(left, right, transitions) RESULT(dot_product)
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: left, right
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+
+      CPASSERT(left%ntrans == right%ntrans)
+      CPASSERT(left%ntrans == SIZE(transitions))
+
+      dot_product = SUM(transitions(:)%weight*(left%coeff_re(:)*right%coeff_re(:) + &
+                                               left%coeff_im(:)*right%coeff_im(:)))
+
+   END FUNCTION tddfpt_kpoint_response_dot
 
 ! **************************************************************************************************
 !> \brief Return the zero-based transition offset of a spin block within a single k point.

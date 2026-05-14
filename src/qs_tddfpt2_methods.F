@@ -104,7 +104,11 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_orthonormalize_psi1_psi1
    USE qs_tddfpt2_forces,               ONLY: tddfpt_forces_main
    USE qs_tddfpt2_fprint,               ONLY: tddfpt_print_forces
-   USE qs_tddfpt2_kpoint_utils,         ONLY: tddfpt_kpoint_init_transitions,&
+   USE qs_tddfpt2_kpoint_utils,         ONLY: tddfpt_kpoint_apply_energy_diff,&
+                                              tddfpt_kpoint_init_transitions,&
+                                              tddfpt_kpoint_response_create,&
+                                              tddfpt_kpoint_response_release,&
+                                              tddfpt_kpoint_response_type,&
                                               tddfpt_kpoint_transition_offset,&
                                               tddfpt_kpoint_transition_type
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_init
@@ -1030,6 +1034,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp, sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(tddfpt_kpoint_response_type)                  :: response
       TYPE(tddfpt_kpoint_transition_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: transitions
 
@@ -1067,7 +1072,11 @@ CONTAINS
       ALLOCATE (transition_energy(ntrans_total), transition_dipole_re(ntrans_total, nderivs), &
                 transition_dipole_im(ntrans_total, nderivs), oscillator_strength(ntrans_total), &
                 inds(ntrans_total))
-      transition_energy = transitions(:)%energy
+      CALL tddfpt_kpoint_response_create(response, ntrans_total)
+      response%coeff_re(:) = 1.0_dp
+      CALL tddfpt_kpoint_apply_energy_diff(response, transitions)
+      transition_energy = response%sigma_re(:)
+      CALL tddfpt_kpoint_response_release(response)
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
       oscillator_strength = 0.0_dp
