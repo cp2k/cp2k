@@ -3,16 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_pade.inp"                       = [{matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=-6.92175}]
-"h2o_pbe.inp"                        = [{matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=-6.95678}]
-"h2o_pbe0_col.inp"                   = [{matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=11.73433}]
-"h2o_pbe0_admm_pbex.inp"             = [{matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=9.59331}]
-"h2o_pbe0_admm_none.inp"             = [{matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=9.74160}]
+"h2o_pade.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.26282839},
+                                        {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
+"h2o_pbe.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.25910299},
+                                        {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
+"h2o_pbe0_col.inp"                   = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=1.1975243},
+                                        {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
+"h2o_pbe0_admm_pbex.inp"             = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=1.0887209},
+                                        {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
+"h2o_pbe0_admm_none.inp"             = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=1.0951601},
+                                        {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
 #
 #EOF
-
-
-
-
-
-

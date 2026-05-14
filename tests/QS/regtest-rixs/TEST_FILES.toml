@@ -1,25 +1,34 @@
 #Testing the RIXS method and the keyword combinations it involves
 "CO-PBE0.inp"                                  = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.59403}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.59233793},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.08398985}]
 
 "CO-PBE0-res.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.422017},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.64185}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.59421403},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.08539235}]
 
 "CH3-PBE-roks.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.06592},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=3.09939}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.53118944},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.15225345}]
 
 "CH3-PBE-uks.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.236146},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=4.49095}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.57948051},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.13668041}]
 
 "H2O-PBE0.inp"                                 = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.371583},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=8.46209}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.63681532},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.14896298}]
 
 "He-LDA_RIbas.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=25.875010},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=25.89828}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=2.3003326},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.75011307}]
 
 "Ne-LDA-e_range.inp"                           = [{matcher="XAS_excit_ener", tol=1e-08, ref=829.640319},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=17.53698}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=1.1162587},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20005484}]
 
 "SiH4-PBE0-admm-pseudo.inp"                    = [{matcher="XAS_excit_ener", tol=1e-08, ref=1803.939974},
-                                                  {matcher="TDDFPT_excit_ener", tol=1.0E-03, ref=10.07673}]
+                                                  {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.52370352},
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.22552373}]
 #EOF
+

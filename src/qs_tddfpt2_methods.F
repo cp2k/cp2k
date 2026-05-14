@@ -996,8 +996,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nao_spin, nmo_spin, nvirt_spin
       LOGICAL                                            :: my_kpgrp
-      REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, gap, &
-                                                            oscillator_factor, spin_factor
+      REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, fsum, &
+                                                            gap, oscillator_factor, spin_factor
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_kp, evals, &
                                                             oscillator_strength, transition_energy
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: transition_dipole_im, &
@@ -1246,6 +1246,7 @@ CONTAINS
          WRITE (log_unit, '(T10,72("-"))')
       END IF
 
+      fsum = 0.0_dp
       DO istate = 1, nstates
          itrans = inds(istate) - 1
          ikp = itrans/ntrans_kpoint + 1
@@ -1269,13 +1270,15 @@ CONTAINS
             WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T31,3(1X,ES11.4E2),T69,ES12.5E2)') &
                "TDDFPT|", istate, evals(istate)*evolt, transition_dipole_abs, &
                oscillator_strength(inds(istate))
+            fsum = fsum + oscillator_strength(inds(istate))**2
             WRITE (log_unit, '(1X,A,T18,I7,T28,I7,T38,I7,T50,I7,T62,I7,T74,F10.5)') &
                "TDDFPT_KPOINT|", istate, ikp, ispin, iocc, ivirt, wkp(ikp)
          END IF
       END DO
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,T2,A,E14.6)') 'TDDFPT : CheckSum E = ', checksum
+         WRITE (log_unit, '(/,T2,A,E16.8)') 'TDDFPT : CheckSum E = ', checksum
+         WRITE (log_unit, '(T2,A,E16.8)') 'TDDFPT : CheckSum F = ', SQRT(fsum)
          WRITE (log_unit, "(1X,A)") &
             "-------------------------------------------------------------------------------"
       END IF
