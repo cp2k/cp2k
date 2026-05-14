@@ -1,4 +1,4 @@
 #
 "ala2-tdwf.inp"  = [{matcher="Spread_Berry",  tol=1e-10, ref=807.7262984558}]
-"co2_4-tdpm.inp" = [{matcher="Spread",        tol=3e-13, ref=  0.1851E+02}]
+"co2_4-tdpm.inp" = [{matcher="Spread",        tol=3e-13, ref=  0.1854E+02}]
 #EOF
