@@ -127,6 +127,7 @@ def make_input(
     kernel: str,
     functional: str,
     nstates: int,
+    added_mos: int,
     grid: tuple[int, int, int],
     gamma_centered: bool,
     supercell: bool,
@@ -165,7 +166,7 @@ def make_input(
       METHOD GPW
     &END QS
     &SCF
-      ADDED_MOS 4
+      ADDED_MOS {added_mos}
       CHOLESKY OFF
       EPS_EIGVAL 1.0E-8
       EPS_SCF 1.0E-8
@@ -213,6 +214,7 @@ def run_case(
     work_dir: Path,
     label: str,
     input_text: str,
+    env_overrides: dict[str, str] | None,
     keep_going: bool,
 ) -> Result | None:
     inp = work_dir / f"{label}.inp"
@@ -221,6 +223,8 @@ def run_case(
     env = os.environ.copy()
     env["CP2K_DATA_DIR"] = str(data_dir)
     env.setdefault("OMP_NUM_THREADS", "1")
+    if env_overrides:
+        env.update(env_overrides)
     print(f"Running {label} ...", flush=True)
     completed = subprocess.run(
         [str(cp2k), "-i", str(inp), "-o", str(out)],
@@ -286,6 +290,19 @@ def compare_pair(kpoint: Result, supercell: Result, limit: int) -> None:
             f"  {left.oscillator:12.5e}  {right.oscillator:12.5e}"
         )
 
+    print(f"\nNearest-energy matches: {supercell.label} -> {kpoint.label}")
+    print("  sc     sc/eV   kp       k/eV       dk/eV      osc(sc)       osc(k)")
+    for right in supercell.states[:limit]:
+        left = min(
+            kpoint.states, key=lambda state: abs(right.energy_ev - state.energy_ev)
+        )
+        print(
+            f"  {right.index:2d}  {right.energy_ev:10.6f}"
+            f"  {left.index:3d}  {left.energy_ev:10.6f}"
+            f"  {left.energy_ev - right.energy_ev:10.6f}"
+            f"  {right.oscillator:12.5e}  {left.oscillator:12.5e}"
+        )
+
 
 def parse_grid(values: Iterable[str]) -> tuple[int, int, int]:
     grid = tuple(int(v) for v in values)
@@ -304,9 +321,21 @@ def main() -> int:
     )
     parser.add_argument("--functional", default="PBE", choices=("PBE", "PADE", "LDA"))
     parser.add_argument("--nstates", type=int, default=4)
+    parser.add_argument("--added-mos", type=int, default=4)
     parser.add_argument(
         "--kernels", nargs="+", default=("NONE", "FULL"), choices=("NONE", "FULL")
     )
+    parser.add_argument(
+        "--kernel-parts",
+        nargs="+",
+        default=(),
+        choices=("FULL", "GAP", "XC", "HARTREE"),
+        help="Run k-point KERNEL FULL with internal kernel-part diagnostics.",
+    )
+    parser.add_argument("--density-weight-power", type=float)
+    parser.add_argument("--sigma-weight-power", type=float)
+    parser.add_argument("--density-scale", type=float)
+    parser.add_argument("--sigma-scale", type=float)
     parser.add_argument("--no-gamma-centered", action="store_true")
     parser.add_argument("--triplet", action="store_true")
     parser.add_argument("--bright-threshold", type=float, default=1.0e-8)
@@ -334,33 +363,56 @@ def main() -> int:
     print(f"Grid:     {grid[0]} {grid[1]} {grid[2]}")
     print(f"XC:       {args.functional}")
     print(f"Triplet:  {args.triplet}")
+    if args.kernel_parts:
+        print(f"Parts:    {' '.join(args.kernel_parts)}")
+
+    debug_env: dict[str, str] = {}
+    if args.density_weight_power is not None:
+        debug_env["CP2K_TDDFPT_KP_DENSITY_WEIGHT_POWER"] = str(
+            args.density_weight_power
+        )
+    if args.sigma_weight_power is not None:
+        debug_env["CP2K_TDDFPT_KP_SIGMA_WEIGHT_POWER"] = str(args.sigma_weight_power)
+    if args.density_scale is not None:
+        debug_env["CP2K_TDDFPT_KP_DENSITY_SCALE"] = str(args.density_scale)
+    if args.sigma_scale is not None:
+        debug_env["CP2K_TDDFPT_KP_SIGMA_SCALE"] = str(args.sigma_scale)
 
     results: dict[str, Result] = {}
     for kernel in args.kernels:
         for supercell in (False, True):
-            label = (
-                f"H2_{'gamma_supercell' if supercell else 'kpoint'}_{kernel.lower()}"
-            )
-            input_text = make_input(
-                project=label,
-                kernel=kernel,
-                functional=args.functional,
-                nstates=args.nstates,
-                grid=grid,
-                gamma_centered=not args.no_gamma_centered,
-                supercell=supercell,
-                triplet=args.triplet,
-            )
-            result = run_case(
-                cp2k=cp2k,
-                data_dir=data_dir,
-                work_dir=work_dir,
-                label=label,
-                input_text=input_text,
-                keep_going=args.keep_going,
-            )
-            if result is not None:
-                results[label] = result
+            parts = args.kernel_parts if kernel == "FULL" and not supercell else ("",)
+            for part in parts:
+                suffix = f"_{part.lower()}" if part else ""
+                label = (
+                    f"H2_{'gamma_supercell' if supercell else 'kpoint'}_"
+                    f"{kernel.lower()}{suffix}"
+                )
+                input_text = make_input(
+                    project=label,
+                    kernel=kernel,
+                    functional=args.functional,
+                    nstates=args.nstates,
+                    added_mos=args.added_mos,
+                    grid=grid,
+                    gamma_centered=not args.no_gamma_centered,
+                    supercell=supercell,
+                    triplet=args.triplet,
+                )
+                env_overrides = dict(debug_env)
+                if part:
+                    env_overrides["CP2K_TDDFPT_KP_KERNEL_PART"] = part
+                result = run_case(
+                    cp2k=cp2k,
+                    data_dir=data_dir,
+                    work_dir=work_dir,
+                    label=label,
+                    input_text=input_text,
+                    env_overrides=env_overrides,
+                    keep_going=args.keep_going,
+                )
+                if result is not None:
+                    results[label] = result
 
     for result in results.values():
         print_result(result, args.nstates, args.bright_threshold)
@@ -370,6 +422,11 @@ def main() -> int:
         right = results.get(f"H2_gamma_supercell_{kernel.lower()}")
         if left is not None and right is not None:
             compare_pair(left, right, args.nstates)
+        if kernel == "FULL" and args.kernel_parts and right is not None:
+            for part in args.kernel_parts:
+                part_result = results.get(f"H2_kpoint_full_{part.lower()}")
+                if part_result is not None:
+                    compare_pair(part_result, right, args.nstates)
 
     print(f"\nKept inputs/outputs in {work_dir}")
     return 0

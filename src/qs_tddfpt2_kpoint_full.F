@@ -78,6 +78,7 @@ MODULE qs_tddfpt2_kpoint_full
         tddfpt_kpoint_response_update_rho, tddfpt_kpoint_response_zero, &
         tddfpt_kpoint_transition_offset, tddfpt_kpoint_transition_type
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_xc
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -111,9 +112,12 @@ CONTAINS
                                                             istate, itrans, log_unit, nimages, &
                                                             nresponse, nstates, ntrans_kpoint, &
                                                             ntrans_total
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: imag_index, inds
       INTEGER, DIMENSION(2)                              :: homo_spin, nao_spin, nmo_spin, nvirt_spin
-      REAL(kind=dp)                                      :: checksum, symmetry_error, ximag, xreal
+      LOGICAL                                            :: debug_do_hartree, debug_do_xc
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: active_imag
+      REAL(kind=dp) :: checksum, coeff_abs, debug_density_scale, debug_density_weight_power, &
+         debug_sigma_scale, debug_sigma_weight_power, max_coeff_abs, symmetry_error, ximag, xreal
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, oscillator_strength, sorted_evals
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvectors, kernel_matrix, &
                                                             state_dipole_im, state_dipole_re, &
@@ -153,6 +157,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CPASSERT(ASSOCIATED(rho0))
       CPASSERT(tddfpt_control%kernel == tddfpt_kernel_full)
+      CALL read_debug_options(debug_do_xc, debug_do_hartree, debug_density_weight_power, &
+                              debug_sigma_weight_power, debug_density_scale, debug_sigma_scale)
 
       CALL get_kpoint_info(kpoints, sab_nl=sab_kp)
       CPASSERT(ASSOCIATED(sab_kp))
@@ -166,7 +172,8 @@ CONTAINS
       MARK_USED(nvirt_spin)
       MARK_USED(nao_spin)
       ntrans_total = SIZE(transitions)
-      nresponse = 2*ntrans_total
+      ALLOCATE (active_imag(ntrans_total), imag_index(ntrans_total))
+      CALL init_response_layout(kpoints, transitions, active_imag, imag_index, nresponse)
       nstates = MIN(tddfpt_control%nstates, nresponse)
       IF (tddfpt_control%nstates > nresponse) THEN
          CPWARN("Requested more TDDFPT states than k-point occupied-virtual transitions")
@@ -222,19 +229,26 @@ CONTAINS
          CALL apply_local_kernel(qs_env, column_response, kernel_response, transitions, kernel_env, &
                                  rho1, pmat_ext, hmat_rs, hmat_ext, kernel_rspace, work_v_xc, &
                                  work_v_xc_tau, hartree_rspace, work_v_gspace, poisson_env, &
-                                 tddfpt_control%rks_triplets)
+                                 tddfpt_control%rks_triplets, debug_do_xc, debug_do_hartree, &
+                                 debug_density_weight_power, debug_sigma_weight_power, &
+                                 debug_density_scale, debug_sigma_scale)
          kernel_matrix(1:ntrans_total, itrans) = column_response%sigma_re(:)
-         kernel_matrix(ntrans_total + 1:nresponse, itrans) = column_response%sigma_im(:)
+         CALL set_imag_rows(kernel_matrix, itrans, column_response%sigma_im, active_imag, &
+                            imag_index)
 
-         CALL tddfpt_kpoint_response_set_unit(column_response, itrans, imaginary=.TRUE.)
-         CALL tddfpt_kpoint_apply_energy_diff(column_response, transitions)
-         CALL apply_local_kernel(qs_env, column_response, kernel_response, transitions, kernel_env, &
-                                 rho1, pmat_ext, hmat_rs, hmat_ext, kernel_rspace, work_v_xc, &
-                                 work_v_xc_tau, hartree_rspace, work_v_gspace, poisson_env, &
-                                 tddfpt_control%rks_triplets)
-         kernel_matrix(1:ntrans_total, ntrans_total + itrans) = column_response%sigma_re(:)
-         kernel_matrix(ntrans_total + 1:nresponse, ntrans_total + itrans) = &
-            column_response%sigma_im(:)
+         IF (active_imag(itrans)) THEN
+            CALL tddfpt_kpoint_response_set_unit(column_response, itrans, imaginary=.TRUE.)
+            CALL tddfpt_kpoint_apply_energy_diff(column_response, transitions)
+            CALL apply_local_kernel(qs_env, column_response, kernel_response, transitions, &
+                                    kernel_env, rho1, pmat_ext, hmat_rs, hmat_ext, kernel_rspace, &
+                                    work_v_xc, work_v_xc_tau, hartree_rspace, work_v_gspace, &
+                                    poisson_env, tddfpt_control%rks_triplets, debug_do_xc, &
+                                    debug_do_hartree, debug_density_weight_power, &
+                                    debug_sigma_weight_power, debug_density_scale, debug_sigma_scale)
+            kernel_matrix(1:ntrans_total, imag_index(itrans)) = column_response%sigma_re(:)
+            CALL set_imag_rows(kernel_matrix, imag_index(itrans), column_response%sigma_im, &
+                               active_imag, imag_index)
+         END IF
       END DO
 
       symmetry_error = MAXVAL(ABS(kernel_matrix(:, :) - TRANSPOSE(kernel_matrix(:, :))))
@@ -254,7 +268,8 @@ CONTAINS
       DO istate = 1, nstates
          DO itrans = 1, ntrans_total
             xreal = eigenvectors(itrans, inds(istate))
-            ximag = eigenvectors(ntrans_total + itrans, inds(istate))
+            ximag = 0.0_dp
+            IF (active_imag(itrans)) ximag = eigenvectors(imag_index(itrans), inds(istate))
             DO ideriv = 1, nderivs
                state_dipole_re(istate, ideriv) = state_dipole_re(istate, ideriv) + &
                                                  xreal*transition_dipole_re(itrans, ideriv) - &
@@ -288,8 +303,17 @@ CONTAINS
       END IF
 
       DO istate = 1, nstates
-         ikernel = MAXLOC(ABS(eigenvectors(1:ntrans_total, inds(istate))) + &
-                          ABS(eigenvectors(ntrans_total + 1:nresponse, inds(istate))), DIM=1)
+         ikernel = 1
+         max_coeff_abs = -1.0_dp
+         DO itrans = 1, ntrans_total
+            coeff_abs = ABS(eigenvectors(itrans, inds(istate)))
+            IF (active_imag(itrans)) coeff_abs = coeff_abs + &
+                                                 ABS(eigenvectors(imag_index(itrans), inds(istate)))
+            IF (coeff_abs > max_coeff_abs) THEN
+               max_coeff_abs = coeff_abs
+               ikernel = itrans
+            END IF
+         END DO
          transition_dipole_abs(:) = SQRT(state_dipole_re(istate, :)**2 + &
                                          state_dipole_im(istate, :)**2)
          IF (log_unit > 0) THEN
@@ -328,10 +352,135 @@ CONTAINS
       DEALLOCATE (eigenvectors, evals, inds, kernel_matrix, oscillator_strength, sorted_evals, &
                   state_dipole_im, state_dipole_re, transition_dipole_im, transition_dipole_re, &
                   transitions)
+      DEALLOCATE (active_imag, imag_index)
 
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_kpoint_full_reference
+
+! **************************************************************************************************
+!> \brief Build the real-linear response layout.
+!> \param kpoints ...
+!> \param transitions ...
+!> \param active_imag ...
+!> \param imag_index ...
+!> \param nresponse ...
+! **************************************************************************************************
+   SUBROUTINE init_response_layout(kpoints, transitions, active_imag, imag_index, nresponse)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      LOGICAL, DIMENSION(:), INTENT(out)                 :: active_imag
+      INTEGER, DIMENSION(:), INTENT(out)                 :: imag_index
+      INTEGER, INTENT(out)                               :: nresponse
+
+      INTEGER                                            :: ikp, itrans
+      REAL(kind=dp), DIMENSION(3)                        :: two_k
+
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(SIZE(active_imag) == SIZE(transitions))
+      CPASSERT(SIZE(imag_index) == SIZE(transitions))
+
+      nresponse = SIZE(transitions)
+      active_imag(:) = .FALSE.
+      imag_index(:) = 0
+      DO itrans = 1, SIZE(transitions)
+         ikp = transitions(itrans)%ikp
+         two_k(:) = 2.0_dp*kpoints%xkp(:, ikp)
+         active_imag(itrans) = ANY(ABS(two_k(:) - ANINT(two_k(:))) > 1.0E-10_dp)
+         IF (active_imag(itrans)) THEN
+            nresponse = nresponse + 1
+            imag_index(itrans) = nresponse
+         END IF
+      END DO
+
+   END SUBROUTINE init_response_layout
+
+! **************************************************************************************************
+!> \brief Copy imaginary response components into active rows of the real-linear matrix.
+!> \param response_matrix ...
+!> \param column ...
+!> \param sigma_im ...
+!> \param active_imag ...
+!> \param imag_index ...
+! **************************************************************************************************
+   SUBROUTINE set_imag_rows(response_matrix, column, sigma_im, active_imag, imag_index)
+      REAL(kind=dp), DIMENSION(:, :), INTENT(inout)      :: response_matrix
+      INTEGER, INTENT(in)                                :: column
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: sigma_im
+      LOGICAL, DIMENSION(:), INTENT(in)                  :: active_imag
+      INTEGER, DIMENSION(:), INTENT(in)                  :: imag_index
+
+      INTEGER                                            :: itrans
+
+      DO itrans = 1, SIZE(sigma_im)
+         IF (active_imag(itrans)) response_matrix(imag_index(itrans), column) = sigma_im(itrans)
+      END DO
+
+   END SUBROUTINE set_imag_rows
+
+! **************************************************************************************************
+!> \brief Read internal TDDFPT k-point kernel diagnostics from the environment.
+!> \param do_xc ...
+!> \param do_hartree ...
+!> \param density_weight_power ...
+!> \param sigma_weight_power ...
+!> \param density_scale ...
+!> \param sigma_scale ...
+! **************************************************************************************************
+   SUBROUTINE read_debug_options(do_xc, do_hartree, density_weight_power, sigma_weight_power, &
+                                 density_scale, sigma_scale)
+      LOGICAL, INTENT(out)                               :: do_xc, do_hartree
+      REAL(kind=dp), INTENT(out)                         :: density_weight_power, &
+                                                            sigma_weight_power, density_scale, &
+                                                            sigma_scale
+
+      CHARACTER(len=64)                                  :: env_value
+      INTEGER                                            :: env_status
+
+      do_xc = .TRUE.
+      do_hartree = .TRUE.
+      density_weight_power = -0.5_dp
+      sigma_weight_power = 0.5_dp
+      density_scale = 1.0_dp
+      sigma_scale = 1.0_dp
+
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_KERNEL_PART", env_value, &
+                                    STATUS=env_status)
+      IF (env_status == 0) THEN
+         CALL uppercase(env_value)
+         SELECT CASE (TRIM(ADJUSTL(env_value)))
+         CASE ("GAP", "NONE", "ENERGY", "DIAGONAL")
+            do_xc = .FALSE.
+            do_hartree = .FALSE.
+         CASE ("XC")
+            do_xc = .TRUE.
+            do_hartree = .FALSE.
+         CASE ("HARTREE", "COULOMB")
+            do_xc = .FALSE.
+            do_hartree = .TRUE.
+         CASE ("FULL")
+            do_xc = .TRUE.
+            do_hartree = .TRUE.
+         CASE DEFAULT
+            CPWARN("Ignoring unknown CP2K_TDDFPT_KP_KERNEL_PART diagnostic value")
+         END SELECT
+      END IF
+
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DENSITY_WEIGHT_POWER", env_value, &
+                                    STATUS=env_status)
+      IF (env_status == 0) READ (env_value, *, IOSTAT=env_status) density_weight_power
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_SIGMA_WEIGHT_POWER", env_value, &
+                                    STATUS=env_status)
+      IF (env_status == 0) READ (env_value, *, IOSTAT=env_status) sigma_weight_power
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DENSITY_SCALE", env_value, &
+                                    STATUS=env_status)
+      IF (env_status == 0) READ (env_value, *, IOSTAT=env_status) density_scale
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_SIGMA_SCALE", env_value, &
+                                    STATUS=env_status)
+      IF (env_status == 0) READ (env_value, *, IOSTAT=env_status) sigma_scale
+
+   END SUBROUTINE read_debug_options
 
 ! **************************************************************************************************
 !> \brief Build transition dipoles for the explicit k-point transition basis.
@@ -558,11 +707,18 @@ CONTAINS
 !> \param work_v_gspace ...
 !> \param poisson_env ...
 !> \param is_rks_triplets ...
+!> \param do_xc ...
+!> \param do_hartree ...
+!> \param density_weight_power ...
+!> \param sigma_weight_power ...
+!> \param density_scale ...
+!> \param sigma_scale ...
 ! **************************************************************************************************
    SUBROUTINE apply_local_kernel(qs_env, response, kernel_response, transitions, kernel_env, rho1, &
                                  pmat_ext, hmat_rs, hmat_ext, kernel_rspace, work_v_xc, &
                                  work_v_xc_tau, hartree_rspace, work_v_gspace, poisson_env, &
-                                 is_rks_triplets)
+                                 is_rks_triplets, do_xc, do_hartree, density_weight_power, &
+                                 sigma_weight_power, density_scale, sigma_scale)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response, kernel_response
       TYPE(tddfpt_kpoint_transition_type), &
@@ -578,7 +734,10 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER                      :: hartree_rspace
       TYPE(pw_c1d_gs_type), INTENT(inout)                :: work_v_gspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      LOGICAL, INTENT(in)                                :: is_rks_triplets
+      LOGICAL, INTENT(in)                                :: is_rks_triplets, do_xc, do_hartree
+      REAL(kind=dp), INTENT(in)                          :: density_weight_power, &
+                                                            sigma_weight_power, density_scale, &
+                                                            sigma_scale
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_local_kernel'
 
@@ -599,19 +758,30 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       nspins = dft_control%nspins
 
+      IF ((.NOT. do_xc) .AND. ((.NOT. do_hartree) .OR. is_rks_triplets)) THEN
+         CALL tddfpt_kpoint_response_zero(kernel_response)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       CALL tddfpt_kpoint_response_create(density_response, response%ntrans)
-      CALL tddfpt_kpoint_response_copy_scaled_coeff(density_response, response, transitions, -0.5_dp)
+      CALL tddfpt_kpoint_response_copy_scaled_coeff(density_response, response, transitions, &
+                                                    density_weight_power)
+      density_response%coeff_re(:) = density_scale*density_response%coeff_re(:)
+      density_response%coeff_im(:) = density_scale*density_response%coeff_im(:)
       CALL tddfpt_kpoint_response_update_rho(qs_env, density_response, transitions, rho1, pmat_ext)
 
       DO ispin = 1, nspins
          CALL pw_zero(kernel_rspace(ispin))
       END DO
-      CALL tddfpt_apply_xc(A_ia_rspace=kernel_rspace, kernel_env=kernel_env, &
-                           rho_ia_struct=rho1, is_rks_triplets=is_rks_triplets, &
-                           pw_env=pw_env, weights=weights, &
-                           work_v_xc=work_v_xc, work_v_xc_tau=work_v_xc_tau)
+      IF (do_xc) THEN
+         CALL tddfpt_apply_xc(A_ia_rspace=kernel_rspace, kernel_env=kernel_env, &
+                              rho_ia_struct=rho1, is_rks_triplets=is_rks_triplets, &
+                              pw_env=pw_env, weights=weights, &
+                              work_v_xc=work_v_xc, work_v_xc_tau=work_v_xc_tau)
+      END IF
 
-      IF (.NOT. is_rks_triplets) THEN
+      IF (do_hartree .AND. (.NOT. is_rks_triplets)) THEN
          CALL qs_rho_get(rho1, rho_g=rho_g)
          CPASSERT(ASSOCIATED(rho_g))
          DO ispin = 2, nspins
@@ -642,7 +812,10 @@ CONTAINS
       CALL tddfpt_kpoint_hmat_from_rs(qs_env, hmat_rs, hmat_ext)
       CALL tddfpt_kpoint_response_zero(kernel_response)
       CALL tddfpt_kpoint_hmat_to_response(qs_env, transitions, hmat_ext, kernel_response)
-      CALL tddfpt_kpoint_response_add_scaled_sigma(response, kernel_response, transitions, 0.5_dp)
+      kernel_response%sigma_re(:) = sigma_scale*kernel_response%sigma_re(:)
+      kernel_response%sigma_im(:) = sigma_scale*kernel_response%sigma_im(:)
+      CALL tddfpt_kpoint_response_add_scaled_sigma(response, kernel_response, transitions, &
+                                                   sigma_weight_power)
 
       CALL tddfpt_kpoint_response_release(density_response)
 
