@@ -38,32 +38,37 @@
 # charges, and hence the transferability of the pseudopotential.
 #
 # Source format: HGH/GTH psppar, PBE (ixc=-101130).
-# CP2K c_core conversion for the NLCC entries:
+# Potential names use the GTH-MPC-PBE-qX convention to identify the
+# multipole-conserving construction. MPC and NLCC are independent concepts:
+# MPC denotes the multipole-conserving fit; selected entries additionally
+# contain an NLCC core-density correction.
+#
+# CP2K c_core conversion for entries containing an NLCC block:
 #
 #   c_core = qcore * 4*pi*(Z-Zion)/(sqrt(2*pi)*r_core)^3
 #
-# Entries intentionally omit the generic GTH-NLCC-PBE alias to avoid ambiguity
-# with CP2K's existing NLCC_POTENTIALS entries for the same elements.
+# Entries intentionally omit a generic GTH-MPC-PBE alias so each potential is
+# selected explicitly by its qX valence charge.
 #
 ################################################################################
 
 # PBE functional
 #
 # source: psppar.H; zatom=1; zion=1; date=20200603; pspcod=10; ixc=-101130
-H GTH-NLCC-PBE-q1
+H GTH-MPC-PBE-q1
        1
         0.15000000000000  2   -5.21038103601596    0.83228852908393
      0
 #
 # source: psppar.Li; zatom=3; zion=3; date=20200622; pspcod=10; ixc=-101130
-Li GTH-NLCC-PBE-q3
+Li GTH-MPC-PBE-q3
        3
         0.12911182006012  2  -20.60396614785263    3.48845388100792
      1
         0.20809331048684  1    0.06607910617214
 #
 # source: psppar.Be; zatom=4; zion=4; date=20200622; pspcod=10; ixc=-101130
-Be GTH-NLCC-PBE-q4
+Be GTH-MPC-PBE-q4
        4
         0.15757532815614  2  -24.78078699284349    4.64339750649381
      1
@@ -71,7 +76,7 @@ Be GTH-NLCC-PBE-q4
                               -0.74957083455713
 #
 # source: psppar.B; zatom=5; zion=5; date=20200514; pspcod=10; ixc=-101130
-B GTH-NLCC-PBE-q5
+B GTH-MPC-PBE-q5
        4    1
         0.10454903445746  1  -42.84494121716708
      2
@@ -80,7 +85,7 @@ B GTH-NLCC-PBE-q5
         0.11919729897286  1    3.35320424605834
 #
 # source: psppar.C; zatom=6; zion=6; date=20200603; pspcod=10; ixc=-101130
-C GTH-NLCC-PBE-q6
+C GTH-MPC-PBE-q6
        4    2
         0.10442926427019  1  -53.59126100299123
      2
@@ -89,7 +94,7 @@ C GTH-NLCC-PBE-q6
         0.11172118378821  1    5.54281105784130
 #
 # source: psppar.N; zatom=7; zion=7; date=20210605; pspcod=10; ixc=-101130
-N GTH-NLCC-PBE-q7
+N GTH-MPC-PBE-q7
        4    3
         0.11242621264024  1  -62.57195769099587
      2
@@ -98,7 +103,7 @@ N GTH-NLCC-PBE-q7
         0.11098059093681  1    9.08933712180711
 #
 # source: psppar.O; zatom=8; zion=8; date=20210608; pspcod=10; ixc=-101130
-O GTH-NLCC-PBE-q8
+O GTH-MPC-PBE-q8
        4    4
         0.11500000000015  1  -69.16126397188863
      2
@@ -107,7 +112,7 @@ O GTH-NLCC-PBE-q8
         0.11281705134658  1   10.18567031314194
 #
 # source: psppar.F; zatom=9; zion=9; date=20210608; pspcod=10; ixc=-101130
-F GTH-NLCC-PBE-q9
+F GTH-MPC-PBE-q9
        4    5
         0.11023852953561  1  -74.26457978288656
      2
@@ -116,7 +121,7 @@ F GTH-NLCC-PBE-q9
         0.10815313158517  1   10.70620830176562
 #
 # source: psppar.Na; zatom=11; zion=9; date=20200703; pspcod=12; ixc=-101130
-Na GTH-NLCC-PBE-q9
+Na GTH-MPC-PBE-q9
        3    6
         0.19629640089675  2   29.19070512573715   -5.18950946243615
     NLCC  1
@@ -129,7 +134,7 @@ Na GTH-NLCC-PBE-q9
                               -0.97270516662278
 #
 # source: psppar.Mg; zatom=12; zion=10; date=20200703; pspcod=12; ixc=-101130
-Mg GTH-NLCC-PBE-q10
+Mg GTH-MPC-PBE-q10
        4    6
         0.20161386811616  2   29.29180556655679   -5.45718102194242
     NLCC  1
@@ -142,7 +147,7 @@ Mg GTH-NLCC-PBE-q10
                               -0.48178252147845
 #
 # source: psppar.Al; zatom=13; zion=11; date=20200727; pspcod=12; ixc=-101130
-Al GTH-NLCC-PBE-q11
+Al GTH-MPC-PBE-q11
        4    7
         0.29132308902740  1   -7.66470685557861
     NLCC  1
@@ -155,7 +160,7 @@ Al GTH-NLCC-PBE-q11
                                9.24813001340789
 #
 # source: psppar.Si; zatom=14; zion=12; date=20200620; pspcod=12; ixc=-101130
-Si GTH-NLCC-PBE-q12
+Si GTH-MPC-PBE-q12
        4    8
         0.26906401643720  1   -8.24939363614006
     NLCC  1
@@ -168,7 +173,7 @@ Si GTH-NLCC-PBE-q12
                               -7.92728515844077
 #
 # source: psppar.P; zatom=15; zion=13; date=20200701; pspcod=12; ixc=-101130
-P GTH-NLCC-PBE-q13
+P GTH-MPC-PBE-q13
        4    9
         0.27035740926636  1  -10.19557516287410
     NLCC  1
@@ -181,7 +186,7 @@ P GTH-NLCC-PBE-q13
                               -9.59342829852228
 #
 # source: psppar.S; zatom=16; zion=14; date=20200702; pspcod=12; ixc=-101130
-S GTH-NLCC-PBE-q14
+S GTH-MPC-PBE-q14
        4   10
         0.22308116828748  1  -11.88690307704700
     NLCC  1
@@ -194,7 +199,7 @@ S GTH-NLCC-PBE-q14
                              -10.75061412402404
 #
 # source: psppar.Cl; zatom=17; zion=15; date=20200606; pspcod=12; ixc=-101130
-Cl GTH-NLCC-PBE-q15
+Cl GTH-MPC-PBE-q15
        4   11
         0.13591022143832  1   -0.73327853213339
     NLCC  1
@@ -207,7 +212,7 @@ Cl GTH-NLCC-PBE-q15
                               -9.90623734666835
 #
 # source: psppar.K; zatom=19; zion=9; date=20210501; pspcod=12; ixc=-101130
-K GTH-NLCC-PBE-q9
+K GTH-MPC-PBE-q9
        3    6
         0.21411637556325  2   -8.08262244072304   -2.98403510393556
     NLCC  1
@@ -221,7 +226,7 @@ K GTH-NLCC-PBE-q9
                                1.30115589130906
 #
 # source: psppar.Ca; zatom=20; zion=10; date=20210430; pspcod=12; ixc=-101130
-Ca GTH-NLCC-PBE-q10
+Ca GTH-MPC-PBE-q10
        4    6
         0.18032325728140  2   -7.96295967995462   -1.72731639619400
     NLCC  1
@@ -235,7 +240,7 @@ Ca GTH-NLCC-PBE-q10
                                1.16544921004311
 #
 # source: psppar.Sc; zatom=21; zion=11; date=20210213; pspcod=12; ixc=-101130
-Sc GTH-NLCC-PBE-q11
+Sc GTH-MPC-PBE-q11
        4    6    1
         0.34237268077427  1   -0.02293405214969
     NLCC  1
@@ -251,7 +256,7 @@ Sc GTH-NLCC-PBE-q11
                                0.99548104418498
 #
 # source: psppar.Ti; zatom=22; zion=20; date=20210126; pspcod=12; ixc=-101130
-Ti GTH-NLCC-PBE-q20
+Ti GTH-MPC-PBE-q20
        6   12    2
         0.10744537000000  0
     NLCC  1
@@ -264,7 +269,7 @@ Ti GTH-NLCC-PBE-q20
         0.25066325060363  1    0.00546616027201
 #
 # source: psppar.V; zatom=23; zion=13; date=20210411; pspcod=12; ixc=-101130
-V GTH-NLCC-PBE-q13
+V GTH-MPC-PBE-q13
        4    6    3
         0.27517762000000  0
     NLCC  1
@@ -280,7 +285,7 @@ V GTH-NLCC-PBE-q13
                                1.59939395044204
 #
 # source: psppar.Cr; zatom=24; zion=14; date=20210403; pspcod=12; ixc=-101130
-Cr GTH-NLCC-PBE-q14
+Cr GTH-MPC-PBE-q14
        3    6    5
         0.27895002000000  0
     NLCC  1
@@ -296,7 +301,7 @@ Cr GTH-NLCC-PBE-q14
                                2.18375390737332
 #
 # source: psppar.Mn; zatom=25; zion=15; date=20210411; pspcod=12; ixc=-101130
-Mn GTH-NLCC-PBE-q15
+Mn GTH-MPC-PBE-q15
        4    6    5
         0.25554276000000  0
     NLCC  1
@@ -312,7 +317,7 @@ Mn GTH-NLCC-PBE-q15
                                3.09737537357712
 #
 # source: psppar.Fe; zatom=26; zion=16; date=20210413; pspcod=12; ixc=-101130
-Fe GTH-NLCC-PBE-q16
+Fe GTH-MPC-PBE-q16
        4    6    6
         0.26127724000000  0
     NLCC  1
@@ -328,7 +333,7 @@ Fe GTH-NLCC-PBE-q16
                                2.98125114584934
 #
 # source: psppar.Co; zatom=27; zion=17; date=20210417; pspcod=12; ixc=-101130
-Co GTH-NLCC-PBE-q17
+Co GTH-MPC-PBE-q17
        4    6    7
         0.30879754000000  0
     NLCC  1
@@ -344,7 +349,7 @@ Co GTH-NLCC-PBE-q17
                               -0.40116375630101
 #
 # source: psppar.Ni; zatom=28; zion=18; date=20210416; pspcod=12; ixc=-101130
-Ni GTH-NLCC-PBE-q18
+Ni GTH-MPC-PBE-q18
        4    6    8
         0.29207407000000  0
     NLCC  1
@@ -360,7 +365,7 @@ Ni GTH-NLCC-PBE-q18
                               -0.02454477867206
 #
 # source: psppar.Cu; zatom=29; zion=19; date=20210215; pspcod=12; ixc=-101130
-Cu GTH-NLCC-PBE-q19
+Cu GTH-MPC-PBE-q19
        3    6   10
         0.29769235000000  0
     NLCC  1
@@ -376,7 +381,7 @@ Cu GTH-NLCC-PBE-q19
                                0.40559430828437
 #
 # source: psppar.Zn; zatom=30; zion=20; date=20210202; pspcod=12; ixc=-101130
-Zn GTH-NLCC-PBE-q20
+Zn GTH-MPC-PBE-q20
        4    6   10
         0.21554424762735  1   20.19788806953730
     NLCC  1
@@ -392,7 +397,7 @@ Zn GTH-NLCC-PBE-q20
                               -3.96556814856214
 #
 # source: psppar.Ga; zatom=31; zion=21; date=20210528; pspcod=12; ixc=-101130
-Ga GTH-NLCC-PBE-q21
+Ga GTH-MPC-PBE-q21
        4    7   10
         0.36641431496237  1   -0.88720709408953
     NLCC  1
@@ -406,7 +411,7 @@ Ga GTH-NLCC-PBE-q21
         0.19290174061420  1  -17.47814217032260
 #
 # source: psppar.Ge; zatom=32; zion=22; date=20210602; pspcod=12; ixc=-101130
-Ge GTH-NLCC-PBE-q22
+Ge GTH-MPC-PBE-q22
        4    8   10
         0.36092490694740  1   -9.36717581275619
     NLCC  1
@@ -420,7 +425,7 @@ Ge GTH-NLCC-PBE-q22
         0.14776418400871  1  -27.35168765267485
 #
 # source: psppar.As; zatom=33; zion=23; date=20210526; pspcod=12; ixc=-101130
-As GTH-NLCC-PBE-q23
+As GTH-MPC-PBE-q23
        4    9   10
         0.38930422494739  1   -8.84402538556668
     NLCC  1
@@ -434,7 +439,7 @@ As GTH-NLCC-PBE-q23
         0.15761934762306  1  -27.23545239095241
 #
 # source: psppar.Se; zatom=34; zion=24; date=20210529; pspcod=12; ixc=-101130
-Se GTH-NLCC-PBE-q24
+Se GTH-MPC-PBE-q24
        4   10   10
         0.36876605403135  1   -9.88416113558777
     NLCC  1
@@ -448,7 +453,7 @@ Se GTH-NLCC-PBE-q24
         0.14938899638735  1  -29.81887721481769
 #
 # source: psppar.Br; zatom=35; zion=25; date=20210510; pspcod=12; ixc=-101130
-Br GTH-NLCC-PBE-q25
+Br GTH-MPC-PBE-q25
        4   11   10
         0.36575679715774  1  -10.14591893309538
     NLCC  1
@@ -462,7 +467,7 @@ Br GTH-NLCC-PBE-q25
         0.14724683817521  1  -32.18275038820432
 #
 # source: psppar.Y; zatom=39; zion=11; date=20220909; pspcod=12; ixc=-101130
-Y GTH-NLCC-PBE-q11
+Y GTH-MPC-PBE-q11
        4    6    1
         0.47818621899480  1    0.94522820897045
     NLCC  1
@@ -478,7 +483,7 @@ Y GTH-NLCC-PBE-q11
                                1.71135028433087
 #
 # source: psppar_PBE_NR_MPC.Au; zatom=79; zion=33; date=20231215; pspcod=12; ixc=-101130
-Au GTH-NLCC-PBE-q33
+Au GTH-MPC-PBE-q33
        3    6   10   14
         0.28044482859388  1   23.08556154084568
     NLCC  1
