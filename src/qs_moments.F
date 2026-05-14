@@ -38,8 +38,8 @@ MODULE qs_moments
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: &
       dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
-      dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-      dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+      dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
+      dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib, ONLY: dbcsr_dot, &
                                dbcsr_trace
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -65,7 +65,8 @@ MODULE qs_moments
    USE kpoint_k_r_trafo_simple, ONLY: replicate_rs_matrices, &
                                       rs_to_kp
    USE kpoint_methods, ONLY: kpoint_init_cell_index, &
-                             kpoint_initialize
+                             kpoint_initialize, &
+                             rskp_transform
    USE kpoint_types, ONLY: get_kpoint_info, &
                            kpoint_type, &
                            kpoint_create, &
@@ -3616,6 +3617,58 @@ CONTAINS
    END SUBROUTINE build_local_moment_matrix_rs_img
 
 ! **************************************************************************************************
+!> \brief Copy the real and imaginary parts of a k-point DBCSR matrix to a dense array.
+!> \param rmatrix ...
+!> \param cmatrix ...
+!> \param array_out ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE copy_kpoint_dbcsr_to_array(rmatrix, cmatrix, array_out, para_env)
+      TYPE(dbcsr_type)                                   :: rmatrix, cmatrix
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: array_out
+
+      INTEGER                                            :: col_offset, col_size, i, i_g, iatom, &
+                                                            j, j_g, jatom, nblkcols, nblkrows, &
+                                                            row_offset, row_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_offsets, row_offsets
+      LOGICAL                                            :: found_c, found_r
+      REAL(KIND=dp)                                      :: cval
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock
+
+      CALL dbcsr_get_info(rmatrix, nblkrows_total=nblkrows, nblkcols_total=nblkcols, &
+                          row_blk_offset=row_offsets, col_blk_offset=col_offsets)
+
+      array_out = z_zero
+      DO iatom = 1, nblkrows
+         DO jatom = iatom, nblkcols
+            CALL dbcsr_get_block_p(matrix=rmatrix, row=iatom, col=jatom, block=rblock, &
+                                   row_size=row_size, col_size=col_size, found=found_r)
+            IF (.NOT. found_r) CYCLE
+            CALL dbcsr_get_block_p(matrix=cmatrix, row=iatom, col=jatom, block=cblock, &
+                                   found=found_c)
+
+            row_offset = row_offsets(iatom)
+            col_offset = col_offsets(jatom)
+            DO i = 1, row_size
+               i_g = i + row_offset - 1
+               DO j = 1, col_size
+                  j_g = j + col_offset - 1
+                  cval = 0.0_dp
+                  IF (found_c) cval = cblock(i, j)
+                  array_out(i_g, j_g) = CMPLX(rblock(i, j), cval, KIND=dp)
+                  IF (iatom /= jatom) THEN
+                     array_out(j_g, i_g) = CMPLX(rblock(i, j), -cval, KIND=dp)
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+      CALL para_env%sum(array_out)
+
+   END SUBROUTINE copy_kpoint_dbcsr_to_array
+
+! **************************************************************************************************
 !> \brief Calculates the dipole moments and berry curvature for periodic systems for kpoints
 !> \param qs_env ...
 !> \param xkp list of kpoints
@@ -3634,7 +3687,9 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: phase, tmp_max
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_k, H_k, S_k, D_k, CDC, C_dH_C, &
                                                             C_dS_C, dH_dk_i, dS_dk_i
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip, S_k_all
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+         ALLOCATABLE                                     :: H_k_all
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole
       INTEGER                                            :: handle, i_dir, ikp, nkp, &
@@ -3656,12 +3711,13 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_rs_img, matrix_ks_kp, &
                                                             matrix_s_kp
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all
+         POINTER                                         :: sab_all, sab_kp_scf
 
       CALL timeset(routineN, handle)
       calc_bc = PRESENT(berry_c)
@@ -3680,8 +3736,11 @@ CONTAINS
                       dft_control=dft_control, &
                       mos=mos)
 
+      NULLIFY (cmatrix, rmatrix, sab_kp_scf)
       CALL get_mo_set(mo_set=mos(1), nao=nao)
       CALL get_cell(cell=cell, h=hmat, periodic=periodic)
+      CALL get_kpoint_info(kpoints_scf, sab_nl=sab_kp_scf)
+      CPASSERT(ASSOCIATED(sab_kp_scf))
       nspin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
 
@@ -3708,6 +3767,47 @@ CONTAINS
       CALL replicate_rs_matrices(matrix_ks_kp, kpoints_scf, H_rs, cell_to_index_all)
       CALL replicate_rs_matrices(moments_rs_img, kpoints_all, D_rs, cell_to_index_all)
 
+      ALLOCATE (S_k_all(nkp, nao, nao), source=z_zero)
+      ALLOCATE (H_k_all(nspin, nkp, nao, nao), source=z_zero)
+
+      ALLOCATE (rmatrix, cmatrix)
+      CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp_scf)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp_scf)
+      DO ikp = 1, nkp
+         CALL dbcsr_set(rmatrix, 0.0_dp)
+         CALL dbcsr_set(cmatrix, 0.0_dp)
+         CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, &
+                             ispin=1, xkp=xkp(:, ikp), cell_to_index=kpoints_scf%cell_to_index, &
+                             sab_nl=sab_kp_scf)
+         CALL copy_kpoint_dbcsr_to_array(rmatrix, cmatrix, S_k_all(ikp, :, :), para_env)
+      END DO
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+
+      ALLOCATE (rmatrix, cmatrix)
+      CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp_scf)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp_scf)
+      DO ispin = 1, nspin
+         DO ikp = 1, nkp
+            CALL dbcsr_set(rmatrix, 0.0_dp)
+            CALL dbcsr_set(cmatrix, 0.0_dp)
+            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks_kp, &
+                                ispin=ispin, xkp=xkp(:, ikp), &
+                                cell_to_index=kpoints_scf%cell_to_index, sab_nl=sab_kp_scf)
+            CALL copy_kpoint_dbcsr_to_array(rmatrix, cmatrix, H_k_all(ispin, ikp, :, :), para_env)
+         END DO
+      END DO
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+
       mepos = 0
       num_pe = 1
       num_copy = nkp
@@ -3723,7 +3823,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
 !$OMP i_dir, dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
 !$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, periodic, &
-!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, calc_bc)
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, S_k_all, H_k_all, index_to_cell_all, hmat, calc_bc)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
       ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
       ALLOCATE (C_k(nao, nao), D_k(nao, nao), source=z_zero)
@@ -3735,10 +3835,8 @@ CONTAINS
             IF (MOD(ikp - 1, num_pe) /= mepos) CYCLE
 
             ! S^R -> S(k), H^R -> H(k)
-            S_k = 0
-            H_k = 0
-            CALL rs_to_kp(S_rs(1, :, :, :), S_k, index_to_cell_all, xkp(:, ikp))
-            CALL rs_to_kp(H_rs(ispin, :, :, :), H_k, index_to_cell_all, xkp(:, ikp))
+            S_k = S_k_all(ikp, :, :)
+            H_k = H_k_all(ispin, ikp, :, :)
 
             ! Diagonalize H(k)C(k) = S(k)C(k)ε(k)
             CALL geeig_right(H_k, S_k, eigenvals, C_k)
@@ -3807,7 +3905,7 @@ CONTAINS
       DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, S_k, H_k, C_k, D_k, eigenvals)
       IF (calc_bc) DEALLOCATE (bc)
 !$OMP END PARALLEL
-      DEALLOCATE (S_rs, H_rs, D_rs)
+      DEALLOCATE (S_rs, H_rs, D_rs, S_k_all, H_k_all)
       CALL dbcsr_deallocate_matrix_set(moments_rs_img)
       CALL kpoint_release(kpoints_all)
       CALL timestop(handle)
