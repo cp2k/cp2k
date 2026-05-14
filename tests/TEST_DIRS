@@ -45,7 +45,7 @@ QS/regtest-debug-6                                          libint !ifx
 QS/regtest-rtp-5
 QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-gpw-3
-DFTB/regtest-scc
+DFTB/regtest-scc                                            spglib
 DFTB/regtest-scc-spglib                                     spglib
 Fist/regtest-opt
 QS/regtest-ec                                               libint libvori !ifx
@@ -58,7 +58,7 @@ QS/regtest-openpmd                                          openpmd
 QS/regtest-ec-force                                         libint !ifx
 QS/regtest-embed                                            libint !ifx
 xTB/regtest-5
-xTB/regtest-gfn1-d
+xTB/regtest-gfn1-d                                          spglib
 QS/regtest-gpw-2-3
 QS/regtest-p-efield
 SIRIUS/regtest-1                                            sirius
@@ -193,7 +193,7 @@ xTB/regtest-3-spglib                                        spglib
 QS/regtest-debug-3                                          libint libxc !ifx
 QS/regtest-lrigpw-2
 QS/regtest-hybrid-4                                         libint libxc !ifx
-DFTB/regtest-scc-2
+DFTB/regtest-scc-2                                          spglib
 QMMM/QS/regtest-3
 QS/regtest-grid
 QS/regtest-mp2-stress                                       libint !ifx
