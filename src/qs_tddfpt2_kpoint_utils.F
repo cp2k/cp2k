@@ -7,6 +7,10 @@
 
 MODULE qs_tddfpt2_kpoint_utils
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_p_type,&
@@ -47,7 +51,8 @@ MODULE qs_tddfpt2_kpoint_utils
              tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
              tddfpt_kpoint_response_normalize, tddfpt_kpoint_response_project_out, &
              tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
-             tddfpt_kpoint_response_zero, tddfpt_kpoint_transition_offset
+             tddfpt_kpoint_response_to_pmat, tddfpt_kpoint_response_zero, &
+             tddfpt_kpoint_transition_offset
 
 CONTAINS
 
@@ -212,6 +217,121 @@ CONTAINS
                              REAL(coeff, dp)*basis%coeff_im(:) - AIMAG(coeff)*basis%coeff_re(:)
 
    END SUBROUTINE tddfpt_kpoint_response_project_out
+
+! **************************************************************************************************
+!> \brief Build AO transition-density matrices from a k-point TDDFPT response vector.
+!> \param qs_env ...
+!> \param response ...
+!> \param transitions ...
+!> \param pmat_ext ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_to_pmat(qs_env, response, transitions, pmat_ext)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: response
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      TYPE(cp_fm_type), DIMENSION(:, :, :), &
+         INTENT(inout)                                   :: pmat_ext
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_kpoint_response_to_pmat'
+
+      INTEGER                                            :: handle, ikp, ikp_local, ispin, itrans, &
+                                                            nao, nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: my_kpgrp
+      REAL(kind=dp)                                      :: xi, xr
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta_im, delta_re, density_im, &
+                                                            density_re, occ_im, occ_re, virt_im, &
+                                                            virt_re
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, kp, kp_env, kpoints, mo_coeff_im, mo_coeff_re, mos_kp)
+      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(response%ntrans == SIZE(transitions))
+      CPASSERT(SIZE(pmat_ext, 2) >= 2)
+
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_env=kp_env)
+      CPASSERT(ASSOCIATED(kp_env))
+
+      nspins = dft_control%nspins
+      CPASSERT(SIZE(pmat_ext, 3) >= nspins)
+
+      DO ikp_local = 1, SIZE(pmat_ext, 1)
+         DO ispin = 1, nspins
+            CALL cp_fm_set_all(pmat_ext(ikp_local, 1, ispin), 0.0_dp)
+            CALL cp_fm_set_all(pmat_ext(ikp_local, 2, ispin), 0.0_dp)
+         END DO
+      END DO
+
+      DO ikp = 1, kpoints%nkp
+         my_kpgrp = (ikp >= kp_range(1) .AND. ikp <= kp_range(2))
+         IF (.NOT. my_kpgrp) CYCLE
+         ikp_local = ikp - kp_range(1) + 1
+         kp => kp_env(ikp_local)%kpoint_env
+         mos_kp => kp%mos
+         CPASSERT(ASSOCIATED(mos_kp))
+
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re, nao=nao)
+            CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+            CPASSERT(ASSOCIATED(mo_coeff_re))
+            CPASSERT(ASSOCIATED(mo_coeff_im))
+
+            ALLOCATE (density_re(nao, nao), density_im(nao, nao), delta_re(nao, 1), &
+                      delta_im(nao, 1), occ_re(nao, 1), occ_im(nao, 1), &
+                      virt_re(nao, 1), virt_im(nao, 1))
+            density_re = 0.0_dp
+            density_im = 0.0_dp
+
+            DO itrans = 1, response%ntrans
+               IF (transitions(itrans)%ikp /= ikp) CYCLE
+               IF (transitions(itrans)%ispin /= ispin) CYCLE
+               xr = response%coeff_re(itrans)
+               xi = response%coeff_im(itrans)
+               IF (xr == 0.0_dp .AND. xi == 0.0_dp) CYCLE
+
+               CALL cp_fm_get_submatrix(mo_coeff_re, occ_re, start_row=1, &
+                                        start_col=transitions(itrans)%iocc, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_im, occ_im, start_row=1, &
+                                        start_col=transitions(itrans)%iocc, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_re, virt_re, start_row=1, &
+                                        start_col=transitions(itrans)%ivirt, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_im, virt_im, start_row=1, &
+                                        start_col=transitions(itrans)%ivirt, n_rows=nao, n_cols=1)
+
+               delta_re(:, 1) = xr*virt_re(:, 1) - xi*virt_im(:, 1)
+               delta_im(:, 1) = xr*virt_im(:, 1) + xi*virt_re(:, 1)
+
+               density_re = density_re + MATMUL(occ_re, TRANSPOSE(delta_re)) + &
+                            MATMUL(occ_im, TRANSPOSE(delta_im)) + &
+                            MATMUL(delta_re, TRANSPOSE(occ_re)) + &
+                            MATMUL(delta_im, TRANSPOSE(occ_im))
+               density_im = density_im + MATMUL(occ_im, TRANSPOSE(delta_re)) - &
+                            MATMUL(occ_re, TRANSPOSE(delta_im)) + &
+                            MATMUL(delta_im, TRANSPOSE(occ_re)) - &
+                            MATMUL(delta_re, TRANSPOSE(occ_im))
+            END DO
+
+            CALL cp_fm_set_submatrix(pmat_ext(ikp_local, 1, ispin), density_re, &
+                                     start_row=1, start_col=1, n_rows=nao, n_cols=nao)
+            CALL cp_fm_set_submatrix(pmat_ext(ikp_local, 2, ispin), density_im, &
+                                     start_row=1, start_col=1, n_rows=nao, n_cols=nao)
+            DEALLOCATE (density_re, density_im, delta_re, delta_im, occ_re, occ_im, virt_re, virt_im)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_kpoint_response_to_pmat
 
 ! **************************************************************************************************
 !> \brief Return the zero-based transition offset of a spin block within a single k point.
