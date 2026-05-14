@@ -22,7 +22,7 @@ MODULE qs_tddfpt2_kpoint_full
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE mathlib,                         ONLY: diag_complex
+   USE mathlib,                         ONLY: diag
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -50,11 +50,13 @@ MODULE qs_tddfpt2_kpoint_full
         tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_create_matrix_set, &
         tddfpt_kpoint_hmat_from_rs, tddfpt_kpoint_hmat_to_response, &
         tddfpt_kpoint_init_transitions, tddfpt_kpoint_release_matrix_set, &
+        tddfpt_kpoint_response_add_scaled_sigma, tddfpt_kpoint_response_copy_scaled_coeff, &
         tddfpt_kpoint_response_create, tddfpt_kpoint_response_release, &
         tddfpt_kpoint_response_set_unit, tddfpt_kpoint_response_type, &
         tddfpt_kpoint_response_update_rho, tddfpt_kpoint_response_zero, &
         tddfpt_kpoint_transition_type
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_xc
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,13 +84,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_full_reference'
 
-      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors, kernel_matrix
       INTEGER                                            :: handle, ikernel, img, ispin, istate, &
-                                                            itrans, log_unit, nimages, nstates, &
-                                                            ntrans_kpoint, ntrans_total
+                                                            itrans, log_unit, nimages, nresponse, &
+                                                            nstates, ntrans_kpoint, ntrans_total
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(2)                              :: homo_spin, nao_spin, nmo_spin, nvirt_spin
-      REAL(kind=dp)                                      :: checksum
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      REAL(kind=dp)                                      :: checksum, symmetry_error
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, sorted_evals
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvectors, kernel_matrix
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: hmat_ext, pmat_ext
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: hmat_rs, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -135,8 +138,9 @@ CONTAINS
       MARK_USED(nvirt_spin)
       MARK_USED(nao_spin)
       ntrans_total = SIZE(transitions)
-      nstates = MIN(tddfpt_control%nstates, ntrans_total)
-      IF (tddfpt_control%nstates > ntrans_total) THEN
+      nresponse = 2*ntrans_total
+      nstates = MIN(tddfpt_control%nstates, nresponse)
+      IF (tddfpt_control%nstates > nresponse) THEN
          CPWARN("Requested more TDDFPT states than k-point occupied-virtual transitions")
       END IF
 
@@ -175,9 +179,9 @@ CONTAINS
       CALL auxbas_pw_pool%create_pw(hartree_rspace)
       CALL auxbas_pw_pool%create_pw(work_v_gspace)
 
-      ALLOCATE (kernel_matrix(ntrans_total, ntrans_total), eigenvectors(ntrans_total, ntrans_total), &
-                evals(ntrans_total))
-      kernel_matrix = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      ALLOCATE (kernel_matrix(nresponse, nresponse), eigenvectors(nresponse, nresponse), &
+                evals(nresponse), sorted_evals(nresponse), inds(nresponse))
+      kernel_matrix = 0.0_dp
 
       DO itrans = 1, ntrans_total
          CALL tddfpt_kpoint_response_set_unit(column_response, itrans)
@@ -186,14 +190,30 @@ CONTAINS
                                  rho1, pmat_ext, hmat_rs, hmat_ext, kernel_rspace, work_v_xc, &
                                  work_v_xc_tau, hartree_rspace, work_v_gspace, poisson_env, &
                                  tddfpt_control%rks_triplets)
-         kernel_matrix(:, itrans) = CMPLX(column_response%sigma_re(:), column_response%sigma_im(:), &
-                                          KIND=dp)
+         kernel_matrix(1:ntrans_total, itrans) = column_response%sigma_re(:)
+         kernel_matrix(ntrans_total + 1:nresponse, itrans) = column_response%sigma_im(:)
+
+         CALL tddfpt_kpoint_response_set_unit(column_response, itrans, imaginary=.TRUE.)
+         CALL tddfpt_kpoint_apply_energy_diff(column_response, transitions)
+         CALL apply_local_kernel(qs_env, column_response, kernel_response, transitions, kernel_env, &
+                                 rho1, pmat_ext, hmat_rs, hmat_ext, kernel_rspace, work_v_xc, &
+                                 work_v_xc_tau, hartree_rspace, work_v_gspace, poisson_env, &
+                                 tddfpt_control%rks_triplets)
+         kernel_matrix(1:ntrans_total, ntrans_total + itrans) = column_response%sigma_re(:)
+         kernel_matrix(ntrans_total + 1:nresponse, ntrans_total + itrans) = &
+            column_response%sigma_im(:)
       END DO
 
-      kernel_matrix(:, :) = 0.5_dp*(kernel_matrix(:, :) + CONJG(TRANSPOSE(kernel_matrix(:, :))))
-      CALL diag_complex(kernel_matrix, eigenvectors, evals)
+      symmetry_error = MAXVAL(ABS(kernel_matrix(:, :) - TRANSPOSE(kernel_matrix(:, :))))
+      IF (symmetry_error > 1.0E-6_dp) THEN
+         CPWARN("K-point TDDFPT full-kernel matrix is not symmetric within the S(k) metric")
+      END IF
+      kernel_matrix(:, :) = 0.5_dp*(kernel_matrix(:, :) + TRANSPOSE(kernel_matrix(:, :)))
+      CALL diag(nresponse, kernel_matrix, evals, eigenvectors)
+      sorted_evals(:) = evals(:)
+      CALL sort(sorted_evals, nresponse, inds)
 
-      checksum = SQRT(SUM(evals(1:nstates)**2))
+      checksum = SQRT(SUM(sorted_evals(1:nstates)**2))
       log_unit = cp_logger_get_default_io_unit(logger)
       IF (log_unit > 0) THEN
          WRITE (log_unit, "(1X,A)") "", &
@@ -202,6 +222,7 @@ CONTAINS
             "-------------------------------------------------------------------------------"
          WRITE (log_unit, "(1X,A)") &
             "Explicit full transition-space reference solver; HFX, SOC, smearing and metals are guarded."
+         WRITE (log_unit, "(1X,A,ES12.4E2)") "Metric symmetry error:", symmetry_error
          WRITE (log_unit, '(/,T10,A,T19,A,T39,A)') "State", "Excitation", "Dominant transition"
          WRITE (log_unit, '(T10,A,T19,A,T39,A,T48,A,T57,A,T66,A)') "number", "energy (eV)", &
             "k", "spin", "occ", "virt"
@@ -209,10 +230,11 @@ CONTAINS
       END IF
 
       DO istate = 1, nstates
-         ikernel = MAXLOC(ABS(eigenvectors(:, istate)), DIM=1)
+         ikernel = MAXLOC(ABS(eigenvectors(1:ntrans_total, inds(istate))) + &
+                          ABS(eigenvectors(ntrans_total + 1:nresponse, inds(istate))), DIM=1)
          IF (log_unit > 0) THEN
             WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T39,I7,T48,I7,T57,I7,T66,I7)') &
-               "TDDFPT|", istate, evals(istate)*evolt, transitions(ikernel)%ikp, &
+               "TDDFPT|", istate, sorted_evals(istate)*evolt, transitions(ikernel)%ikp, &
                transitions(ikernel)%ispin, transitions(ikernel)%iocc, transitions(ikernel)%ivirt
          END IF
       END DO
@@ -241,7 +263,7 @@ CONTAINS
       CALL release_kernel_env(kernel_env_ptr)
       CALL qs_rho_release(rho1)
       DEALLOCATE (rho1)
-      DEALLOCATE (eigenvectors, evals, kernel_matrix, transitions)
+      DEALLOCATE (eigenvectors, evals, inds, kernel_matrix, sorted_evals, transitions)
 
       CALL timestop(handle)
 
@@ -289,14 +311,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_local_kernel'
 
-      INTEGER                                            :: handle, img, ispin, itrans, nspins
+      INTEGER                                            :: handle, img, ispin, nspins
       REAL(kind=dp)                                      :: alpha, ehartree
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hmat_spin
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_r3d_rs_type), POINTER                      :: weights
-      TYPE(tddfpt_kpoint_response_type)                  :: weighted_response
+      TYPE(tddfpt_kpoint_response_type)                  :: density_response
 
       CALL timeset(routineN, handle)
 
@@ -306,10 +328,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       nspins = dft_control%nspins
 
-      CALL tddfpt_kpoint_response_create(weighted_response, response%ntrans)
-      weighted_response%coeff_re(:) = SQRT(transitions(:)%weight)*response%coeff_re(:)
-      weighted_response%coeff_im(:) = SQRT(transitions(:)%weight)*response%coeff_im(:)
-      CALL tddfpt_kpoint_response_update_rho(qs_env, weighted_response, transitions, rho1, pmat_ext)
+      CALL tddfpt_kpoint_response_create(density_response, response%ntrans)
+      CALL tddfpt_kpoint_response_copy_scaled_coeff(density_response, response, transitions, -0.5_dp)
+      CALL tddfpt_kpoint_response_update_rho(qs_env, density_response, transitions, rho1, pmat_ext)
 
       DO ispin = 1, nspins
          CALL pw_zero(kernel_rspace(ispin))
@@ -350,14 +371,9 @@ CONTAINS
       CALL tddfpt_kpoint_hmat_from_rs(qs_env, hmat_rs, hmat_ext)
       CALL tddfpt_kpoint_response_zero(kernel_response)
       CALL tddfpt_kpoint_hmat_to_response(qs_env, transitions, hmat_ext, kernel_response)
-      DO itrans = 1, response%ntrans
-         response%sigma_re(itrans) = response%sigma_re(itrans) + &
-                                     SQRT(transitions(itrans)%weight)*kernel_response%sigma_re(itrans)
-         response%sigma_im(itrans) = response%sigma_im(itrans) + &
-                                     SQRT(transitions(itrans)%weight)*kernel_response%sigma_im(itrans)
-      END DO
+      CALL tddfpt_kpoint_response_add_scaled_sigma(response, kernel_response, transitions, 0.5_dp)
 
-      CALL tddfpt_kpoint_response_release(weighted_response)
+      CALL tddfpt_kpoint_response_release(density_response)
 
       CALL timestop(handle)
 

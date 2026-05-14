@@ -74,7 +74,9 @@ MODULE qs_tddfpt2_kpoint_utils
    PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_create_matrix_set, &
              tddfpt_kpoint_hmat_from_rs, tddfpt_kpoint_hmat_to_response, &
              tddfpt_kpoint_init_transitions, tddfpt_kpoint_release_matrix_set, &
-             tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
+             tddfpt_kpoint_response_add_scaled_sigma, &
+             tddfpt_kpoint_response_copy_scaled_coeff, tddfpt_kpoint_response_create, &
+             tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
              tddfpt_kpoint_response_normalize, tddfpt_kpoint_response_project_out, &
              tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
              tddfpt_kpoint_response_to_pmat, tddfpt_kpoint_response_update_rho, &
@@ -204,19 +206,30 @@ CONTAINS
    END SUBROUTINE tddfpt_kpoint_response_zero
 
 ! **************************************************************************************************
-!> \brief Set a single real unit transition in a k-point TDDFPT response vector.
+!> \brief Set a single real or imaginary unit transition in a k-point TDDFPT response vector.
 !> \param response ...
 !> \param itrans ...
+!> \param imaginary ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_kpoint_response_set_unit(response, itrans)
+   SUBROUTINE tddfpt_kpoint_response_set_unit(response, itrans, imaginary)
       TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
       INTEGER, INTENT(in)                                :: itrans
+      LOGICAL, INTENT(in), OPTIONAL                      :: imaginary
+
+      LOGICAL                                            :: use_imaginary
 
       CPASSERT(itrans >= 1)
       CPASSERT(itrans <= response%ntrans)
 
+      use_imaginary = .FALSE.
+      IF (PRESENT(imaginary)) use_imaginary = imaginary
+
       CALL tddfpt_kpoint_response_zero(response)
-      response%coeff_re(itrans) = 1.0_dp
+      IF (use_imaginary) THEN
+         response%coeff_im(itrans) = 1.0_dp
+      ELSE
+         response%coeff_re(itrans) = 1.0_dp
+      END IF
 
    END SUBROUTINE tddfpt_kpoint_response_set_unit
 
@@ -319,6 +332,65 @@ CONTAINS
    END SUBROUTINE tddfpt_kpoint_response_project_out
 
 ! **************************************************************************************************
+!> \brief Copy response coefficients with a k-weight metric scaling.
+!> \param dest ...
+!> \param source ...
+!> \param transitions ...
+!> \param weight_power ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_copy_scaled_coeff(dest, source, transitions, weight_power)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: dest
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: source
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      REAL(kind=dp), INTENT(in)                          :: weight_power
+
+      INTEGER                                            :: itrans
+      REAL(kind=dp)                                      :: scale
+
+      CPASSERT(dest%ntrans == source%ntrans)
+      CPASSERT(dest%ntrans == SIZE(transitions))
+
+      CALL tddfpt_kpoint_response_zero(dest)
+      DO itrans = 1, dest%ntrans
+         CPASSERT(transitions(itrans)%weight > 0.0_dp)
+         scale = transitions(itrans)%weight**weight_power
+         dest%coeff_re(itrans) = scale*source%coeff_re(itrans)
+         dest%coeff_im(itrans) = scale*source%coeff_im(itrans)
+      END DO
+
+   END SUBROUTINE tddfpt_kpoint_response_copy_scaled_coeff
+
+! **************************************************************************************************
+!> \brief Accumulate an operator result with a k-weight metric scaling.
+!> \param dest ...
+!> \param source ...
+!> \param transitions ...
+!> \param weight_power ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_add_scaled_sigma(dest, source, transitions, weight_power)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: dest
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: source
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      REAL(kind=dp), INTENT(in)                          :: weight_power
+
+      INTEGER                                            :: itrans
+      REAL(kind=dp)                                      :: scale
+
+      CPASSERT(dest%ntrans == source%ntrans)
+      CPASSERT(dest%ntrans == SIZE(transitions))
+
+      DO itrans = 1, dest%ntrans
+         CPASSERT(transitions(itrans)%weight > 0.0_dp)
+         scale = transitions(itrans)%weight**weight_power
+         dest%sigma_re(itrans) = dest%sigma_re(itrans) + scale*source%sigma_re(itrans)
+         dest%sigma_im(itrans) = dest%sigma_im(itrans) + scale*source%sigma_im(itrans)
+      END DO
+
+   END SUBROUTINE tddfpt_kpoint_response_add_scaled_sigma
+
+! **************************************************************************************************
 !> \brief Build AO transition-density matrices from a k-point TDDFPT response vector.
 !> \param qs_env ...
 !> \param response ...
@@ -411,14 +483,14 @@ CONTAINS
                delta_re(:, 1) = xr*virt_re(:, 1) - xi*virt_im(:, 1)
                delta_im(:, 1) = xr*virt_im(:, 1) + xi*virt_re(:, 1)
 
-               density_re = density_re + MATMUL(occ_re, TRANSPOSE(delta_re)) + &
-                            MATMUL(occ_im, TRANSPOSE(delta_im)) + &
-                            MATMUL(delta_re, TRANSPOSE(occ_re)) + &
-                            MATMUL(delta_im, TRANSPOSE(occ_im))
-               density_im = density_im + MATMUL(occ_im, TRANSPOSE(delta_re)) - &
-                            MATMUL(occ_re, TRANSPOSE(delta_im)) + &
-                            MATMUL(delta_im, TRANSPOSE(occ_re)) - &
-                            MATMUL(delta_re, TRANSPOSE(occ_im))
+               density_re = density_re + 0.5_dp*(MATMUL(occ_re, TRANSPOSE(delta_re)) + &
+                                                 MATMUL(occ_im, TRANSPOSE(delta_im)) + &
+                                                 MATMUL(delta_re, TRANSPOSE(occ_re)) + &
+                                                 MATMUL(delta_im, TRANSPOSE(occ_im)))
+               density_im = density_im + 0.5_dp*(MATMUL(occ_im, TRANSPOSE(delta_re)) - &
+                                                 MATMUL(occ_re, TRANSPOSE(delta_im)) + &
+                                                 MATMUL(delta_im, TRANSPOSE(occ_re)) - &
+                                                 MATMUL(delta_re, TRANSPOSE(occ_im)))
             END DO
 
             CALL cp_fm_set_submatrix(pmat_ext(ikp_local, 1, ispin), density_re, &
