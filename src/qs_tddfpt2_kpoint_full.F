@@ -587,9 +587,9 @@ CONTAINS
 
       ALLOCATE (rmatrix, cmatrix)
       CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
                         matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
       CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
 
