@@ -6,12 +6,31 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_kpoint_utils
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: kpoint_density_transform,&
+                                              rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
@@ -21,6 +40,11 @@ MODULE qs_tddfpt2_kpoint_utils
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
+                                              qs_rho_update_tddfpt
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,15 +71,90 @@ MODULE qs_tddfpt2_kpoint_utils
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: sigma_im
    END TYPE tddfpt_kpoint_response_type
 
-   PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_hmat_to_response, &
-             tddfpt_kpoint_init_transitions, &
+   PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_create_matrix_set, &
+             tddfpt_kpoint_hmat_from_rs, tddfpt_kpoint_hmat_to_response, &
+             tddfpt_kpoint_init_transitions, tddfpt_kpoint_release_matrix_set, &
              tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
              tddfpt_kpoint_response_normalize, tddfpt_kpoint_response_project_out, &
              tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
-             tddfpt_kpoint_response_to_pmat, tddfpt_kpoint_response_zero, &
+             tddfpt_kpoint_response_to_pmat, tddfpt_kpoint_response_update_rho, &
+             tddfpt_kpoint_response_zero, &
              tddfpt_kpoint_transition_offset
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Allocate a local k-point AO dense matrix set with the same distribution as kp%pmat.
+!> \param qs_env ...
+!> \param matrix_set ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_create_matrix_set(qs_env, matrix_set)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(out)                 :: matrix_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_kpoint_create_matrix_set'
+
+      INTEGER                                            :: handle, ic, ikp_local, ispin, nkp_local, &
+                                                            nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, kp, kp_env, kpoints, matrix_struct)
+      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(kpoints))
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_env=kp_env)
+      CPASSERT(ASSOCIATED(kp_env))
+
+      nspins = dft_control%nspins
+      nkp_local = MAX(0, kp_range(2) - kp_range(1) + 1)
+      ALLOCATE (matrix_set(nkp_local, 2, nspins))
+
+      DO ikp_local = 1, nkp_local
+         kp => kp_env(ikp_local)%kpoint_env
+         CPASSERT(ASSOCIATED(kp))
+         DO ic = 1, 2
+            DO ispin = 1, nspins
+               CALL cp_fm_get_info(kp%pmat(ic, ispin), matrix_struct=matrix_struct)
+               CALL cp_fm_create(matrix_set(ikp_local, ic, ispin), matrix_struct)
+               CALL cp_fm_set_all(matrix_set(ikp_local, ic, ispin), 0.0_dp)
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_kpoint_create_matrix_set
+
+! **************************************************************************************************
+!> \brief Release a local k-point AO dense matrix set.
+!> \param matrix_set ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_release_matrix_set(matrix_set)
+      TYPE(cp_fm_type), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(inout)               :: matrix_set
+
+      INTEGER                                            :: ic, ikp_local, ispin
+
+      IF (ALLOCATED(matrix_set)) THEN
+         DO ikp_local = 1, SIZE(matrix_set, 1)
+            DO ic = 1, SIZE(matrix_set, 2)
+               DO ispin = 1, SIZE(matrix_set, 3)
+                  CALL cp_fm_release(matrix_set(ikp_local, ic, ispin))
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (matrix_set)
+      END IF
+
+   END SUBROUTINE tddfpt_kpoint_release_matrix_set
 
 ! **************************************************************************************************
 !> \brief Allocate a k-point TDDFPT response vector in transition space.
@@ -335,6 +434,138 @@ CONTAINS
    END SUBROUTINE tddfpt_kpoint_response_to_pmat
 
 ! **************************************************************************************************
+!> \brief Build and collocate a real-space response density from a k-point response vector.
+!> \param qs_env ...
+!> \param response ...
+!> \param transitions ...
+!> \param rho1 ...
+!> \param pmat_ext ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_update_rho(qs_env, response, transitions, rho1, pmat_ext)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: response
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      TYPE(qs_rho_type), POINTER                         :: rho1
+      TYPE(cp_fm_type), DIMENSION(:, :, :), &
+         INTENT(inout)                                   :: pmat_ext
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_kpoint_response_update_rho'
+
+      INTEGER                                            :: handle, ic, nao
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_all
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fmwork
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho1_ao
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_kp
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (blacs_env_all, fm_struct, kpoints, matrix_s_kp, para_env, rho1_ao, sab_kp)
+      CPASSERT(ASSOCIATED(rho1))
+      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(ASSOCIATED(matrix_s_kp))
+      CALL get_kpoint_info(kpoints, blacs_env_all=blacs_env_all, para_env=para_env, sab_nl=sab_kp)
+      CPASSERT(ASSOCIATED(blacs_env_all))
+      CPASSERT(ASSOCIATED(para_env))
+      CPASSERT(ASSOCIATED(sab_kp))
+
+      CALL tddfpt_kpoint_response_to_pmat(qs_env, response, transitions, pmat_ext)
+
+      CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.TRUE., rebuild_grids=.TRUE.)
+      CALL qs_rho_get(rho1, rho_ao_kp=rho1_ao)
+      CPASSERT(ASSOCIATED(rho1_ao))
+
+      CALL dbcsr_get_info(matrix_s_kp(1, 1)%matrix, nfullrows_total=nao)
+      ALLOCATE (fmwork(2))
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, &
+                               para_env=para_env, context=blacs_env_all)
+      DO ic = 1, 2
+         CALL cp_fm_create(fmwork(ic), fm_struct)
+      END DO
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL kpoint_density_transform(kpoints, rho1_ao, .FALSE., matrix_s_kp(1, 1)%matrix, &
+                                    sab_kp, fmwork, pmat_ext=pmat_ext)
+      CALL qs_rho_update_tddfpt(rho1, qs_env)
+
+      DO ic = 1, 2
+         CALL cp_fm_release(fmwork(ic))
+      END DO
+      DEALLOCATE (fmwork)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_kpoint_response_update_rho
+
+! **************************************************************************************************
+!> \brief Fourier-transform real-space AO operator matrices to local k-point dense matrices.
+!> \param qs_env ...
+!> \param hmat_rs ...
+!> \param hmat_ext ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_hmat_from_rs(qs_env, hmat_rs, hmat_ext)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: hmat_rs
+      TYPE(cp_fm_type), DIMENSION(:, :, :), &
+         INTENT(inout)                                   :: hmat_ext
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_kpoint_hmat_from_rs'
+
+      INTEGER                                            :: handle, ikp, ikp_local, ispin, nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_kp
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cmatrix, dft_control, kpoints, rmatrix, sab_kp)
+      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(ASSOCIATED(hmat_rs))
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, sab_nl=sab_kp)
+      CPASSERT(ASSOCIATED(sab_kp))
+
+      nspins = dft_control%nspins
+      CPASSERT(SIZE(hmat_ext, 2) >= 2)
+      CPASSERT(SIZE(hmat_ext, 3) >= nspins)
+
+      ALLOCATE (rmatrix, cmatrix)
+      CALL dbcsr_create(rmatrix, template=hmat_rs(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=hmat_rs(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
+
+      DO ikp = 1, kpoints%nkp
+         IF (ikp < kp_range(1) .OR. ikp > kp_range(2)) CYCLE
+         ikp_local = ikp - kp_range(1) + 1
+         DO ispin = 1, nspins
+            CALL dbcsr_set(rmatrix, 0.0_dp)
+            CALL dbcsr_set(cmatrix, 0.0_dp)
+            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=hmat_rs, &
+                                ispin=ispin, xkp=kpoints%xkp(:, ikp), &
+                                cell_to_index=kpoints%cell_to_index, sab_nl=sab_kp)
+            CALL copy_dbcsr_to_fm(rmatrix, hmat_ext(ikp_local, 1, ispin))
+            CALL copy_dbcsr_to_fm(cmatrix, hmat_ext(ikp_local, 2, ispin))
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_kpoint_hmat_from_rs
+
+! **************************************************************************************************
 !> \brief Project k-point AO operator matrices onto the TDDFPT transition space.
 !> \param qs_env ...
 !> \param transitions ...
@@ -364,18 +595,20 @@ CONTAINS
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, kp, kp_env, kpoints, mo_coeff_im, mo_coeff_re, mos_kp)
+      NULLIFY (dft_control, kp, kp_env, kpoints, mo_coeff_im, mo_coeff_re, mos_kp, para_env)
       CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
       CPASSERT(ASSOCIATED(dft_control))
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(response%ntrans == SIZE(transitions))
       CPASSERT(SIZE(hmat_ext, 2) >= 2)
 
-      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_env=kp_env)
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_env=kp_env, para_env=para_env)
       CPASSERT(ASSOCIATED(kp_env))
+      CPASSERT(ASSOCIATED(para_env))
 
       nspins = dft_control%nspins
       CPASSERT(SIZE(hmat_ext, 3) >= nspins)
@@ -425,6 +658,9 @@ CONTAINS
             DEALLOCATE (hmat_re, hmat_im, occ_re, occ_im, virt_re, virt_im, work_re, work_im)
          END DO
       END DO
+
+      CALL para_env%sum(response%sigma_re)
+      CALL para_env%sum(response%sigma_im)
 
       CALL timestop(handle)
 
