@@ -10,3 +10,6 @@ docs/CP2K_INPUT
 .git*
 *~
 \#*\#
+/install
+/spack
+/spack_cache
