@@ -44,7 +44,8 @@ MODULE qs_tddfpt2_kpoint_utils
    END TYPE tddfpt_kpoint_response_type
 
    PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_init_transitions, &
-             tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, &
+             tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
+             tddfpt_kpoint_response_normalize, tddfpt_kpoint_response_project_out, &
              tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
              tddfpt_kpoint_response_zero, tddfpt_kpoint_transition_offset
 
@@ -138,18 +139,79 @@ CONTAINS
 !> \param transitions ...
 !> \return ...
 ! **************************************************************************************************
-   REAL(kind=dp) FUNCTION tddfpt_kpoint_response_dot(left, right, transitions) RESULT(dot_product)
+   COMPLEX(kind=dp) FUNCTION tddfpt_kpoint_response_dot(left, right, transitions) RESULT(dot_product)
       TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: left, right
       TYPE(tddfpt_kpoint_transition_type), &
          DIMENSION(:), INTENT(in)                        :: transitions
 
+      REAL(kind=dp)                                      :: dot_im, dot_re
+
       CPASSERT(left%ntrans == right%ntrans)
       CPASSERT(left%ntrans == SIZE(transitions))
 
-      dot_product = SUM(transitions(:)%weight*(left%coeff_re(:)*right%coeff_re(:) + &
-                                               left%coeff_im(:)*right%coeff_im(:)))
+      dot_re = SUM(transitions(:)%weight*(left%coeff_re(:)*right%coeff_re(:) + &
+                                          left%coeff_im(:)*right%coeff_im(:)))
+      dot_im = SUM(transitions(:)%weight*(left%coeff_re(:)*right%coeff_im(:) - &
+                                          left%coeff_im(:)*right%coeff_re(:)))
+      dot_product = CMPLX(dot_re, dot_im, KIND=dp)
 
    END FUNCTION tddfpt_kpoint_response_dot
+
+! **************************************************************************************************
+!> \brief Weighted norm of a k-point TDDFPT response vector.
+!> \param response ...
+!> \param transitions ...
+!> \return ...
+! **************************************************************************************************
+   REAL(kind=dp) FUNCTION tddfpt_kpoint_response_norm(response, transitions) RESULT(response_norm)
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: response
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+
+      response_norm = SQRT(MAX(0.0_dp, REAL(tddfpt_kpoint_response_dot(response, response, transitions), dp)))
+
+   END FUNCTION tddfpt_kpoint_response_norm
+
+! **************************************************************************************************
+!> \brief Normalize a k-point TDDFPT response vector with the weighted S(k) metric.
+!> \param response ...
+!> \param transitions ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_normalize(response, transitions)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+
+      REAL(kind=dp)                                      :: response_norm
+
+      response_norm = tddfpt_kpoint_response_norm(response, transitions)
+      IF (response_norm <= 0.0_dp) CPABORT("Cannot normalize empty k-point TDDFPT response")
+      response%coeff_re(:) = response%coeff_re(:)/response_norm
+      response%coeff_im(:) = response%coeff_im(:)/response_norm
+
+   END SUBROUTINE tddfpt_kpoint_response_normalize
+
+! **************************************************************************************************
+!> \brief Project one normalized k-point TDDFPT response vector out of another.
+!> \param response ...
+!> \param basis ...
+!> \param transitions ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_response_project_out(response, basis, transitions)
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+      TYPE(tddfpt_kpoint_response_type), INTENT(in)      :: basis
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+
+      COMPLEX(kind=dp)                                   :: coeff
+
+      coeff = tddfpt_kpoint_response_dot(basis, response, transitions)
+      response%coeff_re(:) = response%coeff_re(:) - &
+                             REAL(coeff, dp)*basis%coeff_re(:) + AIMAG(coeff)*basis%coeff_im(:)
+      response%coeff_im(:) = response%coeff_im(:) - &
+                             REAL(coeff, dp)*basis%coeff_im(:) - AIMAG(coeff)*basis%coeff_re(:)
+
+   END SUBROUTINE tddfpt_kpoint_response_project_out
 
 ! **************************************************************************************************
 !> \brief Return the zero-based transition offset of a spin block within a single k point.
