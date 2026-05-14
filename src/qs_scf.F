@@ -415,6 +415,7 @@ CONTAINS
                       pw_env=pw_env, &
                       para_env=para_env)
       tblite_native_mixer = dft_control%qs_control%xtb_control%do_tblite .AND. &
+                            scf_env%method /= ot_method_nr .AND. &
                             tb_native_scc_mixer_active(dft_control)
       internal_tblite_mixer = (dft_control%qs_control%dftb .AND. &
                                dft_control%qs_control%dftb_control%tblite_scc_mixer == tblite_scc_mixer_tblite) .OR. &
@@ -538,9 +539,14 @@ CONTAINS
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-               CPASSERT(scf_env%mixing_method > 0)
-               CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
-               CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
+               IF (scf_env%method == ot_method_nr) THEN
+                  CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .TRUE.)
+                  CALL evaluate_core_matrix_traces(qs_env)
+               ELSE
+                  CPASSERT(scf_env%mixing_method > 0)
+                  CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+                  CALL evaluate_core_matrix_traces(qs_env, rho_ao_ext=scf_env%p_mix_new)
+               END IF
                CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 

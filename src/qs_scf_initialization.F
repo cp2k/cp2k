@@ -958,10 +958,12 @@ CONTAINS
                       para_env=para_env, &
                       xas_env=xas_env)
 
-      !Check restricted optimizers available for tblite library
+      ! Check restricted optimizers available for tblite library
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
          IF (scf_env%method == ot_method_nr) THEN
-            CPABORT("OT SCF option not compatible with tblite library.")
+            CALL cp_warn(__LOCATION__, &
+                         "CP2K/tblite with OT is restricted to Gamma-point calculations without smearing. "// &
+                         "The tblite SCC variables are updated directly from the OT density; XTB/SCC_MIXER is ignored.")
          END IF
       END IF
 

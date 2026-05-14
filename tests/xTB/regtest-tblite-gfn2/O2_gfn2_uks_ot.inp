@@ -1,0 +1,45 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT O2_gfn2_uks_ot
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    LSD
+    MULTIPLICITY 3
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        SCC_MIXER AUTO
+        &TBLITE
+          METHOD GFN2
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.e-8
+      MAX_SCF 80
+      SCF_GUESS MOPAC
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.000000    0.000000    0.000000
+      O     1.208000    0.000000    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

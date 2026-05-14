@@ -1668,7 +1668,7 @@ CONTAINS
       END IF
 
       ! XXXXXXX this is backwards XXXXXXXX
-      IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+      IF (dft_control%qs_control%xtb_control%do_tblite .AND. .NOT. scf_control%use_ot) THEN
          IF (.NOT. scf_control%smear%do_smear) THEN
             ! set tblite default smearing
             scf_control%smear%do_smear = .TRUE.
@@ -2142,7 +2142,7 @@ CONTAINS
       ! However, if we try to proceed alpha orbitals first, this leads us n_mo(1:2) = (10,8)
       ! due to the following assignment instruction above:
       !   IF (scf_control%added_mos(2) > 0) THEN ... ELSE; n_mo_add = scf_control%added_mos(1); END IF
-      IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+      IF (dft_control%qs_control%xtb_control%do_tblite .AND. .NOT. scf_control%use_ot) THEN
          scf_control%added_mos(1) = n_ao - n_mo(1)  ! tblite needs all MO's
       ELSE IF (scf_control%added_mos(1) < 0) THEN
          scf_control%added_mos(1) = n_ao - n_mo(1)  ! use all available MOs
@@ -2181,6 +2181,9 @@ CONTAINS
 
       ! Compatibility checks for smearing
       IF (scf_control%smear%do_smear) THEN
+         IF (dft_control%qs_control%xtb_control%do_tblite .AND. scf_control%use_ot) THEN
+            CPABORT("CP2K/tblite with OT does not support smearing.")
+         END IF
          IF (scf_control%added_mos(1) == 0) THEN
             CPABORT("Extra MOs (ADDED_MOS) are required for smearing")
          END IF
