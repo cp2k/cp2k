@@ -38,7 +38,6 @@ MODULE qs_tddfpt2_kpoint_full
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -580,8 +579,8 @@ CONTAINS
          use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
       END IF
       IF (use_scf_moment_dipoles) THEN
-         CALL cp_warn(__LOCATION__, "Diagnostic SCF-MO k-point dipoles: compare "// &
-                      "folded energy blocks, not individual states.")
+         CALL cp_warn(__LOCATION__, "Diagnostic SCF-MO k-point dipoles: compare folded energy blocks, "// &
+                      "not individual states.")
          CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
       END IF
 
@@ -685,7 +684,7 @@ CONTAINS
                      IF (gap <= 0.0_dp) &
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
                      IF (use_scf_moment_dipoles) THEN
-                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/twopi
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))
                         dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
                         dipole_im = AIMAG(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt))
                      ELSE
