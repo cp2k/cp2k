@@ -51,6 +51,7 @@ MODULE qs_moments
                            cp_fm_struct_release, &
                            cp_fm_struct_type
    USE cp_fm_types, ONLY: cp_fm_create, &
+                          cp_fm_get_element, &
                           cp_fm_get_info, &
                           cp_fm_release, &
                           cp_fm_set_all, &
@@ -68,6 +69,8 @@ MODULE qs_moments
                              kpoint_initialize, &
                              rskp_transform
    USE kpoint_types, ONLY: get_kpoint_info, &
+                           kpoint_env_p_type, &
+                           kpoint_env_type, &
                            kpoint_type, &
                            kpoint_create, &
                            kpoint_release, &
@@ -130,6 +133,7 @@ MODULE qs_moments
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: qs_moment_kpoints, build_local_moment_matrix_rs_img
    PUBLIC :: qs_moment_kpoints_deep
+   PUBLIC :: qs_moment_kpoints_scf_mos
    PUBLIC :: dipole_deriv_ao
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: build_dsdv_moments
@@ -3910,6 +3914,159 @@ CONTAINS
       CALL kpoint_release(kpoints_all)
       CALL timestop(handle)
    END SUBROUTINE qs_moment_kpoints_deep
+
+! **************************************************************************************************
+!> \brief Calculates k-point dipoles in the SCF MO basis without re-diagonalizing H(k).
+!> \param qs_env ...
+!> \param dipole ...
+!> \param rcc coordinates about which to calculate the dipole
+! **************************************************************************************************
+   SUBROUTINE qs_moment_kpoints_scf_mos(qs_env, dipole, rcc)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         ALLOCATABLE                                     :: dipole
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_scf_mos'
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_dH_C, C_dS_C, C_k, CDC, D_k, &
+                                                            dH_dk_i, dS_dk_i
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      INTEGER                                            :: handle, i_dir, ikp, ikp_local, ispin, &
+                                                            m, mu, n, nao, n_img_scf, n_img_all, &
+                                                            nkp, nmo, nspin
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
+      REAL(KIND=dp)                                      :: cimag, creal
+      REAL(KIND=dp), DIMENSION(3)                        :: my_rcc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvals
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         ALLOCATABLE                                     :: D_rs, H_rs, S_rs
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: moments_rs_img, matrix_ks_kp, &
+                                                            matrix_s_kp
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all
+
+      CALL timeset(routineN, handle)
+
+      my_rcc = 0.0_dp
+      IF (PRESENT(rcc)) my_rcc = rcc
+
+      NULLIFY (cell, eigenvals, index_to_cell_all, cell_to_index_all, kp, kp_env, kpoints_all, &
+               kpoints_scf, matrix_ks_kp, matrix_s_kp, mo_coeff_im, mo_coeff_re, moments_rs_img, &
+               mos_kp, para_env, sab_all)
+      CALL get_qs_env(qs_env, &
+                      matrix_ks_kp=matrix_ks_kp, &
+                      matrix_s_kp=matrix_s_kp, &
+                      sab_all=sab_all, &
+                      cell=cell, &
+                      kpoints=kpoints_scf, &
+                      para_env=para_env)
+
+      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
+      CALL get_kpoint_info(kpoints_scf, nkp=nkp, kp_range=kp_range, kp_env=kp_env)
+      IF (kp_range(2) >= kp_range(1)) THEN
+         CPASSERT(ASSOCIATED(kp_env))
+      END IF
+
+      nspin = SIZE(matrix_ks_kp, 1)
+      CALL dbcsr_get_info(matrix_s_kp(1, 1)%matrix, nfullrows_total=nao)
+
+      ! create kpoint environment kpoints_all which contains all neighbor cells R
+      ! without considering any lattice symmetry
+      NULLIFY (kpoints_all)
+      CALL kpoint_create(kpoints_all)
+      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, n_img_scf)
+
+      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, &
+                           index_to_cell=index_to_cell_all)
+      n_img_all = SIZE(index_to_cell_all, 2)
+
+      NULLIFY (moments_rs_img)
+      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_all)
+      CALL build_local_moment_matrix_rs_img(qs_env, moments_rs_img, rcc=my_rcc)
+
+      ALLOCATE (S_rs(1, nao, nao, n_img_all), H_rs(nspin, nao, nao, n_img_all), source=0.0_dp)
+      ALLOCATE (D_rs(3, nao, nao, n_img_all), source=0.0_dp)
+
+      CALL replicate_rs_matrices(matrix_s_kp, kpoints_scf, S_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(matrix_ks_kp, kpoints_scf, H_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(moments_rs_img, kpoints_all, D_rs, cell_to_index_all)
+
+      ALLOCATE (dipole(nspin, nkp, 3, nao, nao), source=z_zero)
+      ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
+      ALLOCATE (CDC(nao, nao), dip(3, nao, nao), C_k(nao, nao), D_k(nao, nao), source=z_zero)
+
+      DO ikp = 1, nkp
+         IF (ikp < kp_range(1) .OR. ikp > kp_range(2)) CYCLE
+         ikp_local = ikp - kp_range(1) + 1
+         kp => kp_env(ikp_local)%kpoint_env
+         mos_kp => kp%mos
+         DO ispin = 1, nspin
+            CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvals, mo_coeff=mo_coeff_re, nmo=nmo)
+            CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+            CPASSERT(ASSOCIATED(eigenvals))
+            CPASSERT(ASSOCIATED(mo_coeff_re))
+            CPASSERT(ASSOCIATED(mo_coeff_im))
+
+            C_k = z_zero
+            DO n = 1, nmo
+               DO mu = 1, nao
+                  CALL cp_fm_get_element(mo_coeff_re, mu, n, creal)
+                  CALL cp_fm_get_element(mo_coeff_im, mu, n, cimag)
+                  C_k(mu, n) = CMPLX(creal, cimag, KIND=dp)
+               END DO
+            END DO
+
+            dip = z_zero
+            DO i_dir = 1, 3
+               IF (periodic(i_dir) == 0) CYCLE
+               CALL rs_to_kp(S_rs(1, :, :, :), dS_dk_i, index_to_cell_all, kpoints_scf%xkp(:, ikp), i_dir, hmat)
+               CALL rs_to_kp(H_rs(ispin, :, :, :), dH_dk_i, index_to_cell_all, kpoints_scf%xkp(:, ikp), i_dir, hmat)
+               CALL rs_to_kp(D_rs(i_dir, :, :, :), D_k(:, :), index_to_cell_all, kpoints_scf%xkp(:, ikp))
+
+               CALL gemm_square(C_k, 'C', dS_dk_i, 'N', C_k, 'N', C_dS_C)
+               CALL gemm_square(C_k, 'C', dH_dk_i, 'N', C_k, 'N', C_dH_C)
+               CALL gemm_square(C_k, 'C', D_k, 'N', C_k, 'N', CDC)
+
+               DO n = 1, nmo
+                  DO m = 1, nmo
+                     IF (n == m) CYCLE
+                     dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                        + gaussi*eigenvals(n)*C_dS_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                        + CDC(n, m)
+                  END DO
+               END DO
+            END DO
+            dipole(ispin, ikp, :, :, :) = dip(:, :, :)
+         END DO
+      END DO
+
+      DO ispin = 1, nspin
+         DO ikp = 1, nkp
+            DO i_dir = 1, 3
+               CALL para_env%sum(dipole(ispin, ikp, i_dir, :, :))
+            END DO
+         END DO
+      END DO
+
+      DEALLOCATE (dS_dk_i, C_dS_C, dH_dk_i, C_dH_C, CDC, dip, C_k, D_k)
+      DEALLOCATE (S_rs, H_rs, D_rs)
+      CALL dbcsr_deallocate_matrix_set(moments_rs_img)
+      CALL kpoint_release(kpoints_all)
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_moment_kpoints_scf_mos
 
 ! **************************************************************************************************
 !> \brief Calculate and print dipole moment elements d_nm(k) for k-point calculations

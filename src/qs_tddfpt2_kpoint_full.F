@@ -38,6 +38,7 @@ MODULE qs_tddfpt2_kpoint_full
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
                                               kpoint_type
+   USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -62,6 +63,7 @@ MODULE qs_tddfpt2_kpoint_full
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: qs_moment_kpoints_scf_mos
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -509,12 +511,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_transition_dipoles'
 
-      INTEGER                                            :: gap_index, handle, ideriv, ikp, &
-                                                            ikp_local, iocc, ispin, ivirt, nao, &
-                                                            nkp, nspins, spin_offset
+      CHARACTER(LEN=32)                                  :: dipole_operator_env
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
+      INTEGER                                            :: env_status, gap_index, handle, ideriv, &
+                                                            ikp, ikp_local, iocc, ispin, ivirt, &
+                                                            nao, nkp, nspins, spin_offset
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp
+      LOGICAL                                            :: my_kpgrp, use_scf_moment_dipoles
       REAL(kind=dp)                                      :: dipole_im, dipole_re, gap, &
                                                             oscillator_factor, spin_factor
       REAL(kind=dp), DIMENSION(:), POINTER               :: wkp
@@ -566,6 +571,15 @@ CONTAINS
       nspins = dft_control%nspins
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
+      use_scf_moment_dipoles = .FALSE.
+      dipole_operator_env = ""
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DIPOLE_OPERATOR", dipole_operator_env, &
+                                    STATUS=env_status)
+      IF (env_status == 0) THEN
+         CALL uppercase(dipole_operator_env)
+         use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
+      END IF
+      IF (use_scf_moment_dipoles) CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
@@ -666,9 +680,15 @@ CONTAINS
                      gap = transitions(gap_index)%energy
                      IF (gap <= 0.0_dp) &
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
-                     oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
-                     CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
-                     CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     IF (use_scf_moment_dipoles) THEN
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/twopi
+                        dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
+                        dipole_im = AIMAG(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt))
+                     ELSE
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
+                        CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
+                        CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     END IF
                      transition_dipole_re(gap_index, ideriv) = oscillator_factor*dipole_re
                      transition_dipole_im(gap_index, ideriv) = oscillator_factor*dipole_im
                   END DO
@@ -686,6 +706,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(rmatrix)
       CALL dbcsr_deallocate_matrix(cmatrix)
       CALL dbcsr_deallocate_matrix_set(overlap_deriv)
+      IF (ALLOCATED(kpoint_dipole)) DEALLOCATE (kpoint_dipole)
 
       CALL timestop(handle)
 

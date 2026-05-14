@@ -76,6 +76,7 @@ MODULE qs_tddfpt2_methods
    USE lri_environment_types,           ONLY: lri_density_release,&
                                               lri_env_release
    USE machine,                         ONLY: m_flush
+   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_para_env_type
    USE min_basis_set,                   ONLY: create_minbas_set
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -92,6 +93,7 @@ MODULE qs_tddfpt2_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: qs_moment_kpoints_scf_mos
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_scf_methods,                  ONLY: eigensolver
@@ -144,7 +146,8 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_release_ground_state_mos
    USE rixs_types,                      ONLY: rixs_env_type,&
                                               tddfpt2_valence_type
-   USE string_utilities,                ONLY: integer_to_string
+   USE string_utilities,                ONLY: integer_to_string,&
+                                              uppercase
    USE util,                            ONLY: sort
    USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
@@ -1034,13 +1037,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_independent_particle'
 
-      INTEGER :: handle, ideriv, ikp, ikp_local, iocc, ispin, istate, ivirt, log_unit, nao, nkp, &
-         nspins, nstates, ntrans_kpoint, ntrans_total, spin_offset, trans_index
+      CHARACTER(LEN=32)                                  :: dipole_operator_env
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
+      INTEGER :: env_status, handle, ideriv, ikp, ikp_local, iocc, ispin, istate, ivirt, log_unit, &
+         nao, nkp, nspins, nstates, ntrans_kpoint, ntrans_total, spin_offset, trans_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nao_spin, nmo_spin, nvirt_spin
-      LOGICAL                                            :: my_kpgrp
+      LOGICAL                                            :: my_kpgrp, use_scf_moment_dipoles
       REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, gap, &
                                                             oscillator_factor, spin_factor
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, oscillator_strength, &
@@ -1112,6 +1118,15 @@ CONTAINS
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
       oscillator_strength = 0.0_dp
+      use_scf_moment_dipoles = .FALSE.
+      dipole_operator_env = ""
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DIPOLE_OPERATOR", dipole_operator_env, &
+                                    STATUS=env_status)
+      IF (env_status == 0) THEN
+         CALL uppercase(dipole_operator_env)
+         use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
+      END IF
+      IF (use_scf_moment_dipoles) CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
@@ -1212,9 +1227,15 @@ CONTAINS
                      gap = transitions(trans_index)%energy
                      IF (gap <= 0.0_dp) &
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
-                     oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
-                     CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
-                     CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     IF (use_scf_moment_dipoles) THEN
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/twopi
+                        dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
+                        dipole_im = AIMAG(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt))
+                     ELSE
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
+                        CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
+                        CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     END IF
                      transition_dipole_re(trans_index, ideriv) = oscillator_factor*dipole_re
                      transition_dipole_im(trans_index, ideriv) = oscillator_factor*dipole_im
                   END DO
@@ -1240,6 +1261,7 @@ CONTAINS
 
       IF (ANY(transition_energy <= 0.0_dp)) &
          CPABORT("K-point TDDFPT KERNEL NONE requires positive occupied-virtual energy gaps")
+      IF (ALLOCATED(kpoint_dipole)) DEALLOCATE (kpoint_dipole)
 
       CALL sort(transition_energy, ntrans_total, inds)
       nstates = MIN(tddfpt_control%nstates, ntrans_total)
