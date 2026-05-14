@@ -1177,29 +1177,31 @@ CONTAINS
                                    ispin=ideriv + 1, xkp=kpoints%xkp(:, ikp), &
                                    cell_to_index=cell_to_index, sab_nl=sab_kp)
 
+               ! Project the complex AO operator as C^H A C; the imaginary MO
+               ! coefficients on the bra side carry the conjugation signs.
                CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
                                   1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
+                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
 
                CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
                                   1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+                                  1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
 
                CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
                                   1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+                                  1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
 
                CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
                                   -1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_re)
                CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
+                                  1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
 
                DO iocc = 1, homo_spin(ispin)
                   DO ivirt = homo_spin(ispin) + 1, nmo_spin(ispin)

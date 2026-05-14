@@ -381,7 +381,10 @@ def main() -> int:
     results: dict[str, Result] = {}
     for kernel in args.kernels:
         for supercell in (False, True):
-            parts = args.kernel_parts if kernel == "FULL" and not supercell else ("",)
+            if kernel == "FULL" and not supercell:
+                parts = args.kernel_parts or ("",)
+            else:
+                parts = ("",)
             for part in parts:
                 suffix = f"_{part.lower()}" if part else ""
                 label = (
