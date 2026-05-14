@@ -7,7 +7,7 @@
 # Sources:
 # - qvSZP:       https://github.com/grimme-lab/qvSZP @ cd334a8954d4
 # - PTB:         https://github.com/grimme-lab/ptb @ faf70291b5c2
-# - save_tblite: https://github.com/thfroitzheim/save_tblite @ b4b2b79506e3
+# - tblite: https://github.com/tblite/tblite @ 5b90becb07cc0844985930679a8545e4559ee325
 # - STO-NG:      CP2K src/aobasis/sto_ng.F
 #
 # Limitations:
