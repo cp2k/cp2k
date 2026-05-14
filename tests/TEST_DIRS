@@ -9,10 +9,10 @@ MIMIC/regtest-qmmm                                          mimic mpiranks==4
 QS/regtest-monovalent
 QS/regtest-tddfpt-sf-force                                  libint !ifx
 QS/regtest-tddfpt-sf                                        libint !ifx
-xTB/regtest-tblite-gfn1-grad                                tblite
+xTB/regtest-tblite-gfn1-grad                                tblite spglib
 QS/regtest-spgr-id                                          spglib
 HP-DFT
-xTB/regtest-tblite-gfn1-periodic                            tblite
+xTB/regtest-tblite-gfn1-periodic                            tblite spglib
 xTB/regtest-tblite-ipea1                                    tblite
 xTB/regtest-tblite-gfn2                                     tblite spglib
 xTB/regtest-tblite-gfn1                                     tblite
@@ -32,7 +32,7 @@ QS/regtest-tddfpt-force-3                                   libint !ifx
 QS/regtest-debug-5                                          libint !ifx
 QS/regtest-gpw-4
 ATOM/regtest-1
-xTB/regtest-gfn0                                            libdftd4
+xTB/regtest-gfn0                                            libdftd4 spglib
 xTB/regtest-gfn0-d                                          libdftd4
 xTB/regtest-gfn0-m1                                         libdftd4
 xTB/regtest-gfn0-m2                                         libdftd4
