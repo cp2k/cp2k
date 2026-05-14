@@ -47,7 +47,8 @@ MODULE qs_tddfpt2_kpoint_utils
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)     :: sigma_im
    END TYPE tddfpt_kpoint_response_type
 
-   PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_init_transitions, &
+   PUBLIC :: tddfpt_kpoint_apply_energy_diff, tddfpt_kpoint_hmat_to_response, &
+             tddfpt_kpoint_init_transitions, &
              tddfpt_kpoint_response_create, tddfpt_kpoint_response_dot, tddfpt_kpoint_response_norm, &
              tddfpt_kpoint_response_normalize, tddfpt_kpoint_response_project_out, &
              tddfpt_kpoint_response_release, tddfpt_kpoint_response_set_unit, &
@@ -332,6 +333,102 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_kpoint_response_to_pmat
+
+! **************************************************************************************************
+!> \brief Project k-point AO operator matrices onto the TDDFPT transition space.
+!> \param qs_env ...
+!> \param transitions ...
+!> \param hmat_ext ...
+!> \param response ...
+! **************************************************************************************************
+   SUBROUTINE tddfpt_kpoint_hmat_to_response(qs_env, transitions, hmat_ext, response)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_kpoint_transition_type), &
+         DIMENSION(:), INTENT(in)                        :: transitions
+      TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(in)   :: hmat_ext
+      TYPE(tddfpt_kpoint_response_type), INTENT(inout)   :: response
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_kpoint_hmat_to_response'
+
+      INTEGER                                            :: handle, ikp, ikp_local, ispin, itrans, &
+                                                            nao, nspins
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: my_kpgrp
+      REAL(kind=dp)                                      :: sigma_im, sigma_re
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: work_im, work_re
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: hmat_im, hmat_re, occ_im, occ_re, &
+                                                            virt_im, virt_re
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, kp, kp_env, kpoints, mo_coeff_im, mo_coeff_re, mos_kp)
+      CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints)
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(response%ntrans == SIZE(transitions))
+      CPASSERT(SIZE(hmat_ext, 2) >= 2)
+
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_env=kp_env)
+      CPASSERT(ASSOCIATED(kp_env))
+
+      nspins = dft_control%nspins
+      CPASSERT(SIZE(hmat_ext, 3) >= nspins)
+
+      DO ikp = 1, kpoints%nkp
+         my_kpgrp = (ikp >= kp_range(1) .AND. ikp <= kp_range(2))
+         IF (.NOT. my_kpgrp) CYCLE
+         ikp_local = ikp - kp_range(1) + 1
+         kp => kp_env(ikp_local)%kpoint_env
+         mos_kp => kp%mos
+         CPASSERT(ASSOCIATED(mos_kp))
+
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re, nao=nao)
+            CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+            CPASSERT(ASSOCIATED(mo_coeff_re))
+            CPASSERT(ASSOCIATED(mo_coeff_im))
+
+            ALLOCATE (hmat_re(nao, nao), hmat_im(nao, nao), occ_re(nao, 1), &
+                      occ_im(nao, 1), virt_re(nao, 1), virt_im(nao, 1), &
+                      work_re(nao), work_im(nao))
+            CALL cp_fm_get_submatrix(hmat_ext(ikp_local, 1, ispin), hmat_re, &
+                                     start_row=1, start_col=1, n_rows=nao, n_cols=nao)
+            CALL cp_fm_get_submatrix(hmat_ext(ikp_local, 2, ispin), hmat_im, &
+                                     start_row=1, start_col=1, n_rows=nao, n_cols=nao)
+
+            DO itrans = 1, response%ntrans
+               IF (transitions(itrans)%ikp /= ikp) CYCLE
+               IF (transitions(itrans)%ispin /= ispin) CYCLE
+
+               CALL cp_fm_get_submatrix(mo_coeff_re, occ_re, start_row=1, &
+                                        start_col=transitions(itrans)%iocc, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_im, occ_im, start_row=1, &
+                                        start_col=transitions(itrans)%iocc, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_re, virt_re, start_row=1, &
+                                        start_col=transitions(itrans)%ivirt, n_rows=nao, n_cols=1)
+               CALL cp_fm_get_submatrix(mo_coeff_im, virt_im, start_row=1, &
+                                        start_col=transitions(itrans)%ivirt, n_rows=nao, n_cols=1)
+
+               work_re(:) = MATMUL(hmat_re, occ_re(:, 1)) - MATMUL(hmat_im, occ_im(:, 1))
+               work_im(:) = MATMUL(hmat_re, occ_im(:, 1)) + MATMUL(hmat_im, occ_re(:, 1))
+               sigma_re = SUM(virt_re(:, 1)*work_re(:) + virt_im(:, 1)*work_im(:))
+               sigma_im = SUM(virt_re(:, 1)*work_im(:) - virt_im(:, 1)*work_re(:))
+               response%sigma_re(itrans) = response%sigma_re(itrans) + sigma_re
+               response%sigma_im(itrans) = response%sigma_im(itrans) + sigma_im
+            END DO
+            DEALLOCATE (hmat_re, hmat_im, occ_re, occ_im, virt_re, virt_im, work_re, work_im)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_kpoint_hmat_to_response
 
 ! **************************************************************************************************
 !> \brief Return the zero-based transition offset of a spin block within a single k point.
