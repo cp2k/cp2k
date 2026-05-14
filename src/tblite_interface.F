@@ -1311,6 +1311,12 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
+      ! compute mulliken charges required for charge update
+      NULLIFY (particle_set, qs_kind_set, atomic_kind_set, scf_control)
+      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho, para_env=para_env, &
+                      scf_control=scf_control)
+
       ! also compute multipoles needed by GFN2
       do_dipole = .FALSE.
       do_quadrupole = .FALSE.
@@ -1330,7 +1336,7 @@ CONTAINS
       CALL GET_ENVIRONMENT_VARIABLE("CP2K_TBLITE_DEBUG_SKIP_SCF_DISPERSION_POTENTIAL", debug_value, STATUS=debug_status)
       IF (debug_status == 0) READ (debug_value, *, IOSTAT=debug_status) skip_scf_dispersion_potential
 #endif
-      IF (dft_control%qs_control%do_ls_scf) THEN
+      IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
          use_native_mixer = .FALSE.
          use_no_mixer = .TRUE.
       ELSE
@@ -1351,12 +1357,6 @@ CONTAINS
             CPABORT("Unknown tblite SCC mixer")
          END SELECT
       END IF
-
-      ! compute mulliken charges required for charge update
-      NULLIFY (particle_set, qs_kind_set, atomic_kind_set, scf_control)
-      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho, para_env=para_env, &
-                      scf_control=scf_control)
       IF (use_native_mixer .AND. use_rho .AND. (.NOT. calculate_forces) .AND. &
           scf_env%iter_count > dft_control%qs_control%xtb_control%tblite_mixer_iterations) THEN
          CPABORT("tblite SCC mixer exceeded TBLITE_MIXER/ITERATIONS")
@@ -1662,10 +1662,10 @@ CONTAINS
       ELSE
          ! charge mixing
          native_sign_mixing = .FALSE.
-         IF (dft_control%qs_control%do_ls_scf) THEN
-            ! LS_SCF optimizes the density matrix directly. Use the current
-            ! shell/multipole response from that density without an extra SCC
-            ! variable mixing step.
+         IF (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot) THEN
+            ! LS_SCF and OT optimize the electronic variables directly. Use the
+            ! current shell/multipole response from that density without an
+            ! extra SCC variable mixing step.
          ELSEIF (nspin > 1) THEN
             n_mix_cols = nspin*max_shell
             IF (do_dipole) n_mix_cols = n_mix_cols + nspin*dip_n

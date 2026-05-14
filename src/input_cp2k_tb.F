@@ -616,7 +616,9 @@ CONTAINS
                           "magnetization SCC variables through CP2K's TB charge-mixing infrastructure. Native "// &
                           "tblite SCC convergence follows ACCURACY; SCC_MIXER CP2K follows the regular CP2K "// &
                           "SCF convergence settings such as DFT/SCF/EPS_SCF. With QS/LS_SCF, CP2K disables the "// &
-                          "separate SCC-variable mixer and lets LS_SCF optimize the density matrix directly.", &
+                          "separate SCC-variable mixer and lets LS_SCF optimize the density matrix directly. "// &
+                          "The same direct SCC-variable update is available for Gamma-point OT calculations, "// &
+                          "where smearing and ADDED_MOS are not supported.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., citations=[Katbashev2025])
 
       NULLIFY (keyword)
