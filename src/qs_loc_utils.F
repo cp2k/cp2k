@@ -1182,7 +1182,8 @@ CONTAINS
                ! Get eigenstates (only needed if not already calculated before)
                IF ((.NOT. my_do_mo_cubes) &
                    !                  .OR. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO")==0)&
-                   .AND. my_do_homo .AND. qs_env%scf_env%method == ot_method_nr .AND. (.NOT. dft_control%restricted)) THEN
+                    .AND. my_do_homo .AND. ASSOCIATED(qs_env%scf_env) &
+                    .AND. qs_env%scf_env%method == ot_method_nr .AND. (.NOT. dft_control%restricted)) THEN
                   CALL make_mo_eig(mos, nspin, ks_rmpv, scf_control, mo_derivs)
                END IF
                IF (localized_wfn_control%set_of_states == state_loc_all .AND. my_do_homo) THEN

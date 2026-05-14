@@ -84,6 +84,8 @@ MODULE rt_propagation_methods
                                               qs_loc_env_type
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_init
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
    USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                               propagate_bch,&
                                               propagate_exp,&
@@ -898,8 +900,10 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_localized, occupied_orbs
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_c1d_gs_type)                               :: wf_g
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -911,11 +915,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Localization of propagated orbitals requires MO coefficients
+      IF (rtp%linear_scaling) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       CALL cite_reference(Schreder2021)
 
       NULLIFY (auxbas_pw_pool, dft_control, dft_section, input, loc_print_section, &
-               loc_section, logger, marked_states, mo_coeff, occupied_evals, &
-               particles, print_key, pw_env, qs_loc_env)
+               loc_section, logger, marked_states, mo_coeff, mo_eigenvalues, mos, &
+               occupied_evals, particles, print_key, pw_env, qs_loc_env)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -970,13 +980,19 @@ CONTAINS
 
       IF (p_loc) THEN
          ALLOCATE (occupied_evals(dft_control%nspins))
-         CALL get_rtp(rtp, mos_new=mo_coeff)
          ALLOCATE (occupied_orbs(SIZE(mo_coeff)))
          ALLOCATE (mo_localized(SIZE(mo_coeff)))
+         CALL get_qs_env(qs_env, mos=mos)
+         CALL get_rtp(rtp, mos_new=mo_coeff)
          DO ispin = 1, SIZE(mo_coeff)
             occupied_orbs(ispin) = mo_coeff(ispin)
             CALL cp_fm_create(mo_localized(ispin), mo_coeff(ispin)%matrix_struct)
             CALL cp_fm_to_fm(mo_coeff(ispin), mo_localized(ispin))
+         END DO
+
+         DO ispin = 1, dft_control%nspins
+            CALL get_mo_set(mos(ispin), eigenvalues=mo_eigenvalues)
+            occupied_evals(ispin)%array => mo_eigenvalues
          END DO
 
          do_homo = .TRUE.
