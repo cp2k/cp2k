@@ -760,6 +760,10 @@ CONTAINS
                              "DFT%KPOINTS are not supported with GW; use "// &
                              "WF_CORRELATION%LOW_SCALING%KPOINTS and RI_RPA%GW%KPOINTS_SELF_ENERGY "// &
                              "for GW k-point sampling.")
+            ELSE IF (TRIM(reason) == "TDDFPT/TDDFT kernels other than NONE") THEN
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%KPOINTS currently support only PROPERTIES%TDDFPT KERNEL NONE; "// &
+                             "use KERNEL NONE for independent-particle k-point transitions or remove DFT%KPOINTS.")
             ELSE
                CALL cp_abort(__LOCATION__, &
                              "DFT%KPOINTS are not supported with "//TRIM(reason)// &
@@ -825,7 +829,7 @@ CONTAINS
          RETURN
       END IF
       IF (do_tddfpt) THEN
-         reason = "TDDFPT/TDDFT"
+         reason = "TDDFPT/TDDFT kernels other than NONE"
          RETURN
       END IF
       IF (do_linear_response) THEN

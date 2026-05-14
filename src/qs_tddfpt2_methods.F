@@ -680,8 +680,15 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control, input=input, kpoints=kpoints)
 
       IF (dft_control%nimages > 1) THEN
-         IF (tddfpt_control%kernel /= tddfpt_kernel_none) &
-            CPABORT("TDDFPT with k-points currently supports only KERNEL NONE")
+         SELECT CASE (tddfpt_control%kernel)
+         CASE (tddfpt_kernel_none)
+         CASE (tddfpt_kernel_full)
+            CPABORT("K-point TDDFPT KERNEL FULL is not implemented")
+         CASE (tddfpt_kernel_stda)
+            CPABORT("K-point TDDFPT KERNEL sTDA is not implemented")
+         CASE DEFAULT
+            CPABORT("Unknown k-point TDDFPT kernel")
+         END SELECT
          CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
          IF (use_real_wfn) &
             CPABORT("K-point TDDFPT requires complex wavefunctions")
