@@ -721,6 +721,8 @@ CONTAINS
          IF (tddfpt_control%dipole_form /= 0 .AND. &
              tddfpt_control%dipole_form /= tddfpt_dipole_velocity) &
             CPABORT("K-point TDDFPT supports only velocity-form transition dipoles")
+         CALL cp_warn(__LOCATION__, "K-point TDDFPT oscillator strengths are experimental and "// &
+                      "not yet validated against folded Gamma-supercell spectra.")
       END IF
 
       IF (tddfpt_control%nstates <= 0) THEN
@@ -1256,7 +1258,7 @@ CONTAINS
             "-             TDDFPT K-point Independent-particle Transitions                 -", &
             "-------------------------------------------------------------------------------"
          WRITE (log_unit, "(1X,A)") &
-            "Only KERNEL NONE is active for k-point TDDFPT; transition dipole magnitudes are shown."
+            "K-point transition dipoles and oscillator strengths are experimental."
          WRITE (log_unit, '(/,T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", &
             "Transition dipole (a.u.)", "Oscillator"
          WRITE (log_unit, '(T10,A,T19,A,T37,A,T49,A,T61,A,T67,A)') "number", "energy (eV)", &

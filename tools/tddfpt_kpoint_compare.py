@@ -48,6 +48,17 @@ class Result:
     metric_error: float | None
 
 
+@dataclass(frozen=True)
+class EnergyGroup:
+    first_state: int
+    last_state: int
+    count: int
+    energy_min: float
+    energy_max: float
+    energy_avg: float
+    oscillator_sum: float
+
+
 def as_float(text: str) -> float:
     return float(text.replace("D", "E"))
 
@@ -268,6 +279,94 @@ def print_result(result: Result, limit: int, bright_threshold: float) -> None:
         print(f"  bright states, f > {bright_threshold:.1e}: none")
 
 
+def group_states(
+    states: tuple[State, ...], tolerance_ev: float
+) -> tuple[EnergyGroup, ...]:
+    if not states:
+        return ()
+
+    groups: list[EnergyGroup] = []
+    current: list[State] = [states[0]]
+    group_start = states[0].energy_ev
+    for state in states[1:]:
+        if abs(state.energy_ev - group_start) <= tolerance_ev:
+            current.append(state)
+            continue
+        groups.append(make_group(current))
+        current = [state]
+        group_start = state.energy_ev
+    groups.append(make_group(current))
+    return tuple(groups)
+
+
+def make_group(states: list[State]) -> EnergyGroup:
+    energies = [state.energy_ev for state in states]
+    return EnergyGroup(
+        first_state=states[0].index,
+        last_state=states[-1].index,
+        count=len(states),
+        energy_min=min(energies),
+        energy_max=max(energies),
+        energy_avg=sum(energies) / len(energies),
+        oscillator_sum=sum(state.oscillator for state in states),
+    )
+
+
+def print_group_spectrum(result: Result, tolerance_ev: float) -> None:
+    groups = group_states(result.states, tolerance_ev)
+    print(f"\nGrouped spectrum: {result.label}  (tol={tolerance_ev:.1e} eV)")
+    print("  states         n       e_min/eV       e_max/eV       osc_sum")
+    for group in groups:
+        state_range = (
+            f"{group.first_state}"
+            if group.first_state == group.last_state
+            else f"{group.first_state}-{group.last_state}"
+        )
+        print(
+            f"  {state_range:>8s}  {group.count:4d}"
+            f"  {group.energy_min:13.6f}  {group.energy_max:13.6f}"
+            f"  {group.oscillator_sum:12.5e}"
+        )
+    print(f"  total oscillator over printed states: {sum_group_osc(groups):.8e}")
+
+
+def sum_group_osc(groups: tuple[EnergyGroup, ...]) -> float:
+    return sum(group.oscillator_sum for group in groups)
+
+
+def compare_groups(kpoint: Result, supercell: Result, tolerance_ev: float) -> None:
+    left_groups = group_states(kpoint.states, tolerance_ev)
+    right_groups = group_states(supercell.states, tolerance_ev)
+    print(f"\nNearest grouped spectra: {kpoint.label} -> {supercell.label}")
+    print(
+        "  kp states     k/eV   sc states    sc/eV       dk/eV     osc(k)      osc(sc)"
+    )
+    for left in left_groups:
+        right = min(
+            right_groups, key=lambda group: abs(left.energy_avg - group.energy_avg)
+        )
+        left_range = (
+            f"{left.first_state}"
+            if left.first_state == left.last_state
+            else f"{left.first_state}-{left.last_state}"
+        )
+        right_range = (
+            f"{right.first_state}"
+            if right.first_state == right.last_state
+            else f"{right.first_state}-{right.last_state}"
+        )
+        print(
+            f"  {left_range:>8s}  {left.energy_avg:8.4f}"
+            f"  {right_range:>8s}  {right.energy_avg:8.4f}"
+            f"  {left.energy_avg - right.energy_avg:10.5f}"
+            f"  {left.oscillator_sum:10.3e}  {right.oscillator_sum:10.3e}"
+        )
+    print(
+        "  total oscillator difference over printed states:"
+        f" {sum_group_osc(left_groups) - sum_group_osc(right_groups):.8e}"
+    )
+
+
 def compare_pair(kpoint: Result, supercell: Result, limit: int) -> None:
     print(f"\nPairwise energy deltas: {kpoint.label} - {supercell.label}")
     print("  state       dk/eV      osc(k)        osc(sc)")
@@ -339,6 +438,12 @@ def main() -> int:
     parser.add_argument("--no-gamma-centered", action="store_true")
     parser.add_argument("--triplet", action="store_true")
     parser.add_argument("--bright-threshold", type=float, default=1.0e-8)
+    parser.add_argument(
+        "--group-tol-ev",
+        type=float,
+        default=1.0e-4,
+        help="Energy tolerance for grouping near-degenerate TDDFPT states.",
+    )
     parser.add_argument("--keep-going", action="store_true")
     args = parser.parse_args()
 
@@ -419,17 +524,20 @@ def main() -> int:
 
     for result in results.values():
         print_result(result, args.nstates, args.bright_threshold)
+        print_group_spectrum(result, args.group_tol_ev)
 
     for kernel in args.kernels:
         left = results.get(f"H2_kpoint_{kernel.lower()}")
         right = results.get(f"H2_gamma_supercell_{kernel.lower()}")
         if left is not None and right is not None:
             compare_pair(left, right, args.nstates)
+            compare_groups(left, right, args.group_tol_ev)
         if kernel == "FULL" and args.kernel_parts and right is not None:
             for part in args.kernel_parts:
                 part_result = results.get(f"H2_kpoint_full_{part.lower()}")
                 if part_result is not None:
                     compare_pair(part_result, right, args.nstates)
+                    compare_groups(part_result, right, args.group_tol_ev)
 
     print(f"\nKept inputs/outputs in {work_dir}")
     return 0

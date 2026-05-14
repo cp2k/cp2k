@@ -292,7 +292,7 @@ CONTAINS
             "-                 TDDFPT K-point Local/Semilocal Full Kernel                  -", &
             "-------------------------------------------------------------------------------"
          WRITE (log_unit, "(1X,A)") &
-            "Explicit full transition-space reference solver; HFX, SOC, smearing and metals are guarded."
+            "Explicit full transition-space reference solver; oscillator strengths are experimental."
          WRITE (log_unit, "(1X,A,ES12.4E2)") "Metric symmetry error:", symmetry_error
          WRITE (log_unit, '(/,T10,A,T19,A,T37,A,T69,A,T86,A)') "State", "Excitation", &
             "Transition dipole (a.u.)", "Oscillator", "Dominant transition"
