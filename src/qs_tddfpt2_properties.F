@@ -638,7 +638,8 @@ CONTAINS
 
       ! punch a checksum for the regs
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,T2,A,E14.6)') 'TDDFPT : CheckSum  =', SQRT(SUM(evals**2))
+         WRITE (log_unit, '(/,T2,A,E14.8)') 'TDDFPT : CheckSum E =', SQRT(SUM(evals**2))
+         WRITE (log_unit, '(/,T2,A,E14.8)') 'TDDFPT : CheckSum F =', SQRT(SUM(ostrength**2))
       END IF
 
       DEALLOCATE (trans_dipoles)

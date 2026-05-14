@@ -13,6 +13,6 @@
 "h2o_f07.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-17.23463663670936}]
 "h2o_f08a.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-17.23033099140069}]
 "h2o_f08b.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-17.23207213802078}]
-"CH2O_stda-xtb-s_virtual_shift.inp"     = [{matcher="M037", tol=1.0E-06, ref=0.779158E-01}]
-"water_xTB_virtual_shift.inp"           = [{matcher="M037", tol=1.0E-06, ref=0.236163E+00}]
+"CH2O_stda-xtb-s_virtual_shift.inp"     = [{matcher="TDDFPT_Check_Energy", tol=1.0E-06, ref=0.779158E-01}]
+"water_xTB_virtual_shift.inp"           = [{matcher="TDDFPT_Check_Energy", tol=1.0E-06, ref=0.236163E+00}]
 #EOF

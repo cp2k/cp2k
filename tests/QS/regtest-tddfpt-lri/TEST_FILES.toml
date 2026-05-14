@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_lri01_only_es.inp"                 = [{matcher="M037", tol=1.0E-05, ref=0.941247E+00}]
-"h2o_lri02_es_and_gs.inp"               = [{matcher="M037", tol=3.0E-05, ref=0.942152E+00}]
-"h2o_hfxlr.inp"                         = [{matcher="M037", tol=2.0E-05, ref=0.216753E+00}]
-"h2o_t01.inp"                           = [{matcher="M037", tol=2.0E-05, ref=0.247964E+00}]
-"h2o_t02.inp"                           = [{matcher="M037", tol=2.0E-05, ref=0.236972E+00}]
+"h2o_lri01_only_es.inp"                 = [{matcher="TDDFPT_Check_Energy", tol=1.0E-05, ref=0.941247E+00}]
+"h2o_lri02_es_and_gs.inp"               = [{matcher="TDDFPT_Check_Energy", tol=3.0E-05, ref=0.942152E+00}]
+"h2o_hfxlr.inp"                         = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.216753E+00}]
+"h2o_t01.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.247964E+00}]
+"h2o_t02.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.236972E+00}]
 #EOF
