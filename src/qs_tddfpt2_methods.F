@@ -1126,7 +1126,11 @@ CONTAINS
          CALL uppercase(dipole_operator_env)
          use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
       END IF
-      IF (use_scf_moment_dipoles) CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
+      IF (use_scf_moment_dipoles) THEN
+         CALL cp_warn(__LOCATION__, "Diagnostic SCF-MO k-point dipoles: compare "// &
+                      "folded energy blocks, not individual states.")
+         CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
+      END IF
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &

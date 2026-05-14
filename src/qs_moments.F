@@ -3703,6 +3703,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
+      REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
+      REAL(KIND=dp)                                      :: energy_diff
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
       REAL(KIND=dp), DIMENSION(3)                        :: my_rcc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -3825,7 +3827,8 @@ CONTAINS
       IF (calc_bc) ALLOCATE (berry_c(nspin, num_copy, 3, nao), source=0.0_dp)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
-!$OMP i_dir, dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
+!$OMP i_dir, dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase, &
+!$OMP energy_diff) &
 !$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, periodic, &
 !$OMP nkp, xkp, S_rs, H_rs, D_rs, S_k_all, H_k_all, index_to_cell_all, hmat, calc_bc)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
@@ -3854,6 +3857,7 @@ CONTAINS
                   IF (ABS(C_k(mu, n)) < ABS(tmp_max)) CYCLE
                   tmp_max = C_k(mu, n)
                END DO
+               IF (ABS(tmp_max) == 0.0_dp) CYCLE
                phase = tmp_max/ABS(tmp_max)
                C_k(:, n) = C_k(:, n)/phase
             END DO
@@ -3873,15 +3877,16 @@ CONTAINS
                CALL gemm_square(C_k, 'C', dH_dk_i, 'N', C_k, 'N', C_dH_C)
                CALL gemm_square(C_k, 'C', D_k, 'N', C_k, 'N', CDC)
 
-               ! Compute the dipole
-               ! d_nm (k) = - i/(ε(n)-ε(m)) [ (C^H)(dH(k)/dk)C ]_nm
-               !            + i ε(n)/(ε(n)-ε(m)) [ (C^H)(dS(k)/dk)C ]_nm + [ (C^H)D(k)C ]_nm
+               ! Compute the dipole using the existing CP2K k-point moments
+               ! convention. Rotations inside exactly degenerate subspaces are
+               ! not unique, so those matrix elements are left at zero.
                DO n = 1, nao
                   DO m = 1, nao
                      IF (n == m) CYCLE ! diagonal elements would need to be computed from
                      ! a numerical k-derivative which is not implemented
-                     dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
-                                        + gaussi*eigenvals(n)*C_dS_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                     energy_diff = eigenvals(n) - eigenvals(m)
+                     IF (ABS(energy_diff) <= eps_degenerate) CYCLE
+                     dip(i_dir, n, m) = (-gaussi*C_dH_C(n, m) + gaussi*eigenvals(n)*C_dS_C(n, m))/energy_diff &
                                         + CDC(n, m)
                   END DO
                END DO
@@ -3932,6 +3937,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_dH_C, C_dS_C, C_k, CDC, D_k, &
                                                             dH_dk_i, dS_dk_i
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      COMPLEX(KIND=dp)                                   :: phase, tmp_max
       INTEGER                                            :: handle, i_dir, ikp, ikp_local, ispin, &
                                                             m, mu, n, nao, n_img_scf, n_img_all, &
                                                             nkp, nmo, nspin
@@ -3939,7 +3945,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
-      REAL(KIND=dp)                                      :: cimag, creal
+      REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
+      REAL(KIND=dp)                                      :: cimag, creal, energy_diff
       REAL(KIND=dp), DIMENSION(3)                        :: my_rcc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvals
@@ -4027,6 +4034,20 @@ CONTAINS
                   C_k(mu, n) = CMPLX(creal, cimag, KIND=dp)
                END DO
             END DO
+            ! Fix only the arbitrary U(1) phase of each SCF MO. Rotations
+            ! inside degenerate subspaces remain arbitrary, so oscillator
+            ! strengths from this diagnostic path must be compared as
+            ! energy-degenerate transition blocks.
+            DO n = 1, nmo
+               tmp_max = C_k(1, n)
+               DO mu = 1, nao
+                  IF (ABS(C_k(mu, n)) < ABS(tmp_max)) CYCLE
+                  tmp_max = C_k(mu, n)
+               END DO
+               IF (ABS(tmp_max) == 0.0_dp) CYCLE
+               phase = tmp_max/ABS(tmp_max)
+               C_k(:, n) = C_k(:, n)/phase
+            END DO
 
             dip = z_zero
             DO i_dir = 1, 3
@@ -4042,8 +4063,9 @@ CONTAINS
                DO n = 1, nmo
                   DO m = 1, nmo
                      IF (n == m) CYCLE
-                     dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
-                                        + gaussi*eigenvals(n)*C_dS_C(n, m)/(eigenvals(n) - eigenvals(m)) &
+                     energy_diff = eigenvals(n) - eigenvals(m)
+                     IF (ABS(energy_diff) <= eps_degenerate) CYCLE
+                     dip(i_dir, n, m) = (-gaussi*C_dH_C(n, m) + gaussi*eigenvals(n)*C_dS_C(n, m))/energy_diff &
                                         + CDC(n, m)
                   END DO
                END DO
