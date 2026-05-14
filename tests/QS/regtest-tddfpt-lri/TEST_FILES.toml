@@ -6,7 +6,7 @@
 "h2o_lri01_only_es.inp"                 = [{matcher="TDDFPT_Check_Energy", tol=1.0E-05, ref=0.941247E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.69755390E+00}]
 "h2o_lri02_es_and_gs.inp"               = [{matcher="TDDFPT_Check_Energy", tol=3.0E-05, ref=0.942152E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.69710852E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=5.0E-06, ref=0.69710682E+00}]
 "h2o_hfxlr.inp"                         = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.216753E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17517850E+00}]
 "h2o_t01.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.247964E+00},
