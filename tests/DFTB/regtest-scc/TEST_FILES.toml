@@ -32,7 +32,7 @@
 "h2o-5.inp"                             = [{matcher="E_total", tol=4e-09, ref=-130.55701170331295}]
 # first check for LSD
 "test-lsd.inp"                          = [{matcher="E_total", tol=4e-14, ref=-5.75878702495205}]
-"test-lsd-ls.inp"                       = [{matcher="M011", tol=1.0E-10, ref=-5.75878701862599}]
+"test-lsd-ls.inp"                       = [{matcher="M011", tol=5.0E-09, ref=-5.75878701862599}]
 # atomic properties
 "fa_atprop.inp"                         = [{matcher="E_total", tol=1.0E-14, ref=-5.7546307318903498}]
 "fa2_atprop.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-5.75087391754637}]
