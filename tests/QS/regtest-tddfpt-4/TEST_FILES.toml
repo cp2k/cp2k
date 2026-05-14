@@ -4,27 +4,50 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"test01.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.976371E+00}]
-"test02.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102132E+01}]
-"test03.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102132E+01}]
-"test04.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102641E+01}]
-"test05.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101974E+01}]
-"test06.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102171E+01}]
-"test07.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101792E+01}]
-"test08.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.103120E+01}]
-"test09.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101371E+01}]
-"test10.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.997064E+00}]
-"test11.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105541E+01}]
-"test12.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105058E+01}]
-"test13.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105541E+01}]
-"test14.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105058E+01}]
-"test15.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109231E+01}]
-"test16.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.106367E+01}]
-"test17.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.170669E+01}]
-"test18.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.169670E+01}]
-"test19.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.121034E+01}]
-"test20.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.120983E+01}]
-"test21.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105522E+01}]
-"test22.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109138E+01}]
-"test23.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109296E+01}]
+"test01.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.976371E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.68361623E+00}]
+"test02.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102132E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.46742375E+00}]
+"test03.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102132E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.46742375E+00}]
+"test04.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102641E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.47040243E+00}]
+"test05.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101974E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.51806893E+00}]
+"test06.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.102171E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.51654905E+00}]
+"test07.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101792E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.25618814E+00}]
+"test08.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.103120E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.25171056E+00}]
+"test09.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.101371E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.27971607E+00}]
+"test10.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.997064E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.27944902E+00}]
+"test11.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105541E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.50216020E+00}]
+"test12.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105058E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.49836007E+00}]
+"test13.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105541E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.50216020E+00}]
+"test14.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105058E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.49836007E+00}]
+"test15.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109231E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.29056550E+00}]
+"test16.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.106367E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.28639628E+00}]
+"test17.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.170669E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38168259E+00}]
+"test18.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.169670E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.36804915E+00}]
+"test19.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.121034E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.55528111E+00}]
+"test20.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.120983E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.55941262E+00}]
+"test21.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.105522E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.50530057E+00}]
+"test22.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109138E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.30004660E+00}]
+"test23.inp"                            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.109296E+01},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.29012297E+00}]
 #EOF

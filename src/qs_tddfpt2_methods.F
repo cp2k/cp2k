@@ -1275,7 +1275,7 @@ CONTAINS
       END DO
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,T2,A,E14.6)') 'TDDFPT : CheckSum  =', checksum
+         WRITE (log_unit, '(/,T2,A,E14.6)') 'TDDFPT : CheckSum E = ', checksum
          WRITE (log_unit, "(1X,A)") &
             "-------------------------------------------------------------------------------"
       END IF
