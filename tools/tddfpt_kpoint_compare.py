@@ -334,13 +334,22 @@ def sum_group_osc(groups: tuple[EnergyGroup, ...]) -> float:
     return sum(group.oscillator_sum for group in groups)
 
 
-def compare_groups(kpoint: Result, supercell: Result, tolerance_ev: float) -> None:
+def compare_groups(
+    kpoint: Result, supercell: Result, tolerance_ev: float, supercell_scale: int
+) -> None:
     left_groups = group_states(kpoint.states, tolerance_ev)
     right_groups = group_states(supercell.states, tolerance_ev)
     print(f"\nNearest grouped spectra: {kpoint.label} -> {supercell.label}")
-    print(
-        "  kp states     k/eV   sc states    sc/eV       dk/eV     osc(k)      osc(sc)"
-    )
+    if supercell_scale > 1:
+        print(
+            "  kp states     k/eV   sc states    sc/eV       dk/eV"
+            "     osc(k)      osc(sc)    osc(sc/N)"
+        )
+    else:
+        print(
+            "  kp states     k/eV   sc states    sc/eV       dk/eV"
+            "     osc(k)      osc(sc)"
+        )
     for left in left_groups:
         right = min(
             right_groups, key=lambda group: abs(left.energy_avg - group.energy_avg)
@@ -355,15 +364,25 @@ def compare_groups(kpoint: Result, supercell: Result, tolerance_ev: float) -> No
             if right.first_state == right.last_state
             else f"{right.first_state}-{right.last_state}"
         )
-        print(
+        line = (
             f"  {left_range:>8s}  {left.energy_avg:8.4f}"
             f"  {right_range:>8s}  {right.energy_avg:8.4f}"
             f"  {left.energy_avg - right.energy_avg:10.5f}"
             f"  {left.oscillator_sum:10.3e}  {right.oscillator_sum:10.3e}"
         )
+        if supercell_scale > 1:
+            line += f"  {right.oscillator_sum/supercell_scale:10.3e}"
+        print(line)
+    right_total = sum_group_osc(right_groups)
+    if supercell_scale > 1:
+        right_total_scaled = right_total / supercell_scale
+        print(
+            f"  total oscillator difference vs sc/N:"
+            f" {sum_group_osc(left_groups) - right_total_scaled:.8e}"
+        )
     print(
         "  total oscillator difference over printed states:"
-        f" {sum_group_osc(left_groups) - sum_group_osc(right_groups):.8e}"
+        f" {sum_group_osc(left_groups) - right_total:.8e}"
     )
 
 
@@ -466,6 +485,7 @@ def main() -> int:
 
     print(f"Work dir: {work_dir}")
     print(f"Grid:     {grid[0]} {grid[1]} {grid[2]}")
+    print(f"Fold N:   {grid[0] * grid[1] * grid[2]}")
     print(f"XC:       {args.functional}")
     print(f"Triplet:  {args.triplet}")
     if args.kernel_parts:
@@ -531,13 +551,18 @@ def main() -> int:
         right = results.get(f"H2_gamma_supercell_{kernel.lower()}")
         if left is not None and right is not None:
             compare_pair(left, right, args.nstates)
-            compare_groups(left, right, args.group_tol_ev)
+            compare_groups(left, right, args.group_tol_ev, grid[0] * grid[1] * grid[2])
         if kernel == "FULL" and args.kernel_parts and right is not None:
             for part in args.kernel_parts:
                 part_result = results.get(f"H2_kpoint_full_{part.lower()}")
                 if part_result is not None:
                     compare_pair(part_result, right, args.nstates)
-                    compare_groups(part_result, right, args.group_tol_ev)
+                    compare_groups(
+                        part_result,
+                        right,
+                        args.group_tol_ev,
+                        grid[0] * grid[1] * grid[2],
+                    )
 
     print(f"\nKept inputs/outputs in {work_dir}")
     return 0
