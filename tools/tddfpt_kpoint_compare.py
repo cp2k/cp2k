@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Compare small TDDFPT k-point calculations against Gamma supercells.
+"""Compare TDDFPT k-point calculations against Gamma supercells.
 
 This is a research/debugging helper for the TDDFPT k-point kernel branch.  It
-generates a tiny H2 chain input, runs KERNEL NONE/FULL with a k-point mesh and
-with the corresponding Gamma supercell, then prints the first TDDFPT states.
+generates small molecular and crystalline inputs, runs KERNEL NONE/FULL with a
+k-point mesh and with the corresponding Gamma supercell, then prints the first
+TDDFPT states.
 """
 
 from __future__ import annotations
@@ -46,6 +47,28 @@ class Result:
     states: tuple[State, ...]
     checksum: float | None
     metric_error: float | None
+
+
+@dataclass(frozen=True)
+class Atom:
+    element: str
+    fractional: tuple[float, float, float]
+
+
+@dataclass(frozen=True)
+class SystemDefinition:
+    name: str
+    description: str
+    cell: tuple[
+        tuple[float, float, float],
+        tuple[float, float, float],
+        tuple[float, float, float],
+    ]
+    atoms: tuple[Atom, ...]
+    basis: dict[str, str]
+    potential: dict[str, str]
+    cutoff: float = 100.0
+    rel_cutoff: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -121,25 +144,149 @@ def xc_block(functional: str) -> str:
     raise ValueError(f"Unsupported functional for this helper: {functional}")
 
 
-def h2_coords(nx: int, ny: int, nz: int) -> str:
+def fcc_primitive_cell(
+    a: float,
+) -> tuple[
+    tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]
+]:
+    return ((0.0, 0.5 * a, 0.5 * a), (0.5 * a, 0.0, 0.5 * a), (0.5 * a, 0.5 * a, 0.0))
+
+
+SYSTEMS: dict[str, SystemDefinition] = {
+    "h2": SystemDefinition(
+        name="h2",
+        description="H2 molecule in a periodically repeated large box",
+        cell=((4.0, 0.0, 0.0), (0.0, 4.0, 0.0), (0.0, 0.0, 4.0)),
+        atoms=(
+            Atom("H", (1.65 / 4.0, 0.5, 0.5)),
+            Atom("H", (2.35 / 4.0, 0.5, 0.5)),
+        ),
+        basis={"H": "DZVP-MOLOPT-GGA-GTH-q1"},
+        potential={"H": "GTH-GGA-q1"},
+    ),
+    "si": SystemDefinition(
+        name="si",
+        description="primitive diamond silicon cell",
+        cell=fcc_primitive_cell(5.43),
+        atoms=(Atom("Si", (0.0, 0.0, 0.0)), Atom("Si", (0.25, 0.25, 0.25))),
+        basis={"Si": "DZVP-MOLOPT-GGA-GTH-q4"},
+        potential={"Si": "GTH-GGA-q4"},
+    ),
+    "c": SystemDefinition(
+        name="c",
+        description="primitive diamond carbon cell",
+        cell=fcc_primitive_cell(3.57),
+        atoms=(Atom("C", (0.0, 0.0, 0.0)), Atom("C", (0.25, 0.25, 0.25))),
+        basis={"C": "DZVP-MOLOPT-GGA-GTH-q4"},
+        potential={"C": "GTH-GGA-q4"},
+    ),
+    "bn": SystemDefinition(
+        name="bn",
+        description="primitive zincblende boron nitride cell",
+        cell=fcc_primitive_cell(3.62),
+        atoms=(Atom("B", (0.0, 0.0, 0.0)), Atom("N", (0.25, 0.25, 0.25))),
+        basis={"B": "DZVP-MOLOPT-GGA-GTH-q3", "N": "DZVP-MOLOPT-GGA-GTH-q5"},
+        potential={"B": "GTH-GGA-q3", "N": "GTH-GGA-q5"},
+    ),
+    "lif": SystemDefinition(
+        name="lif",
+        description="primitive rocksalt lithium fluoride cell",
+        cell=fcc_primitive_cell(4.03),
+        atoms=(Atom("Li", (0.0, 0.0, 0.0)), Atom("F", (0.5, 0.5, 0.5))),
+        basis={"Li": "DZVP-MOLOPT-GGA-GTH-q1", "F": "DZVP-MOLOPT-GGA-GTH-q7"},
+        potential={"Li": "GTH-GGA-q1", "F": "GTH-GGA-q7"},
+    ),
+    "nacl": SystemDefinition(
+        name="nacl",
+        description="primitive rocksalt sodium chloride cell",
+        cell=fcc_primitive_cell(5.64),
+        atoms=(Atom("Na", (0.0, 0.0, 0.0)), Atom("Cl", (0.5, 0.5, 0.5))),
+        basis={"Na": "DZVP-MOLOPT-GGA-GTH-q1", "Cl": "DZVP-MOLOPT-GGA-GTH-q7"},
+        potential={"Na": "GTH-GGA-q1", "Cl": "GTH-GGA-q7"},
+    ),
+}
+
+
+def scaled_vector(
+    scale: int, vector: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    return (scale * vector[0], scale * vector[1], scale * vector[2])
+
+
+def frac_to_cart(
+    cell: tuple[
+        tuple[float, float, float],
+        tuple[float, float, float],
+        tuple[float, float, float],
+    ],
+    fractional: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    return tuple(
+        sum(fractional[idir] * cell[idir][icomponent] for idir in range(3))
+        for icomponent in range(3)
+    )
+
+
+def format_cell(
+    cell: tuple[
+        tuple[float, float, float],
+        tuple[float, float, float],
+        tuple[float, float, float],
+    ],
+) -> str:
+    labels = ("A", "B", "C")
+    return "\n".join(
+        f"      {label} {vector[0]:12.7f} {vector[1]:12.7f} {vector[2]:12.7f}"
+        for label, vector in zip(labels, cell)
+    )
+
+
+def system_cell(
+    system: SystemDefinition, grid: tuple[int, int, int], supercell: bool
+) -> tuple[tuple[float, float, float], ...]:
+    if not supercell:
+        return system.cell
+    return tuple(scaled_vector(grid[idir], system.cell[idir]) for idir in range(3))
+
+
+def system_coords(
+    system: SystemDefinition, grid: tuple[int, int, int], supercell: bool
+) -> str:
+    nx, ny, nz = grid if supercell else (1, 1, 1)
     lines: list[str] = []
     for ix in range(nx):
         for iy in range(ny):
             for iz in range(nz):
-                x0 = 4.0 * ix
-                y0 = 4.0 * iy
-                z0 = 4.0 * iz
-                lines.append(
-                    f"      H {x0 + 1.65:8.4f} {y0 + 2.00:8.4f} {z0 + 2.00:8.4f}"
-                )
-                lines.append(
-                    f"      H {x0 + 2.35:8.4f} {y0 + 2.00:8.4f} {z0 + 2.00:8.4f}"
-                )
+                for atom in system.atoms:
+                    fractional = (
+                        atom.fractional[0] + ix,
+                        atom.fractional[1] + iy,
+                        atom.fractional[2] + iz,
+                    )
+                    x, y, z = frac_to_cart(system.cell, fractional)
+                    lines.append(
+                        f"      {atom.element:2s} {x:12.7f} {y:12.7f} {z:12.7f}"
+                    )
+    return "\n".join(lines)
+
+
+def kind_sections(system: SystemDefinition) -> str:
+    lines: list[str] = []
+    for element in sorted(system.basis):
+        lines.extend(
+            [
+                f"    &KIND {element}",
+                f"      BASIS_SET ORB {system.basis[element]}",
+                f"      POTENTIAL {system.potential[element]}",
+                "    &END KIND",
+            ]
+        )
     return "\n".join(lines)
 
 
 def make_input(
     *,
+    system: SystemDefinition,
     project: str,
     kernel: str,
     functional: str,
@@ -151,7 +298,9 @@ def make_input(
     triplet: bool,
     dipole_operator: str,
 ) -> str:
-    nx, ny, nz = grid if supercell else (1, 1, 1)
+    supercell_scale = grid[0] * grid[1] * grid[2] if supercell else 1
+    run_added_mos = added_mos * supercell_scale
+    run_nstates = nstates * supercell_scale
     kpoints = ""
     if not supercell:
         gamma_line = "      GAMMA_CENTERED T\n" if gamma_centered else ""
@@ -170,6 +319,7 @@ def make_input(
         DIPOLE_FORM {dipole_operator}
       &END DIPOLE_MOMENTS
 """
+    cell = system_cell(system, grid, supercell)
     return f"""&GLOBAL
   PRINT_LEVEL LOW
   PROJECT {project}
@@ -182,15 +332,15 @@ def make_input(
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
 {kpoints}    &MGRID
-      CUTOFF 100
-      REL_CUTOFF 30
+      CUTOFF {system.cutoff:.0f}
+      REL_CUTOFF {system.rel_cutoff:.0f}
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-10
       METHOD GPW
     &END QS
     &SCF
-      ADDED_MOS {added_mos}
+      ADDED_MOS {run_added_mos}
       CHOLESKY OFF
       EPS_EIGVAL 1.0E-8
       EPS_SCF 1.0E-8
@@ -212,20 +362,17 @@ def make_input(
   &PROPERTIES
     &TDDFPT
       KERNEL {kernel}
-      NSTATES {nstates}
+      NSTATES {run_nstates}
 {triplet_line}{dipole_section}    &END TDDFPT
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC {4.0 * nx:.1f} {4.0 * ny:.1f} {4.0 * nz:.1f}
+{format_cell(cell)}
     &END CELL
     &COORD
-{h2_coords(nx, ny, nz)}
+{system_coords(system, grid, supercell)}
     &END COORD
-    &KIND H
-      BASIS_SET ORB DZVP-MOLOPT-GGA-GTH-q1
-      POTENTIAL GTH-GGA-q1
-    &END KIND
+{kind_sections(system)}
   &END SUBSYS
 &END FORCE_EVAL
 """
@@ -543,6 +690,12 @@ def main() -> int:
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument(
+        "--system",
+        default="h2",
+        choices=tuple(SYSTEMS),
+        help="Small molecular or crystalline system to generate.",
+    )
+    parser.add_argument(
         "--grid", nargs=3, default=("2", "1", "1"), metavar=("NX", "NY", "NZ")
     )
     parser.add_argument("--functional", default="PBE", choices=("PBE", "PADE", "LDA"))
@@ -594,6 +747,7 @@ def main() -> int:
         else args.data_dir
     )
     grid = parse_grid(args.grid)
+    system = SYSTEMS[args.system]
     work_dir = args.work_dir or Path(tempfile.mkdtemp(prefix="cp2k_tddfpt_kp_compare_"))
     work_dir = work_dir.resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -604,6 +758,7 @@ def main() -> int:
         raise SystemExit(f"CP2K data directory not found: {data_dir}")
 
     print(f"Work dir: {work_dir}")
+    print(f"System:   {system.name} ({system.description})")
     print(f"Grid:     {grid[0]} {grid[1]} {grid[2]}")
     print(f"Fold N:   {grid[0] * grid[1] * grid[2]}")
     print(f"XC:       {args.functional}")
@@ -635,10 +790,11 @@ def main() -> int:
             for part in parts:
                 suffix = f"_{part.lower()}" if part else ""
                 label = (
-                    f"H2_{'gamma_supercell' if supercell else 'kpoint'}_"
+                    f"{system.name}_{'gamma_supercell' if supercell else 'kpoint'}_"
                     f"{kernel.lower()}{suffix}"
                 )
                 input_text = make_input(
+                    system=system,
                     project=label,
                     kernel=kernel,
                     functional=args.functional,
@@ -666,14 +822,14 @@ def main() -> int:
                     results[label] = result
 
     for result in results.values():
-        print_result(result, args.nstates, args.bright_threshold)
+        print_result(result, len(result.states), args.bright_threshold)
         print_group_spectrum(result, args.group_tol_ev)
 
     for kernel in args.kernels:
-        left = results.get(f"H2_kpoint_{kernel.lower()}")
-        right = results.get(f"H2_gamma_supercell_{kernel.lower()}")
+        left = results.get(f"{system.name}_kpoint_{kernel.lower()}")
+        right = results.get(f"{system.name}_gamma_supercell_{kernel.lower()}")
         if left is not None and right is not None:
-            compare_pair(left, right, args.nstates)
+            compare_pair(left, right, len(left.states))
             compare_groups(
                 left,
                 right,
@@ -683,9 +839,9 @@ def main() -> int:
             )
         if kernel == "FULL" and args.kernel_parts and right is not None:
             for part in args.kernel_parts:
-                part_result = results.get(f"H2_kpoint_full_{part.lower()}")
+                part_result = results.get(f"{system.name}_kpoint_full_{part.lower()}")
                 if part_result is not None:
-                    compare_pair(part_result, right, args.nstates)
+                    compare_pair(part_result, right, len(part_result.states))
                     compare_groups(
                         part_result,
                         right,
