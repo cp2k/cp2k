@@ -30,7 +30,8 @@ MODULE qs_tddfpt2_kpoint_full
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE input_constants,                 ONLY: tddfpt_kernel_full
+   USE input_constants,                 ONLY: tddfpt_dipole_scf_moment,&
+                                              tddfpt_kernel_full
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: rskp_transform
@@ -510,12 +511,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_transition_dipoles'
 
-      CHARACTER(LEN=32)                                  :: dipole_operator_env
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
-      INTEGER                                            :: env_status, gap_index, handle, ideriv, &
-                                                            ikp, ikp_local, iocc, ispin, ivirt, &
-                                                            nao, nkp, nspins, spin_offset
+      INTEGER                                            :: gap_index, handle, ideriv, ikp, &
+                                                            ikp_local, iocc, ispin, ivirt, nao, &
+                                                            nkp, nspins, spin_offset
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, use_scf_moment_dipoles
@@ -570,14 +570,7 @@ CONTAINS
       nspins = dft_control%nspins
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
-      use_scf_moment_dipoles = .FALSE.
-      dipole_operator_env = ""
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DIPOLE_OPERATOR", dipole_operator_env, &
-                                    STATUS=env_status)
-      IF (env_status == 0) THEN
-         CALL uppercase(dipole_operator_env)
-         use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
-      END IF
+      use_scf_moment_dipoles = (tddfpt_control%dipole_form == tddfpt_dipole_scf_moment)
       IF (use_scf_moment_dipoles) THEN
          CALL cp_warn(__LOCATION__, "Diagnostic SCF-MO k-point dipoles: compare folded energy blocks, "// &
                       "not individual states.")

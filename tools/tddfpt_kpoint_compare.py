@@ -149,6 +149,7 @@ def make_input(
     gamma_centered: bool,
     supercell: bool,
     triplet: bool,
+    dipole_operator: str,
 ) -> str:
     nx, ny, nz = grid if supercell else (1, 1, 1)
     kpoints = ""
@@ -163,6 +164,12 @@ def make_input(
 """
 
     triplet_line = "      RKS_TRIPLETS T\n" if triplet else ""
+    dipole_section = ""
+    if not supercell and dipole_operator != "VELOCITY":
+        dipole_section = f"""      &DIPOLE_MOMENTS
+        DIPOLE_FORM {dipole_operator}
+      &END DIPOLE_MOMENTS
+"""
     return f"""&GLOBAL
   PRINT_LEVEL LOW
   PROJECT {project}
@@ -206,7 +213,7 @@ def make_input(
     &TDDFPT
       KERNEL {kernel}
       NSTATES {nstates}
-{triplet_line}    &END TDDFPT
+{triplet_line}{dipole_section}    &END TDDFPT
   &END PROPERTIES
   &SUBSYS
     &CELL
@@ -641,12 +648,9 @@ def main() -> int:
                     gamma_centered=not args.no_gamma_centered,
                     supercell=supercell,
                     triplet=args.triplet,
+                    dipole_operator=args.dipole_operator,
                 )
                 env_overrides = dict(debug_env)
-                if not supercell and args.dipole_operator != "VELOCITY":
-                    env_overrides["CP2K_TDDFPT_KP_DIPOLE_OPERATOR"] = (
-                        args.dipole_operator
-                    )
                 if part:
                     env_overrides["CP2K_TDDFPT_KP_KERNEL_PART"] = part
                 result = run_case(

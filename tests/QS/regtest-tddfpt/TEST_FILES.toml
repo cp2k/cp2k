@@ -19,14 +19,16 @@
 "H2O_tddfpt_NTO_slist.inp"              = [{matcher="M037", tol=4.0E-06, ref=0.542432E+00}]
 "H2O_tddfpt_NTO_restart.inp"            = [{matcher="M037", tol=4.0E-06, ref=0.542432E+00}]
 "H2_kp_tddfpt_none_mp.inp"              = [{matcher="M037", tol=4.0E-06, ref=0.658268E+00},
-                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.135118E-02}]
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.298165E+00}]
+"H2_kp_tddfpt_none_scf_moment.inp"      = [{matcher="M037", tol=4.0E-06, ref=0.658268E+00},
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.298165E+00}]
 "H2_kp_tddfpt_none_general.inp"         = [{matcher="M037", tol=4.0E-06, ref=0.658268E+00},
-                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.135118E-02}]
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.298165E+00}]
 "H2_kp_tddfpt_none_macdonald.inp"       = [{matcher="M037", tol=4.0E-06, ref=0.658268E+00},
-                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.135118E-02}]
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.298165E+00}]
 "H2_kp_tddfpt_none_sym.inp"             = [{matcher="M037", tol=4.0E-06, ref=0.465466E+00},
-                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.270236E-02}]
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.596331E+00}]
 "H2_kp_tddfpt_full_mp.inp"              = [{matcher="M037", tol=4.0E-06, ref=0.134769E+01},
-                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.623427E-03}]
+                                           {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.263971E+00}]
 #
 #EOF

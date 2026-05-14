@@ -59,8 +59,8 @@ MODULE qs_tddfpt2_methods
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_none, do_admm_basis_projection, do_admm_exch_scaling_none, &
         do_admm_purify_none, do_potential_truncated, no_sf_tddfpt, oe_none, &
-        tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, tddfpt_kernel_stda, &
-        tddfpt_sf_col, tddfpt_sf_noncol
+        tddfpt_dipole_scf_moment, tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, &
+        tddfpt_kernel_stda, tddfpt_sf_col, tddfpt_sf_noncol
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -145,8 +145,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_release_ground_state_mos
    USE rixs_types,                      ONLY: rixs_env_type,&
                                               tddfpt2_valence_type
-   USE string_utilities,                ONLY: integer_to_string,&
-                                              uppercase
+   USE string_utilities,                ONLY: integer_to_string
    USE util,                            ONLY: sort
    USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
@@ -721,8 +720,9 @@ CONTAINS
          IF (tddfpt_control%oe_corr /= oe_none) &
             CPABORT("Orbital-energy-corrected TDDFPT is not implemented for k-points")
          IF (tddfpt_control%dipole_form /= 0 .AND. &
-             tddfpt_control%dipole_form /= tddfpt_dipole_velocity) &
-            CPABORT("K-point TDDFPT supports only velocity-form transition dipoles")
+             tddfpt_control%dipole_form /= tddfpt_dipole_velocity .AND. &
+             tddfpt_control%dipole_form /= tddfpt_dipole_scf_moment) &
+            CPABORT("K-point TDDFPT supports only velocity-form or SCF_MOMENT transition dipoles")
          CALL cp_warn(__LOCATION__, "K-point TDDFPT oscillator strengths are experimental and "// &
                       "not yet validated against folded Gamma-supercell spectra.")
       END IF
@@ -1036,11 +1036,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_independent_particle'
 
-      CHARACTER(LEN=32)                                  :: dipole_operator_env
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
-      INTEGER :: env_status, handle, ideriv, ikp, ikp_local, iocc, ispin, istate, ivirt, log_unit, &
-         nao, nkp, nspins, nstates, ntrans_kpoint, ntrans_total, spin_offset, trans_index
+      INTEGER :: handle, ideriv, ikp, ikp_local, iocc, ispin, istate, ivirt, log_unit, nao, nkp, &
+         nspins, nstates, ntrans_kpoint, ntrans_total, spin_offset, trans_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -1117,14 +1116,7 @@ CONTAINS
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
       oscillator_strength = 0.0_dp
-      use_scf_moment_dipoles = .FALSE.
-      dipole_operator_env = ""
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_TDDFPT_KP_DIPOLE_OPERATOR", dipole_operator_env, &
-                                    STATUS=env_status)
-      IF (env_status == 0) THEN
-         CALL uppercase(dipole_operator_env)
-         use_scf_moment_dipoles = (TRIM(dipole_operator_env) == "SCF_MOMENT")
-      END IF
+      use_scf_moment_dipoles = (tddfpt_control%dipole_form == tddfpt_dipole_scf_moment)
       IF (use_scf_moment_dipoles) THEN
          CALL cp_warn(__LOCATION__, "Diagnostic SCF-MO k-point dipoles: compare folded energy blocks, "// &
                       "not individual states.")
