@@ -42,7 +42,7 @@ MODULE qs_tddfpt2_kpoint_utils
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
-                                              qs_rho_update_tddfpt
+                                              qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
 #include "./base/base_uses.f90"
@@ -476,7 +476,7 @@ CONTAINS
 
       CALL tddfpt_kpoint_response_to_pmat(qs_env, response, transitions, pmat_ext)
 
-      CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.TRUE., rebuild_grids=.TRUE.)
+      CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
       CALL qs_rho_get(rho1, rho_ao_kp=rho1_ao)
       CPASSERT(ASSOCIATED(rho1_ao))
 
@@ -491,7 +491,7 @@ CONTAINS
 
       CALL kpoint_density_transform(kpoints, rho1_ao, .FALSE., matrix_s_kp(1, 1)%matrix, &
                                     sab_kp, fmwork, pmat_ext=pmat_ext)
-      CALL qs_rho_update_tddfpt(rho1, qs_env)
+      CALL qs_rho_update_rho(rho1, qs_env)
 
       DO ic = 1, 2
          CALL cp_fm_release(fmwork(ic))

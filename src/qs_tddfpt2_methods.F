@@ -104,6 +104,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_orthonormalize_psi1_psi1
    USE qs_tddfpt2_forces,               ONLY: tddfpt_forces_main
    USE qs_tddfpt2_fprint,               ONLY: tddfpt_print_forces
+   USE qs_tddfpt2_kpoint_full,          ONLY: tddfpt_kpoint_full_reference
    USE qs_tddfpt2_kpoint_utils,         ONLY: tddfpt_kpoint_apply_energy_diff,&
                                               tddfpt_kpoint_init_transitions,&
                                               tddfpt_kpoint_response_create,&
@@ -297,7 +298,14 @@ CONTAINS
             CPABORT("RIXS/TDDFPT is not implemented for k-points")
          IF (do_soc) &
             CPABORT("TDDFPT-SOC is not implemented for k-points")
-         CALL tddfpt_kpoint_independent_particle(qs_env, logger, tddfpt_control)
+         SELECT CASE (tddfpt_control%kernel)
+         CASE (tddfpt_kernel_none)
+            CALL tddfpt_kpoint_independent_particle(qs_env, logger, tddfpt_control)
+         CASE (tddfpt_kernel_full)
+            CALL tddfpt_kpoint_full_reference(qs_env, logger, tddfpt_control, xc_section)
+         CASE DEFAULT
+            CPABORT("K-point TDDFPT kernel not implemented")
+         END SELECT
          CALL cp_print_key_finished_output(log_unit, &
                                            logger, &
                                            tddfpt_print_section, &
@@ -676,7 +684,8 @@ CONTAINS
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: exar, exf, exgcp, exhf, exhfxk, exk, &
                                                             explicit, explicit_root, expot, exvdw, &
-                                                            exwfn, found, same_hfx, use_real_wfn
+                                                            exwfn, found, full_grid, same_hfx, &
+                                                            use_real_wfn
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -690,7 +699,6 @@ CONTAINS
          SELECT CASE (tddfpt_control%kernel)
          CASE (tddfpt_kernel_none)
          CASE (tddfpt_kernel_full)
-            CPABORT("K-point TDDFPT KERNEL FULL is not implemented")
          CASE (tddfpt_kernel_stda)
             CPABORT("K-point TDDFPT KERNEL sTDA is not implemented")
          CASE DEFAULT
@@ -699,6 +707,11 @@ CONTAINS
          CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
          IF (use_real_wfn) &
             CPABORT("K-point TDDFPT requires complex wavefunctions")
+         IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+            CALL get_kpoint_info(kpoints, full_grid=full_grid)
+            IF (.NOT. full_grid) &
+               CPABORT("K-point TDDFPT KERNEL FULL requires FULL_GRID ON")
+         END IF
          IF (tddfpt_control%spinflip /= no_sf_tddfpt) &
             CPABORT("Spin-flip TDDFPT is not implemented for k-points")
          IF (tddfpt_control%do_smearing) &
@@ -853,6 +866,23 @@ CONTAINS
          do_exck = .FALSE.
          do_hfxsr = .FALSE.
          do_hfxlr = .FALSE.
+      END IF
+
+      IF (dft_control%nimages > 1 .AND. tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         IF (do_hfx .OR. do_admm .OR. do_hfxsr .OR. do_hfxlr) &
+            CPABORT("K-point TDDFPT KERNEL FULL with HFX is not implemented")
+         IF (do_exck) &
+            CPABORT("K-point TDDFPT KERNEL FULL with XC_KERNEL is not implemented")
+         IF (tddfpt_control%do_lrigpw .OR. dft_control%qs_control%lrigpw .OR. &
+             dft_control%qs_control%rigpw) &
+            CPABORT("K-point TDDFPT KERNEL FULL with RIGPW/LRIGPW is not implemented")
+         IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) &
+            CPABORT("K-point TDDFPT KERNEL FULL with GAPW is not implemented")
+         IF (dft_control%use_kinetic_energy_density) &
+            CPABORT("K-point TDDFPT KERNEL FULL with meta-GGA is not implemented")
+         IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+             dft_control%qs_control%xtb) &
+            CPABORT("K-point TDDFPT KERNEL FULL is implemented only for GPW")
       END IF
 
       ! reset rks_triplets if UKS is in use

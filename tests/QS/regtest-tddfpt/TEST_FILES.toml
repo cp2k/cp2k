@@ -26,5 +26,6 @@
                                            {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.259491E+00}]
 "H2_kp_tddfpt_none_sym.inp"             = [{matcher="M037", tol=4.0E-06, ref=0.465466E+00},
                                            {matcher="TDDFPT_osc_strength", tol=4.0E-06, ref=0.518983E+00}]
+"H2_kp_tddfpt_full_mp.inp"              = [{matcher="M037", tol=4.0E-06, ref=0.632864E+00}]
 #
 #EOF

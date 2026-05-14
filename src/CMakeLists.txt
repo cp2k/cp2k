@@ -717,6 +717,7 @@ list(
   qs_tddfpt2_fhxc.F
   qs_tddfpt2_fhxc_forces.F
   qs_tddfpt2_forces.F
+  qs_tddfpt2_kpoint_full.F
   qs_tddfpt2_kpoint_utils.F
   qs_tddfpt2_lri_utils.F
   qs_tddfpt2_methods.F

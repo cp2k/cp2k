@@ -96,11 +96,11 @@ MODULE qs_environment
         do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
         do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, gfn1xtb, hden_atomic, &
         kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, smear_fermi_dirac, &
-        tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
-        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, &
-        xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, &
-        xtb_vdw_type_none
+        tblite_scc_mixer_tblite, tddfpt_kernel_full, tddfpt_kernel_none, vdw_pairpot_dftd2, &
+        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_gext_proj_nr, &
+        wfi_gext_proj_qtr_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
+        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -411,7 +411,8 @@ CONTAINS
          CALL section_vals_get(tddfpt_section, explicit=do_tddfpt)
          IF (do_tddfpt) THEN
             CALL section_vals_val_get(tddfpt_section, "KERNEL", i_val=tddfpt_kernel)
-            do_tddfpt_unsupported_kpoints = tddfpt_kernel /= tddfpt_kernel_none
+            do_tddfpt_unsupported_kpoints = tddfpt_kernel /= tddfpt_kernel_none .AND. &
+                                            tddfpt_kernel /= tddfpt_kernel_full
             IF (.NOT. do_tddfpt_unsupported_kpoints) THEN
                CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
                IF (use_real_wfn) &
