@@ -60,6 +60,7 @@ MODULE qs_tddfpt2_properties
    USE input_constants,                 ONLY: no_sf_tddfpt,&
                                               tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
+                                              tddfpt_dipole_scf_moment,&
                                               tddfpt_dipole_velocity
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -578,6 +579,8 @@ CONTAINS
             WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using length formulation"
          CASE (tddfpt_dipole_velocity)
             WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using velocity formulation"
+         CASE (tddfpt_dipole_scf_moment)
+            WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using SCF-MO moment formulation"
          CASE DEFAULT
             CPABORT("Unimplemented form of the dipole operator")
          END SELECT

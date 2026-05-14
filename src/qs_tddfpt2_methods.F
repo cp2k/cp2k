@@ -59,8 +59,8 @@ MODULE qs_tddfpt2_methods
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_none, do_admm_basis_projection, do_admm_exch_scaling_none, &
         do_admm_purify_none, do_potential_truncated, no_sf_tddfpt, oe_none, &
-        tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, tddfpt_kernel_stda, &
-        tddfpt_sf_col, tddfpt_sf_noncol
+        tddfpt_dipole_scf_moment, tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, &
+        tddfpt_kernel_stda, tddfpt_sf_col, tddfpt_sf_noncol
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -92,6 +92,7 @@ MODULE qs_tddfpt2_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: qs_moment_kpoints_scf_mos
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_scf_methods,                  ONLY: eigensolver
@@ -692,8 +693,9 @@ CONTAINS
          IF (tddfpt_control%oe_corr /= oe_none) &
             CPABORT("Orbital-energy-corrected TDDFPT is not implemented for k-points")
          IF (tddfpt_control%dipole_form /= 0 .AND. &
-             tddfpt_control%dipole_form /= tddfpt_dipole_velocity) &
-            CPABORT("K-point TDDFPT supports only velocity-form transition dipoles")
+             tddfpt_control%dipole_form /= tddfpt_dipole_velocity .AND. &
+             tddfpt_control%dipole_form /= tddfpt_dipole_scf_moment) &
+            CPABORT("K-point TDDFPT supports only velocity-form or SCF_MOMENT transition dipoles")
       END IF
 
       IF (tddfpt_control%nstates <= 0) THEN
@@ -988,6 +990,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_independent_particle'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
       INTEGER :: handle, ideriv, ikp, ikp_local, iocc, ispin, istate, itrans, ivirt, log_unit, &
          nao, nkp, nkp_local, nspins, nstates, ntrans_kpoint, ntrans_spin, ntrans_total, &
          spin_offset, trans_index
@@ -995,7 +999,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nao_spin, nmo_spin, nvirt_spin
-      LOGICAL                                            :: my_kpgrp
+      LOGICAL                                            :: my_kpgrp, use_scf_moment_dipoles
       REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, gap, &
                                                             oscillator_factor, spin_factor
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_kp, evals, &
@@ -1085,6 +1089,12 @@ CONTAINS
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
       oscillator_strength = 0.0_dp
+      use_scf_moment_dipoles = (tddfpt_control%dipole_form == tddfpt_dipole_scf_moment)
+      IF (use_scf_moment_dipoles) THEN
+         CALL cp_warn(__LOCATION__, "SCF_MOMENT k-point dipoles use direct SCF MO matrix "// &
+                      "elements; compare folded energy blocks, not individual degenerate states.")
+         CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
+      END IF
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
@@ -1189,9 +1199,15 @@ CONTAINS
                      gap = eigenvalues_kp(ivirt) - eigenvalues_kp(iocc)
                      IF (gap <= 0.0_dp) &
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
-                     oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
-                     CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
-                     CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     IF (use_scf_moment_dipoles) THEN
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))
+                        dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
+                        dipole_im = AIMAG(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt))
+                     ELSE
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
+                        CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
+                        CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     END IF
                      transition_dipole_re(trans_index, ideriv) = oscillator_factor*dipole_re
                      transition_dipole_im(trans_index, ideriv) = oscillator_factor*dipole_im
                   END DO
@@ -1220,6 +1236,7 @@ CONTAINS
 
       IF (ANY(transition_energy <= 0.0_dp)) &
          CPABORT("K-point TDDFPT KERNEL NONE requires positive occupied-virtual energy gaps")
+      IF (ALLOCATED(kpoint_dipole)) DEALLOCATE (kpoint_dipole)
 
       CALL sort(transition_energy, ntrans_total, inds)
       nstates = MIN(tddfpt_control%nstates, ntrans_total)
