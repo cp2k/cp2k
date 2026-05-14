@@ -375,16 +375,18 @@ CONTAINS
          CALL torch_tensor_grad(edge_vectors_tensor, edge_vectors_grad_tensor)
          NULLIFY (edge_vectors_grad)
          CALL torch_tensor_data_ptr(edge_vectors_grad_tensor, edge_vectors_grad)
-         CPASSERT(SIZE(edge_vectors_grad, 1) == 3 .AND. SIZE(edge_vectors_grad, 2) == num_edges)
-         CPASSERT(ALL(edge_vectors_grad == edge_vectors_grad)) ! checking for NaNs
-         DO iedge = 1, num_edges
-            jneighbor = INT(edge_index(iedge, 1) + 1)
-            kneighbor = INT(edge_index(iedge, 2) + 1)
-            jatom = neighbor_atom_index(jneighbor)
-            katom = neighbor_atom_index(kneighbor)
-            forces(jatom, :) = forces(jatom, :) + edge_vectors_grad(:, iedge)*angstrom
-            forces(katom, :) = forces(katom, :) - edge_vectors_grad(:, iedge)*angstrom
-         END DO
+         IF (ASSOCIATED(edge_vectors_grad)) THEN  ! Torch may return NULL pointer as gradient.
+            CPASSERT(SIZE(edge_vectors_grad, 1) == 3 .AND. SIZE(edge_vectors_grad, 2) == num_edges)
+            CPASSERT(ALL(edge_vectors_grad == edge_vectors_grad)) ! checking for NaNs
+            DO iedge = 1, num_edges
+               jneighbor = INT(edge_index(iedge, 1) + 1)
+               kneighbor = INT(edge_index(iedge, 2) + 1)
+               jatom = neighbor_atom_index(jneighbor)
+               katom = neighbor_atom_index(kneighbor)
+               forces(jatom, :) = forces(jatom, :) + edge_vectors_grad(:, iedge)*angstrom
+               forces(katom, :) = forces(katom, :) - edge_vectors_grad(:, iedge)*angstrom
+            END DO
+         END IF
          CALL torch_tensor_release(outer_grad_tensor)
          CALL torch_tensor_release(edge_vectors_grad_tensor)
       END IF

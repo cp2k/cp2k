@@ -167,13 +167,14 @@ CONTAINS
                                                        sizes=sizes_c, &
                                                        data_ptr=data_ptr_c)
 
-            CPASSERT(ALL(sizes_c >= 0))
-            CPASSERT(C_ASSOCIATED(data_ptr_c))
-
             #:for axis in range(ndims)
                sizes_f(${axis + 1}$) = sizes_c(${ndims - axis}$) ! C arrays are stored row-major.
             #:endfor
-            CALL C_F_POINTER(data_ptr_c, data_ptr, shape=sizes_f)
+
+            IF (ALL(sizes_f /= 0)) THEN  ! Torch returns null pointer for zero-sized tensors.
+               CPASSERT(C_ASSOCIATED(data_ptr_c))
+               CALL C_F_POINTER(data_ptr_c, data_ptr, shape=sizes_f)
+            END IF
 #else
             CPABORT("CP2K compiled without the Torch library.")
             MARK_USED(tensor)
