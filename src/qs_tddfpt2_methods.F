@@ -59,8 +59,8 @@ MODULE qs_tddfpt2_methods
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_none, do_admm_basis_projection, do_admm_exch_scaling_none, &
         do_admm_purify_none, do_potential_truncated, no_sf_tddfpt, oe_none, &
-        tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, tddfpt_kernel_stda, &
-        tddfpt_sf_col, tddfpt_sf_noncol
+        tddfpt_dipole_scf_moment, tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, &
+        tddfpt_kernel_stda, tddfpt_sf_col, tddfpt_sf_noncol
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -692,8 +692,9 @@ CONTAINS
          IF (tddfpt_control%oe_corr /= oe_none) &
             CPABORT("Orbital-energy-corrected TDDFPT is not implemented for k-points")
          IF (tddfpt_control%dipole_form /= 0 .AND. &
-             tddfpt_control%dipole_form /= tddfpt_dipole_velocity) &
-            CPABORT("K-point TDDFPT supports only velocity-form transition dipoles")
+             tddfpt_control%dipole_form /= tddfpt_dipole_velocity .AND. &
+             tddfpt_control%dipole_form /= tddfpt_dipole_scf_moment) &
+            CPABORT("K-point TDDFPT supports only velocity-form or SCF_MOMENT transition dipoles")
       END IF
 
       IF (tddfpt_control%nstates <= 0) THEN
@@ -995,7 +996,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(maxspins)                       :: homo_spin, nao_spin, nmo_spin, nvirt_spin
-      LOGICAL                                            :: my_kpgrp
+      LOGICAL                                            :: my_kpgrp, use_scf_moment_dipoles
       REAL(kind=dp)                                      :: checksum, dipole_im, dipole_re, fsum, &
                                                             gap, oscillator_factor, spin_factor
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues_kp, evals, &
@@ -1085,16 +1086,28 @@ CONTAINS
       transition_dipole_re = 0.0_dp
       transition_dipole_im = 0.0_dp
       oscillator_strength = 0.0_dp
+      use_scf_moment_dipoles = (tddfpt_control%dipole_form == tddfpt_dipole_scf_moment)
+      IF (use_scf_moment_dipoles) THEN
+         CALL cp_warn(__LOCATION__, "SCF_MOMENT k-point dipoles use direct SCF MO matrix "// &
+                      "elements; compare folded energy blocks, not individual degenerate states.")
+      END IF
 
       CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
                                 basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
                                 ext_kpoints=kpoints)
 
       ALLOCATE (rmatrix, cmatrix)
-      CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
+      IF (use_scf_moment_dipoles) THEN
+         CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+      ELSE
+         CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+      END IF
       CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
       CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
 
@@ -1158,29 +1171,55 @@ CONTAINS
                                    ispin=ideriv + 1, xkp=kpoints%xkp(:, ikp), &
                                    cell_to_index=cell_to_index, sab_nl=sab_kp)
 
-               CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
+               IF (use_scf_moment_dipoles) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
 
-               CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
 
-               CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
 
-               CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_re)
-               CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                  -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
+                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_re)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
+               ELSE
+                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
+
+                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+
+                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
+
+                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_re)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
+                                     -1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
+               END IF
 
                DO iocc = 1, homo_spin(ispin)
                   DO ivirt = homo_spin(ispin) + 1, nmo_spin(ispin)
