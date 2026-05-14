@@ -897,10 +897,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
       LOGICAL                                            :: do_homo, do_mo_cubes, do_wannier_cubes, &
                                                             p_loc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_localized, occupied_orbs
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -1012,6 +1012,9 @@ CONTAINS
          DEALLOCATE (occupied_evals)
          CALL qs_loc_env_release(qs_loc_env)
          DEALLOCATE (qs_loc_env)
+         IF (ASSOCIATED(marked_states)) THEN
+            DEALLOCATE (marked_states)
+         END IF
       END IF
 
       CALL auxbas_pw_pool%give_back_pw(wf_r)
