@@ -3,13 +3,20 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"h2o_f01.inp"                           = [{matcher="M037", tol=1.0E-4, ref=0.138486E+00}]
-"h2o_f01_fine.inp"                      = [{matcher="M037", tol=1.0E-4, ref=0.132380E+00}]
-"h2o_f01_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=1.012588E+00}]
-"h2o_f01_pbe_gapwxc.inp"                = [{matcher="M037", tol=1.0E-4, ref=0.138495E+00}]
-"h2o_f01_pbe.inp"                       = [{matcher="M037", tol=1.0E-4, ref=0.141293E+00}]
-"h2o_f01_pbe_fine_xc.inp"               = [{matcher="M037", tol=1.0E-4, ref=0.135849E+00}]
-"h2o_f02_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=0.202091E+00}]
+"h2o_f01.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.138486E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.25308651E-01}]
+"h2o_f01_fine.inp"                      = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.132380E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38942157E-01}]
+"h2o_f01_coulomb_only.inp"              = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=1.012588E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.76042058E+00}]
+"h2o_f01_pbe_gapwxc.inp"                = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.138495E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.25280541E-01}]
+"h2o_f01_pbe.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.141293E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.23553567E-01}]
+"h2o_f01_pbe_fine_xc.inp"               = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.135849E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.02746480E+00}]
+"h2o_f02_coulomb_only.inp"              = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.202091E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.27281353E+00}]
 "h2o_t01.inp"                           = []
 "h2o_t02.inp"                           = []
 "h2o_t03.inp"                           = []
@@ -32,3 +39,5 @@
 "ft3.inp"                               = []
 "ft3_fine.inp"                          = []
 #EOF
+
+

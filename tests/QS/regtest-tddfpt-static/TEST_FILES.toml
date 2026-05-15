@@ -3,5 +3,6 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"CH3_tddfpt_smeared_occ.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.490948E+00}]
+"CH3_tddfpt_smeared_occ.inp"            = [{matcher="TDDFPT_Check_Energy", tol=1.0E-05, ref=0.490948E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16422451E+00}]
 #EOF

@@ -5,11 +5,18 @@
 #      for details see cp2k/tools/do_regtest
 #
 # test of new LSD KERNEL and finite differences
-"ch2o_t1.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.181985E+00}]
-"ch2o_t2.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.241729E+00}]
-"ch2o_t3.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.182932E+00}]
-"ch2o_t4.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.241502E+00}]
-"h2o_fxc_lda.inp"                       = [{matcher="M037", tol=5.0E-06, ref=0.599836E+00}]
-"h2o_fxc_pade.inp"                      = [{matcher="M037", tol=5.0E-06, ref=0.599826E+00}]
-"h2o_fxc_gga.inp"                       = [{matcher="M037", tol=5.0E-06, ref=0.789552E+00}]
+"ch2o_t1.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.181985E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=1.3542969E-06}]
+"ch2o_t2.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.241729E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0000000E+00}]
+"ch2o_t3.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.182932E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0000000E+00}]
+"ch2o_t4.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.241502E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0000000E+00}]
+"h2o_fxc_lda.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.599836E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.35866870E+00}]
+"h2o_fxc_pade.inp"                      = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.599826E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.35863666E+00}]
+"h2o_fxc_gga.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.789552E+00},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.26121435E+00}]
 #EOF
