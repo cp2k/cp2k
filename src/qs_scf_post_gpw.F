@@ -151,6 +151,7 @@ MODULE qs_scf_post_gpw
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change
+   USE qs_kubo_transport,               ONLY: qs_scf_post_kubo_transport
    USE qs_loc_dipole,                   ONLY: loc_dipole
    USE qs_loc_states,                   ONLY: get_localization_info
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
@@ -3145,6 +3146,9 @@ CONTAINS
 
       ! Write cube files from the implicit Poisson solver
       CALL qs_scf_post_ps_implicit(input, logger, qs_env)
+
+      ! post SCF finite-volume Kubo transport
+      CALL qs_scf_post_kubo_transport(qs_env)
 
       ! post SCF Transport
       CALL qs_scf_post_transport(qs_env)

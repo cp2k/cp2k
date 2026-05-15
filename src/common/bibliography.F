@@ -94,7 +94,7 @@ MODULE bibliography
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
-                            Schreder2021, Schreder2024_1, Schreder2024_2
+                            KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2
 
 CONTAINS
 
@@ -1659,6 +1659,12 @@ CONTAINS
                          "Efficient and accurate electronic structure calculations", &
                          source="J. Chem. Phys.", volume="152", pages="194103", &
                          year=2020, doi="10.1063/5.0007045", citation_key="Kühne2020")
+
+      CALL add_reference(key=KuhneHeskeProdan2020, &
+                         authors=s2a("T. D. Kühne", "J. Heske", "E. Prodan"), &
+                         title="Disordered crystals from first principles. II: Transport coefficients", &
+                         source="Ann. Phys.", volume="421", pages="168290", &
+                         year=2020, doi="10.1016/j.aop.2020.168290", citation_key="Kühne2020a")
 
       CALL add_reference(key=Iannuzzi2026, &
                          authors=s2a("M. Iannuzzi", "J. Wilhelm", "F. Stein", "A. Bussy", &

@@ -17,6 +17,7 @@ MODULE input_cp2k_properties_dft
                            Hernandez2025, &
                            Iannuzzi2005, &
                            Kondov2007, &
+                           KuhneHeskeProdan2020, &
                            Luber2014, &
                            Putrino2000, &
                            Putrino2002, &
@@ -138,6 +139,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_kubo_transport_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_bandstructure_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -147,6 +152,90 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_properties_section
+
+! **************************************************************************************************
+!> \brief creates the input structure used to activate finite-volume Kubo transport
+! **************************************************************************************************
+
+   SUBROUTINE create_kubo_transport_section(section)
+      TYPE(section_type), POINTER                        :: section
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      NULLIFY (keyword)
+
+      CALL section_create(section, __LOCATION__, name="KUBO_TRANSPORT", &
+                          description="Finite-volume Kubo-Greenwood transport coefficients from the "// &
+                          "converged Quickstep Hamiltonian, overlap matrix, and atomic geometry.", &
+                          n_keywords=8, n_subsections=0, repeats=.FALSE., &
+                          citations=[KuhneHeskeProdan2020])
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the Kubo transport calculation.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
+                          description="Transport algorithm. DIAGONALIZATION evaluates the finite-volume "// &
+                          "Kubo-Greenwood expression from the explicit spectrum. TD and CHEBYSHEV are "// &
+                          "reserved for future diagonalization-free implementations.", &
+                          usage="METHOD DIAGONALIZATION", &
+                          n_var=1, type_of_var=char_t, default_c_val="DIAGONALIZATION")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
+                          description="Electronic temperature used in the Fermi operator.", &
+                          usage="TEMPERATURE 1.0", &
+                          default_r_val=cp_unit_to_cp2k(value=1.0_dp, unit_str="K"), &
+                          n_var=1, type_of_var=real_t, unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DISSIPATION", &
+                          description="Dissipation/broadening parameter in the finite-temperature "// &
+                          "Kubo formula.", &
+                          usage="DISSIPATION 300.0", &
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          n_var=1, type_of_var=real_t, unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_RANGE", &
+                          description="Absolute chemical-potential range. The default 0 0 uses the "// &
+                          "full eigenvalue range of the finite-volume Hamiltonian.", &
+                          usage="ENERGY_RANGE -0.5 0.5", &
+                          default_r_vals=[0.0_dp, 0.0_dp], n_var=2, type_of_var=real_t, &
+                          unit_str="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NEUTRAL_MU", &
+                          description="Optional fixed neutral chemical potential. If omitted, the "// &
+                          "neutral point is found from the eigenvalue spectrum and total electron count.", &
+                          usage="NEUTRAL_MU 0.245467619658419", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="N_MU", &
+                          description="Number of chemical-potential grid points.", &
+                          usage="N_MU 200", &
+                          default_i_val=200, n_var=1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NEUTRAL_GRID", &
+                          description="Number of grid points used to locate the neutral chemical potential.", &
+                          usage="NEUTRAL_GRID 10000", &
+                          default_i_val=10000, n_var=1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_kubo_transport_section
 
 ! **************************************************************************************************
 !> \brief creates the input structure used to activate

@@ -627,6 +627,7 @@ list(
   qs_ks_types.F
   qs_ks_utils.F
   qs_ks_reference.F
+  qs_kubo_transport.F
   qs_linres_atom_current.F
   qs_linres_current.F
   qs_linres_current_utils.F
