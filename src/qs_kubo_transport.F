@@ -28,8 +28,7 @@ MODULE qs_kubo_transport
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -74,8 +73,8 @@ CONTAINS
                                                             nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atom
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-      LOGICAL                                            :: allow_mo_reuse, do_kpoints, explicit, &
-                                                            neutral_mu_explicit, ot_explicit
+      LOGICAL                                            :: allow_mo_reuse, do_kpoints, kubo_active, &
+                                                            neutral_mu_explicit, ot_active
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: reused_mos
       REAL(KIND=dp)                                      :: density_factor, dissipation, emax, emin, &
                                                             mu, mu0, mu_step, ne, nh, sigma_iso, &
@@ -101,8 +100,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env, input=input_section)
       kubo_section => section_vals_get_subs_vals(input_section, "PROPERTIES%KUBO_TRANSPORT")
-      CALL section_vals_get(kubo_section, explicit=explicit)
-      IF (.NOT. explicit) THEN
+      CALL section_vals_val_get(kubo_section, "_SECTION_PARAMETERS_", l_val=kubo_active)
+      IF (.NOT. kubo_active) THEN
          CALL timestop(handle)
          RETURN
       END IF
@@ -118,8 +117,8 @@ CONTAINS
          CPABORT("Unknown KUBO_TRANSPORT METHOD: "//TRIM(method))
       END SELECT
       ot_section => section_vals_get_subs_vals(input_section, "DFT%SCF%OT")
-      CALL section_vals_get(ot_section, explicit=ot_explicit)
-      allow_mo_reuse = .NOT. ot_explicit
+      CALL section_vals_val_get(ot_section, "_SECTION_PARAMETERS_", l_val=ot_active)
+      allow_mo_reuse = .NOT. ot_active
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, do_kpoints=do_kpoints, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, natom=natom, &
@@ -216,10 +215,11 @@ CONTAINS
                sigma(1, 1)*1.0E10_dp, sigma(1, 2)*1.0E10_dp, sigma(1, 3)*1.0E10_dp, &
                sigma(2, 1)*1.0E10_dp, sigma(2, 2)*1.0E10_dp, sigma(2, 3)*1.0E10_dp, &
                sigma(3, 1)*1.0E10_dp, sigma(3, 2)*1.0E10_dp, sigma(3, 3)*1.0E10_dp
+            WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S/cm]", sigma_iso
          END IF
       END DO
 
-      DEALLOCATE (ao_atom, dHH, eig, maxocc, s_dense)
+      DEALLOCATE (ao_atom, dHH, eig, maxocc, reused_mos, s_dense)
 
       CALL timestop(handle)
 

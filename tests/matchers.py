@@ -118,6 +118,12 @@ registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
+registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
+registry["Kubo_internal_diag"] = TextPresenceMatcher("internal diagonalization")
+registry["Kubo_reused_mos"] = TextPresenceMatcher("CP2K canonical MOs")
+registry["Kubo_reference"] = TextPresenceMatcher(
+    "https://doi.org/10.1016/j.aop.2020.168290"
+)
 registry["M012"] = GenericMatcher(r"B2(T) =", col=4)
 registry["M013"] = GenericMatcher(r"sparseness function f2 =", col=5)
 registry["M014"] = GenericMatcher(r"CheckSum Shifts =", col=4)
