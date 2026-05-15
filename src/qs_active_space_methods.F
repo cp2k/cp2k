@@ -506,7 +506,9 @@ CONTAINS
          ! create canonical orbitals
          CALL get_qs_env(qs_env, scf_control=scf_control)
          IF (dft_control%roks .AND. scf_control%roks_scheme /= high_spin_roks) THEN
-            CPABORT("Unclear how we define MOs in the general restricted case ... stopping")
+            CALL cp_abort(__LOCATION__, &
+                          "Only high-spin ROKS is supported for ACTIVE_SPACE FCI; "// &
+                          "general ROKS MO definitions are not implemented.")
          ELSE
             IF (dft_control%do_admm) THEN
                IF (dft_control%do_admm_mo) THEN
@@ -642,7 +644,9 @@ CONTAINS
       CASE (manual_selection)
          ! create canonical orbitals
          IF (dft_control%roks) THEN
-            CPABORT("Unclear how we define MOs in the restricted case ... stopping")
+            CALL cp_abort(__LOCATION__, &
+                          "Manual ACTIVE_SPACE orbital selection is not supported for ROKS; "// &
+                          "use canonical high-spin ROKS.")
          ELSE
             IF (dft_control%do_admm) THEN
                ! For admm_mo, the auxiliary density is computed from the MOs, which never change
