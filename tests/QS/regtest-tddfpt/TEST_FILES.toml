@@ -38,6 +38,6 @@
 "H2_kp_tddfpt_none_general.inp"         = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.658268E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=4.0E-06, ref=0.36697616E+00}]
 "H2_kp_tddfpt_none_sym.inp"             = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.465466E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=4.0E-06, ref=0.36697616E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=4.0E-06, ref=0.51898266E+00}]
 #
 #EOF
