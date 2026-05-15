@@ -166,7 +166,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="KUBO_TRANSPORT", &
                           description="Finite-volume Kubo-Greenwood transport coefficients from the "// &
                           "converged Quickstep Hamiltonian, overlap matrix, and atomic geometry.", &
-                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Kubo transport calculation.", &
@@ -198,6 +198,14 @@ CONTAINS
                           usage="ENERGY_RANGE -0.5 0.5", &
                           default_r_vals=[0.0_dp, 0.0_dp], n_var=2, type_of_var=real_t, &
                           unit_str="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NEUTRAL_MU", &
+                          description="Optional fixed neutral chemical potential. If omitted, the "// &
+                          "neutral point is found from the eigenvalue spectrum and total electron count.", &
+                          usage="NEUTRAL_MU 0.245467619658419", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

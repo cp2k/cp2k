@@ -69,10 +69,10 @@ CONTAINS
                                                             nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atom
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-      LOGICAL                                            :: do_kpoints, explicit
+      LOGICAL                                            :: do_kpoints, explicit, neutral_mu_explicit
       REAL(KIND=dp)                                      :: density_factor, dissipation, emax, emin, &
-                                                            mu, mu0, mu_step, ne, nh, temperature, &
-                                                            volume, volume_m3
+                                                            mu, mu0, mu_step, ne, nh, sigma_iso, &
+                                                            temperature, volume, volume_m3
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_range
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: maxocc
@@ -113,6 +113,8 @@ CONTAINS
       CALL section_vals_val_get(kubo_section, "TEMPERATURE", r_val=temperature)
       CALL section_vals_val_get(kubo_section, "DISSIPATION", r_val=dissipation)
       CALL section_vals_val_get(kubo_section, "ENERGY_RANGE", r_vals=energy_range)
+      CALL section_vals_val_get(kubo_section, "NEUTRAL_MU", explicit=neutral_mu_explicit)
+      IF (neutral_mu_explicit) CALL section_vals_val_get(kubo_section, "NEUTRAL_MU", r_val=mu0)
       CALL section_vals_val_get(kubo_section, "N_MU", i_val=nmu)
       CALL section_vals_val_get(kubo_section, "NEUTRAL_GRID", i_val=neutral_grid)
 
@@ -136,8 +138,10 @@ CONTAINS
 
       emin = MINVAL(eig)
       emax = MAXVAL(eig)
-      CALL find_neutral_mu(eig, maxocc, temperature, REAL(nelectron_total, KIND=dp), neutral_grid, &
-                           emin, emax, mu0)
+      IF (.NOT. neutral_mu_explicit) THEN
+         CALL find_neutral_mu(eig, maxocc, temperature, REAL(nelectron_total, KIND=dp), neutral_grid, &
+                              emin, emax, mu0)
+      END IF
 
       IF (energy_range(1) < energy_range(2)) THEN
          emin = energy_range(1)
@@ -159,8 +163,8 @@ CONTAINS
          WRITE (output_unit, '(T3,A,T38,F12.4)') "Dissipation [K]:", dissipation*kelvin
          WRITE (output_unit, '(T3,A,T38,F12.6)') "Dissipation [eV]:", dissipation*evolt
          WRITE (output_unit, '(T3,A,T38,F12.6)') "Neutral chemical potential [eV]:", mu0*evolt
-         WRITE (output_unit, '(/,T3,A)') "mu-mu0[eV]        Ne[m^-3]        Nh[m^-3]        "// &
-            "sigma_xx[S/m]     sigma_xy[S/m]     sigma_xz[S/m]     sigma_yx[S/m]     "// &
+         WRITE (output_unit, '(/,T3,A)') "mu[Ha]        mu-mu0[eV]        Ne[m^-3]        Nh[m^-3]        "// &
+            "sigma_iso[S/cm]   sigma_xx[S/m]     sigma_xy[S/m]     sigma_xz[S/m]     sigma_yx[S/m]     "// &
             "sigma_yy[S/m]     sigma_yz[S/m]     sigma_zx[S/m]     sigma_zy[S/m]     sigma_zz[S/m]"
       END IF
 
@@ -175,8 +179,10 @@ CONTAINS
          CALL electron_hole_density(eig, maxocc, mu, mu0, temperature, ne, nh)
          CALL conductivity_at_mu(eig, dHH, maxocc, mu, temperature, dissipation, volume, sigma)
          IF (output_unit > 0) THEN
-            WRITE (output_unit, '(T3,F12.6,2ES16.7,9ES17.8)') (mu - mu0)*evolt, &
+            sigma_iso = (sigma(1, 1) + sigma(2, 2) + sigma(3, 3))/3.0_dp*1.0E8_dp
+            WRITE (output_unit, '(T3,F12.6,F14.6,2ES16.7,10ES17.8)') mu, (mu - mu0)*evolt, &
                ne*density_factor, nh*density_factor, &
+               sigma_iso, &
                sigma(1, 1)*1.0E10_dp, sigma(1, 2)*1.0E10_dp, sigma(1, 3)*1.0E10_dp, &
                sigma(2, 1)*1.0E10_dp, sigma(2, 2)*1.0E10_dp, sigma(2, 3)*1.0E10_dp, &
                sigma(3, 1)*1.0E10_dp, sigma(3, 2)*1.0E10_dp, sigma(3, 3)*1.0E10_dp
