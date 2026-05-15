@@ -378,6 +378,7 @@ CONTAINS
       active_space_env%nelec_total = nelec_total
       active_space_env%nspins = nspins
       active_space_env%multiplicity = dft_control%multiplicity
+      active_space_env%restricted_orbitals = dft_control%roks
 
       ! define the active/inactive space orbitals
       CALL section_vals_val_get(as_input, "ACTIVE_ORBITALS", explicit=explicit, i_val=nmo_active)
@@ -3055,7 +3056,6 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control)
-      IF (dft_control%roks) CPABORT("AS_SOLVER FCI is not supported for ROKS calculations.")
 
       CALL section_vals_val_get(as_input, "SCF_EMBEDDING", l_val=do_scf_embedding)
       active_space_env%do_scf_embedding = do_scf_embedding
@@ -3466,7 +3466,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: header
       INTEGER                                            :: handle, iw
-      LOGICAL                                            :: ionode
+      LOGICAL                                            :: ionode, restricted_orbitals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb, s_ab
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -3475,14 +3475,20 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)
       ionode = para_env%is_source()
+      restricted_orbitals = active_space_env%restricted_orbitals
 
       ALLOCATE (eri_aa(active_space_env%nmo_active**4))
       CALL eri_to_array(active_space_env%eri, eri_aa, active_space_env%active_orbitals, 1, 1)
       IF (active_space_env%nspins == 2) THEN
          ALLOCATE (eri_ab(active_space_env%nmo_active**4))
-         CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
          ALLOCATE (eri_bb(active_space_env%nmo_active**4))
-         CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         IF (restricted_orbitals) THEN
+            eri_ab(:) = eri_aa
+            eri_bb(:) = eri_aa
+         ELSE
+            CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
+            CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         END IF
          ! get the overlap_ab matrix into Fortran array
          ALLOCATE (s_ab(active_space_env%nmo_active**2))
          ASSOCIATE (act_indices_a => active_space_env%active_orbitals(:, 1), &

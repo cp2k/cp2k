@@ -73,13 +73,14 @@ CONTAINS
       CHARACTER(LEN=512)                                 :: error_text
       INTEGER                                            :: max_iter, ms2, n2, n4, nmo_active, &
                                                             nspins, status
-      LOGICAL                                            :: ionode
+      LOGICAL                                            :: ionode, restricted_orbitals
       REAL(KIND=dp)                                      :: energy_active, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb, fock_a, fock_b, &
                                                             p_beta
 
       nmo_active = active_space_env%nmo_active
       nspins = active_space_env%nspins
+      restricted_orbitals = active_space_env%restricted_orbitals
       n2 = nmo_active*nmo_active
       n4 = n2*n2
       ionode = para_env%is_source()
@@ -104,8 +105,13 @@ CONTAINS
          ASSOCIATE (act_indices => active_space_env%active_orbitals(:, 2))
             CALL subspace_matrix_to_array(active_space_env%fock_sub(2), fock_b(1:n2), act_indices, act_indices)
          END ASSOCIATE
-         CALL eri_to_array(active_space_env%eri, eri_ab(1:n4), active_space_env%active_orbitals, 1, 2)
-         CALL eri_to_array(active_space_env%eri, eri_bb(1:n4), active_space_env%active_orbitals, 2, 2)
+         IF (restricted_orbitals) THEN
+            eri_ab(1:n4) = eri_aa
+            eri_bb(1:n4) = eri_aa
+         ELSE
+            CALL eri_to_array(active_space_env%eri, eri_ab(1:n4), active_space_env%active_orbitals, 1, 2)
+            CALL eri_to_array(active_space_env%eri, eri_bb(1:n4), active_space_env%active_orbitals, 2, 2)
+         END IF
       END IF
 
       status = 0
