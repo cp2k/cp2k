@@ -9,8 +9,8 @@
 !> \brief Finite-volume Kubo-Greenwood transport from converged Quickstep matrices.
 ! **************************************************************************************************
 MODULE qs_kubo_transport
-   USE bibliography,                    ONLY: cite_reference,&
-                                              KuhneHeskeProdan2020
+   USE bibliography,                    ONLY: KuhneHeskeProdan2020,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -79,11 +79,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: density_factor, dissipation, emax, emin, &
                                                             mu, mu0, mu_step, ne, nh, sigma_iso, &
                                                             temperature, volume, volume_m3
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_range
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: maxocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eig, s_dense
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dHH
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_range
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -227,13 +227,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Build a global AO -> atom map from DBCSR atomic block sizes.
+!> \param row_blk_sizes ...
+!> \param natom ...
+!> \param ao_atom ...
 ! **************************************************************************************************
    SUBROUTINE build_ao_atom_map(row_blk_sizes, natom, ao_atom)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: row_blk_sizes
       INTEGER, INTENT(IN)                                :: natom
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_atom
 
-      INTEGER                                            :: iatom, iao, nao, u
+      INTEGER                                            :: iao, iatom, nao, u
 
       nao = SUM(row_blk_sizes(1:natom))
       ALLOCATE (ao_atom(nao))
@@ -249,6 +252,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Copy a DBCSR matrix to a replicated dense matrix.
+!> \param matrix ...
+!> \param blacs_env ...
+!> \param para_env ...
+!> \param dense ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense(matrix, blacs_env, para_env, dense)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -277,6 +284,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prepare eigenvalues and the transformed [X,H] matrices for one spin channel.
+!> \param ks_matrix ...
+!> \param s_dense ...
+!> \param blacs_env ...
+!> \param para_env ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param ao_atom ...
+!> \param mo_set ...
+!> \param allow_mo_reuse ...
+!> \param eig ...
+!> \param dHH ...
+!> \param reused_mos ...
 ! **************************************************************************************************
    SUBROUTINE setup_spin_transport(ks_matrix, s_dense, blacs_env, para_env, particle_set, cell, &
                                    ao_atom, mo_set, allow_mo_reuse, eig, dHH, reused_mos)
@@ -293,10 +312,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: dHH
       LOGICAL, INTENT(OUT)                               :: reused_mos
 
-      INTEGER                                            :: idir, mo_nao, nmo, nao
+      INTEGER                                            :: idir, mo_nao, nao, nmo
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_dense, gmat, h_dense, horth, op, &
+                                                            op_orth, uvec, work
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_dense, gmat, h_dense, horth, &
-                                                            op, op_orth, uvec, work
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       NULLIFY (mo_coeff, mo_eigenvalues)
@@ -327,17 +346,17 @@ CONTAINS
          ALLOCATE (gmat(nao, nao), horth(nao, nao), op_orth(nao, nao), uvec(nao, nao))
          CALL inverse_sqrt_symmetric(s_dense, gmat)
 
-         work = MATMUL(h_dense, gmat)
-         horth = MATMUL(gmat, work)
+         work(:, :) = MATMUL(h_dense, gmat)
+         horth(:, :) = MATMUL(gmat, work)
          CALL symmetrize(horth)
 
-         uvec = horth
+         uvec(:, :) = horth
          CALL diagonalize_symmetric(uvec, eig)
 
          DO idir = 1, 3
             CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
-            work = MATMUL(op, gmat)
-            op_orth = MATMUL(gmat, work)
+            work(:, :) = MATMUL(op, gmat)
+            op_orth(:, :) = MATMUL(gmat, work)
             CALL transform_to_eigenbasis(op_orth, uvec, dHH(:, :, idir), work)
          END DO
          DEALLOCATE (gmat, horth, op_orth, uvec)
@@ -349,6 +368,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Symmetric inverse square root via dense diagonalization.
+!> \param matrix ...
+!> \param inverse_sqrt ...
 ! **************************************************************************************************
    SUBROUTINE inverse_sqrt_symmetric(matrix, inverse_sqrt)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
@@ -362,12 +383,12 @@ CONTAINS
       lwork = MAX(1, 8*n)
       ALLOCATE (eig(n), scaled(n, n), vectors(n, n), work(lwork))
 
-      vectors = matrix
+      vectors(:, :) = matrix
       CALL dsyev("V", "L", n, vectors, n, eig, work, lwork, info)
       IF (info /= 0) CPABORT("Diagonalization of the overlap matrix failed.")
       IF (MINVAL(eig) <= 0.0_dp) CPABORT("Overlap matrix is not positive definite.")
 
-      scaled = vectors
+      scaled(:, :) = vectors
       DO i = 1, n
          scaled(:, i) = scaled(:, i)/SQRT(eig(i))
       END DO
@@ -379,6 +400,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Dense symmetric diagonalization.
+!> \param matrix ...
+!> \param eig ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_symmetric(matrix, eig)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: matrix
@@ -398,6 +421,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Enforce exact symmetry after dense products.
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE symmetrize(matrix)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: matrix
@@ -418,6 +442,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Build element-wise kernel (r_col-r_row)_idir * matrix(row,col).
+!> \param matrix ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param ao_atom ...
+!> \param idir ...
+!> \param op ...
 ! **************************************************************************************************
    SUBROUTINE build_commutator_kernel(matrix, particle_set, cell, ao_atom, idir, op)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
@@ -442,6 +472,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Transform an AO matrix to the eigenvector basis.
+!> \param op ...
+!> \param uvec ...
+!> \param transformed ...
+!> \param work ...
 ! **************************************************************************************************
    SUBROUTINE transform_to_eigenbasis(op, uvec, transformed, work)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: op, uvec
@@ -458,6 +492,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Fermi occupation with overflow protection.
+!> \param eig ...
+!> \param mu ...
+!> \param kT ...
+!> \param maxocc ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION fermi_occ(eig, mu, kT, maxocc) RESULT(occ)
       REAL(KIND=dp), INTENT(IN)                          :: eig, mu, kT, maxocc
@@ -478,6 +517,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Fermi vacancy below the neutral point.
+!> \param eig ...
+!> \param mu ...
+!> \param kT ...
+!> \param maxocc ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION fermi_hole(eig, mu, kT, maxocc) RESULT(hole)
       REAL(KIND=dp), INTENT(IN)                          :: eig, mu, kT, maxocc
@@ -489,6 +533,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Total electron count at a chemical potential.
+!> \param eig ...
+!> \param maxocc ...
+!> \param mu ...
+!> \param kT ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION electron_count(eig, maxocc, mu, kT) RESULT(count)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
@@ -509,16 +558,26 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Determine the neutral chemical potential using the legacy two-step definition.
+!> \param eig ...
+!> \param maxocc ...
+!> \param kT ...
+!> \param neutral_electrons ...
+!> \param neutral_grid ...
+!> \param emin ...
+!> \param emax ...
+!> \param mu0 ...
 ! **************************************************************************************************
    SUBROUTINE find_neutral_mu(eig, maxocc, kT, neutral_electrons, neutral_grid, emin, emax, mu0)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: maxocc
-      REAL(KIND=dp), INTENT(IN)                          :: kT, neutral_electrons, emin, emax
+      REAL(KIND=dp), INTENT(IN)                          :: kT, neutral_electrons
       INTEGER, INTENT(IN)                                :: neutral_grid
+      REAL(KIND=dp), INTENT(IN)                          :: emin, emax
       REAL(KIND=dp), INTENT(OUT)                         :: mu0
 
       INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: best, count, mu, mup, previous_count, ne, nh
+      REAL(KIND=dp)                                      :: best, count, mu, mup, ne, nh, &
+                                                            previous_count
 
       mup = 0.5_dp*(emin + emax)
       previous_count = electron_count(eig, maxocc, emin, kT)
@@ -544,6 +603,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Electron and hole counts relative to a neutral point.
+!> \param eig ...
+!> \param maxocc ...
+!> \param mu ...
+!> \param mu0 ...
+!> \param kT ...
+!> \param ne ...
+!> \param nh ...
 ! **************************************************************************************************
    SUBROUTINE electron_hole_density(eig, maxocc, mu, mu0, kT, ne, nh)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
@@ -566,6 +632,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Conductivity tensor at one chemical potential.
+!> \param eig ...
+!> \param dHH ...
+!> \param maxocc ...
+!> \param mu ...
+!> \param kT ...
+!> \param dissipation ...
+!> \param volume ...
+!> \param sigma ...
 ! **************************************************************************************************
    SUBROUTINE conductivity_at_mu(eig, dHH, maxocc, mu, kT, dissipation, volume, sigma)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
@@ -597,7 +671,7 @@ CONTAINS
                      delta = eig(n, ispin) - eig(m, ispin)
                      factor = (occ(n) - occ(m))/(delta + eps)*dissipation/(dissipation**2 + delta**2)
                      sigma(jdir, idir) = sigma(jdir, idir) + &
-                        dHH(m, n, jdir, ispin)*dHH(n, m, idir, ispin)*factor
+                                         dHH(m, n, jdir, ispin)*dHH(n, m, idir, ispin)*factor
                   END DO
                END DO
             END DO
