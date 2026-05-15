@@ -17,6 +17,7 @@ MODULE input_cp2k_properties_dft
                            Hernandez2025, &
                            Iannuzzi2005, &
                            Kondov2007, &
+                           KuhneHeskeProdan2020, &
                            Luber2014, &
                            Putrino2000, &
                            Putrino2002, &
@@ -166,12 +167,22 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="KUBO_TRANSPORT", &
                           description="Finite-volume Kubo-Greenwood transport coefficients from the "// &
                           "converged Quickstep Hamiltonian, overlap matrix, and atomic geometry.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=0, repeats=.FALSE., &
+                          citations=[KuhneHeskeProdan2020])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Kubo transport calculation.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
+                          description="Transport algorithm. DIAGONALIZATION evaluates the finite-volume "// &
+                          "Kubo-Greenwood expression from the explicit spectrum. TD and CHEBYSHEV are "// &
+                          "reserved for future diagonalization-free implementations.", &
+                          usage="METHOD DIAGONALIZATION", &
+                          n_var=1, type_of_var=char_t, default_c_val="DIAGONALIZATION")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

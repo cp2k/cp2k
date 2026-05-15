@@ -9,6 +9,8 @@
 !> \brief Finite-volume Kubo-Greenwood transport from converged Quickstep matrices.
 ! **************************************************************************************************
 MODULE qs_kubo_transport
+   USE bibliography,                    ONLY: cite_reference,&
+                                              KuhneHeskeProdan2020
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -42,7 +44,9 @@ MODULE qs_kubo_transport
                                               kelvin
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: mo_set_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -64,12 +68,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_kubo_transport'
 
+      CHARACTER(LEN=32)                                  :: method
       INTEGER                                            :: handle, imu, ispin, nao, natom, &
                                                             nelectron_total, neutral_grid, nmu, &
                                                             nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atom
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-      LOGICAL                                            :: do_kpoints, explicit, neutral_mu_explicit
+      LOGICAL                                            :: allow_mo_reuse, do_kpoints, explicit, &
+                                                            neutral_mu_explicit, ot_explicit
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: reused_mos
       REAL(KIND=dp)                                      :: density_factor, dissipation, emax, emin, &
                                                             mu, mu0, mu_step, ne, nh, sigma_iso, &
                                                             temperature, volume, volume_m3
@@ -85,20 +92,34 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(section_vals_type), POINTER                   :: kubo_section
+      TYPE(section_vals_type), POINTER                   :: input_section, kubo_section, ot_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (blacs_env, cell, energy_range, kubo_section, logger, matrix_ks, matrix_s, mos, para_env, &
-               particle_set, row_blk_sizes)
+      NULLIFY (blacs_env, cell, energy_range, input_section, kubo_section, logger, matrix_ks, matrix_s, &
+               mos, ot_section, para_env, particle_set, row_blk_sizes)
 
-      CALL get_qs_env(qs_env, input=kubo_section)
-      kubo_section => section_vals_get_subs_vals(kubo_section, "PROPERTIES%KUBO_TRANSPORT")
+      CALL get_qs_env(qs_env, input=input_section)
+      kubo_section => section_vals_get_subs_vals(input_section, "PROPERTIES%KUBO_TRANSPORT")
       CALL section_vals_get(kubo_section, explicit=explicit)
       IF (.NOT. explicit) THEN
          CALL timestop(handle)
          RETURN
       END IF
+      CALL cite_reference(KuhneHeskeProdan2020)
+
+      CALL section_vals_val_get(kubo_section, "METHOD", c_val=method)
+      CALL uppercase(method)
+      SELECT CASE (TRIM(method))
+      CASE ("DIAGONALIZATION")
+      CASE ("TD", "CHEBYSHEV")
+         CPABORT("KUBO_TRANSPORT METHOD "//TRIM(method)//" is reserved but not implemented yet.")
+      CASE DEFAULT
+         CPABORT("Unknown KUBO_TRANSPORT METHOD: "//TRIM(method))
+      END SELECT
+      ot_section => section_vals_get_subs_vals(input_section, "DFT%SCF%OT")
+      CALL section_vals_get(ot_section, explicit=ot_explicit)
+      allow_mo_reuse = .NOT. ot_explicit
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, do_kpoints=do_kpoints, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, natom=natom, &
@@ -128,12 +149,13 @@ CONTAINS
       CALL build_ao_atom_map(row_blk_sizes, natom, ao_atom)
       CALL dbcsr_to_dense(matrix_s(1)%matrix, blacs_env, para_env, s_dense)
 
-      ALLOCATE (eig(nao, nspins), dHH(nao, nao, 3, nspins), maxocc(nspins))
+      ALLOCATE (eig(nao, nspins), dHH(nao, nao, 3, nspins), maxocc(nspins), reused_mos(nspins))
 
       DO ispin = 1, nspins
          maxocc(ispin) = mos(ispin)%maxocc
          CALL setup_spin_transport(matrix_ks(ispin)%matrix, s_dense, blacs_env, para_env, &
-                                   particle_set, cell, ao_atom, eig(:, ispin), dHH(:, :, :, ispin))
+                                   particle_set, cell, ao_atom, mos(ispin), allow_mo_reuse, &
+                                   eig(:, ispin), dHH(:, :, :, ispin), reused_mos(ispin))
       END DO
 
       emin = MINVAL(eig)
@@ -157,6 +179,14 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,T2,A)') "Kubo-Greenwood finite-volume transport"
+         WRITE (output_unit, '(T3,A,T38,A)') "Method:", TRIM(method)
+         IF (ALL(reused_mos)) THEN
+            WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "CP2K canonical MOs"
+         ELSEIF (ANY(reused_mos)) THEN
+            WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "mixed canonical/internal"
+         ELSE
+            WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "internal diagonalization"
+         END IF
          WRITE (output_unit, '(T3,A,T38,I12)') "Number of atoms:", natom
          WRITE (output_unit, '(T3,A,T38,I12)') "Number of AO functions:", nao
          WRITE (output_unit, '(T3,A,T38,F12.4)') "Temperature [K]:", temperature*kelvin
@@ -249,7 +279,7 @@ CONTAINS
 !> \brief Prepare eigenvalues and the transformed [X,H] matrices for one spin channel.
 ! **************************************************************************************************
    SUBROUTINE setup_spin_transport(ks_matrix, s_dense, blacs_env, para_env, particle_set, cell, &
-                                   ao_atom, eig, dHH)
+                                   ao_atom, mo_set, allow_mo_reuse, eig, dHH, reused_mos)
       TYPE(dbcsr_type), INTENT(IN)                       :: ks_matrix
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: s_dense
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -257,34 +287,63 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atom
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
+      LOGICAL, INTENT(IN)                                :: allow_mo_reuse
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eig
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: dHH
+      LOGICAL, INTENT(OUT)                               :: reused_mos
 
-      INTEGER                                            :: idir, nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gmat, h_dense, horth, op, op_orth, uvec, work
+      INTEGER                                            :: idir, mo_nao, nmo, nao
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_dense, gmat, h_dense, horth, &
+                                                            op, op_orth, uvec, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
+      NULLIFY (mo_coeff, mo_eigenvalues)
       nao = SIZE(s_dense, 1)
-      ALLOCATE (gmat(nao, nao), horth(nao, nao), op(nao, nao), op_orth(nao, nao), uvec(nao, nao), &
-                work(nao, nao))
+      reused_mos = .FALSE.
 
       CALL dbcsr_to_dense(ks_matrix, blacs_env, para_env, h_dense)
-      CALL inverse_sqrt_symmetric(s_dense, gmat)
+      ALLOCATE (op(nao, nao), work(nao, nao))
 
-      work = MATMUL(h_dense, gmat)
-      horth = MATMUL(gmat, work)
-      CALL symmetrize(horth)
+      IF (allow_mo_reuse) THEN
+         CALL get_mo_set(mo_set=mo_set, nao=mo_nao, nmo=nmo, eigenvalues=mo_eigenvalues, &
+                         mo_coeff=mo_coeff)
+         reused_mos = mo_nao == nao .AND. nmo >= nao .AND. ASSOCIATED(mo_eigenvalues) .AND. &
+                      ASSOCIATED(mo_coeff)
+         IF (reused_mos) reused_mos = SIZE(mo_eigenvalues) >= nao
+      END IF
 
-      uvec = horth
-      CALL diagonalize_symmetric(uvec, eig)
+      IF (reused_mos) THEN
+         ALLOCATE (coeff_dense(nao, nao))
+         eig(:) = mo_eigenvalues(1:nao)
+         CALL cp_fm_get_submatrix(mo_coeff, coeff_dense, n_rows=nao, n_cols=nao)
+         DO idir = 1, 3
+            CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
+            CALL transform_to_eigenbasis(op, coeff_dense, dHH(:, :, idir), work)
+         END DO
+         DEALLOCATE (coeff_dense)
+      ELSE
+         ALLOCATE (gmat(nao, nao), horth(nao, nao), op_orth(nao, nao), uvec(nao, nao))
+         CALL inverse_sqrt_symmetric(s_dense, gmat)
 
-      DO idir = 1, 3
-         CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
-         work = MATMUL(op, gmat)
-         op_orth = MATMUL(gmat, work)
-         CALL transform_to_eigenbasis(op_orth, uvec, dHH(:, :, idir), work)
-      END DO
+         work = MATMUL(h_dense, gmat)
+         horth = MATMUL(gmat, work)
+         CALL symmetrize(horth)
 
-      DEALLOCATE (gmat, h_dense, horth, op, op_orth, uvec, work)
+         uvec = horth
+         CALL diagonalize_symmetric(uvec, eig)
+
+         DO idir = 1, 3
+            CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
+            work = MATMUL(op, gmat)
+            op_orth = MATMUL(gmat, work)
+            CALL transform_to_eigenbasis(op_orth, uvec, dHH(:, :, idir), work)
+         END DO
+         DEALLOCATE (gmat, horth, op_orth, uvec)
+      END IF
+
+      DEALLOCATE (h_dense, op, work)
 
    END SUBROUTINE setup_spin_transport
 
