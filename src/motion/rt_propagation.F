@@ -27,6 +27,7 @@ MODULE rt_propagation
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -81,7 +82,8 @@ MODULE rt_propagation
    USE rt_delta_pulse,                  ONLY: apply_delta_pulse
    USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
    USE rt_projection_mo_utils,          ONLY: init_mo_projection
-   USE rt_propagation_methods,          ONLY: propagation_step
+   USE rt_propagation_methods,          ONLY: propagation_step,&
+                                              rtp_localize
    USE rt_propagation_output,           ONLY: calc_local_moment,&
                                               print_ft,&
                                               print_moments,&
@@ -330,7 +332,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation'
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
-                                                            max_iter, max_steps, output_unit
+                                                            max_iter, max_steps, output_unit, &
+                                                            unit_nr
       LOGICAL                                            :: moments_read, should_stop
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time
@@ -350,6 +353,11 @@ CONTAINS
 
       NULLIFY (logger, dft_control, energy, rtp, rtp_control, input, rtp_section)
       logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rtp=rtp, energy=energy, input=input)
 
@@ -426,6 +434,9 @@ CONTAINS
             time_iter_start = time_iter_stop
             CALL rt_prop_output(qs_env, real_time_propagation, delta_iter=rtp%delta_iter, used_time=used_time)
             CALL rt_write_input_restart(force_env=force_env, qs_env=qs_env)
+            IF (MODULO(i_step, dft_control%localize_each) == 0) THEN
+               CALL rtp_localize(qs_env, rtp)
+            END IF
             IF (should_stop) EXIT
          ELSE
             EXIT

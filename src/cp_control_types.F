@@ -753,7 +753,8 @@ MODULE cp_control_types
                                               auto_basis_p_lri_aux = 1, &
                                               auto_basis_ri_hxc = 1, &
                                               auto_basis_ri_xas = 1, &
-                                              auto_basis_ri_hfx = 1
+                                              auto_basis_ri_hfx = 1, &
+                                              localize_each = 1
       REAL(KIND=dp)                        :: relax_multiplicity = 0.0_dp, &
                                               sic_scaling_a = 0.0_dp, &
                                               sic_scaling_b = 0.0_dp, &

@@ -61,8 +61,6 @@ CONTAINS
       ELSEIF (dft_control%qs_control%xtb) THEN
          CALL wfn_localization_tb(qs_env, "xTB")
          CALL scf_post_calculation_tb(qs_env, "xTB", .FALSE.)
-      ELSEIF (dft_control%qs_control%do_kg) THEN
-         CPWARN("No properties from PRINT section available for KG methods")
       ELSEIF (dft_control%qs_control%ofgpw) THEN
          CPWARN("No properties from PRINT section available for OFGPW methods")
       ELSEIF (dft_control%qs_control%lri_optbas .AND. dft_control%qs_control%gpw) THEN

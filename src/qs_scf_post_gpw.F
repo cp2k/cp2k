@@ -25,7 +25,8 @@ MODULE qs_scf_post_gpw
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              rtp_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -89,6 +90,7 @@ MODULE qs_scf_post_gpw
                                               dp
    USE kpoint_mo_dump,                  ONLY: write_kpoint_mo_data
    USE kpoint_types,                    ONLY: kpoint_type
+   USE localized_moments,               ONLY: calculate_kg_moments
    USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi
    USE memory_utilities,                ONLY: reallocate
@@ -665,6 +667,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, loc_print_section, &
                                                             localize_section, print_key, &
@@ -720,6 +723,7 @@ CONTAINS
                       particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
+      rtp_control => dft_control%rtp_control
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
@@ -782,6 +786,8 @@ CONTAINS
          print_key => section_vals_get_subs_vals(loc_print_section, "MOLECULAR_STATES")
          p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
          print_key => section_vals_get_subs_vals(loc_print_section, "MOLECULAR_MOMENTS")
+         p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
+         print_key => section_vals_get_subs_vals(loc_print_section, "LOCALIZED_MOMENTS")
          p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
          print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_STATES")
          p_loc = p_loc .OR. BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)
@@ -1643,8 +1649,8 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, max_nmo, maxmom, reference, &
                                                             unit_nr
-      LOGICAL                                            :: com_nl, do_kpoints, magnetic, periodic, &
-                                                            second_ref_point, vel_reprs
+      LOGICAL                                            :: com_nl, do_kg, do_kpoints, magnetic, &
+                                                            periodic, second_ref_point, vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1669,6 +1675,8 @@ CONTAINS
                                    keyword_name="DFT%PRINT%MOMENTS%COM_NL")
          second_ref_point = section_get_lval(section_vals=input, &
                                              keyword_name="DFT%PRINT%MOMENTS%SECOND_REFERENCE_POINT")
+         do_kg = section_get_lval(section_vals=input, &
+                                  keyword_name="DFT%PRINT%MOMENTS%KG")
          max_nmo = section_get_ival(section_vals=input, &
                                     keyword_name="DFT%PRINT%MOMENTS%MAX_NMO")
 
@@ -1698,6 +1706,9 @@ CONTAINS
                CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
             ELSE
                CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr, vel_reprs, com_nl)
+            END IF
+            IF (do_kg) THEN
+               CALL calculate_kg_moments(qs_env, unit_nr, maxmom, magnetic, vel_reprs, com_nl)
             END IF
          END IF
 

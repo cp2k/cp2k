@@ -1222,6 +1222,15 @@ CONTAINS
       CALL create_kpoints_section(subsection)
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
+      CALL keyword_create(keyword, __LOCATION__, name="KG", &
+                          description="Print the electronic moments separately for KG subsystems", &
+                          usage="KG .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

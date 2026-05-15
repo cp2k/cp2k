@@ -463,7 +463,8 @@ MODULE input_constants
                                                do_loc_direct = 3, &
                                                do_loc_l1_norm_sd = 4, &
                                                do_loc_scdm = 5, &
-                                               do_loc_gapo = 6
+                                               do_loc_gapo = 6, &
+                                               do_loc_cs = 7
 
    INTEGER, PARAMETER, PUBLIC               :: do_loc_cpo_atomic = 0, &
                                                do_loc_cpo_restart = 1, &
@@ -955,6 +956,10 @@ MODULE input_constants
                                                gaussian_env = 2, &
                                                ramp_env = 3, &
                                                custom_env = 4
+
+   INTEGER, PARAMETER, PUBLIC               :: rtp_localize_none = 0, &
+                                               rtp_localize_once = 1, &
+                                               rtp_localize_each = 2
 
    INTEGER, PARAMETER, PUBLIC               :: rtp_method_tddft = 1, &
                                                rtp_method_bse = 2

@@ -24,6 +24,14 @@ MODULE qs_loc_methods
                                               set_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_element,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
@@ -58,8 +66,8 @@ MODULE qs_loc_methods
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
-        do_loc_crazy, do_loc_direct, do_loc_gapo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, &
-        do_loc_scdm, dump_dcd, dump_dcd_aligned_cell, dump_xmol
+        do_loc_crazy, do_loc_cs, do_loc_direct, do_loc_gapo, do_loc_jacobi, do_loc_l1_norm_sd, &
+        do_loc_none, do_loc_scdm, dump_dcd, dump_dcd_aligned_cell, dump_xmol
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get_subs_vals,&
@@ -73,6 +81,7 @@ MODULE qs_loc_methods
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_para_env_type
+   USE molecule_types,                  ONLY: molecule_type
    USE motion_utils,                    ONLY: get_output_format
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -94,14 +103,9 @@ MODULE qs_loc_methods
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               qs_loc_env_type
-   USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
-                                              crazy_rotations,&
-                                              direct_mini,&
-                                              jacobi_cg_edf_ls,&
-                                              jacobi_rotations,&
-                                              rotate_orbitals,&
-                                              scdm_qrfact,&
-                                              zij_matrix
+   USE qs_localization_methods,         ONLY: &
+        approx_l1_norm_sd, cardoso_souloumiac, cardoso_souloumiac_pipek, crazy_rotations, &
+        direct_mini, jacobi_cg_edf_ls, jacobi_rotations, rotate_orbitals, scdm_qrfact, zij_matrix
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -175,14 +179,18 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
-      INTEGER                                            :: handle, max_iter, nao, nmoloc, out_each, &
-                                                            output_unit, sweeps
+      INTEGER                                            :: handle, idim1, idim2, max_iter, nao, &
+                                                            nmoloc, out_each, output_unit, sweeps
       LOGICAL                                            :: converged, crazy_use_diag, &
                                                             do_jacobi_refinement, my_do_mixed
       REAL(dp)                                           :: crazy_scale, eps_localization, &
                                                             max_crazy_angle, start_time, &
                                                             target_time
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:, :)    :: my_zij_cfm_set
+      TYPE(cp_cfm_type), POINTER                         :: complex_vectors
       TYPE(cp_logger_type), POINTER                      :: logger
+
+      NULLIFY (complex_vectors)
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -205,8 +213,8 @@ CONTAINS
       do_jacobi_refinement = qs_loc_env%localized_wfn_control%jacobi_refinement
       my_do_mixed = qs_loc_env%localized_wfn_control%do_mixed
 
-      CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
-                                 ispin, print_loc_section, only_initial_out=.TRUE.)
+      CALL centers_spreads_berry(qs_loc_env, nmoloc, cell, weights, &
+                                 ispin, print_loc_section, zij=zij_fm_set, only_initial_out=.TRUE.)
 
       sweeps = 0
 
@@ -245,8 +253,8 @@ CONTAINS
          CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
          IF (do_jacobi_refinement) THEN
             ! Intermediate spread and centers
-            CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
-                                       ispin, print_loc_section, only_initial_out=.TRUE.)
+            CALL centers_spreads_berry(qs_loc_env, nmoloc, cell, weights, &
+                                       ispin, print_loc_section, zij=zij_fm_set, only_initial_out=.TRUE.)
             CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                   eps_localization=eps_localization, sweeps=sweeps, &
                                   out_each=out_each, target_time=target_time, start_time=start_time, &
@@ -283,6 +291,31 @@ CONTAINS
             ! here we need to set zij for the computation of the centers and spreads
             CALL zij_matrix(vectors, op_sm_set, zij_fm_set)
          END IF
+      CASE (do_loc_cs)
+         ALLOCATE (my_zij_cfm_set(SIZE(zij_fm_set, 1), SIZE(zij_fm_set, 2)))
+         DO idim1 = 1, SIZE(zij_fm_set, 1)
+            DO idim2 = 1, SIZE(zij_fm_set, 2)
+               CALL cp_cfm_create(my_zij_cfm_set(idim1, idim2), zij_fm_set(idim1, idim2)%matrix_struct)
+               CALL cp_fm_to_cfm(msourcer=zij_fm_set(idim1, idim2), mtarget=my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         ALLOCATE (complex_vectors)
+         CALL cp_cfm_create(complex_vectors, vectors%matrix_struct)
+         CALL cp_fm_to_cfm(msourcer=vectors, mtarget=complex_vectors)
+
+         CALL cardoso_souloumiac(weights, my_zij_cfm_set, max_iter, eps_localization, sweeps, &
+                                 out_each, complex_vectors)
+
+         CALL cp_cfm_to_fm(complex_vectors, mtargetr=vectors)
+         CALL cp_cfm_release(complex_vectors)
+         DEALLOCATE (complex_vectors)
+         DO idim1 = 1, SIZE(my_zij_cfm_set, 1)
+            DO idim2 = 1, SIZE(my_zij_cfm_set, 2)
+               CALL cp_cfm_release(my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         DEALLOCATE (my_zij_cfm_set)
+
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T4,A,I6,A)') " No MOS localization applied "
@@ -295,8 +328,8 @@ CONTAINS
             " converged in ", sweeps, " iterations"
       END IF
 
-      CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
-                                 ispin, print_loc_section)
+      CALL centers_spreads_berry(qs_loc_env, nmoloc, cell, weights, &
+                                 ispin, print_loc_section, zij=zij_fm_set)
 
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
@@ -329,16 +362,22 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek'
 
-      INTEGER                                            :: handle, iatom, isgf, ldz, nao, natom, &
-                                                            ncol, nmoloc, output_unit, sweeps
+      INTEGER                                            :: handle, iatom, idim1, idim2, isgf, ldz, &
+                                                            max_iter, nao, natom, ncol, nmoloc, &
+                                                            out_each, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
+      REAL(dp)                                           :: eps
+      TYPE(cp_cfm_type), POINTER                         :: complex_vectors, my_zij_cfm_set(:, :)
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_type)                                   :: opvec
       TYPE(cp_fm_type), POINTER                          :: ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: mols
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      NULLIFY (mols, ov_fm)
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -354,7 +393,12 @@ CONTAINS
       CALL cp_fm_set_all(opvec, 0.0_dp)
 
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
-                      particle_set=particle_set, qs_kind_set=qs_kind_set)
+                      particle_set=particle_set, qs_kind_set=qs_kind_set, molecule_set=mols)
+
+      ! localization options
+      max_iter = qs_loc_env%localized_wfn_control%max_iter
+      eps = qs_loc_env%localized_wfn_control%eps_localization
+      out_each = qs_loc_env%localized_wfn_control%out_each
 
       natom = SIZE(particle_set, 1)
       ALLOCATE (first_sgf(natom))
@@ -407,6 +451,30 @@ CONTAINS
          CPABORT("L1 norm and Pipek not implemented.")
       CASE (do_loc_direct)
          CPABORT("Direct and Pipek not implemented.")
+      CASE (do_loc_cs)
+         ALLOCATE (my_zij_cfm_set(SIZE(zij_fm_set, 1), SIZE(zij_fm_set, 2)))
+         DO idim1 = 1, SIZE(zij_fm_set, 1)
+            DO idim2 = 1, SIZE(zij_fm_set, 2)
+               CALL cp_cfm_create(my_zij_cfm_set(idim1, idim2), zij_fm_set(idim1, idim2)%matrix_struct)
+               CALL cp_fm_to_cfm(msourcer=zij_fm_set(idim1, idim2), mtarget=my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         ALLOCATE (complex_vectors)
+         CALL cp_cfm_create(complex_vectors, vectors%matrix_struct)
+         CALL cp_fm_to_cfm(msourcer=vectors, mtarget=complex_vectors)
+
+         CALL cardoso_souloumiac_pipek(my_zij_cfm_set, complex_vectors, sweeps, max_iter, eps, out_each)
+
+         CALL cp_cfm_to_fm(complex_vectors, mtargetr=vectors)
+         CALL cp_cfm_release(complex_vectors)
+         DEALLOCATE (complex_vectors)
+         DO idim1 = 1, SIZE(my_zij_cfm_set, 1)
+            DO idim2 = 1, SIZE(my_zij_cfm_set, 2)
+               CALL cp_cfm_release(my_zij_cfm_set(idim1, idim2))
+            END DO
+         END DO
+         DEALLOCATE (my_zij_cfm_set)
+
       CASE (do_loc_none)
          IF (output_unit > 0) WRITE (output_unit, '(A,I6,A)') " No MOS localization applied "
       CASE DEFAULT
@@ -422,6 +490,8 @@ CONTAINS
       DEALLOCATE (first_sgf, last_sgf, nsgf)
 
       CALL cp_fm_release(opvec)
+      CALL cp_fm_release(ov_fm)
+      DEALLOCATE (ov_fm)
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
       CALL timestop(handle)
@@ -562,33 +632,36 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_loc_env ...
-!> \param zij ...
 !> \param nmoloc ...
 !> \param cell ...
 !> \param weights ...
 !> \param ispin ...
 !> \param print_loc_section ...
+!> \param zij ...
+!> \param c_zij ...
 !> \param only_initial_out ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE centers_spreads_berry(qs_loc_env, zij, nmoloc, cell, weights, ispin, &
-                                    print_loc_section, only_initial_out)
+   SUBROUTINE centers_spreads_berry(qs_loc_env, nmoloc, cell, weights, ispin, &
+                                    print_loc_section, zij, c_zij, only_initial_out)
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij
       INTEGER, INTENT(IN)                                :: nmoloc
       TYPE(cell_type), POINTER                           :: cell
       REAL(dp), DIMENSION(:)                             :: weights
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: zij
+      TYPE(cp_cfm_p_type), INTENT(INOUT), OPTIONAL       :: c_zij(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_initial_out
 
       CHARACTER(len=default_path_length)                 :: file_tmp, iter
       COMPLEX(KIND=dp)                                   :: z
       INTEGER                                            :: idir, istate, jdir, nstates, &
                                                             output_unit, unit_out_s
-      LOGICAL                                            :: my_only_init
+      LOGICAL                                            :: my_only_init, zij_is_complex
       REAL(dp)                                           :: avg_spread_ii, spread_i, spread_ii, &
                                                             sum_spread_i, sum_spread_ii
       REAL(dp), DIMENSION(3)                             :: c, c2, cpbc
@@ -601,6 +674,15 @@ CONTAINS
       logger => cp_get_default_logger()
       my_only_init = .FALSE.
       IF (PRESENT(only_initial_out)) my_only_init = only_initial_out
+      IF (PRESENT(zij)) THEN
+         zij_is_complex = .FALSE.
+         CPASSERT(.NOT. PRESENT(c_zij))
+         CALL cp_fm_get_info(zij(1, 1), nrow_global=nstates)
+      ELSE
+         zij_is_complex = .TRUE.
+         CPASSERT(PRESENT(c_zij))
+         CALL cp_cfm_get_info(c_zij(1, 1)%matrix, nrow_global=nstates)
+      END IF
 
       file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
       output_unit = cp_print_key_unit_nr(logger, print_loc_section, "PROGRAM_RUN_INFO", &
@@ -610,7 +692,6 @@ CONTAINS
       iter = cp_iter_string(logger%iter_info)
       IF (unit_out_s > 0 .AND. .NOT. my_only_init) WRITE (unit_out_s, '(i6,/,A)') nmoloc, TRIM(iter)
 
-      CALL cp_fm_get_info(zij(1, 1), nrow_global=nstates)
       CPASSERT(nstates >= nmoloc)
 
       centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
@@ -624,21 +705,39 @@ CONTAINS
          c2 = 0.0_dp
          spread_i = 0.0_dp
          spread_ii = 0.0_dp
-         DO jdir = 1, SIZE(zij, 2)
-            CALL cp_fm_get_element(zij(1, jdir), istate, istate, realpart)
-            CALL cp_fm_get_element(zij(2, jdir), istate, istate, imagpart)
-            z = CMPLX(realpart, imagpart, dp)
-            spread_i = spread_i - weights(jdir)* &
-                       LOG(realpart*realpart + imagpart*imagpart)/twopi/twopi
-            spread_ii = spread_ii + weights(jdir)* &
-                        (1.0_dp - (realpart*realpart + imagpart*imagpart))/twopi/twopi
-            IF (jdir < 4) THEN
-               DO idir = 1, 3
-                  c(idir) = c(idir) + &
-                            (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
-               END DO
-            END IF
-         END DO
+         IF (.NOT. zij_is_complex) THEN
+            DO jdir = 1, SIZE(zij, 2)
+               CALL cp_fm_get_element(zij(1, jdir), istate, istate, realpart)
+               CALL cp_fm_get_element(zij(2, jdir), istate, istate, imagpart)
+               z = CMPLX(realpart, imagpart, dp)
+               spread_i = spread_i - weights(jdir)* &
+                          LOG(realpart*realpart + imagpart*imagpart)/twopi/twopi
+               spread_ii = spread_ii + weights(jdir)* &
+                           (1.0_dp - (realpart*realpart + imagpart*imagpart))/twopi/twopi
+               IF (jdir < 4) THEN
+                  DO idir = 1, 3
+                     c(idir) = c(idir) + &
+                               (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
+                  END DO
+               END IF
+            END DO
+         ELSE
+            DO jdir = 1, SIZE(c_zij, 2)
+               CALL cp_cfm_get_element(c_zij(1, jdir)%matrix, istate, istate, z)
+               realpart = REAL(z, dp)
+               imagpart = AIMAG(z)
+               spread_i = spread_i - weights(jdir)* &
+                          LOG(realpart*realpart + imagpart*imagpart)/twopi/twopi
+               spread_ii = spread_ii + weights(jdir)* &
+                           (1.0_dp - (realpart*realpart + imagpart*imagpart))/twopi/twopi
+               IF (jdir < 4) THEN
+                  DO idir = 1, 3
+                     c(idir) = c(idir) + &
+                               (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
+                  END DO
+               END IF
+            END DO
+         END IF
          cpbc = pbc(c, cell)
          centers(1:3, istate) = cpbc(1:3)
          centers(4, istate) = spread_i
@@ -818,7 +917,6 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      NULLIFY (auxbas_pw_pool, pw_env, logger)
       logger => cp_get_default_logger()
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
@@ -893,6 +991,52 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(wf_g)
       CALL timestop(handle)
    END SUBROUTINE qs_print_cubes
+
+! **************************************************************************************************
+!> \brief Prints the electronic density
+!> \param qs_env ...
+!> \param nstates ...
+!> \param state_list ...
+!> \param centers ...
+!> \param print_key ...
+!> \param root ...
+!> \param mo_coeff ...
+!> \param complex_mo_coeff ...
+!> \param ispin ...
+!> \param file_position ...
+! **************************************************************************************************
+
+   SUBROUTINE qs_print_density_cubes(qs_env, nstates, state_list, centers, print_key, root, &
+                                     mo_coeff, complex_mo_coeff, ispin, file_position)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: nstates
+      INTEGER, DIMENSION(:), POINTER                     :: state_list
+      REAL(dp), DIMENSION(:, :), POINTER                 :: centers
+      TYPE(section_vals_type), POINTER                   :: print_key
+      CHARACTER(LEN=*)                                   :: root
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff
+      TYPE(cp_cfm_type), OPTIONAL, POINTER               :: complex_mo_coeff
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin
+      CHARACTER(LEN=default_string_length), OPTIONAL     :: file_position
+
+      TYPE(cp_fm_type), POINTER                          :: squaredmat
+
+      IF (PRESENT(mo_coeff)) THEN
+         CPASSERT(.NOT. PRESENT(complex_mo_coeff))
+         CALL cp_fm_create(squaredmat, mo_coeff%matrix_struct)
+         squaredmat%local_data = mo_coeff%local_data**2.0
+      ELSE
+         CPASSERT(PRESENT(complex_mo_coeff))
+         CALL cp_fm_create(squaredmat, complex_mo_coeff%matrix_struct)
+         squaredmat%local_data = REAL(CONJG(complex_mo_coeff%local_data) &
+                                      *complex_mo_coeff%local_data, dp)
+      END IF
+      CALL qs_print_cubes(qs_env, squaredmat, nstates, state_list, centers, print_key, root, &
+                          ispin=ispin, file_position=file_position)
+      CALL cp_fm_release(squaredmat)
+
+   END SUBROUTINE qs_print_density_cubes
 
 ! **************************************************************************************************
 !> \brief Prints wannier centers

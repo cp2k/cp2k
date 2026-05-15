@@ -55,7 +55,8 @@ MODULE qs_loc_types
 !>      the spread of a selected set of orbitals and if required
 !>      to minimize or maximize the spread by rotation of the orbitals
 !> \param para_env info for the distribution of the calculations
-!> \param mo_coeff full matrix containing only the selected subset of orbitals
+!> \param mo_coeff full matrix containing only the selected subset of real orbitals
+!> \param complex_mo_coeff full matrix containing only the selected subset of complex orbitals
 !> \param local_molecules molecules distributed
 !> \param cell box that contains the system
 !> \param localized_wfn_control variables and parameter that define the spread
@@ -313,7 +314,8 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE get_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
-                             moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
+                             moloc_coeff, op_sm_set, op_fm_set, para_env, &
+                             particle_set, weights, dim_op)
 
       TYPE(qs_loc_env_type), INTENT(IN)                  :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -363,7 +365,8 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE set_qs_loc_env(qs_loc_env, cell, local_molecules, localized_wfn_control, &
-                             moloc_coeff, op_sm_set, op_fm_set, para_env, particle_set, weights, dim_op)
+                             moloc_coeff, op_sm_set, op_fm_set, para_env, &
+                             particle_set, weights, dim_op)
 
       TYPE(qs_loc_env_type), INTENT(INOUT)               :: qs_loc_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell

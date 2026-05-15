@@ -133,6 +133,8 @@ MODULE qs_moments
    PUBLIC :: build_local_moments_der_matrix
    PUBLIC :: build_dsdv_moments
    PUBLIC :: dipole_velocity_deriv
+   PUBLIC :: calculate_commutator_nl_terms, op_orbbas, op_orbbas_rtp, &
+             print_moments, print_moments_nl, set_label
 
 CONTAINS
 
@@ -2920,8 +2922,10 @@ CONTAINS
          calc_rrv_vrr = .TRUE.
       END IF
 
-      IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv &
-                 .OR. calc_rvr .OR. calc_rrv_vrr)) RETURN
+      IF (.NOT. (calc_rv .OR. calc_rrv .OR. calc_rxrv .OR. calc_rvr .OR. calc_rrv_vrr)) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
 
       NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_all, sab_orb, sap_ppnl)
       CALL get_qs_env(qs_env, &

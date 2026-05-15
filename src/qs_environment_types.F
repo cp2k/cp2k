@@ -1672,7 +1672,7 @@ CONTAINS
       END IF
       ! EEQ charges
       IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
-      ! Resp charges
+      ! Resp chargeqq
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
       ! tblite
