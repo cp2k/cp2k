@@ -256,7 +256,7 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(coverage())
 
-    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15:
+    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15, 16:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
             testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
