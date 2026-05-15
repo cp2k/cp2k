@@ -4,4 +4,7 @@
 "H2-kubo-diag-reuse.inp"               = [{matcher="Kubo_sigma_iso", tol=1e-7, ref=0.290326774},
                                            {matcher="Kubo_reused_mos", tol=0.0, ref=0.0},
                                            {matcher="Kubo_reference", tol=0.0, ref=0.0}]
+"H2-kubo-gapw.inp"                     = [{matcher="Kubo_sigma_iso", tol=1e-7, ref=0.290798827},
+                                           {matcher="Kubo_internal_diag", tol=0.0, ref=0.0},
+                                           {matcher="Kubo_reference", tol=0.0, ref=0.0}]
 #EOF
