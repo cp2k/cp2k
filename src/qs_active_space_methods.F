@@ -2298,7 +2298,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: restricted
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, m1, m2, &
-                                                            nmo, norb, nspins
+                                                            ms2, nmo, norb, nspins
       REAL(KIND=dp)                                      :: checksum, esub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2312,10 +2312,10 @@ CONTAINS
       !
       nspins = active_space_env%nspins
       norb = SIZE(active_space_env%active_orbitals, 1)
+      ms2 = active_space_env%multiplicity - 1
       IF (nspins == 1 .OR. restricted) THEN
          ! Closed shell or restricted open-shell
-         ASSOCIATE (ms2 => active_space_env%multiplicity, &
-                    nelec => active_space_env%nelec_active)
+         ASSOCIATE (nelec => active_space_env%nelec_active)
 
             IF (iw > 0) THEN
                WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
@@ -2358,8 +2358,7 @@ CONTAINS
          END ASSOCIATE
 
       ELSE
-         ASSOCIATE (ms2 => active_space_env%multiplicity, &
-                    nelec => active_space_env%nelec_active)
+         ASSOCIATE (nelec => active_space_env%nelec_active)
 
             IF (iw > 0) THEN
                WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
