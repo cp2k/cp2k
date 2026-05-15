@@ -16,5 +16,5 @@
 "CH2O_stda-xtb-s_virtual_shift.inp"     = [{matcher="TDDFPT_Check_Energy", tol=1.0E-06, ref=0.779158E-01},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00000000E+00}]
 "water_xTB_virtual_shift.inp"           = [{matcher="TDDFPT_Check_Energy", tol=1.0E-06, ref=0.23616331E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.43409201E-02}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.27440134E+00}]
 #EOF

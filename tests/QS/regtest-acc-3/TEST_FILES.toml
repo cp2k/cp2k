@@ -5,26 +5,25 @@
 #      for details see cp2k/tools/do_regtest
 #
 "H2O_GAPW_1.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.549263E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20216999E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17658618E+00}]
 "H2O_GAPW_2.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.591112E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.12090937E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17431296E+00}]
 "H2O_GAPW_3.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.609537E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.11603160E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16025189E+00}]
 "H2O_GAPW_4.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.619726E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.31085431E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.24726797E+00}]
 "H2O_GAPW_5.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.549152E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20218200E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17658429E+00}]
 "H2O_GAPW_6.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.609537E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.11603160E+00}]
-
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16025189E+00}]
 "H2O_GAPW_XC_1.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.619753E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.31092654E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.24730715E+00}]
 "H2O_GAPW_XC_2.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.812844E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.23147252E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.19329867E+00}]
 "H2O_GAPW_XC_3.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.845355E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.19604010E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16086813E+00}]
 "H2O_GAPW_XC_4.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.845366E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.19609008E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16091761E+00}]
 "H2O_GAPW_1_triplet.inp"                = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.509938E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0000000E+00}]
 "Ne_GAPW_triplet.inp"                   = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.166970E+01},
@@ -33,3 +32,6 @@
 "h2-rtbse-gapw-accurate.inp"            = [{matcher="M115", tol=1e-3, ref=0.14890453E-005},
                                            {matcher="M116", tol=1e-5, ref=0.00000000E+000}]
 #EOF
+
+
+

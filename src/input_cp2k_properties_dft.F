@@ -39,7 +39,8 @@ MODULE input_cp2k_properties_dft
       oe_lb, oe_none, oe_saop, oe_shift, ot_precond_full_all, ot_precond_full_kinetic, &
       ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
       ot_precond_s_inverse, scan_x, scan_xy, scan_xyz, scan_xz, scan_y, scan_yz, scan_z, &
-      tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_kernel_full, &
+      tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_dipole_velocity_old, &
+      tddfpt_kernel_full, &
       tddfpt_kernel_none, tddfpt_kernel_stda, no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol, &
       use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop, ONLY: create_atprop_section
@@ -1758,11 +1759,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
                           description="Form of dipole transition integrals.", &
-                          enum_c_vals=s2a("BERRY", "LENGTH", "VELOCITY"), &
+                          enum_c_vals=s2a("BERRY", "LENGTH", "VELOCITY", "VELOCITY_OLD"), &
                           enum_desc=s2a("Based on Berry phase formula (valid for fully periodic molecular systems only)", &
                                         "Length form &lang; i | r | j &rang; (valid for non-periodic molecular systems only)", &
-                                        "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=[tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity], &
+                                        "Velocity form &lang; i | d/dr | j &rang;", &
+                                        "Old velocity form &lang; i | d/dr | j &rang;"), &
+                          enum_i_vals=[tddfpt_dipole_berry, tddfpt_dipole_length, &
+                                       tddfpt_dipole_velocity, tddfpt_dipole_velocity_old], &
                           default_i_val=tddfpt_dipole_velocity)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

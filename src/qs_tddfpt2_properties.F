@@ -60,11 +60,11 @@ MODULE qs_tddfpt2_properties
    USE input_constants,                 ONLY: no_sf_tddfpt,&
                                               tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
-                                              tddfpt_dipole_velocity
+                                              tddfpt_dipole_velocity,&
+                                              tddfpt_dipole_velocity_old
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
@@ -172,8 +172,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: gamma_00, gamma_inv_00
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: ediff_inv, rRc_mos_occ, wfm_ao_ao, &
-                                                            wfm_mo_virt_mo_occ
+      TYPE(cp_fm_type)                                   :: ediff_inv, wfm_ao_ao, wfm_mo_virt_mo_occ
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: S_mos_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: dBerry_mos_occ, gamma_real_imag, opvec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, matrix_s, rRc_xyz, scrm
@@ -228,7 +227,7 @@ CONTAINS
             IF (ndim_periodic == 0) THEN
                tddfpt_control%dipole_form = tddfpt_dipole_length
             ELSE
-               tddfpt_control%dipole_form = tddfpt_dipole_berry
+               tddfpt_control%dipole_form = tddfpt_dipole_velocity
             END IF
          ELSE
             tddfpt_control%dipole_form = tddfpt_dipole_velocity
@@ -239,7 +238,8 @@ CONTAINS
       CASE (tddfpt_dipole_berry)
          IF (ndim_periodic /= 3) THEN
             CALL cp_warn(__LOCATION__, &
-                         "Fully periodic Poisson solver (PERIODIC xyz) is needed "// &
+                         "Fully periodic Poisson solver (PERIODIC xyz) "// &
+                         "or a large supercell in non-periodic directions is needed "// &
                          "for oscillator strengths based on the Berry phase formula")
          END IF
 
@@ -346,11 +346,6 @@ CONTAINS
          DEALLOCATE (gamma_00, gamma_inv_00)
          CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)
 
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
-         CALL cp_fm_create(wfm_ao_ao, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-
          ! trans_dipole = 2|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00) +
          !                2|e|/|G_mu| * Tr Imag(C_0^T * (gamma_real - i gamma_imag) * evects * gamma_inv_00) ,
          !
@@ -360,15 +355,9 @@ CONTAINS
          !
          ! 1/|G_mu| = |lattice_vector_mu| / (2*pi) .
          DO ispin = 1, nspins
-            ! wfm_ao_ao = S * mos_virt * mos_virt^T
-            CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                               1.0_dp/twopi, S_mos_virt(ispin), gs_mos(ispin)%mos_virt, &
-                               0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
-               CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
-                                  1.0_dp, wfm_ao_ao, dBerry_mos_occ(ideriv, ispin), &
-                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin))
+               CALL cp_fm_to_fm(dBerry_mos_occ(ideriv, ispin), dipole_op_mos_occ(ideriv, ispin))
             END DO
          END DO
 
@@ -378,7 +367,8 @@ CONTAINS
       CASE (tddfpt_dipole_length)
          IF (ndim_periodic /= 0) THEN
             CALL cp_warn(__LOCATION__, &
-                         "Non-periodic Poisson solver (PERIODIC none) is needed "// &
+                         "Non-periodic Poisson solver (PERIODIC none) "// &
+                         "or a large supercell approach is needed "// &
                          "for oscillator strengths based on the length operator")
          END IF
 
@@ -398,38 +388,40 @@ CONTAINS
          CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, &
                          minimum_image=.FALSE., soft=.FALSE.)
 
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
-         CALL cp_fm_create(wfm_ao_ao, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
-            CALL cp_fm_create(rRc_mos_occ, fm_struct)
-
-            ! wfm_ao_ao = S * mos_virt * mos_virt^T
-            CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                               1.0_dp, S_mos_virt(ispin), gs_mos(ispin)%mos_virt, &
-                               0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
                CALL cp_dbcsr_sm_fm_multiply(rRc_xyz(ideriv)%matrix, &
                                             gs_mos(ispin)%mos_occ, &
-                                            rRc_mos_occ, &
+                                            dipole_op_mos_occ(ideriv, ispin), &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-
-               CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
-                                  1.0_dp, wfm_ao_ao, rRc_mos_occ, &
-                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin))
             END DO
 
-            CALL cp_fm_release(rRc_mos_occ)
          END DO
 
-         CALL cp_fm_release(wfm_ao_ao)
          CALL dbcsr_deallocate_matrix_set(rRc_xyz)
 
       CASE (tddfpt_dipole_velocity)
+         ! generate overlap derivatives
+         CALL get_qs_env(qs_env, ks_env=ks_env, sab_orb=sab_orb)
+         NULLIFY (scrm)
+         CALL build_overlap_matrix(ks_env, matrix_s=scrm, nderivative=1, &
+                                   basis_type_a="ORB", basis_type_b="ORB", &
+                                   sab_nl=sab_orb)
+
+         DO ispin = 1, nspins
+            DO ideriv = 1, nderivs
+               CALL cp_dbcsr_sm_fm_multiply(scrm(ideriv + 1)%matrix, &
+                                            gs_mos(ispin)%mos_occ, &
+                                            dipole_op_mos_occ(ideriv, ispin), &
+                                            ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
+            END DO
+
+            CALL cp_fm_release(wfm_mo_virt_mo_occ)
+         END DO
+         CALL dbcsr_deallocate_matrix_set(scrm)
+
+      CASE (tddfpt_dipole_velocity_old)
          ! generate overlap derivatives
          CALL get_qs_env(qs_env, ks_env=ks_env, sab_orb=sab_orb)
          NULLIFY (scrm)
@@ -578,6 +570,8 @@ CONTAINS
             WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using length formulation"
          CASE (tddfpt_dipole_velocity)
             WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using velocity formulation"
+         CASE (tddfpt_dipole_velocity_old)
+            WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using old velocity formulation"
          CASE DEFAULT
             CPABORT("Unimplemented form of the dipole operator")
          END SELECT
@@ -627,8 +621,20 @@ CONTAINS
 
       ! *** summary information ***
       DO istate = 1, nstates
-         osc_strength = 2.0_dp/3.0_dp*evals(istate)* &
-                        accurate_dot_product(trans_dipoles(istate, :, 1), trans_dipoles(istate, :, 1))
+
+         SELECT CASE (dipole_form)
+         CASE (tddfpt_dipole_berry)
+            osc_strength = 2.0_dp/3.0_dp*evals(istate)*SUM(trans_dipoles(istate, :, 1)**2)
+         CASE (tddfpt_dipole_length)
+            osc_strength = 2.0_dp/3.0_dp*evals(istate)*SUM(trans_dipoles(istate, :, 1)**2)
+         CASE (tddfpt_dipole_velocity)
+            osc_strength = 2.0_dp/3.0_dp/evals(istate)*SUM(trans_dipoles(istate, :, 1)**2)
+         CASE (tddfpt_dipole_velocity_old)
+            osc_strength = 2.0_dp/3.0_dp*evals(istate)*SUM(trans_dipoles(istate, :, 1)**2)
+         CASE DEFAULT
+            CPABORT("Unimplemented form of the dipole operator")
+         END SELECT
+
          ostrength(istate) = osc_strength
          IF (log_unit > 0) THEN
             WRITE (log_unit, '(1X,A,T9,I7,T19,F11.5,T31,3(1X,ES11.4E2),T69,ES12.5E2)') &

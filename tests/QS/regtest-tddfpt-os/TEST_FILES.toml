@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O_df0.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.59300779E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.3026024E+00}]
+"H2O_df1.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.59300779E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.3026024E+00}]
+"H2O_df2.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.59300779E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.43764688E+02}]
+"H2O_df3.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.59300779E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20716472E+01}]
+"H2O_df4.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.59300779E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.34970609E+00}]
+
+"NO_df0.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.28917150E+00}]
+"NO_df1.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.28917150E+00}]
+"NO_df2.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.37500099E+03}]
+"NO_df3.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.10204918E+02}]
+"NO_df4.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16653282E+00}]
+#
+#EOF
