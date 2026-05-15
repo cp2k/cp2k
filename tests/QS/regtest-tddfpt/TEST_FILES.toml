@@ -4,35 +4,35 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "H2O_tddfpt-s-1.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.600232E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.34988682E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.29582687E+00}]
 "H2O_tddfpt-t-1.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.289055E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00000000E+00}]
 "H2Oplus_tddfpt.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.505543E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.62386463E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.59644063E-01}]
 "NO_tddfpt-s-1.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.319837E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17400034E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.29530847E+00}]
 "NO_tddfpt-t-1.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=2.0E-04, ref=0.324319E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17749409E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.29117391E+00}]
 "H2O_tddfpt-s-2.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.543390E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.87457752E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.80526481E+00}]
 "H2O_tddfpt-t-2.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.548605E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00000000E+00}]
 "NO_tddfpt-t-2.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.340342E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20517879E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.32381493E+00}]
 "H2O_tddfpt-s-3.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.543390E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.87457752E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.80526481E+00}]
 "H2O_tddfpt-t-3.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.579030E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00000000E+00}]
 "NO_tddfpt-s-3.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.326331E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.19744180E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.35572424E+00}]
 "NO_tddfpt-t-3.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.340342E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20517879E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.32381493E+00}]
 "H2O_tddfpt_NTO.inp"                    = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.542432E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.13785419E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.15673493E+00}]
 "H2O_tddfpt_NTO_slist.inp"              = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.542432E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.13785419E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.15673493E+00}]
 "H2O_tddfpt_NTO_restart.inp"            = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.542432E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.13785419E+00}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.15673493E+00}]
 "H2_kp_tddfpt_none_mp.inp"              = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.658268E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=4.0E-06, ref=0.36697616E+00}]
 "H2_kp_tddfpt_none_general.inp"         = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.658268E+00},

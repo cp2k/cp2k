@@ -711,7 +711,8 @@ MODULE input_constants
    ! Form of dipole operator for TDDFPT oscillator strength calculation
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_dipole_berry = 1, &
                                                tddfpt_dipole_length = 2, &
-                                               tddfpt_dipole_velocity = 3
+                                               tddfpt_dipole_velocity = 3, &
+                                               tddfpt_dipole_velocity_old = 4
 
    ! XC Kernel derivative methods for forces
    INTEGER, PARAMETER, PUBLIC               :: xc_kernel_method_best = 100, &

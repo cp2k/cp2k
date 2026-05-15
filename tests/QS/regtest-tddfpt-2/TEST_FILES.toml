@@ -8,7 +8,7 @@
 # Reference TDDFT singlet excitation energies (in eV): 3.85, 5.85, 6.60
 # Reference TDDFT triplet excitation energies (in eV): 3.18, 5.70, 6.94 ???
 "ch2o_pbe_rks_s_tddfpt.inp"             = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.27670937},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.014436133}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.010069846}]
 
 "ch2o_pbe_rks_t_tddfpt.inp"             = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.26275058},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
@@ -16,7 +16,7 @@
 # Reference TDDFT singlet excitation energies (in eV): 3.90, 6.68, 7.50
 # Reference TDDFT triplet excitation energies (in eV): 3.16, 4.79, 6.48
 "ch2o_pbe0_rks_s_tddfpt.inp"            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.53798789},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.059244807}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0038608628}]
 "ch2o_pbe0_rks_t_tddfpt.inp"            = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.38399714},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0}]
 # Compute the lowest 2 singlet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory
@@ -26,13 +26,13 @@
 #   ch2o_pbe0_rks_s_tddfpt_admm2 -- reduced TDDFPT plane wave cutoff
 # Reference TDDFT singlet excitation energies (in eV): 3.87, 6.70
 "ch2o_pbe0_rks_s_tddfpt_admm.inp"       = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.25518424},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0080539984}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.009806659}]
 "ch2o_pbe0_rks_s_tddfpt_admm2.inp"      = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.25525564},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0079639291}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.0096157197}]
 # Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
 # Reference excitation energies (in eV): 0.13, 5.44, 6.14
 "no_pbe_uks_d_tddfpt.inp"               = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.21062029},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.010535969}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.012585523}]
 "o2_pbe_uks_t_tddfpt.inp"               = [{matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.811288},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.044551181}]
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.028554365}]
 #EOF
