@@ -378,6 +378,7 @@ CONTAINS
       active_space_env%nelec_total = nelec_total
       active_space_env%nspins = nspins
       active_space_env%multiplicity = dft_control%multiplicity
+      active_space_env%restricted_orbitals = dft_control%roks
 
       ! define the active/inactive space orbitals
       CALL section_vals_val_get(as_input, "ACTIVE_ORBITALS", explicit=explicit, i_val=nmo_active)
@@ -505,7 +506,9 @@ CONTAINS
          ! create canonical orbitals
          CALL get_qs_env(qs_env, scf_control=scf_control)
          IF (dft_control%roks .AND. scf_control%roks_scheme /= high_spin_roks) THEN
-            CPABORT("Unclear how we define MOs in the general restricted case ... stopping")
+            CALL cp_abort(__LOCATION__, &
+                          "Only high-spin ROKS is supported for ACTIVE_SPACE FCI; "// &
+                          "general ROKS MO definitions are not implemented.")
          ELSE
             IF (dft_control%do_admm) THEN
                IF (dft_control%do_admm_mo) THEN
@@ -641,7 +644,9 @@ CONTAINS
       CASE (manual_selection)
          ! create canonical orbitals
          IF (dft_control%roks) THEN
-            CPABORT("Unclear how we define MOs in the restricted case ... stopping")
+            CALL cp_abort(__LOCATION__, &
+                          "Manual ACTIVE_SPACE orbital selection is not supported for ROKS; "// &
+                          "use canonical high-spin ROKS.")
          ELSE
             IF (dft_control%do_admm) THEN
                ! For admm_mo, the auxiliary density is computed from the MOs, which never change
@@ -2293,7 +2298,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: restricted
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, m1, m2, &
-                                                            nmo, norb, nspins
+                                                            ms2, nmo, norb, nspins
       REAL(KIND=dp)                                      :: checksum, esub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2307,10 +2312,10 @@ CONTAINS
       !
       nspins = active_space_env%nspins
       norb = SIZE(active_space_env%active_orbitals, 1)
+      ms2 = active_space_env%multiplicity - 1
       IF (nspins == 1 .OR. restricted) THEN
          ! Closed shell or restricted open-shell
-         ASSOCIATE (ms2 => active_space_env%multiplicity, &
-                    nelec => active_space_env%nelec_active)
+         ASSOCIATE (nelec => active_space_env%nelec_active)
 
             IF (iw > 0) THEN
                WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
@@ -2353,8 +2358,7 @@ CONTAINS
          END ASSOCIATE
 
       ELSE
-         ASSOCIATE (ms2 => active_space_env%multiplicity, &
-                    nelec => active_space_env%nelec_active)
+         ASSOCIATE (nelec => active_space_env%nelec_active)
 
             IF (iw > 0) THEN
                WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
@@ -3055,7 +3059,6 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control)
-      IF (dft_control%roks) CPABORT("AS_SOLVER FCI is not supported for ROKS calculations.")
 
       CALL section_vals_val_get(as_input, "SCF_EMBEDDING", l_val=do_scf_embedding)
       active_space_env%do_scf_embedding = do_scf_embedding
@@ -3466,7 +3469,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: header
       INTEGER                                            :: handle, iw
-      LOGICAL                                            :: ionode
+      LOGICAL                                            :: ionode, restricted_orbitals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb, s_ab
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -3475,14 +3478,20 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_logger_get_default_io_unit(logger)
       ionode = para_env%is_source()
+      restricted_orbitals = active_space_env%restricted_orbitals
 
       ALLOCATE (eri_aa(active_space_env%nmo_active**4))
       CALL eri_to_array(active_space_env%eri, eri_aa, active_space_env%active_orbitals, 1, 1)
       IF (active_space_env%nspins == 2) THEN
          ALLOCATE (eri_ab(active_space_env%nmo_active**4))
-         CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
          ALLOCATE (eri_bb(active_space_env%nmo_active**4))
-         CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         IF (restricted_orbitals) THEN
+            eri_ab(:) = eri_aa
+            eri_bb(:) = eri_aa
+         ELSE
+            CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
+            CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         END IF
          ! get the overlap_ab matrix into Fortran array
          ALLOCATE (s_ab(active_space_env%nmo_active**2))
          ASSOCIATE (act_indices_a => active_space_env%active_orbitals(:, 1), &

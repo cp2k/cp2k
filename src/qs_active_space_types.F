@@ -94,6 +94,7 @@ MODULE qs_active_space_types
       INTEGER                                      :: nmo_inactive = 0
       INTEGER                                      :: multiplicity = 0
       INTEGER                                      :: nspins = 0
+      LOGICAL                                      :: restricted_orbitals = .FALSE.
       LOGICAL                                      :: molecule = .FALSE.
       INTEGER                                      :: model = 0
       REAL(KIND=dp)                                :: energy_total = 0.0_dp

@@ -223,6 +223,9 @@ registry["M089"] = GenericMatcher(r"Electronic density on regular grids:", col=7
 registry["M090"] = GenericMatcher(r"Final localization:", col=3)
 registry["M091"] = GenericMatcher(r"Ionization potentials for XPS", col=8)
 registry["M092"] = GenericMatcher(r"FCIDUMP| Checksum:", col=3)
+registry["FCIDUMP_MS2"] = GenericMatcher(
+    r"&FCI .*MS2=\s*([-+0-9]+),", col=1, regex=True
+)
 registry["M093"] = GenericMatcher(r"SPGR| SPACE GROUP NUMBER:", col=5)
 registry["M094"] = GenericMatcher(r"KS CSR write|", col=4)
 registry["M095"] = GenericMatcher(r"Fermi energy:", col=3)
