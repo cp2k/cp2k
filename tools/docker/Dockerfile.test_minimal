@@ -3,7 +3,11 @@
 # Usage: podman build --shm-size=1g -f ./Dockerfile.test_minimal ../../
 #
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04
+
+# Add Ubuntu universe repository.
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends software-properties-common
+RUN add-apt-repository universe
 
 # Install Ubuntu packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
@@ -16,9 +20,9 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     wget \
     python3 \
     ca-certificates \
-    gcc-13 \
-    g++-13 \
-    gfortran-13 \
+    gcc-15 \
+    g++-15 \
+    gfortran-15 \
     libfftw3-dev \
     libopenblas-dev \
     libint2-dev \
@@ -29,15 +33,15 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
-RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \
-    ln -sf /usr/bin/g++-13      /usr/local/bin/g++  && \
-    ln -sf /usr/bin/gfortran-13 /usr/local/bin/gfortran
+RUN ln -sf /usr/bin/gcc-15      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-15      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-15 /usr/local/bin/gfortran
 
 # Use toolchain to install DBCSR.
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu:24.04
+RUN ./install_requirements.sh ubuntu:26.04
 
 # Install the toolchain.
 RUN mkdir scripts

@@ -264,7 +264,7 @@ def main() -> None:
             f.write(regtest("ubuntu", "ssmp", testopts=testopts))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
-        base_img = "arm64v8/ubuntu:24.04"
+        base_img = "arm64v8/ubuntu:26.04"
         f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
         f.write(regtest("toolchain_arm64", "psmp"))
 
@@ -480,7 +480,7 @@ RUN ./build_cp2k.sh {profile} {version}
 
 # ======================================================================================
 def install_deps_toolchain(
-    base_image: str = "ubuntu:24.04",
+    base_image: str = "ubuntu:26.04",
     mpi_mode: str = "mpich",
     with_dbcsr: str = "",  # enabled by default
     with_gcc: str = "system",
@@ -499,8 +499,8 @@ def install_deps_toolchain(
 
 
 # ======================================================================================
-def install_deps_ubuntu(gcc_version: int = 13) -> str:
-    if gcc_version > 14:
+def install_deps_ubuntu(gcc_version: int = 15) -> str:
+    if gcc_version > 10:
         base_image = "ubuntu:26.04"
     elif gcc_version > 8:
         base_image = "ubuntu:24.04"
