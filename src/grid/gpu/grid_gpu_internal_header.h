@@ -11,8 +11,8 @@
  - Advanced Micro Devices, Inc.
 */
 
-#ifndef GRID_HIP_INTERNAL_HEADER_H
-#define GRID_HIP_INTERNAL_HEADER_H
+#ifndef GRID_GPU_INTERNAL_HEADER_H
+#define GRID_GPU_INTERNAL_HEADER_H
 
 #include <algorithm>
 #include <assert.h>
@@ -28,7 +28,7 @@ extern "C" {
 #include "../common/grid_constants.h"
 }
 
-#include "grid_hip_context.h"
+#include "grid_gpu_context.h"
 
 namespace rocm_backend {
 

@@ -49,7 +49,7 @@ void grid_create_task_list(
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
-      task_list->backend = GRID_BACKEND_HIP;
+      task_list->backend = GRID_BACKEND_GPU;
 #else
       task_list->backend = GRID_BACKEND_CPU;
 #endif
@@ -102,19 +102,11 @@ void grid_create_task_list(
 #if (defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID))
     grid_gpu_create_task_list(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
-        npts_local, shift_local, border_width, dh, dh_inv, &task_list->gpu);
-    break;
-  case GRID_BACKEND_HIP:
-    grid_hip_create_task_list(
-        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         &atom_positions[0][0], atom_kinds, basis_sets, level_list, iatom_list,
         jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
         border_mask_list, block_num_list, radius_list, &rab_list[0][0],
         &npts_global[0][0], &npts_local[0][0], &shift_local[0][0],
-        &border_width[0][0], &dh[0][0][0], &dh_inv[0][0][0], &task_list->hip);
+        &border_width[0][0], &dh[0][0][0], &dh_inv[0][0][0], &task_list->gpu);
 #else
     fprintf(stderr, "Error: The GPU grid backend is not available. "
                     "Please re-compile with -D__OFFLOAD");
@@ -153,10 +145,6 @@ void grid_free_task_list(grid_task_list *task_list) {
   if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
-  }
-  if (task_list->hip != NULL) {
-    grid_hip_free_task_list(task_list->hip);
-    task_list->hip = NULL;
   }
 #endif
 
@@ -199,10 +187,6 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
-                                 grids);
-    break;
-  case GRID_BACKEND_HIP:
-    grid_hip_collocate_task_list(task_list->hip, func, nlevels, pab_blocks,
                                  grids);
     break;
 #endif
@@ -284,11 +268,7 @@ void grid_integrate_task_list(
   switch (task_list->backend) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
-    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
-                                 pab_blocks, grids, hab_blocks, forces, virial);
-    break;
-  case GRID_BACKEND_HIP:
-    grid_hip_integrate_task_list(task_list->hip, compute_tau, nlevels,
+    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, nlevels,
                                  pab_blocks, grids, hab_blocks, &forces[0][0],
                                  &virial[0][0]);
     break;

@@ -1499,8 +1499,7 @@ set(CP2K_SRCS_GPU "")
 
 set(CP2K_GRID_SRCS_GPU
     grid/gpu/grid_gpu_collocate.cu grid/gpu/grid_gpu_integrate.cu
-    grid/gpu/grid_gpu_task_list.cu grid/hip/grid_hip_collocate.cu
-    grid/hip/grid_hip_integrate.cu grid/hip/grid_hip_context.cu)
+    grid/gpu/grid_gpu_context.cu)
 
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)

@@ -11,8 +11,8 @@
    - Advanced Micro Devices, Inc.
 */
 
-#ifndef GRID_HIP_CONTEXT_H
-#define GRID_HIP_CONTEXT_H
+#ifndef GRID_GPU_CONTEXT_H
+#define GRID_GPU_CONTEXT_H
 
 #ifdef __OFFLOAD_HIP
 #include <hip/hip_runtime_api.h>
