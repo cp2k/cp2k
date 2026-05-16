@@ -126,7 +126,7 @@ spack:
     - "pace@2025.12.4"
     - "py-torch@2.11.0"
     - "spglib@2.7.0"
-    - "tblite@2026-05-11"
+    - "tblite@0.6.0"
     - "trexio@2.5.0"
 
   view:

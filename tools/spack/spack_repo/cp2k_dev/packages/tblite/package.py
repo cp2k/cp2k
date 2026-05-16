@@ -2,14 +2,13 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack_repo.builtin.build_systems import cmake, meson
+from spack_repo.builtin.build_systems import cmake
 from spack_repo.builtin.build_systems.cmake import CMakePackage
-from spack_repo.builtin.build_systems.meson import MesonPackage
 
 from spack.package import *
 
 
-class Tblite(CMakePackage, MesonPackage):
+class Tblite(CMakePackage):
     """Light-weight tight-binding framework"""
 
     homepage = "https://tblite.readthedocs.io"
@@ -20,15 +19,14 @@ class Tblite(CMakePackage, MesonPackage):
 
     license("LGPL-3.0-or-later")
 
-    version("2026-05-11", commit="5b90becb07cc0844985930679a8545e4559ee325")
+    version("0.6.0", sha256="372281aedb89234168d00eb691addb303197a9462a9c55d145c835f2cf5e8b42")
     version("0.5.0", sha256="e8a70b72ed0a0db0621c7958c63667a9cd008c97c868a4a417ff1bc262052ea8")
     version("0.4.0", sha256="5c2249b568bfd3b987d3b28f2cbfddd5c37f675b646e17c1e750428380af464b")
     version("0.3.0", sha256="46d77c120501ac55ed6a64dea8778d6593b26fb0653c591f8e8c985e35884f0a")
 
-    build_system("cmake", "meson", default="meson")
+    build_system("cmake")
 
     variant("openmp", default=True, description="Use OpenMP parallelisation")
-    variant("python", default=False, description="Build Python extension module")
 
     depends_on("c", type="build")  # generated
     depends_on("fortran", type="build")  # generated
@@ -36,40 +34,12 @@ class Tblite(CMakePackage, MesonPackage):
     depends_on("blas")
     depends_on("lapack")
 
-    #    for build_system in ["cmake", "meson"]:
-    #        depends_on(
-    #                f"mctc-lib@0.5: build_system={build_system}", when=f"build_system={build_system}"
-    #                )
-    #        depends_on(
-    #                f"simple-dftd3@1.2: build_system={build_system}", when=f"build_system={build_system}"
-    #                )
-    #        depends_on(f"dftd4@3: build_system={build_system}", when=f"build_system={build_system}")
-    #        depends_on(f"toml-f build_system={build_system}", when=f"build_system={build_system}")
+    #    depends_on("mctc-lib@0.3: build_system=cmake")
+    #    depends_on("simple-dftd3@0.3: build_system=cmake")
+    #    depends_on("dftd4@3: build_system=cmake")
+    #    depends_on("toml-f build_system=cmake")
 
-    depends_on("meson@0.57.2:", type="build")  # mesonbuild/meson#8377
     depends_on("pkgconfig", type="build")
-    depends_on("py-cffi", when="+python")
-    depends_on("py-numpy", when="+python")
-    depends_on("python@3.6:", when="+python")
-
-    extends("python", when="+python")
-
-
-class MesonBuilder(meson.MesonBuilder):
-    def meson_args(self):
-        lapack = self.spec["lapack"].libs.names[0]
-        if lapack == "lapack":
-            lapack = "netlib"
-        elif lapack.startswith("mkl"):
-            lapack = "mkl"
-        elif lapack != "openblas":
-            lapack = "auto"
-
-        return [
-            "-Dlapack={0}".format(lapack),
-            "-Dopenmp={0}".format(str("+openmp" in self.spec).lower()),
-            "-Dpython={0}".format(str("+python" in self.spec).lower()),
-        ]
 
 
 class CMakeBuilder(cmake.CMakeBuilder):
