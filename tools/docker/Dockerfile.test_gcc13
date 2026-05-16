@@ -3,7 +3,7 @@
 # Usage: podman build --shm-size=1g -f ./Dockerfile.test_gcc13 ../../
 #
 
-FROM ubuntu:26.04
+FROM ubuntu:24.04
 
 # Install Ubuntu packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
@@ -37,7 +37,7 @@ RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu:26.04
+RUN ./install_requirements.sh ubuntu:24.04
 
 # Install the toolchain.
 RUN mkdir scripts

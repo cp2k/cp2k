@@ -500,7 +500,7 @@ def install_deps_toolchain(
 
 # ======================================================================================
 def install_deps_ubuntu(gcc_version: int = 15) -> str:
-    if gcc_version > 10:
+    if gcc_version > 14:
         base_image = "ubuntu:26.04"
     elif gcc_version > 8:
         base_image = "ubuntu:24.04"
