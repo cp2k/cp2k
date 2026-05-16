@@ -16,7 +16,6 @@
 #include "cpu/grid_cpu_task_list.h"
 #include "dgemm/grid_dgemm_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
-#include "hip/grid_hip_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
 /*******************************************************************************
@@ -32,9 +31,6 @@ typedef struct {
   grid_dgemm_task_list *dgemm;
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   grid_gpu_task_list *gpu;
-#endif
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
-  grid_hip_task_list *hip;
 #endif
   // more backends to be added here
 } grid_task_list;

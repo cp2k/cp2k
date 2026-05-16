@@ -7,16 +7,15 @@
 
 /*
  * Authors :
- - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
+ - Mathieu Taillefumier (ETH Zurich / CSCS)
  - Advanced Micro Devices, Inc.
+ - Ole Schuett
 */
 
-#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <hip/hip_runtime_api.h>
 #include <iostream>
 
 #include "../../offload/offload_library.h"
@@ -26,10 +25,10 @@ extern "C" {
 #include "../common/grid_library.h"
 }
 
-#include "grid_hip_context.h"
-#include "grid_hip_internal_header.h"
+#include "grid_gpu_context.h"
+#include "grid_gpu_internal_header.h"
 
-#include "grid_hip_task_list.h"
+#include "grid_gpu_task_list.h"
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -39,7 +38,7 @@ extern "C" {
  * \brief Allocates a task list for the GPU backend.
  *        See grid_ctx.h for details.
  ******************************************************************************/
-extern "C" void grid_hip_create_task_list(
+extern "C" void grid_gpu_create_task_list(
     const bool ortho, const int ntasks, const int nlevels, const int natoms,
     const int nkinds, const int nblocks, const int *block_offsets,
     const double *atom_positions, const int *atom_kinds,
@@ -49,7 +48,7 @@ extern "C" void grid_hip_create_task_list(
     const int *border_mask_list, const int *block_num_list,
     const double *radius_list, const double *rab_list, const int *npts_global,
     const int *npts_local, const int *shift_local, const int *border_width,
-    const double *dh, const double *dh_inv, void *ptr) {
+    const double *dh, const double *dh_inv, grid_gpu_task_list **ptr) {
 
   rocm_backend::context_info **ctx_out = (rocm_backend::context_info **)ptr;
   // Select GPU device.
@@ -367,7 +366,7 @@ extern "C" void grid_hip_create_task_list(
 /*******************************************************************************
  * \brief destroy a context
  ******************************************************************************/
-extern "C" void grid_hip_free_task_list(void *ptr) {
+extern "C" void grid_gpu_free_task_list(grid_gpu_task_list *ptr) {
 
   rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
   // Select GPU device.
@@ -381,7 +380,7 @@ extern "C" void grid_hip_free_task_list(void *ptr) {
 /*******************************************************************************
  * \brief Collocate all tasks of in given list onto given grids.
  ******************************************************************************/
-extern "C" void grid_hip_collocate_task_list(const void *ptr,
+extern "C" void grid_gpu_collocate_task_list(const grid_gpu_task_list *ptr,
                                              const enum grid_func func,
                                              const int nlevels,
                                              const offload_buffer *pab_blocks,
@@ -438,10 +437,10 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
         if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_COLLOCATE_ORTHO, count);
         } else {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_COLLOCATE_GENERAL, count);
         }
       }
@@ -458,8 +457,8 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
  * \brief Integrate all tasks of in given list onto given grids.
  *        See grid_ctx.h for details.
  ******************************************************************************/
-extern "C" void grid_hip_integrate_task_list(
-    const void *ptr, const bool compute_tau, const int nlevels,
+extern "C" void grid_gpu_integrate_task_list(
+    const grid_gpu_task_list *ptr, const bool compute_tau, const int nlevels,
     const offload_buffer *pab_blocks, const offload_buffer **grids,
     offload_buffer *hab_blocks, double *forces, double *virial) {
 
@@ -523,10 +522,10 @@ extern "C" void grid_hip_integrate_task_list(
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
         if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_INTEGRATE_ORTHO, count);
         } else {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                    GRID_INTEGRATE_GENERAL, count);
         }
       }
@@ -535,8 +534,7 @@ extern "C" void grid_hip_integrate_task_list(
 
   // need to wait for all streams to finish
   for (int level = 0; level < ctx->nlevels; level++) {
-    if (ctx->number_of_tasks_per_level_[level])
-      ctx->synchronize(ctx->level_streams[level]);
+    ctx->synchronize(ctx->level_streams[level]);
   }
   // computing the hab coefficients does not depend on the number of grids so we
   // can run these calculations on the main stream
@@ -552,5 +550,3 @@ extern "C" void grid_hip_integrate_task_list(
 
   ctx->synchronize(ctx->main_stream);
 }
-
-#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

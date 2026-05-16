@@ -12,6 +12,9 @@
  - Advanced Micro Devices, Inc.
 */
 
+#ifndef GRID_GPU_PROCESS_PAB_H
+#define GRID_GPU_PROCESS_PAB_H
+
 #include "../common/grid_constants.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -404,3 +407,4 @@ inline ldiffs_value prepare_get_ldiffs(const enum grid_func func) {
   return ldiffs;
 }
 } // namespace rocm_backend
+#endif
