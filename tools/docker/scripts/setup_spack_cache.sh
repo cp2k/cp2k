@@ -3,11 +3,11 @@
 # author: Ole Schuett
 
 if [[ -n "${SPACK_CACHE}" ]]; then
-  if [[ "${SPACK_CACHE}" == *"http://localhost:9000"* ]]; then
-    if ! wget -q --tries=1 "http://localhost:9000/spack-cache"; then
+  if [[ "${SPACK_CACHE}" == *"http://spack-cache:9000"* ]]; then
+    if ! wget -q --tries=1 "http://spack-cache:9000/spack-cache"; then
       echo ""
       echo "ERROR: Could not connect to local Spack cache."
-      echo "       Start the cache by running ./spack_cache_start.sh and then pass --network=host to podman."
+      echo "       Start the cache by running ./spack_cache_start.sh and then pass --network=cp2k-spack-cache-net to podman."
       echo "       Alternatively, disable the cache by passing --build-arg SPACK_CACHE=\"\" to podman."
       echo "       See also: https://manual.cp2k.org/trunk/getting-started/build-with-spack.html"
       echo ""
