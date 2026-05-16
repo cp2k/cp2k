@@ -65,6 +65,9 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
+      patch -l -p1 < "${SCRIPT_DIR}/stage8/sirius-dftd4-static-link.patch" \
+        > sirius-dftd4-static-link.patch.log 2>&1 || tail_excerpt sirius-dftd4-static-link.patch.log
+
       rm -Rf build
       mkdir build
       cd build
