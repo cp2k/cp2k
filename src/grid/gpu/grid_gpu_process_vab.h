@@ -12,10 +12,10 @@
  - Advanced Micro Devices, Inc.
 */
 
-#ifndef GRID_HIP_PROCESS_VAB_H
-#define GRID_HIP_PROCESS_VAB_H
+#ifndef GRID_GPU_PROCESS_VAB_H
+#define GRID_GPU_PROCESS_VAB_H
 
-#include "grid_hip_internal_header.h"
+#include "grid_gpu_internal_header.h"
 
 /* taken from ../common/grid_process_vab.h but added template parameter */
 namespace rocm_backend {

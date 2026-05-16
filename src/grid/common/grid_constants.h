@@ -51,7 +51,6 @@ enum grid_backend {
   GRID_BACKEND_CPU = 12,
   GRID_BACKEND_DGEMM = 13,
   GRID_BACKEND_GPU = 14,
-  GRID_BACKEND_HIP = 15,
 };
 
 #endif

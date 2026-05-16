@@ -30,6 +30,7 @@ FLAG_EXCEPTIONS = (
     r"ACC_OPENCL_.+",
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
+    r"GRID_GPU.*_H",
     r"INTEL_MKL_VERSION",
     r"LIBINT2_MAX_AM_eri",
     r"LIBGRPP",

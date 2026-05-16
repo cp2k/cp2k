@@ -11,10 +11,14 @@
    - Advanced Micro Devices, Inc.
 */
 
-#ifndef GRID_HIP_CONTEXT_H
-#define GRID_HIP_CONTEXT_H
+#ifndef GRID_GPU_CONTEXT_H
+#define GRID_GPU_CONTEXT_H
 
+#ifdef __OFFLOAD_HIP
 #include <hip/hip_runtime_api.h>
+#else
+#include <cuda_runtime.h>
+#endif
 #include <vector>
 
 extern "C" {
@@ -442,7 +446,8 @@ public:
   ~context_info() { clear(); }
 
   void clear() {
-    hipSetDevice(device_id_);
+    offload_set_chosen_device(device_id_);
+    offload_activate_chosen_device();
     tasks_dev.reset();
     block_offsets_dev.reset();
     coef_dev_.reset();
@@ -533,7 +538,10 @@ public:
     offloadDeviceSynchronize();
   }
 
-  void set_device() { hipSetDevice(device_id_); }
+  void set_device() {
+    offload_set_chosen_device(device_id_);
+    offload_activate_chosen_device();
+  }
 
   void collocate_one_grid_level(const int level, const enum grid_func func,
                                 int *lp_diff);
