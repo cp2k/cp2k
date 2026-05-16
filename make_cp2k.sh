@@ -1427,16 +1427,19 @@ done
 ln -sf cp2k."${VERSION}" cp2k_shell
 cd "${CP2K_ROOT}" || ${EXIT_CMD} 1
 
-# Allow to run as root with OpenMPI
 if [[ "${MPI_MODE}" == "openmpi" ]]; then
-  OMPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
+  # Allow to run as root with OpenMPI
+  MPI_VARS="export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_MCA_plm_rsh_agent=/bin/false"
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
-    OMPI_VARS="${OMPI_VARS} OMPI_MCA_mpi_yield_when_idle=1 OMPI_MCA_btl=self,sm OMPI_MCA_pml=ob1"
+    MPI_VARS="${MPI_VARS} OMPI_MCA_mpi_yield_when_idle=1 OMPI_MCA_btl=self,sm OMPI_MCA_pml=ob1"
   fi
 else
-  OMPI_VARS=""
+  MPI_VARS=""
+  if [[ "${MPI_MODE}" == "mpich" ]] && [[ "${IN_CONTAINER}" == "yes" ]]; then
+    MPI_VARS="export HYDRA_IFACE=lo MPICH_INTERFACE_HOSTNAME=127.0.0.1"
+  fi
 fi
-export OMPI_VARS
+export MPI_VARS
 
 # MPICH and OpenMPI have different flags for exporting environment variables to MPI ranks
 if [[ "${MPI_MODE}" == "openmpi" ]]; then
@@ -1465,7 +1468,7 @@ export PATH=${INSTALL_PREFIX}/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
-${OMPI_VARS}
+${MPI_VARS}
 exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
