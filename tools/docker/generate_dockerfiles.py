@@ -256,7 +256,7 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(coverage())
 
-    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15:
+    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15, 16:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
             testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
@@ -264,7 +264,7 @@ def main() -> None:
             f.write(regtest("ubuntu", "ssmp", testopts=testopts))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
-        base_img = "arm64v8/ubuntu:24.04"
+        base_img = "arm64v8/ubuntu:26.04"
         f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
         f.write(regtest("toolchain_arm64", "psmp"))
 
@@ -480,7 +480,7 @@ RUN ./build_cp2k.sh {profile} {version}
 
 # ======================================================================================
 def install_deps_toolchain(
-    base_image: str = "ubuntu:24.04",
+    base_image: str = "ubuntu:26.04",
     mpi_mode: str = "mpich",
     with_dbcsr: str = "",  # enabled by default
     with_gcc: str = "system",
@@ -499,7 +499,7 @@ def install_deps_toolchain(
 
 
 # ======================================================================================
-def install_deps_ubuntu(gcc_version: int = 13) -> str:
+def install_deps_ubuntu(gcc_version: int = 15) -> str:
     if gcc_version > 14:
         base_image = "ubuntu:26.04"
     elif gcc_version > 8:
