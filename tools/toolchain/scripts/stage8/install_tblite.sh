@@ -78,7 +78,9 @@ case "$with_tblite" in
         .. \
         > cmake.log 2>&1 || tail_excerpt cmake.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage8/simple-dftd3-${tblite_sdftd3_ver}-gradient-fixes.patch" \
+        "${SCRIPT_DIR}/stage8/dftd4-${tblite_dftd4_ver}-gradient-fixes.patch"
       cd ..
     fi
     ;;
