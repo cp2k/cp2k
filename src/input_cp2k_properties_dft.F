@@ -167,7 +167,9 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name="KUBO_TRANSPORT", &
                           description="Finite-volume Kubo-Greenwood transport coefficients from the "// &
-                          "converged Quickstep Hamiltonian, overlap matrix, and atomic geometry.", &
+                          "converged Quickstep Hamiltonian, overlap matrix, and atomic geometry. "// &
+                          "For one- and two-dimensional cells, transport is projected onto the "// &
+                          "periodic subspace and normalized by the periodic length or area.", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE., &
                           citations=[KuhneHeskeProdan2020])
 

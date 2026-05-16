@@ -67,22 +67,25 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_kubo_transport'
 
-      CHARACTER(LEN=32)                                  :: method
+      CHARACTER(LEN=32)                                  :: density_unit, measure_unit, method, &
+                                                            periodic_label, sigma_iso_unit, &
+                                                            sigma_tensor_unit
+      CHARACTER(LEN=512)                                 :: header
       INTEGER                                            :: handle, imu, ispin, nao, natom, &
                                                             nelectron_total, neutral_grid, nmu, &
-                                                            nspins, output_unit
+                                                            nperiodic, nspins, output_unit, &
+                                                            transport_ndim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_atom
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: allow_mo_reuse, do_kpoints, kubo_active, &
                                                             neutral_mu_explicit, ot_active
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: reused_mos
-      REAL(KIND=dp)                                      :: density_factor, dissipation, emax, emin, &
-                                                            mu, mu0, mu_step, ne, nh, sigma_iso, &
-                                                            temperature, volume, volume_m3
+      REAL(KIND=dp) :: density_factor, dissipation, emax, emin, iso_factor, measure, measure_m, &
+         mu, mu0, mu_step, ne, nh, sigma_iso, temperature, tensor_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: maxocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eig, s_dense
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dHH
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: projection, sigma, sigma_out
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_range
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -147,13 +150,16 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao, row_blk_size=row_blk_sizes)
       CALL build_ao_atom_map(row_blk_sizes, natom, ao_atom)
       CALL dbcsr_to_dense(matrix_s(1)%matrix, blacs_env, para_env, s_dense)
+      CALL setup_transport_geometry(cell, transport_ndim, nperiodic, periodic_label, projection, &
+                                    measure, measure_unit)
+      CALL transport_unit_labels(transport_ndim, density_unit, sigma_iso_unit, sigma_tensor_unit)
 
       ALLOCATE (eig(nao, nspins), dHH(nao, nao, 3, nspins), maxocc(nspins), reused_mos(nspins))
 
       DO ispin = 1, nspins
          maxocc(ispin) = mos(ispin)%maxocc
          CALL setup_spin_transport(matrix_ks(ispin)%matrix, s_dense, blacs_env, para_env, &
-                                   particle_set, cell, ao_atom, mos(ispin), allow_mo_reuse, &
+                                   particle_set, cell, projection, ao_atom, mos(ispin), allow_mo_reuse, &
                                    eig(:, ispin), dHH(:, :, :, ispin), reused_mos(ispin))
       END DO
 
@@ -169,9 +175,9 @@ CONTAINS
          emax = energy_range(2)
       END IF
 
-      volume = cell%deth
-      volume_m3 = volume*a_bohr**3
-      density_factor = 1.0_dp/volume_m3
+      measure_m = measure*a_bohr**transport_ndim
+      density_factor = 1.0_dp/measure_m
+      CALL transport_output_factors(transport_ndim, iso_factor, tensor_factor)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -179,6 +185,12 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,T2,A)') "Kubo-Greenwood finite-volume transport"
          WRITE (output_unit, '(T3,A,T38,A)') "Method:", TRIM(method)
+         WRITE (output_unit, '(T3,A,T38,A)') "Cell periodicity:", TRIM(periodic_label)
+         IF (nperiodic == 0) THEN
+            WRITE (output_unit, '(T3,A,T38,A)') "Transport normalization:", "3D finite box"
+         ELSE
+            WRITE (output_unit, '(T3,A,T38,I12)') "Transport dimensionality:", transport_ndim
+         END IF
          IF (ALL(reused_mos)) THEN
             WRITE (output_unit, '(T3,A,T38,A)') "Eigensystem source:", "CP2K canonical MOs"
          ELSEIF (ANY(reused_mos)) THEN
@@ -192,9 +204,17 @@ CONTAINS
          WRITE (output_unit, '(T3,A,T38,F12.4)') "Dissipation [K]:", dissipation*kelvin
          WRITE (output_unit, '(T3,A,T38,F12.6)') "Dissipation [eV]:", dissipation*evolt
          WRITE (output_unit, '(T3,A,T38,F12.6)') "Neutral chemical potential [eV]:", mu0*evolt
-         WRITE (output_unit, '(/,T3,A)') "mu[Ha]        mu-mu0[eV]        Ne[m^-3]        Nh[m^-3]        "// &
-            "sigma_iso[S/cm]   sigma_xx[S/m]     sigma_xy[S/m]     sigma_xz[S/m]     sigma_yx[S/m]     "// &
-            "sigma_yy[S/m]     sigma_yz[S/m]     sigma_zx[S/m]     sigma_zy[S/m]     sigma_zz[S/m]"
+         WRITE (output_unit, '(T3,A,T38,ES12.4,1X,A)') "Transport measure:", &
+            measure*angstrom**transport_ndim, TRIM(measure_unit)
+         header = "mu[Ha]        mu-mu0[eV]        Ne["//TRIM(density_unit)//"]        "// &
+                  "Nh["//TRIM(density_unit)//"]        sigma_iso["//TRIM(sigma_iso_unit)//"]   "// &
+                  "sigma_xx["//TRIM(sigma_tensor_unit)//"]     sigma_xy["// &
+                  TRIM(sigma_tensor_unit)//"]     sigma_xz["//TRIM(sigma_tensor_unit)// &
+                  "]     sigma_yx["//TRIM(sigma_tensor_unit)//"]     sigma_yy["// &
+                  TRIM(sigma_tensor_unit)//"]     sigma_yz["//TRIM(sigma_tensor_unit)// &
+                  "]     sigma_zx["//TRIM(sigma_tensor_unit)//"]     sigma_zy["// &
+                  TRIM(sigma_tensor_unit)//"]     sigma_zz["//TRIM(sigma_tensor_unit)//"]"
+         WRITE (output_unit, '(/,T3,A)') TRIM(header)
       END IF
 
       IF (nmu == 1) THEN
@@ -206,16 +226,26 @@ CONTAINS
       DO imu = 1, nmu
          mu = emin + REAL(imu - 1, KIND=dp)*mu_step
          CALL electron_hole_density(eig, maxocc, mu, mu0, temperature, ne, nh)
-         CALL conductivity_at_mu(eig, dHH, maxocc, mu, temperature, dissipation, volume, sigma)
+         CALL conductivity_at_mu(eig, dHH, maxocc, mu, temperature, dissipation, measure, &
+                                 transport_ndim, sigma)
          IF (output_unit > 0) THEN
-            sigma_iso = (sigma(1, 1) + sigma(2, 2) + sigma(3, 3))/3.0_dp*1.0E8_dp
+            sigma_iso = (sigma(1, 1) + sigma(2, 2) + sigma(3, 3))/ &
+                        REAL(transport_ndim, KIND=dp)*iso_factor
+            sigma_out(:, :) = sigma(:, :)*tensor_factor
             WRITE (output_unit, '(T3,F12.6,F14.6,2ES16.7,10ES17.8)') mu, (mu - mu0)*evolt, &
                ne*density_factor, nh*density_factor, &
                sigma_iso, &
-               sigma(1, 1)*1.0E10_dp, sigma(1, 2)*1.0E10_dp, sigma(1, 3)*1.0E10_dp, &
-               sigma(2, 1)*1.0E10_dp, sigma(2, 2)*1.0E10_dp, sigma(2, 3)*1.0E10_dp, &
-               sigma(3, 1)*1.0E10_dp, sigma(3, 2)*1.0E10_dp, sigma(3, 3)*1.0E10_dp
-            WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S/cm]", sigma_iso
+               sigma_out(1, 1), sigma_out(1, 2), sigma_out(1, 3), &
+               sigma_out(2, 1), sigma_out(2, 2), sigma_out(2, 3), &
+               sigma_out(3, 1), sigma_out(3, 2), sigma_out(3, 3)
+            SELECT CASE (transport_ndim)
+            CASE (1)
+               WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S*m]", sigma_iso
+            CASE (2)
+               WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S]", sigma_iso
+            CASE DEFAULT
+               WRITE (output_unit, '(T3,A,1X,ES17.8)') "KUBO_TRANSPORT| sigma_iso[S/cm]", sigma_iso
+            END SELECT
          END IF
       END DO
 
@@ -283,6 +313,172 @@ CONTAINS
    END SUBROUTINE dbcsr_to_dense
 
 ! **************************************************************************************************
+!> \brief Set up the periodic transport subspace and its normalization measure.
+!> \param cell ...
+!> \param transport_ndim ...
+!> \param nperiodic ...
+!> \param periodic_label ...
+!> \param projection ...
+!> \param measure ...
+!> \param measure_unit ...
+! **************************************************************************************************
+   SUBROUTINE setup_transport_geometry(cell, transport_ndim, nperiodic, periodic_label, projection, &
+                                       measure, measure_unit)
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(OUT)                               :: transport_ndim, nperiodic
+      CHARACTER(LEN=*), INTENT(OUT)                      :: periodic_label
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: projection
+      REAL(KIND=dp), INTENT(OUT)                         :: measure
+      CHARACTER(LEN=*), INTENT(OUT)                      :: measure_unit
+
+      INTEGER                                            :: idir, jdir, kdir
+      REAL(KIND=dp)                                      :: detg, invg11, invg12, invg22, norm2
+      REAL(KIND=dp), DIMENSION(3)                        :: v1, v2
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: basis2
+
+      CPASSERT(ASSOCIATED(cell))
+
+      nperiodic = COUNT(cell%perd(1:3) == 1)
+      CALL transport_periodicity_label(cell%perd, periodic_label)
+      projection = 0.0_dp
+
+      SELECT CASE (nperiodic)
+      CASE (0)
+         transport_ndim = 3
+         measure = cell%deth
+         DO idir = 1, 3
+            projection(idir, idir) = 1.0_dp
+         END DO
+         measure_unit = "Angstrom^3"
+      CASE (1)
+         transport_ndim = 1
+         kdir = 0
+         DO idir = 1, 3
+            IF (cell%perd(idir) == 1) kdir = idir
+         END DO
+         v1(:) = cell%hmat(:, kdir)
+         norm2 = DOT_PRODUCT(v1, v1)
+         IF (norm2 <= 0.0_dp) CPABORT("KUBO_TRANSPORT periodic cell vector has zero length.")
+         measure = SQRT(norm2)
+         DO jdir = 1, 3
+            DO idir = 1, 3
+               projection(idir, jdir) = v1(idir)*v1(jdir)/norm2
+            END DO
+         END DO
+         measure_unit = "Angstrom"
+      CASE (2)
+         transport_ndim = 2
+         kdir = 0
+         DO idir = 1, 3
+            IF (cell%perd(idir) == 1) THEN
+               kdir = kdir + 1
+               basis2(:, kdir) = cell%hmat(:, idir)
+            END IF
+         END DO
+         v1(:) = basis2(:, 1)
+         v2(:) = basis2(:, 2)
+         norm2 = DOT_PRODUCT(v1, v1)
+         invg22 = DOT_PRODUCT(v2, v2)
+         invg12 = DOT_PRODUCT(v1, v2)
+         detg = norm2*invg22 - invg12*invg12
+         IF (detg <= 0.0_dp) CPABORT("KUBO_TRANSPORT periodic cell vectors are linearly dependent.")
+         measure = SQRT(detg)
+         invg11 = invg22/detg
+         invg22 = norm2/detg
+         invg12 = -invg12/detg
+         DO jdir = 1, 3
+            DO idir = 1, 3
+               projection(idir, jdir) = basis2(idir, 1)*invg11*basis2(jdir, 1) + &
+                                        basis2(idir, 1)*invg12*basis2(jdir, 2) + &
+                                        basis2(idir, 2)*invg12*basis2(jdir, 1) + &
+                                        basis2(idir, 2)*invg22*basis2(jdir, 2)
+            END DO
+         END DO
+         measure_unit = "Angstrom^2"
+      CASE DEFAULT
+         transport_ndim = 3
+         measure = cell%deth
+         DO idir = 1, 3
+            projection(idir, idir) = 1.0_dp
+         END DO
+         measure_unit = "Angstrom^3"
+      END SELECT
+
+      IF (measure <= 0.0_dp) CPABORT("KUBO_TRANSPORT transport normalization measure is not positive.")
+
+   END SUBROUTINE setup_transport_geometry
+
+! **************************************************************************************************
+!> \brief Human-readable periodicity label.
+!> \param perd ...
+!> \param label ...
+! **************************************************************************************************
+   SUBROUTINE transport_periodicity_label(perd, label)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: perd
+      CHARACTER(LEN=*), INTENT(OUT)                      :: label
+
+      label = ""
+      IF (perd(1) == 1) label = TRIM(label)//"X"
+      IF (perd(2) == 1) label = TRIM(label)//"Y"
+      IF (perd(3) == 1) label = TRIM(label)//"Z"
+      IF (LEN_TRIM(label) == 0) label = "NONE"
+
+   END SUBROUTINE transport_periodicity_label
+
+! **************************************************************************************************
+!> \brief Output unit labels for a transport dimensionality.
+!> \param transport_ndim ...
+!> \param density_unit ...
+!> \param sigma_iso_unit ...
+!> \param sigma_tensor_unit ...
+! **************************************************************************************************
+   SUBROUTINE transport_unit_labels(transport_ndim, density_unit, sigma_iso_unit, sigma_tensor_unit)
+      INTEGER, INTENT(IN)                                :: transport_ndim
+      CHARACTER(LEN=*), INTENT(OUT)                      :: density_unit, sigma_iso_unit, &
+                                                            sigma_tensor_unit
+
+      SELECT CASE (transport_ndim)
+      CASE (1)
+         density_unit = "m^-1"
+         sigma_iso_unit = "S*m"
+         sigma_tensor_unit = "S*m"
+      CASE (2)
+         density_unit = "m^-2"
+         sigma_iso_unit = "S"
+         sigma_tensor_unit = "S"
+      CASE DEFAULT
+         density_unit = "m^-3"
+         sigma_iso_unit = "S/cm"
+         sigma_tensor_unit = "S/m"
+      END SELECT
+
+   END SUBROUTINE transport_unit_labels
+
+! **************************************************************************************************
+!> \brief Output conversion factors from internal dimensional transport units.
+!> \param transport_ndim ...
+!> \param iso_factor ...
+!> \param tensor_factor ...
+! **************************************************************************************************
+   SUBROUTINE transport_output_factors(transport_ndim, iso_factor, tensor_factor)
+      INTEGER, INTENT(IN)                                :: transport_ndim
+      REAL(KIND=dp), INTENT(OUT)                         :: iso_factor, tensor_factor
+
+      SELECT CASE (transport_ndim)
+      CASE (1)
+         iso_factor = 1.0E-10_dp
+         tensor_factor = 1.0E-10_dp
+      CASE (2)
+         iso_factor = 1.0_dp
+         tensor_factor = 1.0_dp
+      CASE DEFAULT
+         iso_factor = 1.0E8_dp
+         tensor_factor = 1.0E10_dp
+      END SELECT
+
+   END SUBROUTINE transport_output_factors
+
+! **************************************************************************************************
 !> \brief Prepare eigenvalues and the transformed [X,H] matrices for one spin channel.
 !> \param ks_matrix ...
 !> \param s_dense ...
@@ -290,6 +486,7 @@ CONTAINS
 !> \param para_env ...
 !> \param particle_set ...
 !> \param cell ...
+!> \param projection ...
 !> \param ao_atom ...
 !> \param mo_set ...
 !> \param allow_mo_reuse ...
@@ -298,13 +495,14 @@ CONTAINS
 !> \param reused_mos ...
 ! **************************************************************************************************
    SUBROUTINE setup_spin_transport(ks_matrix, s_dense, blacs_env, para_env, particle_set, cell, &
-                                   ao_atom, mo_set, allow_mo_reuse, eig, dHH, reused_mos)
+                                   projection, ao_atom, mo_set, allow_mo_reuse, eig, dHH, reused_mos)
       TYPE(dbcsr_type), INTENT(IN)                       :: ks_matrix
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: s_dense
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: projection
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atom
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       LOGICAL, INTENT(IN)                                :: allow_mo_reuse
@@ -338,7 +536,7 @@ CONTAINS
          eig(:) = mo_eigenvalues(1:nao)
          CALL cp_fm_get_submatrix(mo_coeff, coeff_dense, n_rows=nao, n_cols=nao)
          DO idir = 1, 3
-            CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
+            CALL build_commutator_kernel(h_dense, particle_set, cell, projection, ao_atom, idir, op)
             CALL transform_to_eigenbasis(op, coeff_dense, dHH(:, :, idir), work)
          END DO
          DEALLOCATE (coeff_dense)
@@ -354,7 +552,7 @@ CONTAINS
          CALL diagonalize_symmetric(uvec, eig)
 
          DO idir = 1, 3
-            CALL build_commutator_kernel(h_dense, particle_set, cell, ao_atom, idir, op)
+            CALL build_commutator_kernel(h_dense, particle_set, cell, projection, ao_atom, idir, op)
             work(:, :) = MATMUL(op, gmat)
             op_orth(:, :) = MATMUL(gmat, work)
             CALL transform_to_eigenbasis(op_orth, uvec, dHH(:, :, idir), work)
@@ -441,30 +639,33 @@ CONTAINS
    END SUBROUTINE symmetrize
 
 ! **************************************************************************************************
-!> \brief Build element-wise kernel (r_col-r_row)_idir * matrix(row,col).
+!> \brief Build element-wise kernel (P*(r_col-r_row))_idir * matrix(row,col).
 !> \param matrix ...
 !> \param particle_set ...
 !> \param cell ...
+!> \param projection ...
 !> \param ao_atom ...
 !> \param idir ...
 !> \param op ...
 ! **************************************************************************************************
-   SUBROUTINE build_commutator_kernel(matrix, particle_set, cell, ao_atom, idir, op)
+   SUBROUTINE build_commutator_kernel(matrix, particle_set, cell, projection, ao_atom, idir, op)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: projection
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_atom
       INTEGER, INTENT(IN)                                :: idir
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: op
 
       INTEGER                                            :: i, j, n
-      REAL(KIND=dp), DIMENSION(3)                        :: dr
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, projected_dr
 
       n = SIZE(matrix, 1)
       DO j = 1, n
          DO i = 1, n
             dr(:) = pbc(particle_set(ao_atom(j))%r(:) - particle_set(ao_atom(i))%r(:), cell)
-            op(i, j) = dr(idir)*matrix(i, j)
+            projected_dr(:) = MATMUL(projection, dr)
+            op(i, j) = projected_dr(idir)*matrix(i, j)
          END DO
       END DO
 
@@ -638,14 +839,16 @@ CONTAINS
 !> \param mu ...
 !> \param kT ...
 !> \param dissipation ...
-!> \param volume ...
+!> \param measure ...
+!> \param transport_ndim ...
 !> \param sigma ...
 ! **************************************************************************************************
-   SUBROUTINE conductivity_at_mu(eig, dHH, maxocc, mu, kT, dissipation, volume, sigma)
+   SUBROUTINE conductivity_at_mu(eig, dHH, maxocc, mu, kT, dissipation, measure, transport_ndim, sigma)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dHH
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: maxocc
-      REAL(KIND=dp), INTENT(IN)                          :: mu, kT, dissipation, volume
+      REAL(KIND=dp), INTENT(IN)                          :: mu, kT, dissipation, measure
+      INTEGER, INTENT(IN)                                :: transport_ndim
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: sigma
 
       INTEGER                                            :: idir, ispin, jdir, m, n, nao
@@ -678,7 +881,7 @@ CONTAINS
          END DO
       END DO
 
-      sigma = pi*g0*sigma/(volume*angstrom)
+      sigma = pi*g0*sigma*angstrom**(2 - transport_ndim)/measure
 
       DEALLOCATE (occ)
 

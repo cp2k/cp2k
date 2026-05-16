@@ -7,4 +7,10 @@
 "H2-kubo-gapw.inp"                     = [{matcher="Kubo_sigma_iso", tol=1e-7, ref=0.290798827},
                                            {matcher="Kubo_internal_diag", tol=0.0, ref=0.0},
                                            {matcher="Kubo_reference", tol=0.0, ref=0.0}]
+"H2-kubo-2d.inp"                       = [{matcher="Kubo_sigma_iso_2d", tol=1e-7, ref=2.68021048e-08},
+                                           {matcher="Kubo_internal_diag", tol=0.0, ref=0.0},
+                                           {matcher="Kubo_reference", tol=0.0, ref=0.0}]
+"H2-kubo-1d.inp"                       = [{matcher="Kubo_sigma_iso_1d", tol=1e-7, ref=3.19688732e-17},
+                                           {matcher="Kubo_internal_diag", tol=0.0, ref=0.0},
+                                           {matcher="Kubo_reference", tol=0.0, ref=0.0}]
 #EOF
