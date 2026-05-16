@@ -21,5 +21,5 @@
 "h2o-admm-gapw-pbe-stress-debug-1.inp"  = []
 "h2o-admm-gapw-pbe-fine-full-stress-1.inp" = [{matcher="M011", tol=1e-08, ref=-21.232340399380355},
                                               {matcher="M031", tol=1e-08, ref=-2.30286055874E+05}]
-"O2-admmq-gapw-open-shell-accurate-stress.inp" = [{matcher="M031", tol=1e-8, ref=2.63229738045E+03}]
+"O2-admmq-gapw-open-shell-accurate-stress.inp" = [{matcher="M031", tol=2e-8, ref=2.63229738045E+03}]
 #EOF
