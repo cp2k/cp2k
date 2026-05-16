@@ -12,7 +12,6 @@ apt-get install -qq --no-install-recommends \
   python3-pip \
   python3-venv \
   python3-dev \
-  python3-reentry \
   postgresql \
   libpq-dev \
   rabbitmq-server \
@@ -43,9 +42,6 @@ pip3 install './[dev]'
 
 echo -e "\n========== Configuring AiiDA =========="
 AS_UBUNTU_USER="sudo -u ubuntu -H"
-
-#update reentry cache
-$AS_UBUNTU_USER reentry scan
 
 # start RabbitMQ
 service rabbitmq-server start
