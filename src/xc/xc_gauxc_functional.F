@@ -1,0 +1,621 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2026 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
+MODULE xc_gauxc_functional
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_create,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
+   USE input_constants,                 ONLY: xc_vdw_fun_none
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_get_subs_vals2,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE iso_c_binding,                   ONLY: c_double
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE particle_types,                  ONLY: particle_type
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                              set_ks_env
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
+   USE string_utilities,                ONLY: uppercase
+   USE xc_gauxc_interface,              ONLY: &
+        cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
+        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, gauxc_check_status, &
+        gauxc_compute_xc, gauxc_compute_xc_gradient, gauxc_create_basisset, gauxc_create_grid, &
+        gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
+        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+#include "../base/base_uses.f90"
+
+   IMPLICIT NONE
+
+   PRIVATE
+
+   LOGICAL, PARAMETER :: debug_this_module = .TRUE.
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
+
+   PUBLIC :: apply_gauxc, skala_info
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dbcsr_to_dense(dbcsr_mat) RESULT(dense_mat)
+      USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_type, &
+                              dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
+                              dbcsr_iterator_stop, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: dense_mat
+
+      CHARACTER                                          :: matrix_type
+      INTEGER                                            :: col, col_end, col_start, icol, irow, &
+                                                            nblkcols_total, nblkrows_total, ncols, &
+                                                            nrows, row, row_end, row_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      REAL(c_double), POINTER                            :: block(:, :)
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL dbcsr_get_info(dbcsr_mat%matrix, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total, &
+                          nfullrows_total=nrows, &
+                          nfullcols_total=ncols)
+      matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
+
+      IF (.NOT. ALLOCATED(dense_mat)) THEN
+         ALLOCATE (dense_mat(nrows, ncols))
+      ELSE
+         CPASSERT(ALL(SHAPE(dense_mat) == [nrows, ncols]))
+      END IF
+      dense_mat = 0._dp
+
+      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
+
+      r_offset(1) = 1
+      DO row = 2, nblkrows_total
+         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
+      END DO
+      c_offset(1) = 1
+      DO col = 2, nblkcols_total
+         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
+      END DO
+
+      CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
+         row_start = r_offset(irow)
+         row_end = row_start + SIZE(block, 1) - 1
+         col_start = c_offset(icol)
+         col_end = col_start + SIZE(block, 2) - 1
+         dense_mat(row_start:row_end, col_start:col_end) = block
+         IF (irow /= icol) THEN
+            IF (matrix_type == dbcsr_type_symmetric) THEN
+               dense_mat(col_start:col_end, row_start:row_end) = TRANSPOSE(block)
+            ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
+               dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
+            END IF
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      DEALLOCATE (r_offset, c_offset)
+
+   END FUNCTION dbcsr_to_dense
+
+! **************************************************************************************************
+!> \brief Convert a dense symmetric matrix to a DBCSR matrix with full upper block structure.
+!>        This creates all upper-triangular blocks, not just those present in a template.
+!>        This is needed because GauXC computes VXC for the full dense density matrix.
+!> \param dense_mat Input dense matrix
+!> \param template_dbcsr Template DBCSR matrix for distribution and block sizes
+!> \return dbcsr_mat Output DBCSR matrix with full upper block structure
+! **************************************************************************************************
+   FUNCTION dense_to_dbcsr(dense_mat, template_dbcsr) RESULT(dbcsr_mat)
+      USE cp_dbcsr_api, ONLY: &
+         dbcsr_create, &
+         dbcsr_distribution_get, &
+         dbcsr_distribution_type, &
+         dbcsr_finalize, &
+         dbcsr_get_info, &
+         dbcsr_get_stored_coordinates, &
+         dbcsr_init_p, &
+         dbcsr_put_block, &
+         dbcsr_release, &
+         dbcsr_type_symmetric, &
+         dbcsr_work_create
+      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: dense_mat
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: template_dbcsr
+      TYPE(dbcsr_p_type)                                 :: dbcsr_mat
+
+      INTEGER                                            :: col, icol, irow, mynode, nblkcols_total, &
+                                                            nblkrows_total, ncols, nrows, owner, &
+                                                            row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL dbcsr_get_info(template_dbcsr%matrix, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total, &
+                          nfullrows_total=nrows, &
+                          nfullcols_total=ncols, &
+                          distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
+
+      CPASSERT(nrows == SIZE(dense_mat, 1))
+      CPASSERT(ncols == SIZE(dense_mat, 2))
+
+      CALL dbcsr_init_p(dbcsr_mat%matrix)
+      CALL dbcsr_create(dbcsr_mat%matrix, &
+                        template=template_dbcsr%matrix, &
+                        name="VXC from GauXC (dense)", &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_work_create(dbcsr_mat%matrix, work_mutable=.TRUE.)
+
+      ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
+
+      r_offset(1) = 1
+      DO row = 2, nblkrows_total
+         r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
+      END DO
+      c_offset(1) = 1
+      DO col = 2, nblkcols_total
+         c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
+      END DO
+
+      DO irow = 1, nblkrows_total
+         DO icol = 1, nblkcols_total
+            IF (irow > icol) CYCLE
+            CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
+            IF (owner /= mynode) CYCLE
+            CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
+                                 dense_mat(r_offset(irow):r_offset(irow) + row_blk_size(irow) - 1, &
+                                           c_offset(icol):c_offset(icol) + col_blk_size(icol) - 1))
+         END DO
+      END DO
+
+      CALL dbcsr_finalize(dbcsr_mat%matrix)
+
+      DEALLOCATE (r_offset, c_offset)
+
+   END FUNCTION dense_to_dbcsr
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_gauxc_functional(xc_section) RESULT(gauxc_functional_section)
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
+
+      INTEGER                                            :: ifun
+      TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
+
+      NULLIFY (gauxc_functional_section)
+
+      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(functionals)) THEN
+         CPABORT("XC_FUNCTIONAL section not found")
+      END IF
+
+      ifun = 0
+      DO
+         ifun = ifun + 1
+         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+         IF (xc_fun%section%name /= "GAUXC" .OR. ifun > 1) THEN
+            CPABORT("GauXC functionals are mutually exclusive with any other functional.")
+         END IF
+         gauxc_functional_section => xc_fun
+      END DO
+
+      IF (.NOT. ASSOCIATED(gauxc_functional_section)) THEN
+         CPABORT("No XC functional found in XC_FUNCTIONAL section")
+      END IF
+   END FUNCTION get_gauxc_functional
+
+! **************************************************************************************************
+!> \brief adds a replicated GauXC energy gradient to the local CP2K force accumulator
+!> \param exc_grad ...
+!> \param force ...
+!> \param atomic_kind_set ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE add_gauxc_gradient_to_force(exc_grad, force, atomic_kind_set, para_env)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_grad
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: ia, iatom, ikind, natom_kind
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+
+      CPASSERT(ASSOCIATED(force))
+      CPASSERT(ASSOCIATED(atomic_kind_set))
+
+      IF (para_env%mepos /= 0) RETURN
+
+      DO ikind = 1, SIZE(atomic_kind_set, 1)
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=natom_kind)
+         DO ia = 1, natom_kind
+            iatom = atomic_kind%atom_list(ia)
+            force(ikind)%rho_elec(:, ia) = force(ikind)%rho_elec(:, ia) + &
+                                           exc_grad(3*iatom - 2:3*iatom)
+         END DO
+      END DO
+
+   END SUBROUTINE add_gauxc_gradient_to_force
+
+! **************************************************************************************************
+!> \brief Return information about the Skala functional
+!> \param functional section containing the SKALA subsection
+!> \param lsd if you are using lsd or lda
+!> \param reference the reference to the article where the functional is explained
+!> \param shortform the short definition of the functional
+!> \param needs the flags corresponding to the inputs needed by this
+!>        functional are set to true (the flags not needed aren't touched)
+!> \param max_deriv the maximal derivative available
+! **************************************************************************************************
+   SUBROUTINE skala_info(functional, lsd, reference, shortform, needs, max_deriv)
+      TYPE(section_vals_type), POINTER                   :: functional
+      LOGICAL, INTENT(in)                                :: lsd
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
+      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+
+      CHARACTER(len=default_path_length)                 :: model_name
+      CHARACTER(len=default_string_length)               :: model_key, xc_fun_name
+
+      CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
+      CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+
+      IF (PRESENT(reference)) THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+            reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
+         ELSE
+            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name)
+         END IF
+      END IF
+      IF (PRESENT(shortform)) THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+            shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
+         ELSE
+            shortform = "GAUXC OneDFT"
+         END IF
+      END IF
+      IF (PRESENT(needs)) THEN
+         needs%rho = .TRUE.
+         IF (lsd) THEN
+            needs%rho_spin = .TRUE.
+         END IF
+      END IF
+      IF (PRESENT(max_deriv)) max_deriv = 1
+
+   END SUBROUTINE skala_info
+
+! GauXC uses replicated dense density and VXC matrices. The DBCSR density matrix
+! is distributed over MPI ranks, so apply_gauxc allreduces the dense copy before
+! passing it to GauXC.
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param xc_section ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE apply_gauxc(qs_env, xc_section, calculate_forces)
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(len=*), PARAMETER :: abort_message = &
+         "GauXC does not support dispersion corrections. "// &
+         "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection.", &
+         gradient_mpi_abort_message = &
+         "GauXC OneDFT/SKALA nuclear gradients are serial-only because GauXC does not provide "// &
+         "MPI eval_exc_grad_onedft yet. Use one MPI rank with OpenMP for ENERGY_FORCE."
+
+      CHARACTER(len=default_path_length)                 :: model_name
+      CHARACTER(len=default_string_length)               :: grid_type, int_exec_space, &
+                                                            lb_exec_space, model_key, &
+                                                            pruning_scheme, radial_quadrature, &
+                                                            xc_fun_name
+      INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
+                                                            nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_grad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
+      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
+      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
+      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
+      TYPE(dbcsr_p_type)                                 :: vxc_zeta_tmp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_use, rho_xc
+      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
+
+      NULLIFY ( &
+         atomic_kind_set, &
+         dft_control, &
+         energy, &
+         force, &
+         ks_env, &
+         matrix_vxc, &
+         para_env, &
+         particle_set, &
+         qs_kind_set, &
+         rho, &
+         rho_use, &
+         rho_xc, &
+         rho_ao)
+
+      CALL get_qs_env( &
+         qs_env, &
+         dft_control=dft_control, &
+         energy=energy, &
+         ks_env=ks_env, &
+         matrix_vxc=matrix_vxc, &
+         natom=natom, &
+         atomic_kind_set=atomic_kind_set, &
+         force=force, &
+         para_env=para_env, &
+         particle_set=particle_set, &
+         qs_kind_set=qs_kind_set, &
+         rho=rho, &
+         rho_xc=rho_xc)
+
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CPASSERT(ASSOCIATED(rho_xc))
+         rho_use => rho_xc
+      ELSE
+         CPASSERT(ASSOCIATED(rho))
+         rho_use => rho
+      END IF
+      CALL qs_rho_get( &
+         rho_use, &
+         rho_ao_kp=rho_ao)
+
+      nimages = dft_control%nimages
+      nspins = dft_control%nspins
+
+      IF (ASSOCIATED(qs_env%dispersion_env)) THEN
+         IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
+            CPABORT(abort_message)
+         END IF
+      END IF
+      NULLIFY (vxc_zeta_tmp%matrix)
+
+      gauxc_functional_section => get_gauxc_functional(xc_section)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "FUNCTIONAL", &
+         c_val=xc_fun_name)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MODEL", &
+         c_val=model_name)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "GRID", &
+         c_val=grid_type)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "RADIAL_QUADRATURE", &
+         c_val=radial_quadrature)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "PRUNING_SCHEME", &
+         c_val=pruning_scheme)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "BATCH_SIZE", &
+         i_val=batch_size)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "LB_EXECUTION_SPACE", &
+         c_val=lb_exec_space)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "INT_EXECUTION_SPACE", &
+         c_val=int_exec_space)
+
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      IF (calculate_forces .AND. TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
+          para_env%num_pe > 1) THEN
+         CPABORT(gradient_mpi_abort_message)
+      END IF
+
+      gauxc_mol = gauxc_create_molecule( &
+                  particle_set, &
+                  gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_basis = gauxc_create_basisset( &
+                    qs_kind_set, &
+                    particle_set, &
+                    gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_grid_result = gauxc_create_grid( &
+                          gauxc_mol, &
+                          gauxc_basis, &
+                          grid_type, &
+                          radial_quadrature, &
+                          pruning_scheme, &
+                          lb_exec_space, &
+                          batch_size, &
+                          gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_integrator_result = gauxc_create_integrator( &
+                                TRIM(xc_fun_name), &
+                                gauxc_grid_result, &
+                                int_exec_space, &
+                                nspins, &
+                                gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+      IF (qs_env%run_rtp) THEN
+         CPABORT("GAUXC XC energy currently does not support real-time propagation")
+      END IF
+
+      energy%exc = 0
+
+      IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
+      CALL dbcsr_allocate_matrix_set(matrix_vxc, nspins)
+
+      DO img = 1, nimages
+         IF (img > 1) THEN
+            CPABORT("UNIMPLEMENTED: Handling nimg>1 in k-point integration")
+         END IF
+         density_scalar = dbcsr_to_dense(rho_ao(1, img))
+         CALL para_env%sum(density_scalar)
+         IF (nspins == 1) THEN
+            gauxc_xc_result = gauxc_compute_xc( &
+                              gauxc_integrator_result, &
+                              density_scalar, &
+                              nspins=nspins, &
+                              status=gauxc_status, &
+                              model=TRIM(model_name))
+            CALL gauxc_check_status(gauxc_status)
+            IF (calculate_forces) THEN
+               exc_grad = gauxc_compute_xc_gradient( &
+                          gauxc_integrator_result, &
+                          density_scalar, &
+                          nspins=nspins, &
+                          natom=natom, &
+                          status=gauxc_status, &
+                          model=TRIM(model_name))
+               CALL gauxc_check_status(gauxc_status)
+               CALL add_gauxc_gradient_to_force(exc_grad, force, atomic_kind_set, para_env)
+               DEALLOCATE (exc_grad)
+            END IF
+         ELSE
+            CPASSERT(nspins == 2)
+            ! In here:
+            ! scalar <- rho_ao(1, :) + rho_ao(2, :)
+            ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
+            density_zeta = dbcsr_to_dense(rho_ao(2, img))
+            CALL para_env%sum(density_zeta)
+            ! Do NOT reorder the following lines!
+            density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
+            ! Factor two because the next line is evaluated after the above line.
+            ! We need to subtract density_zeta once to undo the above line and
+            ! a second time because that is what UKS requires.
+            ! This style lowers memory footprint.
+            density_zeta(:, :) = density_scalar(:, :) - 2.0_dp*density_zeta(:, :)
+            gauxc_xc_result = gauxc_compute_xc( &
+                              gauxc_integrator_result, &
+                              density_scalar, &
+                              density_zeta, &
+                              nspins, &
+                              gauxc_status, &
+                              model=TRIM(model_name))
+            CALL gauxc_check_status(gauxc_status)
+            IF (calculate_forces) THEN
+               exc_grad = gauxc_compute_xc_gradient( &
+                          gauxc_integrator_result, &
+                          density_scalar, &
+                          density_zeta, &
+                          nspins, &
+                          natom, &
+                          gauxc_status, &
+                          model=TRIM(model_name))
+               CALL gauxc_check_status(gauxc_status)
+               CALL add_gauxc_gradient_to_force(exc_grad, force, atomic_kind_set, para_env)
+               DEALLOCATE (exc_grad)
+            END IF
+         END IF
+
+         energy%exc = energy%exc + gauxc_xc_result%exc
+
+         IF (nspins == 1) THEN
+            IF (img == 1) THEN
+               matrix_vxc(1) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(1, img))
+            ELSE
+               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
+            END IF
+         ELSE
+            CPASSERT(nspins == 2)
+            ! Transform derivatives from total/spin density back to alpha/beta channels.
+            vxc_zeta_tmp = dense_to_dbcsr(gauxc_xc_result%vxc_zeta, rho_ao(1, img))
+            IF (img == 1) THEN
+               DO ispin = 1, 2
+                  matrix_vxc(ispin) = dense_to_dbcsr(gauxc_xc_result%vxc_scalar, rho_ao(ispin, 1))
+                  CALL dbcsr_add( &
+                     matrix_vxc(ispin)%matrix, &
+                     vxc_zeta_tmp%matrix, &
+                     1.0_dp, &
+                     ! 1.0 for ispin==1, -1.0 for ispin==2
+                     1.0_dp - REAL(ispin - 1, dp)*2.0_dp)
+               END DO
+            ELSE
+               CPABORT("UNIMPLEMENTED: Handling multiple result matrices in k-point integration")
+            END IF
+            CALL dbcsr_release(vxc_zeta_tmp%matrix)
+            DEALLOCATE (vxc_zeta_tmp%matrix)
+         END IF
+      END DO
+
+      DEALLOCATE (density_scalar)
+      IF (ALLOCATED(density_zeta)) DEALLOCATE (density_zeta)
+      DEALLOCATE (gauxc_xc_result%vxc_scalar)
+      IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
+
+      CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+      DO ispin = 1, nspins
+         CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
+      END DO
+
+      CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_basisset(gauxc_basis, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_molecule(gauxc_mol, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+   END SUBROUTINE apply_gauxc
+
+END MODULE xc_gauxc_functional

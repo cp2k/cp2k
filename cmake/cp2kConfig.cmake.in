@@ -69,6 +69,11 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(LibXC 7 REQUIRED CONFIG)
   endif()
 
+  if(@CP2K_USE_GAUXC@)
+    set(CP2K_USE_GAUXC @CP2K_USE_GAUXC@)
+    find_dependency(gauxc REQUIRED CONFIG)
+  endif()
+
   if(@CP2K_USE_COSMA@)
     set(CP2K_USE_COSMA @CP2K_USE_COSMA@)
     find_dependency(cosma REQUIRED)

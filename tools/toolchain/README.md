@@ -102,6 +102,7 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 | elpa      | [LGPL](https://gitlab.mpcdf.mpg.de/elpa/elpa/blob/master/LICENSE)                  | Yes                                                                              |
 | fftw      | [GPL](http://www.fftw.org/doc/License-and-Copyright.html)                          | Yes                                                                              |
 | gcc       | [GPL](https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=COPYING;hb=HEAD)           | Yes                                                                              |
+| gauxc     | [BSD 3-Clause](https://github.com/wavefunction91/GauXC/blob/master/LICENSE.txt)    | Yes, with libtorch for OneDFT/SKALA support                                      |
 | gsl       | [GPL](https://www.gnu.org/software/gsl/doc/html/gpl.html)                          | Yes                                                                              |
 | hdf5      | [BSD 3-Clause](https://support.hdfgroup.org/ftp/HDF5/releases/COPYING)             | Yes                                                                              |
 | libint    | [GPL](https://github.com/evaleev/libint/blob/master/LICENSE)                       | Yes                                                                              |

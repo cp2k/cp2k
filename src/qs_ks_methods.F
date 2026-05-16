@@ -72,6 +72,7 @@ MODULE qs_ks_methods
                                               lri_kind_type
    USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_para_env_type
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -105,6 +106,7 @@ MODULE qs_ks_methods
    USE qs_integrate_potential,          ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_apply_restraints,          ONLY: qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
                                               qs_ks_s2_restraint
@@ -134,6 +136,7 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
+   USE xc_gauxc_functional,             ONLY: apply_gauxc
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -186,8 +189,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, img, ispin, nimages, &
-                                                            nspins
+      INTEGER                                            :: handle, iatom, img, ispin, natom, &
+                                                            nimages, nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
          just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
@@ -208,6 +211,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -219,6 +223,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER :: rho0_s_rs, rho_nlcc, rhoz_cneo_s_rs, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
@@ -229,11 +234,12 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
-               adiabatic_rescaling_section, hfx_sections, &
-               input, scf_section, xc_section, matrix_h, matrix_h_im, matrix_s, &
-               auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
-               v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
-               ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
+               adiabatic_rescaling_section, hfx_sections, input, scf_section, &
+               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
+               poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
+               v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
+               ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
+               rho_core, particle_set, qs_kind_set)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -261,7 +267,10 @@ CONTAINS
                       rho=rho, &
                       rho_core=rho_core, &
                       rho_xc=rho_xc, &
-                      energy=energy)
+                      energy=energy, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      natom=natom)
 
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
@@ -579,28 +588,32 @@ CONTAINS
          energy%exc = 0.0_dp
          CALL calculate_zmp_potential(qs_env, v_rspace_new, rho, exc=energy%exc)
       ELSE
-         ! Embedding potential
+         ! Embedding potential (runs regardless of XC method)
          IF (dft_control%apply_embed_pot) THEN
             NULLIFY (v_rspace_embed)
             energy%embed_corr = 0.0_dp
             CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
                                             energy%embed_corr, just_energy)
          END IF
-         ! Everything else
-         CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
-                            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                            edisp=edisp, dispersion_env=qs_env%dispersion_env, &
-                            just_energy=just_energy_xc)
-         IF (edisp /= 0.0_dp) energy%dispersion = edisp
-         IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
-            CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
-            CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
-         END IF
 
-         IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
-         END IF
+         ! Everything else, either via GauXC or manual XC computation
+         IF (dft_control%use_gauxc) THEN
+            CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+         ELSE
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                               just_energy=just_energy_xc)
+            IF (edisp /= 0.0_dp) energy%dispersion = edisp
+            IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
+               CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+               CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+            END IF
 
+            IF (gapw .OR. gapw_xc) THEN
+               CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
+            END IF
+         END IF
       END IF
 
       ! set hartree and xc potentials for use in Harris method
@@ -708,6 +721,15 @@ CONTAINS
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
+
+         IF (dft_control%use_gauxc) THEN
+            CALL get_qs_env(qs_env=qs_env, matrix_vxc=matrix_vxc)
+            CPASSERT(ASSOCIATED(matrix_vxc))
+            CPASSERT(nimages == 1)
+            DO ispin = 1, nspins
+               CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, matrix_vxc(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+         END IF
 
          IF (gapw .OR. gapw_xc) THEN
             IF (calculate_forces) THEN
