@@ -750,7 +750,7 @@ ARG IMAGE_TAG
 ENV IMAGE_TAG=${{IMAGE_TAG:-{image_tag}}}
 
 ARG SPACK_CACHE
-ENV SPACK_CACHE="${{SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://localhost:9000}}"
+ENV SPACK_CACHE="${{SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://spack-cache:9000}}"
 
 # Copy CP2K repository into container
 WORKDIR /opt
@@ -991,7 +991,7 @@ class OutputFile:
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
         if "_spack_" in filename:
             self.image_tag = filename.removeprefix("Dockerfile.test_")
-            usage = f"./spack_cache_start.sh; podman build --network=host --shm-size=1g -t {self.image_tag} -f ./{filename} ../../"
+            usage = f"./spack_cache_start.sh; podman build --network=cp2k-spack-cache-net --shm-size=1g -t {self.image_tag} -f ./{filename} ../../"
         else:
             self.image_tag = ""
             usage = f"podman build --shm-size=1g -f ./{filename} ../../"

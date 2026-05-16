@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_psmp-fedora -f ./Dockerfile.test_spack_psmp-fedora ../../
+# Usage: ./spack_cache_start.sh; podman build --network=cp2k-spack-cache-net --shm-size=1g -t spack_psmp-fedora -f ./Dockerfile.test_spack_psmp-fedora ../../
 #
 
 ARG BASE_IMAGE="fedora:latest"
@@ -30,7 +30,7 @@ ARG IMAGE_TAG
 ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-fedora}
 
 ARG SPACK_CACHE
-ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://localhost:9000}"
+ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://spack-cache:9000}"
 
 # Copy CP2K repository into container
 WORKDIR /opt

@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: ./spack_cache_start.sh; podman build --network=host --shm-size=1g -t spack_openmpi-psmp -f ./Dockerfile.test_spack_openmpi-psmp ../../
+# Usage: ./spack_cache_start.sh; podman build --network=cp2k-spack-cache-net --shm-size=1g -t spack_openmpi-psmp -f ./Dockerfile.test_spack_openmpi-psmp ../../
 #
 
 ARG BASE_IMAGE="ubuntu:26.04"
@@ -41,7 +41,7 @@ ARG IMAGE_TAG
 ENV IMAGE_TAG=${IMAGE_TAG:-spack_openmpi-psmp}
 
 ARG SPACK_CACHE
-ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://localhost:9000}"
+ENV SPACK_CACHE="${SPACK_CACHE:-s3://spack-cache --s3-endpoint-url=http://spack-cache:9000}"
 
 # Copy CP2K repository into container
 WORKDIR /opt
