@@ -19,6 +19,14 @@ if ((SHM_AVAIL < 1024)); then
   exit 1
 fi
 
+# Load Spack or Toolchain environment.
+if [[ "${PROFILE}" =~ ^spack ]]; then
+  eval "$(spack env activate myenv --sh)"
+elif [[ "${PROFILE}" =~ ^toolchain ]]; then
+  # shellcheck disable=SC1091
+  source /opt/cp2k-toolchain/install/setup
+fi
+
 # Extend stack size only for Intel compilers.
 if "./build/bin/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
   ulimit -s unlimited # breaks address sanitizer
@@ -44,14 +52,6 @@ fi
 # Flag slow tests in debug runs.
 if [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == *dbg* ]]; then
   TESTOPTS="--flagslow ${TESTOPTS}"
-fi
-
-# Load Spack or Toolchain environment.
-if [[ "${PROFILE}" =~ ^spack ]]; then
-  eval "$(spack env activate myenv --sh)"
-elif [[ "${PROFILE}" =~ ^toolchain ]]; then
-  # shellcheck disable=SC1091
-  source /opt/cp2k-toolchain/install/setup
 fi
 
 # Run regtests.

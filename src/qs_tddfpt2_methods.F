@@ -92,6 +92,7 @@ MODULE qs_tddfpt2_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: qs_moment_kpoints_scf_mos
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_scf_methods,                  ONLY: eigensolver
@@ -989,6 +990,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_kpoint_independent_particle'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: kpoint_dipole
       INTEGER :: handle, ideriv, ikp, ikp_local, iocc, ispin, istate, itrans, ivirt, log_unit, &
          nao, nkp, nkp_local, nspins, nstates, ntrans_kpoint, ntrans_spin, ntrans_total, &
          spin_offset, trans_index
@@ -1090,26 +1093,22 @@ CONTAINS
       IF (use_scf_moment_dipoles) THEN
          CALL cp_warn(__LOCATION__, "SCF_MOMENT k-point dipoles use direct SCF MO matrix "// &
                       "elements; compare folded energy blocks, not individual degenerate states.")
+         CALL qs_moment_kpoints_scf_mos(qs_env, kpoint_dipole)
       END IF
 
-      CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
-                                basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
-                                ext_kpoints=kpoints)
+      IF (.NOT. use_scf_moment_dipoles) THEN
+         CALL build_overlap_matrix(ks_env, matrixkp_s=overlap_deriv, nderivative=1, &
+                                   basis_type_a="ORB", basis_type_b="ORB", sab_nl=sab_orb, &
+                                   ext_kpoints=kpoints)
 
-      ALLOCATE (rmatrix, cmatrix)
-      IF (use_scf_moment_dipoles) THEN
-         CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-         CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-      ELSE
+         ALLOCATE (rmatrix, cmatrix)
          CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
                            matrix_type=dbcsr_type_symmetric)
          CALL dbcsr_create(cmatrix, template=overlap_deriv(1, 1)%matrix, &
                            matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
+         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
       END IF
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_kp)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_kp)
 
       DO ikp = 1, nkp
          my_kpgrp = (ikp >= kp_range(1) .AND. ikp <= kp_range(2))
@@ -1126,30 +1125,35 @@ CONTAINS
             ALLOCATE (eigenvalues_kp(nmo_spin(ispin)))
             eigenvalues_kp = 0.0_dp
 
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_spin(ispin), &
-                                     para_env=para_env, context=blacs_env_all)
-            CALL cp_fm_create(mo_coeff_re_global, fm_struct)
-            CALL cp_fm_create(mo_coeff_im_global, fm_struct)
-            CALL cp_fm_create(fm_tmp, fm_struct)
-            CALL cp_fm_struct_release(fm_struct)
-            CALL cp_fm_struct_create(moment_struct, nrow_global=nmo_spin(ispin), &
-                                     ncol_global=nmo_spin(ispin), para_env=para_env, &
-                                     context=blacs_env_all)
-            CALL cp_fm_create(moment_re, moment_struct)
-            CALL cp_fm_create(moment_im, moment_struct)
-            CALL cp_fm_struct_release(moment_struct)
+            IF (.NOT. use_scf_moment_dipoles) THEN
+               CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_spin(ispin), &
+                                        para_env=para_env, context=blacs_env_all)
+               CALL cp_fm_create(mo_coeff_re_global, fm_struct)
+               CALL cp_fm_create(mo_coeff_im_global, fm_struct)
+               CALL cp_fm_create(fm_tmp, fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+               CALL cp_fm_struct_create(moment_struct, nrow_global=nmo_spin(ispin), &
+                                        ncol_global=nmo_spin(ispin), para_env=para_env, &
+                                        context=blacs_env_all)
+               CALL cp_fm_create(moment_re, moment_struct)
+               CALL cp_fm_create(moment_im, moment_struct)
+               CALL cp_fm_struct_release(moment_struct)
+            END IF
 
             IF (my_kpgrp) THEN
-               CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues, mo_coeff=mo_coeff_re)
-               CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+               CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues)
                CPASSERT(ASSOCIATED(eigenvalues))
-               CPASSERT(ASSOCIATED(mo_coeff_re))
-               CPASSERT(ASSOCIATED(mo_coeff_im))
                IF (para_env_kp%is_source()) &
                   eigenvalues_kp(1:nmo_spin(ispin)) = eigenvalues(1:nmo_spin(ispin))
-               CALL cp_fm_copy_general(mo_coeff_re, mo_coeff_re_global, para_env)
-               CALL cp_fm_copy_general(mo_coeff_im, mo_coeff_im_global, para_env)
-            ELSE
+               IF (.NOT. use_scf_moment_dipoles) THEN
+                  CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re)
+                  CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+                  CPASSERT(ASSOCIATED(mo_coeff_re))
+                  CPASSERT(ASSOCIATED(mo_coeff_im))
+                  CALL cp_fm_copy_general(mo_coeff_re, mo_coeff_re_global, para_env)
+                  CALL cp_fm_copy_general(mo_coeff_im, mo_coeff_im_global, para_env)
+               END IF
+            ELSE IF (.NOT. use_scf_moment_dipoles) THEN
                CALL cp_fm_copy_general(fm_dummy, mo_coeff_re_global, para_env)
                CALL cp_fm_copy_general(fm_dummy, mo_coeff_im_global, para_env)
             END IF
@@ -1165,37 +1169,13 @@ CONTAINS
             END IF
 
             DO ideriv = 1, nderivs
-               CALL dbcsr_set(rmatrix, 0.0_dp)
-               CALL dbcsr_set(cmatrix, 0.0_dp)
-               CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=overlap_deriv, &
-                                   ispin=ideriv + 1, xkp=kpoints%xkp(:, ikp), &
-                                   cell_to_index=cell_to_index, sab_nl=sab_kp)
+               IF (.NOT. use_scf_moment_dipoles) THEN
+                  CALL dbcsr_set(rmatrix, 0.0_dp)
+                  CALL dbcsr_set(cmatrix, 0.0_dp)
+                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=overlap_deriv, &
+                                      ispin=ideriv + 1, xkp=kpoints%xkp(:, ikp), &
+                                      cell_to_index=cell_to_index, sab_nl=sab_kp)
 
-               IF (use_scf_moment_dipoles) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     -1.0_dp, mo_coeff_im_global, fm_tmp, 0.0_dp, moment_im)
-
-                  CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
-
-                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_im)
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_re)
-
-                  CALL cp_dbcsr_sm_fm_multiply(cmatrix, mo_coeff_im_global, fm_tmp, nmo_spin(ispin))
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     -1.0_dp, mo_coeff_re_global, fm_tmp, 1.0_dp, moment_re)
-                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
-                                     1.0_dp, mo_coeff_im_global, fm_tmp, 1.0_dp, moment_im)
-               ELSE
                   CALL cp_dbcsr_sm_fm_multiply(rmatrix, mo_coeff_re_global, fm_tmp, nmo_spin(ispin))
                   CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, &
                                      1.0_dp, mo_coeff_re_global, fm_tmp, 0.0_dp, moment_re)
@@ -1228,9 +1208,15 @@ CONTAINS
                      gap = eigenvalues_kp(ivirt) - eigenvalues_kp(iocc)
                      IF (gap <= 0.0_dp) &
                         CPABORT("K-point TDDFPT requires positive occupied-virtual energy gaps")
-                     oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
-                     CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
-                     CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     IF (use_scf_moment_dipoles) THEN
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))
+                        dipole_re = REAL(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt), KIND=dp)
+                        dipole_im = AIMAG(kpoint_dipole(ispin, ikp, ideriv, iocc, ivirt))
+                     ELSE
+                        oscillator_factor = SQRT(spin_factor*wkp(ikp))/gap
+                        CALL cp_fm_get_element(moment_re, ivirt, iocc, dipole_re)
+                        CALL cp_fm_get_element(moment_im, ivirt, iocc, dipole_im)
+                     END IF
                      transition_dipole_re(trans_index, ideriv) = oscillator_factor*dipole_re
                      transition_dipole_im(trans_index, ideriv) = oscillator_factor*dipole_im
                   END DO
@@ -1247,11 +1233,13 @@ CONTAINS
                                                          transition_dipole_im(trans_index, :)**2)
                END DO
             END DO
-            CALL cp_fm_release(moment_im)
-            CALL cp_fm_release(moment_re)
-            CALL cp_fm_release(fm_tmp)
-            CALL cp_fm_release(mo_coeff_im_global)
-            CALL cp_fm_release(mo_coeff_re_global)
+            IF (.NOT. use_scf_moment_dipoles) THEN
+               CALL cp_fm_release(moment_im)
+               CALL cp_fm_release(moment_re)
+               CALL cp_fm_release(fm_tmp)
+               CALL cp_fm_release(mo_coeff_im_global)
+               CALL cp_fm_release(mo_coeff_re_global)
+            END IF
             DEALLOCATE (eigenvalues_kp)
             spin_offset = spin_offset + homo_spin(ispin)*nvirt_spin(ispin)
          END DO
@@ -1322,9 +1310,13 @@ CONTAINS
             "-------------------------------------------------------------------------------"
       END IF
 
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix_set(overlap_deriv)
+      IF (use_scf_moment_dipoles) THEN
+         DEALLOCATE (kpoint_dipole)
+      ELSE
+         CALL dbcsr_deallocate_matrix(rmatrix)
+         CALL dbcsr_deallocate_matrix(cmatrix)
+         CALL dbcsr_deallocate_matrix_set(overlap_deriv)
+      END IF
 
       DEALLOCATE (evals, inds, oscillator_strength, transition_dipole_im, transition_dipole_re, &
                   transition_energy)
