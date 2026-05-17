@@ -2762,6 +2762,37 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REUSE_SCF_MOS", &
+                          description="Try to reuse the SCF k-point MO coefficients when KPOINTS_SOURCE SCF "// &
+                          "is active. CP2K can directly reuse full SCF meshes, time-reversal partners, "// &
+                          "non-degenerate atom/AO symmetry images, and atom/AO symmetry images whose "// &
+                          "degenerate band subspaces are fully contained in the exported Wannier90 band "// &
+                          "window. If the Wannier90 band window cuts through a degenerate subspace, CP2K "// &
+                          "falls back to the historical full-mesh diagonalization.", &
+                          usage="REUSE_SCF_MOS T", default_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VALIDATE_REUSE_SCF_MOS", &
+                          description="When KPOINTS_SOURCE SCF and REUSE_SCF_MOS are active, first build a "// &
+                          "full-mesh diagonalization reference and validate the reconstructed SCF MO "// &
+                          "subspaces against it before writing Wannier90 files. This diagnostic option is "// &
+                          "expensive and intended for development of symmetry-reconstructed Wannier90 "// &
+                          "exports.", &
+                          usage="VALIDATE_REUSE_SCF_MOS T", default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USE_BLOCH_PHASES", &
+                          description="Write use_bloch_phases=.true. to the generated Wannier90 input. "// &
+                          "This lets Wannier90 initialize a complete exported band subspace without an "// &
+                          "external .amn projection file. It is only valid when WANNIER_FUNCTIONS matches "// &
+                          "the number of exported bands; disentangled Wannier90 calculations still need "// &
+                          "explicit projections.", &
+                          usage="USE_BLOCH_PHASES T", default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
                           variants=["ADDED_BANDS"], &
                           description="Number of MOs/Bands added to the Band Structure calculation.", &

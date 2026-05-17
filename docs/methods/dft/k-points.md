@@ -108,9 +108,14 @@ The Wannier90 interface can either keep its historical k-point path controlled b
 `DFT%PRINT%WANNIER90%KPOINTS_SOURCE SCF`. The SCF source supports Gamma, Monkhorst-Pack, MacDonald,
 and explicit `SCHEME GENERAL` k-point meshes. If the SCF calculation used K290 or SPGLIB symmetry
 reduction, the corresponding unreduced mesh is regenerated or recovered for the Wannier90 export,
-because Wannier90 expects the full mesh and its nearest-neighbour connectivity. The Wannier90
-interface still diagonalizes the full export mesh instead of reconstructing full-mesh MO
-coefficients from the irreducible SCF orbitals.
+because Wannier90 expects the full mesh and its nearest-neighbour connectivity. By default,
+`DFT%PRINT%WANNIER90%REUSE_SCF_MOS T` reuses already available SCF MO coefficients when the SCF mesh
+is already complete, including explicit `SCHEME GENERAL` meshes, and for simple
+time-reversal/inversion partners. Atom/AO symmetry reconstruction from an irreducible SCF mesh is
+available for single-band exports and for multi-band exports whose bands are non-degenerate over the
+reduced SCF mesh. Cases where the Wannier90 band window contains or cuts through a degenerate
+subspace are guarded until the gauge and degeneracy alignment is fully validated; guarded cases fall
+back to the historical full-mesh diagonalization for the Wannier90 files.
 
 ## Related Pages
 

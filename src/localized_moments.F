@@ -860,4 +860,3 @@ CONTAINS
    END SUBROUTINE calculate_kg_moments
 
 END MODULE localized_moments
-
