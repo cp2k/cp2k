@@ -1,4 +1,3 @@
-# Reference energy -45.2700189877
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT C

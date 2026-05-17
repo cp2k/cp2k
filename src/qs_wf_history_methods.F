@@ -23,6 +23,9 @@ MODULE qs_wf_history_methods
                                               Kuhne2007,&
                                               VandeVondele2005a,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc,&
+                                              real_to_scaled
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
@@ -30,17 +33,13 @@ MODULE qs_wf_history_methods
                                               cp_cfm_triangular_multiply
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: &
+        cp_cfm_create, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, cp_cfm_set_all, &
+        cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
                                               dbcsr_trace
@@ -62,8 +61,8 @@ MODULE qs_wf_history_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_release, cp_fm_set_all, cp_fm_start_copy_general, cp_fm_to_fm, &
-        cp_fm_type
+        cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
+        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -84,11 +83,13 @@ MODULE qs_wf_history_methods
                                               kpoint_env_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
+                                              twopi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: binomial
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_copy
@@ -148,7 +149,7 @@ CONTAINS
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
                snapshot%overlap, snapshot%wf_kp, snapshot%overlap_cfm_kp, &
-               snapshot%rho_frozen)
+               snapshot%kp_pbc_shift, snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
    END SUBROUTINE wfs_create
 
@@ -179,6 +180,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info_ft
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, ao_mo_pools
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct_ft
@@ -194,6 +196,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_ft
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -205,11 +208,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (pw_env, auxbas_pw_pool, ao_mo_pools, ao_ao_fm_pools, dft_control, mos, mo_coeff, &
-               rho, rho_r, rho_g, rho_ao, matrix_s, matrix_s_kp, kpoints, kp, &
-               kp_dist, cell_to_index, xkp, sab_nl, scf_env, mpools_kp, para_env_ft, &
+               rho, rho_r, rho_g, rho_ao, matrix_s, matrix_s_kp, kpoints, kp, cell, &
+               particle_set, kp_dist, cell_to_index, xkp, sab_nl, scf_env, mpools_kp, para_env_ft, &
                rmat_ft, cmat_ft, tmpmat_ft, ao_ao_struct_ft)
       CALL get_qs_env(qs_env, pw_env=pw_env, &
-                      dft_control=dft_control, rho=rho)
+                      dft_control=dft_control, rho=rho, cell=cell, particle_set=particle_set)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
@@ -332,6 +335,8 @@ CONTAINS
                kplocal = kp_range(2) - kp_range(1) + 1
                nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 2)
                nc = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 1) ! 2=complex, 1=real
+
+               CALL wfi_store_kp_pbc_shift(snapshot, cell, particle_set)
 
                IF (ASSOCIATED(snapshot%wf_kp)) THEN
                   DO ikp = 1, SIZE(snapshot%wf_kp, 1)
@@ -595,13 +600,27 @@ CONTAINS
    SUBROUTINE wfi_create_for_kp(wf_history)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
 
+      INTEGER                                            :: i
+
       CPASSERT(ASSOCIATED(wf_history))
       IF (wf_history%store_rho_ao) THEN
          wf_history%store_rho_ao_kp = .TRUE.
          wf_history%store_rho_ao = .FALSE.
       END IF
-      ! KP-compatible PS and ASPC: switch from Gamma WFN storage to KP WFN storage
-      IF (wf_history%store_wf_kp) THEN
+      ! KP-compatible WFN history: store complex k-point MOs in snapshots.
+      ! USE_PREV_WF needs one snapshot as well, since the PBC image convention
+      ! of the saved WFN has to be known before reorthogonalization.
+      IF (wf_history%interpolation_method_nr == wfi_use_prev_wf_method_nr) THEN
+         wf_history%memory_depth = 1
+         wf_history%store_wf_kp = .TRUE.
+         wf_history%store_wf = .FALSE.
+         wf_history%store_overlap = .FALSE.
+         IF (ASSOCIATED(wf_history%past_states)) DEALLOCATE (wf_history%past_states)
+         ALLOCATE (wf_history%past_states(wf_history%memory_depth))
+         DO i = 1, SIZE(wf_history%past_states)
+            NULLIFY (wf_history%past_states(i)%snapshot)
+         END DO
+      ELSE IF (wf_history%store_wf_kp) THEN
          wf_history%store_wf = .FALSE.
          wf_history%store_overlap = .FALSE.
          ! store_wf_kp and store_overlap_kp remain TRUE
@@ -1299,10 +1318,14 @@ CONTAINS
 !> \param qs_env The QS environment
 !> \param io_unit output unit
 !> \param print_level print level
+!> \param pbc_shift_ref ...
+!> \param load_snapshot_wf ...
 ! **************************************************************************************************
-   SUBROUTINE wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
+   SUBROUTINE wfi_use_prev_wf_kp(qs_env, io_unit, print_level, pbc_shift_ref, load_snapshot_wf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: io_unit, print_level
+      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: pbc_shift_ref
+      LOGICAL, INTENT(IN), OPTIONAL                      :: load_snapshot_wf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_use_prev_wf_kp'
 
@@ -1310,10 +1333,12 @@ CONTAINS
       INTEGER                                            :: chol_info, handle, igroup, ik, ikp, &
                                                             indx, ispin, j, kplocal, nao, nkp, &
                                                             nkp_groups, nmo, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pbc_shift_cur, pbc_shift_src
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, use_real_wfn
+      LOGICAL                                            :: my_kpgrp, reload_snapshot_wf, &
+                                                            use_pbc_phase_ref, use_real_wfn
       REAL(KIND=dp)                                      :: eval_thresh
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -1336,11 +1361,14 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(qs_wf_snapshot_type), POINTER                 :: t1_state
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kpoints, dft_control, matrix_s_kp, scf_env, scf_control, rho, sab_nl, kp, mo_coeff, rmos, imos)
+      NULLIFY (kpoints, dft_control, matrix_s_kp, scf_env, scf_control, rho, sab_nl, kp, &
+               mo_coeff, rmos, imos, wf_history, t1_state)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp, scf_env=scf_env, &
@@ -1354,6 +1382,29 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
+
+      wf_history => qs_env%wf_history
+      reload_snapshot_wf = .FALSE.
+      IF (PRESENT(load_snapshot_wf)) reload_snapshot_wf = load_snapshot_wf
+      IF (PRESENT(pbc_shift_ref)) THEN
+         ALLOCATE (pbc_shift_src(3, SIZE(pbc_shift_ref, 2)))
+         pbc_shift_src(:, :) = pbc_shift_ref(:, :)
+         use_pbc_phase_ref = .TRUE.
+      ELSE
+         use_pbc_phase_ref = .FALSE.
+         IF (ASSOCIATED(wf_history)) THEN
+            IF (wf_history%store_wf_kp .AND. wf_history%snapshot_count > 0) THEN
+               t1_state => wfi_get_snapshot(wf_history, wf_index=1)
+               CPASSERT(ASSOCIATED(t1_state%wf_kp))
+               CPASSERT(ASSOCIATED(t1_state%kp_pbc_shift))
+               reload_snapshot_wf = .TRUE.
+               ALLOCATE (pbc_shift_src(3, SIZE(t1_state%kp_pbc_shift, 2)))
+               pbc_shift_src(:, :) = t1_state%kp_pbc_shift(:, :)
+               use_pbc_phase_ref = .TRUE.
+            END IF
+         END IF
+      END IF
+      IF (use_pbc_phase_ref) CALL wfi_compute_kp_pbc_shift(qs_env, pbc_shift_cur)
 
       kp => kpoints%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
@@ -1442,7 +1493,8 @@ CONTAINS
          CALL cp_fm_cleanup_copy_general(info(indx, 2))
       END DO
 
-      ! Phase B: Orthogonalize current MOs w.r.t. new S(k)
+      ! Phase B: bring the WFN from its saved/internal PBC image convention to
+      ! the current convention, then orthogonalize it with respect to S(k).
       ALLOCATE (eigenvalues(nmo))
       eval_thresh = 1.0E-12_dp
 
@@ -1451,6 +1503,15 @@ CONTAINS
          DO ispin = 1, nspin
             CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+            IF (reload_snapshot_wf) THEN
+               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
+               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
+            END IF
+            IF (use_pbc_phase_ref) THEN
+               ik = kp_range(1) + ikp - 1
+               CALL wfi_apply_kp_pbc_phase_fm(rmos, imos, pbc_shift_cur - pbc_shift_src, &
+                                              xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
+            END IF
             CALL cp_fm_to_cfm(rmos, imos, cmos_new)
 
             CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
@@ -1510,9 +1571,173 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(rmatrix)
       CALL dbcsr_deallocate_matrix(cmatrix_db)
       CALL dbcsr_deallocate_matrix(tmpmat)
+      IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
+      IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
 
       CALL timestop(handle)
    END SUBROUTINE wfi_use_prev_wf_kp
+
+! **************************************************************************************************
+!> \brief Stores the internal PBC image shift used for k-point neighbor-list construction.
+!>        shift = scaled(pbc(r))-scaled(r), i.e. the integer image displacement caused by pbc().
+!> \param snapshot ...
+!> \param cell ...
+!> \param particle_set ...
+! **************************************************************************************************
+   SUBROUTINE wfi_store_kp_pbc_shift(snapshot, cell, particle_set)
+      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp), DIMENSION(3)                        :: frac_pbc, frac_raw, r_pbc
+
+      CPASSERT(ASSOCIATED(snapshot))
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(particle_set))
+
+      natom = SIZE(particle_set)
+      IF (ASSOCIATED(snapshot%kp_pbc_shift)) THEN
+         DEALLOCATE (snapshot%kp_pbc_shift)
+      END IF
+      ALLOCATE (snapshot%kp_pbc_shift(3, natom))
+      DO iatom = 1, natom
+         r_pbc(1:3) = pbc(particle_set(iatom)%r(1:3), cell)
+         CALL real_to_scaled(frac_raw, particle_set(iatom)%r(1:3), cell)
+         CALL real_to_scaled(frac_pbc, r_pbc(1:3), cell)
+         snapshot%kp_pbc_shift(1:3, iatom) = NINT(frac_pbc(1:3) - frac_raw(1:3))
+      END DO
+   END SUBROUTINE wfi_store_kp_pbc_shift
+
+! **************************************************************************************************
+!> \brief Computes the current internal PBC image shift used by pbc().
+!> \param qs_env ...
+!> \param pbc_shift ...
+! **************************************************************************************************
+   SUBROUTINE wfi_compute_kp_pbc_shift(qs_env, pbc_shift)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: pbc_shift
+
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp), DIMENSION(3)                        :: frac_pbc, frac_raw, r_pbc
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      NULLIFY (cell, particle_set)
+      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(particle_set))
+
+      natom = SIZE(particle_set)
+      ALLOCATE (pbc_shift(3, natom))
+      DO iatom = 1, natom
+         r_pbc(1:3) = pbc(particle_set(iatom)%r(1:3), cell)
+         CALL real_to_scaled(frac_raw, particle_set(iatom)%r(1:3), cell)
+         CALL real_to_scaled(frac_pbc, r_pbc(1:3), cell)
+         pbc_shift(1:3, iatom) = NINT(frac_pbc(1:3) - frac_raw(1:3))
+      END DO
+   END SUBROUTINE wfi_compute_kp_pbc_shift
+
+! **************************************************************************************************
+!> \brief Applies the atom-wise Bloch phase associated with a change of the internal
+!>        k-point PBC image convention to real/imaginary MO coefficient matrices.
+!> \param rmos real part of the MO coefficients
+!> \param imos imaginary part of the MO coefficients
+!> \param pbc_shift_delta target shift minus source shift for each atom
+!> \param xk fractional k-point coordinates
+!> \param matrix_template AO block structure used to map rows to atoms
+! **************************************************************************************************
+   SUBROUTINE wfi_apply_kp_pbc_phase_fm(rmos, imos, pbc_shift_delta, xk, matrix_template)
+      TYPE(cp_fm_type), POINTER                          :: rmos, imos
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: pbc_shift_delta
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xk
+      TYPE(dbcsr_type), POINTER                          :: matrix_template
+
+      INTEGER                                            :: iatom, icol, irow, natom, nmo, nrow, &
+                                                            row_start
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      REAL(KIND=dp)                                      :: ci, cr, i_old, r_old, theta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: iblock, rblock
+
+      CPASSERT(ASSOCIATED(rmos))
+      CPASSERT(ASSOCIATED(imos))
+      CPASSERT(ASSOCIATED(matrix_template))
+
+      natom = SIZE(pbc_shift_delta, 2)
+      CALL cp_fm_get_info(rmos, ncol_global=nmo)
+      NULLIFY (row_blk_size)
+      CALL dbcsr_get_info(matrix_template, row_blk_size=row_blk_size)
+      CPASSERT(SIZE(row_blk_size) >= natom)
+
+      row_start = 1
+      DO iatom = 1, natom
+         nrow = row_blk_size(iatom)
+         IF (ANY(pbc_shift_delta(1:3, iatom) /= 0)) THEN
+            theta = twopi*SUM(xk(1:3)*REAL(pbc_shift_delta(1:3, iatom), KIND=dp))
+            cr = COS(theta)
+            ci = SIN(theta)
+            ALLOCATE (rblock(nrow, nmo), iblock(nrow, nmo))
+            CALL cp_fm_get_submatrix(rmos, rblock, row_start, 1, nrow, nmo)
+            CALL cp_fm_get_submatrix(imos, iblock, row_start, 1, nrow, nmo)
+            DO icol = 1, nmo
+               DO irow = 1, nrow
+                  r_old = rblock(irow, icol)
+                  i_old = iblock(irow, icol)
+                  rblock(irow, icol) = cr*r_old - ci*i_old
+                  iblock(irow, icol) = ci*r_old + cr*i_old
+               END DO
+            END DO
+            CALL cp_fm_set_submatrix(rmos, rblock, row_start, 1, nrow, nmo)
+            CALL cp_fm_set_submatrix(imos, iblock, row_start, 1, nrow, nmo)
+            DEALLOCATE (rblock, iblock)
+         END IF
+         row_start = row_start + nrow
+      END DO
+   END SUBROUTINE wfi_apply_kp_pbc_phase_fm
+
+! **************************************************************************************************
+!> \brief Applies the atom-wise Bloch phase associated with a change of the internal
+!>        k-point PBC image convention to a complex MO coefficient matrix.
+!> \param cmos complex MO coefficients
+!> \param pbc_shift_delta target shift minus source shift for each atom
+!> \param xk fractional k-point coordinates
+!> \param matrix_template AO block structure used to map rows to atoms
+! **************************************************************************************************
+   SUBROUTINE wfi_apply_kp_pbc_phase_cfm(cmos, pbc_shift_delta, xk, matrix_template)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cmos
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: pbc_shift_delta
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xk
+      TYPE(dbcsr_type), POINTER                          :: matrix_template
+
+      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: zblock
+      INTEGER                                            :: iatom, natom, nmo, nrow, row_start
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      REAL(KIND=dp)                                      :: theta
+
+      CPASSERT(ASSOCIATED(matrix_template))
+
+      natom = SIZE(pbc_shift_delta, 2)
+      CALL cp_cfm_get_info(cmos, ncol_global=nmo)
+      NULLIFY (row_blk_size)
+      CALL dbcsr_get_info(matrix_template, row_blk_size=row_blk_size)
+      CPASSERT(SIZE(row_blk_size) >= natom)
+
+      row_start = 1
+      DO iatom = 1, natom
+         nrow = row_blk_size(iatom)
+         IF (ANY(pbc_shift_delta(1:3, iatom) /= 0)) THEN
+            theta = twopi*SUM(xk(1:3)*REAL(pbc_shift_delta(1:3, iatom), KIND=dp))
+            phase = CMPLX(COS(theta), SIN(theta), KIND=dp)
+            ALLOCATE (zblock(nrow, nmo))
+            CALL cp_cfm_get_submatrix(cmos, zblock, row_start, 1, nrow, nmo)
+            zblock = phase*zblock
+            CALL cp_cfm_set_submatrix(cmos, zblock, row_start, 1, nrow, nmo)
+            DEALLOCATE (zblock)
+         END IF
+         row_start = row_start + nrow
+      END DO
+   END SUBROUTINE wfi_apply_kp_pbc_phase_cfm
 
 ! **************************************************************************************************
 !> \brief Performs PS/ASPC wavefunction extrapolation for k-point calculations.
@@ -1532,15 +1757,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_ps_aspc_kp'
 
-      INTEGER                                            :: handle, i, ikp, ispin, kplocal, &
+      INTEGER                                            :: handle, i, ik, ikp, ispin, kplocal, &
                                                             method_nr, nao, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp)                                      :: alpha_coeff
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
                                                             cmos_new, csc_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: nmo_nmo_struct
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
@@ -1548,10 +1775,11 @@ CONTAINS
       method_nr = wf_history%interpolation_method_nr
 
       CALL timeset(routineN, handle)
-      NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct)
+      NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct, &
+               matrix_s_kp, xkp)
 
-      CALL get_qs_env(qs_env, kpoints=kpoints)
-      CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range)
+      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
+      CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range, xkp=xkp)
       kplocal = kp_range(2) - kp_range(1) + 1
 
       IF (use_real_wfn) THEN
@@ -1639,8 +1867,14 @@ CONTAINS
          DO ikp = 1, kplocal
             kp => kpoints%kp_env(ikp)%kpoint_env
             DO ispin = 1, nspin
+               ik = kp_range(1) + ikp - 1
                CALL cp_fm_to_cfm(t1_state%wf_kp(ikp, 1, ispin), t1_state%wf_kp(ikp, 2, ispin), cmos_1)
                CALL cp_fm_to_cfm(t0_state%wf_kp(ikp, 1, ispin), t0_state%wf_kp(ikp, 2, ispin), cmos_i)
+
+               ! Express the reference snapshot in the image convention of snapshot i,
+               ! because the historical overlap below belongs to snapshot i.
+               CALL wfi_apply_kp_pbc_phase_cfm(cmos_1, t0_state%kp_pbc_shift - t1_state%kp_pbc_shift, &
+                                               xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
                ! Subspace projection: C_proj = C_i * (C_i^dag S_i C_1)
                CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
@@ -1649,6 +1883,12 @@ CONTAINS
                                 cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
                CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
                                 cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+
+               ! Convert the projected contribution from snapshot i to the reference
+               ! image convention of snapshot 1. The final conversion to the current
+               ! convention is centralized in wfi_use_prev_wf_kp.
+               CALL wfi_apply_kp_pbc_phase_cfm(cfm_nao_nmo_work, t1_state%kp_pbc_shift - t0_state%kp_pbc_shift, &
+                                               xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
                CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
@@ -1665,10 +1905,12 @@ CONTAINS
       CALL cp_cfm_release(cfm_nao_nmo_work)
       CALL cp_cfm_release(csc_cfm)
 
-      ! Phase 3: Delegate Orthogonalization and Density Building
-      ! We pass io_unit = 0 to suppress the redundant "Using previous..." print
-      ! inside wfi_use_prev_wf_kp, keeping the ASPC log output perfectly clean.
-      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level)
+      ! Phase 3: Convert the extrapolated WFN from the reference snapshot image
+      ! convention to the current k-point PBC convention, then reorthogonalize and
+      ! rebuild the density. Keep the actual phase handling centralized in
+      ! wfi_use_prev_wf_kp so that USE_PREV_WF and ASPC/PS share the same path.
+      CALL wfi_use_prev_wf_kp(qs_env, 0, print_level, pbc_shift_ref=t1_state%kp_pbc_shift, &
+                              load_snapshot_wf=.FALSE.)
 
       CALL timestop(handle)
 
