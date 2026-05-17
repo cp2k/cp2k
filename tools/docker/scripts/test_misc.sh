@@ -48,6 +48,7 @@ run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 run_test mypy --strict ./tools/regtesting/compare_wannier90_mmn.py
+run_test mypy --strict ./tools/regtesting/validate_wannier90_export.py
 run_test mypy --strict ./tools/precommit/precommit.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
 run_test mypy --strict ./tools/precommit/format_makefile.py
@@ -60,6 +61,22 @@ run_test mypy --strict ./tests/do_regtest.py
 run_test mypy --strict ./docs/generate_input_reference.py
 run_test mypy --strict ./docs/fix_github_links.py
 run_test mypy --strict ./tools/vibronic_spec/
+
+# Test Wannier90 .wout parsing without requiring an external wannier90.x binary.
+W90_TEST_DIR=$(mktemp -d)
+cat > "${W90_TEST_DIR}/test.wout" << EOF
+ Final State
+  WF centre and spread    1  (  1.000000,  2.000000,  3.000000 )     1.25000000
+  Sum of centres and spreads (  1.000000,  2.000000,  3.000000 )     1.25000000
+
+        Spreads (Bohr^2)       Omega I      =     1.250000000
+        ================       Omega D      =     0.000000000
+                               Omega OD     =     0.000000000
+   Final Spread (Bohr^2)       Omega Total  =     1.250000000
+ All done: wannier90 exiting
+EOF
+run_test ./tools/regtesting/validate_wannier90_export.py run test \
+  --workdir "${W90_TEST_DIR}" --require-all-done --max-omega-total 2.0
 
 # TODO: Find a way to test generate_dashboard.py without git repository.
 #
