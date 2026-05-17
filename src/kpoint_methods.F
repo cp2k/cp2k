@@ -67,6 +67,7 @@ MODULE kpoint_methods
                                               kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
+   USE mathlib,                         ONLY: inv_3x3
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_para_env_type
@@ -124,14 +125,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
 
       INTEGER                                            :: handle, i, ic, ik, iounit, ir, ira, is, &
-                                                            j, natom, nkind, nr, ns
+                                                            isign, j, natom, nkind, nr, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: agauge
-      INTEGER, DIMENSION(3, 3)                           :: frot
+      INTEGER, DIMENSION(3, 3)                           :: frot, krot
       LOGICAL                                            :: spez
-      REAL(KIND=dp)                                      :: wsum
+      REAL(KIND=dp)                                      :: eps_kpoint, wsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
-      REAL(KIND=dp), DIMENSION(3)                        :: srot
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, kgvec, srot
       REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_full
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp_full
@@ -204,6 +205,7 @@ CONTAINS
             kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
          END DO
 
+         eps_kpoint = MAX(1.e-12_dp, 10.0_dp*kpoint%eps_geo)
          ! print output
          IF (kpoint%symmetry) CALL print_crys_symmetry(crys_sym)
          IF (kpoint%symmetry) CALL print_kp_symmetry(crys_sym)
@@ -221,6 +223,25 @@ CONTAINS
                ns = kpsym%nwght
                !
                IF (ns > 1) THEN
+                  DO is = 1, SIZE(crys_sym%kplink, 2)
+                     IF (crys_sym%kplink(2, is) == ik) THEN
+                        DO ic = 1, crys_sym%nrtot
+                           srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                           frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                           krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                           DO isign = 1, 2
+                              ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+                              IF (ir == crys_sym%kpop(is)) CYCLE
+                              kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                                           MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
+                                                             isign == 1), KIND=dp), &
+                                                  kpoint%xkp(1:3, ik))
+                              diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+                              IF (ALL(ABS(diff(1:3)) < eps_kpoint)) ns = ns + 1
+                           END DO
+                        END DO
+                     END IF
+                  END DO
                   kpsym%apply_symmetry = .TRUE.
                   natom = SIZE(particle_set)
                   ALLOCATE (kpsym%rot(3, 3, ns))
@@ -228,6 +249,7 @@ CONTAINS
                   ALLOCATE (kpsym%rotp(ns))
                   ALLOCATE (kpsym%f0(natom, ns))
                   ALLOCATE (kpsym%fcell(3, natom, ns))
+                  ALLOCATE (kpsym%kgphase(natom, ns))
                   nr = 0
                   DO is = 1, SIZE(crys_sym%kplink, 2)
                      IF (crys_sym%kplink(2, is) == ik) THEN
@@ -241,6 +263,12 @@ CONTAINS
                               srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
                               frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
                               kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                              IF (ir < 0) krot(1:3, 1:3) = -krot(1:3, 1:3)
+                              kgvec(1:3) = kpsym%xkp(1:3, nr) - &
+                                           MATMUL(REAL(krot(1:3, 1:3), KIND=dp), &
+                                                  kpoint%xkp(1:3, ik))
+                              kgvec(1:3) = ANINT(kgvec(1:3))
                               kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
                               DO j = 1, natom
                                  srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
@@ -248,6 +276,9 @@ CONTAINS
                                     NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                     MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                     agauge(1:3, kpsym%f0(j, nr))
+                                 kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                                    scoord(1:3, j) + &
+                                                                    REAL(agauge(1:3, j), KIND=dp))
                               END DO
                               EXIT
                            END IF
@@ -255,7 +286,42 @@ CONTAINS
                         CPASSERT(ic <= crys_sym%nrtot)
                      END IF
                   END DO
-                  ! Reduce inversion?
+                  DO is = 1, SIZE(crys_sym%kplink, 2)
+                     IF (crys_sym%kplink(2, is) == ik) THEN
+                        DO ic = 1, crys_sym%nrtot
+                           srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                           frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                           krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                           DO isign = 1, 2
+                              ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+                              IF (ir == crys_sym%kpop(is)) CYCLE
+                              kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                                           MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
+                                                             isign == 1), KIND=dp), &
+                                                  kpoint%xkp(1:3, ik))
+                              diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+                              IF (ALL(ABS(diff(1:3)) < eps_kpoint)) THEN
+                                 nr = nr + 1
+                                 kpsym%rotp(nr) = ir
+                                 kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+                                 kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                                 kgvec(1:3) = ANINT(kgvec(1:3))
+                                 kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+                                 DO j = 1, natom
+                                    srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+                                    kpsym%fcell(1:3, j, nr) = &
+                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
+                                       MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
+                                       agauge(1:3, kpsym%f0(j, nr))
+                                    kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                                       scoord(1:3, j) + &
+                                                                       REAL(agauge(1:3, j), KIND=dp))
+                                 END DO
+                              END IF
+                           END DO
+                        END DO
+                     END IF
+                  END DO
                   kpsym%nwred = nr
                END IF
             END IF
@@ -352,6 +418,7 @@ CONTAINS
                kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
             END DO
 
+            eps_kpoint = MAX(1.e-12_dp, 10.0_dp*kpoint%eps_geo)
             CALL print_crys_symmetry(crys_sym)
             CALL print_kp_symmetry(crys_sym)
 
@@ -365,12 +432,32 @@ CONTAINS
                   kpsym%nwght = NINT(crys_sym%wkpoint(ik))
                   ns = kpsym%nwght
                   IF (ns > 1) THEN
+                     DO is = 1, SIZE(crys_sym%kplink, 2)
+                        IF (crys_sym%kplink(2, is) == ik) THEN
+                           DO ic = 1, crys_sym%nrtot
+                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                              DO isign = 1, 2
+                                 ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+                                 IF (ir == crys_sym%kpop(is)) CYCLE
+                                 kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                                              MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
+                                                                isign == 1), KIND=dp), &
+                                                     kpoint%xkp(1:3, ik))
+                                 diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+                                 IF (ALL(ABS(diff(1:3)) < eps_kpoint)) ns = ns + 1
+                              END DO
+                           END DO
+                        END IF
+                     END DO
                      kpsym%apply_symmetry = .TRUE.
                      ALLOCATE (kpsym%rot(3, 3, ns))
                      ALLOCATE (kpsym%xkp(3, ns))
                      ALLOCATE (kpsym%rotp(ns))
                      ALLOCATE (kpsym%f0(natom, ns))
                      ALLOCATE (kpsym%fcell(3, natom, ns))
+                     ALLOCATE (kpsym%kgphase(natom, ns))
                      nr = 0
                      DO is = 1, SIZE(crys_sym%kplink, 2)
                         IF (crys_sym%kplink(2, is) == ik) THEN
@@ -384,6 +471,12 @@ CONTAINS
                                  srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
                                  frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
                                  kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                                 krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                                 IF (ir < 0) krot(1:3, 1:3) = -krot(1:3, 1:3)
+                                 kgvec(1:3) = kpsym%xkp(1:3, nr) - &
+                                              MATMUL(REAL(krot(1:3, 1:3), KIND=dp), &
+                                                     kpoint%xkp(1:3, ik))
+                                 kgvec(1:3) = ANINT(kgvec(1:3))
                                  kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
                                  DO j = 1, natom
                                     srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
@@ -391,11 +484,50 @@ CONTAINS
                                        NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
                                        MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
                                        agauge(1:3, kpsym%f0(j, nr))
+                                    kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                                       scoord(1:3, j) + &
+                                                                       REAL(agauge(1:3, j), KIND=dp))
                                  END DO
                                  EXIT
                               END IF
                            END DO
                            CPASSERT(ic <= crys_sym%nrtot)
+                        END IF
+                     END DO
+                     DO is = 1, SIZE(crys_sym%kplink, 2)
+                        IF (crys_sym%kplink(2, is) == ik) THEN
+                           DO ic = 1, crys_sym%nrtot
+                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
+                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
+                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
+                              DO isign = 1, 2
+                                 ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+                                 IF (ir == crys_sym%kpop(is)) CYCLE
+                                 kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                                              MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
+                                                                isign == 1), KIND=dp), &
+                                                     kpoint%xkp(1:3, ik))
+                                 diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+                                 IF (ALL(ABS(diff(1:3)) < eps_kpoint)) THEN
+                                    nr = nr + 1
+                                    kpsym%rotp(nr) = ir
+                                    kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+                                    kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                                    kgvec(1:3) = ANINT(kgvec(1:3))
+                                    kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+                                    DO j = 1, natom
+                                       srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+                                       kpsym%fcell(1:3, j, nr) = &
+                                          NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
+                                          MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
+                                          agauge(1:3, kpsym%f0(j, nr))
+                                       kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                                          scoord(1:3, j) + &
+                                                                          REAL(agauge(1:3, j), KIND=dp))
+                                    END DO
+                                 END IF
+                              END DO
+                           END DO
                         END IF
                      END DO
                      kpsym%nwred = nr

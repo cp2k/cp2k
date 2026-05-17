@@ -126,6 +126,27 @@ registry["Kubo_reused_mos"] = TextPresenceMatcher("CP2K canonical MOs")
 registry["Kubo_reference"] = TextPresenceMatcher(
     "https://doi.org/10.1016/j.aop.2020.168290"
 )
+registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
+    "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
+)
+registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
+    "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
+)
+registry["WANNIER90_DEGENERATE_GUARD"] = TextPresenceMatcher(
+    "degenerate atom/AO W90 reuse guarded"
+)
+registry["WANNIER90_DEGENERATE_SUBSPACE_ALIGN"] = TextPresenceMatcher(
+    "degenerate SCF MO subspace(s)"
+)
+registry["WANNIER90_USE_BLOCH_PHASES"] = TextPresenceMatcher(
+    "WANNIER90| Wrote identity projections for Bloch-phase complete band subspaces."
+)
+registry["WANNIER90_BLOCH_PHASE_GAUGE"] = TextPresenceMatcher(
+    "WANNIER90| Applied Bloch phase gauge to reused overlaps"
+)
+registry["WANNIER90_REUSE_VALIDATION"] = TextPresenceMatcher(
+    "WANNIER90| Reused MO validation: subspace deviation"
+)
 registry["M012"] = GenericMatcher(r"B2(T) =", col=4)
 registry["M013"] = GenericMatcher(r"sparseness function f2 =", col=5)
 registry["M014"] = GenericMatcher(r"CheckSum Shifts =", col=4)

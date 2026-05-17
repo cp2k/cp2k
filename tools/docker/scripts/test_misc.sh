@@ -47,6 +47,7 @@ run_test mypy --strict ./tools/pao-ml/
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
+run_test mypy --strict ./tools/regtesting/compare_wannier90_mmn.py
 run_test mypy --strict ./tools/precommit/precommit.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
 run_test mypy --strict ./tools/precommit/format_makefile.py

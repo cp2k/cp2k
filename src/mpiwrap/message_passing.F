@@ -3412,8 +3412,10 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 #if defined(__parallel)
          msglen = 1
-         CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+         IF (comm%num_pe > 1) THEN
+            CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
+            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+         END IF
 #else
          MARK_USED(msg)
          MARK_USED(comm)
@@ -3443,7 +3445,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 #if defined(__parallel)
          msglen = SIZE(msg)
-         IF (msglen > 0) THEN
+         IF (msglen > 0 .AND. comm%num_pe > 1) THEN
             CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
          END IF
@@ -3482,7 +3484,7 @@ CONTAINS
          CPASSERT(IS_CONTIGUOUS(msg) .OR. PRODUCT(SHAPE(msg)) == 0)
 #endif
 
-         IF (msglen > 0) THEN
+         IF (msglen > 0 .AND. comm%num_pe > 1) THEN
             CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, request%handle, ierr)
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
          ELSE
