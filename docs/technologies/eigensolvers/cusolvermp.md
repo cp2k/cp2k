@@ -34,8 +34,9 @@ diagonalization paths that avoid a CP2K-side Cholesky reduction where the select
 supports them. With [cuSOLVERMp], this currently covers real symmetric and complex Hermitian
 generalized eigenproblems through `cusolverMpSygvd`.
 
-When [cuSOLVERMp] uses the NCCL backend, CP2K requires at most one local MPI rank per visible GPU.
-Use one MPI rank per GPU or reduce the number of local MPI ranks when only one GPU is visible.
+When [cuSOLVERMp] uses the NCCL backend, CP2K relies on the launcher or scheduler to bind MPI ranks
+to GPUs. For example, assigning one GPU per rank with `CUDA_VISIBLE_DEVICES` is supported. CP2K only
+checks that the CUDA device selected for each MPI rank is visible to that rank.
 
 [cal]: https://developer.download.nvidia.com/compute/cublasmp/redist/libcal/
 [cusolvermp]: https://docs.nvidia.com/cuda/cusolvermp/
