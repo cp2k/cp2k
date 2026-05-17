@@ -1585,10 +1585,15 @@ CONTAINS
          CALL uppercase(element_symbol_ref0)
          CALL uppercase(element_kind_ref0)
          IF (element_symbol /= element_symbol_ref0) THEN
-            ! Make sure the kind also does not match a potential alias name
+            ! Make sure the label also does not match a potential kind alias.
             IF (element_symbol /= element_kind_ref0) THEN
-               errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
-                        TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+               errmsg = "Atomic configuration from trajectory file does not match the reference configuration: "// &
+                        "Check atom "//TRIM(ADJUSTL(cp_to_string(i)))//" of step "// &
+                        TRIM(ADJUSTL(cp_to_string(trj_itimes)))//". Found trajectory label '"// &
+                        TRIM(element_symbol)//"', expected element '"//TRIM(element_symbol_ref0)// &
+                        "' or kind label '"//TRIM(element_kind_ref0)// &
+                        "'. REFTRAJ trajectories usually contain element labels; check whether the "// &
+                        "trajectory was modified to contain kind aliases instead."
                CPABORT(errmsg)
             END IF
          END IF
@@ -1607,10 +1612,15 @@ CONTAINS
       CALL uppercase(element_symbol_ref0)
       CALL uppercase(element_kind_ref0)
       IF (element_symbol /= element_symbol_ref0) THEN
-         ! Make sure the kind also does not match a potential alias name
+         ! Make sure the label also does not match a potential kind alias.
          IF (element_symbol /= element_kind_ref0) THEN
-            errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
-                     TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+            errmsg = "Atomic configuration from trajectory file does not match the reference configuration: "// &
+                     "Check atom "//TRIM(ADJUSTL(cp_to_string(i)))//" of step "// &
+                     TRIM(ADJUSTL(cp_to_string(trj_itimes)))//". Found trajectory label '"// &
+                     TRIM(element_symbol)//"', expected element '"//TRIM(element_symbol_ref0)// &
+                     "' or kind label '"//TRIM(element_kind_ref0)// &
+                     "'. REFTRAJ trajectories usually contain element labels; check whether the "// &
+                     "trajectory was modified to contain kind aliases instead."
             CPABORT(errmsg)
          END IF
       END IF
