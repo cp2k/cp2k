@@ -48,7 +48,7 @@ case "$with_trexio" in
       mkdir build && cd build
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_INSTALL_LIBDOR="lib" \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
         ${CMAKE_OPTIONS} \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) >> make.log 2>&1 || tail_excerpt make.log
