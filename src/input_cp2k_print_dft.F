@@ -622,6 +622,13 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MARK_GHOST", &
+                          description="Controls whether ghost atoms are marked in the [Atoms] block by "// &
+                          "setting their atomic number to zero.", &
+                          usage="MARK_GHOST T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &
@@ -1497,6 +1504,13 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MARK_GHOST", &
+                          description="Controls whether ghost atoms are marked in the [Atoms] block by "// &
+                          "setting their atomic number to zero.", &
+                          usage="MARK_GHOST T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specifies the number of significant digits retained. 3 is OK for visualization.", &
                           usage="NDIGITS {int}", &
@@ -1601,6 +1615,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_PSEUDO", &
                           description="Controls whether the [Pseudo] block is written to the MOLDEN file.", &
                           usage="WRITE_PSEUDO T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MARK_GHOST", &
+                          description="Controls whether ghost atoms are marked in the [Atoms] block by "// &
+                          "setting their atomic number to zero.", &
+                          usage="MARK_GHOST T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
@@ -1746,6 +1767,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_PSEUDO", &
                           description="Controls whether the [Pseudo] block is written to the MOLDEN file.", &
                           usage="WRITE_PSEUDO T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MARK_GHOST", &
+                          description="Controls whether ghost atoms are marked in the [Atoms] block by "// &
+                          "setting their atomic number to zero.", &
+                          usage="MARK_GHOST T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
