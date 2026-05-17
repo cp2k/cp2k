@@ -484,6 +484,7 @@ CONTAINS
          END DO
          WRITE (iunit, "(A,/)") "end unit_cell_cart"
          WRITE (iunit, "(/,A)") "begin atoms_cart"
+         WRITE (iunit, "(A)") "bohr"
          DO i = 1, num_atoms
             WRITE (iunit, "(A,3F15.10)") atom_symbols(i), atoms_cart(1:3, i)
          END DO
