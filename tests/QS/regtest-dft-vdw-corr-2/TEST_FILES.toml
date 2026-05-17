@@ -6,6 +6,7 @@
 #
 "dftd3_t9.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00115772641844}]
 "dftd3_t10.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.00117296325816}]
+"dftd3_actinides.inp"                   = [{matcher="M033", tol=1.0E-14, ref=-0.00263034943877}]
 "dftd3_t11.inp"                         = [{matcher="M007", tol=2e-12, ref=-84.2986400085}]
 "dftd3_t12.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.00117296325816}]
 "dftd3_t13.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.00045037056834}]
