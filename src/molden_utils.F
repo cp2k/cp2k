@@ -105,8 +105,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       INTEGER, DIMENSION(molden_ncomax, 0:molden_lmax)   :: orbmap
-      LOGICAL                                            :: do_calc_energies, print_warn, &
-                                                            write_cell, write_nval
+      LOGICAL                                            :: do_calc_energies, ghost_atom, &
+                                                            mark_ghost, print_warn, write_cell, &
+                                                            write_pseudo
       REAL(KIND=dp)                                      :: expzet, prefac, scale_factor, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -144,7 +145,8 @@ CONTAINS
 
          CALL section_vals_val_get(print_section, "GTO_KIND", i_val=gto_kind)
          CALL section_vals_val_get(print_section, "WRITE_CELL", l_val=write_cell)
-         CALL section_vals_val_get(print_section, "WRITE_NVAL", l_val=write_nval)
+         CALL section_vals_val_get(print_section, "WRITE_PSEUDO", l_val=write_pseudo)
+         CALL section_vals_val_get(print_section, "MARK_GHOST", l_val=mark_ghost)
 
          IF (mos(1)%use_mo_coeff_b) THEN
             ! we are using the dbcsr mo_coeff
@@ -179,19 +181,25 @@ CONTAINS
                WRITE (iw, '(T2,A)') "[Atoms] AU"
             END IF
             DO i = 1, SIZE(particle_set)
-               CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, &
+               CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=ikind, &
                                     element_symbol=element_symbol)
                CALL get_ptable_info(element_symbol, number=z)
+               IF (mark_ghost) THEN
+                  CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost_atom)
+                  IF (ghost_atom) z = 0
+               END IF
 
                WRITE (iw, '(T2,A2,I6,I6,3X,3(F12.6,3X))') &
                   element_symbol, i, z, particle_set(i)%r(:)*scale_factor
             END DO
-            IF (write_nval) THEN
-               WRITE (iw, '(T2,A)') "[Nval]"
-               DO i = 1, SIZE(qs_kind_set)
-                  CALL get_qs_kind(qs_kind_set(i), zeff=zeff)
-                  WRITE (iw, '(T2,A,1X,I6)') &
-                     TRIM(ADJUSTL(qs_kind_set(i)%element_symbol)), NINT(zeff)
+            IF (write_pseudo) THEN
+               WRITE (iw, '(T2,A)') "[Pseudo]"
+               DO i = 1, SIZE(particle_set)
+                  CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=ikind, &
+                                       element_symbol=element_symbol)
+                  CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+                  WRITE (iw, '(T2,A2,I6,I6)') &
+                     element_symbol, i, NINT(zeff)
                END DO
             END IF
 
