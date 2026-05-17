@@ -16,14 +16,9 @@ MODULE qs_dispersion_pairpot
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE bibliography,                    ONLY: Caldeweyher2017,&
-                                              Caldeweyher2019,&
-                                              Caldeweyher2020,&
-                                              Goerigk2017,&
-                                              cite_reference,&
-                                              grimme2006,&
-                                              grimme2010,&
-                                              grimme2011
+   USE bibliography,                    ONLY: &
+        Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Goerigk2017, Wittmann2024, &
+        cite_reference, grimme2006, grimme2010, grimme2011
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -204,8 +199,9 @@ CONTAINS
             CALL cite_reference(Grimme2010)
             CALL cite_reference(Grimme2011)
             CALL cite_reference(Goerigk2017)
-            max_elem = 94
-            maxc = 5
+            CALL cite_reference(Wittmann2024)
+            max_elem = 103
+            maxc = 7
             dispersion_env%max_elem = max_elem
             dispersion_env%maxc = maxc
             ALLOCATE (dispersion_env%maxci(max_elem))
@@ -254,7 +250,7 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
                ALLOCATE (disp)
                disp%type = dftd3_pp
-               IF (elem <= 94) THEN
+               IF (elem <= max_elem) THEN
                   disp%defined = .TRUE.
                ELSE
                   disp%defined = .FALSE.
@@ -328,8 +324,8 @@ CONTAINS
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
             ! maybe needed in cnumber calculations
-            max_elem = 94
-            maxc = 5
+            max_elem = 103
+            maxc = 7
             dispersion_env%max_elem = max_elem
             dispersion_env%maxc = maxc
             ALLOCATE (dispersion_env%maxci(max_elem))

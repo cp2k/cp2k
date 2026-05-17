@@ -869,7 +869,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       INTEGER                                            :: funit, iadr, iat, jadr, jat, kk, nl, &
-                                                            nlines, nn
+                                                            nlines, nn, ref_stride
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pars
 
       IF (para_env%is_source()) THEN
@@ -889,11 +889,12 @@ CONTAINS
       ! Store C6AB coefficients in an array
       c6ab = -1._dp
       maxci = 0
+      ref_stride = get_ref_stride(pars, nlines)
       kk = 1
       DO nn = 1, nlines
          iat = NINT(pars(kk + 1))
          jat = NINT(pars(kk + 2))
-         CALL limit(iat, jat, iadr, jadr)
+         CALL limit(iat, jat, iadr, jadr, ref_stride)
          maxci(iat) = MAX(maxci(iat), iadr)
          maxci(jat) = MAX(maxci(jat), jadr)
          c6ab(iat, jat, iadr, jadr, 1) = pars(kk)
@@ -911,28 +912,50 @@ CONTAINS
    END SUBROUTINE dftd3_c6_param
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param iat ...
-!> \param jat ...
-!> \param iadr ...
-!> \param jadr ...
+!> \brief Detects the reference-state encoding used in the DFT-D3 C6AB table.
+!> \param pars DFT-D3 C6AB parameter table.
+!> \param nlines Number of C6AB parameter lines.
+!> \return Reference-state stride.
 ! **************************************************************************************************
-   SUBROUTINE limit(iat, jat, iadr, jadr)
-      INTEGER                                            :: iat, jat, iadr, jadr
+   FUNCTION get_ref_stride(pars, nlines) RESULT(ref_stride)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pars
+      INTEGER, INTENT(IN)                                :: nlines
+      INTEGER                                            :: ref_stride
 
-      INTEGER                                            :: i
+      INTEGER                                            :: kk, nn
+
+      ref_stride = 100
+      kk = 1
+      DO nn = 1, nlines
+         IF (NINT(pars(kk + 1)) > 1000 .OR. NINT(pars(kk + 2)) > 1000) THEN
+            ref_stride = 1000
+            EXIT
+         END IF
+         kk = (nn*5) + 1
+      END DO
+
+   END FUNCTION get_ref_stride
+
+! **************************************************************************************************
+!> \brief Decodes element numbers and reference-state indices.
+!> \param iat Encoded first element number.
+!> \param jat Encoded second element number.
+!> \param iadr First reference-state index.
+!> \param jadr Second reference-state index.
+!> \param ref_stride Reference-state stride.
+! **************************************************************************************************
+   SUBROUTINE limit(iat, jat, iadr, jadr, ref_stride)
+      INTEGER                                            :: iat, jat, iadr, jadr, ref_stride
 
       iadr = 1
       jadr = 1
-      i = 100
-      DO WHILE (iat > 100)
-         iat = iat - 100
+      DO WHILE (iat > ref_stride)
+         iat = iat - ref_stride
          iadr = iadr + 1
       END DO
 
-      i = 100
-      DO WHILE (jat > 100)
-         jat = jat - 100
+      DO WHILE (jat > ref_stride)
+         jat = jat - ref_stride
          jadr = jadr + 1
       END DO
    END SUBROUTINE limit

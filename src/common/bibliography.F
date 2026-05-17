@@ -86,7 +86,8 @@ MODULE bibliography
                             Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Ditler2022, Mattiat2019, &
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
-                            Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Freeman1977, Gruneis2009, &
+                            Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Wittmann2024, Freeman1977, &
+                            Gruneis2009, &
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
@@ -1861,6 +1862,13 @@ CONTAINS
                          title="Extension and evaluation of the D4 London-dispersion model for periodic systems", &
                          source="Phys. Chem. Chem. Phys.", volume="22", pages="8499-8512", &
                          year=2020, doi="10.1039/d0cp00502a")
+
+      CALL add_reference(key=Wittmann2024, &
+                         authors=s2a("L. Wittmann", "I. Gordiy", "M. Friede", &
+                                     "B. Helmich-Paris", "S. Grimme", "A. Hansen", "M. Bursch"), &
+                         title="Extension of the D3 and D4 London dispersion corrections to the full actinides series", &
+                         source="Phys. Chem. Chem. Phys.", volume="26", pages="21379-21394", &
+                         year=2024, doi="10.1039/d4cp01514b")
 
       CALL add_reference(key=Freeman1977, &
                          authors=s2a("D. L. Freeman"), &
