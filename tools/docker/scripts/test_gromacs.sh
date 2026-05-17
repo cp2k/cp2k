@@ -8,6 +8,9 @@ source /opt/cp2k-toolchain/install/setup
 cd build
 ninja install &> install.log
 
+# shellcheck disable=SC1091
+source /opt/cp2k/cp2k_env
+
 echo -e "\n========== Testing CP2K CMake package config =========="
 mkdir -p /tmp/cp2k_config_smoke
 cat > /tmp/cp2k_config_smoke/CMakeLists.txt << 'EOF'
@@ -29,7 +32,7 @@ if(NOT EXISTS "${CP2K_IMPORTED_LOCATION}")
 endif()
 EOF
 if cmake -S /tmp/cp2k_config_smoke -B /tmp/cp2k_config_smoke/build \
-  -DCMAKE_PREFIX_PATH="/opt/cp2k" &> cp2k_config_cmake.out; then
+  &> cp2k_config_cmake.out; then
   echo "CP2K CMake package config works."
 else
   echo -e "failed.\n\n"

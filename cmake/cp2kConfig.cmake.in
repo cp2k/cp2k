@@ -61,17 +61,22 @@ if(NOT TARGET cp2k::cp2k)
 
   if(@CP2K_USE_DLAF@)
     set(CP2K_USE_DLAF @CP2K_USE_DLAF@)
-    find_dependency(DLAF REQUIRED)
+    find_dependency(DLAFFortran 0.4.0 REQUIRED)
   endif()
 
   if(@CP2K_USE_LIBXC@)
     set(CP2K_USE_LIBXC @CP2K_USE_LIBXC@)
-    find_dependency(LibXC 7 REQUIRED CONFIG)
+    find_dependency(Libxc 7 REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_COSMA@)
     set(CP2K_USE_COSMA @CP2K_USE_COSMA@)
     find_dependency(cosma REQUIRED)
+    if(NOT TARGET cp2k::cosma)
+      add_library(cp2k::cosma INTERFACE IMPORTED)
+      target_link_libraries(cp2k::cosma INTERFACE cosma::cosma_prefixed_pxgemm
+                                                  cosma::cosma)
+    endif()
   endif()
 
   if(@CP2K_USE_MPI@)
@@ -96,17 +101,17 @@ if(NOT TARGET cp2k::cp2k)
 
   if(@CP2K_USE_SPGLIB@)
     set(CP2K_USE_SPGLIB @CP2K_USE_SPGLIB@)
-    find_dependency(LibSPG REQUIRED)
+    find_dependency(Spglib REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_SPLA@)
     set(CP2K_USE_SPLA @CP2K_USE_SPLA@)
-    find_dependency(SPLA REQUIRED)
+    find_dependency(SPLA REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_SIRIUS@)
     set(CP2K_USE_SIRIUS @CP2K_USE_SIRIUS@)
-    find_dependency(sirius REQUIRED)
+    find_dependency(sirius 7.7.0 REQUIRED)
   endif()
 
   if(@CP2K_USE_PLUMED@)
@@ -115,7 +120,7 @@ if(NOT TARGET cp2k::cp2k)
   endif()
 
   if(@CP2K_USE_LIBTORCH@)
-    set(CP2K_USE_TORCH @CP2K_USE_TORCH@)
+    set(CP2K_USE_LIBTORCH @CP2K_USE_LIBTORCH@)
     find_dependency(Torch REQUIRED)
   endif()
 
@@ -131,12 +136,12 @@ if(NOT TARGET cp2k::cp2k)
 
   if(@CP2K_USE_DEEPMD@)
     set(CP2K_USE_DEEPMD @CP2K_USE_DEEPMD@)
-    find_dependency(DeepMD REQUIRED)
+    find_dependency(DeePMD REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_PEXSI@)
     set(CP2K_USE_PEXSI @CP2K_USE_PEXSI@)
-    find_dependency(PEXSI REQUIRED)
+    find_dependency(PEXSI REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_ACE@)
@@ -145,18 +150,54 @@ if(NOT TARGET cp2k::cp2k)
   endif()
 
   if(@CP2K_USE_LIBSMEAGOL@)
-    set(CP2K_USE_ACE @CP2K_USE_LIBSMEAGOL@)
+    set(CP2K_USE_LIBSMEAGOL @CP2K_USE_LIBSMEAGOL@)
     find_dependency(libsmeagol REQUIRED)
   endif()
 
+  if(@CP2K_USE_MIMIC@)
+    set(CP2K_USE_MIMIC @CP2K_USE_MIMIC@)
+    find_dependency(MiMiC REQUIRED)
+  endif()
+
+  if(@CP2K_USE_OPENPMD@)
+    set(CP2K_USE_OPENPMD @CP2K_USE_OPENPMD@)
+    find_dependency(openPMD 0.16.1 REQUIRED)
+  endif()
+
   if(@CP2K_USE_VORI@)
-    set(CP2K_USE_VORI @CP2K_USE_LIBVORI@)
+    set(CP2K_USE_VORI @CP2K_USE_VORI@)
     find_dependency(LibVORI REQUIRED)
   endif()
 
   if(@CP2K_USE_GREENX@)
     set(CP2K_USE_GREENX @CP2K_USE_GREENX@)
-    find_dependency(greenX REQUIRED)
+    find_dependency(greenX REQUIRED CONFIG)
+    if(NOT TARGET cp2k::greenx)
+      add_library(cp2k::greenx INTERFACE IMPORTED)
+      target_link_libraries(cp2k::greenx INTERFACE greenX::GXCommon
+                                                   greenX::LibGXAC
+                                                   greenX::LibGXMiniMax)
+    endif()
+  endif()
+
+  if(@CP2K_USE_TBLITE@)
+    set(CP2K_USE_TBLITE @CP2K_USE_TBLITE@)
+    find_dependency(mctc-lib REQUIRED)
+    find_dependency(toml-f REQUIRED)
+    find_dependency(dftd4 REQUIRED)
+    find_dependency(s-dftd3 REQUIRED)
+    find_dependency(tblite REQUIRED)
+    if(NOT TARGET cp2k::tblite)
+      add_library(cp2k::tblite INTERFACE IMPORTED)
+      target_link_libraries(
+        cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
+                               toml-f::toml-f s-dftd3::s-dftd3)
+    endif()
+  endif()
+
+  if(@CP2K_USE_TREXIO@)
+    set(CP2K_USE_TREXIO @CP2K_USE_TREXIO@)
+    find_dependency(TrexIO REQUIRED)
   endif()
 
   include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")
