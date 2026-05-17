@@ -83,6 +83,7 @@ EOF
 
       cmake \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_LIBDIR="lib" \
         -DBUILD_SHARED_LIBS=YES \
         -DBUILD_FORTRAN_API=YES \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \

@@ -270,12 +270,12 @@ EOF
   cat << EOF
 Done! Installed binaries are now available in: ${CMAKE_INSTALL_PREFIX}/bin
 
+Please always source this script to load CP2K environment before running CP2K:
+  source ${CMAKE_INSTALL_PREFIX}/cp2k_env
+
 It's suggested to run regtests after installation:
   ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
 Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for help message.
-
-Please always source this script to load CP2K environment before running CP2K:
-  source ${CMAKE_INSTALL_PREFIX}/cp2k_env
 
 If you want to clean the build cache (except cached CMake files) after
 installation, run:
