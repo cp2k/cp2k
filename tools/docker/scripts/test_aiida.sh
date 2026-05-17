@@ -12,7 +12,6 @@ apt-get install -qq --no-install-recommends \
   python3-pip \
   python3-venv \
   python3-dev \
-  python3-reentry \
   postgresql \
   libpq-dev \
   rabbitmq-server \
@@ -39,13 +38,13 @@ export CC=gcc
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
 cd /opt/aiida-cp2k/
-pip3 install './[dev]'
+# For compatibility of Python 3.14
+# pip3 install './[dev]'
+pip3 install .
+pip3 install 'pytest>=8.4' 'pgtest~=1.3'
 
 echo -e "\n========== Configuring AiiDA =========="
 AS_UBUNTU_USER="sudo -u ubuntu -H"
-
-#update reentry cache
-$AS_UBUNTU_USER reentry scan
 
 # start RabbitMQ
 service rabbitmq-server start
