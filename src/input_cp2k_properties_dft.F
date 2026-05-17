@@ -2081,9 +2081,9 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="WRITE_NVAL", &
-                          description="Controls whether the [Nval] block is written to the MOLDEN file.", &
-                          usage="WRITE_NVAL TRUE", &
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_PSEUDO", &
+                          description="Controls whether the [Pseudo] block is written to the MOLDEN file.", &
+                          usage="WRITE_PSEUDO TRUE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
