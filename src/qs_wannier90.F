@@ -471,7 +471,6 @@ CONTAINS
             WRITE (iunit, "(A,I5)") "num_bands    = ", num_bands
          END IF
          IF (use_bloch_phases) THEN
-            WRITE (iunit, "(A)") "use_bloch_phases = true"
             ! Keep the external Wannier90 projection matrix fully defined for
             ! complete-band Bloch-phase subspaces by writing explicit identity projections.
             WRITE (iunit, "(A)") "! CP2K writes identity projections for Bloch-phase complete subspaces."
@@ -485,6 +484,7 @@ CONTAINS
          END DO
          WRITE (iunit, "(A,/)") "end unit_cell_cart"
          WRITE (iunit, "(/,A)") "begin atoms_cart"
+         WRITE (iunit, "(A)") "bohr"
          DO i = 1, num_atoms
             WRITE (iunit, "(A,3F15.10)") atom_symbols(i), atoms_cart(1:3, i)
          END DO

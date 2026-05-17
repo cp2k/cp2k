@@ -27,8 +27,7 @@ WF_RE = re.compile(
     r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?)"
 )
 OMEGA_RE = re.compile(
-    r"Omega\s+(I|D|OD|Total)\s*=\s*"
-    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?)"
+    r"Omega\s+(I|D|OD|Total)\s*=\s*" r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?)"
 )
 ERROR_RE = re.compile(r"(^|\s)(ERROR:|Error in|Exiting\.\.\.\.\.\.\.)")
 
@@ -84,7 +83,9 @@ def parse_wout(seed: str, workdir: Path) -> WoutSummary:
     required = {"I", "D", "OD", "Total"}
     missing = required - omegas.keys()
     if missing:
-        raise ValueError(f"{path}: missing omega field(s): {', '.join(sorted(missing))}")
+        raise ValueError(
+            f"{path}: missing omega field(s): {', '.join(sorted(missing))}"
+        )
 
     return WoutSummary(
         seed=seed,
@@ -112,7 +113,9 @@ def run_wannier90(executable: str, seed: str, workdir: Path, timeout: float) -> 
     )
     (workdir / f"{seed}.wannier90.stdout").write_text(result.stdout, encoding="utf-8")
     if result.returncode != 0:
-        raise RuntimeError(f"{executable} {seed} failed with exit code {result.returncode}")
+        raise RuntimeError(
+            f"{executable} {seed} failed with exit code {result.returncode}"
+        )
 
 
 def print_summary(summary: WoutSummary) -> None:
@@ -200,17 +203,29 @@ def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="run and/or parse one Wannier90 seed")
+    run_parser = subparsers.add_parser(
+        "run", help="run and/or parse one Wannier90 seed"
+    )
     run_parser.add_argument("seed", help="Wannier90 seed name")
-    run_parser.add_argument("--workdir", default=".", help="directory containing the seed files")
-    run_parser.add_argument("--run", action="store_true", help="run wannier90.x before parsing")
-    run_parser.add_argument("--executable", default="wannier90.x", help="Wannier90 executable")
-    run_parser.add_argument("--timeout", type=float, default=300.0, help="execution timeout in seconds")
+    run_parser.add_argument(
+        "--workdir", default=".", help="directory containing the seed files"
+    )
+    run_parser.add_argument(
+        "--run", action="store_true", help="run wannier90.x before parsing"
+    )
+    run_parser.add_argument(
+        "--executable", default="wannier90.x", help="Wannier90 executable"
+    )
+    run_parser.add_argument(
+        "--timeout", type=float, default=300.0, help="execution timeout in seconds"
+    )
     run_parser.add_argument("--max-omega-total", type=float, default=None)
     run_parser.add_argument("--require-all-done", action="store_true")
     run_parser.set_defaults(func=command_run)
 
-    compare_parser = subparsers.add_parser("compare", help="compare two parsed .wout files")
+    compare_parser = subparsers.add_parser(
+        "compare", help="compare two parsed .wout files"
+    )
     compare_parser.add_argument("left_seed")
     compare_parser.add_argument("right_seed")
     compare_parser.add_argument("--left-workdir", default=".")
