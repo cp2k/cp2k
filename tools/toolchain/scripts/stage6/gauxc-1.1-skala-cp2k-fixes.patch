@@ -104,6 +104,81 @@ index 77563cc..7078e78 100644
    );
 
    GAUXC_MPI_CODE(
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_grad.hpp
+@@ -221,7 +221,7 @@ eval_exc_grad_( int64_t m, int64_t n, const value_type* Ps, int64_t ldps,
+     else                         lwd->eval_collocation_gradient( &device_data );
+
+     // Evaluate X matrix and V vars
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0;
++    const auto xmat_fac = 1.0;
+     const auto need_lapl = func.needs_laplacian();
+     const auto need_xmat_grad = not func.is_lda();
+     auto do_xmat_vvar = [&](density_id den_id) {
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_exc_vxc.hpp
+@@ -312,7 +312,7 @@ eval_exc_vxc_( int64_t m, int64_t n, const value_type* Ps, int64_t ldps,
+     else if( func.is_gga() ) lwd->eval_collocation_gradient( &device_data );
+     else                     lwd->eval_collocation( &device_data );
+
+-    const double xmat_fac = is_rks ? 2.0 : 1.0;
++    const double xmat_fac = 1.0;
+     const bool need_xmat_grad = func.is_mgga();
+
+     // Evaluate X matrix and V vars
+diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
+--- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
++++ b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_fxc_contraction.hpp
+@@ -243,7 +243,7 @@ eval_fxc_contraction_( int64_t m, int64_t n, const value_type* Ps, int64_t ldps,
+       else if( func.is_gga() ) lwd->eval_collocation_gradient( &device_data );
+       else                     lwd->eval_collocation( &device_data );
+
+-      const double xmat_fac = is_rks ? 2.0 : 1.0;
++      const double xmat_fac = 1.0;
+       const bool need_xmat_grad = func.is_mgga();
+
+       // Evaluate X matrix and V vars
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_grad.hpp
+@@ -329,9 +329,9 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+     }
+
+
+-    // Evaluate X matrix (2 * P * B/Bx/By/Bz) -> store in Z
++    // Evaluate X matrix (P * B/Bx/By/Bz) -> store in Z
+     // XXX: This assumes that bfn + gradients are contiguous in memory
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0;
++    const auto xmat_fac = 1.0;
+     const int  xmat_len = func.is_lda() ? 1 : 4;
+     lwd->eval_xmat( xmat_len*npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+                     xNmat, nbe, nbe_scr );
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_exc_vxc.hpp
+@@ -385,7 +385,7 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+
+
+     // Evaluate X matrix (fac * P * B) -> store in Z
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0; // TODO Fix for spinor RKS input
++    const auto xmat_fac = 1.0;
+     lwd->eval_xmat( mgga_dim_scal * npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+       zmat, nbe, nbe_scr );
+
+diff --git a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
+--- a/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
++++ b/src/xc_integrator/replicated/host/reference_replicated_xc_host_integrator_fxc_contraction.hpp
+@@ -387,7 +387,7 @@ void ReferenceReplicatedXCHostIntegrator<ValueType>::
+
+
+     // Evaluate X matrix (fac * P * B) -> store in Z
+-    const auto xmat_fac = is_rks ? 2.0 : 1.0; // TODO Fix for spinor RKS input
++    const auto xmat_fac = 1.0;
+     lwd->eval_xmat( mgga_dim_scal * npts, nbf, nbe, submat_map, xmat_fac, Ps, ldps, basis_eval, nbe,
+       zmat, nbe, nbe_scr );
+     // X matrix for Pz
 diff --git a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp b/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp
 index 387f0bd..fd661d3 100644
 --- a/src/xc_integrator/replicated/device/incore_replicated_xc_device_integrator_onedft.hpp
