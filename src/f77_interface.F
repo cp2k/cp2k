@@ -148,6 +148,10 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
+   USE xc_gauxc_interface,              ONLY: cp_gauxc_status_type,&
+                                              gauxc_check_status,&
+                                              gauxc_finalize,&
+                                              gauxc_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -226,6 +230,7 @@ CONTAINS
       INTEGER                                            :: offload_device_count, unit_nr
       INTEGER, POINTER                                   :: active_device_id
       INTEGER, TARGET                                    :: offload_chosen_device
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_logger_type), POINTER                      :: logger
 
       IF (.NOT. module_initialized) THEN
@@ -300,6 +305,12 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
+#if defined(__parallel)
+         CALL gauxc_init(default_para_env%get_handle(), gauxc_status)
+#else
+         CALL gauxc_init(status=gauxc_status)
+#endif
+         CALL gauxc_check_status(gauxc_status)
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -324,6 +335,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
 
       INTEGER                                            :: ienv
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
 
 !sample peak memory
 
@@ -344,6 +356,8 @@ CONTAINS
          CALL pw_gpu_finalize()
          CALL pw_fpga_finalize()
          IF (cp_sirius_is_initialized()) CALL cp_sirius_finalize()
+         CALL gauxc_finalize(gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
 

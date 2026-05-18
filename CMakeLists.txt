@@ -135,6 +135,7 @@ option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GAUXC "Enable GauXC support" OFF)
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
@@ -684,6 +685,17 @@ if(CP2K_USE_LIBXC)
   find_package(Libxc 7 REQUIRED CONFIG)
 endif()
 
+if(CP2K_USE_GAUXC)
+  find_package(Threads REQUIRED)
+  find_package(gauxc REQUIRED CONFIG)
+  if(CP2K_USE_MPI AND NOT GAUXC_HAS_MPI)
+    message(
+      FATAL_ERROR
+        "CP2K is being configured with MPI, but a non-MPI installation of GauXC has been found."
+    )
+  endif()
+endif()
+
 if(CP2K_USE_HDF5)
   find_package(HDF5 REQUIRED COMPONENTS C Fortran)
 endif()
@@ -1074,6 +1086,12 @@ if(CP2K_USE_LIBXC)
     "    - libraries: ${Libxc_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_GAUXC)
+  message("  - GauXC\n" # let below line separate
+          "    - version:  ${gauxc_VERSION}\n"
+          "    - install directories:  ${gauxc_DIR}")
+endif()
+
 if(CP2K_USE_SPGLIB)
   message("  - Spglib\n"
           "    - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
@@ -1312,6 +1330,10 @@ endif()
 
 if(NOT CP2K_USE_LIBXC)
   message("   - LibXC")
+endif()
+
+if(NOT CP2K_USE_GAUXC)
+  message("   - GauXC")
 endif()
 
 if(NOT CP2K_USE_VORI)

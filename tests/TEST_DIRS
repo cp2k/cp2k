@@ -126,6 +126,7 @@ QS/regtest-ot-2
 Fist/regtest-5
 QS/regtest-kp-hfx-ri-2                                      libint libxc !ifx
 QS/regtest-xc
+QS/regtest-gauxc                                            gauxc
 SE/regtest-3-2
 QS/regtest-almo-2
 QS/regtest-dft-vdw-corr-3                                   libxc
