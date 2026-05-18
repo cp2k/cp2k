@@ -2147,7 +2147,7 @@ CONTAINS
                          title="Fermi energy determination for advanced smearing techniques", &
                          source="Phys. Rev. B", volume="107", pages="195122", &
                          year=2023, doi="10.1103/PhysRevB.107.195122")
-      
+
       CALL add_reference(key=Schreder2021, &
                          authors=s2a("L. Schreder, S. Luber"), &
                          title="Local approaches for electric dipole moments in periodic "// &
@@ -2169,7 +2169,6 @@ CONTAINS
                          "real-time time-dependent density functional theory", &
                          source="J. Chem. Phys.", volume="160", pages="214117", &
                          year=2024, doi="10.1063/5.0203442")
-
 
    END SUBROUTINE add_all_references
 

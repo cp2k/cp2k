@@ -38,6 +38,7 @@ MODULE md_run
    USE free_energy_types,               ONLY: fe_env_create,&
                                               free_energy_type
    USE global_types,                    ONLY: global_environment_type
+   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE input_constants,                 ONLY: &
         ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
@@ -97,7 +98,6 @@ MODULE md_run
    USE virial_types,                    ONLY: virial_type
    USE wiener_process,                  ONLY: create_wiener_process,&
                                               create_wiener_process_cv
-   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -142,7 +142,7 @@ CONTAINS
       ! for the entire first MD step so wavefunction propagation delivers
       ! a near-converged C_occ to step 1, making the ACE BUILD accurate.
       CALL hfx_ace_set_dynamic_mode(.TRUE.)
-      
+
       para_env => force_env%para_env
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")

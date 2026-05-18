@@ -75,8 +75,7 @@ MODULE hfx_ace_methods
                                               cp_logger_type
    USE hfx_admm_utils,                  ONLY: hfx_ks_matrix
    USE hfx_types,                       ONLY: hfx_type
-   USE input_section_types,             ONLY: section_vals_type, &
-                                              section_vals_val_get  
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -169,6 +168,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(scf_control_type), POINTER                    :: scf_control
+
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Lin2016ACE)
@@ -191,7 +191,7 @@ CONTAINS
       CALL get_qs_env(qs_env, scf_control=scf_control)
       IF (scf_control%use_ot) &
          CPABORT("ACE: OT doesn't work, use diagonalization-based SCF.")
-      
+
       rebuild_freq = MAX(1, ace_rebuild_frequency)
 
       ! ------------------------------------------------------------------
@@ -853,7 +853,7 @@ CONTAINS
       ace_step_counter = 0
       ace_W_ref_norm = 0.0_dp
       ace_geo_step = 0
-      ace_dynamic_mode  = .FALSE.   ! ADDED: reset dynamic mode on release, so it must be explicitly re-enabled for GEO_OPT/MD runs
+      ace_dynamic_mode = .FALSE.   ! ADDED: reset dynamic mode on release, so it must be explicitly re-enabled for GEO_OPT/MD runs
 
       IF (iw > 0) WRITE (iw, '(T2,A)') 'ACE | storage released, counters reset'
 
@@ -864,10 +864,15 @@ CONTAINS
    !>        Call this once from the geo_opt or MD driver before the first SCF.
    !> \param is_dynamic .TRUE. for GEO_OPT/MD, .FALSE. to reset.
    ! **************************************************************************************************
-      SUBROUTINE hfx_ace_set_dynamic_mode(is_dynamic)
-         LOGICAL, INTENT(IN) :: is_dynamic
-         ace_dynamic_mode = is_dynamic
-      END SUBROUTINE hfx_ace_set_dynamic_mode
+! **************************************************************************************************
+!> \brief ...
+!> \param is_dynamic ...
+! **************************************************************************************************
+   SUBROUTINE hfx_ace_set_dynamic_mode(is_dynamic)
+      LOGICAL, INTENT(IN)                                :: is_dynamic
+
+      ace_dynamic_mode = is_dynamic
+   END SUBROUTINE hfx_ace_set_dynamic_mode
 
    ! **************************************************************************************************
    !> \brief Private helper: call hfx_ks_matrix with or without ext_xc_section.
@@ -881,6 +886,18 @@ CONTAINS
    !> \param v_tau_rspace ...
    !> \param ext_xc_section ...
    ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param v_rspace_new ...
+!> \param v_tau_rspace ...
+!> \param ext_xc_section ...
+! **************************************************************************************************
    SUBROUTINE hfx_call(qs_env, ks_matrix, rho, energy, &
                        calculate_forces, just_energy, &
                        v_rspace_new, v_tau_rspace, ext_xc_section)

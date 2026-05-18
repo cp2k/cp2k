@@ -28,6 +28,7 @@ MODULE geo_opt
                                               gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
                                               gopt_param_type
+   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE input_constants,                 ONLY: default_bfgs_method_id,&
                                               default_cg_method_id,&
                                               default_lbfgs_method_id
@@ -35,7 +36,6 @@ MODULE geo_opt
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
-   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
@@ -83,7 +83,7 @@ CONTAINS
       ! delivers a near-converged C_occ to step 1, making the ACE
       ! projector BUILD there accurate.
       CALL hfx_ace_set_dynamic_mode(.TRUE.)
-      
+
       root_section => force_env%root_section
       geo_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
 
