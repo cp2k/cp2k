@@ -836,42 +836,42 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, &
-                           name="ACE",  &
-                           description="Parameters for the Adaptively Compressed Exchange (ACE) "// &
-                           "operator. ACE replaces the full exchange matrix with a "// &
-                           "low-rank projector K_ACE = -W*W^T after an initial "// &
-                           "full HFX build, reducing cost of subsequent SCF steps. "// &
-                           "NOTE: ACE requires diagonalization-based SCF. "// &
-                           "It is incompatible with orbital transformation (OT) methods "// &
-                           "because OT does not construct MO coefficients.", &
-                           n_keywords=2, &
-                           n_subsections=0, &
-                           repeats=.FALSE., &
-                           citations=[Lin2016ACE])
+                          name="ACE", &
+                          description="Parameters for the Adaptively Compressed Exchange (ACE) "// &
+                          "operator. ACE replaces the full exchange matrix with a "// &
+                          "low-rank projector K_ACE = -W*W^T after an initial "// &
+                          "full HFX build, reducing cost of subsequent SCF steps. "// &
+                          "NOTE: ACE requires diagonalization-based SCF. "// &
+                          "It is incompatible with orbital transformation (OT) methods "// &
+                          "because OT does not construct MO coefficients.", &
+                          n_keywords=2, &
+                          n_subsections=0, &
+                          repeats=.FALSE., &
+                          citations=[Lin2016ACE])
 
-      NULLIFY(keyword)
+      NULLIFY (keyword)
 
       ! --- ACTIVE ---
-      CALL keyword_create(keyword,  __LOCATION__, &
-           name="ACTIVE", &
-           description="Enable the ACE approximation for HFX. "// &
-                       "When .TRUE., the exchange matrix is replaced by "// &
-                       "the ACE projector after the first full build.", &
-           usage="ACTIVE .TRUE.", &
-           default_l_val=.FALSE., &
-           lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="ACTIVE", &
+                          description="Enable the ACE approximation for HFX. "// &
+                          "When .TRUE., the exchange matrix is replaced by "// &
+                          "the ACE projector after the first full build.", &
+                          usage="ACTIVE .TRUE.", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! --- REBUILD_FREQUENCY ---
       CALL keyword_create(keyword, __LOCATION__, &
-           name="REBUILD_FREQUENCY", &
-           description="Rebuild the ACE projectors W every N SCF steps. "// &
-                       "N=1 means rebuild every step (identical to full HFX, "// &
-                       "use for testing only). N=10-20 is typical for production. "// &
-                       "Projectors are always rebuilt when the structure changes.", &
-           usage="REBUILD_FREQUENCY 20", &
-           default_i_val=20)
+                          name="REBUILD_FREQUENCY", &
+                          description="Rebuild the ACE projectors W every N SCF steps. "// &
+                          "N=1 means rebuild every step (identical to full HFX, "// &
+                          "use for testing only). N=10-20 is typical for production. "// &
+                          "Projectors are always rebuilt when the structure changes.", &
+                          usage="REBUILD_FREQUENCY 20", &
+                          default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

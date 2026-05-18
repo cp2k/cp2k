@@ -1183,7 +1183,7 @@ CONTAINS
                          "via pole expansion and selected inversion", &
                          source="J. Phys. Condens. Matter", volume="25", pages="295501", &
                          year=2013, doi="10.1088/0953-8984/25/29/295501")
-      
+
       CALL add_reference(key=Lin2016ACE, &
                          authors=s2a("L. Lin"), &
                          title="Adaptively Compressed Exchange Operator", &
@@ -2148,27 +2148,7 @@ CONTAINS
                          source="Phys. Rev. B", volume="107", pages="195122", &
                          year=2023, doi="10.1103/PhysRevB.107.195122")
 
-      CALL add_reference(key=Schreder2021, &
-                         authors=s2a("L. Schreder, S. Luber"), &
-                         title="Local approaches for electric dipole moments in periodic "// &
-                         "systems and their application to real-time time-dependent density "// &
-                         "functional theory", &
-                         source="J. Chem. Phys.", volume="155", pages="134116", &
-                         year=2021, doi="10.1063/5.0058793")
 
-      CALL add_reference(key=Schreder2024_1, &
-                         authors=s2a("L. Schreder, S. Luber"), &
-                         title="Chiral Spectroscopy of Bulk Systems with Propagated Localized "// &
-                         "Orbitals", &
-                         source="J. Chem. Theory Comput.", volume="20", pages="3894", &
-                         year=2024, doi="10.1021/acs.jctc.4c00235")
-
-      CALL add_reference(key=Schreder2024_2, &
-                         authors=s2a("L. Schreder, S. Luber"), &
-                         title="Propagated (fragment) Pipek–Mezey Wannier functions in "// &
-                         "real-time time-dependent density functional theory", &
-                         source="J. Chem. Phys.", volume="160", pages="214117", &
-                         year=2024, doi="10.1063/5.0203442")
 
    END SUBROUTINE add_all_references
 

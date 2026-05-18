@@ -564,11 +564,11 @@ MODULE hfx_types
       TYPE(hfx_ri_type), POINTER                :: ri_data => NULL()
 
       ! ACE fields
-      LOGICAL  :: use_ace           = .FALSE.
-      INTEGER  :: ace_rebuild_freq  = 20
-   
+      LOGICAL  :: use_ace = .FALSE.
+      INTEGER  :: ace_rebuild_freq = 20
+
       ! ACE pprojectors will be declared in hfx_admm_utils.F
-      LOGICAL  :: ace_is_built      = .FALSE.
+      LOGICAL  :: ace_is_built = .FALSE.
       INTEGER  :: ace_build_counter = 0
    END TYPE hfx_type
 
@@ -1027,7 +1027,7 @@ CONTAINS
             ! ACE section — read only on thread 1 to avoid redundant work
             IF (i_thread == 1) THEN
                hf_sub_section => section_vals_get_subs_vals(hfx_section, "ACE", &
-                                                             i_rep_section=irep)
+                                                            i_rep_section=irep)
                CALL section_vals_get(hf_sub_section, explicit=logic_val)
                IF (logic_val) THEN
                   CALL section_vals_val_get(hf_sub_section, "ACTIVE", &
@@ -2083,8 +2083,8 @@ CONTAINS
             END IF
 
             ! ACE cleanup — just reset scalars, ace_W is managed elsewhere
-            actual_x_data%use_ace          = .FALSE.
-            actual_x_data%ace_is_built     = .FALSE.
+            actual_x_data%use_ace = .FALSE.
+            actual_x_data%ace_is_built = .FALSE.
             actual_x_data%ace_build_counter = 0
          END DO
 
@@ -2927,9 +2927,9 @@ CONTAINS
 
       ! ACE section
       IF (x_data%use_ace .AND. iw > 0) THEN
-         WRITE(UNIT=iw, FMT="(/,T3,A)") &
+         WRITE (UNIT=iw, FMT="(/,T3,A)") &
             "HFX_INFO| ACE (Adaptively Compressed Exchange): ACTIVE"
-         WRITE(UNIT=iw, FMT="(T3,A,T61,I20)") &
+         WRITE (UNIT=iw, FMT="(T3,A,T61,I20)") &
             "HFX_INFO| ACE rebuild frequency:     ", x_data%ace_rebuild_freq
       END IF
 

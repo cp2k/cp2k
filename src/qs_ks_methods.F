@@ -51,10 +51,10 @@ MODULE qs_ks_methods
    USE dft_plus_u,                      ONLY: plus_u
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hartree_local_types,             ONLY: ecoul_1center_type
+   USE hfx_ace_methods,                 ONLY: hfx_ace_ks_matrix
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix,&
                                               hfx_ks_matrix_kp
-   USE hfx_ace_methods,                 ONLY: hfx_ace_ks_matrix
    USE input_constants,                 ONLY: do_ppl_grid,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint,&
@@ -193,16 +193,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, img, ispin, natom, &
-                                                            nimages, nspins
-      LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
-         just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
+      INTEGER                                            :: ace_rebuild_frequency, handle, iatom, &
+                                                            img, ispin, natom, nimages, nspins
+      LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, &
+         gapw_xc, just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
-      INTEGER                                            :: ace_rebuild_frequency
-      LOGICAL                                            :: ace_active
-      TYPE(section_vals_type), POINTER                   :: ace_section
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
@@ -233,7 +230,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
-      TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
+      TYPE(section_vals_type), POINTER                   :: ace_section, &
+                                                            adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
                                                             xc_section, xc_section_gapw_xc
       TYPE(virial_type), POINTER                         :: virial
@@ -664,9 +662,9 @@ CONTAINS
             CALL section_vals_val_get(ace_section, "ACTIVE", l_val=ace_active)
             CALL section_vals_val_get(ace_section, "REBUILD_FREQUENCY", i_val=ace_rebuild_frequency)
          END IF
-      ENDIF
+      END IF
 
-      IF(do_hfx) THEN
+      IF (do_hfx) THEN
          IF (dokp) THEN
             IF (ace_active) THEN
                CPABORT("ACE-HFX for k-points is not implemented yet")
