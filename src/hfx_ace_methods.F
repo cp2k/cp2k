@@ -75,7 +75,8 @@ MODULE hfx_ace_methods
                                               cp_logger_type
    USE hfx_admm_utils,                  ONLY: hfx_ks_matrix
    USE hfx_types,                       ONLY: hfx_type
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_type, &
+                                              section_vals_val_get  
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -123,7 +124,11 @@ MODULE hfx_ace_methods
    LOGICAL, PARAMETER, PRIVATE :: DBG_STALE = .FALSE.
    LOGICAL, PARAMETER, PRIVATE :: DBG_EXACT_EX = .FALSE.
 
-   PUBLIC :: hfx_ace_ks_matrix, hfx_ace_release
+   LOGICAL, SAVE :: ace_dynamic_mode = .FALSE.
+   ! Set to .TRUE. by hfx_ace_set_dynamic_mode before geo_opt/MD starts.
+   ! Stays .FALSE. for ENERGY/ENERGY_FORCE single-point runs.
+
+   PUBLIC :: hfx_ace_ks_matrix, hfx_ace_release, hfx_ace_set_dynamic_mode
 
 CONTAINS
 
@@ -164,7 +169,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(scf_control_type), POINTER                    :: scf_control
-
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Lin2016ACE)
@@ -180,13 +184,14 @@ CONTAINS
       IF (n_rep_hf /= 1) CPABORT("ACE: only one &HF section is supported.")
       IF (dft_control%nimages /= 1) &
          CPABORT("ACE: k-points / multiple images are not implemented.")
+
       ! ACE requires explicit MO coefficients (C_occ) which are only available
       ! with diagonalization-based SCF.  OT never constructs mo_coeff during
       ! the SCF, so the ACE projector build loop would silently get garbage.
       CALL get_qs_env(qs_env, scf_control=scf_control)
       IF (scf_control%use_ot) &
          CPABORT("ACE: OT doesn't work, use diagonalization-based SCF.")
-
+      
       rebuild_freq = MAX(1, ace_rebuild_frequency)
 
       ! ------------------------------------------------------------------
@@ -227,9 +232,9 @@ CONTAINS
       ! delivers a near-converged C_occ to geometry step 1, making the
       ! ACE BUILD there accurate from the first application.
       ! ------------------------------------------------------------------
-      IF (ace_geo_step == 0) THEN
+      IF (ace_geo_step == 0 .AND. ace_dynamic_mode) THEN
          IF (iw > 0) WRITE (iw, '(T2,A)') &
-            'ACE | geo_step=0: full HFX (building reference wavefunction for ACE)'
+            'ACE | geo_step=0 (MD/GEO_OPT): full HFX for reference wavefunction'
          CALL hfx_call(qs_env, ks_matrix, rho, energy, &
                        .FALSE., just_energy, &
                        v_rspace_new, v_tau_rspace, ext_xc_section)
@@ -848,23 +853,34 @@ CONTAINS
       ace_step_counter = 0
       ace_W_ref_norm = 0.0_dp
       ace_geo_step = 0
+      ace_dynamic_mode  = .FALSE.   ! ADDED: reset dynamic mode on release, so it must be explicitly re-enabled for GEO_OPT/MD runs
 
       IF (iw > 0) WRITE (iw, '(T2,A)') 'ACE | storage released, counters reset'
 
    END SUBROUTINE hfx_ace_release
 
-! **************************************************************************************************
-!> \brief Private helper: call hfx_ks_matrix with or without ext_xc_section.
-!> \param qs_env ...
-!> \param ks_matrix ...
-!> \param rho ...
-!> \param energy ...
-!> \param calculate_forces ...
-!> \param just_energy ...
-!> \param v_rspace_new ...
-!> \param v_tau_rspace ...
-!> \param ext_xc_section ...
-! **************************************************************************************************
+   ! **************************************************************************************************
+   !> \brief Mark this run as dynamic (GEO_OPT/MD) so Bypass C fires for geo step 0.
+   !>        Call this once from the geo_opt or MD driver before the first SCF.
+   !> \param is_dynamic .TRUE. for GEO_OPT/MD, .FALSE. to reset.
+   ! **************************************************************************************************
+      SUBROUTINE hfx_ace_set_dynamic_mode(is_dynamic)
+         LOGICAL, INTENT(IN) :: is_dynamic
+         ace_dynamic_mode = is_dynamic
+      END SUBROUTINE hfx_ace_set_dynamic_mode
+
+   ! **************************************************************************************************
+   !> \brief Private helper: call hfx_ks_matrix with or without ext_xc_section.
+   !> \param qs_env ...
+   !> \param ks_matrix ...
+   !> \param rho ...
+   !> \param energy ...
+   !> \param calculate_forces ...
+   !> \param just_energy ...
+   !> \param v_rspace_new ...
+   !> \param v_tau_rspace ...
+   !> \param ext_xc_section ...
+   ! **************************************************************************************************
    SUBROUTINE hfx_call(qs_env, ks_matrix, rho, energy, &
                        calculate_forces, just_energy, &
                        v_rspace_new, v_tau_rspace, ext_xc_section)
