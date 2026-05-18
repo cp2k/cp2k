@@ -1,0 +1,60 @@
+&GLOBAL
+  PROJECT pdb_kind_mass
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM HW1
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &GENPOT
+          ATOMS HW1 HW1
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED
+      &NONBONDED14
+        &GENPOT
+          ATOMS HW1 HW1
+          FUNCTION 0.0*r
+          VARIABLES r
+        &END GENPOT
+      &END NONBONDED14
+      &SPLINE
+        EMAX_ACCURACY 0.5
+        EMAX_SPLINE 0.5
+        RCUT_NB 5.0
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      MASS 2.0
+    &END KIND
+    &PRINT
+      &TOPOLOGY_INFO
+        FILENAME __STD_OUT__
+        UTIL_INFO
+      &END TOPOLOGY_INFO
+    &END PRINT
+    &TOPOLOGY
+      CONNECTIVITY OFF
+      COORDINATE PDB
+      COORD_FILE_NAME pdb_kind_mass.pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

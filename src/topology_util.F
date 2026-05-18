@@ -961,18 +961,29 @@ CONTAINS
          !If we reach this point then we've definitely identified the element..
          !Let's look if an external mass has been defined..
          user_defined = .FALSE.
+         atmname_upper = id2str(atom_info%id_atmname(iatom))
+         CALL uppercase(atmname_upper)
+         upper_sym_1 = TRIM(id2str(atom_info%id_element(iatom)))
+         CALL uppercase(upper_sym_1)
          DO i = 1, SIZE(keyword)
-            atmname_upper = id2str(atom_info%id_atmname(iatom))
-            CALL uppercase(atmname_upper)
             IF (TRIM(atmname_upper) == TRIM(keyword(i)) .AND. mass(i) /= HUGE(0.0_dp)) THEN
                atom_info%atm_mass(iatom) = mass(i)
                user_defined = .TRUE.
                EXIT
             END IF
          END DO
-         ! If name didn't match let's try with the element
+         ! If the atom name did not match, honor element-like KIND names, e.g. KIND H for PDB atom HW1.
+         DO i = 1, SIZE(keyword)
+            IF (user_defined) EXIT
+            IF (LEN_TRIM(keyword(i)) <= 2 .AND. TRIM(upper_sym_1) == TRIM(keyword(i)) .AND. &
+                mass(i) /= HUGE(0.0_dp)) THEN
+               atom_info%atm_mass(iatom) = mass(i)
+               user_defined = .TRUE.
+               EXIT
+            END IF
+         END DO
+         ! If no user mass matched, fall back to the periodic table.
          IF (.NOT. user_defined) THEN
-            upper_sym_1 = TRIM(id2str(atom_info%id_element(iatom)))
             CALL get_ptable_info(symbol=upper_sym_1, ielement=ielem_found, amass=atom_info%atm_mass(iatom))
          END IF
          IF (iw > 0) WRITE (iw, '(7X,A,A5,A,F12.5)') "In topology_set_atm_mass :: element = ", &

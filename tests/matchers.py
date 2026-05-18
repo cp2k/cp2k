@@ -188,6 +188,9 @@ registry["M044"] = GenericMatcher(r"FORCES| Total shell particle force", col=6)
 registry["M045"] = GenericMatcher(r"PRM01", col=2)
 registry["M046"] = GenericMatcher(r"Final value", col=6)
 registry["M047"] = GenericMatcher(r"SUMMARY:: Number of molecule kinds found:", col=7)
+registry["PDB_KIND_H_MASS"] = GenericMatcher(
+    r"NEW ATOMIC KIND\s+HW1\s+([-+0-9.EeDd]+)", col=5, regex=True
+)
 registry["M048"] = GenericMatcher(r"E(Fermi):", col=3)
 registry["M049"] = GenericMatcher(r"Total Multiplication", col=9)
 registry["M050"] = GenericMatcher(r"Direct MP2 Canonical Energy =", col=6)

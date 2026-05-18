@@ -26,6 +26,7 @@
 # more on pbc
 "cubane_15.inp"                         = [{matcher="M007", tol=1.0E-14, ref=0.1143720633}]
 "cubane_0.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.1143720633}]
+"pdb_kind_mass.inp"                     = [{matcher="PDB_KIND_H_MASS", tol=1.0E-14, ref=2.0}]
 #fist debug run
 "cf_genpot_debug.inp"                   = []
 # buck-morse potential
