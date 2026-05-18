@@ -1,15 +1,38 @@
 diff --git a/cmake/gauxc-config.cmake.in b/cmake/gauxc-config.cmake.in
-index c6c4c2d..e980af8 100644
+index c6c4c2d..9ec4f01 100644
 --- a/cmake/gauxc-config.cmake.in
 +++ b/cmake/gauxc-config.cmake.in
-@@ -81,7 +81,6 @@ if ( GAUXC_HAS_ONEDFT )
+@@ -7,3 +7,11 @@ list(PREPEND CMAKE_MODULE_PATH ${GauXC_CMAKE_DIR}/linalg-cmake-modules )
+ include(CMakeFindDependencyMacro)
+-
++if(POLICY CMP0144)
++  cmake_policy(PUSH)
++  cmake_policy(SET CMP0144 NEW)
++  if(DEFINED CMAKE_POLICY_DEFAULT_CMP0144)
++    set(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144 "${CMAKE_POLICY_DEFAULT_CMP0144}")
++  endif()
++  set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
++endif()
++
+ # Always Required Dependencies
+@@ -80,6 +88,5 @@ if ( GAUXC_HAS_ONEDFT )
+   if(CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
      set(CMAKE_CUDA_ARCHITECTURES "${_PREV_CUDA_ARCHS}" CACHE STRING "Restore CUDA archs after Torch override" FORCE)
      message(WARNING "Torch set CMAKE_CUDA_ARCHITECTURES to OFF. Restored previous value: ${CMAKE_CUDA_ARCHITECTURES}")
    endif()
 -  find_dependency ( nlohmann_json )
  endif()
-
- list(REMOVE_AT CMAKE_MODULE_PATH 0)
+@@ -94,1 +102,10 @@ if(NOT TARGET gauxc::gauxc)
+ set(GauXC_LIBRARIES gauxc::gauxc)
++if(POLICY CMP0144)
++  if(DEFINED _GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
++    set(CMAKE_POLICY_DEFAULT_CMP0144 "${_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144}")
++  else()
++    unset(CMAKE_POLICY_DEFAULT_CMP0144)
++  endif()
++  unset(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
++  cmake_policy(POP)
++endif()
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index a9e60fd..29b0949 100644
 --- a/src/CMakeLists.txt
