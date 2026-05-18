@@ -18,11 +18,43 @@ See also [archlinux.org](https://aur.archlinux.org/packages/cp2k).
 
 ## Conda
 
+[Download](https://conda-forge.org/download/) and install [conda](https://conda-forge.org/). The
+available CP2K versions can be listed with
+
 ```shell
-$ conda install conda-forge::cp2k
+$ conda search conda-forge::cp2k
 ```
 
-See also [anaconda.org](https://anaconda.org/conda-forge/cp2k).
+It is recommended to select the latest CP2K version and to install it into a new, dedicated conda
+environment, e.g. `cp2k_env`, to avoid dependency conflicts.
+
+```shell
+$ conda create -n cp2k_env conda-forge::cp2k=2026.1
+```
+
+Activate the new conda environment
+
+```shell
+$ conda activate cp2k_env
+$ cp2k -h -v
+```
+
+and run either OpenMP parallel (e.g. with 4 OpenMP threads)
+
+```shell
+$ export OMP_NUM_THREADS=4
+$ cp2k <cp2k.inp>
+```
+
+or MPI/OpenMP parallel CP2K jobs
+
+```shell
+$ export OMP_NUM_THREADS=2
+$ mpiexec -n 4 cp2k <cp2k.inp>
+```
+
+See also [conda-forge.org](https://conda-forge.org/packages/) and
+[conda-metadata-app.streamlit.app](https://conda-metadata-app.streamlit.app/?q=conda-forge/cp2k).
 
 ## Debian / Ubuntu
 
