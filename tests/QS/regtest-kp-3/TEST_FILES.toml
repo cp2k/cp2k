@@ -13,5 +13,9 @@
 "cc4.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916355782667}]
 "cc5.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356646268}]
 "cc6.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356646268}]
-"cc7.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270019242293365}]
+"cc7.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916355960565},
+                                           {matcher="gext", tol=5e-08, ref=0.0700127407}]
+"cc8.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356641265},
+                                           {matcher="gext", tol=5e-08, ref=0.7099959941}]
+"cc9.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270019242293365}]
 #EOF
