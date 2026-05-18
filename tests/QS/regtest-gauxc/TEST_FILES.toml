@@ -1,0 +1,3 @@
+"1He_SKALA_PBE.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-1.158910965720105}]
+"1He_SKALA_PBE_REFERENCE.inp"           = [{matcher="E_total", tol=1.0E-14, ref=-1.158911115734845}]
+#EOF
