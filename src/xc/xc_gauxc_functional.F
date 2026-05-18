@@ -40,9 +40,9 @@ MODULE xc_gauxc_functional
    USE string_utilities,                ONLY: uppercase
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
-        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_type, gauxc_check_status, &
-        gauxc_compute_xc, gauxc_compute_xc_gradient, gauxc_create_basisset, gauxc_create_grid, &
-        gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
+        cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
+        gauxc_check_status, gauxc_compute_xc, gauxc_compute_xc_gradient, gauxc_create_basisset, &
+        gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
@@ -63,12 +63,13 @@ CONTAINS
 !> \param dbcsr_mat ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_to_dense(dbcsr_mat) RESULT(dense_mat)
+   SUBROUTINE dbcsr_to_dense(dbcsr_mat, dense_mat)
       USE cp_dbcsr_api, ONLY: dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_type, &
                               dbcsr_iterator_start, dbcsr_iterator_next_block, dbcsr_iterator_blocks_left, &
                               dbcsr_iterator_stop, dbcsr_type_antisymmetric, dbcsr_type_symmetric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: dbcsr_mat
-      REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: dense_mat
+      REAL(c_double), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: dense_mat
 
       CHARACTER                                          :: matrix_type
       INTEGER                                            :: col, col_end, col_start, icol, irow, &
@@ -126,9 +127,9 @@ CONTAINS
 
       DEALLOCATE (r_offset, c_offset)
 
-   END FUNCTION dbcsr_to_dense
+   END SUBROUTINE dbcsr_to_dense
 
-! **************************************************************************************************
+! ******, ***********************************************************************************
 !> \brief Convert a dense symmetric matrix to a DBCSR matrix with full upper block structure.
 !>        This creates all upper-triangular blocks, not just those present in a template.
 !>        This is needed because GauXC computes VXC for the full dense density matrix.
@@ -353,7 +354,6 @@ CONTAINS
                                                             radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
@@ -361,6 +361,7 @@ CONTAINS
       TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
+      TYPE(cp_gauxc_xc_gradient_type)                    :: exc_grad
       TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
       TYPE(dbcsr_p_type)                                 :: vxc_zeta_tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
@@ -507,7 +508,7 @@ CONTAINS
          IF (img > 1) THEN
             CPABORT("UNIMPLEMENTED: Handling nimg>1 in k-point integration")
          END IF
-         density_scalar = dbcsr_to_dense(rho_ao(1, img))
+         CALL dbcsr_to_dense(rho_ao(1, img), density_scalar)
          CALL para_env%sum(density_scalar)
          IF (nspins == 1) THEN
             gauxc_xc_result = gauxc_compute_xc( &
@@ -526,15 +527,19 @@ CONTAINS
                           status=gauxc_status, &
                           model=TRIM(model_name))
                CALL gauxc_check_status(gauxc_status)
-               CALL add_gauxc_gradient_to_force(exc_grad, force, atomic_kind_set, para_env)
-               DEALLOCATE (exc_grad)
+               CALL add_gauxc_gradient_to_force( &
+                  exc_grad%exc_grad, &
+                  force, &
+                  atomic_kind_set, &
+                  para_env)
+               DEALLOCATE (exc_grad%exc_grad)
             END IF
          ELSE
             CPASSERT(nspins == 2)
             ! In here:
             ! scalar <- rho_ao(1, :) + rho_ao(2, :)
             ! zeta   <- rho_ao(1, :) - rho_ao(2, :)
-            density_zeta = dbcsr_to_dense(rho_ao(2, img))
+            CALL dbcsr_to_dense(rho_ao(2, img), density_zeta)
             CALL para_env%sum(density_zeta)
             ! Do NOT reorder the following lines!
             density_scalar(:, :) = density_scalar(:, :) + density_zeta(:, :)
@@ -561,8 +566,12 @@ CONTAINS
                           gauxc_status, &
                           model=TRIM(model_name))
                CALL gauxc_check_status(gauxc_status)
-               CALL add_gauxc_gradient_to_force(exc_grad, force, atomic_kind_set, para_env)
-               DEALLOCATE (exc_grad)
+               CALL add_gauxc_gradient_to_force( &
+                  exc_grad%exc_grad, &
+                  force, &
+                  atomic_kind_set, &
+                  para_env)
+               DEALLOCATE (exc_grad%exc_grad)
             END IF
          END IF
 

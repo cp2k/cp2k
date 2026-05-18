@@ -186,6 +186,10 @@ MODULE xc_gauxc_interface
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
    END TYPE cp_gauxc_xc_type
 
+   TYPE cp_gauxc_xc_gradient_type
+      REAL(c_double), ALLOCATABLE, DIMENSION(:) :: exc_grad
+   END TYPE cp_gauxc_xc_gradient_type
+
    CHARACTER(len=*), PARAMETER :: no_gauxc_message = "Compile CP2K with GauXC to use this functionality!"
 
    PUBLIC :: &
@@ -194,6 +198,7 @@ MODULE xc_gauxc_interface
       cp_gauxc_integrator_type, &
       cp_gauxc_molecule_type, &
       cp_gauxc_status_type, &
+      cp_gauxc_xc_gradient_type, &
       cp_gauxc_xc_type, &
       gauxc_check_status, &
       gauxc_compute_xc_gradient, &
@@ -545,7 +550,6 @@ CONTAINS
       TYPE(cp_gauxc_integrator_type)                     :: res
 
 #ifdef __GAUXC
-      CHARACTER(len=default_string_length)               :: int_exec_space_str
       INTEGER(c_int)                                     :: int_exec_space_local
       LOGICAL(c_bool)                                    :: polarized
 
@@ -585,8 +589,15 @@ CONTAINS
 !> \param model ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION gauxc_compute_xc(integrator, density_scalar, density_zeta, nspins, status, model) RESULT(res)
-      TYPE(cp_gauxc_integrator_type), INTENT(IN)            :: integrator
+   FUNCTION gauxc_compute_xc( &
+      integrator, &
+      density_scalar, &
+      density_zeta, &
+      nspins, &
+      status, &
+      model) RESULT(res)
+
+      TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
@@ -617,6 +628,9 @@ CONTAINS
 
       IF (use_onedft) THEN
 #ifndef GAUXC_HAS_ONEDFT
+         MARK_USED(density_zeta_zero)
+         MARK_USED(omp_max_threads_restore)
+         MARK_USED(omp_num_threads_restore)
          CPABORT("GauXC lacks OneDFT support")
 #else
          omp_num_threads_restore = omp_get_num_threads()
@@ -711,7 +725,14 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_compute_xc_gradient( &
-      integrator, density_scalar, density_zeta, nspins, natom, status, model) RESULT(exc_grad)
+      integrator, &
+      density_scalar, &
+      density_zeta, &
+      nspins, &
+      natom, &
+      status, &
+      model) RESULT(res)
+
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
       REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
@@ -719,7 +740,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins, natom
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: model
-      REAL(c_double), ALLOCATABLE, DIMENSION(:)          :: exc_grad
+      TYPE(cp_gauxc_xc_gradient_type)                    :: res
 
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
@@ -727,8 +748,8 @@ CONTAINS
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
       INTEGER                                            :: omp_num_threads_restore, omp_max_threads_restore
 
-      ALLOCATE (exc_grad(3*natom))
-      exc_grad = 0._dp
+      ALLOCATE (res%exc_grad(3*natom))
+      res%exc_grad = 0._dp
 
       use_onedft = .FALSE.
       IF (PRESENT(model)) THEN
@@ -739,6 +760,9 @@ CONTAINS
 
       IF (use_onedft) THEN
 #ifndef GAUXC_HAS_ONEDFT
+         MARK_USED(density_zeta_zero)
+         MARK_USED(omp_max_threads_restore)
+         MARK_USED(omp_num_threads_restore)
          CPABORT("GauXC lacks OneDFT support")
 #else
          omp_num_threads_restore = omp_get_num_threads()
@@ -752,7 +776,7 @@ CONTAINS
                density_scalar, &
                density_zeta_zero, &
                TRIM(model), &
-               exc_grad)
+               res%exc_grad)
             DEALLOCATE (density_zeta_zero)
          ELSE
             CPASSERT(PRESENT(density_zeta))
@@ -762,7 +786,7 @@ CONTAINS
                density_scalar, &
                density_zeta, &
                TRIM(model), &
-               exc_grad)
+               res%exc_grad)
          END IF
          CALL omp_set_num_threads(omp_max_threads_restore)
          CALL omp_set_num_threads(omp_num_threads_restore)
@@ -776,7 +800,7 @@ CONTAINS
             status%status, &
             integrator%integrator, &
             density_scalar, &
-            exc_grad)
+            res%exc_grad)
       ELSE
          CPASSERT(PRESENT(density_zeta))
          CALL gauxc_integrator_eval_exc_grad_uks( &
@@ -784,14 +808,14 @@ CONTAINS
             integrator%integrator, &
             density_scalar, &
             density_zeta, &
-            exc_grad)
+            res%exc_grad)
       END IF
       GAUXC_RETURN_IF_ERROR(status)
 
 #else
       MARK_USED(density_scalar)
       MARK_USED(density_zeta)
-      MARK_USED(exc_grad)
+      MARK_USED(res)
       MARK_USED(integrator)
       MARK_USED(model)
       MARK_USED(natom)
