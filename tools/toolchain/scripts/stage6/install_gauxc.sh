@@ -54,7 +54,7 @@ case "${with_gauxc}" in
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
       cd "GauXC-${gauxc_rev}"
-      patch -l -p1 < "${SCRIPT_DIR}/stage3/gauxc-${gauxc_ver}.patch" \
+      patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         > gauxc_cp2k_rks_density_fix.patch.log 2>&1 || tail_excerpt gauxc_cp2k_rks_density_fix.patch.log
       mkdir -p build
       cd build
@@ -94,8 +94,8 @@ case "${with_gauxc}" in
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage3/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}"
     fi
     GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
     GAUXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
