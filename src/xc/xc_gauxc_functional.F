@@ -293,23 +293,23 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=default_path_length)                 :: model_name
-      CHARACTER(len=default_string_length)               :: model_key, xc_fun_name
+      CHARACTER(len=default_path_length)                 :: model_name, model_name_raw
+      CHARACTER(len=default_string_length)               :: xc_fun_name
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
-      CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
+      CALL section_vals_val_get(functional, "MODEL", c_val=model_name_raw)
+      model_name = ADJUSTL(model_name_raw)
+      CALL uppercase(model_name)
 
       IF (PRESENT(reference)) THEN
-         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+         IF (TRIM(model_name) == "NONE" .OR. TRIM(model_name) == "") THEN
             reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
          ELSE
-            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name)
+            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name_raw)
          END IF
       END IF
       IF (PRESENT(shortform)) THEN
-         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+         IF (TRIM(model_name) == "NONE" .OR. TRIM(model_name) == "") THEN
             shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
          ELSE
             shortform = "GAUXC OneDFT"
@@ -347,11 +347,10 @@ CONTAINS
          "GauXC OneDFT/SKALA nuclear gradients are serial-only because GauXC does not provide "// &
          "MPI eval_exc_grad_onedft yet. Use one MPI rank with OpenMP for ENERGY_FORCE."
 
-      CHARACTER(len=default_path_length)                 :: model_name
+      CHARACTER(len=default_path_length)                 :: model_name, model_name_raw
       CHARACTER(len=default_string_length)               :: grid_type, int_exec_space, &
-                                                            lb_exec_space, model_key, &
-                                                            pruning_scheme, radial_quadrature, &
-                                                            xc_fun_name
+                                                            lb_exec_space, pruning_scheme, &
+                                                            radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_grad
@@ -435,7 +434,7 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "MODEL", &
-         c_val=model_name)
+         c_val=model_name_raw)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "GRID", &
@@ -461,9 +460,9 @@ CONTAINS
          "INT_EXECUTION_SPACE", &
          c_val=int_exec_space)
 
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
-      IF (calculate_forces .AND. TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
+      model_name = ADJUSTL(model_name_raw)
+      CALL uppercase(model_name)
+      IF (calculate_forces .AND. TRIM(model_name) /= "" .AND. TRIM(model_name) /= "NONE" .AND. &
           para_env%num_pe > 1) THEN
          CPABORT(gradient_mpi_abort_message)
       END IF
