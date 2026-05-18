@@ -113,7 +113,7 @@ CONTAINS
     ENDDO
     DO I1=1,cube%npoints(1),stride
        DO I2=1,cube%npoints(2),stride
-        WRITE(iunit,'(6E13.5)') (cube%grid(I1,I2,I3)*mult_fact,I3=1,cube%npoints(3),stride)
+        WRITE(iunit,'(6E13.5E3)') (cube%grid(I1,I2,I3)*mult_fact,I3=1,cube%npoints(3),stride)
        ENDDO
     ENDDO
   END SUBROUTINE write_cube

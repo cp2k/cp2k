@@ -25,9 +25,12 @@ MODULE realspace_grid_cube
 
    PRIVATE
 
-   PUBLIC :: pw_to_cube, cube_to_pw, pw_to_simple_volumetric
+   PUBLIC :: cube_value_format, cube_values_format, cube_to_pw, pw_to_cube, &
+             pw_to_simple_volumetric
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
+   CHARACTER(len=*), PARAMETER          :: cube_value_format = '(E13.5E3)', &
+                                           cube_values_format = '(6E13.5E3)'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
                                            parse_test = .TRUE.
@@ -215,7 +218,7 @@ CONTAINS
                         IF (buf(I3) < 1.E-7_dp) buf(I3) = 0.0_dp
                      END DO
                   END IF
-                  WRITE (unit_nr, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
+                  WRITE (unit_nr, cube_values_format) (buf(I3), I3=L3, U3, my_stride(3))
                END IF
 
                ! this double loop generates so many messages that it can overload
@@ -802,9 +805,9 @@ CONTAINS
                counter = 0
                DO k = lbounds(3), ubounds(3), stride(3)
                   IF (zero_tails .AND. grid%array(i, j, k) < 1.E-7_dp) THEN
-                     WRITE (value, '(E13.5)') 0.0_dp
+                     WRITE (value, cube_value_format) 0.0_dp
                   ELSE
-                     WRITE (value, '(E13.5)') grid%array(i, j, k)
+                     WRITE (value, cube_value_format) grid%array(i, j, k)
                   END IF
                   tmp = TRIM(tmp)//TRIM(value)
                   counter = counter + 1
@@ -974,7 +977,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3)
+                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3)
                   END IF
                END DO
 
@@ -994,7 +997,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3), buf2(I3)
+                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3), buf2(I3)
                   END IF
                END DO
 
