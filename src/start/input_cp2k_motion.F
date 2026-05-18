@@ -39,7 +39,8 @@ MODULE input_cp2k_motion
       helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, helium_solute_intpot_nnp, &
       helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
       ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
-      perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, transformation_normal, transformation_stage
+      perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, propagator_bcmd, transformation_normal, &
+      transformation_stage
    USE input_cp2k_constraints, ONLY: create_constraint_section
    USE input_cp2k_free_energy, ONLY: create_fe_section
    USE input_cp2k_md, ONLY: create_md_section
@@ -1752,10 +1753,10 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="propagator", &
                           description="Specifies the real time propagator to use", &
-                          usage="PROPAGATOR (PIMD|RPMD|CMD)", &
+                          usage="PROPAGATOR (PIMD|RPMD|CMD|BCMD)", &
                           default_i_val=propagator_pimd, &
-                          enum_c_vals=s2a("PIMD", "RPMD", "CMD"), &
-                          enum_i_vals=[propagator_pimd, propagator_rpmd, propagator_cmd])
+                          enum_c_vals=s2a("PIMD", "RPMD", "CMD", "BCMD"), &
+                          enum_i_vals=[propagator_pimd, propagator_rpmd, propagator_cmd, propagator_bcmd])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FIX_CENTROID_POS", &

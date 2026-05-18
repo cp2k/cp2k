@@ -16,7 +16,8 @@
 !>                 [Felix Uhl
 ! **************************************************************************************************
 MODULE pint_normalmode
-   USE input_constants,                 ONLY: propagator_cmd,&
+   USE input_constants,                 ONLY: propagator_bcmd,&
+                                              propagator_cmd,&
                                               propagator_pimd,&
                                               propagator_rpmd
    USE input_section_types,             ONLY: section_vals_type,&
@@ -105,9 +106,10 @@ CONTAINS
       END IF
 
       !Use different normal mode transformations depending on the propagator
-      IF (propagator == propagator_pimd .OR. propagator == propagator_cmd) THEN
+      IF (propagator == propagator_pimd .OR. propagator == propagator_cmd .OR. &
+          propagator == propagator_bcmd) THEN
 
-         IF (propagator == propagator_pimd) THEN
+         IF (propagator == propagator_pimd .OR. propagator == propagator_bcmd) THEN
             normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
          ELSE IF (propagator == propagator_cmd) THEN
             normalmode_env%harm = p*kT*kT*gamma_parameter*gamma_parameter

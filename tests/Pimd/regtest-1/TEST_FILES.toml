@@ -18,4 +18,5 @@
 "water-in-helium-lastforce.inp"         = [{matcher="M009", tol=1e-13, ref=1.0708166830830485E-003}]
 "h2o_cmd_nose.inp"                      = [{matcher="M009", tol=1e-13, ref=2.5049926484361770E-002}]
 "h2o_cmd_pile.inp"                      = [{matcher="M009", tol=1e-13, ref=6.7246877655376420E-003}]
+"h2o_bcmd.inp"                          = [{matcher="M009", tol=3e-14, ref=1.1854234994934626E-002}]
 #EOF

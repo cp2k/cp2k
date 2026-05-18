@@ -13,7 +13,8 @@
 !>      10.2014 created [Felix Uhl]
 ! **************************************************************************************************
 MODULE pint_pile
-   USE input_constants,                 ONLY: propagator_cmd
+   USE input_constants,                 ONLY: propagator_bcmd,&
+                                              propagator_cmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -71,7 +72,7 @@ CONTAINS
       pint_section => section_vals_get_subs_vals(pint_env%input, "MOTION%PINT")
       CALL section_vals_val_get(pint_section, "PROPAGATOR", i_val=i_propagator)
 
-      IF (i_propagator == propagator_cmd) THEN
+      IF (i_propagator == propagator_cmd .OR. i_propagator == propagator_bcmd) THEN
          pile_therm%tau = 0.0_dp
       END IF
 
@@ -89,15 +90,25 @@ CONTAINS
       ELSE
          pile_therm%g_fric(1) = 1.0_dp/pile_therm%tau
       END IF
-      DO i = 2, p
-         pile_therm%g_fric(i) = 2.0_dp*pile_therm%lamb*SQRT(normalmode_env%lambda(i))
-      END DO
-      DO i = 1, p
-         ex = -dti2*pile_therm%g_fric(i)
-         pile_therm%c1(i) = EXP(ex)
-         ex = pile_therm%c1(i)*pile_therm%c1(i)
-         pile_therm%c2(i) = SQRT(1.0_dp - ex)
-      END DO
+      IF (i_propagator == propagator_bcmd) THEN
+         pile_therm%c1(1) = EXP(-dti2*pile_therm%g_fric(1))
+         ex = pile_therm%c1(1)*pile_therm%c1(1)
+         pile_therm%c2(1) = SQRT(1.0_dp - ex)
+         DO i = 2, p
+            pile_therm%c1(i) = 0.0_dp
+            pile_therm%c2(i) = 1.0_dp
+         END DO
+      ELSE
+         DO i = 2, p
+            pile_therm%g_fric(i) = 2.0_dp*pile_therm%lamb*SQRT(normalmode_env%lambda(i))
+         END DO
+         DO i = 1, p
+            ex = -dti2*pile_therm%g_fric(i)
+            pile_therm%c1(i) = EXP(ex)
+            ex = pile_therm%c1(i)*pile_therm%c1(i)
+            pile_therm%c2(i) = SQRT(1.0_dp - ex)
+         END DO
+      END IF
       DO j = 1, pint_env%ndim
          DO i = 1, pint_env%p
             pile_therm%massfact(i, j) = SQRT(pint_env%kT/pint_env%mass_fict(i, j))
