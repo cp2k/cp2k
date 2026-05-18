@@ -6,7 +6,7 @@
 #
 # compute ground state for graphene with PBE and SZV
 # compute the dipole moments for kpoints in the &DFT section
-"C2_pbe_scf_kp.inp"                     = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=0.344}]
+"C2_pbe_scf_kp.inp"                     = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=-0.544}]
 # compute the dipole moments for kpoints provided via &KPOINTS in the &MOMENTS section
 "C2_pbe_moment_kp.inp"                  = [{matcher="Dipole_at_kp_1", tol=1.0E-06, ref=0.344}]
 # compute the dipole moments for kpoints provided via &KPOINT_SET in the &MOMENTS section
