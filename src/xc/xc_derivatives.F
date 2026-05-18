@@ -352,8 +352,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: deriv_order
 
       CHARACTER(len=*), PARAMETER :: abort_message_skala = &
-         "Control flow error: Computation of the Skala functional should not "// &
-         "proceed to this point, but occur at a higher level.", routineN = 'xc_functional_eval'
+         "GauXC functionals are evaluated only through the QS GauXC path. "// &
+         "Higher XC derivatives for response and kernel properties are not implemented.", &
+         routineN = 'xc_functional_eval'
 
       INTEGER                                            :: handle, i_param
       LOGICAL                                            :: fun_active

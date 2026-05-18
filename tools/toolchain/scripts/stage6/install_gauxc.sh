@@ -6,10 +6,14 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-gauxc_ver="1.0.0-skala-cp2k-rks-density-fix"
-gauxc_rev="f6ab248a32108036c6e92886d78736d99fcdfc87"
+gauxc_ver="1.1-skala-cp2k-fixes"
+gauxc_rev="a6eefbd735818212bca61bea64b1f8a0786f0295"
 gauxc_pkg="GauXC-${gauxc_rev}.tar.gz"
-gauxc_sha256="6b2aca6fe7a498665f8d8e6f7f76c0ef1051d8c35bb23b58468226f7171a0376"
+gauxc_sha256="29183c57e89d109dc5bda301972db737eff8fc28af5c4a3ce73720559a24b738"
+skala_model_ver="1.1"
+skala_model_pkg="skala-${skala_model_ver}.fun"
+skala_model_sha256="0c8432ac3f03c8f1276372df9aca5b7ee7f8939d47a8789eb158976e89aa0606"
+skala_model_urlpath="https://huggingface.co/microsoft/skala-${skala_model_ver}/resolve/main"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -50,11 +54,14 @@ case "${with_gauxc}" in
       retrieve_github_archive "${gauxc_sha256}" "${gauxc_rev}.tar.gz" \
         "https://github.com/wavefunction91/GauXC/archive" \
         "${gauxc_pkg}"
+      retrieve_github_archive "${skala_model_sha256}" "${skala_model_pkg}" \
+        "${skala_model_urlpath}" \
+        "${skala_model_pkg}"
       echo "Installing from scratch into ${pkg_install_dir}"
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
       cd "GauXC-${gauxc_rev}"
-      patch -l -p1 < "${SCRIPT_DIR}/stage3/gauxc-${gauxc_ver}.patch" \
+      patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         > gauxc_cp2k_rks_density_fix.patch.log 2>&1 || tail_excerpt gauxc_cp2k_rks_density_fix.patch.log
       mkdir -p build
       cd build
@@ -94,8 +101,12 @@ case "${with_gauxc}" in
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage3/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}"
+      mkdir -p "${pkg_install_dir}/share/gauxc/onedft_models"
+      install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
+        "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
+        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}" \
+        "${BUILDDIR}/${skala_model_pkg}"
     fi
     GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
     GAUXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
@@ -121,6 +132,11 @@ case "${with_gauxc}" in
 esac
 
 if [ "${with_gauxc}" != "__DONTUSE__" ]; then
+  if [ -n "${pkg_install_dir:-}" ]; then
+    gauxc_skala_model="${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
+  else
+    gauxc_skala_model=""
+  fi
   GAUXC_LIBS="-lgauxc -lintegratorxx -lexchcxx"
   GAUXC_DFLAGS="-D__GAUXC"
   gauxc_config_file="$(find_in_paths "gauxc/gauxc_config.f" $INCLUDE_PATHS)"
@@ -136,6 +152,7 @@ export GAUXC_CFLAGS="${GAUXC_CFLAGS}"
 export GAUXC_LDFLAGS="${GAUXC_LDFLAGS}"
 export GAUXC_LIBS="${GAUXC_LIBS}"
 export GAUXC_ROOT="${pkg_install_dir}"
+export GAUXC_SKALA_MODEL="${gauxc_skala_model}"
 EOF
   if [ "${with_gauxc}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gauxc"

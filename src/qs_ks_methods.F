@@ -60,6 +60,7 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
+                                              section_vals_release,&
                                               section_vals_type
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_string_length,&
@@ -136,7 +137,8 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc_functional,             ONLY: apply_gauxc
+   USE xc_gauxc_functional,             ONLY: apply_gauxc,&
+                                              gauxc_create_gapw_xc_section
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -192,7 +194,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, natom, &
                                                             nimages, nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, gapw_xc, &
-         just_energy_xc, lrigpw, my_print, rigpw, use_virial
+         just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
@@ -228,14 +230,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_section
+                                                            xc_section, xc_section_gapw_xc
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
+               xc_section, xc_section_gapw_xc, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
                poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
                v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
                ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
@@ -246,6 +248,7 @@ CONTAINS
       logger => cp_get_default_logger()
       my_print = .TRUE.
       IF (PRESENT(print_active)) my_print = print_active
+      use_gauxc_matrix = .FALSE.
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -597,7 +600,21 @@ CONTAINS
          END IF
 
          ! Everything else, either via GauXC or manual XC computation
-         IF (dft_control%use_gauxc) THEN
+         IF (dft_control%use_gauxc .AND. gapw_xc) THEN
+            CALL gauxc_create_gapw_xc_section(xc_section, xc_section_gapw_xc)
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section_gapw_xc, &
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                               just_energy=just_energy_xc)
+            IF (edisp /= 0.0_dp) energy%dispersion = edisp
+            IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
+               CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+               CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+            END IF
+            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
+                                    xc_section_external=xc_section_gapw_xc)
+         ELSE IF (dft_control%use_gauxc) THEN
+            use_gauxc_matrix = .TRUE.
             CALL apply_gauxc(qs_env, xc_section, calculate_forces)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
@@ -722,7 +739,7 @@ CONTAINS
                                    v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &
                                    cdft_control, calculate_forces)
 
-         IF (dft_control%use_gauxc) THEN
+         IF (use_gauxc_matrix) THEN
             CALL get_qs_env(qs_env=qs_env, matrix_vxc=matrix_vxc)
             CPASSERT(ASSOCIATED(matrix_vxc))
             CPASSERT(nimages == 1)
@@ -739,7 +756,11 @@ CONTAINS
                   CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
                END IF
                NULLIFY (rho1)
-               CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
+               IF (dft_control%use_gauxc .AND. gapw_xc) THEN
+                  CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section_gapw_xc)
+               ELSE
+                  CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
+               END IF
                !
                IF (dft_control%do_admm) THEN
                   CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -754,6 +775,10 @@ CONTAINS
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section, force_scale=vscale)
                END IF
             END IF
+         END IF
+         IF (ASSOCIATED(xc_section_gapw_xc)) THEN
+            CALL section_vals_release(xc_section_gapw_xc)
+            NULLIFY (xc_section_gapw_xc)
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN
@@ -791,6 +816,10 @@ CONTAINS
             END IF
          END IF
       END IF ! .NOT. just energy
+      IF (ASSOCIATED(xc_section_gapw_xc)) THEN
+         CALL section_vals_release(xc_section_gapw_xc)
+         NULLIFY (xc_section_gapw_xc)
+      END IF
 
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN
          CALL auxbas_pw_pool%give_back_pw(v_spin_ddapc_rest_r)

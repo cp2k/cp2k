@@ -83,11 +83,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'charge_mixing'
 
       INTEGER                                            :: effective_scc_mixer, handle, ia, ii, &
-                                                            imin, inow, mixer_iterations, &
-                                                            mixer_memory, nbuffer, ns, nvec
-      REAL(dp)                                           :: alpha, mixer_damping, mixer_max_weight, &
+                                                            imin, inow, nbuffer, ns, nvec
+      REAL(dp)                                           :: alpha
+#if defined(__TBLITE)
+      INTEGER                                            :: mixer_iterations, mixer_memory
+      REAL(dp)                                           :: mixer_damping, mixer_max_weight, &
                                                             mixer_min_weight, mixer_omega0, &
                                                             mixer_weight_factor
+#endif
 
       CALL timeset(routineN, handle)
 
@@ -131,6 +134,13 @@ CONTAINS
          CALL timestop(handle)
          RETURN
 #else
+         MARK_USED(tblite_mixer_damping)
+         MARK_USED(tblite_mixer_iterations)
+         MARK_USED(tblite_mixer_max_weight)
+         MARK_USED(tblite_mixer_memory)
+         MARK_USED(tblite_mixer_min_weight)
+         MARK_USED(tblite_mixer_omega0)
+         MARK_USED(tblite_mixer_weight_factor)
          IF (iter_count == 1) THEN
             CALL cp_warn(__LOCATION__, &
                          "SCC_MIXER TBLITE requested but CP2K was built without tblite; "// &

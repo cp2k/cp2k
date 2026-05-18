@@ -60,6 +60,7 @@ MODULE xc
                                   xc_derivative_type
    USE xc_derivatives, ONLY: xc_functionals_eval, &
                              xc_functionals_get_needs
+   USE xc_gauxc_functional, ONLY: xc_section_uses_gauxc
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_create, &
                                xc_rho_set_get, &
@@ -79,6 +80,9 @@ MODULE xc
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: gauxc_high_deriv_message = &
+                                        "Response and kernel properties with GauXC/OneDFT/SKALA require higher XC derivatives, "// &
+                                      "which are not implemented. Use a native CP2K XC functional or disable the coupled XC kernel."
 
 CONTAINS
 
@@ -3404,6 +3408,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(xc_section))
       CPASSERT(ASSOCIATED(pw_pool))
 
+      IF (xc_section_uses_gauxc(xc_section)) THEN
+         CALL cp_abort(__LOCATION__, gauxc_high_deriv_message)
+      END IF
+
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
 
@@ -3464,6 +3472,10 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(xc_section))
       CPASSERT(ASSOCIATED(pw_pool))
+
+      IF (xc_section_uses_gauxc(xc_section)) THEN
+         CALL cp_abort(__LOCATION__, gauxc_high_deriv_message)
+      END IF
 
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)

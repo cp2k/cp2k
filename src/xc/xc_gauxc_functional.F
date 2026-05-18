@@ -18,15 +18,19 @@ MODULE xc_gauxc_functional
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE input_constants,                 ONLY: xc_vdw_fun_none
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_duplicate,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
+                                              section_vals_remove_values,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_comm_self,&
+                                              mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -54,7 +58,7 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, skala_info
+   PUBLIC :: apply_gauxc, gauxc_create_gapw_xc_section, skala_info, xc_section_uses_gauxc
 
 CONTAINS
 
@@ -90,6 +94,9 @@ CONTAINS
       matrix_type = dbcsr_get_matrix_type(dbcsr_mat%matrix)
 
       IF (.NOT. ALLOCATED(dense_mat)) THEN
+         ALLOCATE (dense_mat(nrows, ncols))
+      ELSE IF (.NOT. ALL(SHAPE(dense_mat) == [nrows, ncols])) THEN
+         DEALLOCATE (dense_mat)
          ALLOCATE (dense_mat(nrows, ncols))
       ELSE
          CPASSERT(ALL(SHAPE(dense_mat) == [nrows, ncols]))
@@ -245,6 +252,37 @@ CONTAINS
    END FUNCTION get_gauxc_functional
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param xc_section ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION xc_section_uses_gauxc(xc_section) RESULT(uses_gauxc)
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      LOGICAL                                            :: uses_gauxc
+
+      INTEGER                                            :: ifun
+      TYPE(section_vals_type), POINTER                   :: functionals, xc_fun
+
+      uses_gauxc = .FALSE.
+      IF (.NOT. ASSOCIATED(xc_section)) RETURN
+
+      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(functionals)) RETURN
+
+      ifun = 0
+      DO
+         ifun = ifun + 1
+         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+         IF (xc_fun%section%name == "GAUXC") THEN
+            uses_gauxc = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION xc_section_uses_gauxc
+
+! **************************************************************************************************
 !> \brief adds a replicated GauXC energy gradient to the local CP2K force accumulator
 !> \param exc_grad ...
 !> \param force ...
@@ -294,23 +332,23 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=default_path_length)                 :: model_name, model_name_raw
+      CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_name
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
-      CALL section_vals_val_get(functional, "MODEL", c_val=model_name_raw)
-      model_name = ADJUSTL(model_name_raw)
-      CALL uppercase(model_name)
+      CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
 
       IF (PRESENT(reference)) THEN
-         IF (TRIM(model_name) == "NONE" .OR. TRIM(model_name) == "") THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
             reference = "Functional computed by GauXC (underlying: "//TRIM(xc_fun_name)//")"
          ELSE
-            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name_raw)
+            reference = "Functional computed by GauXC OneDFT model "//TRIM(model_name)
          END IF
       END IF
       IF (PRESENT(shortform)) THEN
-         IF (TRIM(model_name) == "NONE" .OR. TRIM(model_name) == "") THEN
+         IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
             shortform = "GAUXC ("//TRIM(xc_fun_name)//")"
          ELSE
             shortform = "GAUXC OneDFT"
@@ -325,6 +363,51 @@ CONTAINS
       IF (PRESENT(max_deriv)) max_deriv = 1
 
    END SUBROUTINE skala_info
+
+! **************************************************************************************************
+!> \brief Build a native CP2K XC section for the GAPW_XC one-center correction
+!> \param xc_section ...
+!> \param gapw_xc_section ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_create_gapw_xc_section(xc_section, gapw_xc_section)
+      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
+      TYPE(section_vals_type), POINTER                   :: gapw_xc_section
+
+      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_string_length)               :: functional_key, functional_name
+      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section, gauxc_section, &
+                                                            xc_fun_section
+
+      NULLIFY (gapw_xc_section, gauxc_functional_section, gauxc_section, xc_fun_section)
+
+      gauxc_functional_section => get_gauxc_functional(xc_section)
+      CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=functional_name)
+      CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
+
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      IF (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE") THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC with METHOD GAPW_XC is implemented only for conventional GauXC MODEL NONE. "// &
+                       "OneDFT/SKALA GAPW_XC needs a matching GauXC one-center XC correction.")
+      END IF
+
+      functional_key = ADJUSTL(functional_name)
+      CALL uppercase(functional_key)
+      SELECT CASE (TRIM(functional_key))
+      CASE ("PBE")
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC with METHOD GAPW_XC currently supports one-center corrections only for FUNCTIONAL PBE.")
+      END SELECT
+
+      CALL section_vals_duplicate(xc_section, gapw_xc_section)
+      xc_fun_section => section_vals_get_subs_vals(gapw_xc_section, "XC_FUNCTIONAL")
+      gauxc_section => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
+      CALL section_vals_remove_values(gauxc_section)
+      CALL section_vals_val_set(xc_fun_section, "PBE%_SECTION_PARAMETERS_", l_val=.TRUE.)
+
+   END SUBROUTINE gauxc_create_gapw_xc_section
 
 ! GauXC uses replicated dense density and VXC matrices. The DBCSR density matrix
 ! is distributed over MPI ranks, so apply_gauxc allreduces the dense copy before
@@ -344,16 +427,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: abort_message = &
          "GauXC does not support dispersion corrections. "// &
          "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection.", &
-         gradient_mpi_abort_message = &
-         "GauXC OneDFT/SKALA nuclear gradients are serial-only because GauXC does not provide "// &
-         "MPI eval_exc_grad_onedft yet. Use one MPI rank with OpenMP for ENERGY_FORCE."
+         gapw_xc_abort_message = "GauXC METHOD GAPW_XC is handled by the QS GAPW_XC driver."
 
-      CHARACTER(len=default_path_length)                 :: model_name, model_name_raw
-      CHARACTER(len=default_string_length)               :: grid_type, int_exec_space, &
-                                                            lb_exec_space, pruning_scheme, &
-                                                            radial_quadrature, xc_fun_name
+      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
+         pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
+      LOGICAL                                            :: grid_explicit, pruning_explicit, &
+                                                            use_onedft, use_self_runtime
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
@@ -407,12 +489,10 @@ CONTAINS
          rho_xc=rho_xc)
 
       IF (dft_control%qs_control%gapw_xc) THEN
-         CPASSERT(ASSOCIATED(rho_xc))
-         rho_use => rho_xc
-      ELSE
-         CPASSERT(ASSOCIATED(rho))
-         rho_use => rho
+         CPABORT(gapw_xc_abort_message)
       END IF
+      CPASSERT(ASSOCIATED(rho))
+      rho_use => rho
       CALL qs_rho_get( &
          rho_use, &
          rho_ao_kp=rho_ao)
@@ -435,11 +515,12 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "MODEL", &
-         c_val=model_name_raw)
+         c_val=model_name)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "GRID", &
-         c_val=grid_type)
+         c_val=grid_type, &
+         explicit=grid_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "RADIAL_QUADRATURE", &
@@ -447,7 +528,8 @@ CONTAINS
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "PRUNING_SCHEME", &
-         c_val=pruning_scheme)
+         c_val=pruning_scheme, &
+         explicit=pruning_explicit)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "BATCH_SIZE", &
@@ -461,12 +543,30 @@ CONTAINS
          "INT_EXECUTION_SPACE", &
          c_val=int_exec_space)
 
-      model_name = ADJUSTL(model_name_raw)
-      CALL uppercase(model_name)
-      IF (calculate_forces .AND. TRIM(model_name) /= "" .AND. TRIM(model_name) /= "NONE" .AND. &
-          para_env%num_pe > 1) THEN
-         CPABORT(gradient_mpi_abort_message)
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
+                       "The GAPW_XC one-center XC correction must be evaluated by the same GauXC model.")
       END IF
+      IF (use_onedft) THEN
+         IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
+         IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
+
+         grid_key = ADJUSTL(grid_type)
+         pruning_key = ADJUSTL(pruning_scheme)
+         CALL uppercase(grid_key)
+         CALL uppercase(pruning_key)
+         IF (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED") THEN
+            CALL cp_warn( &
+               __LOCATION__, &
+               "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
+               "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
+         END IF
+      END IF
+      use_self_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
@@ -477,15 +577,31 @@ CONTAINS
                     particle_set, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
-      gauxc_grid_result = gauxc_create_grid( &
-                          gauxc_mol, &
-                          gauxc_basis, &
-                          grid_type, &
-                          radial_quadrature, &
-                          pruning_scheme, &
-                          lb_exec_space, &
-                          batch_size, &
-                          gauxc_status)
+      IF (use_self_runtime) THEN
+         ! GauXC OneDFT gradients currently need a single-rank runtime.  The
+         ! dense density has already been replicated, so this is correct but
+         ! intentionally redundant across MPI ranks.
+         gauxc_grid_result = gauxc_create_grid( &
+                             gauxc_mol, &
+                             gauxc_basis, &
+                             grid_type, &
+                             radial_quadrature, &
+                             pruning_scheme, &
+                             lb_exec_space, &
+                             batch_size, &
+                             gauxc_status, &
+                             mpi_comm=mp_comm_self%get_handle())
+      ELSE
+         gauxc_grid_result = gauxc_create_grid( &
+                             gauxc_mol, &
+                             gauxc_basis, &
+                             grid_type, &
+                             radial_quadrature, &
+                             pruning_scheme, &
+                             lb_exec_space, &
+                             batch_size, &
+                             gauxc_status)
+      END IF
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &

@@ -63,8 +63,6 @@ MODULE xc_gauxc_interface
       gauxc_pruningscheme, &
       gauxc_radialquad
    USE gauxc_runtime_environment, ONLY: &
-      gauxc_runtime_environment_comm_rank, &
-      gauxc_runtime_environment_comm_size, &
       gauxc_runtime_environment_delete, &
       gauxc_runtime_environment_new, &
       gauxc_runtime_environment_type
@@ -115,13 +113,12 @@ MODULE xc_gauxc_interface
    USE gauxc_integrator, ONLY: &
       gauxc_integrator_eval_exc_grad_onedft_uks, &
       gauxc_integrator_eval_exc_vxc_onedft_uks
+   USE OMP_LIB, ONLY: &
+      omp_get_max_threads, &
+      omp_set_num_threads
 #endif
    USE string_utilities, ONLY: &
       uppercase
-   USE OMP_LIB, ONLY: &
-      omp_get_max_threads, &
-      omp_get_num_threads, &
-      omp_set_num_threads
 #endif
 
 #include "../base/base_uses.f90"
@@ -166,6 +163,8 @@ MODULE xc_gauxc_interface
       TYPE(gauxc_load_balancer_factory_type) :: lbf
       TYPE(gauxc_molecular_weights_type) :: mw
       TYPE(gauxc_molecular_weights_factory_type) :: mwf
+      TYPE(gauxc_runtime_environment_type) :: rt
+      LOGICAL :: owns_rt = .FALSE.
    END TYPE cp_gauxc_grid_type
 
    TYPE cp_gauxc_integrator_type
@@ -256,8 +255,6 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
 
 #ifdef __GAUXC
-      INTEGER(c_int)                                     :: world_rank
-
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
       IF (PRESENT(mpi_comm)) THEN
          rt = gauxc_runtime_environment_new(status%status, mpi_comm)
@@ -268,9 +265,6 @@ CONTAINS
       MARK_USED(mpi_comm)
       rt = gauxc_runtime_environment_new(status%status)
 #endif
-      GAUXC_RETURN_IF_ERROR(status)
-
-      world_rank = gauxc_runtime_environment_comm_rank(status%status, rt)
       GAUXC_RETURN_IF_ERROR(status)
 #else
       MARK_USED(mpi_comm)
@@ -443,6 +437,7 @@ CONTAINS
 !> \param lb_exec_space ...
 !> \param batch_size ...
 !> \param status ...
+!> \param mpi_comm optional communicator for a grid-local GauXC runtime
 !> \return ...
 ! **************************************************************************************************
    FUNCTION gauxc_create_grid( &
@@ -453,7 +448,8 @@ CONTAINS
       pruning_scheme, &
       lb_exec_space, &
       batch_size, &
-      status) RESULT(res)
+      status, &
+      mpi_comm) RESULT(res)
 
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
@@ -461,6 +457,7 @@ CONTAINS
                                         pruning_scheme, radial_quadrature
       INTEGER                                            :: batch_size
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
+      INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
       TYPE(cp_gauxc_grid_type)                           :: res
 
 #ifdef __GAUXC
@@ -473,6 +470,17 @@ CONTAINS
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
       lb_exec_space_local = read_execution_space(lb_exec_space)
       int_exec_space_local = read_execution_space("host")
+      res%owns_rt = .FALSE.
+
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+      IF (PRESENT(mpi_comm)) THEN
+         res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+         GAUXC_RETURN_IF_ERROR(status)
+         res%owns_rt = .TRUE.
+      END IF
+#else
+      MARK_USED(mpi_comm)
+#endif
 
       res%grid = gauxc_molgrid_new_default( &
                  status%status, &
@@ -488,13 +496,23 @@ CONTAINS
                 lb_exec_space_local)
       GAUXC_RETURN_IF_ERROR(status)
 
-      res%lb = gauxc_load_balancer_factory_get_instance( &
-               status%status, &
-               res%lbf, &
-               rt, &
-               molecule%molecule, &
-               res%grid, &
-               basis%basis)
+      IF (res%owns_rt) THEN
+         res%lb = gauxc_load_balancer_factory_get_instance( &
+                  status%status, &
+                  res%lbf, &
+                  res%rt, &
+                  molecule%molecule, &
+                  res%grid, &
+                  basis%basis)
+      ELSE
+         res%lb = gauxc_load_balancer_factory_get_instance( &
+                  status%status, &
+                  res%lbf, &
+                  rt, &
+                  molecule%molecule, &
+                  res%grid, &
+                  basis%basis)
+      END IF
       GAUXC_RETURN_IF_ERROR(status)
 
       res%mwf = gauxc_molecular_weights_factory_new( &
@@ -518,6 +536,7 @@ CONTAINS
       MARK_USED(batch_size)
       MARK_USED(grid_type)
       MARK_USED(lb_exec_space)
+      MARK_USED(mpi_comm)
       MARK_USED(molecule)
       MARK_USED(pruning_scheme)
       MARK_USED(radial_quadrature)
@@ -609,8 +628,10 @@ CONTAINS
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_onedft
+#ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
-      INTEGER                                            :: omp_num_threads_restore, omp_max_threads_restore
+      INTEGER                                            :: omp_max_threads_restore
+#endif
 
       use_onedft = .FALSE.
       IF (PRESENT(model)) THEN
@@ -628,12 +649,10 @@ CONTAINS
 
       IF (use_onedft) THEN
 #ifndef GAUXC_HAS_ONEDFT
-         MARK_USED(density_zeta_zero)
-         MARK_USED(omp_max_threads_restore)
-         MARK_USED(omp_num_threads_restore)
          CPABORT("GauXC lacks OneDFT support")
 #else
-         omp_num_threads_restore = omp_get_num_threads()
+         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
          IF (.NOT. ALLOCATED(res%vxc_zeta)) THEN
             ALLOCATE (res%vxc_zeta, mold=density_scalar)
@@ -668,7 +687,6 @@ CONTAINS
                res%vxc_zeta)
          END IF
          CALL omp_set_num_threads(omp_max_threads_restore)
-         CALL omp_set_num_threads(omp_num_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
 #endif
@@ -745,8 +763,10 @@ CONTAINS
 #ifdef __GAUXC
       CHARACTER(len=default_path_length)                 :: model_key
       LOGICAL                                            :: use_onedft
+#ifdef GAUXC_HAS_ONEDFT
       REAL(c_double), ALLOCATABLE, DIMENSION(:, :)       :: density_zeta_zero
-      INTEGER                                            :: omp_num_threads_restore, omp_max_threads_restore
+      INTEGER                                            :: omp_max_threads_restore
+#endif
 
       ALLOCATE (res%exc_grad(3*natom))
       res%exc_grad = 0._dp
@@ -760,12 +780,10 @@ CONTAINS
 
       IF (use_onedft) THEN
 #ifndef GAUXC_HAS_ONEDFT
-         MARK_USED(density_zeta_zero)
-         MARK_USED(omp_max_threads_restore)
-         MARK_USED(omp_num_threads_restore)
          CPABORT("GauXC lacks OneDFT support")
 #else
-         omp_num_threads_restore = omp_get_num_threads()
+         ! OneDFT may change the OpenMP team size for later parallel regions.
+         ! Restore max threads only; omp_get_num_threads() is 1 here.
          omp_max_threads_restore = omp_get_max_threads()
          IF (nspins == 1) THEN
             ALLOCATE (density_zeta_zero, mold=density_scalar)
@@ -789,7 +807,6 @@ CONTAINS
                res%exc_grad)
          END IF
          CALL omp_set_num_threads(omp_max_threads_restore)
-         CALL omp_set_num_threads(omp_num_threads_restore)
          GAUXC_RETURN_IF_ERROR(status)
          RETURN
 #endif
@@ -883,6 +900,11 @@ CONTAINS
       GAUXC_RETURN_IF_ERROR(status)
       CALL gauxc_delete(status%status, grid_result%grid)
       GAUXC_RETURN_IF_ERROR(status)
+      IF (grid_result%owns_rt) THEN
+         CALL gauxc_runtime_environment_delete(status%status, grid_result%rt)
+         GAUXC_RETURN_IF_ERROR(status)
+         grid_result%owns_rt = .FALSE.
+      END IF
 #else
       MARK_USED(grid_result)
       MARK_USED(status)
