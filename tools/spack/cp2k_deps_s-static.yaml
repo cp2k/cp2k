@@ -88,7 +88,7 @@ spack:
 
   repos:
     builtin:
-      commit: 7e4ffe332499db579e8b50ab627a9555f15a7c23 # 2026-04-28
+      commit: 036fc0544821e4e6911fc3df8e012285e374536c # 2026-05-19
 
   specs:
     # Build tools
@@ -107,7 +107,7 @@ spack:
     - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
-    - "openblas@0.3.32"
+    - "openblas@0.3.33"
     - "pace@2025.12.4"
     - "spglib@2.7.0"
     - "tblite@0.6.0"
