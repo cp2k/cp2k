@@ -81,6 +81,7 @@ CONTAINS
                                                             nrows, row, row_end, row_start
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      LOGICAL                                            :: transposed
       REAL(c_double), POINTER                            :: block(:, :)
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -116,17 +117,28 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed)
          row_start = r_offset(irow)
-         row_end = row_start + SIZE(block, 1) - 1
+         row_end = row_start + row_blk_size(irow) - 1
          col_start = c_offset(icol)
-         col_end = col_start + SIZE(block, 2) - 1
-         dense_mat(row_start:row_end, col_start:col_end) = block
-         IF (irow /= icol) THEN
-            IF (matrix_type == dbcsr_type_symmetric) THEN
-               dense_mat(col_start:col_end, row_start:row_end) = TRANSPOSE(block)
-            ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
-               dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
+         col_end = col_start + col_blk_size(icol) - 1
+         IF (transposed) THEN
+            dense_mat(row_start:row_end, col_start:col_end) = TRANSPOSE(block)
+            IF (irow /= icol) THEN
+               IF (matrix_type == dbcsr_type_symmetric) THEN
+                  dense_mat(col_start:col_end, row_start:row_end) = block
+               ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
+                  dense_mat(col_start:col_end, row_start:row_end) = -block
+               END IF
+            END IF
+         ELSE
+            dense_mat(row_start:row_end, col_start:col_end) = block
+            IF (irow /= icol) THEN
+               IF (matrix_type == dbcsr_type_symmetric) THEN
+                  dense_mat(col_start:col_end, row_start:row_end) = TRANSPOSE(block)
+               ELSE IF (matrix_type == dbcsr_type_antisymmetric) THEN
+                  dense_mat(col_start:col_end, row_start:row_end) = -TRANSPOSE(block)
+               END IF
             END IF
          END IF
       END DO
