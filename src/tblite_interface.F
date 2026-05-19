@@ -534,7 +534,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_scf
       REAL(KIND=dp)                                      :: mixer_error
 
+#if defined(__TBLITE)
       REAL(KIND=dp)                                      :: raw_error
+#endif
 
       mixer_error = 0.0_dp
 

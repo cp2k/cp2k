@@ -253,8 +253,8 @@ Specific options of --with-PKG:
                           DFT (pure and hybrid functionals) calculations.
                           Default = install
   --with-gauxc            Enable GauXC for external exchange-correlation
-                          integration. Installing GauXC with SKALA/OneDFT
-                          support also enables libtorch.
+                          integration. Installing GauXC with OneDFT/SKALA
+                          support also enables libtorch and installs Skala-1.1.
                           Default = no
   --with-libint           Enable libint for two-body molecular integrals in
                           Hartree-Fock and hybrid functional calculations.

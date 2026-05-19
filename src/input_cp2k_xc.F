@@ -1288,7 +1288,7 @@ CONTAINS
    END SUBROUTINE create_gcp_potential_section
 
 ! **************************************************************************************************
-!> \brief creates the structure of the SKALA section for GauXC
+!> \brief creates the structure of the GAUXC section
 !> \param section the section that will be created
 !> \author fawzi
 ! **************************************************************************************************
@@ -1312,21 +1312,24 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="Functional name used to create the GauXC integrator. "// &
-                          "If MODEL is set, this is the base functional used by the OneDFT path.", &
+                          "If MODEL is set, this is the base functional used by the OneDFT path. "// &
+                          "With METHOD GAPW_XC, conventional MODEL NONE currently supports only PBE.", &
                           default_c_val="PBE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MODEL", &
                           description="GauXC OneDFT model name or path. Use NONE for conventional GauXC. "// &
-                          "SKALA models are supplied as OneDFT .fun files.", &
-                          usage="MODEL skala-1.0.fun", &
+                          "MODEL SKALA selects the installed Skala-1.1 model when available; "// &
+                          "other OneDFT models are supplied as .fun files or model names.", &
+                          usage="MODEL SKALA", &
                           default_c_val="NONE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID", &
-                          description="Atomic grid size for GauXC", &
+                          description="Atomic grid size for GauXC. OneDFT/SKALA defaults to SUPERFINE "// &
+                          "unless this keyword is set explicitly.", &
                           usage="GRID fine", &
                           enum_c_vals=s2a("FINE", "ULTRAFINE", "SUPERFINE", "GM3", "GM5"), &
                           enum_i_vals=[1, 2, 3, 4, 5], &
@@ -1353,7 +1356,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRUNING_SCHEME", &
-                          description="Pruning scheme for GauXC", &
+                          description="Pruning scheme for GauXC. OneDFT/SKALA defaults to UNPRUNED "// &
+                          "unless this keyword is set explicitly.", &
                           usage="PRUNING_SCHEME robust", &
                           enum_c_vals=s2a("ROBUST", "TREUTLER", "UNPRUNED"), &
                           enum_i_vals=[1, 2, 3], &

@@ -95,4 +95,13 @@ QS/regtest-tddfpt-force-gapw/h2o_t08.inp
 QS/regtest-smeagol-1/au-2x2x3-bulk.inp
 QS/regtest-smeagol-2/au-1x1x4-bulk.inp
 
+# GauXC tests include external GauXC/libtorch setup and, for GAPW/force checks,
+# additional all-electron or finite-difference work that dominates pdbg runtime.
+QS/regtest-gauxc/1H2_ONEDFT_PBE_REFERENCE.inp
+QS/regtest-gauxc/1H2_ONEDFT_PBE.inp
+QS/regtest-gauxc/H2_GAPW_GAUXC_PBE.inp
+QS/regtest-gauxc/O_ONEDFT_PBE_UKS_TZV2PX.inp
+QS/regtest-gauxc/H2_GAPW_ONEDFT_PBE.inp
+QS/regtest-gauxc/H2_ONEDFT_PBE_FORCE_DEBUG.inp
+
 #EOF

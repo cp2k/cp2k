@@ -1,3 +1,9 @@
-"1He_SKALA_PBE.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-1.158910965720105}]
-"1He_SKALA_PBE_REFERENCE.inp"           = [{matcher="E_total", tol=1.0E-14, ref=-1.158911115734845}]
-#EOF
+"1H2_ONEDFT_PBE_REFERENCE.inp"             = [{matcher="E_total", tol=1e-10, ref=-1.158911115734846}]
+"1H2_GAUXC_PBE.inp"                        = [{matcher="E_total", tol=1e-10, ref=-1.158910751692614}]
+"1H2_ONEDFT_PBE.inp"                       = [{matcher="E_total", tol=1e-10, ref=-1.158910879270430}]
+"H2_GAPW_GAUXC_PBE.inp"                    = [{matcher="E_total", tol=1e-10, ref=-1.160463821065408}]
+"H2O_GAPW_XC_PBE_REFERENCE.inp"            = [{matcher="E_total", tol=1e-10, ref=-17.204071240167448}]
+"H2O_GAPW_XC_GAUXC_PBE.inp"                = [{matcher="E_total", tol=1e-10, ref=-17.204071240167448}]
+"O_ONEDFT_PBE_UKS_TZV2PX.inp"              = [{matcher="E_total", tol=1e-8, ref=-15.864078740341586}]
+"H2_GAPW_ONEDFT_PBE.inp"                   = [{matcher="E_total", tol=1e-10, ref=-1.160463960124012}]
+"H2_ONEDFT_PBE_FORCE_DEBUG.inp"            = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]

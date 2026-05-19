@@ -102,6 +102,19 @@ integrator.
 - Pass `--with-gauxc=install` to the toolchain installer. The toolchain build enables GauXC
   OneDFT/SKALA support and therefore also installs libtorch.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake.
+- GauXC in CP2K is currently an energy, potential, and nuclear-gradient path for QS. OneDFT/SKALA
+  gradients under MPI are evaluated with a replicated single-rank GauXC runtime on each CP2K rank
+  because GauXC does not yet provide distributed OneDFT gradients.
+- OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
+  non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
+- For `METHOD GAPW_XC`, conventional `&GAUXC` PBE inputs are evaluated through CP2K's native PBE
+  GAPW_XC path so that the smooth GAPW_XC density and the one-center correction remain consistent.
+  OneDFT/SKALA with `METHOD GAPW_XC` is not supported because GauXC does not yet expose the matching
+  GAPW_XC one-center XC correction.
+- Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
+  abort explicitly.
+- OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default. Coarser
+  explicit GauXC grids are allowed, but should be treated as accuracy settings.
 
 ## PEXSI (low scaling SCF method)
 
