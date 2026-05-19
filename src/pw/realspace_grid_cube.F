@@ -522,7 +522,9 @@ CONTAINS
       END IF
       ! Sync offset and start parallel read
       CALL gid%bcast(offset_global, grid%pw_grid%para%group%source)
-      BOF = offset_global
+      ! INQUIRE(POS=...) returns a 1-based stream position, whereas MPI-IO
+      ! file offsets are 0-based.
+      BOF = offset_global - 1
       CALL extunit%open(groupid=gid, filepath=filename, amode_status=file_amode_rdonly)
       ! Determine byte offsets for each grid z-slice which are local to a process
       ALLOCATE (displacements(nslices))
