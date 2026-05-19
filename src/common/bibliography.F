@@ -95,7 +95,8 @@ MODULE bibliography
                             VazdaCruz2021, Chen2025, Hernandez2025, Marek2025, Hehn2022, Hehn2024, Pasquier2025, &
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
-                            KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2
+                            KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
+                            Shiga2022
 
 CONTAINS
 
@@ -2048,6 +2049,12 @@ CONTAINS
                          "the restricted subspace approximation", &
                          source="Phys. Chem. Chem. Phys.", volume="23", pages="1835-1848", &
                          year=2021, doi="10.1039/d0cp04726k")
+      CALL add_reference(key=Shiga2022, &
+                         authors=s2a("M. Shiga"), &
+                         title="Path integral Brownian chain molecular dynamics: A simple approximation "// &
+                         "of quantum vibrational dynamics", &
+                         source="J. Comput. Chem.", volume="43", pages="1864-1879", &
+                         year=2022, doi="10.1002/jcc.26989")
 
       CALL add_reference(key=Chen2025, &
                          authors=s2a("Z. Chen", "Y. Yang"), &
