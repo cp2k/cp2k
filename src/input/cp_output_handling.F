@@ -993,7 +993,10 @@ CONTAINS
                                  WRITE (unit_nr, *) "File "//TRIM(filename_bak_2)//" not existing.."
                            END IF
                         ELSE
-                           CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                           ! Shared file: rotate on the source rank only; per-task
+                           ! (my_local) files are per-rank, rotated by their owner.
+                           IF (my_local .OR. logger%para_env%is_source()) &
+                              CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
                         END IF
                      END DO
                      ! The last backup is always the one with index 1
@@ -1003,7 +1006,8 @@ CONTAINS
                         IF (unit_nr > 0) &
                            WRITE (unit_nr, *) "Moving file "//TRIM(filename)//" into file "//TRIM(filename_bak)//"."
                      END IF
-                     CALL m_mov(TRIM(filename), TRIM(filename_bak))
+                     IF (my_local .OR. logger%para_env%is_source()) &
+                        CALL m_mov(TRIM(filename), TRIM(filename_bak))
                   ELSE
                      ! Zero the backup history for this new iteration level..
                      print_key%ibackup(my_backup_level) = 0
