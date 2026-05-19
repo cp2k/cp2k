@@ -26,6 +26,18 @@ index c6c4c2d..9ec4f01 100644
 +  unset(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
 +  cmake_policy(POP)
 +endif()
+diff --git a/cmake/gauxc-dep-versions.cmake b/cmake/gauxc-dep-versions.cmake
+--- a/cmake/gauxc-dep-versions.cmake
++++ b/cmake/gauxc-dep-versions.cmake
+@@ -4,2 +4,6 @@
+-set ( GAUXC_NLOHMANN_JSON_URL https://github.com/nlohmann/json/releases/download/v3.12.0/include.zip )
+-set ( GAUXC_NLOHMANN_JSON_SHA256 b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372 )
++if( NOT DEFINED GAUXC_NLOHMANN_JSON_URL )
++  set ( GAUXC_NLOHMANN_JSON_URL https://github.com/nlohmann/json/releases/download/v3.12.0/include.zip )
++endif()
++if( NOT DEFINED GAUXC_NLOHMANN_JSON_SHA256 )
++  set ( GAUXC_NLOHMANN_JSON_SHA256 b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372 )
++endif()
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index a9e60fd..29b0949 100644
 --- a/src/CMakeLists.txt
