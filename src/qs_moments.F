@@ -3830,12 +3830,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param dipole ...
 !> \param rcc retained for interface compatibility; interband dipoles are origin independent
+!> \param nmo_spin_out number of SCF MOs available for each spin
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints_scf_mos(qs_env, dipole, rcc)
+   SUBROUTINE qs_moment_kpoints_scf_mos(qs_env, dipole, rcc, nmo_spin_out)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
+      INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT), &
+         OPTIONAL                                        :: nmo_spin_out
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_scf_mos'
 
@@ -3912,7 +3915,11 @@ CONTAINS
          END DO
       END IF
       CALL para_env%max(nmo_spin)
-      ALLOCATE (dipole(nspin, nkp, 3, nao, nao), source=z_zero)
+      ALLOCATE (dipole(nspin, nkp, 3, MAXVAL(nmo_spin), MAXVAL(nmo_spin)), source=z_zero)
+      IF (PRESENT(nmo_spin_out)) THEN
+         ALLOCATE (nmo_spin_out(nspin))
+         nmo_spin_out(:) = nmo_spin(:)
+      END IF
 
       ALLOCATE (rmatrix, cmatrix)
       CALL dbcsr_create(rmatrix, template=overlap_deriv(1, 1)%matrix, &
@@ -4052,15 +4059,18 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
          ALLOCATABLE                                     :: dipole
-      INTEGER                                            :: handle, ikp, nkp, nao, &
+      INTEGER                                            :: handle, i_dir, ikp, nmo_dim, nkp, nao, &
                                                             num_pe, mepos, n, m, &
                                                             ispin, nspin, nmin, nmax, homo
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: nmo_spin_scf
+      LOGICAL                                            :: explicit_kpnts, explicit_kpset, use_scf_mos
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: xkp
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc_to_print
       REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE  :: berry_c
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: kpnts, kpset
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: special_pnts
 
@@ -4080,19 +4090,46 @@ CONTAINS
       nspin = SIZE(matrix_ks_kp, 1)
       nkp = SIZE(xkp, 2)
 
+      kpset => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%MOMENTS%KPOINT_SET")
+      kpnts => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%MOMENTS%KPOINTS")
+      CALL section_vals_get(kpset, explicit=explicit_kpset)
+      CALL section_vals_get(kpnts, explicit=explicit_kpnts)
+      use_scf_mos = .NOT. explicit_kpset .AND. .NOT. explicit_kpnts
+
       IF (unit_number > 0) WRITE (unit_number, FMT="(/,T2,A)") &
          '!-----------------------------------------------------------------------------!'
       IF (unit_number > 0) WRITE (unit_number, "(T22,A)") "Periodic Dipole Matrix Elements"
 
-      CALL qs_moment_kpoints_deep(qs_env, &
-                                  xkp, &
-                                  dipole, &
-                                  rcc, &
-                                  berry_c, &
-                                  do_parallel=.TRUE.)
+      IF (use_scf_mos) THEN
+         CALL qs_moment_kpoints_scf_mos(qs_env, dipole, rcc, nmo_spin_scf)
+         nmo_dim = SIZE(dipole, 4)
+         ALLOCATE (berry_c(nspin, nkp, 3, nmo_dim), source=0.0_dp)
+         DO ispin = 1, nspin
+            DO ikp = 1, nkp
+               DO i_dir = 1, 3
+                  DO n = 1, nmo_dim
+                     DO m = 1, nmo_dim
+                        IF (n == m) CYCLE
+                        berry_c(ispin, ikp, i_dir, n) = berry_c(ispin, ikp, i_dir, n) &
+                                                        + 2*AIMAG(dipole(ispin, ikp, 1 + MOD(i_dir, 3), n, m)* &
+                                                                  dipole(ispin, ikp, 1 + MOD(i_dir + 1, 3), m, n))
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      ELSE
+         CALL qs_moment_kpoints_deep(qs_env, &
+                                     xkp, &
+                                     dipole, &
+                                     rcc, &
+                                     berry_c, &
+                                     do_parallel=.TRUE.)
+         nmo_dim = nao
+      END IF
 
-      ALLOCATE (dipole_to_print(3, nao, nao), source=z_zero)
-      ALLOCATE (bc_to_print(3, nao), source=0.0_dp)
+      ALLOCATE (dipole_to_print(3, nmo_dim, nmo_dim), source=z_zero)
+      ALLOCATE (bc_to_print(3, nmo_dim), source=0.0_dp)
 
       mepos = para_env%mepos
       num_pe = para_env%num_pe
@@ -4106,14 +4143,22 @@ CONTAINS
                nmin = 1
                nmax = nao
             END IF
+            IF (use_scf_mos) THEN
+               nmax = min(nmax, nmo_spin_scf(ispin))
+            END IF
             dipole_to_print = 0.0_dp
             bc_to_print = 0.0_dp
-            IF (mod(ikp - 1, num_pe) == mepos) THEN
+            IF (use_scf_mos) THEN
+               dipole_to_print(:, :, :) = dipole(ispin, ikp, :, :, :)
+               bc_to_print(:, :) = berry_c(ispin, ikp, :, :)
+            ELSE IF (mod(ikp - 1, num_pe) == mepos) THEN
                dipole_to_print(:, :, :) = dipole(ispin, CEILING(REAL(ikp)/num_pe), :, :, :)
                bc_to_print(:, :) = berry_c(ispin, CEILING(REAL(ikp)/num_pe), :, :)
             END IF
-            CALL para_env%sum(dipole_to_print)
-            CALL para_env%sum(bc_to_print)
+            IF (.NOT. use_scf_mos) THEN
+               CALL para_env%sum(dipole_to_print)
+               CALL para_env%sum(bc_to_print)
+            END IF
             IF (unit_number > 0) THEN
                IF (special_pnts(ikp) /= "") WRITE (unit_number, "(/,2X,A,A)") &
                   "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
@@ -4138,6 +4183,7 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (dipole_to_print, bc_to_print, berry_c, dipole)
+      IF (ALLOCATED(nmo_spin_scf)) DEALLOCATE (nmo_spin_scf)
       DEALLOCATE (special_pnts, xkp)
 
       CALL timestop(handle)
