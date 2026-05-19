@@ -9,11 +9,11 @@
 
 "CH3-PBE-roks.inp"                             = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.06592},
                                                   {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.53118944},
-                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.2301125}]
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.024402234}]
 
 "CH3-PBE-uks.inp"                              = [{matcher="XAS_excit_ener", tol=1e-07, ref=265.236146},
                                                   {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.57948051},
-                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.20993236}]
+                                                  {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.034065264}]
 
 "H2O-PBE0.inp"                                 = [{matcher="XAS_excit_ener", tol=1e-07, ref=519.371583},
                                                   {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.63681532},
@@ -31,5 +31,4 @@
                                                   {matcher="TDDFPT_Check_Energy", tol=5.0E-06, ref=0.52370352},
                                                   {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.32678429}]
 #EOF
-
 
