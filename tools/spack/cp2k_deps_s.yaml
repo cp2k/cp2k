@@ -133,5 +133,6 @@ spack:
     default:
       root: /opt/spack/view
       exclude:
-        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - curl
         - gcc-runtime
+        - readline
