@@ -132,8 +132,8 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                base_image="opensuse/leap:15.6",
-                gcc_version=14,
+                base_image="opensuse/leap:16.0",
+                gcc_version=15,
                 feature_flags="-ef openpmd",
                 testopts=testopts,
                 image_tag=f.image_tag,
@@ -831,6 +831,8 @@ RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
     bzip2 \
     cmake \
+    diffutils \
+    findutils \
     {gcc_compilers} \
     git \
     gzip \
@@ -841,16 +843,13 @@ RUN zypper --non-interactive --quiet ref && \
     make \
     patch \
     pkgconf \
-    python311 \
-    python311-devel \
+    python313 \
+    python313-devel \
     unzip \
     wget \
     xz \
     zstd \
     && zypper --non-interactive --quiet clean --all
-
-RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/local/bin/python
 """
         elif "rockylinux" in base_image:
             output += rf"""
@@ -932,7 +931,7 @@ RUN dnf -qy install \
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
     {gcc_compilers} \
-    python311 \
+    python313 \
     && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
