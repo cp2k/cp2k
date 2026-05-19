@@ -38,6 +38,23 @@ diff --git a/cmake/gauxc-dep-versions.cmake b/cmake/gauxc-dep-versions.cmake
 +if( NOT DEFINED GAUXC_NLOHMANN_JSON_SHA256 )
 +  set ( GAUXC_NLOHMANN_JSON_SHA256 b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372 )
 +endif()
+diff --git a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
+--- a/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
++++ b/external/gau2grid/generated_source/gau2grid/gau2grid_pragma.h
+@@ -14,0 +15,8 @@
++#if (defined(__GNUC__) || defined(__GNUG__)) && \
++    !defined(__APPLE__) && !defined(__clang__)
++static inline void* gg_aligned_alloc(const size_t alignment, const size_t size) {
++    const size_t aligned_size =
++        ((size + alignment - 1) / alignment) * alignment;
++    return aligned_alloc(alignment, aligned_size);
++}
++#endif
+@@ -15,0 +24 @@
++
+@@ -70 +79 @@
+-    #define ALIGNED_MALLOC(alignment, size)                  aligned_alloc(alignment, size)
++    #define ALIGNED_MALLOC(alignment, size)                  gg_aligned_alloc(alignment, size)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index a9e60fd..29b0949 100644
 --- a/src/CMakeLists.txt
