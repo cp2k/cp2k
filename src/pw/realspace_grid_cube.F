@@ -25,17 +25,49 @@ MODULE realspace_grid_cube
 
    PRIVATE
 
-   PUBLIC :: cube_value_format, cube_values_format, cube_to_pw, pw_to_cube, &
+   PUBLIC :: cube_read_values, cube_value_format, cube_values_format, cube_to_pw, pw_to_cube, &
              pw_to_simple_volumetric
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
+   INTEGER, PARAMETER, PRIVATE          :: cube_entry_len = 13, &
+                                           cube_num_entries_line = 6
+   INTEGER, PARAMETER, PRIVATE          :: cube_line_len = cube_entry_len*cube_num_entries_line
    CHARACTER(len=*), PARAMETER          :: cube_value_format = '(E13.5E3)', &
                                            cube_values_format = '(6E13.5E3)'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-   LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
-                                           parse_test = .TRUE.
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Read cube values from a character buffer.
+!> \param values value buffer from one cube line or one z-slice
+!> \param buffer parsed values
+! **************************************************************************************************
+   SUBROUTINE cube_read_values(values, buffer)
+      CHARACTER(LEN=*), INTENT(IN)                       :: values
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: buffer
+
+      CHARACTER(LEN=cube_entry_len)                      :: value
+      INTEGER                                            :: i, pos, readstat
+
+      READ (values, *, IOSTAT=readstat) buffer
+      IF (readstat == 0) RETURN
+
+      pos = 1
+      DO i = 1, SIZE(buffer)
+         IF (pos + cube_entry_len - 1 > LEN(values)) CPABORT("Unexpected end of cube data.")
+         value = values(pos:pos + cube_entry_len - 1)
+         READ (value, '(E13.5)', IOSTAT=readstat) buffer(i)
+         IF (readstat /= 0) CPABORT("Bad value while reading cube data.")
+         pos = pos + cube_entry_len
+         IF (MODULO(i, cube_num_entries_line) == 0) THEN
+            IF (pos <= LEN(values)) THEN
+               IF (values(pos:pos) == NEW_LINE('C')) pos = pos + 1
+            END IF
+         END IF
+      END DO
+
+   END SUBROUTINE cube_read_values
 
 ! **************************************************************************************************
 !> \brief ...
@@ -271,9 +303,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_to_pw'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER                                            :: extunit, handle, i, j, k, msglen, &
-                                                            my_rank, nat, ndum, num_linebreak, &
-                                                            num_pe, output_unit, size_of_z, tag
+      CHARACTER(LEN=cube_line_len)                       :: value_line
+      INTEGER                                            :: extunit, handle, i, j, k, last_z, &
+                                                            msglen, my_rank, nat, ndum, &
+                                                            num_linebreak, num_pe, output_unit, &
+                                                            size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       LOGICAL                                            :: be_silent
@@ -347,7 +381,11 @@ CONTAINS
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
                IF (my_rank == 0) THEN
-                  READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
+                  DO k = lbounds(3), ubounds(3), cube_num_entries_line
+                     last_z = MIN(k + cube_num_entries_line - 1, ubounds(3))
+                     READ (extunit, '(A)') value_line
+                     CALL cube_read_values(value_line, buffer(k:last_z))
+                  END DO
                END IF
                CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
@@ -400,18 +438,18 @@ CONTAINS
       INTEGER, INTENT(in)                                :: msglen
       LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
-      INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
-
+      CHARACTER(LEN=cube_line_len)                       :: value_line
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: blocklengths
       INTEGER(kind=file_offset), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: displacements
       INTEGER(kind=file_offset)                          :: BOF
-      INTEGER :: extunit_handle, i, ientry, islice, j, k, my_rank, nat, ndum, nslices, num_pe, &
-         offset_global, output_unit, pos, readstat, size_of_z, tag
+      INTEGER                                            :: extunit_handle, i, islice, j, k, last_z, &
+                                                            my_rank, nat, ndum, nslices, num_pe, &
+                                                            offset_global, output_unit, size_of_z, &
+                                                            tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
-      CHARACTER(LEN=msglen)                              :: tmp
       LOGICAL                                            :: be_silent, should_read(2)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
@@ -528,39 +566,8 @@ CONTAINS
       j = lbounds_local(2)
       ALLOCATE (buffer(lbounds(3):ubounds(3)))
       buffer = 0.0_dp
-      ! Test if the compiler supports parsing lines with line breaks in them
-      IF (parse_test) THEN
-         READ (readbuffer(1), *, IOSTAT=readstat) (buffer(k), k=lbounds(3), ubounds(3))
-         IF (readstat == 0) THEN
-            parses_linebreaks = .TRUE.
-         ELSE
-            parses_linebreaks = .FALSE.
-         END IF
-         parse_test = .FALSE.
-         buffer = 0.0_dp
-      END IF
       DO islice = 1, nslices
-         IF (parses_linebreaks) THEN
-            ! Use list-directed conversion if supported
-            ! Produces faster code, but maybe the latter method could be optimized
-            READ (readbuffer(islice), *) (buffer(k), k=lbounds(3), ubounds(3))
-         ELSE
-            ! Convert values by going through the z-slice one value at a time
-            tmp = readbuffer(islice)
-            pos = 1
-            ientry = 1
-            DO k = lbounds_local(3), ubounds_local(3)
-               IF (MODULO(ientry, num_entries_line) == 0 .OR. k == ubounds_local(3)) THEN
-                  ! Last value on line, dont read line break
-                  READ (tmp(pos:pos + (entry_len - 2)), '(E12.5)') buffer(k)
-                  pos = pos + (entry_len + 1)
-               ELSE
-                  READ (tmp(pos:pos + (entry_len - 1)), '(E13.5)') buffer(k)
-                  pos = pos + entry_len
-               END IF
-               ientry = ientry + 1
-            END DO
-         END IF
+         CALL cube_read_values(readbuffer(islice), buffer(lbounds(3):ubounds(3)))
          ! Optionally scale cube file values
          grid%array(i, j, lbounds(3):ubounds(3)) = scaling*buffer(lbounds(3):ubounds(3))
          j = j + 1
@@ -609,7 +616,11 @@ CONTAINS
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
                IF (my_rank == 0) THEN
-                  READ (extunit_handle, *) (buffer(k), k=lbounds(3), ubounds(3))
+                  DO k = lbounds(3), ubounds(3), cube_num_entries_line
+                     last_z = MIN(k + cube_num_entries_line - 1, ubounds(3))
+                     READ (extunit_handle, '(A)') value_line
+                     CALL cube_read_values(value_line, buffer(k:last_z))
+                  END DO
                END IF
                CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
