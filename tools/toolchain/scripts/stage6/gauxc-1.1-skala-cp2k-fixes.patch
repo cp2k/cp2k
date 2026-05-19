@@ -15,13 +15,6 @@ index c6c4c2d..9ec4f01 100644
 +endif()
 +
  # Always Required Dependencies
-@@ -80,6 +88,5 @@ if ( GAUXC_HAS_ONEDFT )
-   if(CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
-     set(CMAKE_CUDA_ARCHITECTURES "${_PREV_CUDA_ARCHS}" CACHE STRING "Restore CUDA archs after Torch override" FORCE)
-     message(WARNING "Torch set CMAKE_CUDA_ARCHITECTURES to OFF. Restored previous value: ${CMAKE_CUDA_ARCHITECTURES}")
-   endif()
--  find_dependency ( nlohmann_json )
- endif()
 @@ -94,1 +102,10 @@ if(NOT TARGET gauxc::gauxc)
  set(GauXC_LIBRARIES gauxc::gauxc)
 +if(POLICY CMP0144)
