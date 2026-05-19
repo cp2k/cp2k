@@ -117,7 +117,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, dbcsr_mat%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block, transposed=transposed)
          row_start = r_offset(irow)
          row_end = row_start + row_blk_size(irow) - 1
          col_start = c_offset(icol)

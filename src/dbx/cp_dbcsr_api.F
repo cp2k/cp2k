@@ -961,17 +961,19 @@ CONTAINS
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
+!> \param transposed ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_iterator_next_block(iterator, row, column, block, &
                                         block_number_argument_has_been_removed, &
                                         row_size, col_size, &
-                                        row_offset, col_offset)
+                                        row_offset, col_offset, transposed)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
       INTEGER, INTENT(OUT), OPTIONAL                     :: row, column
       REAL(kind=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: block
       LOGICAL, OPTIONAL :: block_number_argument_has_been_removed
       INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size, row_offset, &
                                                             col_offset
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
 
       INTEGER                                            :: my_column, my_row
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_block
@@ -979,9 +981,16 @@ CONTAINS
       CPASSERT(.NOT. PRESENT(block_number_argument_has_been_removed))
 
       IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_iterator_next_block_prv(iterator%dbcsr, row=my_row, column=my_column, &
-                                            block=my_block, row_size=row_size, col_size=col_size, &
-                                            row_offset=row_offset, col_offset=col_offset)
+         IF (PRESENT(transposed)) THEN
+            CALL dbcsr_iterator_next_block_prv(iterator%dbcsr, row=my_row, column=my_column, &
+                                               block=my_block, row_size=row_size, col_size=col_size, &
+                                               row_offset=row_offset, col_offset=col_offset, &
+                                               transposed=transposed)
+         ELSE
+            CALL dbcsr_iterator_next_block_prv(iterator%dbcsr, row=my_row, column=my_column, &
+                                               block=my_block, row_size=row_size, col_size=col_size, &
+                                               row_offset=row_offset, col_offset=col_offset)
+         END IF
          IF (PRESENT(block)) block => my_block
          IF (PRESENT(row)) row = my_row
          IF (PRESENT(column)) column = my_column
