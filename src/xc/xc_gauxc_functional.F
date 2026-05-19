@@ -205,8 +205,11 @@ CONTAINS
             CALL dbcsr_get_stored_coordinates(dbcsr_mat%matrix, irow, icol, owner)
             IF (owner /= mynode) CYCLE
             CALL dbcsr_put_block(dbcsr_mat%matrix, irow, icol, &
+                                 0.5_dp*( &
                                  dense_mat(r_offset(irow):r_offset(irow) + row_blk_size(irow) - 1, &
-                                           c_offset(icol):c_offset(icol) + col_blk_size(icol) - 1))
+                                           c_offset(icol):c_offset(icol) + col_blk_size(icol) - 1) + &
+                                 TRANSPOSE(dense_mat(r_offset(icol):r_offset(icol) + row_blk_size(icol) - 1, &
+                                                     c_offset(irow):c_offset(irow) + col_blk_size(irow) - 1))))
          END DO
       END DO
 
