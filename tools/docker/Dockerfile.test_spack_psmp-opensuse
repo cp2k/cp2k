@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-opensuse -f ./Dockerfile.test_spack_psmp-opensuse ../../
 #
 
-ARG BASE_IMAGE="opensuse/leap:15.6"
+ARG BASE_IMAGE="opensuse/leap:16.0"
 
 ###### Stage 1: Build CP2K dependencies ######
 
@@ -13,7 +13,9 @@ RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
     bzip2 \
     cmake \
-    gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
+    diffutils \
+    findutils \
+    gcc gcc15 gcc-c++ gcc15-c++ gcc-fortran gcc15-fortran \
     git \
     gzip \
     libssh-devel \
@@ -23,16 +25,13 @@ RUN zypper --non-interactive --quiet ref && \
     make \
     patch \
     pkgconf \
-    python311 \
-    python311-devel \
+    python313 \
+    python313-devel \
     unzip \
     wget \
     xz \
     zstd \
     && zypper --non-interactive --quiet clean --all
-
-RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
-    ln -sf /usr/bin/python3.11 /usr/local/bin/python
 
 ARG IMAGE_TAG
 ENV IMAGE_TAG=${IMAGE_TAG:-spack_psmp-opensuse}
@@ -46,13 +45,13 @@ COPY . cp2k/
 
 # Build CP2K dependencies
 WORKDIR /opt/cp2k
-RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 14 -mpi mpich -ue -ef openpmd
+RUN ./make_cp2k.sh -bd_only -cv psmp -gpu none -gv 15 -mpi mpich -ue -ef openpmd
 
 ###### Stage 2: Build CP2K ######
 
 FROM build_deps AS build_cp2k
 
-RUN ./make_cp2k.sh -cv psmp -gv 14 -gpu none -mpi mpich -ef openpmd
+RUN ./make_cp2k.sh -cv psmp -gv 15 -gpu none -mpi mpich -ef openpmd
 
 ###### Stage 3: Install CP2K ######
 
@@ -60,8 +59,8 @@ FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN zypper --non-interactive --quiet ref && \
     zypper --non-interactive --quiet in --no-recommends \
-    gcc gcc14 gcc-c++ gcc14-c++ gcc-fortran gcc14-fortran \
-    python311 \
+    gcc gcc15 gcc-c++ gcc15-c++ gcc-fortran gcc15-fortran \
+    python313 \
     && zypper --non-interactive --quiet clean --all
 
 RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
