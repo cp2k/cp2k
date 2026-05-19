@@ -72,18 +72,7 @@ def main() -> None:
             )
         )
 
-    with OutputFile(f"Dockerfile.test_spack_psmp", args.check) as f:
-        f.write(
-            install_cp2k_spack(
-                version="psmp",
-                mpi_mode="mpich",
-                feature_flags="-ef openpmd",
-                testopts=testopts,
-                image_tag=f.image_tag,
-            )
-        )
-
-    for gcc_version in 10, 11, 12, 14, 15:
+    for gcc_version in 10, 11, 12, 13, 14, 15, 16:
         with OutputFile(
             f"Dockerfile.test_spack_psmp-gcc{gcc_version}", args.check
         ) as f:
