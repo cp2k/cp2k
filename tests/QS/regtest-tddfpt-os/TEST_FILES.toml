@@ -15,14 +15,15 @@
                                     {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.34970609E+00}]
 
 "NO_df0.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
-                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.28917150E+00}]
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00043376801}]
 "NO_df1.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
-                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.28917150E+00}]
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00043376801}]
 "NO_df2.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
-                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.37500099E+03}]
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.18406189}]
 "NO_df3.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
-                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.10204918E+02}]
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00043785886}]
 "NO_df4.inp"                     = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.31464224E+00},
-                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.16653282E+00}]
+                                    {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.00020832769}]
 #
 #EOF
+

@@ -618,7 +618,7 @@ CONTAINS
          IF (nspins == 1) THEN
             trans_dipoles(:, :, 1) = SQRT(2.0_dp)*trans_dipoles(:, :, 1)
          ELSE
-            trans_dipoles(:, :, 1) = SQRT(trans_dipoles(:, :, 1)**2 + trans_dipoles(:, :, 2)**2)
+            trans_dipoles(:, :, 1) = trans_dipoles(:, :, 1) + trans_dipoles(:, :, 2)
          END IF
       END IF
 
