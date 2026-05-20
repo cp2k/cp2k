@@ -92,6 +92,9 @@ for package in awk bzip2 find g++ gcc gfortran git gzip ldconfig make patch pyth
   fi
 done
 
+# Disable python bytecode generation to suppress __pycache__ folder creation
+export PYTHONDONTWRITEBYTECODE=1
+
 # Print OS info if available
 if [[ -f /etc/os-release ]]; then
   echo ""
