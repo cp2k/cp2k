@@ -24,10 +24,7 @@ MODULE space_groups
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE gopt_f_types,                    ONLY: gopt_f_type
-   USE input_constants,                 ONLY: default_cell_direct_id,&
-                                              default_cell_geo_opt_id,&
-                                              default_cell_md_id,&
-                                              default_cell_method_id,&
+   USE input_constants,                 ONLY: default_cell_method_id,&
                                               default_minimization_method_id,&
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
@@ -205,16 +202,7 @@ CONTAINS
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL init_cell(spgr%cell_ref, hmat=cell%hmat)
       CASE (default_cell_method_id)
-         SELECT CASE (gopt_env%cell_method_id)
-         CASE (default_cell_direct_id)
-            CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
-         CASE (default_cell_geo_opt_id)
-            CPABORT("SPACE_GROUP_SYMMETRY should not be invoked during the cell step.")
-         CASE (default_cell_md_id)
-            CPABORT("SPACE_GROUP_SYMMETRY is not compatible with md.")
-         CASE DEFAULT
-            CPABORT("SPACE_GROUP_SYMMETRY invoked with an unknown optimization method.")
-         END SELECT
+         CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
       CASE DEFAULT
          CPABORT("SPACE_GROUP_SYMMETRY is not compatible with md.")
       END SELECT

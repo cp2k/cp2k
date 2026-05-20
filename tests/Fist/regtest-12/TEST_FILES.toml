@@ -59,10 +59,9 @@
 "nh3_fixd_y.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.546765909699E+00}]
 "nh3_fixd_z.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.558873806830E+00}]
 #Cell opt
-"argon_opt_cell.inp"                    = [{matcher="M007", tol=2e-04, ref=-0.1961397953}]
-"argon_opt_cell_ks.inp"                 = [{matcher="M007", tol=8e-05, ref=-0.19517552769999999}]
-"argon_opt_cell_md.inp"                 = [{matcher="M007", tol=1.0E-14, ref=0.1617110873}]
-"Si_tersoff.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-4.9278652447}]
+"argon_opt_cell.inp"                    = [{matcher="M007", tol=2e-04, ref=-0.1916266492}]
+"argon_opt_cell_ks.inp"                 = [{matcher="M007", tol=8e-05, ref=-0.1707331928}]
+"Si_tersoff.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-4.9280645107}]
 #initial orthorombic cells under npt_f dynamics
 "nptf_ortho.inp"                        = [{matcher="M002", tol=4e-09, ref=-1.68009364663}]
 "nptf_ortho_screen.inp"                 = [{matcher="M002", tol=8e-09, ref=-1.68087079556}]

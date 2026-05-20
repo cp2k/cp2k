@@ -33,10 +33,7 @@ MODULE cg_optimizer
                              print_geo_opt_nc
    USE gopt_f_types, ONLY: gopt_f_type
    USE gopt_param_types, ONLY: gopt_param_type
-   USE input_constants, ONLY: default_cell_direct_id, &
-                              default_cell_geo_opt_id, &
-                              default_cell_md_id, &
-                              default_cell_method_id, &
+   USE input_constants, ONLY: default_cell_method_id, &
                               default_minimization_method_id, &
                               default_ts_method_id
    USE input_section_types, ONLY: section_vals_type, &
@@ -116,19 +113,10 @@ CONTAINS
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL print_spgr(spgr)
          CASE (default_cell_method_id)
-            SELECT CASE (gopt_env%cell_method_id)
-            CASE (default_cell_direct_id)
-               CALL force_env_get(force_env, subsys=subsys)
-               CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-               CALL spgr_apply_rotations_coord(spgr, x0)
-               CALL print_spgr(spgr)
-            CASE (default_cell_geo_opt_id)
-               spgr%keep_space_group = .FALSE.
-            CASE (default_cell_md_id)
-               CPABORT("KEEP_SPACE_GROUP not implemented for motion method MD.")
-            CASE DEFAULT
-               spgr%keep_space_group = .FALSE.
-            END SELECT
+            CALL force_env_get(force_env, subsys=subsys)
+            CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+            CALL spgr_apply_rotations_coord(spgr, x0)
+            CALL print_spgr(spgr)
          CASE DEFAULT
             spgr%keep_space_group = .FALSE.
          END SELECT

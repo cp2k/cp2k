@@ -13,14 +13,6 @@
     OPTIMIZER CG
     RMS_DR 0.01
     RMS_FORCE 0.001
-    TYPE GEO_OPT
-    &CG
-      &LINE_SEARCH
-        TYPE 2PNT
-        &2PNT
-        &END 2PNT
-      &END LINE_SEARCH
-    &END CG
   &END CELL_OPT
   &GEO_OPT
     MAX_ITER 100
