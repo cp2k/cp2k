@@ -7,9 +7,15 @@
 "O_ONEDFT_PBE_UKS_TZV2PX.inp"              = [{matcher="E_total", tol=1e-8, ref=-15.864078740341586}]
 "H2_GAPW_ONEDFT_PBE.inp"                   = [{matcher="E_total", tol=1e-10, ref=-1.160463960124012}]
 "H2_ONEDFT_PBE_FORCE_DEBUG.inp"            = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
+"OH_ONEDFT_PBE_UKS_REFERENCE.inp"          = [{matcher="E_total", tol=1e-9, ref=-16.517099097788584}]
+"OH_ONEDFT_PBE_UKS.inp"                    = [{matcher="E_total", tol=1e-9, ref=-16.517093153360065}]
+"OH_ONEDFT_PBE_UKS_FORCE_DEBUG.inp"        = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
 "NH3_ONEDFT_PBE_REFERENCE.inp"             = [{matcher="E_total", tol=1e-9, ref=-11.722875298114319}]
 "NH3_ONEDFT_PBE.inp"                       = [{matcher="E_total", tol=1e-9, ref=-11.722873296827593}]
 "NH3_ONEDFT_PBE_FORCE_DEBUG.inp"           = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
+"OH_GAPW_ONEDFT_PBE_UKS_REFERENCE.inp"     = [{matcher="E_total", tol=1e-9, ref=-75.632851249560275}]
+"OH_GAPW_ONEDFT_PBE_UKS.inp"               = [{matcher="E_total", tol=1e-9, ref=-75.632942672385923}]
+"OH_GAPW_ONEDFT_PBE_UKS_FORCE_DEBUG.inp"   = [{matcher="DEBUG_force_sum", tol=1e-4, ref=0.0}]
 "NH3_GAPW_ONEDFT_PBE_REFERENCE.inp"        = [{matcher="E_total", tol=1e-9, ref=-56.467725172597753}]
 "NH3_GAPW_ONEDFT_PBE.inp"                  = [{matcher="E_total", tol=1e-9, ref=-56.467955985826144}]
 "NH3_GAPW_ONEDFT_PBE_FORCE_DEBUG.inp"      = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
@@ -22,6 +28,12 @@
 "NH3_ONEDFT_PBE_MOLECULAR_VIRIAL.inp"      = [{matcher="E_total", tol=1e-9, ref=-11.722873284224301},
                                                {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-9, ref=0.644254922729},
                                                {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=2e-5, ref=0.0}]
+"OH_ONEDFT_PBE_UKS_MOLECULAR_VIRIAL.inp"   = [{matcher="E_total", tol=1e-9, ref=-16.517093153360076},
+                                               {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-9, ref=0.206613309766},
+                                               {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=1e-6, ref=0.0}]
 "NH3_GAPW_ONEDFT_PBE_MOLECULAR_VIRIAL.inp" = [{matcher="E_total", tol=1e-9, ref=-56.467955985826102},
                                                {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-9, ref=0.485087470503},
                                                {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=1e-6, ref=0.0}]
+"OH_GAPW_ONEDFT_PBE_UKS_MOLECULAR_VIRIAL.inp" = [{matcher="E_total", tol=1e-9, ref=-75.632942672385894},
+                                                  {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-9, ref=0.158153907200},
+                                                  {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=1e-6, ref=0.0}]
