@@ -30,6 +30,7 @@
     &END POISSON
     &QS
       EPS_DEFAULT 1.0E-10
+      GAPW_ACCURATE_XCINT T
       METHOD GAPW
     &END QS
     &SCF

@@ -783,7 +783,13 @@ CONTAINS
                   CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
                END IF
                NULLIFY (rho1)
-               IF (dft_control%use_gauxc .AND. gapw_xc) THEN
+               IF (dft_control%use_gauxc .AND. gapw) THEN
+                  ! GauXC evaluates GAPW XC directly on its molecular quadrature
+                  ! grid.  The native accurate-XCINT force correction applies to
+                  ! CP2K's regular-grid XC density and would otherwise try to
+                  ! evaluate the GAUXC section through xc_derivatives.
+                  CONTINUE
+               ELSE IF (dft_control%use_gauxc .AND. gapw_xc) THEN
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section_gapw_xc)
                ELSE
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
