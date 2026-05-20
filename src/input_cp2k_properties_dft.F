@@ -2374,6 +2374,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_floquet_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_bandstructure_section
 
 ! **************************************************************************************************
@@ -2898,5 +2902,86 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_tipscan_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param section_name ...
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE create_floquet_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL section_create(section, __LOCATION__, name="FLOQUET", &
+                          description="Specifies FLOQUET", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PUMP_AMPLITUDE", &
+                          description="Intensity of the electric field in a.u,", &
+                          usage="PUMP_AMPLITUDE 0.001", n_var=1, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION_PUMP", &
+                          description="E", &
+                          usage="POLARISATION_PUMP 1 1 1", n_var=3, &
+                          default_r_vals=[1.0_dp, 0.0_dp, 0.0_dp], &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PUMP_PHASE", &
+                          description="PUMP_PHASE", &
+                          usage="PUMP_PHASE 0.0 1.57 0.0", n_var=3, &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp], &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
+                          description="FREQUENCY", &
+                          usage="OMEGA 1", n_var=1, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_FLOQUET_INDEX", &
+                          description="MAX_FLOQUET_INDEX", &
+                          usage="MAX_FLOQUET_INDEX 600", n_var=1, &
+                          default_i_val=600, &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
+                          description="THE ENERGY WINDOW", &
+                          usage="ENERGY_WINDOW 1", n_var=1, &
+                          default_r_val=1.0_dp, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_STEP", &
+                          description="ENERGY_STEP", &
+                          usage="ENERGY_STEP 0.01", n_var=1, &
+                          default_r_val=0.01_dp, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
+                          description="BROADENING", &
+                          usage="BROADENING 0.05", n_var=1, &
+                          default_r_val=0.05_dp, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_floquet_section
 
 END MODULE input_cp2k_properties_dft

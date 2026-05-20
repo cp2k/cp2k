@@ -88,7 +88,8 @@ MODULE post_scf_bandstructure_types
                                                          do_soc = .FALSE., &
                                                          do_ldos = .FALSE., &
                                                          do_gw_ri_rs = .FALSE., &
-                                                         do_dos_pdos = .FALSE.
+                                                         do_dos_pdos = .FALSE., &
+                                                         do_floquet = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -309,6 +310,17 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(:), POINTER               :: bin_mesh => NULL()
       INTEGER                                      :: n_bins_max_for_printing = -1
       REAL(KIND=dp)                                :: unit_ldos_int_z_inv_Ang2_eV = -1.0_dp
+
+      INTEGER                                      :: max_floquet_index = -1, &
+                                                      floquet_qunit = -1, &
+                                                      floquet_wunit = -1
+      REAL(KIND=dp), DIMENSION(:), POINTER         :: floquet_pol_pump => NULL(), &
+                                                      floquet_phi => NULL()
+      REAL(KIND=dp)                                :: floquet_omega = -1.0_dp, &
+                                                      floquet_amplitude = -1.0_dp, &
+                                                      broadening_floquet = -1.0_dp, &
+                                                      energy_step_floquet = -1.0_dp, &
+                                                      energy_window_floquet = -1.0_dp
 
       ! quantities only needed for small cells and k-point sampling in DFT (small_cell_full_kp)
       INTEGER                                      :: nkp_scf_desymm = -1, &
