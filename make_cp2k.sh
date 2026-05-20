@@ -580,7 +580,7 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
 # Assemble CMake feature flag list
-CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
+CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS} -DCP2K_USE_GAUXC=OFF"
 
 # Clean CMake feature flag list from repeated entries and keep only the last definition
 declare -A last=()
@@ -877,6 +877,11 @@ export SPACK_VERSION="${SPACK_VERSION:-1.1.1}"
 export SPACK_BUILD_PATH="${CP2K_ROOT}/spack"
 export SPACK_ROOT="${SPACK_BUILD_PATH}/spack"
 
+# Isolate user configuration for spack
+export SPACK_DISABLE_LOCAL_CONFIG=true
+export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
+export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
+
 # Define the CP2K spack configuration file
 export CP2K_CONFIG_FILE="${SPACK_BUILD_PATH}/cp2k_deps_${CP2K_VERSION:0:1}${CP2K_VERSION:4}.yaml"
 
@@ -918,10 +923,7 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
   fi
   export PATH="${SPACK_ROOT}/bin:${PATH}"
 
-  # Isolate user configuration for spack
-  export SPACK_DISABLE_LOCAL_CONFIG=true
-  export SPACK_USER_CONFIG_PATH="${SPACK_BUILD_PATH}"
-  export SPACK_USER_CACHE_PATH="${SPACK_BUILD_PATH}/cache"
+  # Create cache folder for user configuration
   mkdir -p "${SPACK_USER_CACHE_PATH}"
 
   # Set Spack cache (folder is the default)
