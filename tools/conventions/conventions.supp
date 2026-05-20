@@ -194,6 +194,8 @@ qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer h
 qs_active_space_methods.F: Found type eri_fcidump_print without initializer https://cp2k.org/conv#c016
 qs_charge_mixing.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+qs_dispersion_d4.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+qs_dispersion_d4.F: Module "multicharge" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat" https://cp2k.org/conv#c012
