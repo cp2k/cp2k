@@ -708,6 +708,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
 
       INTEGER                                  :: istat
+      LOGICAL                                  :: src_exists
 
       INTERFACE
          FUNCTION rename(src, dest) BIND(C, name="rename") RESULT(errno)
@@ -729,6 +730,9 @@ CONTAINS
       ! now move
       istat = rename(TRIM(source)//c_null_char, TRIM(TARGET)//c_null_char)
       IF (istat /= 0) THEN
+         ! Source already moved by a concurrent rank: benign, nothing to back up.
+         INQUIRE (FILE=source, EXIST=src_exists)
+         IF (.NOT. src_exists) RETURN
          WRITE (*, *) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
          WRITE (*, *) "rename returned status: ", istat
          WRITE (*, *) "Problem moving file"
