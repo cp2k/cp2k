@@ -18,6 +18,8 @@ MODULE xc_gauxc_functional
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE external_potential_types,        ONLY: gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: xc_vdw_fun_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get_subs_vals,&
@@ -37,7 +39,8 @@ MODULE xc_gauxc_functional
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -297,6 +300,33 @@ CONTAINS
       END DO
 
    END FUNCTION xc_section_uses_gauxc
+
+! **************************************************************************************************
+!> \brief Reject unsupported pseudopotential variants in GauXC GAPW mode
+!> \param qs_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE ensure_gauxc_gapw_all_electron(qs_kind_set)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      INTEGER                                            :: ikind
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
+         IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GauXC with METHOD GAPW currently supports all-electron potentials only. "// &
+                          "Use POTENTIAL ALL for GAPW validation or METHOD GPW with pseudopotentials.")
+         END IF
+      END DO
+
+   END SUBROUTINE ensure_gauxc_gapw_all_electron
 
 ! **************************************************************************************************
 !> \brief adds a replicated GauXC energy gradient to the local CP2K force accumulator
@@ -776,6 +806,9 @@ CONTAINS
 
       IF (dft_control%qs_control%gapw_xc) THEN
          CPABORT(gapw_xc_abort_message)
+      END IF
+      IF (dft_control%qs_control%gapw) THEN
+         CALL ensure_gauxc_gapw_all_electron(qs_kind_set)
       END IF
       CPASSERT(ASSOCIATED(rho))
       rho_use => rho
