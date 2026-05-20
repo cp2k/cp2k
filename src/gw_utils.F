@@ -66,6 +66,7 @@ MODULE gw_utils
                                               non_periodic_ri_rs,&
                                               ri_rpa_g0w0_crossing_newton,&
                                               rtp_method_bse,&
+                                              rtp_method_bse_linearized,&
                                               small_cell_full_kp,&
                                               xc_none
    USE input_section_types,             ONLY: section_vals_get,&
@@ -1343,7 +1344,8 @@ CONTAINS
       END DO
 
       ! Marek : In the RTBSE run, check also for zero frequency W
-      IF (bs_env%rtp_method == rtp_method_bse) THEN
+      IF (bs_env%rtp_method == rtp_method_bse .OR. &
+          bs_env%rtp_method == rtp_method_bse_linearized) THEN
          WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), "W_freq_rtp", "_0", 0, ".matrix"
          INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
          bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists

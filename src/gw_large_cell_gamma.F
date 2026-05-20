@@ -64,7 +64,8 @@ MODULE gw_large_cell_gamma
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
-   USE input_constants,                 ONLY: rtp_method_bse
+   USE input_constants,                 ONLY: rtp_method_bse,&
+                                              rtp_method_bse_linearized
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               default_path_length,&
@@ -1031,7 +1032,8 @@ CONTAINS
 
       ! Marek : Reading of the W(w=0) potential for RTP
       ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
-      IF (bs_env%rtp_method == rtp_method_bse) THEN
+      IF (bs_env%rtp_method == rtp_method_bse .OR. &
+          bs_env%rtp_method == rtp_method_bse_linearized) THEN
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
          t1 = m_walltime()
          CALL fm_read(bs_env%fm_W_MIC_freq_zero, bs_env, "W_freq_rtp", 0)
@@ -1135,7 +1137,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
       ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
-      IF (bs_env%rtp_method == rtp_method_bse) THEN
+      IF (bs_env%rtp_method == rtp_method_bse .OR. &
+          bs_env%rtp_method == rtp_method_bse_linearized) THEN
          t1 = m_walltime()
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
          ! Set to zero

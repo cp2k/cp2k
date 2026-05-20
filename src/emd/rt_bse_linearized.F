@@ -96,6 +96,12 @@ MODULE rt_bse_linearized
             rho_metric, &
             cp_cfm_gexp, &
             propagate_density
+   USE rt_bse_ri_rs, ONLY: compute_hartree_ri_rs, &
+                           compute_hartree_ri_rs_complex, &
+                           compute_sigma_ri_rs, &
+                           compute_sigma_ri_rs_complex, &
+                           rt_bse_ri_rs_ensure_V_grid, &
+                           rt_bse_ri_rs_ensure_W0_grid
    USE rt_bse_types, ONLY: rtbse_env_type, &
                            create_rtbse_env, &
                            release_rtbse_env, &
@@ -810,17 +816,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_hartree_potential"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       INTEGER                                      :: i, handle
-      LOGICAL                                      :: use_hartree_reference
+      LOGICAL                                      :: use_hartree_reference, use_rirs_hartree, &
+                                                      use_rirs_sex
 
       CALL timeset(routineN, handle)
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
       use_hartree_reference = (.NOT. rtbse_env%tda_active) .AND. &
                   (.NOT. rtbse_env%debug_disable_hartree)
+      use_rirs_hartree = rtbse_env%rirs_hartree
+      use_rirs_sex = rtbse_env%rirs_sex
+
+      ! Make sure the RI-RS V_grid kernel is available if we need it for Hartree.
+      IF (use_rirs_hartree) CALL rt_bse_ri_rs_ensure_V_grid(bs_env, rtbse_env%qs_env)
 
       ! ****** START HARTREE POTENTIAL REFERENCE CALCULATION
-      ! Calculate Coulomb RI elements, necessary for Hartree calculation
-      CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
+      ! v_dbcsr is needed by either AO-RI Hartree (here) or by AO-RI SEX (W = V + W^c assembly).
+      IF ((.NOT. use_rirs_hartree) .OR. (.NOT. use_rirs_sex)) THEN
+         CALL init_hartree(rtbse_env, rtbse_env%v_dbcsr)
+      END IF
       ! Always zero ham_reference here (this routine is the first to touch it).
       ! The Hartree reference subtraction is then conditionally added below.
       DO i = 1, rtbse_env%n_spin
@@ -833,7 +847,15 @@ CONTAINS
       ! and the corresponding Hartree reference is identically zero.
       IF (use_hartree_reference) THEN
          DO i = 1, rtbse_env%n_spin
-            CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
+            IF (use_rirs_hartree) THEN
+               ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
+               CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(i), &
+                                 mtargetr=rtbse_env%real_workspace(1))
+               CALL compute_hartree_ri_rs(bs_env, rtbse_env%real_workspace(1), &
+                                          rtbse_env%hartree_curr_ao(i))
+            ELSE
+               CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(i), rtbse_env%hartree_curr_ao(i))
+            END IF
             ! Scaling by spin degeneracy
             CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr_ao(i))
             ! Transform to MO basis (AO scratch -> MO-active result)
@@ -862,32 +884,45 @@ CONTAINS
       TYPE(rtbse_env_type), POINTER                :: rtbse_env
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_cohsex_selfenergy"
       INTEGER                                      :: i, handle
-      LOGICAL                                      :: use_coh_reference, use_sex_reference
+      LOGICAL                                      :: use_coh_reference, use_sex_reference, &
+                                                      use_rirs_sex
 
       CALL timeset(routineN, handle)
       use_coh_reference = .NOT. rtbse_env%debug_disable_coh
       use_sex_reference = (.NOT. rtbse_env%tda_active) .AND. &
                  (.NOT. rtbse_env%debug_disable_sex)
+      use_rirs_sex = rtbse_env%rirs_sex
+
+      ! Make sure the RI-RS W0_grid kernel is available if we need it for COH/SEX.
+      IF (use_rirs_sex) CALL rt_bse_ri_rs_ensure_W0_grid(rtbse_env%bs_env, rtbse_env%qs_env)
 
       ! ****** START COHSEX REFERENCE CALCULATION
-      ! w_dbcsr and screened_dbt are needed for get_sigma routines
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-         ! In a non-HF calculation, copy the actual correlation part of the interaction
-         CALL copy_fm_to_dbcsr(rtbse_env%bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
-      ELSE
-         ! In HF, correlation is set to zero
-         CALL dbcsr_set(rtbse_env%w_dbcsr, 0.0_dp)
+      ! w_dbcsr and screened_dbt are needed for get_sigma routines (AO-RI path only).
+      ! For RI-RS the W = V + W^c kernel is on the real-space grid in mat_W0_grid_rtbse.
+      IF (.NOT. use_rirs_sex) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+            ! In a non-HF calculation, copy the actual correlation part of the interaction
+            CALL copy_fm_to_dbcsr(rtbse_env%bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
+         ELSE
+            ! In HF, correlation is set to zero
+            CALL dbcsr_set(rtbse_env%w_dbcsr, 0.0_dp)
+         END IF
+         ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
+         CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
+         CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       END IF
-      ! Add the Hartree to the screened_dbt tensor - now W = V + W^c
-      CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
-      CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the COHSEX starting energies
       IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
          ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
          DO i = 1, rtbse_env%n_spin
             IF (use_coh_reference) THEN
                ! TODO : Allow no COH calculation for static screening
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, &
+                                           rtbse_env%S_inv_fm)
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
+               END IF
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
                ! Apply occupation factor f_n-f_m
@@ -904,7 +939,12 @@ CONTAINS
             ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
             ! vanish and the SEX reference must remain zero in TDA.
             IF (use_sex_reference) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
+                                                   rtbse_env%rho_ao_lrrtbse(i))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               END IF
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
                ! Apply occupation factor f_n-f_m
@@ -919,7 +959,12 @@ CONTAINS
          ! Same TDA reasoning as above: skip the SEX reference subtraction in TDA.
          IF (use_sex_reference) THEN
             DO i = 1, rtbse_env%n_spin
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
+                                                   rtbse_env%rho_ao_lrrtbse(i))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+               END IF
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
                ! Apply occupation factor f_n-f_m
@@ -1025,13 +1070,16 @@ CONTAINS
       TYPE(cp_cfm_type)           :: rho, ham_effective
       INTEGER                                           :: ispin
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham_MO"
-      LOGICAL                                            :: use_coh, use_hartree, use_sex
+      LOGICAL                                            :: use_coh, use_hartree, use_sex, &
+                                                            use_rirs_hartree, use_rirs_sex
       INTEGER                                            :: k, handle
 
       CALL timeset(routineN, handle)
       use_coh = .NOT. rtbse_env%debug_disable_coh
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
+      use_rirs_hartree = rtbse_env%rirs_hartree
+      use_rirs_sex = rtbse_env%rirs_sex
 
       ! Update density matrix in AO from latest rho as it is needed for Hartree and SEX contributions
       CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rho, rtbse_env%rho_ao_lrrtbse(ispin), ispin)
@@ -1068,7 +1116,12 @@ CONTAINS
          END DO
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh) THEN
             ! Add the COH part - so far static but can be dynamic in principle through the W updates
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, rtbse_env%S_inv_fm)
+            IF (use_rirs_sex) THEN
+               CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, &
+                                        rtbse_env%S_inv_fm)
+            ELSE
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(ispin), -0.5_dp, rtbse_env%S_inv_fm)
+            END IF
             ! Transform to MO basis (AO scratch -> MO-active result)
             CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(ispin), rtbse_env%sigma_COH(ispin), ispin)
             ! Apply occupation factor f_n-f_m
@@ -1082,7 +1135,12 @@ CONTAINS
             ! Calculate the (S)EX part - based on provided rho
             ! iGW = - rho W
             IF (use_sex) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, &
+                                                   rtbse_env%rho_ao_lrrtbse(ispin))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               END IF
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                      rtbse_env%sigma_SEX(ispin), ispin)
@@ -1094,8 +1152,16 @@ CONTAINS
             ! Calculate Hartree potential
             ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
             IF (use_hartree) THEN
-               CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                rtbse_env%hartree_curr_ao(ispin))
+               IF (use_rirs_hartree) THEN
+                  ! AO-RI get_hartree uses only Re(rho); mirror that on the RI-RS path.
+                  CALL cp_cfm_to_fm(msource=rtbse_env%rho_ao_lrrtbse(ispin), &
+                                    mtargetr=rtbse_env%real_workspace(1))
+                  CALL compute_hartree_ri_rs(rtbse_env%bs_env, rtbse_env%real_workspace(1), &
+                                             rtbse_env%hartree_curr_ao(ispin))
+               ELSE
+                  CALL get_hartree(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                   rtbse_env%hartree_curr_ao(ispin))
+               END IF
                ! Transform to MO basis (AO scratch -> MO-active result)
                CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%hartree_curr_ao(ispin), &
                      rtbse_env%hartree_curr(ispin), ispin)
@@ -1142,8 +1208,13 @@ CONTAINS
             ! Hartree must run before SEX: sigma_SEX_ao(ispin) is reused as the AO
             ! scratch for the complex Hartree result, then overwritten by get_sigma.
             IF (use_hartree) THEN
-               CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                        rtbse_env%sigma_SEX_ao(ispin), ispin)
+               IF (use_rirs_hartree) THEN
+                  CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                                     rtbse_env%sigma_SEX_ao(ispin))
+               ELSE
+                  CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                           rtbse_env%sigma_SEX_ao(ispin), ispin)
+               END IF
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%ham_workspace(1), ispin)
                CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
@@ -1159,7 +1230,12 @@ CONTAINS
                                          rtbse_env%rho_delta_mo(ispin))
             END IF
             IF (use_sex) THEN
-               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               IF (use_rirs_sex) THEN
+                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                                   -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               ELSE
+                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+               END IF
                CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                      rtbse_env%sigma_SEX(ispin), ispin)
                CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)

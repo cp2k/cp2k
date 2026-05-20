@@ -170,6 +170,11 @@ MODULE rt_bse_types
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
                                      debug_disable_sex = .FALSE., &
                                      debug_disable_coh = .FALSE.
+      ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
+      ! rirs_sex controls both COH and SEX (they share W = V + W^c). The required grid and
+      ! V_grid/W0_grid kernels are built on demand and reused across steps.
+      LOGICAL                                                   :: rirs_hartree = .FALSE., &
+                                     rirs_sex = .FALSE.
       ! Whether to enforce max_dt within stability region of rk4
       LOGICAL                                                   :: enforce_max_dt = .FALSE.
       ! Owned fm structures sized to the active MO window. Equal to the full n_ao x n_ao
@@ -323,6 +328,7 @@ CONTAINS
       INTEGER                                                   :: i, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
+      LOGICAL :: explicit_rirs_hartree, explicit_rirs_sex
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
@@ -385,6 +391,24 @@ CONTAINS
                                 l_val=rtbse_env%debug_disable_sex)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_DISABLE_COH", &
                                 l_val=rtbse_env%debug_disable_coh)
+      ! Per-kernel RI-RS dispatch: default to bs_env%do_gw_ri_rs so that running with a
+      ! GW_RI_RS section automatically routes the RT-BSE kernels through the same RI-RS
+      ! grid (and CUTOFF_RADIUS_RI_RS) as GW. Explicit RIRS_HARTREE/RIRS_SEX overrides apply.
+      rtbse_env%rirs_hartree = bs_env%do_gw_ri_rs
+      rtbse_env%rirs_sex = bs_env%do_gw_ri_rs
+      
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
+                                 explicit=explicit_rirs_hartree)
+      IF (explicit_rirs_hartree) THEN
+         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
+                                    l_val=rtbse_env%rirs_hartree)
+      END IF
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
+                                 explicit=explicit_rirs_sex)
+      IF (explicit_rirs_sex) THEN
+         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
+                                    l_val=rtbse_env%rirs_sex)
+      END IF
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -394,6 +418,8 @@ CONTAINS
          rtbse_env%debug_disable_sex = .FALSE.
          rtbse_env%debug_disable_coh = .FALSE.
          rtbse_env%tda_shift_to_first_peak = .FALSE.
+         rtbse_env%rirs_hartree = .FALSE.
+         rtbse_env%rirs_sex = .FALSE.
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.

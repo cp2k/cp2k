@@ -97,6 +97,19 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
 
+      ! Precomputed grid-basis kernels for RT-BSE
+      ! mat_V_grid_rtbse(l, l')  = sum_PQ  Z_lP V_PQ  Z_l'Q
+      ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
+      TYPE(dbcsr_type)                                 :: mat_V_grid_rtbse
+      TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
+      LOGICAL                                          :: rtbse_kernels_ready = .FALSE.
+      ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
+      ! or on-demand by the RT-BSE RI-RS kernel path).
+      LOGICAL                                          :: grid_built = .FALSE.
+      ! Independent toggles for V_grid / W0_grid availability
+      LOGICAL                                          :: V_grid_built = .FALSE.
+      LOGICAL                                          :: W0_grid_built = .FALSE.
+
    END TYPE ri_rs_env
 
    TYPE post_scf_bandstructure_type
@@ -525,8 +538,10 @@ CONTAINS
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       ! Deallocate RI-RS matrices
-      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
-      IF (bs_env%do_gw_ri_rs) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_phi_mu_l)
+      IF (bs_env%ri_rs%grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_Z_lP)
+      IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_grid_rtbse)
+      IF (bs_env%ri_rs%W0_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_W0_grid_rtbse)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
       IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)

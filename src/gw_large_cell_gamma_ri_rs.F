@@ -89,7 +89,14 @@ MODULE gw_large_cell_Gamma_ri_rs
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_Gamma_ri_rs'
 
-   PUBLIC :: gw_calc_large_cell_Gamma_ri_rs
+   PUBLIC :: gw_calc_large_cell_Gamma_ri_rs, &
+             ri_rs_grid_assembler, &
+             atomic_basis_at_grid_point, &
+             compute_coeff_Z_lP, &
+             contract_A_B_A, &
+             hadamard_product, &
+             setup_square_topology, &
+             release_dbcsr_topology_and_matrices
 
 CONTAINS
 
@@ -152,6 +159,7 @@ CONTAINS
        !!========================================================================
       CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                               bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+      bs_env%ri_rs%grid_built = .TRUE.
 
        !!========================================================================
        !! 4. Compute Independent-Particle Polarizability (χ)
