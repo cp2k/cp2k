@@ -20,11 +20,11 @@ privacy_mode:
 ## Basic setup
 
 Select an MD calculation with [`RUN_TYPE MD`](#CP2K_INPUT.GLOBAL.RUN_TYPE). The main MD controls are
-in [`MOTION / MD`](#CP2K_INPUT.MOTION.MD): [`ENSEMBLE`](#CP2K_INPUT.MOTION.MD.ENSEMBLE) selects the
-propagator, [`STEPS`](#CP2K_INPUT.MOTION.MD.STEPS) or [`MAX_STEPS`](#CP2K_INPUT.MOTION.MD.MAX_STEPS)
-sets the length of the run, [`TIMESTEP`](#CP2K_INPUT.MOTION.MD.TIMESTEP) sets the integration step,
-and [`TEMPERATURE`](#CP2K_INPUT.MOTION.MD.TEMPERATURE) is used for velocity initialisation and as
-the constant-temperature target.
+in [MOTION/MD](#CP2K_INPUT.MOTION.MD): [ENSEMBLE](#CP2K_INPUT.MOTION.MD.ENSEMBLE) selects the
+propagator, [STEPS](#CP2K_INPUT.MOTION.MD.STEPS) or [MAX_STEPS](#CP2K_INPUT.MOTION.MD.MAX_STEPS)
+sets the length of the run, [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) sets the integration step,
+and [TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE) is used for velocity initialisation and as the
+constant-temperature target.
 
 A minimal fixed-energy MD block is:
 
@@ -44,9 +44,7 @@ A minimal fixed-energy MD block is:
 &END MOTION
 ```
 
-The force method is defined independently in [`FORCE_EVAL`](#CP2K_INPUT.FORCE_EVAL). For AIMD, do
-not choose electronic-structure settings only from a single-point energy test. Force smoothness, SCF
-robustness, and the drift of conserved quantities along a trajectory are usually more relevant.
+The force method is defined independently in [FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL).
 
 ## Initial structure and velocities
 
@@ -56,16 +54,16 @@ densities, or badly prepared cells, because such problems can cause unstable for
 or immediate heating and atom ejection. A geometry optimisation before MD can be helpful.
 
 If velocities are not provided by a restart file or an external trajectory, CP2K can initialise
-atomic velocities from [`TEMPERATURE`](#CP2K_INPUT.MOTION.MD.TEMPERATURE). The
-[`INITIALIZATION_METHOD`](#CP2K_INPUT.MOTION.MD.INITIALIZATION_METHOD) keyword controls how the
+atomic velocities from [TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE). The
+[INITIALIZATION_METHOD](#CP2K_INPUT.MOTION.MD.INITIALIZATION_METHOD) keyword controls how the
 initial positions and velocities are generated.
 
 For isolated molecules, clusters, slabs, or other systems where global translation or rotation is
 not part of the intended dynamics, it can be useful to remove centre-of-mass translation and, when
-meaningful, overall angular motion; see [`COMVEL_TOL`](#CP2K_INPUT.MOTION.MD.COMVEL_TOL),
-[`ANGVEL_TOL`](#CP2K_INPUT.MOTION.MD.ANGVEL_TOL),
-[`ANGVEL_ZERO`](#CP2K_INPUT.MOTION.MD.ANGVEL_ZERO), and related keywords. For periodic bulk systems,
-small total-momentum drift is usually less important.
+meaningful, overall angular motion; see [COMVEL_TOL](#CP2K_INPUT.MOTION.MD.COMVEL_TOL),
+[ANGVEL_TOL](#CP2K_INPUT.MOTION.MD.ANGVEL_TOL), [ANGVEL_ZERO](#CP2K_INPUT.MOTION.MD.ANGVEL_ZERO),
+and related keywords. For periodic bulk systems, small total-momentum drift is usually less
+important.
 
 **Avoid very small periodic cells for production MD unless the finite-size effects are known to be
 acceptable.** Small cells produce artificial correlations through periodic images, exaggerate
@@ -88,9 +86,9 @@ The most common choices are `NVE`, `NVT`, `NPT_I`, `NPT_F`, and `LANGEVIN`.
 - `LANGEVIN` is stochastic constant-temperature dynamics. It is useful for robust equilibration,
   dissipative dynamics, or models where a stochastic heat bath is intentional.
 
-Other supported values of [`ENSEMBLE`](#CP2K_INPUT.MOTION.MD.ENSEMBLE) are more specialised:
-`NPE_I`, `NPE_F`, `ISOKIN`, `REFTRAJ`, `MSST`, `MSST_DAMPED`, `HYDROSTATICSHOCK`, `NVT_ADIABATIC`,
-and `NPT_IA`. See the input reference for details.
+Other supported values of [ENSEMBLE](#CP2K_INPUT.MOTION.MD.ENSEMBLE) are more specialised: `NPE_I`,
+`NPE_F`, `ISOKIN`, `REFTRAJ`, `MSST`, `MSST_DAMPED`, `HYDROSTATICSHOCK`, `NVT_ADIABATIC`, and
+`NPT_IA`. See the input reference for details.
 
 Note that NPT simulations are sensitive to system size and barostat settings; small cells can show
 large pressure fluctuations and artificial cell oscillations. For small cells, consider fixed-cell
@@ -98,9 +96,9 @@ large pressure fluctuations and artificial cell oscillations. For small cells, c
 
 ## Thermostats
 
-Constant-temperature ensembles use [`MOTION / MD / THERMOSTAT`](#CP2K_INPUT.MOTION.MD.THERMOSTAT).
-The input keyword default for [`TYPE`](#CP2K_INPUT.MOTION.MD.THERMOSTAT.TYPE) is currently `NOSE`,
-but for routine `NVT` equilibration and production `CSVR` is often the safer practical default.
+Constant-temperature ensembles use [MOTION/MD/THERMOSTAT](#CP2K_INPUT.MOTION.MD.THERMOSTAT). The
+input keyword default for [TYPE](#CP2K_INPUT.MOTION.MD.THERMOSTAT.TYPE) is currently `NOSE`, but for
+routine `NVT` equilibration and production `CSVR` is often the safer practical default.
 
 - `CSVR`: recommended general-purpose choice. It gives canonical sampling through velocity rescaling
   and is robust for both equilibration and production.
@@ -130,21 +128,21 @@ A practical `NVT` setup is:
 &END MOTION
 ```
 
-The [`CSVR / TIMECON`](#CP2K_INPUT.MOTION.MD.THERMOSTAT.CSVR.TIMECON) value controls the coupling
-strength. Useful starting values are `50 fs` for rapid heating or cooling, `100 fs` as a simple
-robust default, and `200 fs` or larger for gentler production sampling after equilibration.
+The [CSVR/TIMECON](#CP2K_INPUT.MOTION.MD.THERMOSTAT.CSVR.TIMECON) (unit: fs) value controls the
+coupling strength. Useful starting values are `50` for rapid heating or cooling, `100` as a simple
+robust default, and `200` or larger for gentler production sampling after equilibration.
 
 Do not use crude velocity rescaling as a production thermostat.
-[`TEMP_TOL`](#CP2K_INPUT.MOTION.MD.TEMP_TOL) can trigger velocity rescaling when the instantaneous
+[TEMP_TOL](#CP2K_INPUT.MOTION.MD.TEMP_TOL) can trigger velocity rescaling when the instantaneous
 temperature deviates from the target, but this keyword is obsolescent; a CSVR thermostat with a
 short time constant is usually the better early- equilibration replacement.
 
 ## Barostats and NPT simulations
 
-NPT simulations additionally use [`MOTION / MD / BAROSTAT`](#CP2K_INPUT.MOTION.MD.BAROSTAT). The
-pressure target is set by [`PRESSURE`](#CP2K_INPUT.MOTION.MD.BAROSTAT.PRESSURE), and the barostat
-time scale by [`TIMECON`](#CP2K_INPUT.MOTION.MD.BAROSTAT.TIMECON). For `NPT_F`,
-[`VIRIAL`](#CP2K_INPUT.MOTION.MD.BAROSTAT.VIRIAL) can restrict which Cartesian components of the
+NPT simulations additionally use [MOTION/MD/BAROSTAT](#CP2K_INPUT.MOTION.MD.BAROSTAT). The pressure
+target is set by [PRESSURE](#CP2K_INPUT.MOTION.MD.BAROSTAT.PRESSURE), and the barostat time scale by
+[TIMECON](#CP2K_INPUT.MOTION.MD.BAROSTAT.TIMECON). For `NPT_F`,
+[VIRIAL](#CP2K_INPUT.MOTION.MD.BAROSTAT.VIRIAL) can restrict which Cartesian components of the
 virial are used for cell relaxation.
 
 Use `NPT_I` when isotropic volume fluctuations are sufficient. Use `NPT_F` only when the cell shape
@@ -171,11 +169,11 @@ interest when only part of the system matters.
 ## Electronic-structure settings for AIMD
 
 Each AIMD step requires an electronic-structure calculation. Important Quickstep settings include
-[`EPS_SCF`](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF),
-[`EPS_DEFAULT`](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EPS_DEFAULT), and the plane-wave grid parameters in
-[`MGRID`](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID), especially
-[`CUTOFF`](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) and
-[`REL_CUTOFF`](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.REL_CUTOFF).
+[EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF),
+[EPS_DEFAULT](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EPS_DEFAULT), and the plane-wave grid parameters in
+[MGRID](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID), especially
+[CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF) and
+[REL_CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.REL_CUTOFF).
 
 AIMD settings do not always need to match high-precision static energies or final property
 calculations. For long trajectories, stable forces and negligible drift are often more important
@@ -187,10 +185,10 @@ settings can create noisy forces, poor energy conservation, artificial heating, 
 
 In a normal MD trajectory, consecutive geometries are close to each other. CP2K can use previous
 electronic solutions to build a better initial guess for the next step through
-[`EXTRAPOLATION`](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EXTRAPOLATION) and
-[`EXTRAPOLATION_ORDER`](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EXTRAPOLATION_ORDER). A good extrapolation
-keeps the electronic state continuous and usually reduces the number of SCF iterations at each MD
-step, which is often crucial for efficiency.
+[EXTRAPOLATION](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EXTRAPOLATION) and
+[EXTRAPOLATION_ORDER](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EXTRAPOLATION_ORDER). A good extrapolation keeps
+the electronic state continuous and usually reduces the number of SCF iterations at each MD step,
+which is often crucial for efficiency.
 
 For standard Born-Oppenheimer MD, `ASPC` is the default and generally the best first choice. It is
 similar in spirit to `PS`, but is designed for MD stability rather than only initial-guess accuracy.
@@ -218,20 +216,20 @@ target workflow, and `LANGEVIN` when stochastic damping is desired. A typical pr
 - Discard the equilibration part before computing averages.
 
 For heating with `CSVR`, a practical two-stage strategy is to use a relatively short thermostat time
-constant first, for example `TIMECON 50 fs`, to bring the system close to the target temperature
-quickly, and then switch to a gentler production setting such as `TIMECON 200 fs`. This is useful
-when the initial and target temperatures are not too far apart and the structure is already
-reasonable, but a short equilibration stage is still desired before collecting statistics.
+constant first, for example `TIMECON 50`, to bring the system close to the target temperature
+quickly, and then switch to a gentler production setting such as `TIMECON 200`. This is useful when
+the initial and target temperatures are not too far apart and the structure is already reasonable,
+but a short equilibration stage is still desired before collecting statistics.
 
 If a separate equilibration stage is not necessary, or if a simple robust setup is preferred, one
-can also run the whole trajectory with an intermediate coupling strength, for example
-`TIMECON 100 fs`. This is often sufficient for ordinary room-temperature or moderately
-high-temperature simulations, and the equilibration and production parts may then differ only in
-which initial frames are discarded from the analysis.
+can also run the whole trajectory with an intermediate coupling strength, for example `TIMECON 100`.
+This is often sufficient for ordinary room-temperature or moderately high-temperature simulations,
+and the equilibration and production parts may then differ only in which initial frames are
+discarded from the analysis.
 
 If the target temperature is very high, directly heating to that temperature can make the simulation
 likely to crash. In such cases, staged heating is recommended: increase
-[`TEMPERATURE`](#CP2K_INPUT.MOTION.MD.TEMPERATURE) through several short equilibration stages until
+[TEMPERATURE](#CP2K_INPUT.MOTION.MD.TEMPERATURE) through several short equilibration stages until
 the final target temperature is reached. This is especially useful for AIMD at several thousand
 kelvin, reactive systems, poor initial structures, or systems with close contacts. The thermostat
 `TIMECON` still controls the coupling strength within each stage, but it does not replace the need
@@ -244,7 +242,7 @@ temperature decreases slowly rather than being quenched abruptly. The appropriat
 on the system and on whether the goal is sampling, relaxation, or deliberate annealing.
 
 For stochastic equilibration, use the `LANGEVIN` ensemble and adjust
-[`GAMMA`](#CP2K_INPUT.MOTION.MD.LANGEVIN.GAMMA): smaller values are closer to NVE-like dynamics and
+[GAMMA](#CP2K_INPUT.MOTION.MD.LANGEVIN.GAMMA): smaller values are closer to NVE-like dynamics and
 equilibrate more slowly; larger values thermostat more aggressively.
 
 Temperature is an instantaneous kinetic estimator and is expected to fluctuate. A single snapshot at
@@ -254,11 +252,10 @@ temperature; also inspect the region of interest.
 
 ## Trajectories, energies, and restarts
 
-The trajectory is controlled by
-[`MOTION / PRINT / TRAJECTORY`](#CP2K_INPUT.MOTION.PRINT.TRAJECTORY). By default, positions are
-written to files such as `project-pos-1.xyz`, where `project` is the value of
-[`PROJECT_NAME`](#CP2K_INPUT.GLOBAL.PROJECT_NAME). Velocities, forces, cell vectors, stresses, and
-restart files are controlled by other print keys in [`MOTION / PRINT`](#CP2K_INPUT.MOTION.PRINT).
+The trajectory is controlled by [MOTION/PRINT/TRAJECTORY](#CP2K_INPUT.MOTION.PRINT.TRAJECTORY). By
+default, positions are written to files such as `project-pos-1.xyz`, where `project` is the value of
+[PROJECT_NAME](#CP2K_INPUT.GLOBAL.PROJECT_NAME). Velocities, forces, cell vectors, stresses, and
+restart files are controlled by other print keys in [MOTION/PRINT](#CP2K_INPUT.MOTION.PRINT).
 
 The file `project-1.ener` is often the first file to inspect. It contains columns such as
 
@@ -274,6 +271,9 @@ trajectory can be continued without losing significant sampling time.
 
 Before running a long production trajectory, it's suggested to check that:
 
+- The affordable length of trajectory is sufficient for observing phenomena, for instance chemical
+  reactions need to be kinetically favorable so as to happen on a picosecond timescale that AIMD
+  usually manages to cover.
 - The structure is physically reasonable and the shortest interatomic distances are sensible;
 - The periodic cell is large enough for the target property;
 - The SCF procedure converges reliably on representative snapshots;
