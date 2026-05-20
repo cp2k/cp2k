@@ -36,6 +36,7 @@
           FUNCTIONAL PBE
           MODEL PBE
           MOLECULAR_VIRIAL T
+          MOLECULAR_VIRIAL_DEBUG T
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

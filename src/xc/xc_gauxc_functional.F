@@ -332,6 +332,208 @@ CONTAINS
    END SUBROUTINE add_gauxc_gradient_to_force
 
 ! **************************************************************************************************
+!> \brief compute a GauXC XC energy for diagnostic finite differences
+!> \param particle_set_eval ...
+!> \param qs_kind_set ...
+!> \param density_scalar ...
+!> \param nspins ...
+!> \param model_name ...
+!> \param xc_fun_name ...
+!> \param grid_type ...
+!> \param radial_quadrature ...
+!> \param pruning_scheme ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param batch_size ...
+!> \param exc ...
+!> \param density_zeta ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_xc_energy_for_particles( &
+      particle_set_eval, qs_kind_set, density_scalar, nspins, model_name, &
+      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+      int_exec_space, batch_size, exc, density_zeta)
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_eval
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_scalar
+      INTEGER, INTENT(IN)                                :: nspins
+      CHARACTER(len=*), INTENT(IN)                       :: model_name, xc_fun_name, grid_type, &
+                                                            radial_quadrature, pruning_scheme, &
+                                                            lb_exec_space, int_exec_space
+      INTEGER, INTENT(IN)                                :: batch_size
+      REAL(KIND=dp), INTENT(OUT)                         :: exc
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+
+      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis_fd
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_fd
+      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_fd
+      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol_fd
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
+      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
+
+      gauxc_mol_fd = gauxc_create_molecule(particle_set_eval, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_basis_fd = gauxc_create_basisset(qs_kind_set, particle_set_eval, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_grid_fd = gauxc_create_grid( &
+                      gauxc_mol_fd, &
+                      gauxc_basis_fd, &
+                      grid_type, &
+                      radial_quadrature, &
+                      pruning_scheme, &
+                      lb_exec_space, &
+                      batch_size, &
+                      gauxc_status, &
+                      mpi_comm=mp_comm_self%get_handle())
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_integrator_fd = gauxc_create_integrator( &
+                            TRIM(xc_fun_name), &
+                            gauxc_grid_fd, &
+                            int_exec_space, &
+                            nspins, &
+                            gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+      IF (nspins == 1) THEN
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_fd, &
+                           density_scalar, &
+                           nspins=nspins, &
+                           status=gauxc_status, &
+                           model=TRIM(model_name))
+      ELSE
+         CPASSERT(nspins == 2)
+         CPASSERT(PRESENT(density_zeta))
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_fd, &
+                           density_scalar, &
+                           density_zeta, &
+                           nspins, &
+                           gauxc_status, &
+                           model=TRIM(model_name))
+      END IF
+      CALL gauxc_check_status(gauxc_status)
+      exc = gauxc_xc_result%exc
+
+      IF (ALLOCATED(gauxc_xc_result%vxc_scalar)) DEALLOCATE (gauxc_xc_result%vxc_scalar)
+      IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
+
+      CALL gauxc_destroy_integrator(gauxc_integrator_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_grid(gauxc_grid_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_basisset(gauxc_basis_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_molecule(gauxc_mol_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+   END SUBROUTINE gauxc_xc_energy_for_particles
+
+! **************************************************************************************************
+!> \brief finite-difference check of the molecular GauXC XC virial diagnostic
+!> \param exc_grad ...
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param density_scalar ...
+!> \param nspins ...
+!> \param model_name ...
+!> \param xc_fun_name ...
+!> \param grid_type ...
+!> \param radial_quadrature ...
+!> \param pruning_scheme ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param batch_size ...
+!> \param dx ...
+!> \param para_env ...
+!> \param density_zeta ...
+! **************************************************************************************************
+   SUBROUTINE debug_gauxc_molecular_virial( &
+      exc_grad, particle_set, qs_kind_set, density_scalar, nspins, model_name, &
+      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+      int_exec_space, batch_size, dx, para_env, density_zeta)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_grad
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_scalar
+      INTEGER, INTENT(IN)                                :: nspins
+      CHARACTER(len=*), INTENT(IN)                       :: model_name, xc_fun_name, grid_type, &
+                                                            radial_quadrature, pruning_scheme, &
+                                                            lb_exec_space, int_exec_space
+      INTEGER, INTENT(IN)                                :: batch_size
+      REAL(KIND=dp), INTENT(IN)                          :: dx
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+
+      INTEGER                                            :: iatom, iw
+      REAL(KIND=dp)                                      :: analytic_trace, diff_trace, &
+                                                            numerical_trace, xc_minus, xc_plus
+      REAL(KIND=dp), DIMENSION(3)                        :: center, displacement, grad
+      TYPE(particle_type), ALLOCATABLE, DIMENSION(:)     :: particle_set_minus, particle_set_plus
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(SIZE(exc_grad) == 3*SIZE(particle_set))
+
+      IF (para_env%mepos /= 0) RETURN
+
+      center = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         center = center + particle_set(iatom)%r
+      END DO
+      center = center/REAL(SIZE(particle_set), dp)
+
+      ALLOCATE (particle_set_minus(SIZE(particle_set)), particle_set_plus(SIZE(particle_set)))
+      particle_set_minus = particle_set
+      particle_set_plus = particle_set
+
+      analytic_trace = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         grad = exc_grad(3*iatom - 2:3*iatom)
+         displacement = particle_set(iatom)%r - center
+         analytic_trace = analytic_trace + DOT_PRODUCT(grad, displacement)
+         particle_set_minus(iatom)%r = center + (1.0_dp - dx)*displacement
+         particle_set_plus(iatom)%r = center + (1.0_dp + dx)*displacement
+      END DO
+      analytic_trace = analytic_trace/3.0_dp
+
+      IF (PRESENT(density_zeta)) THEN
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_plus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_plus, density_zeta=density_zeta)
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_minus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_minus, density_zeta=density_zeta)
+      ELSE
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_plus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_plus)
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_minus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_minus)
+      END IF
+
+      numerical_trace = (xc_plus - xc_minus)/(2.0_dp*dx)/3.0_dp
+      diff_trace = analytic_trace - numerical_trace
+
+      iw = cp_logger_get_default_io_unit()
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A,1X,ES11.4)") &
+            "GAUXC| Molecular XC virial finite-difference dx", dx
+         WRITE (UNIT=iw, FMT="(T2,A,3(1X,ES19.11))") &
+            "GAUXC| Molecular XC virial FD 1/3 Trace", &
+            analytic_trace, numerical_trace, diff_trace
+      END IF
+
+      DEALLOCATE (particle_set_minus, particle_set_plus)
+
+   END SUBROUTINE debug_gauxc_molecular_virial
+
+! **************************************************************************************************
 !> \brief prints a force-based molecular XC virial diagnostic from GauXC gradients
 !> \param exc_grad ...
 !> \param particle_set ...
@@ -445,7 +647,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: functional_key, functional_name
-      LOGICAL                                            :: molecular_virial
+      LOGICAL                                            :: molecular_virial, molecular_virial_debug
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section, gauxc_section, &
                                                             xc_fun_section
 
@@ -456,10 +658,12 @@ CONTAINS
       CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
       CALL section_vals_val_get(gauxc_functional_section, "MOLECULAR_VIRIAL", &
                                 l_val=molecular_virial)
+      CALL section_vals_val_get(gauxc_functional_section, "MOLECULAR_VIRIAL_DEBUG", &
+                                l_val=molecular_virial_debug)
 
-      IF (molecular_virial) THEN
+      IF (molecular_virial .OR. molecular_virial_debug) THEN
          CALL cp_abort(__LOCATION__, &
-                       "GauXC MOLECULAR_VIRIAL is not available with METHOD GAPW_XC. "// &
+                       "GauXC MOLECULAR_VIRIAL diagnostics are not available with METHOD GAPW_XC. "// &
                        "The GAPW_XC one-center correction is evaluated by the native QS driver.")
       END IF
 
@@ -514,8 +718,10 @@ CONTAINS
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
       LOGICAL                                            :: grid_explicit, molecular_virial, &
+                                                            molecular_virial_debug, &
                                                             pruning_explicit, use_onedft, &
                                                             use_self_runtime
+      REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
@@ -620,6 +826,14 @@ CONTAINS
          l_val=molecular_virial)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "MOLECULAR_VIRIAL_DEBUG", &
+         l_val=molecular_virial_debug)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MOLECULAR_VIRIAL_DEBUG_DX", &
+         r_val=molecular_virial_debug_dx)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "LB_EXECUTION_SPACE", &
          c_val=lb_exec_space)
       CALL section_vals_val_get( &
@@ -630,6 +844,13 @@ CONTAINS
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
       use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      IF (molecular_virial_debug) THEN
+         IF (molecular_virial_debug_dx <= 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GauXC MOLECULAR_VIRIAL_DEBUG_DX must be positive.")
+         END IF
+         molecular_virial = .TRUE.
+      END IF
       IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
          CALL cp_abort(__LOCATION__, &
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
@@ -735,6 +956,12 @@ CONTAINS
                IF (molecular_virial) THEN
                   CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
                END IF
+               IF (molecular_virial_debug) THEN
+                  CALL debug_gauxc_molecular_virial( &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
+                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     lb_exec_space, int_exec_space, batch_size, molecular_virial_debug_dx, para_env)
+               END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          ELSE
@@ -776,6 +1003,13 @@ CONTAINS
                   para_env)
                IF (molecular_virial) THEN
                   CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
+               END IF
+               IF (molecular_virial_debug) THEN
+                  CALL debug_gauxc_molecular_virial( &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
+                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     lb_exec_space, int_exec_space, batch_size, molecular_virial_debug_dx, para_env, &
+                     density_zeta=density_zeta)
                END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF

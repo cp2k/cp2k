@@ -1300,7 +1300,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
                           description="Use exchange-correlation functionals provided by GauXC", &
-                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1380,6 +1380,21 @@ CONTAINS
                           "nuclear gradients. This is not an analytical periodic stress tensor.", &
                           usage="MOLECULAR_VIRIAL T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL_DEBUG", &
+                          description="Check the GauXC molecular XC virial diagnostic against a "// &
+                          "finite-difference affine scaling of the molecular coordinates.", &
+                          usage="MOLECULAR_VIRIAL_DEBUG T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL_DEBUG_DX", &
+                          description="Dimensionless finite-difference step for MOLECULAR_VIRIAL_DEBUG.", &
+                          usage="MOLECULAR_VIRIAL_DEBUG_DX 1.0E-4", &
+                          default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

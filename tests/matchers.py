@@ -247,6 +247,12 @@ registry["GAUXC_molecular_xc_virial_trace"] = GenericMatcher(
     col=8,
     regex=True,
 )
+registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
+    r"GAUXC\|\s+Molecular XC virial FD 1/3 Trace\s+"
+    r"[-+0-9.EeDd]+\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=9,
+    regex=True,
+)
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )

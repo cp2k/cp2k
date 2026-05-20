@@ -8,6 +8,8 @@
 "H2_GAPW_ONEDFT_PBE.inp"                   = [{matcher="E_total", tol=1e-10, ref=-1.160463960124012}]
 "H2_ONEDFT_PBE_FORCE_DEBUG.inp"            = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
 "H2_ONEDFT_PBE_MOLECULAR_VIRIAL.inp"       = [{matcher="E_total", tol=1e-10, ref=-1.158910879270430},
-                                               {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-10, ref=0.124831513506}]
+                                               {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-10, ref=0.124831513506},
+                                               {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=1e-5, ref=0.0}]
 "H2_GAPW_ONEDFT_PBE_MOLECULAR_VIRIAL.inp"  = [{matcher="E_total", tol=1e-10, ref=-1.160463960124012},
-                                               {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-10, ref=0.121152353585}]
+                                               {matcher="GAUXC_molecular_xc_virial_trace", tol=1e-10, ref=0.121152353585},
+                                               {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=1e-5, ref=0.0}]
