@@ -1300,7 +1300,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
                           description="Use exchange-correlation functionals provided by GauXC", &
-                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1372,6 +1372,14 @@ CONTAINS
                           description="Batch size for GauXC evaluation", &
                           usage="BATCH_SIZE 512", &
                           default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL", &
+                          description="Print a molecular XC virial diagnostic computed from GauXC "// &
+                          "nuclear gradients. This is not an analytical periodic stress tensor.", &
+                          usage="MOLECULAR_VIRIAL T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

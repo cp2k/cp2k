@@ -17,6 +17,7 @@ MODULE xc_gauxc_functional
                                               dbcsr_release
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE input_constants,                 ONLY: xc_vdw_fun_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get_subs_vals,&
@@ -331,6 +332,60 @@ CONTAINS
    END SUBROUTINE add_gauxc_gradient_to_force
 
 ! **************************************************************************************************
+!> \brief prints a force-based molecular XC virial diagnostic from GauXC gradients
+!> \param exc_grad ...
+!> \param particle_set ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE print_gauxc_molecular_virial(exc_grad, particle_set, para_env)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_grad
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: label = ["x", "y", "z"]
+
+      INTEGER                                            :: i, iatom, iw, j
+      REAL(KIND=dp), DIMENSION(3)                        :: grad, grad_sum
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(SIZE(exc_grad) == 3*SIZE(particle_set))
+
+      IF (para_env%mepos /= 0) RETURN
+
+      grad_sum = 0.0_dp
+      molecular_virial = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         grad = exc_grad(3*iatom - 2:3*iatom)
+         grad_sum = grad_sum + grad
+         DO i = 1, 3
+            DO j = 1, 3
+               molecular_virial(i, j) = molecular_virial(i, j) + grad(i)*particle_set(iatom)%r(j)
+            END DO
+         END DO
+      END DO
+
+      iw = cp_logger_get_default_io_unit()
+      IF (iw <= 0) RETURN
+
+      WRITE (UNIT=iw, FMT="(/,T2,A)") &
+         "GAUXC| Molecular XC gradient virial diagnostic [a.u.]"
+      WRITE (UNIT=iw, FMT="(T2,A,T20,A,T40,A,T60,A)") "GAUXC|", "x", "y", "z"
+      DO i = 1, 3
+         WRITE (UNIT=iw, FMT="(T2,A,1X,A1,3(1X,ES19.11))") &
+            "GAUXC|", label(i), molecular_virial(i, :)
+      END DO
+      WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
+         "GAUXC| Molecular XC gradient virial 1/3 Trace", &
+         (molecular_virial(1, 1) + molecular_virial(2, 2) + molecular_virial(3, 3))/3.0_dp
+      WRITE (UNIT=iw, FMT="(T2,A,3(1X,ES19.11))") &
+         "GAUXC| Molecular XC gradient sum", grad_sum
+      WRITE (UNIT=iw, FMT="(T2,A)") &
+         "GAUXC| Diagnostic only; this is not an analytical periodic stress tensor."
+
+   END SUBROUTINE print_gauxc_molecular_virial
+
+! **************************************************************************************************
 !> \brief Return information about the Skala functional
 !> \param functional section containing the SKALA subsection
 !> \param lsd if you are using lsd or lda
@@ -390,6 +445,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: functional_key, functional_name
+      LOGICAL                                            :: molecular_virial
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section, gauxc_section, &
                                                             xc_fun_section
 
@@ -398,6 +454,14 @@ CONTAINS
       gauxc_functional_section => get_gauxc_functional(xc_section)
       CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=functional_name)
       CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
+      CALL section_vals_val_get(gauxc_functional_section, "MOLECULAR_VIRIAL", &
+                                l_val=molecular_virial)
+
+      IF (molecular_virial) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC MOLECULAR_VIRIAL is not available with METHOD GAPW_XC. "// &
+                       "The GAPW_XC one-center correction is evaluated by the native QS driver.")
+      END IF
 
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
@@ -449,8 +513,9 @@ CONTAINS
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
-      LOGICAL                                            :: grid_explicit, pruning_explicit, &
-                                                            use_onedft, use_self_runtime
+      LOGICAL                                            :: grid_explicit, molecular_virial, &
+                                                            pruning_explicit, use_onedft, &
+                                                            use_self_runtime
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
@@ -549,6 +614,10 @@ CONTAINS
          gauxc_functional_section, &
          "BATCH_SIZE", &
          i_val=batch_size)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MOLECULAR_VIRIAL", &
+         l_val=molecular_virial)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
          "LB_EXECUTION_SPACE", &
@@ -663,6 +732,9 @@ CONTAINS
                   force, &
                   atomic_kind_set, &
                   para_env)
+               IF (molecular_virial) THEN
+                  CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
+               END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          ELSE
@@ -702,6 +774,9 @@ CONTAINS
                   force, &
                   atomic_kind_set, &
                   para_env)
+               IF (molecular_virial) THEN
+                  CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
+               END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          END IF
