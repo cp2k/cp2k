@@ -32,7 +32,7 @@
       EXTRAPOLATION USE_PREV_WF
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 5.0E-10
       MAX_SCF 80
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
@@ -59,7 +59,7 @@
       H 6.0 6.0 6.4
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
   &END SUBSYS

@@ -747,16 +747,15 @@ CONTAINS
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
-      LOGICAL                                            :: grid_explicit, molecular_virial, &
-                                                            molecular_virial_debug, &
-                                                            pruning_explicit, use_onedft, &
-                                                            use_self_runtime
+      LOGICAL :: grid_explicit, molecular_virial, molecular_virial_debug, pruning_explicit, &
+         use_gradient_self_runtime, use_onedft
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
-      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
-      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_gradient_grid_result, &
+                                                            gauxc_grid_result
+      TYPE(cp_gauxc_integrator_type) :: gauxc_gradient_integrator_result, gauxc_integrator_result
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_gradient_type)                    :: exc_grad
@@ -904,7 +903,7 @@ CONTAINS
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
       END IF
-      use_self_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
+      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
@@ -915,31 +914,15 @@ CONTAINS
                     particle_set, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
-      IF (use_self_runtime) THEN
-         ! GauXC OneDFT gradients currently need a single-rank runtime.  The
-         ! dense density has already been replicated, so this is correct but
-         ! intentionally redundant across MPI ranks.
-         gauxc_grid_result = gauxc_create_grid( &
-                             gauxc_mol, &
-                             gauxc_basis, &
-                             grid_type, &
-                             radial_quadrature, &
-                             pruning_scheme, &
-                             lb_exec_space, &
-                             batch_size, &
-                             gauxc_status, &
-                             mpi_comm=mp_comm_self%get_handle())
-      ELSE
-         gauxc_grid_result = gauxc_create_grid( &
-                             gauxc_mol, &
-                             gauxc_basis, &
-                             grid_type, &
-                             radial_quadrature, &
-                             pruning_scheme, &
-                             lb_exec_space, &
-                             batch_size, &
-                             gauxc_status)
-      END IF
+      gauxc_grid_result = gauxc_create_grid( &
+                          gauxc_mol, &
+                          gauxc_basis, &
+                          grid_type, &
+                          radial_quadrature, &
+                          pruning_scheme, &
+                          lb_exec_space, &
+                          batch_size, &
+                          gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &
@@ -948,6 +931,30 @@ CONTAINS
                                 nspins, &
                                 gauxc_status)
       CALL gauxc_check_status(gauxc_status)
+
+      IF (use_gradient_self_runtime) THEN
+         ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
+         ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
+         ! runtime and use an isolated runtime only for the replicated gradient.
+         gauxc_gradient_grid_result = gauxc_create_grid( &
+                                      gauxc_mol, &
+                                      gauxc_basis, &
+                                      grid_type, &
+                                      radial_quadrature, &
+                                      pruning_scheme, &
+                                      lb_exec_space, &
+                                      batch_size, &
+                                      gauxc_status, &
+                                      mpi_comm=mp_comm_self%get_handle())
+         CALL gauxc_check_status(gauxc_status)
+         gauxc_gradient_integrator_result = gauxc_create_integrator( &
+                                            TRIM(xc_fun_name), &
+                                            gauxc_gradient_grid_result, &
+                                            int_exec_space, &
+                                            nspins, &
+                                            gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+      END IF
 
       IF (qs_env%run_rtp) THEN
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
@@ -973,13 +980,23 @@ CONTAINS
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               exc_grad = gauxc_compute_xc_gradient( &
-                          gauxc_integrator_result, &
-                          density_scalar, &
-                          nspins=nspins, &
-                          natom=natom, &
-                          status=gauxc_status, &
-                          model=TRIM(model_name))
+               IF (use_gradient_self_runtime) THEN
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_gradient_integrator_result, &
+                             density_scalar, &
+                             nspins=nspins, &
+                             natom=natom, &
+                             status=gauxc_status, &
+                             model=TRIM(model_name))
+               ELSE
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_integrator_result, &
+                             density_scalar, &
+                             nspins=nspins, &
+                             natom=natom, &
+                             status=gauxc_status, &
+                             model=TRIM(model_name))
+               END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
                   exc_grad%exc_grad, &
@@ -1020,14 +1037,25 @@ CONTAINS
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               exc_grad = gauxc_compute_xc_gradient( &
-                          gauxc_integrator_result, &
-                          density_scalar, &
-                          density_zeta, &
-                          nspins, &
-                          natom, &
-                          gauxc_status, &
-                          model=TRIM(model_name))
+               IF (use_gradient_self_runtime) THEN
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_gradient_integrator_result, &
+                             density_scalar, &
+                             density_zeta, &
+                             nspins, &
+                             natom, &
+                             gauxc_status, &
+                             model=TRIM(model_name))
+               ELSE
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_integrator_result, &
+                             density_scalar, &
+                             density_zeta, &
+                             nspins, &
+                             natom, &
+                             gauxc_status, &
+                             model=TRIM(model_name))
+               END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
                   exc_grad%exc_grad, &
@@ -1088,6 +1116,12 @@ CONTAINS
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
 
+      IF (use_gradient_self_runtime) THEN
+         CALL gauxc_destroy_integrator(gauxc_gradient_integrator_result, gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+         CALL gauxc_destroy_grid(gauxc_gradient_grid_result, gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+      END IF
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)
