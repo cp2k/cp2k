@@ -839,7 +839,7 @@ CONTAINS
          pruning_key = ADJUSTL(pruning_scheme)
          CALL uppercase(grid_key)
          CALL uppercase(pruning_key)
-         IF ((calculate_forces .OR. molecular_virial) .AND. &
+         IF (use_skala_model .AND. (calculate_forces .OR. molecular_virial) .AND. &
              (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED")) THEN
             CALL cp_warn( &
                __LOCATION__, &
