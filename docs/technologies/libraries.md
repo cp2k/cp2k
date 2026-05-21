@@ -107,13 +107,11 @@ integrator.
   runtime on each CP2K rank because GauXC does not yet provide distributed OneDFT gradients.
 - OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
   non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
-- `METHOD GAPW` with OneDFT/SKALA uses all-electron GAPW inputs and direct molecular GauXC
-  quadrature. GAPW pseudopotential inputs are rejected in this path; use `METHOD GPW` for
-  pseudopotential calculations.
-- For `METHOD GAPW_XC`, conventional `&GAUXC` PBE inputs are evaluated through CP2K's native PBE
-  GAPW_XC path so that the smooth GAPW_XC density and the one-center correction remain consistent.
-  OneDFT/SKALA with `METHOD GAPW_XC` is not supported because GauXC does not yet expose the matching
-  GAPW_XC one-center XC correction.
+- `METHOD GAPW` and `METHOD GAPW_XC` are not supported with OneDFT/SKALA. The GAPW XC correction
+  assumes a local or semi-local XC energy expression, which is not valid for non-local OneDFT/SKALA
+  models.
+- `METHOD GAPW_XC` with GauXC is disabled pending a dedicated design for the smooth-density and
+  one-center XC terms.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
   abort explicitly.
 - OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default. Coarser

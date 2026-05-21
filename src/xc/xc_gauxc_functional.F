@@ -21,13 +21,10 @@ MODULE xc_gauxc_functional
    USE external_potential_types,        ONLY: gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: xc_vdw_fun_none
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
-                                              section_vals_remove_values,&
                                               section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_val_set
+                                              section_vals_val_get
    USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -62,7 +59,7 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, gauxc_create_gapw_xc_section, skala_info, xc_section_uses_gauxc
+   PUBLIC :: apply_gauxc, skala_info, xc_section_uses_gauxc
 
 CONTAINS
 
@@ -666,62 +663,6 @@ CONTAINS
 
    END SUBROUTINE skala_info
 
-! **************************************************************************************************
-!> \brief Build a native CP2K XC section for the GAPW_XC one-center correction
-!> \param xc_section ...
-!> \param gapw_xc_section ...
-! **************************************************************************************************
-   SUBROUTINE gauxc_create_gapw_xc_section(xc_section, gapw_xc_section)
-      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
-      TYPE(section_vals_type), POINTER                   :: gapw_xc_section
-
-      CHARACTER(len=default_path_length)                 :: model_key, model_name
-      CHARACTER(len=default_string_length)               :: functional_key, functional_name
-      LOGICAL                                            :: molecular_virial, molecular_virial_debug
-      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section, gauxc_section, &
-                                                            xc_fun_section
-
-      NULLIFY (gapw_xc_section, gauxc_functional_section, gauxc_section, xc_fun_section)
-
-      gauxc_functional_section => get_gauxc_functional(xc_section)
-      CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=functional_name)
-      CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
-      CALL section_vals_val_get(gauxc_functional_section, "MOLECULAR_VIRIAL", &
-                                l_val=molecular_virial)
-      CALL section_vals_val_get(gauxc_functional_section, "MOLECULAR_VIRIAL_DEBUG", &
-                                l_val=molecular_virial_debug)
-
-      IF (molecular_virial .OR. molecular_virial_debug) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC MOLECULAR_VIRIAL diagnostics are not available with METHOD GAPW_XC. "// &
-                       "The GAPW_XC one-center correction is evaluated by the native QS driver.")
-      END IF
-
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
-      IF (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE") THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW_XC is implemented only for conventional GauXC MODEL NONE. "// &
-                       "OneDFT/SKALA GAPW_XC needs a matching GauXC one-center XC correction.")
-      END IF
-
-      functional_key = ADJUSTL(functional_name)
-      CALL uppercase(functional_key)
-      SELECT CASE (TRIM(functional_key))
-      CASE ("PBE")
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW_XC currently supports one-center corrections only for FUNCTIONAL PBE.")
-      END SELECT
-
-      CALL section_vals_duplicate(xc_section, gapw_xc_section)
-      xc_fun_section => section_vals_get_subs_vals(gapw_xc_section, "XC_FUNCTIONAL")
-      gauxc_section => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
-      CALL section_vals_remove_values(gauxc_section)
-      CALL section_vals_val_set(xc_fun_section, "PBE%_SECTION_PARAMETERS_", l_val=.TRUE.)
-
-   END SUBROUTINE gauxc_create_gapw_xc_section
-
 ! GauXC uses replicated dense density and VXC matrices. The DBCSR density matrix
 ! is distributed over MPI ranks, so apply_gauxc allreduces the dense copy before
 ! passing it to GauXC.
@@ -740,7 +681,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: abort_message = &
          "GauXC does not support dispersion corrections. "// &
          "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection.", &
-         gapw_xc_abort_message = "GauXC METHOD GAPW_XC is handled by the QS GAPW_XC driver."
+         gapw_xc_abort_message = "GauXC with METHOD GAPW_XC is not supported yet. "// &
+         "The GAPW_XC one-center XC correction needs a dedicated GauXC design."
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
@@ -889,6 +831,11 @@ CONTAINS
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
                        "The GAPW_XC one-center XC correction must be evaluated by the same GauXC model.")
       END IF
+      IF (dft_control%qs_control%gapw .AND. use_onedft) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC OneDFT/SKALA with METHOD GAPW is not supported. "// &
+                       "The GAPW XC correction assumes a local or semi-local XC energy expression.")
+      END IF
       IF (use_onedft) THEN
          IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
          IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
@@ -897,7 +844,8 @@ CONTAINS
          pruning_key = ADJUSTL(pruning_scheme)
          CALL uppercase(grid_key)
          CALL uppercase(pruning_key)
-         IF (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED") THEN
+         IF ((calculate_forces .OR. molecular_virial) .AND. &
+             (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED")) THEN
             CALL cp_warn( &
                __LOCATION__, &
                "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
