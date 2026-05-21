@@ -831,11 +831,6 @@ CONTAINS
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
                        "The GAPW_XC one-center XC correction must be evaluated by the same GauXC model.")
       END IF
-      IF (dft_control%qs_control%gapw .AND. use_onedft) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC OneDFT/SKALA with METHOD GAPW is not supported. "// &
-                       "The GAPW XC correction assumes a local or semi-local XC energy expression.")
-      END IF
       IF (use_onedft) THEN
          IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
          IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
