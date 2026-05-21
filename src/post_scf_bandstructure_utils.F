@@ -255,6 +255,7 @@ CONTAINS
       CALL section_vals_val_get(floquet_sec, "PUMP_AMPLITUDE", r_val=bs_env%floquet_amplitude)
       CALL section_vals_val_get(floquet_sec, "PUMP_PHASE", r_vals=bs_env%floquet_phi)
       CALL section_vals_val_get(floquet_sec, "MAX_FLOQUET_INDEX", i_val=bs_env%max_floquet_index)
+      CALL section_vals_val_get(floquet_sec, "ELECTRONIC_TEMPERATURE", r_val=bs_env%energy_window_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_STEP", r_val=bs_env%energy_step_floquet)
       CALL section_vals_val_get(floquet_sec, "BROADENING", r_val=bs_env%broadening_floquet)

@@ -437,7 +437,8 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: g00
       INTEGER                                            :: handle, i, i_E, max_f_index, n_E, nao, &
                                                             start_row_g00
-      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu
+      REAL(KIND=dp)                                      :: broad, E_min, energy, energy_step, mu, &
+                                                            sigma
       TYPE(cp_cfm_type)                                  :: g_r
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
@@ -453,6 +454,7 @@ CONTAINS
       max_f_index = bs_env%max_floquet_index
       n_E = SIZE(a_k)
       start_row_g00 = 1 + nao*max_f_index
+      sigma = bs_env%floquet_electronic_temperature
 
       ALLOCATE (g00(nao, nao))
       CALL cp_cfm_create(g_r, floquet_matrix%matrix_struct, set_zero=.TRUE.)
@@ -466,6 +468,7 @@ CONTAINS
          g00(:, :) = 0.0_dp
          CALL cp_cfm_get_submatrix(g_r, g00, start_row_g00, start_row_g00)
          a_k(i_E) = -AIMAG(SUM([(g00(i, i), i=1, nao)]))/pi
+         IF (sigma > 0) a_k(i_E) = a_k(i_E)*simple_smear(energy, mu, sigma)
       END DO
 
       DEALLOCATE (g00)

@@ -2958,6 +2958,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ELECTRONIC_TEMPERATURE", &
+                          description="ELECTRONIC TEMPERATURE", &
+                          usage="ELECTRONIC_TEMPERATURE 1000", n_var=1, &
+                          default_r_val=0.0_dp, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="THE ENERGY WINDOW", &
                           usage="ENERGY_WINDOW 1", n_var=1, &
