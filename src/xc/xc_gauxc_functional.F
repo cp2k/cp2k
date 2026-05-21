@@ -956,13 +956,13 @@ CONTAINS
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
-                        gauxc_basis%max_l > 3
+                        (use_skala_model .OR. gauxc_basis%max_l > 3)
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
             __LOCATION__, &
-            "Using finite-difference GauXC XC gradients for METHOD GAPW with all-electron "// &
-            "basis functions beyond f shells.  The upstream analytical GauXC gradient path "// &
-            "is not yet reliable for this case.")
+            "Using finite-difference GauXC XC gradients for METHOD GAPW with SKALA or "// &
+            "all-electron basis functions beyond f shells.  The upstream analytical GauXC "// &
+            "gradient path is not yet reliable for this case.")
       END IF
       IF (use_self_runtime) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
