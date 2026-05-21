@@ -1298,7 +1298,8 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ikind, img, ispin, &
                                                             nkind, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw
+      LOGICAL                                            :: do_ppl, gapw, gapw_xc, lrigpw, rigpw, &
+                                                            use_work_v_rspace
       REAL(KIND=dp)                                      :: csign, dvol, fadm
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1315,7 +1316,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), POINTER                      :: v_rspace, vee
+      TYPE(pw_r3d_rs_type), POINTER                      :: v_rspace, v_rspace_used, vee
+      TYPE(pw_r3d_rs_type), TARGET                       :: v_rspace_work
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -1325,7 +1327,7 @@ CONTAINS
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
                v_rspace, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
                ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
-               rho_ao_nokp, ks_env, admm_env, task_list)
+               rho_ao_nokp, ks_env, admm_env, task_list, v_rspace_used)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1507,18 +1509,51 @@ CONTAINS
          CPASSERT(dft_control%sic_method_id == sic_none)
          CPASSERT(.NOT. dft_control%qs_control%ddapc_restraint_is_spin)
          DO ispin = 1, nspins
+            use_work_v_rspace = dft_control%qs_control%cdft
+            IF (use_work_v_rspace) THEN
+               CALL auxbas_pw_pool%create_pw(v_rspace_work)
+               CALL pw_copy(v_rspace, v_rspace_work)
+               v_rspace_used => v_rspace_work
+            ELSE
+               v_rspace_used => v_rspace
+            END IF
+            ! CDFT constraint contribution
+            IF (dft_control%qs_control%cdft) THEN
+               DO igroup = 1, SIZE(cdft_control%group)
+                  SELECT CASE (cdft_control%group(igroup)%constraint_type)
+                  CASE (cdft_charge_constraint)
+                     csign = 1.0_dp
+                  CASE (cdft_magnetization_constraint)
+                     IF (ispin == 1) THEN
+                        csign = 1.0_dp
+                     ELSE
+                        csign = -1.0_dp
+                     END IF
+                  CASE (cdft_alpha_constraint)
+                     csign = 1.0_dp
+                     IF (ispin == 2) CYCLE
+                  CASE (cdft_beta_constraint)
+                     csign = 1.0_dp
+                     IF (ispin == 1) CYCLE
+                  CASE DEFAULT
+                     CPABORT("Unknown constraint type.")
+                  END SELECT
+                  CALL pw_axpy(cdft_control%group(igroup)%weight, v_rspace_used, &
+                               csign*cdft_control%strength(igroup))
+               END DO
+            END IF
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver == pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
-               CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace, dvol)
+               CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace_used, dvol)
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               CALL pw_axpy(v_sccs_rspace, v_rspace)
+               CALL pw_axpy(v_sccs_rspace, v_rspace_used)
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               CALL pw_axpy(v_rspace_embed(ispin), v_rspace, v_rspace_embed(ispin)%pw_grid%dvol)
+               CALL pw_axpy(v_rspace_embed(ispin), v_rspace_used, v_rspace_embed(ispin)%pw_grid%dvol)
                CALL auxbas_pw_pool%give_back_pw(v_rspace_embed(ispin))
             END IF
             IF (lrigpw) THEN
@@ -1527,7 +1562,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_used, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
                   CALL para_env%sum(lri_v_int(ikind)%v_int)
@@ -1535,7 +1570,7 @@ CONTAINS
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)
-                  CALL integrate_v_rspace_diagonal(v_rspace, ksmat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace_used, ksmat(1)%matrix, &
                                                    rho_ao(1)%matrix, qs_env, &
                                                    calculate_forces, "ORB")
                END IF
@@ -1548,7 +1583,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_used, qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
                   CALL para_env%sum(lri_v_int(ikind)%v_int)
@@ -1556,13 +1591,14 @@ CONTAINS
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
-               CALL integrate_v_rspace(v_rspace=v_rspace, &
+               CALL integrate_v_rspace(v_rspace=v_rspace_used, &
                                        pmat_kp=rho_ao, &
                                        hmat_kp=ksmat, &
                                        qs_env=qs_env, &
                                        calculate_forces=calculate_forces, &
                                        gapw=gapw)
             END IF
+            IF (use_work_v_rspace) CALL auxbas_pw_pool%give_back_pw(v_rspace_work)
          END DO
       END IF ! ASSOCIATED(v_rspace_new)
 

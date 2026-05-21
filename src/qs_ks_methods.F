@@ -61,7 +61,6 @@ MODULE qs_ks_methods
                                               smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
@@ -139,8 +138,7 @@ MODULE qs_ks_methods
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
-   USE xc_gauxc_functional,             ONLY: apply_gauxc,&
-                                              gauxc_create_gapw_xc_section
+   USE xc_gauxc_functional,             ONLY: apply_gauxc
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -233,7 +231,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ace_section, &
                                                             adiabatic_rescaling_section, &
                                                             hfx_sections, input, scf_section, &
-                                                            xc_section, xc_section_gapw_xc
+                                                            xc_section
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -241,10 +239,9 @@ CONTAINS
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
-               xc_section, xc_section_gapw_xc, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, &
-               poisson_env, v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, &
-               v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, ks_env, &
-               ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
+               xc_section, matrix_h, matrix_h_im, matrix_s, auxbas_pw_pool, poisson_env, &
+               v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, &
+               vee, rho_nlcc, ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, &
                rho_core, particle_set, qs_kind_set)
 
       CPASSERT(ASSOCIATED(qs_env))
@@ -605,18 +602,7 @@ CONTAINS
 
          ! Everything else, either via GauXC or manual XC computation
          IF (dft_control%use_gauxc .AND. gapw_xc) THEN
-            CALL gauxc_create_gapw_xc_section(xc_section, xc_section_gapw_xc)
-            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section_gapw_xc, &
-                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                               edisp=edisp, dispersion_env=qs_env%dispersion_env, &
-                               just_energy=just_energy_xc)
-            IF (edisp /= 0.0_dp) energy%dispersion = edisp
-            IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
-               CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
-               CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
-            END IF
-            CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, &
-                                    xc_section_external=xc_section_gapw_xc)
+            CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
          ELSE IF (dft_control%use_gauxc) THEN
             use_gauxc_matrix = .TRUE.
             CALL apply_gauxc(qs_env, xc_section, calculate_forces)
@@ -783,8 +769,12 @@ CONTAINS
                   CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
                END IF
                NULLIFY (rho1)
-               IF (dft_control%use_gauxc .AND. gapw_xc) THEN
-                  CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section_gapw_xc)
+               IF (dft_control%use_gauxc .AND. gapw) THEN
+                  ! GauXC evaluates GAPW XC directly on its molecular quadrature
+                  ! grid.  The native accurate-XCINT force correction applies to
+                  ! CP2K's regular-grid XC density and would otherwise try to
+                  ! evaluate the GAUXC section through xc_derivatives.
+                  CONTINUE
                ELSE
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section)
                END IF
@@ -802,10 +792,6 @@ CONTAINS
                   CALL accint_weight_force(qs_env, rho_struct, rho1, 0, xc_section, force_scale=vscale)
                END IF
             END IF
-         END IF
-         IF (ASSOCIATED(xc_section_gapw_xc)) THEN
-            CALL section_vals_release(xc_section_gapw_xc)
-            NULLIFY (xc_section_gapw_xc)
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN
@@ -843,11 +829,6 @@ CONTAINS
             END IF
          END IF
       END IF ! .NOT. just energy
-      IF (ASSOCIATED(xc_section_gapw_xc)) THEN
-         CALL section_vals_release(xc_section_gapw_xc)
-         NULLIFY (xc_section_gapw_xc)
-      END IF
-
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN
          CALL auxbas_pw_pool%give_back_pw(v_spin_ddapc_rest_r)
          DEALLOCATE (v_spin_ddapc_rest_r)

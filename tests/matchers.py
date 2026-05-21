@@ -242,6 +242,17 @@ registry["DEBUG_periodic_stress_sum"] = GenericMatcher(
 registry["DEBUG_force_sum"] = GenericMatcher(
     r"DEBUG\|\s+Sum of differences:\s+([-+0-9.EeDd]+)", col=5, regex=True
 )
+registry["GAUXC_molecular_xc_virial_trace"] = GenericMatcher(
+    r"GAUXC\|\s+Molecular XC gradient virial 1/3 Trace\s+([-+0-9.EeDd]+)",
+    col=8,
+    regex=True,
+)
+registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
+    r"GAUXC\|\s+Molecular XC virial FD 1/3 Trace\s+"
+    r"[-+0-9.EeDd]+\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",
+    col=9,
+    regex=True,
+)
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )

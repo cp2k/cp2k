@@ -17,14 +17,14 @@ MODULE xc_gauxc_functional
                                               dbcsr_release
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE external_potential_types,        ONLY: gth_potential_type,&
+                                              sgp_potential_type
    USE input_constants,                 ONLY: xc_vdw_fun_none
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
-                                              section_vals_remove_values,&
                                               section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_val_set
+                                              section_vals_val_get
    USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -36,7 +36,8 @@ MODULE xc_gauxc_functional
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -58,7 +59,7 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, gauxc_create_gapw_xc_section, skala_info, xc_section_uses_gauxc
+   PUBLIC :: apply_gauxc, skala_info, xc_section_uses_gauxc
 
 CONTAINS
 
@@ -298,6 +299,33 @@ CONTAINS
    END FUNCTION xc_section_uses_gauxc
 
 ! **************************************************************************************************
+!> \brief Reject unsupported pseudopotential variants in GauXC GAPW mode
+!> \param qs_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE ensure_gauxc_gapw_all_electron(qs_kind_set)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      INTEGER                                            :: ikind
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
+         IF (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GauXC with METHOD GAPW currently supports all-electron potentials only. "// &
+                          "Use POTENTIAL ALL for GAPW validation or METHOD GPW with pseudopotentials.")
+         END IF
+      END DO
+
+   END SUBROUTINE ensure_gauxc_gapw_all_electron
+
+! **************************************************************************************************
 !> \brief adds a replicated GauXC energy gradient to the local CP2K force accumulator
 !> \param exc_grad ...
 !> \param force ...
@@ -329,6 +357,262 @@ CONTAINS
       END DO
 
    END SUBROUTINE add_gauxc_gradient_to_force
+
+! **************************************************************************************************
+!> \brief compute a GauXC XC energy for diagnostic finite differences
+!> \param particle_set_eval ...
+!> \param qs_kind_set ...
+!> \param density_scalar ...
+!> \param nspins ...
+!> \param model_name ...
+!> \param xc_fun_name ...
+!> \param grid_type ...
+!> \param radial_quadrature ...
+!> \param pruning_scheme ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param batch_size ...
+!> \param exc ...
+!> \param density_zeta ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_xc_energy_for_particles( &
+      particle_set_eval, qs_kind_set, density_scalar, nspins, model_name, &
+      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+      int_exec_space, batch_size, exc, density_zeta)
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set_eval
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_scalar
+      INTEGER, INTENT(IN)                                :: nspins
+      CHARACTER(len=*), INTENT(IN)                       :: model_name, xc_fun_name, grid_type, &
+                                                            radial_quadrature, pruning_scheme, &
+                                                            lb_exec_space, int_exec_space
+      INTEGER, INTENT(IN)                                :: batch_size
+      REAL(KIND=dp), INTENT(OUT)                         :: exc
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+
+      TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis_fd
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_fd
+      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_fd
+      TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol_fd
+      TYPE(cp_gauxc_status_type)                         :: gauxc_status
+      TYPE(cp_gauxc_xc_type)                             :: gauxc_xc_result
+
+      gauxc_mol_fd = gauxc_create_molecule(particle_set_eval, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_basis_fd = gauxc_create_basisset(qs_kind_set, particle_set_eval, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_grid_fd = gauxc_create_grid( &
+                      gauxc_mol_fd, &
+                      gauxc_basis_fd, &
+                      grid_type, &
+                      radial_quadrature, &
+                      pruning_scheme, &
+                      lb_exec_space, &
+                      batch_size, &
+                      gauxc_status, &
+                      mpi_comm=mp_comm_self%get_handle())
+      CALL gauxc_check_status(gauxc_status)
+      gauxc_integrator_fd = gauxc_create_integrator( &
+                            TRIM(xc_fun_name), &
+                            gauxc_grid_fd, &
+                            int_exec_space, &
+                            nspins, &
+                            gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+      IF (nspins == 1) THEN
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_fd, &
+                           density_scalar, &
+                           nspins=nspins, &
+                           status=gauxc_status, &
+                           model=TRIM(model_name))
+      ELSE
+         CPASSERT(nspins == 2)
+         CPASSERT(PRESENT(density_zeta))
+         gauxc_xc_result = gauxc_compute_xc( &
+                           gauxc_integrator_fd, &
+                           density_scalar, &
+                           density_zeta, &
+                           nspins, &
+                           gauxc_status, &
+                           model=TRIM(model_name))
+      END IF
+      CALL gauxc_check_status(gauxc_status)
+      exc = gauxc_xc_result%exc
+
+      IF (ALLOCATED(gauxc_xc_result%vxc_scalar)) DEALLOCATE (gauxc_xc_result%vxc_scalar)
+      IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
+
+      CALL gauxc_destroy_integrator(gauxc_integrator_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_grid(gauxc_grid_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_basisset(gauxc_basis_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+      CALL gauxc_destroy_molecule(gauxc_mol_fd, gauxc_status)
+      CALL gauxc_check_status(gauxc_status)
+
+   END SUBROUTINE gauxc_xc_energy_for_particles
+
+! **************************************************************************************************
+!> \brief finite-difference check of the molecular GauXC XC virial diagnostic
+!> \param exc_grad ...
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param density_scalar ...
+!> \param nspins ...
+!> \param model_name ...
+!> \param xc_fun_name ...
+!> \param grid_type ...
+!> \param radial_quadrature ...
+!> \param pruning_scheme ...
+!> \param lb_exec_space ...
+!> \param int_exec_space ...
+!> \param batch_size ...
+!> \param dx ...
+!> \param para_env ...
+!> \param density_zeta ...
+! **************************************************************************************************
+   SUBROUTINE debug_gauxc_molecular_virial( &
+      exc_grad, particle_set, qs_kind_set, density_scalar, nspins, model_name, &
+      xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+      int_exec_space, batch_size, dx, para_env, density_zeta)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_grad
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: density_scalar
+      INTEGER, INTENT(IN)                                :: nspins
+      CHARACTER(len=*), INTENT(IN)                       :: model_name, xc_fun_name, grid_type, &
+                                                            radial_quadrature, pruning_scheme, &
+                                                            lb_exec_space, int_exec_space
+      INTEGER, INTENT(IN)                                :: batch_size
+      REAL(KIND=dp), INTENT(IN)                          :: dx
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: density_zeta
+
+      INTEGER                                            :: iatom, iw
+      REAL(KIND=dp)                                      :: analytic_trace, diff_trace, &
+                                                            numerical_trace, xc_minus, xc_plus
+      REAL(KIND=dp), DIMENSION(3)                        :: center, displacement, grad
+      TYPE(particle_type), ALLOCATABLE, DIMENSION(:)     :: particle_set_minus, particle_set_plus
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(SIZE(exc_grad) == 3*SIZE(particle_set))
+
+      IF (para_env%mepos /= 0) RETURN
+
+      center = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         center = center + particle_set(iatom)%r
+      END DO
+      center = center/REAL(SIZE(particle_set), dp)
+
+      ALLOCATE (particle_set_minus(SIZE(particle_set)), particle_set_plus(SIZE(particle_set)))
+      particle_set_minus = particle_set
+      particle_set_plus = particle_set
+
+      analytic_trace = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         grad = exc_grad(3*iatom - 2:3*iatom)
+         displacement = particle_set(iatom)%r - center
+         analytic_trace = analytic_trace + DOT_PRODUCT(grad, displacement)
+         particle_set_minus(iatom)%r = center + (1.0_dp - dx)*displacement
+         particle_set_plus(iatom)%r = center + (1.0_dp + dx)*displacement
+      END DO
+      analytic_trace = analytic_trace/3.0_dp
+
+      IF (PRESENT(density_zeta)) THEN
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_plus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_plus, density_zeta=density_zeta)
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_minus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_minus, density_zeta=density_zeta)
+      ELSE
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_plus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_plus)
+         CALL gauxc_xc_energy_for_particles( &
+            particle_set_minus, qs_kind_set, density_scalar, nspins, model_name, &
+            xc_fun_name, grid_type, radial_quadrature, pruning_scheme, lb_exec_space, &
+            int_exec_space, batch_size, xc_minus)
+      END IF
+
+      numerical_trace = (xc_plus - xc_minus)/(2.0_dp*dx)/3.0_dp
+      diff_trace = analytic_trace - numerical_trace
+
+      iw = cp_logger_get_default_io_unit()
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A,1X,ES11.4)") &
+            "GAUXC| Molecular XC virial finite-difference dx", dx
+         WRITE (UNIT=iw, FMT="(T2,A,3(1X,ES19.11))") &
+            "GAUXC| Molecular XC virial FD 1/3 Trace", &
+            analytic_trace, numerical_trace, diff_trace
+      END IF
+
+      DEALLOCATE (particle_set_minus, particle_set_plus)
+
+   END SUBROUTINE debug_gauxc_molecular_virial
+
+! **************************************************************************************************
+!> \brief prints a force-based molecular XC virial diagnostic from GauXC gradients
+!> \param exc_grad ...
+!> \param particle_set ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE print_gauxc_molecular_virial(exc_grad, particle_set, para_env)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_grad
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: label = ["x", "y", "z"]
+
+      INTEGER                                            :: i, iatom, iw, j
+      REAL(KIND=dp), DIMENSION(3)                        :: grad, grad_sum
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: molecular_virial
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(SIZE(exc_grad) == 3*SIZE(particle_set))
+
+      IF (para_env%mepos /= 0) RETURN
+
+      grad_sum = 0.0_dp
+      molecular_virial = 0.0_dp
+      DO iatom = 1, SIZE(particle_set)
+         grad = exc_grad(3*iatom - 2:3*iatom)
+         grad_sum = grad_sum + grad
+         DO i = 1, 3
+            DO j = 1, 3
+               molecular_virial(i, j) = molecular_virial(i, j) + grad(i)*particle_set(iatom)%r(j)
+            END DO
+         END DO
+      END DO
+
+      iw = cp_logger_get_default_io_unit()
+      IF (iw <= 0) RETURN
+
+      WRITE (UNIT=iw, FMT="(/,T2,A)") &
+         "GAUXC| Molecular XC gradient virial diagnostic [a.u.]"
+      WRITE (UNIT=iw, FMT="(T2,A,T20,A,T40,A,T60,A)") "GAUXC|", "x", "y", "z"
+      DO i = 1, 3
+         WRITE (UNIT=iw, FMT="(T2,A,1X,A1,3(1X,ES19.11))") &
+            "GAUXC|", label(i), molecular_virial(i, :)
+      END DO
+      WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
+         "GAUXC| Molecular XC gradient virial 1/3 Trace", &
+         (molecular_virial(1, 1) + molecular_virial(2, 2) + molecular_virial(3, 3))/3.0_dp
+      WRITE (UNIT=iw, FMT="(T2,A,3(1X,ES19.11))") &
+         "GAUXC| Molecular XC gradient sum", grad_sum
+      WRITE (UNIT=iw, FMT="(T2,A)") &
+         "GAUXC| Diagnostic only; this is not an analytical periodic stress tensor."
+
+   END SUBROUTINE print_gauxc_molecular_virial
 
 ! **************************************************************************************************
 !> \brief Return information about the Skala functional
@@ -379,51 +663,6 @@ CONTAINS
 
    END SUBROUTINE skala_info
 
-! **************************************************************************************************
-!> \brief Build a native CP2K XC section for the GAPW_XC one-center correction
-!> \param xc_section ...
-!> \param gapw_xc_section ...
-! **************************************************************************************************
-   SUBROUTINE gauxc_create_gapw_xc_section(xc_section, gapw_xc_section)
-      TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
-      TYPE(section_vals_type), POINTER                   :: gapw_xc_section
-
-      CHARACTER(len=default_path_length)                 :: model_key, model_name
-      CHARACTER(len=default_string_length)               :: functional_key, functional_name
-      TYPE(section_vals_type), POINTER                   :: gauxc_functional_section, gauxc_section, &
-                                                            xc_fun_section
-
-      NULLIFY (gapw_xc_section, gauxc_functional_section, gauxc_section, xc_fun_section)
-
-      gauxc_functional_section => get_gauxc_functional(xc_section)
-      CALL section_vals_val_get(gauxc_functional_section, "FUNCTIONAL", c_val=functional_name)
-      CALL section_vals_val_get(gauxc_functional_section, "MODEL", c_val=model_name)
-
-      model_key = ADJUSTL(model_name)
-      CALL uppercase(model_key)
-      IF (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE") THEN
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW_XC is implemented only for conventional GauXC MODEL NONE. "// &
-                       "OneDFT/SKALA GAPW_XC needs a matching GauXC one-center XC correction.")
-      END IF
-
-      functional_key = ADJUSTL(functional_name)
-      CALL uppercase(functional_key)
-      SELECT CASE (TRIM(functional_key))
-      CASE ("PBE")
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, &
-                       "GauXC with METHOD GAPW_XC currently supports one-center corrections only for FUNCTIONAL PBE.")
-      END SELECT
-
-      CALL section_vals_duplicate(xc_section, gapw_xc_section)
-      xc_fun_section => section_vals_get_subs_vals(gapw_xc_section, "XC_FUNCTIONAL")
-      gauxc_section => section_vals_get_subs_vals(xc_fun_section, "GAUXC")
-      CALL section_vals_remove_values(gauxc_section)
-      CALL section_vals_val_set(xc_fun_section, "PBE%_SECTION_PARAMETERS_", l_val=.TRUE.)
-
-   END SUBROUTINE gauxc_create_gapw_xc_section
-
 ! GauXC uses replicated dense density and VXC matrices. The DBCSR density matrix
 ! is distributed over MPI ranks, so apply_gauxc allreduces the dense copy before
 ! passing it to GauXC.
@@ -442,20 +681,23 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: abort_message = &
          "GauXC does not support dispersion corrections. "// &
          "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection.", &
-         gapw_xc_abort_message = "GauXC METHOD GAPW_XC is handled by the QS GAPW_XC driver."
+         gapw_xc_abort_message = "GauXC with METHOD GAPW_XC is not supported yet. "// &
+         "The GAPW_XC one-center XC correction needs a dedicated GauXC design."
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
-      LOGICAL                                            :: grid_explicit, pruning_explicit, &
-                                                            use_onedft, use_self_runtime
+      LOGICAL :: grid_explicit, molecular_virial, molecular_virial_debug, pruning_explicit, &
+         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model
+      REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
-      TYPE(cp_gauxc_grid_type)                           :: gauxc_grid_result
-      TYPE(cp_gauxc_integrator_type)                     :: gauxc_integrator_result
+      TYPE(cp_gauxc_grid_type)                           :: gauxc_gradient_grid_result, &
+                                                            gauxc_grid_result
+      TYPE(cp_gauxc_integrator_type) :: gauxc_gradient_integrator_result, gauxc_integrator_result
       TYPE(cp_gauxc_molecule_type)                       :: gauxc_mol
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_gauxc_xc_gradient_type)                    :: exc_grad
@@ -506,6 +748,9 @@ CONTAINS
       IF (dft_control%qs_control%gapw_xc) THEN
          CPABORT(gapw_xc_abort_message)
       END IF
+      IF (dft_control%qs_control%gapw) THEN
+         CALL ensure_gauxc_gapw_all_electron(qs_kind_set)
+      END IF
       CPASSERT(ASSOCIATED(rho))
       rho_use => rho
       CALL qs_rho_get( &
@@ -551,6 +796,18 @@ CONTAINS
          i_val=batch_size)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "MOLECULAR_VIRIAL", &
+         l_val=molecular_virial)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MOLECULAR_VIRIAL_DEBUG", &
+         l_val=molecular_virial_debug)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "MOLECULAR_VIRIAL_DEBUG_DX", &
+         r_val=molecular_virial_debug_dx)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "LB_EXECUTION_SPACE", &
          c_val=lb_exec_space)
       CALL section_vals_val_get( &
@@ -561,6 +818,14 @@ CONTAINS
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
       use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
+      IF (molecular_virial_debug) THEN
+         IF (molecular_virial_debug_dx <= 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GauXC MOLECULAR_VIRIAL_DEBUG_DX must be positive.")
+         END IF
+         molecular_virial = .TRUE.
+      END IF
       IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
          CALL cp_abort(__LOCATION__, &
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
@@ -574,14 +839,17 @@ CONTAINS
          pruning_key = ADJUSTL(pruning_scheme)
          CALL uppercase(grid_key)
          CALL uppercase(pruning_key)
-         IF (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED") THEN
+         IF (use_skala_model .AND. (calculate_forces .OR. molecular_virial) .AND. &
+             (TRIM(grid_key) /= "SUPERFINE" .OR. TRIM(pruning_key) /= "UNPRUNED")) THEN
             CALL cp_warn( &
                __LOCATION__, &
                "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
       END IF
-      use_self_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
+      use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
+      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+                                  para_env%num_pe > 1 .AND. .NOT. use_self_runtime
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
@@ -593,9 +861,8 @@ CONTAINS
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       IF (use_self_runtime) THEN
-         ! GauXC OneDFT gradients currently need a single-rank runtime.  The
-         ! dense density has already been replicated, so this is correct but
-         ! intentionally redundant across MPI ranks.
+         ! SKALA currently needs a replicated molecular runtime for reproducible
+         ! open-shell densities across CP2K MPI ranks.
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
@@ -607,6 +874,10 @@ CONTAINS
                              gauxc_status, &
                              mpi_comm=mp_comm_self%get_handle())
       ELSE
+         ! Use the QS force-evaluation communicator rather than GauXC's global
+         ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
+         ! MPI subgroups; using the global communicator would make GauXC wait
+         ! for ranks that are working on another state.
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
@@ -615,7 +886,8 @@ CONTAINS
                              pruning_scheme, &
                              lb_exec_space, &
                              batch_size, &
-                             gauxc_status)
+                             gauxc_status, &
+                             mpi_comm=para_env%get_handle())
       END IF
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
@@ -625,6 +897,30 @@ CONTAINS
                                 nspins, &
                                 gauxc_status)
       CALL gauxc_check_status(gauxc_status)
+
+      IF (use_gradient_self_runtime) THEN
+         ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
+         ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
+         ! runtime and use an isolated runtime only for the replicated gradient.
+         gauxc_gradient_grid_result = gauxc_create_grid( &
+                                      gauxc_mol, &
+                                      gauxc_basis, &
+                                      grid_type, &
+                                      radial_quadrature, &
+                                      pruning_scheme, &
+                                      lb_exec_space, &
+                                      batch_size, &
+                                      gauxc_status, &
+                                      mpi_comm=mp_comm_self%get_handle())
+         CALL gauxc_check_status(gauxc_status)
+         gauxc_gradient_integrator_result = gauxc_create_integrator( &
+                                            TRIM(xc_fun_name), &
+                                            gauxc_gradient_grid_result, &
+                                            int_exec_space, &
+                                            nspins, &
+                                            gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+      END IF
 
       IF (qs_env%run_rtp) THEN
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
@@ -650,19 +946,38 @@ CONTAINS
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               exc_grad = gauxc_compute_xc_gradient( &
-                          gauxc_integrator_result, &
-                          density_scalar, &
-                          nspins=nspins, &
-                          natom=natom, &
-                          status=gauxc_status, &
-                          model=TRIM(model_name))
+               IF (use_gradient_self_runtime) THEN
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_gradient_integrator_result, &
+                             density_scalar, &
+                             nspins=nspins, &
+                             natom=natom, &
+                             status=gauxc_status, &
+                             model=TRIM(model_name))
+               ELSE
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_integrator_result, &
+                             density_scalar, &
+                             nspins=nspins, &
+                             natom=natom, &
+                             status=gauxc_status, &
+                             model=TRIM(model_name))
+               END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
                   exc_grad%exc_grad, &
                   force, &
                   atomic_kind_set, &
                   para_env)
+               IF (molecular_virial) THEN
+                  CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
+               END IF
+               IF (molecular_virial_debug) THEN
+                  CALL debug_gauxc_molecular_virial( &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
+                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     lb_exec_space, int_exec_space, batch_size, molecular_virial_debug_dx, para_env)
+               END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          ELSE
@@ -688,20 +1003,41 @@ CONTAINS
                               model=TRIM(model_name))
             CALL gauxc_check_status(gauxc_status)
             IF (calculate_forces) THEN
-               exc_grad = gauxc_compute_xc_gradient( &
-                          gauxc_integrator_result, &
-                          density_scalar, &
-                          density_zeta, &
-                          nspins, &
-                          natom, &
-                          gauxc_status, &
-                          model=TRIM(model_name))
+               IF (use_gradient_self_runtime) THEN
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_gradient_integrator_result, &
+                             density_scalar, &
+                             density_zeta, &
+                             nspins, &
+                             natom, &
+                             gauxc_status, &
+                             model=TRIM(model_name))
+               ELSE
+                  exc_grad = gauxc_compute_xc_gradient( &
+                             gauxc_integrator_result, &
+                             density_scalar, &
+                             density_zeta, &
+                             nspins, &
+                             natom, &
+                             gauxc_status, &
+                             model=TRIM(model_name))
+               END IF
                CALL gauxc_check_status(gauxc_status)
                CALL add_gauxc_gradient_to_force( &
                   exc_grad%exc_grad, &
                   force, &
                   atomic_kind_set, &
                   para_env)
+               IF (molecular_virial) THEN
+                  CALL print_gauxc_molecular_virial(exc_grad%exc_grad, particle_set, para_env)
+               END IF
+               IF (molecular_virial_debug) THEN
+                  CALL debug_gauxc_molecular_virial( &
+                     exc_grad%exc_grad, particle_set, qs_kind_set, density_scalar, nspins, &
+                     model_name, xc_fun_name, grid_type, radial_quadrature, pruning_scheme, &
+                     lb_exec_space, int_exec_space, batch_size, molecular_virial_debug_dx, para_env, &
+                     density_zeta=density_zeta)
+               END IF
                DEALLOCATE (exc_grad%exc_grad)
             END IF
          END IF
@@ -746,6 +1082,12 @@ CONTAINS
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO
 
+      IF (use_gradient_self_runtime) THEN
+         CALL gauxc_destroy_integrator(gauxc_gradient_integrator_result, gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+         CALL gauxc_destroy_grid(gauxc_gradient_grid_result, gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+      END IF
       CALL gauxc_destroy_integrator(gauxc_integrator_result, gauxc_status)
       CALL gauxc_check_status(gauxc_status)
       CALL gauxc_destroy_grid(gauxc_grid_result, gauxc_status)

@@ -1300,7 +1300,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
                           description="Use exchange-correlation functionals provided by GauXC", &
-                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1312,8 +1312,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="Functional name used to create the GauXC integrator. "// &
-                          "If MODEL is set, this is the base functional used by the OneDFT path. "// &
-                          "With METHOD GAPW_XC, conventional MODEL NONE currently supports only PBE.", &
+                          "If MODEL is set, this is the base functional used by the OneDFT path.", &
                           default_c_val="PBE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1372,6 +1371,29 @@ CONTAINS
                           description="Batch size for GauXC evaluation", &
                           usage="BATCH_SIZE 512", &
                           default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL", &
+                          description="Print a molecular XC virial diagnostic computed from GauXC "// &
+                          "nuclear gradients. This is not an analytical periodic stress tensor.", &
+                          usage="MOLECULAR_VIRIAL T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL_DEBUG", &
+                          description="Check the GauXC molecular XC virial diagnostic against a "// &
+                          "finite-difference affine scaling of the molecular coordinates.", &
+                          usage="MOLECULAR_VIRIAL_DEBUG T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL_DEBUG_DX", &
+                          description="Dimensionless finite-difference step for MOLECULAR_VIRIAL_DEBUG.", &
+                          usage="MOLECULAR_VIRIAL_DEBUG_DX 1.0E-4", &
+                          default_r_val=1.0E-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

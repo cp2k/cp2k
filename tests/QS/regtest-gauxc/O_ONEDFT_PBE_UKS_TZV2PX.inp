@@ -40,11 +40,11 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 12.0 12.0 12.0
+      ABC 6.0 6.0 6.0
       PERIODIC XYZ
     &END CELL
     &COORD
-      O 6.0 6.0 6.0
+      O 3.0 3.0 3.0
     &END COORD
     &KIND O
       BASIS_SET TZV2PX-MOLOPT-GTH

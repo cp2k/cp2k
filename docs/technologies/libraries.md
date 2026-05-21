@@ -102,19 +102,27 @@ integrator.
 - Pass `--with-gauxc=install` to the toolchain installer. The toolchain build enables GauXC
   OneDFT/SKALA support and therefore also installs libtorch.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake.
-- GauXC in CP2K is currently an energy, potential, and nuclear-gradient path for QS. OneDFT/SKALA
-  gradients under MPI are evaluated with a replicated single-rank GauXC runtime on each CP2K rank
-  because GauXC does not yet provide distributed OneDFT gradients.
+- GauXC in CP2K is currently an energy, potential, and nuclear-gradient path for isolated QS
+  systems. OneDFT/SKALA gradients under MPI are evaluated with a replicated single-rank GauXC
+  runtime on each CP2K rank because GauXC does not yet provide distributed OneDFT gradients.
 - OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
   non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
-- For `METHOD GAPW_XC`, conventional `&GAUXC` PBE inputs are evaluated through CP2K's native PBE
-  GAPW_XC path so that the smooth GAPW_XC density and the one-center correction remain consistent.
-  OneDFT/SKALA with `METHOD GAPW_XC` is not supported because GauXC does not yet expose the matching
-  GAPW_XC one-center XC correction.
+- `METHOD GAPW` with OneDFT/SKALA is limited to all-electron molecular inputs. In this mode GauXC
+  evaluates the full XC term directly on its molecular quadrature from the all-electron AO density;
+  CP2K's local/semi-local GAPW XC correction is not used for OneDFT/SKALA. Validation inputs should
+  use `GAPW_ACCURATE_XCINT T` to keep the GAPW setup explicit.
+- `METHOD GAPW_XC` with GauXC remains disabled pending a dedicated design for the smooth-density and
+  one-center XC terms. It must not be used for non-local OneDFT/SKALA models.
+- Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
+  CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
   abort explicitly.
 - OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default. Coarser
   explicit GauXC grids are allowed, but should be treated as accuracy settings.
+- `MOLECULAR_VIRIAL` is a finite-system force diagnostic from GauXC nuclear gradients, not a
+  periodic stress tensor.
+- SKALA regression tests are technical smoke and force-consistency checks. They do not constitute
+  scientific validation of the SKALA model.
 
 ## PEXSI (low scaling SCF method)
 
