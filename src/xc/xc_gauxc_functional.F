@@ -874,6 +874,10 @@ CONTAINS
                              gauxc_status, &
                              mpi_comm=mp_comm_self%get_handle())
       ELSE
+         ! Use the QS force-evaluation communicator rather than GauXC's global
+         ! runtime.  In mixed CDFT the diabatic states can be built on disjoint
+         ! MPI subgroups; using the global communicator would make GauXC wait
+         ! for ranks that are working on another state.
          gauxc_grid_result = gauxc_create_grid( &
                              gauxc_mol, &
                              gauxc_basis, &
@@ -882,7 +886,8 @@ CONTAINS
                              pruning_scheme, &
                              lb_exec_space, &
                              batch_size, &
-                             gauxc_status)
+                             gauxc_status, &
+                             mpi_comm=para_env%get_handle())
       END IF
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
