@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+"h2o-admm-ace-gpw.inp" = [{matcher="E_total", tol=1e-10, ref=-16.99625143752835},
+                          {matcher="M072",    tol=1e-8,  ref=4.23932453E-03}]
+"h2o-admm-ace-gpw-broyden.inp" = [{matcher="E_total", tol=1e-10, ref=-17.07694390717500},
+                                  {matcher="M072",    tol=1e-8,  ref=4.23202737E-03}]
+"h2o-admm-ace-gpw-kerker.inp" = [{matcher="E_total", tol=1e-10, ref=-17.08093257335180},
+                                 {matcher="M072",    tol=1e-8,  ref=4.21907792E-03}]
+"h2o-exact-ace-gpaw.inp" = [{matcher="E_total", tol=1e-10, ref=-76.29952974495100},
+                            {matcher="M072",    tol=1e-8,  ref=1.44497194E-04}]
+#EOF

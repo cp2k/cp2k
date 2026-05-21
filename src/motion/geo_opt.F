@@ -28,6 +28,7 @@ MODULE geo_opt
                                               gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
                                               gopt_param_type
+   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE input_constants,                 ONLY: default_bfgs_method_id,&
                                               default_cg_method_id,&
                                               default_lbfgs_method_id
@@ -72,9 +73,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
+
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))
       NULLIFY (gopt_param, gopt_env, x0)
+
+      ! Tell ACE that this is a dynamic run: full HFX is used for the
+      ! entire first geometry step so that wavefunction extrapolation
+      ! delivers a near-converged C_occ to step 1, making the ACE
+      ! projector BUILD there accurate.
+      CALL hfx_ace_set_dynamic_mode(.TRUE.)
+
       root_section => force_env%root_section
       geo_section => section_vals_get_subs_vals(root_section, "MOTION%GEO_OPT")
 

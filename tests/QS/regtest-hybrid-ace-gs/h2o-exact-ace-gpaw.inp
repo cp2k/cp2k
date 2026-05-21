@@ -1,0 +1,78 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT h2o-exact-ace-gpaw
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 250
+      REL_CUTOFF 50
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 5
+      SCF_GUESS RESTART
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+    &END SCF
+    #These are the coefficients used for PBE0
+    &XC
+      &HF
+        FRACTION 0.25
+        &ACE
+          ACTIVE .TRUE.
+          REBUILD_FREQUENCY 20
+        &END ACE
+        &MEMORY
+          MAX_MEMORY 5
+        &END MEMORY
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
+      &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_C 1.0
+          SCALE_X 0.75
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587
+      H   0.000000   -0.757136    0.520545
+      H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

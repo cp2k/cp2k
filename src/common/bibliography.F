@@ -65,7 +65,7 @@ MODULE bibliography
                             Khaliullin2013, Kruse2012, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
                             Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
-                            Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, &
+                            Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, Lin2016ACE, &
                             Batzner2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
@@ -1183,6 +1183,12 @@ CONTAINS
                          "via pole expansion and selected inversion", &
                          source="J. Phys. Condens. Matter", volume="25", pages="295501", &
                          year=2013, doi="10.1088/0953-8984/25/29/295501")
+
+      CALL add_reference(key=Lin2016ACE, &
+                         authors=s2a("L. Lin"), &
+                         title="Adaptively Compressed Exchange Operator", &
+                         source="J. Chem. Theory Comput.", volume="12", pages="2242-2249", &
+                         year=2016, doi="10.1021/acs.jctc.6b00092")
 
       CALL add_reference(key=DelBen2015, &
                          authors=s2a("M. Del Ben", "O. Schuett", "T. Wentz", "P. Messmer", "J. Hutter", "J. VandeVondele"), &

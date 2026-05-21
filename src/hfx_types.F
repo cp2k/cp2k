@@ -562,6 +562,14 @@ MODULE hfx_types
       LOGICAL, DIMENSION(:, :), POINTER         :: atomic_pair_list_forces => NULL()
       LOGICAL                                   :: do_hfx_ri = .FALSE.
       TYPE(hfx_ri_type), POINTER                :: ri_data => NULL()
+
+      ! ACE fields
+      LOGICAL  :: use_ace = .FALSE.
+      INTEGER  :: ace_rebuild_freq = 20
+
+      ! ACE pprojectors will be declared in hfx_admm_utils.F
+      LOGICAL  :: ace_is_built = .FALSE.
+      INTEGER  :: ace_build_counter = 0
    END TYPE hfx_type
 
 CONTAINS
@@ -1014,6 +1022,28 @@ CONTAINS
                                                     hf_sub_section, qs_kind_set, &
                                                     particle_set, atomic_kind_set, dft_control, para_env, irep, &
                                                     nelectron_total, orb_basis_type, ri_basis_type)
+            END IF
+
+            ! ACE section — read only on thread 1 to avoid redundant work
+            IF (i_thread == 1) THEN
+               hf_sub_section => section_vals_get_subs_vals(hfx_section, "ACE", &
+                                                            i_rep_section=irep)
+               CALL section_vals_get(hf_sub_section, explicit=logic_val)
+               IF (logic_val) THEN
+                  CALL section_vals_val_get(hf_sub_section, "ACTIVE", &
+                                            l_val=actual_x_data%use_ace)
+                  CALL section_vals_val_get(hf_sub_section, "REBUILD_FREQUENCY", &
+                                            i_val=actual_x_data%ace_rebuild_freq)
+               END IF
+               ! Sanity checks
+               IF (actual_x_data%use_ace) THEN
+                  ! ACE requires HFX to be meaningful
+                  IF (actual_x_data%general_parameter%fraction <= 0.0_dp) &
+                     CPABORT("ACE requires FRACTION > 0.")
+                  ! If frequency is 1, it is full HFX
+                  IF (actual_x_data%ace_rebuild_freq < 1) &
+                     CPABORT("ACE: REBUILD_FREQUENCY must be >= 1")
+               END IF
             END IF
          END DO
       END DO
@@ -2051,6 +2081,11 @@ CONTAINS
                END IF
                DEALLOCATE (actual_x_data%ri_data)
             END IF
+
+            ! ACE cleanup — just reset scalars, ace_W is managed elsewhere
+            actual_x_data%use_ace = .FALSE.
+            actual_x_data%ace_is_built = .FALSE.
+            actual_x_data%ace_build_counter = 0
          END DO
 
       END DO
@@ -2888,6 +2923,14 @@ CONTAINS
          CALL hfx_print_ri_info(x_data%ri_data, hfx_section)
       ELSE
          CALL hfx_print_std_info(x_data, hfx_section)
+      END IF
+
+      ! ACE section
+      IF (x_data%use_ace .AND. iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T3,A)") &
+            "HFX_INFO| ACE (Adaptively Compressed Exchange): ACTIVE"
+         WRITE (UNIT=iw, FMT="(T3,A,T61,I20)") &
+            "HFX_INFO| ACE rebuild frequency:     ", x_data%ace_rebuild_freq
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, hfx_section, &

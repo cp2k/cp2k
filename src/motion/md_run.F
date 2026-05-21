@@ -38,6 +38,7 @@ MODULE md_run
    USE free_energy_types,               ONLY: fe_env_create,&
                                               free_energy_type
    USE global_types,                    ONLY: global_environment_type
+   USE hfx_ace_methods,                 ONLY: hfx_ace_set_dynamic_mode
    USE input_constants,                 ONLY: &
         ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
@@ -136,6 +137,12 @@ CONTAINS
       my_rm_restart_info = .TRUE.
       IF (PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
       NULLIFY (md_env, para_env)
+
+      ! Tell ACE that this is a dynamic run: Bypass C will use full HFX
+      ! for the entire first MD step so wavefunction propagation delivers
+      ! a near-converged C_occ to step 1, making the ACE BUILD accurate.
+      CALL hfx_ace_set_dynamic_mode(.TRUE.)
+
       para_env => force_env%para_env
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")
