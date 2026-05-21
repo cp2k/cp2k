@@ -17,7 +17,6 @@ MODULE gopt_param_types
                                               default_cell_method_id,&
                                               default_cg_method_id,&
                                               default_lbfgs_method_id,&
-                                              default_minimization_method_id,&
                                               default_ts_method_id,&
                                               none_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
@@ -56,7 +55,7 @@ MODULE gopt_param_types
    TYPE gopt_param_type
       LOGICAL                  :: Fletcher_Reeves = .FALSE.
       INTEGER                  :: method_id = default_cell_method_id, type_id = default_cell_method_id
-      INTEGER                  :: ts_method_id = 0, cell_method_id = 0, shellcore_method_id = 0
+      INTEGER                  :: ts_method_id = 0, shellcore_method_id = 0
       INTEGER                  :: max_f_per_iter = 0, max_iter = 0, max_h_rank = 0
       INTEGER                  :: max_steep_steps = 0
       REAL(KIND=dp)          :: restart_limit = 0.0_dp
@@ -124,15 +123,11 @@ CONTAINS
                                    l_val=gopt_param%cg_ls%grad_only)
       END SELECT
 
-      SELECT CASE (gopt_param%type_id)
-      CASE (default_minimization_method_id)
-         ! Do Nothing
-         gopt_param%ts_method_id = none_ts_method_id
-      CASE (default_ts_method_id)
+      IF (gopt_param%type_id == default_ts_method_id) THEN
          CALL section_vals_val_get(gopt_section, "TRANSITION_STATE%METHOD", i_val=gopt_param%ts_method_id)
-      CASE (default_cell_method_id)
-         CALL section_vals_val_get(gopt_section, "TYPE", i_val=gopt_param%cell_method_id)
-      END SELECT
+      ELSE
+         gopt_param%ts_method_id = none_ts_method_id
+      END IF
 
    END SUBROUTINE gopt_param_read
 

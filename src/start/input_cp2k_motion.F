@@ -28,8 +28,7 @@ MODULE input_cp2k_motion
                                  medium_print_level
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
-      default_bfgs_method_id, default_cell_direct_id, default_cell_geo_opt_id, &
-      default_cell_md_id, default_cg_method_id, default_dimer_method_id, &
+      default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
       do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
       fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
@@ -1027,20 +1026,11 @@ CONTAINS
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
-         keyword, __LOCATION__, name="TYPE", &
-         description="Specify which kind of method to use for the optimization of the simulation cell", &
-         usage="TYPE (DIRECT_CELL_OPT|GEO_OPT|MD)", &
+         keyword, __LOCATION__, name="TYPE", removed=.TRUE., description="", &
+         deprecation_notice="The keyword MOTION/CELL_OPT/TYPE has been removed because "// &
+         "cell optimizations now always use DIRECT_CELL_OPT.", &
          enum_c_vals=s2a("DIRECT_CELL_OPT", "GEO_OPT", "MD"), &
-         enum_desc=s2a( &
-         "Performs a geometry and cell optimization at the same time. "// &
-         "The stress tensor is computed at every step", &
-         "Performs a geometry optimization between cell optimization steps. "// &
-         "The MOTION/GEO_OPT section must be defined. "// &
-         "The stress tensor is computed at the optimized geometry.", &
-         "Performs a molecular dynamics run for computing the stress tensor "// &
-         "used for the cell optimization. The MOTION/MD section must be defined."), &
-         enum_i_vals=[default_cell_direct_id, default_cell_geo_opt_id, default_cell_md_id], &
-         default_i_val=default_cell_direct_id)
+         enum_i_vals=[1, 2, 3], default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

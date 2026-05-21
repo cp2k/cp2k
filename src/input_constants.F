@@ -555,10 +555,6 @@ MODULE input_constants
                                                do_second_rotation_step = 1, &
                                                do_third_rotation_step = 2
 
-   INTEGER, PARAMETER, PUBLIC               :: default_cell_geo_opt_id = 0, &
-                                               default_cell_md_id = 1, &
-                                               default_cell_direct_id = 2
-
    INTEGER, PARAMETER, PUBLIC               :: xc_funct_no_shortcut = 0, &
                                                xc_funct_blyp = 1, &
                                                xc_funct_pade = 2, &

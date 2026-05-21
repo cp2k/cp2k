@@ -14,12 +14,6 @@
 "cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=1.0E-14, ref=-35.644084205340675}]
 "cell_opt_direct_cg_gold.inp"           = [{matcher="M011", tol=4e-10, ref=-35.644084195146633}]
 "cell_opt_direct_lbfgs.inp"             = [{matcher="M011", tol=3.0E-11, ref=-35.644084204213243}]
-# Cell optimisation
-"cell_opt_bfgs_geo_opt_bfgs.inp"        = [{matcher="M011", tol=1.0E-14, ref=-35.644084174653557}]
-"cell_opt_bfgs_geo_opt_lbfgs.inp"       = [{matcher="M011", tol=8e-10, ref=-35.644084152053679}]
-"cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp"  = [{matcher="M011", tol=1e-11, ref=-35.644084203937524}]
-"cell_opt_cg_2pnt_geo_opt_lbfgs.inp"    = [{matcher="M011", tol=2e-09, ref=-35.644084203808582}]
-"cell_opt_lbfgs_geo_opt_lbfgs.inp"      = [{matcher="M011", tol=4e-09, ref=-35.644084195558335}]
 # Geometry optimisation using core-shell models
 "cs_geo_opt_bfgs.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-34.165775691654950}]
 "cs_geo_opt_cg_2pnt.inp"                = [{matcher="M011", tol=2e-14, ref=-34.165775860241943}]
@@ -31,12 +25,6 @@
 "cs_cell_opt_direct_cg_2pnt.inp"        = [{matcher="M011", tol=1.0E-14, ref=-34.187395869049013}]
 "cs_cell_opt_direct_cg_gold.inp"        = [{matcher="M011", tol=5e-11, ref=-34.187395868578747}]
 "cs_cell_opt_direct_lbfgs.inp"          = [{matcher="M011", tol=1.0E-14, ref=-34.18739586621215}]
-# Cell optimisation using core-shell models
-"cs_cell_opt_bfgs_geo_opt_bfgs.inp"     = [{matcher="M011", tol=1.0E-14, ref=-34.187394923767854}]
-"cs_cell_opt_bfgs_geo_opt_lbfgs.inp"    = [{matcher="M011", tol=2e-08, ref=-34.187395701823966}]
-"cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp" = [{matcher="M011", tol=2e-12, ref=-34.187395859433593}]
-"cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp" = [{matcher="M011", tol=2e-09, ref=-34.187395863249009}]
-"cs_cell_opt_lbfgs_geo_opt_lbfgs.inp"   = [{matcher="M011", tol=4e-09, ref=-34.187395819688689}]
 # Test parsing of products
 "mc_cs_geo_opt_lbfgs.inp"               = [{matcher="M011", tol=1e-08, ref=-136.663104867266583}]
 # Cell symmetry constraint

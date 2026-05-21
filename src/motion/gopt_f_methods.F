@@ -40,10 +40,7 @@ MODULE gopt_f_methods
                               use_qmmmx
    USE gopt_f_types, ONLY: gopt_f_type
    USE gopt_param_types, ONLY: gopt_param_type
-   USE input_constants, ONLY: default_cell_direct_id, &
-                              default_cell_geo_opt_id, &
-                              default_cell_md_id, &
-                              default_cell_method_id, &
+   USE input_constants, ONLY: default_cell_method_id, &
                               default_minimization_method_id, &
                               default_shellcore_method_id, &
                               default_ts_method_id, &
@@ -123,39 +120,24 @@ CONTAINS
          ALLOCATE (x0(3*nparticle))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
       CASE (default_cell_method_id)
-         SELECT CASE (gopt_env%cell_method_id)
-         CASE (default_cell_direct_id)
-            CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell)
-            ! Store reference cell
-            gopt_env%h_ref = cell%hmat
-            ! before starting we handle the case of translating coordinates (QM/MM)
-            IF (gopt_env%force_env%in_use == use_qmmm) &
-               CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-            IF (gopt_env%force_env%in_use == use_qmmmx) &
-               CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
-            nparticle = force_env_get_nparticle(gopt_env%force_env)
-            ALLOCATE (x0(3*nparticle + 6))
-            CALL pack_subsys_particles(subsys=subsys, r=x0)
-            idg = 3*nparticle
-            DO i = 1, 3
-               DO j = 1, i
-                  idg = idg + 1
-                  x0(idg) = cell%hmat(j, i)
-               END DO
+         CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell)
+         ! Store reference cell
+         gopt_env%h_ref = cell%hmat
+         ! before starting we handle the case of translating coordinates (QM/MM)
+         IF (gopt_env%force_env%in_use == use_qmmm) &
+            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
+         IF (gopt_env%force_env%in_use == use_qmmmx) &
+            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
+         nparticle = force_env_get_nparticle(gopt_env%force_env)
+         ALLOCATE (x0(3*nparticle + 6))
+         CALL pack_subsys_particles(subsys=subsys, r=x0)
+         idg = 3*nparticle
+         DO i = 1, 3
+            DO j = 1, i
+               idg = idg + 1
+               x0(idg) = cell%hmat(j, i)
             END DO
-         CASE (default_cell_geo_opt_id, default_cell_md_id)
-            CALL force_env_get(gopt_env%force_env, cell=cell)
-            ALLOCATE (x0(6))
-            idg = 0
-            DO i = 1, 3
-               DO j = 1, i
-                  idg = idg + 1
-                  x0(idg) = cell%hmat(j, i)
-               END DO
-            END DO
-         CASE DEFAULT
-            CPABORT("Invalid or not yet implemented type of cell optimization")
-         END SELECT
+         END DO
       CASE DEFAULT
          CPABORT("Invalid or not yet implemented type of optimization")
       END SELECT
@@ -1151,13 +1133,8 @@ CONTAINS
       CALL cell_copy(cell, cell_ref, tag="CELL_OPT_REF")
 
       ! Load the updated cell information
-      SELECT CASE (gopt_env%cell_method_id)
-      CASE (default_cell_direct_id)
-         idg = 3*nparticle
-         CALL init_cell(cell_ref, hmat=gopt_env%h_ref)
-      CASE (default_cell_geo_opt_id, default_cell_md_id)
-         idg = 0
-      END SELECT
+      idg = 3*nparticle
+      CALL init_cell(cell_ref, hmat=gopt_env%h_ref)
       CPASSERT((SIZE(x) == idg + 6))
 
       IF (update_forces) THEN
@@ -1183,50 +1160,26 @@ CONTAINS
          CALL cp_subsys_set(subsys, cell=cell)
 
          ! Retrieve particle coordinates for the current cell
-         SELECT CASE (gopt_env%cell_method_id)
-         CASE (default_cell_direct_id)
-            idg = 1
-            DO iatom = 1, natom
-               CALL real_to_scaled(s, x(idg:idg + 2), cell_ref)
-               shell_index = particles%els(iatom)%shell_index
-               IF (shell_index == 0) THEN
-                  CALL scaled_to_real(particles%els(iatom)%r, s, cell)
-               ELSE
-                  CALL scaled_to_real(core_particles%els(shell_index)%r, s, cell)
-                  i = 3*(natom + shell_index - 1) + 1
-                  CALL real_to_scaled(s, x(i:i + 2), cell_ref)
-                  CALL scaled_to_real(shell_particles%els(shell_index)%r, s, cell)
-                  ! Update atomic position due to core and shell motion
-                  mass = particles%els(iatom)%atomic_kind%mass
-                  fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
-                  fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
-                                                fs*shell_particles%els(shell_index)%r(1:3)
-               END IF
-               idg = idg + 3
-            END DO
-         CASE (default_cell_geo_opt_id, default_cell_md_id)
-            DO iatom = 1, natom
-               shell_index = particles%els(iatom)%shell_index
-               IF (shell_index == 0) THEN
-                  CALL real_to_scaled(s, particles%els(iatom)%r, cell_ref)
-                  CALL scaled_to_real(particles%els(iatom)%r, s, cell)
-               ELSE
-                  CALL real_to_scaled(s, core_particles%els(shell_index)%r, cell_ref)
-                  CALL scaled_to_real(core_particles%els(shell_index)%r, s, cell)
-                  i = 3*(natom + shell_index - 1) + 1
-                  CALL real_to_scaled(s, shell_particles%els(shell_index)%r, cell_ref)
-                  CALL scaled_to_real(shell_particles%els(shell_index)%r, s, cell)
-                  ! Update atomic position due to core and shell motion
-                  mass = particles%els(iatom)%atomic_kind%mass
-                  fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
-                  fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
-                  particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
-                                                fs*shell_particles%els(shell_index)%r(1:3)
-               END IF
-            END DO
-         END SELECT
-
+         idg = 1
+         DO iatom = 1, natom
+            CALL real_to_scaled(s, x(idg:idg + 2), cell_ref)
+            shell_index = particles%els(iatom)%shell_index
+            IF (shell_index == 0) THEN
+               CALL scaled_to_real(particles%els(iatom)%r, s, cell)
+            ELSE
+               CALL scaled_to_real(core_particles%els(shell_index)%r, s, cell)
+               i = 3*(natom + shell_index - 1) + 1
+               CALL real_to_scaled(s, x(i:i + 2), cell_ref)
+               CALL scaled_to_real(shell_particles%els(shell_index)%r, s, cell)
+               ! Update atomic position due to core and shell motion
+               mass = particles%els(iatom)%atomic_kind%mass
+               fc = core_particles%els(shell_index)%atomic_kind%shell%mass_core/mass
+               fs = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell/mass
+               particles%els(iatom)%r(1:3) = fc*core_particles%els(shell_index)%r(1:3) + &
+                                             fs*shell_particles%els(shell_index)%r(1:3)
+            END IF
+            idg = idg + 3
+         END DO
       END IF
 
       CALL cell_release(cell_ref)

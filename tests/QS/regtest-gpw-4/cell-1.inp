@@ -14,7 +14,6 @@
     OPTIMIZER CG
     RMS_DR 0.01
     RMS_FORCE 0.001
-    TYPE GEO_OPT
     &CG
       &LINE_SEARCH
         TYPE 2PNT

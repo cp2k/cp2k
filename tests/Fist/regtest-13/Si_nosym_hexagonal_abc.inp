@@ -18,7 +18,6 @@
     PRESSURE_TOLERANCE [bar] 10.0
     RMS_DR 0.000003
     RMS_FORCE 0.0000003
-    TYPE direct_cell_opt
     &BFGS
       TRUST_RADIUS 0.1
       USE_MODEL_HESSIAN no
