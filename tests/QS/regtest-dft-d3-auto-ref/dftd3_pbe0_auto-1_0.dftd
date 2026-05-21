@@ -1,0 +1,54 @@
+
+  Pair potential vdW calculation
+  Dispersion potential type: DFT-D3
+  Scaling parameter (s6)    1.0000000000000000     
+  Scaling parameter (s8)   0.92800000000000005     
+  Zero Damping parameter (sr6)   1.2869999999999999     
+  Zero Damping parameter (sr8)   1.0000000000000000     
+  Cutoff coordination numbers   9.9999999999999995E-007
+  E6 vdW terms              :                 55.
+  E6 vdW energy [au/kcal]   :  -5.4595954612863022E-004 -0.34259478473037080     
+  E8 vdW energy [au/kcal]   :  -8.4702686811470845E-004 -0.53151737999692295     
+  %E8 on total vdW energy   :   60.806541934208880     
+  E9 vdW terms              :                  0.
+  E9 vdW energy [au/kcal]   :   0.0000000000000000        0.0000000000000000     
+  %E9 on total vdW energy   :  -0.0000000000000000     
+  Total vdW energy [au]     :  -1.3929864142433388E-003
+  Total vdW energy [kcal]   : -0.87411216472729392     
+
+
+  Pair potential vdW calculation
+  Dispersion potential type: DFT-D3
+  Scaling parameter (s6)    1.0000000000000000     
+  Scaling parameter (s8)   0.92800000000000005     
+  Zero Damping parameter (sr6)   1.2869999999999999     
+  Zero Damping parameter (sr8)   1.0000000000000000     
+  Cutoff coordination numbers   9.9999999999999995E-007
+  E6 vdW terms              :                 55.
+  E6 vdW energy [au/kcal]   :  -5.4595954612863022E-004 -0.34259478473037080     
+  E8 vdW energy [au/kcal]   :  -8.4702686811470845E-004 -0.53151737999692295     
+  %E8 on total vdW energy   :   60.806541934208880     
+  E9 vdW terms              :                  0.
+  E9 vdW energy [au/kcal]   :   0.0000000000000000        0.0000000000000000     
+  %E9 on total vdW energy   :  -0.0000000000000000     
+  Total vdW energy [au]     :  -1.3929864142433388E-003
+  Total vdW energy [kcal]   : -0.87411216472729392     
+
+
+  Pair potential vdW calculation
+  Dispersion potential type: DFT-D3
+  Scaling parameter (s6)    1.0000000000000000     
+  Scaling parameter (s8)   0.92800000000000005     
+  Zero Damping parameter (sr6)   1.2869999999999999     
+  Zero Damping parameter (sr8)   1.0000000000000000     
+  Cutoff coordination numbers   9.9999999999999995E-007
+  E6 vdW terms              :                 55.
+  E6 vdW energy [au/kcal]   :  -5.4595954612863022E-004 -0.34259478473037080     
+  E8 vdW energy [au/kcal]   :  -8.4702686811470845E-004 -0.53151737999692295     
+  %E8 on total vdW energy   :   60.806541934208880     
+  E9 vdW terms              :                  0.
+  E9 vdW energy [au/kcal]   :   0.0000000000000000        0.0000000000000000     
+  %E9 on total vdW energy   :  -0.0000000000000000     
+  Total vdW energy [au]     :  -1.3929864142433388E-003
+  Total vdW energy [kcal]   : -0.87411216472729392     
+

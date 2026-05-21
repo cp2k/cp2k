@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"pbe_dftd3bj_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-15.80031350914522}]
+"pbe_dftd3bj_explicit.inp"             = [{matcher="M011", tol=1.0E-9, ref=-15.80031350914524}]
+"blyp_dftd3bj_auto.inp"                = [{matcher="M011", tol=1.0E-9, ref=-15.72599184968752}]
+"blyp_dftd3bj_explicit.inp"            = [{matcher="M011", tol=1.0E-9, ref=-15.72599184968747}]
+"bp86_dftd3bj_auto.inp"                = [{matcher="M011", tol=1.0E-9, ref=-15.87172922806623}]
+"bp86_dftd3bj_explicit.inp"            = [{matcher="M011", tol=1.0E-9, ref=-15.87172922806628}]
+"b3lyp_dftd3bj_auto.inp"               = [{matcher="M011", tol=1.0E-9, ref=-15.76212963634473}]
+"b3lyp_dftd3bj_explicit.inp"           = [{matcher="M011", tol=1.0E-9, ref=-15.76212963634489}]
+"pbe0_dftd3bj_auto.inp"                = [{matcher="M011", tol=1.0E-6, ref=-15.80519766242545}]
+"pbe0_dftd3bj_explicit.inp"            = [{matcher="M011", tol=1.0E-6, ref=-15.80458919492632}]
+"tpss_dftd3bj_auto.inp"                = [{matcher="M011", tol=1.0E-9, ref=-15.81827490372866}]
+"tpss_dftd3bj_explicit.inp"            = [{matcher="M011", tol=1.0E-9, ref=-15.81827490372863}]
