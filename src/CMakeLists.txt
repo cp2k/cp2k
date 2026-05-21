@@ -1702,11 +1702,11 @@ set_target_properties(
 
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
-                                    ${CMAKE_CUDA_ARCHITECTURES})
+                                    "${CMAKE_CUDA_ARCHITECTURES}")
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES
-                                    ${CMAKE_HIP_ARCHITECTURES})
+                                    "${CMAKE_HIP_ARCHITECTURES}")
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
   include_directories(${CP2K_OPENCL_BACKEND})
   include_directories(${OpenCL_INCLUDE_DIR})
@@ -1923,7 +1923,7 @@ foreach(_app ${__CP2K_APPS})
 
   if(CP2K_USE_ACCEL MATCHES HIP)
     set_property(TARGET ${_app} PROPERTY HIP_ARCHITECTURES
-                                         ${CMAKE_HIP_ARCHITECTURES})
+                                         "${CMAKE_HIP_ARCHITECTURES}")
   endif()
 
   target_link_libraries(${_app} PUBLIC cp2k)
@@ -1983,12 +1983,12 @@ foreach(__app grid_miniapp grid_unittest dbm_miniapp)
 
   if(CP2K_USE_HIP)
     set_property(TARGET ${__app} PROPERTY HIP_ARCHITECTURES
-                                          ${CMAKE_HIP_ARCHITECTURES})
+                                          "${CMAKE_HIP_ARCHITECTURES}")
   endif()
 
   if(CP2K_USE_CUDA)
     set_target_properties(${__app} PROPERTIES CUDA_ARCHITECTURES
-                                              ${CMAKE_CUDA_ARCHITECTURES})
+                                              "${CMAKE_CUDA_ARCHITECTURES}")
   endif()
 
   target_compile_features(${__app} PUBLIC cuda_std_14 c_std_99 cxx_std_14)
