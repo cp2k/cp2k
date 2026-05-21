@@ -1299,8 +1299,9 @@ CONTAINS
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: field_results, field_results_pade, &
                                                             pol_results, pol_results_pade, &
                                                             results, results_pade, value_series
-      INTEGER                                            :: ft_unit, i, info_unit, k, n, n_elems, &
-                                                            n_pade, nspin, handle
+      INTEGER                                            :: ft_unit, handle, i, idx_omega_zero, &
+                                                            info_unit, k, k_static, n, n_elems, &
+                                                            n_pade, nspin
       LOGICAL                                            :: do_moments_ft, do_polarizability
       REAL(kind=dp)                                      :: damping, t0
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: omegas, omegas_pade_real
@@ -1486,6 +1487,23 @@ CONTAINS
                DEALLOCATE (headers)
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
+            ! Static polarizability alpha(0): pol_results at the FFT-grid omega
+            ! closest to zero. Re is alpha(0); Im should be machine-zero (sanity).
+            IF (info_unit > 0) THEN
+               idx_omega_zero = MINLOC(ABS(omegas), DIM=1)
+               IF (i == 1) THEN
+                  WRITE (info_unit, '(A,T22,A,T28,A,T36,A,T59,A)') &
+                     " STATIC_POL|", "spin", "element", "Re [a.u.]", "Im [a.u.]"
+               END IF
+               DO k_static = 1, n_elems
+                  WRITE (info_unit, '(A,T22,I4,T28,I3,",",I3,T36,ES22.10E3,T59,ES22.10E3)') &
+                     " STATIC_POL|", i, &
+                     rtc%print_pol_elements(k_static, 1), &
+                     rtc%print_pol_elements(k_static, 2), &
+                     REAL(pol_results(k_static, idx_omega_zero), kind=dp), &
+                     AIMAG(pol_results(k_static, idx_omega_zero))
+               END DO
+            END IF
          END DO
       END IF
 

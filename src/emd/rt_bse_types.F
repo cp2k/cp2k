@@ -168,13 +168,20 @@ MODULE rt_bse_types
       REAL(kind=dp)                                             :: omega_shift = 0.0_dp
       ! Debug-only kernel switches shared by initialization and propagation.
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
-                                     debug_disable_sex = .FALSE., &
-                                     debug_disable_coh = .FALSE.
+                                                                   debug_disable_sex = .FALSE., &
+                                                                   debug_disable_coh = .FALSE.
       ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
       ! rirs_sex controls both COH and SEX (they share W = V + W^c). The required grid and
       ! V_grid/W0_grid kernels are built on demand and reused across steps.
       LOGICAL                                                   :: rirs_hartree = .FALSE., &
-                                     rirs_sex = .FALSE.
+                                                                   rirs_sex = .FALSE.
+      ! Liouvillian eigenvalue diagnostic (TDA + n_spin=1 only). When .TRUE., at job
+      ! init the linearized RT-BSE assembles the OV-subspace Liouvillian by probing
+      ! apply_liouvillian_to_drho with canonical OV basis vectors and diagonalizes
+      ! via cp_cfm_heevd. In TDA this equals the Casida-A eigenvalue problem.
+      ! Run once, no propagation impact.
+      ! [INTERNAL] dev_notes/rt_bse_equations.md §8; dev_notes/rt_bse_observables.md O-D10
+      LOGICAL                                                   :: diagnose_liouvillian_eig = .FALSE.
       ! Whether to enforce max_dt within stability region of rk4
       LOGICAL                                                   :: enforce_max_dt = .FALSE.
       ! Owned fm structures sized to the active MO window. Equal to the full n_ao x n_ao
@@ -182,6 +189,9 @@ MODULE rt_bse_types
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_mo_active => NULL()
       ! n_ao x mo_active fm struct used for C_active and AO<->MO rectangular intermediates.
       TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ao_mo_active => NULL()
+      ! Liouvillian-diagnostic struct: (N_OV x N_OV) on the same BLACS context as
+      ! fm_struct_mo_active. Allocated only when diagnose_liouvillian_eig=.TRUE..
+      TYPE(cp_fm_struct_type), POINTER                          :: fm_struct_ov_pairs => NULL()
       ! Truncated MO coefficient slabs C_active(:,:) of size n_ao x mo_active for each spin
       ! (only allocated for the linearized path).
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: C_active => NULL()
@@ -220,6 +230,7 @@ MODULE rt_bse_types
                                                                    rho_section => NULL(), &
                                                                    ft_section => NULL(), &
                                                                    pol_section => NULL(), &
+                                                                   eig_section => NULL(), &
                                                                    moments_section => NULL(), &
                                                                    rtp_section => NULL()
       LOGICAL                                                   :: restart_extracted = .FALSE.
@@ -241,6 +252,15 @@ MODULE rt_bse_types
                                                                    hartree_curr_ao => NULL()
       ! mo_active x mo_active real workspace pair used in MO-side transforms (linearized only).
       TYPE(cp_fm_type), DIMENSION(:), POINTER                   :: real_workspace_mo => NULL()
+      ! Liouvillian-diagnostic scratch (allocated only when diagnose_liouvillian_eig=.TRUE.).
+      ! drho_probe / L_drho live on fm_struct_mo_active (mo_active x mo_active).
+      ! L_pairs / eigvecs_pairs live on fm_struct_ov_pairs (N_OV x N_OV).
+      ! eigenvalues_liouvillian holds the N_OV real eigenvalues from cp_cfm_heevd.
+      TYPE(cp_cfm_type)                                         :: drho_probe = cp_cfm_type(), &
+                                                                   L_drho = cp_cfm_type(), &
+                                                                   L_pairs = cp_cfm_type(), &
+                                                                   eigvecs_pairs = cp_cfm_type()
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: eigenvalues_liouvillian => NULL()
 
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho => NULL(), &
                                                                    rho_new => NULL(), &
@@ -325,7 +345,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, k
+      INTEGER                                                   :: i, k, n_ov
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       TYPE(cp_fm_struct_type), POINTER                          :: mo_struct => NULL()
       LOGICAL :: explicit_rirs_hartree, explicit_rirs_sex
@@ -396,19 +416,21 @@ CONTAINS
       ! grid (and CUTOFF_RADIUS_RI_RS) as GW. Explicit RIRS_HARTREE/RIRS_SEX overrides apply.
       rtbse_env%rirs_hartree = bs_env%do_gw_ri_rs
       rtbse_env%rirs_sex = bs_env%do_gw_ri_rs
-      
+
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
-                                 explicit=explicit_rirs_hartree)
+                                explicit=explicit_rirs_hartree)
       IF (explicit_rirs_hartree) THEN
          CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_HARTREE", &
-                                    l_val=rtbse_env%rirs_hartree)
+                                   l_val=rtbse_env%rirs_hartree)
       END IF
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
-                                 explicit=explicit_rirs_sex)
+                                explicit=explicit_rirs_sex)
       IF (explicit_rirs_sex) THEN
          CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%RIRS_SEX", &
-                                    l_val=rtbse_env%rirs_sex)
+                                   l_val=rtbse_env%rirs_sex)
       END IF
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
+                                l_val=rtbse_env%diagnose_liouvillian_eig)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -420,13 +442,23 @@ CONTAINS
          rtbse_env%tda_shift_to_first_peak = .FALSE.
          rtbse_env%rirs_hartree = .FALSE.
          rtbse_env%rirs_sex = .FALSE.
+         rtbse_env%diagnose_liouvillian_eig = .FALSE.
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.
       rtbse_env%omega_shift = 0.0_dp
-                                
+
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
+      END IF
+      ! Liouvillian-eigenvalue diagnostic: TDA only, n_spin=1 only (first cut).
+      IF (rtbse_env%diagnose_liouvillian_eig) THEN
+         IF (.NOT. rtbse_env%tda_active) THEN
+            CPABORT("DIAGNOSE_LIOUVILLIAN_EIG requires TDA=.TRUE. (ABBA path not yet implemented).")
+         END IF
+         IF (rtbse_env%n_spin > 1) THEN
+            CPABORT("DIAGNOSE_LIOUVILLIAN_EIG currently restricted to n_spin=1.")
+         END IF
       END IF
       CALL determine_active_mo_window(rtbse_env, bs_env)
       ! Owned active-MO matrix structure (currently identical to the full n_ao x n_ao struct
@@ -475,6 +507,7 @@ CONTAINS
       rtbse_env%rho_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%POLARIZABILITY")
+      rtbse_env%eig_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%LIOUVILLIAN_EIG")
       ! Warn the user about print sections which are not yet implemented in the RTBSE run
       CALL warn_section_unused(rtbse_env%rtp_section, "PRINT%CURRENT", &
                                "CURRENT print section not yet implemented for RTBSE.")
@@ -582,8 +615,8 @@ CONTAINS
          CALL cp_cfm_set_all(rtbse_env%ham_workspace(i), CMPLX(0.0, 0.0, kind=dp))
       END DO
       ! Now onto the Hamiltonian itself
-      ! full RTBSE: Contains energy differences and Hartree/COHSEX ρ_0 parts 
-      ! linearised RTBSE: Contains only the Hartree/COHSEX ρ_0 parts as Δε * Δρ(t) need to be updated 
+      ! full RTBSE: Contains energy differences and Hartree/COHSEX ρ_0 parts
+      ! linearised RTBSE: Contains only the Hartree/COHSEX ρ_0 parts as Δε * Δρ(t) need to be updated
       NULLIFY (rtbse_env%ham_reference)
       ALLOCATE (rtbse_env%ham_reference(rtbse_env%n_spin))
       DO i = 1, rtbse_env%n_spin
@@ -709,6 +742,29 @@ CONTAINS
                CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
             END DO
          END IF
+         ! Liouvillian-eigenvalue diagnostic state (TDA, n_spin=1 first cut).
+         ! Allocated only when the user requested the diagnostic; freed in release_rtbse_env
+         ! gated on the same flag.
+         IF (rtbse_env%diagnose_liouvillian_eig) THEN
+            n_ov = (rtbse_env%n_occ(1) - rtbse_env%first_active_mo + 1)* &
+                   (rtbse_env%last_active_mo - rtbse_env%n_occ(1))
+            NULLIFY (rtbse_env%fm_struct_ov_pairs)
+            CALL cp_fm_struct_create(rtbse_env%fm_struct_ov_pairs, &
+                                     bs_env%fm_ks_Gamma(1)%matrix_struct%para_env, &
+                                     bs_env%fm_ks_Gamma(1)%matrix_struct%context, &
+                                     n_ov, n_ov)
+            CALL cp_cfm_create(rtbse_env%drho_probe, rtbse_env%fm_struct_mo_active)
+            CALL cp_cfm_create(rtbse_env%L_drho, rtbse_env%fm_struct_mo_active)
+            CALL cp_cfm_create(rtbse_env%L_pairs, rtbse_env%fm_struct_ov_pairs)
+            CALL cp_cfm_create(rtbse_env%eigvecs_pairs, rtbse_env%fm_struct_ov_pairs)
+            CALL cp_cfm_set_all(rtbse_env%drho_probe, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%L_drho, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%L_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            CALL cp_cfm_set_all(rtbse_env%eigvecs_pairs, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            NULLIFY (rtbse_env%eigenvalues_liouvillian)
+            ALLOCATE (rtbse_env%eigenvalues_liouvillian(n_ov))
+            rtbse_env%eigenvalues_liouvillian = 0.0_dp
+         END IF
       END IF
 
       ! Allocate workspaces for get_sigma
@@ -795,6 +851,17 @@ CONTAINS
       IF (ASSOCIATED(rtbse_env%ao_mo_workspace)) CALL cp_fm_release(rtbse_env%ao_mo_workspace)
       IF (ASSOCIATED(rtbse_env%C_active)) CALL cp_fm_release(rtbse_env%C_active)
       IF (ASSOCIATED(rtbse_env%rho_delta_mo)) CALL cp_cfm_release_pa1(rtbse_env%rho_delta_mo)
+      ! Release Liouvillian-diagnostic scratch (only when the diagnostic was requested).
+      IF (rtbse_env%diagnose_liouvillian_eig) THEN
+         CALL cp_cfm_release(rtbse_env%drho_probe)
+         CALL cp_cfm_release(rtbse_env%L_drho)
+         CALL cp_cfm_release(rtbse_env%L_pairs)
+         CALL cp_cfm_release(rtbse_env%eigvecs_pairs)
+         IF (ASSOCIATED(rtbse_env%eigenvalues_liouvillian)) DEALLOCATE (rtbse_env%eigenvalues_liouvillian)
+         IF (ASSOCIATED(rtbse_env%fm_struct_ov_pairs)) THEN
+            CALL cp_fm_struct_release(rtbse_env%fm_struct_ov_pairs)
+         END IF
+      END IF
       ! Release owned active-MO matrix structures
       IF (ASSOCIATED(rtbse_env%fm_struct_mo_active)) THEN
          CALL cp_fm_struct_release(rtbse_env%fm_struct_mo_active)

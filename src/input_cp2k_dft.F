@@ -1980,6 +1980,21 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
+      ! Liouvillian eigenvalue diagnostic (linearized RT-BSE, TDA only)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "LIOUVILLIAN_EIG", &
+                                       description="Prints the eigenvalues of the linearized RT-BSE "// &
+                                       "Liouvillian on the OV subspace, computed once at job init from a "// &
+                                       "matrix-free probe of the kernel (no time propagation). In TDA this "// &
+                                       "equals the Casida-A eigenvalue problem and gives a broadening-free, "// &
+                                       "finite-time-free correctness check against bse_full.F. "// &
+                                       "Activated by RTBSE%DIAGNOSE_LIOUVILLIAN_EIG. Output lists "// &
+                                       "eigenvalues in atomic units and eV.", &
+                                       print_level=medium_print_level, common_iter_levels=0, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=[1], &
+                                       filename="LIOUVILLIAN_EIG")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "E_CONSTITUENTS", &
                                        description="Print the energy constituents (relevant to RTP) which make up "// &
@@ -2093,50 +2108,50 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_MAX_DT", &
-                 description="For linearized RT-BSE, recompute TIMESTEP and STEPS so the same total "// &
-                 "propagation time is covered with the largest timestep that does not exceed the "// &
-                 "estimated RK4 stability limit.", &
-                 usage="ENFORCE_MAX_DT", &
-                 default_l_val=.FALSE., &
-                 lone_keyword_l_val=.TRUE.)
+                          description="For linearized RT-BSE, recompute TIMESTEP and STEPS so the same total "// &
+                          "propagation time is covered with the largest timestep that does not exceed the "// &
+                          "estimated RK4 stability limit.", &
+                          usage="ENFORCE_MAX_DT", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! Tamm-Dancoff approximation for the linearized RT-BSE kernel
       CALL keyword_create(keyword, __LOCATION__, name="TDA", &
-                 description="Apply the Tamm-Dancoff approximation to the linearized RT-BSE kernel: "// &
-                 "the Hartree and screened-exchange contributions are restricted so that the OV and VO "// &
-                 "blocks of the density response remain decoupled (i.e. only A-block coupling is kept, "// &
-                 "B-block coupling is dropped). Only effective when "// &
-                 "LINEARIZED_BSE_PROPAGATION=.TRUE..", &
-                 usage="TDA", &
-                 default_l_val=.FALSE., &
-                 lone_keyword_l_val=.TRUE.)
+                          description="Apply the Tamm-Dancoff approximation to the linearized RT-BSE kernel: "// &
+                          "the Hartree and screened-exchange contributions are restricted so that the OV and VO "// &
+                          "blocks of the density response remain decoupled (i.e. only A-block coupling is kept, "// &
+                          "B-block coupling is dropped). Only effective when "// &
+                          "LINEARIZED_BSE_PROPAGATION=.TRUE..", &
+                          usage="TDA", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! First-peak shift for the TDA path
       CALL keyword_create(keyword, __LOCATION__, name="TDA_SHIFT_TO_FIRST_PEAK", &
-                 description="For the linearized RT-BSE TDA path, shift the active-MO single-particle "// &
-                 "diagonals by +Omega_0/2 (occupied) and -Omega_0/2 (virtual) with "// &
-                 "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
-                 "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
-                 "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
-                 "observables remain in the lab frame. Only effective when TDA=.TRUE.."// &
-                 "Use with caution, additional convergence checks w.r.t. dt needed.", &
-                 usage="TDA_SHIFT_TO_FIRST_PEAK", &
-                 default_l_val=.FALSE., &
-                 lone_keyword_l_val=.TRUE.)
+                          description="For the linearized RT-BSE TDA path, shift the active-MO single-particle "// &
+                          "diagonals by +Omega_0/2 (occupied) and -Omega_0/2 (virtual) with "// &
+                          "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
+                          "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
+                          "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
+                          "observables remain in the lab frame. Only effective when TDA=.TRUE.."// &
+                          "Use with caution, additional convergence checks w.r.t. dt needed.", &
+                          usage="TDA_SHIFT_TO_FIRST_PEAK", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_HARTREE", &
-              description="Debug option for linearized RT-BSE: disables the Hartree kernel in both "// &
-              "the static reference initialization and the propagation. The Coulomb RI setup is "// &
-              "still built so the run stays internally consistent.", &
-              usage="DEBUG_DISABLE_HARTREE", &
-              default_l_val=.FALSE., &
-              lone_keyword_l_val=.TRUE.)
+                          description="Debug option for linearized RT-BSE: disables the Hartree kernel in both "// &
+                          "the static reference initialization and the propagation. The Coulomb RI setup is "// &
+                          "still built so the run stays internally consistent.", &
+                          usage="DEBUG_DISABLE_HARTREE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2166,20 +2181,35 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_SEX", &
-              description="Debug option for linearized RT-BSE: disables the screened-exchange kernel "// &
-              "in both the static reference initialization and the propagation.", &
-              usage="DEBUG_DISABLE_SEX", &
-              default_l_val=.FALSE., &
-              lone_keyword_l_val=.TRUE.)
+                          description="Debug option for linearized RT-BSE: disables the screened-exchange kernel "// &
+                          "in both the static reference initialization and the propagation.", &
+                          usage="DEBUG_DISABLE_SEX", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DEBUG_DISABLE_COH", &
-              description="Debug option for linearized RT-BSE: disables the Coulomb-hole contribution "// &
-              "in both the static reference initialization and the propagation.", &
-              usage="DEBUG_DISABLE_COH", &
-              default_l_val=.FALSE., &
-              lone_keyword_l_val=.TRUE.)
+                          description="Debug option for linearized RT-BSE: disables the Coulomb-hole contribution "// &
+                          "in both the static reference initialization and the propagation.", &
+                          usage="DEBUG_DISABLE_COH", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Liouvillian eigenvalue diagnostic (TDA only; matrix-free probe at init)
+      CALL keyword_create(keyword, __LOCATION__, name="DIAGNOSE_LIOUVILLIAN_EIG", &
+                          description="Diagnostic for linearized RT-BSE: at job initialization, build the "// &
+                          "Liouvillian on the OV subspace by probing the kernel routine with canonical OV basis "// &
+                          "vectors, then diagonalize. In TDA this equals the Casida-A eigenvalue problem, giving a "// &
+                          "broadening-free, finite-time-free correctness check against bse_full.F. "// &
+                          "Requires TDA=.TRUE.; aborts otherwise. ABBA path not yet implemented. "// &
+                          "Output is controlled by the LIOUVILLIAN_EIG print key in the parent "// &
+                          "&REAL_TIME_PROPAGATION%&PRINT section.", &
+                          usage="DIAGNOSE_LIOUVILLIAN_EIG", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

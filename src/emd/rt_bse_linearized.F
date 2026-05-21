@@ -32,7 +32,11 @@ MODULE rt_bse_linearized
                            cp_cfm_create, &
                            cp_cfm_get_info, &
                            cp_cfm_release, &
-                           cp_cfm_set_all
+                           cp_cfm_set_all, &
+                           cp_cfm_set_element, &
+                           cp_cfm_get_element, &
+                           cp_cfm_get_submatrix, &
+                           cp_cfm_set_submatrix
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_gemm
    USE kinds, ONLY: dp
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, &
@@ -75,7 +79,8 @@ MODULE rt_bse_linearized
                                   cp_cfm_norm, &
                                   cp_cfm_trace, &
                                   cp_cfm_column_scale
-   USE cp_cfm_diag, ONLY: cp_cfm_geeig
+   USE cp_cfm_diag, ONLY: cp_cfm_geeig, &
+                          cp_cfm_heevd
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE qs_moments, ONLY: build_local_moment_matrix
    USE moments_utils, ONLY: get_reference_point
@@ -121,7 +126,9 @@ MODULE rt_bse_linearized
                               cp_get_default_logger
    USE cp_output_handling, ONLY: cp_add_iter_level, &
                                  cp_rm_iter_level, &
-                                 cp_iterate
+                                 cp_iterate, &
+                                 cp_print_key_unit_nr, &
+                                 cp_print_key_finished_output
    USE rt_propagation_output, ONLY: print_ft
    USE rt_propagation_utils, ONLY: read_moments
    USE machine, ONLY: m_walltime
@@ -222,7 +229,8 @@ CONTAINS
       ! TDA (operator is self-adjoint on Hermitian OV+VO drho). Both are
       ! diagnostic only - they do NOT overwrite omega_max / maximum_timestep.
       ! refine_omega_shift_via_krylov remains DEAD CODE (degenerates for
-      ! H2-like single-peak systems; see cp2k_dev_notes).
+      ! H2-like single-peak systems).
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_physics.md P4 (Krylov lower-bound issue)
       IF (debug_krylov_estimate .AND. rtbse_env%tda_active .AND. &
           rtbse_env%tda_shift_to_first_peak) THEN
          CALL estimate_omega_max_krylov(rtbse_env, n_iter=30, rel_tol=1.0e-5_dp)
@@ -231,6 +239,13 @@ CONTAINS
          ! and Ritz values converge superlinearly toward |lambda_max(L)| - typically
          ! an order of magnitude faster than power iteration on clustered top spectra.
          CALL estimate_omega_max_lanczos(rtbse_env, n_iter=30, rel_tol=1.0e-8_dp)
+      END IF
+
+      ! Liouvillian eigenvalue diagnostic (TDA, one-shot at init). Detached from the
+      ! propagator; safe to call after the reference-init routines.
+      ! [INTERNAL] dev_notes/rt_bse_observables.md O-D10; dev_notes/rt_bse_equations.md §8
+      IF (rtbse_env%tda_active .AND. rtbse_env%diagnose_liouvillian_eig) THEN
+         CALL diagnose_liouvillian_eigenvalues(rtbse_env)
       END IF
 
       ! Setup the time based on the starting step
@@ -504,6 +519,10 @@ CONTAINS
    !>        to the standard output
    !> \param rtbse_env Entry point - rtbse environment
    ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param rtbse_env ...
+! **************************************************************************************************
    SUBROUTINE print_linrtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -982,6 +1001,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Propagates the density to the next timestep using Runge-Kutta 4th order (RK4) method
+!> \param rtbse_env ...
 !> \param rho_start Initial density matrix
 !> \param rho_end Final density matrix 
 !> \param converged Whether the resulting rho_end is self-consistent
@@ -1061,9 +1081,9 @@ CONTAINS
    ! **************************************************************************************************
 !> \brief Updates the effective Hamiltonian in the MO basis, given a density matrix rho
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param qs_env QS env
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 !> \param ham_effective Effective Hamiltonian in the MO basis that is updated in this routine
+!> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE update_effective_ham_MO(rtbse_env, rho, ham_effective, ispin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1266,10 +1286,277 @@ CONTAINS
    END SUBROUTINE update_effective_ham_MO
 
 ! **************************************************************************************************
+!> \brief Apply the linearized RT-BSE Liouvillian (TDA) to an input Delta rho_MO and return
+!>        L * Delta rho_MO in MO basis, OV+VO blocks populated. Detached from the propagator
+!>        (does NOT touch rho / rho_orig / ham_effective / ham_reference); only env scratches
+!>        drho_probe, L_drho, rho_ao_lrrtbse, sigma_SEX_ao, ham_workspace(1), sigma_SEX,
+!>        real_workspace_mo(1) are used.
+!>
+!>        Matrix elements correspond to the Casida-A matrix:
+!>            L_{ia,jb} = (eps_a - eps_i) delta_{ij} delta_{ab} + (ia|jb) - W_{ij,ab}
+!>        with no (f_n - f_m) factor (the propagator path applies -1 on OV; we want raw +K).
+!> [INTERNAL] dev_notes/rt_bse_equations.md §8 (derivation of L_TDA = A_Casida)
+!>
+!> \param rtbse_env RT-BSE environment (TDA, n_spin=1).
+!> \param drho_in Input Delta rho_MO (mo_active x mo_active complex).
+!> \param L_drho_out Output L * Delta rho_MO; OV+VO blocks populated; OO/VV zero.
+!> \param ispin Spin index.
+!> \author Maximilian Graml (05/26)
+! **************************************************************************************************
+   SUBROUTINE apply_liouvillian_to_drho(rtbse_env, drho_in, L_drho_out, ispin)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: drho_in
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: L_drho_out
+      INTEGER, INTENT(IN)                                :: ispin
+      CHARACTER(len=*), PARAMETER                        :: routineN = "apply_liouvillian_to_drho"
+      INTEGER                                            :: handle, ii, jj, nrow_local, ncol_local, &
+                                                            i_row_global, j_col_global, abs_mo_idx
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices, col_indices
+
+      CALL timeset(routineN, handle)
+
+      ! 1. Stage drho_in into drho_probe and mask to OV+VO. drho_probe is owned by env,
+      !    allocated only when diagnose_liouvillian_eig=.TRUE..
+      CALL cp_cfm_to_cfm(drho_in, rtbse_env%drho_probe)
+      CALL mask_mo_block_cfm(rtbse_env, rtbse_env%drho_probe, ispin, keep_OV=.TRUE.)
+
+      ! 2. Project Delta rho_OV (MO -> AO, contravariant).
+      CALL transform_mo_to_ao_contravariant_cfm(rtbse_env, rtbse_env%drho_probe, &
+                                                rtbse_env%rho_ao_lrrtbse(ispin), ispin)
+
+      ! 3. Initialize the output accumulator.
+      CALL cp_cfm_set_all(L_drho_out, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+
+      ! 4. eps_{ai} diagonal contribution. MUST run BEFORE the kernel steps (5/6) below:
+      !    the kernel path scratches drho_probe via cp_cfm_transpose for the VO Hermitian
+      !    conjugate, and drho_in IS rtbse_env%drho_probe (aliased at the caller) - reading
+      !    drho_in for the [drho, H_eps] commutator after the kernel ran corrupts the eps
+      !    part. Build H_eps as a real diagonal fm in real_workspace_mo(1), convert to cfm
+      !    in ham_workspace(1), accumulate [drho_in, H_eps] = drho * H - H * drho.
+      !    On OV: ([drho, H])_{ia} = (eps_a - eps_i) * drho_{ia} = +eps_{ai} * drho_{ia}.
+      !    On VO: -eps_{ai} * drho_{ai} (sign flips); irrelevant - driver only reads OV.
+      !    Bare GW eigenvalues (lab frame) so eigenvalues compare 1:1 to bse_full.F.
+      CALL cp_fm_get_info(rtbse_env%real_workspace_mo(1), &
+                          nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+      CALL cp_fm_set_all(rtbse_env%real_workspace_mo(1), 0.0_dp)
+      DO ii = 1, nrow_local
+         i_row_global = row_indices(ii)
+         DO jj = 1, ncol_local
+            j_col_global = col_indices(jj)
+            IF (i_row_global == j_col_global) THEN
+               abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
+               rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
+                  rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, ispin)
+            END IF
+         END DO
+      END DO
+      CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace_mo(1), &
+                        mtarget=rtbse_env%ham_workspace(1))
+      ! drho * H_eps
+      CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
+                       CMPLX(1.0_dp, 0.0_dp, kind=dp), drho_in, rtbse_env%ham_workspace(1), &
+                       CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out)
+      ! -H_eps * drho
+      CALL cp_cfm_gemm('N', 'N', rtbse_env%mo_active, rtbse_env%mo_active, rtbse_env%mo_active, &
+                       CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%ham_workspace(1), drho_in, &
+                       CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out)
+
+      ! 5. Hartree contribution: get_hartree_complex (Re/Im split) on AO Delta rho, then
+      !    AO->MO covariant, mask OV+VO, accumulate +spin_degeneracy on OV and on VO.
+      !    No (f_n - f_m) factor: we want raw +K (Casida convention), not the propagator's -K_OV.
+      !    VO contribution comes from the Hermitian conjugate of the OV result (P2 in
+      !    rt_bse_pitfalls_physics.md): for real C_active + AO-pair-symmetric kernel,
+      !    K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C.
+      CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                               rtbse_env%sigma_SEX_ao(ispin), ispin)
+      CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                            rtbse_env%ham_workspace(1), ispin)
+      CALL mask_mo_block_cfm(rtbse_env, rtbse_env%ham_workspace(1), ispin, keep_OV=.TRUE.)
+      ! OV: +spin_degeneracy * K_H
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out, &
+                                CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                rtbse_env%ham_workspace(1))
+      ! VO: (OV)^C, sign +spin_degeneracy. drho_probe is safe to scratch here because the
+      ! eps step (3b above) has already consumed drho_in; reuse drho_probe for the
+      ! Hermitian conjugate to avoid an extra allocation.
+      CALL cp_cfm_transpose(rtbse_env%ham_workspace(1), 'C', rtbse_env%drho_probe)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out, &
+                                CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), &
+                                rtbse_env%drho_probe)
+
+      ! 6. Screened-exchange contribution: get_sigma is already complex-aware. The
+      !    -1.0_dp factor passed to get_sigma builds the -W contribution; we then add
+      !    +1.0 here (no occupation-factor flip), giving raw K^SX = -W as required by
+      !    K = (ia|jb) - W_{ij,ab} (Casida convention with +K).
+      CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+      CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                            rtbse_env%sigma_SEX(ispin), ispin)
+      CALL mask_mo_block_cfm(rtbse_env, rtbse_env%sigma_SEX(ispin), ispin, keep_OV=.TRUE.)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out, &
+                                CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%sigma_SEX(ispin))
+      CALL cp_cfm_transpose(rtbse_env%sigma_SEX(ispin), 'C', rtbse_env%drho_probe)
+      CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), L_drho_out, &
+                                CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%drho_probe)
+
+      CALL timestop(handle)
+   END SUBROUTINE apply_liouvillian_to_drho
+
+! **************************************************************************************************
+!> \brief Diagnostic driver: assemble the OV-subspace Liouvillian in TDA as an explicit
+!>        (N_OV x N_OV) matrix by probing apply_liouvillian_to_drho with canonical OV basis
+!>        vectors e_{(j,b)}, then diagonalize via cp_cfm_heevd. Eigenvalues are written to
+!>        stdout (line prefix RTBSE|) and to the LIOUVILLIAN_EIG print key file.
+!>        In TDA this matrix equals the Casida-A matrix; eigenvalues are TDA excitation
+!>        energies and can be cross-checked against src/bse_full.F in TDA mode.
+!> [INTERNAL] dev_notes/rt_bse_equations.md §8 (Casida-A identification)
+!>
+!>        Iterates over rtbse_env%n_spin channels (one stdout table + one file section per
+!>        spin). Env creation today still gates n_spin = 1; structure is multi-spin-ready
+!>        when that restriction lifts. Detached from RK4 state.
+!>        Runs once at job init, gated on rtbse_env%diagnose_liouvillian_eig .AND. tda_active.
+!>
+!> \param rtbse_env RT-BSE environment with diagnostic scratch already allocated.
+!> \author Maximilian Graml (05/26)
+! **************************************************************************************************
+   SUBROUTINE diagnose_liouvillian_eigenvalues(rtbse_env)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      CHARACTER(len=*), PARAMETER                        :: routineN = "diagnose_liouvillian_eigenvalues"
+      INTEGER                                            :: handle, ispin, n_act_occ, n_act_virt, n_ov, &
+                                                            j, b, k_col, n, eig_unit
+      REAL(kind=dp)                                      :: residual_max
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: ov_block
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      CALL timeset(routineN, handle)
+      logger => cp_get_default_logger()
+
+      ! Banner (per-routine; spin sections follow below).
+      IF (rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE| ----- TDA Liouvillian diagnostic -----'
+      END IF
+
+      ! File output: open once (REWIND), append per-spin sections, close after the loop.
+      ! ignore_should_output=.TRUE. so this fires at init regardless of MD-iteration cadence.
+      eig_unit = cp_print_key_unit_nr(logger, rtbse_env%eig_section, &
+                                      extension=".dat", &
+                                      file_form="FORMATTED", &
+                                      file_position="REWIND", &
+                                      ignore_should_output=.TRUE.)
+      IF (eig_unit > 0) THEN
+         WRITE (eig_unit, '(A)') '# TDA Liouvillian eigenvalues (one section per spin)'
+      END IF
+
+      ! Per-spin loop. n_spin = 1 enforced at env creation today; structure is
+      ! multi-spin-ready for when that restriction lifts.
+      DO ispin = 1, rtbse_env%n_spin
+         n_act_occ = rtbse_env%n_occ(ispin) - rtbse_env%first_active_mo + 1
+         n_act_virt = rtbse_env%last_active_mo - rtbse_env%n_occ(ispin)
+         n_ov = n_act_occ*n_act_virt
+         ALLOCATE (ov_block(n_act_occ, n_act_virt))
+
+         IF (rtbse_env%unit_nr > 0) THEN
+            WRITE (rtbse_env%unit_nr, '(A,I0)') ' RTBSE| Spin channel ', ispin
+            WRITE (rtbse_env%unit_nr, '(A,I0,A,I0,A,I0)') &
+               ' RTBSE| n_act_occ = ', n_act_occ, &
+               ', n_act_virt = ', n_act_virt, &
+               ', N_OV = ', n_ov
+            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
+         END IF
+
+         ! Column-major OV index: k = (b_local - 1) * n_act_occ + j_local
+         !   j_local = j - first_active_mo + 1  (1 .. n_act_occ)
+         !   b_local = b - n_occ(ispin)         (1 .. n_act_virt)
+         ! Probe with each canonical unit vector e_{(j,b)} and read out the OV block of L_drho
+         ! as the k_col-th column of L_pairs. Block-level transfers (cp_cfm_{get,set}_submatrix)
+         ! keep this at O(N_OV) collective ops total instead of O(N_OV^2) per-element ones.
+         ! The Fortran column-major layout of ov_block (n_act_occ, n_act_virt) matches the
+         ! column-major OV index by construction, so RESHAPE without padding gives the right
+         ! (N_OV, 1) column for L_pairs.
+         DO b = rtbse_env%n_occ(ispin) + 1, rtbse_env%last_active_mo
+            DO j = rtbse_env%first_active_mo, rtbse_env%n_occ(ispin)
+               k_col = (b - rtbse_env%n_occ(ispin) - 1)*n_act_occ + (j - rtbse_env%first_active_mo + 1)
+
+               CALL cp_cfm_set_all(rtbse_env%drho_probe, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_element(rtbse_env%drho_probe, &
+                                       j - rtbse_env%first_active_mo + 1, &
+                                       b - rtbse_env%first_active_mo + 1, &
+                                       CMPLX(1.0_dp, 0.0_dp, kind=dp))
+
+               CALL apply_liouvillian_to_drho(rtbse_env, rtbse_env%drho_probe, rtbse_env%L_drho, ispin)
+
+               ! Extract OV block of L_drho: rows 1..n_act_occ (i_local), cols n_act_occ+1..mo_active (a_local).
+               CALL cp_cfm_get_submatrix(rtbse_env%L_drho, ov_block, &
+                                         start_row=1, start_col=n_act_occ + 1, &
+                                         n_rows=n_act_occ, n_cols=n_act_virt)
+
+               ! Pack OV block into column k_col of L_pairs (column-major reshape).
+               CALL cp_cfm_set_submatrix(rtbse_env%L_pairs, &
+                                         RESHAPE(ov_block, [n_ov, 1]), &
+                                         start_row=1, start_col=k_col, &
+                                         n_rows=n_ov, n_cols=1)
+            END DO
+         END DO
+
+         ! Hermitian residual: real-orbital BSE => L is real symmetric, so ||L - L^H||_max
+         ! should be at the floating-point floor (~1e-12). Compute the difference matrix
+         ! D = L^H - L into eigvecs_pairs (idle here; overwritten by cp_cfm_heevd below),
+         ! then take its max-element norm via the BLACS-native pzlange path - O(N_OV^2)
+         ! local work + one MPI reduce, instead of 2*N_OV^2 collective get_element calls.
+         CALL cp_cfm_transpose(rtbse_env%L_pairs, 'C', rtbse_env%eigvecs_pairs)
+         CALL cp_cfm_scale_and_add(CMPLX(1.0_dp, 0.0_dp, kind=dp), rtbse_env%eigvecs_pairs, &
+                                   CMPLX(-1.0_dp, 0.0_dp, kind=dp), rtbse_env%L_pairs)
+         residual_max = cp_cfm_norm(rtbse_env%eigvecs_pairs, 'M')
+         IF (rtbse_env%unit_nr > 0) THEN
+            WRITE (rtbse_env%unit_nr, '(A,ES16.6)') &
+               ' RTBSE| Hermitian residual ||L - L^H||_max = ', residual_max
+            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
+         END IF
+         IF (residual_max > 1.0E-6_dp) THEN
+            CPABORT("Liouvillian Hermitian residual > 1e-6 - check kernel signs / symmetry.")
+         END IF
+
+         ! Diagonalize. cp_cfm_heevd returns real eigenvalues + complex eigenvectors.
+         CALL cp_cfm_heevd(rtbse_env%L_pairs, rtbse_env%eigvecs_pairs, &
+                           rtbse_env%eigenvalues_liouvillian)
+
+         ! Stdout table for this spin. Atomic-units Omega goes to the .dat file below;
+         ! stdout shows only eV in F12.4 right-aligned to col 80 (L-7 convention).
+         IF (rtbse_env%unit_nr > 0) THEN
+            WRITE (rtbse_env%unit_nr, '(A,T26,A,T59,A)') &
+               ' RTBSE|', "Excitation index n", "Excitation energy (eV)"
+            DO n = 1, n_ov
+               WRITE (rtbse_env%unit_nr, '(A,T40,I4,T69,F12.4)') &
+                  ' RTBSE|', n, rtbse_env%eigenvalues_liouvillian(n)*evolt
+            END DO
+            WRITE (rtbse_env%unit_nr, '(A)') ' RTBSE|'
+         END IF
+
+         ! File output for this spin (a.u. + eV).
+         IF (eig_unit > 0) THEN
+            WRITE (eig_unit, '(/,A,I0)') '# Spin channel ', ispin
+            WRITE (eig_unit, '(A)') '#   n          Omega [a.u.]               Omega [eV]'
+            DO n = 1, n_ov
+               WRITE (eig_unit, '(I5,4X,ES24.14E3,4X,ES24.14E3)') n, &
+                  rtbse_env%eigenvalues_liouvillian(n), &
+                  rtbse_env%eigenvalues_liouvillian(n)*evolt
+            END DO
+         END IF
+
+         DEALLOCATE (ov_block)
+      END DO
+
+      CALL cp_print_key_finished_output(eig_unit, logger, rtbse_env%eig_section)
+
+      CALL timestop(handle)
+   END SUBROUTINE diagnose_liouvillian_eigenvalues
+
+! **************************************************************************************************
 !> \brief Transforms from AO to MO basis
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param qs_env QS env
-!> \param rho Real and imaginary parts ( + spin) of the density at current time
+!> \param fm_ao ...
+!> \param fm_mo ...
+!> \param i_spin ...
 ! **************************************************************************************************
    SUBROUTINE transform_ao_to_mo_covariant_fm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1295,9 +1582,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Transforms from AO to MO basis for complex matrices
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param qs_env QS env
-!> \param rho Real and imaginary parts ( + spin) of the density at current time
-! **************************************************************************************************
+!> \param fm_ao ...
+!> \param fm_mo ...
+!> \param i_spin ...! **************************************************************************************************
    SUBROUTINE transform_ao_to_mo_covariant_cfm(rtbse_env, fm_ao, fm_mo, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                         :: fm_ao, fm_mo
@@ -1335,8 +1622,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Transforms from MO to AO basis for contravariant complex matrices (e.g. density matrix) 
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param qs_env QS env
-!> \param rho Real and imaginary parts ( + spin) of the density at current time
+!> \param fm_mo ...
+!> \param fm_ao ...
 ! **************************************************************************************************
    SUBROUTINE transform_mo_to_ao_contravariant_cfm(rtbse_env, fm_mo, fm_ao, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1368,8 +1655,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Applies the occupation factor difference f_n - f_m 
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
-!> \param qs_env QS env
-!> \param rho Real and imaginary parts ( + spin) of the density at current time
+!> \param cfm ...
+!> \param i_spin ...
 ! **************************************************************************************************
    SUBROUTINE transform_mo_occupation_factor_diff_cfm(rtbse_env, cfm, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
@@ -1395,6 +1682,12 @@ CONTAINS
    END SUBROUTINE transform_mo_occupation_factor_diff_cfm
    
 
+! **************************************************************************************************
+!> \brief ...
+!> \param rtbse_env ...
+!> \param fm ...
+!> \param i_spin ...
+! **************************************************************************************************
    SUBROUTINE transform_mo_occupation_factor_diff_fm(rtbse_env, fm, i_spin)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                         :: fm
