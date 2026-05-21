@@ -113,6 +113,8 @@ integrator.
   use `GAPW_ACCURATE_XCINT T` to keep the GAPW setup explicit.
 - `METHOD GAPW_XC` with GauXC remains disabled pending a dedicated design for the smooth-density and
   one-center XC terms. It must not be used for non-local OneDFT/SKALA models.
+- Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
+  CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
   abort explicitly.
 - OneDFT/SKALA force checks use `GRID SUPERFINE` and `PRUNING_SCHEME UNPRUNED` by default. Coarser

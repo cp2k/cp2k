@@ -100,6 +100,9 @@ QS/regtest-gauxc/1H2_ONEDFT_PBE_REFERENCE.inp
 QS/regtest-gauxc/1H2_ONEDFT_PBE.inp
 QS/regtest-gauxc/H2_SKALA_ENERGY.inp
 QS/regtest-gauxc/H2_GAPW_SKALA_ENERGY.inp
+QS/regtest-gauxc/H2_SKALA_CDFT.inp
+QS/regtest-gauxc/H2_GAPW_SKALA_CDFT.inp
+QS/regtest-gauxc/H2_SKALA_CDFT_CI.inp
 QS/regtest-gauxc/O_ONEDFT_PBE_UKS_TZV2PX.inp
 QS/regtest-gauxc/H2_ONEDFT_PBE_FORCE_DEBUG.inp
 QS/regtest-gauxc/NH3_ONEDFT_PBE_FORCE_DEBUG.inp
