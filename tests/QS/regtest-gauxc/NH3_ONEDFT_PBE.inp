@@ -36,8 +36,9 @@
       &XC_FUNCTIONAL
         &GAUXC
           FUNCTIONAL PBE
-          GRID SUPERFINE
+          GRID FINE
           MODEL PBE
+          PRUNING_SCHEME ROBUST
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

@@ -177,6 +177,8 @@ MODULE xc_gauxc_interface
    END TYPE cp_gauxc_status_type
 
    TYPE(gauxc_runtime_environment_type) :: rt
+   INTEGER :: rt_mpi_comm = -1
+   LOGICAL :: rt_has_mpi_comm = .FALSE.
 
 #endif
 
@@ -258,12 +260,18 @@ CONTAINS
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
       IF (PRESENT(mpi_comm)) THEN
          rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+         rt_mpi_comm = mpi_comm
+         rt_has_mpi_comm = .TRUE.
       ELSE
          rt = gauxc_runtime_environment_new(status%status)
+         rt_mpi_comm = -1
+         rt_has_mpi_comm = .FALSE.
       END IF
 #else
       MARK_USED(mpi_comm)
       rt = gauxc_runtime_environment_new(status%status)
+      rt_mpi_comm = -1
+      rt_has_mpi_comm = .FALSE.
 #endif
       GAUXC_RETURN_IF_ERROR(status)
 #else
@@ -282,6 +290,8 @@ CONTAINS
 #ifdef __GAUXC
       CALL gauxc_runtime_environment_delete(status%status, rt)
       GAUXC_RETURN_IF_ERROR(status)
+      rt_mpi_comm = -1
+      rt_has_mpi_comm = .FALSE.
 #else
       MARK_USED(status)
 #endif
@@ -474,9 +484,13 @@ CONTAINS
 
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
       IF (PRESENT(mpi_comm)) THEN
-         res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
-         GAUXC_RETURN_IF_ERROR(status)
-         res%owns_rt = .TRUE.
+         ! Reuse the global runtime when the requested communicator matches
+         ! the communicator used during gauxc_init.
+         IF (.NOT. rt_has_mpi_comm .OR. mpi_comm /= rt_mpi_comm) THEN
+            res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+            GAUXC_RETURN_IF_ERROR(status)
+            res%owns_rt = .TRUE.
+         END IF
       END IF
 #else
       MARK_USED(mpi_comm)
