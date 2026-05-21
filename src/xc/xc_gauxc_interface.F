@@ -134,6 +134,7 @@ MODULE xc_gauxc_interface
    END TYPE cp_gauxc_molecule_type
 
    TYPE cp_gauxc_basisset_type
+      INTEGER :: max_l = -1
    END TYPE cp_gauxc_basisset_type
 
    TYPE cp_gauxc_grid_type
@@ -155,6 +156,7 @@ MODULE xc_gauxc_interface
 
    TYPE cp_gauxc_basisset_type
       TYPE(gauxc_basisset_type) :: basis
+      INTEGER :: max_l = -1
    END TYPE cp_gauxc_basisset_type
 
    TYPE cp_gauxc_grid_type
@@ -382,6 +384,7 @@ CONTAINS
       ALLOCATE (shells(nshell_total))
 
       shell_index = 0
+      res%max_l = -1
       DO iatom = 1, natoms ! for each atom
          atomic_kind => particle_set(iatom)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
@@ -401,6 +404,7 @@ CONTAINS
             DO ishell = 1, gto_basis%nshell(iset) ! for each shell within the shell group
                shell_index = shell_index + 1 ! global shell index, flattened over atoms and groups
                lval = gto_basis%l(ishell, iset)
+               res%max_l = MAX(res%max_l, lval)
                shells(shell_index)%l = INT(lval, c_int32_t)
                ! FIXME hardcoded true param
                ! pure=1: spherical Gaussians; pure=0: cartesian Gaussians
