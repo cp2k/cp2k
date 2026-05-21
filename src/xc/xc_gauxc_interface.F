@@ -641,7 +641,8 @@ CONTAINS
       model) RESULT(res)
 
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
-      REAL(c_double), DIMENSION(:, :), INTENT(IN)        :: density_scalar
+      ! Must be inout since we need to modify the matrix for some code paths
+      REAL(c_double), DIMENSION(:, :), INTENT(INOUT)     :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
@@ -717,6 +718,10 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
+         ! xmat factor 2 is applied by both CP2K and GauXC
+         ! "unapply" it here to even things back out
+         ! This is NOT necessary in the OneDFT branch
+         density_scalar = 0.5_dp*density_scalar
          CALL gauxc_integrator_eval_exc_vxc_rks( &
             status%status, &
             integrator%integrator, &
