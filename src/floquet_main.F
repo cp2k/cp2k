@@ -22,6 +22,7 @@ MODULE floquet_main
                                               cp_fm_struct_type
    USE floquet_utils,                   ONLY: build_floquet_matrix,&
                                               calculate_floquet_spectral_function,&
+                                              check_floquet_conversion,&
                                               write_floquet_spectral_function,&
                                               write_quasi_energy
    USE kinds,                           ONLY: dp
@@ -122,6 +123,7 @@ CONTAINS
             CALL cp_cfm_heevd(floquet_copy, cfm_eigenvectors, eigenvalues)
 
             ! TODO make a conversion check with cfm_eigenvectors.
+            CALL check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
 
             ! Write the quasi-energies ε_α folded into the first Floquet Brillouin
             ! zone -ħΩ/2 < ε_α ≤ ħΩ/2 for this k-point and spin channel

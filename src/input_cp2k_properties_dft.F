@@ -2966,6 +2966,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
+                          description="EPS FLOQUET", &
+                          usage="EPS_FLOQUET 1.e-6", n_var=1, &
+                          default_r_val=1.0e-10_dp, &
+                          type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="THE ENERGY WINDOW", &
                           usage="ENERGY_WINDOW 1", n_var=1, &

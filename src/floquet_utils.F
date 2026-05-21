@@ -60,6 +60,7 @@ MODULE floquet_utils
    PUBLIC :: build_floquet_matrix, &
              calculate_epsilon_derivative, &
              build_momentum_matrix, &
+             check_floquet_conversion, &
              calculate_floquet_spectral_function, &
              write_quasi_energy, &
              write_floquet_spectral_function
@@ -401,6 +402,44 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE build_floquet_matrix
 
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param bs_env ...
+!> \param cfm_eigenvectors ...
+! **************************************************************************************************
+   SUBROUTINE check_floquet_conversion(qs_env, bs_env, cfm_eigenvectors)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_floquet_conversion'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vector_block_0, vector_block_1
+      INTEGER                                            :: handle, max_f_index, nao, start_row_0, &
+                                                            start_row_1
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, mos=mos)
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
+
+      max_f_index = bs_env%max_floquet_index
+
+      start_row_0 = 1 + nao*max_f_index
+      start_row_1 = 1 + nao*(max_f_index + 1)
+
+      ALLOCATE (vector_block_0(3*nao, nao), vector_block_1(3*nao, nao), source=z_zero)
+      CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_0, start_row_0, start_row_0)
+      CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_1, start_row_1, start_row_1)
+      IF (ABS(MAXVAL(ABS(vector_block_0)) - MAXVAL(ABS(vector_block_1))) > bs_env%eps_floquet) THEN
+         CPABORT("FLOQUET DIAGONALIZATION DID NOT CONVERGE. MAX_FLOQUET_INDEX TOO SMALL")
+      END IF
+      DEALLOCATE (vector_block_0, vector_block_1)
+      CALL timestop(handle)
+
+   END SUBROUTINE check_floquet_conversion
 ! **************************************************************************************************
 !> \brief ...
 !> \param energy ...

@@ -319,6 +319,7 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                :: floquet_omega = -1.0_dp, &
                                                       floquet_amplitude = -1.0_dp, &
                                                       floquet_electronic_temperature = -1.0_dp, &
+                                                      eps_floquet = -1.0_dp, &
                                                       broadening_floquet = -1.0_dp, &
                                                       energy_step_floquet = -1.0_dp, &
                                                       energy_window_floquet = -1.0_dp
