@@ -748,7 +748,7 @@ CONTAINS
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
       LOGICAL :: grid_explicit, molecular_virial, molecular_virial_debug, pruning_explicit, &
-         use_gradient_self_runtime, use_onedft
+         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -876,6 +876,7 @@ CONTAINS
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
       use_onedft = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE")
+      use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
       IF (molecular_virial_debug) THEN
          IF (molecular_virial_debug_dx <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
@@ -903,7 +904,9 @@ CONTAINS
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
       END IF
-      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. para_env%num_pe > 1
+      use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
+      use_gradient_self_runtime = calculate_forces .AND. use_onedft .AND. &
+                                  para_env%num_pe > 1 .AND. .NOT. use_self_runtime
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
@@ -914,15 +917,30 @@ CONTAINS
                     particle_set, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
-      gauxc_grid_result = gauxc_create_grid( &
-                          gauxc_mol, &
-                          gauxc_basis, &
-                          grid_type, &
-                          radial_quadrature, &
-                          pruning_scheme, &
-                          lb_exec_space, &
-                          batch_size, &
-                          gauxc_status)
+      IF (use_self_runtime) THEN
+         ! SKALA currently needs a replicated molecular runtime for reproducible
+         ! open-shell densities across CP2K MPI ranks.
+         gauxc_grid_result = gauxc_create_grid( &
+                             gauxc_mol, &
+                             gauxc_basis, &
+                             grid_type, &
+                             radial_quadrature, &
+                             pruning_scheme, &
+                             lb_exec_space, &
+                             batch_size, &
+                             gauxc_status, &
+                             mpi_comm=mp_comm_self%get_handle())
+      ELSE
+         gauxc_grid_result = gauxc_create_grid( &
+                             gauxc_mol, &
+                             gauxc_basis, &
+                             grid_type, &
+                             radial_quadrature, &
+                             pruning_scheme, &
+                             lb_exec_space, &
+                             batch_size, &
+                             gauxc_status)
+      END IF
       CALL gauxc_check_status(gauxc_status)
       gauxc_integrator_result = gauxc_create_integrator( &
                                 TRIM(xc_fun_name), &
