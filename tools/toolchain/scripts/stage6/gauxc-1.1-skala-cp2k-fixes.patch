@@ -1,3 +1,37 @@
+diff --git a/cmake/gauxc-config.cmake.in b/cmake/gauxc-config.cmake.in
+index c6c4c2d4..35e426af 100644
+--- a/cmake/gauxc-config.cmake.in
++++ b/cmake/gauxc-config.cmake.in
+@@ -5,6 +5,14 @@ get_filename_component(GauXC_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+ list(PREPEND CMAKE_MODULE_PATH ${GauXC_CMAKE_DIR}                      )
+ list(PREPEND CMAKE_MODULE_PATH ${GauXC_CMAKE_DIR}/linalg-cmake-modules )
+ include(CMakeFindDependencyMacro)
++if(POLICY CMP0144)
++  cmake_policy(PUSH)
++  cmake_policy(SET CMP0144 NEW)
++  if(DEFINED CMAKE_POLICY_DEFAULT_CMP0144)
++    set(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144 "${CMAKE_POLICY_DEFAULT_CMP0144}")
++  endif()
++  set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
++endif()
+ 
+ # Always Required Dependencies
+ find_dependency( ExchCXX )
+@@ -90,5 +98,14 @@ list(REMOVE_AT CMAKE_MODULE_PATH 0)
+ if(NOT TARGET gauxc::gauxc)
+     include("${GauXC_CMAKE_DIR}/gauxc-targets.cmake")
+ endif()
++if(POLICY CMP0144)
++  if(DEFINED _GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
++    set(CMAKE_POLICY_DEFAULT_CMP0144 "${_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144}")
++  else()
++    unset(CMAKE_POLICY_DEFAULT_CMP0144)
++  endif()
++  unset(_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
++  cmake_policy(POP)
++endif()
+ 
+ set(GauXC_LIBRARIES gauxc::gauxc)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index a9e60fd8..e9635fa1 100644
 --- a/src/CMakeLists.txt
