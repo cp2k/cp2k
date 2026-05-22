@@ -78,6 +78,13 @@ case "${with_gauxc}" in
       rm -rf "GauXC-${gauxc_rev}" "${pkg_install_dir}"
       tar -xzf "${gauxc_pkg}"
       cd "GauXC-${gauxc_rev}"
+      if ! patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
+        > gauxc_cp2k_rks_density_fix.patch.log 2>&1; then
+        tail_excerpt gauxc_cp2k_rks_density_fix.patch.log
+        exit 1
+      fi
+      sed -i.bak '/find_dependency.*nlohmann_json/d' cmake/gauxc-config.cmake.in
+      rm -f cmake/gauxc-config.cmake.in.bak
       mkdir -p build
       cd build
 
@@ -130,7 +137,7 @@ case "${with_gauxc}" in
       install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
         "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-        "${BUILDDIR}/${gauxc_pkg}" \
+        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}" \
         "${BUILDDIR}/${nlohmann_json_pkg}" "${BUILDDIR}/${skala_model_pkg}"
     fi
     GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
