@@ -105,6 +105,9 @@ CONTAINS
          CASE (ls_2pnt)
             CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE., &
                              output_unit=output_unit)
+         CASE (ls_fit)
+            CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brack_limit, &
+                            gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv)
          CASE (ls_gold)
             CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol, &
                              gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
