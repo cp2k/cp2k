@@ -130,7 +130,7 @@ case "${with_gauxc}" in
       install -m 0644 "${BUILDDIR}/${skala_model_pkg}" \
         "${pkg_install_dir}/share/gauxc/onedft_models/${skala_model_pkg}"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" "${BUILDDIR}/${gauxc_pkg}" \
+        "${BUILDDIR}/${gauxc_pkg}" \
         "${BUILDDIR}/${nlohmann_json_pkg}" "${BUILDDIR}/${skala_model_pkg}"
     fi
     GAUXC_CFLAGS="-I'${pkg_install_dir}/include' -I'${pkg_install_dir}/include/gauxc/modules'"
