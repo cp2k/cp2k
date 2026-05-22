@@ -68,6 +68,7 @@ html_theme_options = {
 redirects = {
     "getting-started/CMake": "build-from-source.html",
     "getting-started/spack": "build-with-spack.html",
+    "methods/optimization/geometry": "geometry_and_cell_opt.html",
 }
 
 # EOF
