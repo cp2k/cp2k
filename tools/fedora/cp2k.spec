@@ -232,6 +232,7 @@ done
 
 %files
 %{_bindir}/cp2k.ssmp
+%{_bindir}/cp2k.sopt
 %{_bindir}/dbm_miniapp.ssmp
 %{_bindir}/dumpdcd.ssmp
 %{_bindir}/graph.ssmp
@@ -248,6 +249,7 @@ done
 
 %files openmpi
 %{_libdir}/openmpi/bin/cp2k.psmp
+%{_libdir}/openmpi/bin/cp2k.popt
 %{_libdir}/openmpi/bin/dumpdcd.psmp
 %{_libdir}/openmpi/bin/dbm_miniapp.psmp
 %{_libdir}/openmpi/bin/graph.psmp
@@ -264,6 +266,7 @@ done
 
 %files mpich
 %{_libdir}/mpich/bin/cp2k.psmp
+%{_libdir}/mpich/bin/cp2k.popt
 %{_libdir}/mpich/bin/dbm_miniapp.psmp
 %{_libdir}/mpich/bin/dumpdcd.psmp
 %{_libdir}/mpich/bin/graph.psmp

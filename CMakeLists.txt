@@ -1391,13 +1391,22 @@ foreach(__ext_pair "psmp:popt" "ssmp:sopt")
   list(GET __ext_list 0 __src_ext)
   list(GET __ext_list 1 __link_ext)
   if(__cp2k_ext MATCHES ${__src_ext})
+    if(IS_ABSOLUTE "${CMAKE_INSTALL_BINDIR}")
+      set(__cp2k_alias_bindir "${CMAKE_INSTALL_BINDIR}")
+    else()
+      set(__cp2k_alias_bindir
+          "\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
+    endif()
+
     install(
       CODE "
+      set(__cp2k_alias_bindir \"\$ENV{DESTDIR}${__cp2k_alias_bindir}\")
       message(STATUS \"Creating symlink: cp2k.${__link_ext} -> cp2k.${__src_ext}\")
       execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-          cp2k.${__src_ext}
-          \${CMAKE_INSTALL_PREFIX}/bin/cp2k.${__link_ext})
+        COMMAND \"${CMAKE_COMMAND}\" -E create_symlink
+          \"cp2k.${__src_ext}\"
+          \"\${__cp2k_alias_bindir}/cp2k.${__link_ext}\"
+        COMMAND_ERROR_IS_FATAL ANY)
     ")
   endif()
 endforeach()
