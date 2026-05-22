@@ -642,7 +642,7 @@ CONTAINS
 
       TYPE(cp_gauxc_integrator_type), INTENT(IN)         :: integrator
       ! Must be inout since we need to modify the matrix for some code paths
-      REAL(c_double), DIMENSION(:, :), INTENT(INOUT)     :: density_scalar
+      REAL(c_double), DIMENSION(:, :)                    :: density_scalar
       REAL(c_double), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: density_zeta
       INTEGER, INTENT(IN)                                :: nspins
