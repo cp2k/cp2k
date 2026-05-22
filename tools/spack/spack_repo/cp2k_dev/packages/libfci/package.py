@@ -38,9 +38,32 @@ class Libfci(CMakePackage):
     depends_on("lapack")
 
     def cmake_args(self):
+        spec = self.spec
+
         args = [
             self.define_from_variant("LIBFCI_USE_OPENMP", "openmp"),
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
             self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
+            self.define("BLA_STATIC", True),
         ]
+
+        # Force BLAS manually for static linking
+        if not spec.satisfies("+shared"):
+            blas = spec["blas"]
+
+            # Get actual static libraries
+            blas_libs = []
+            for lib in blas.libs.libraries:
+                if lib.endswith(".a"):
+                    blas_libs.append(lib)
+
+            # Fallback if .a not explicitly listed
+            if not blas_libs:
+                blas_libs = blas.libs.libraries
+
+            full = blas_libs + ["-lpthread", "-lm", "-ldl"]
+
+            args.append(self.define("BLAS_LIBRARIES", ";".join(full)))
+            args.append(self.define("LAPACK_LIBRARIES", ";".join(full)))
+
         return args

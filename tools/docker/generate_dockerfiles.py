@@ -722,11 +722,14 @@ def install_cp2k_spack(
     # Static CP2K builds use the GCC compiler built with spack
     if version.endswith("-static"):
         use_externals = ""
-        # The default GCC 13 compiler is used for static builds
-        # A spack build of the same GCC version as the default one
+        # A spack build of the same GCC version as the installed one
         # of the host system and ignoring all externals at the same
         # time is not supported
-        gcc_compilers = "g++ gcc gfortran"
+        if gcc_version == 13:
+            print(
+                f"\nERROR: GCC 13 is the default version of Ubuntu 24.04 and a spack build of the same version is not possible"
+            )
+        gcc_compilers = f"g++ gcc gfortran"
     if mpi_mode == "openmpi":
         use_externals = ""
     # Assemble docker file
