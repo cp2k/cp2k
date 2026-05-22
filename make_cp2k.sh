@@ -234,7 +234,7 @@ while [[ $# -gt 0 ]]; do
                 for package in libfci libint2 libxc libxsmm spglib vori tblite; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
-                for package in ace deepmd greenx hdf5 libtorch pexsi trexio; do
+                for package in ace deepmd gauxc greenx hdf5 libtorch pexsi trexio; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=OFF"
                 done
                 ;;
@@ -268,7 +268,7 @@ while [[ $# -gt 0 ]]; do
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
-              greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
+              gauxc greenx hdf5 libfci libfabric libint libvdwxc libsmeagol libvori libxc \
               libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius spfft \
               spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
@@ -278,7 +278,7 @@ while [[ $# -gt 0 ]]; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"smm=libxsmm\"/ s/libxsmm/blas/'"
             fi
             ;;
-          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 | \
+          ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | libint2 | \
             libsmeagol | libtorch | libxc | libxsmm | mimic | openpmd | pexsi | plumed | spglib | \
             tblite | trexio | vori)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
@@ -287,7 +287,7 @@ while [[ $# -gt 0 ]]; do
               ace)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
-              cosma | elpa | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
+              cosma | elpa | gauxc | greenx | hdf5 | libfci | libsmeagol | libxc | pexsi | plumed | spglib | trexio)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -583,7 +583,7 @@ NUM_PROCS=$(awk '{print $1+0}' <<< "${NUM_PROCS}")
 [[ -f /.dockerenv || -f /run/.containerenv ]] && IN_CONTAINER="yes" || IN_CONTAINER="no"
 
 # Assemble CMake feature flag list
-CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS} -DCP2K_USE_GAUXC=OFF"
+CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAG_ALL} ${CMAKE_FEATURE_FLAG_MPI} ${CMAKE_FEATURE_FLAGS}"
 
 # Clean CMake feature flag list from repeated entries and keep only the last definition
 declare -A last=()
@@ -667,9 +667,9 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "   (see also --build_deps flag)"
   echo " - The folder ${CP2K_ROOT}/install is updated after each successful run"
   echo ""
-  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | greenx | hdf5 | libfci | libint2 |"
-  echo "          libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed | sirius |"
-  echo "          spfft | spglib | spla | tblite | trexio | vori "
+  echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |"
+  echo "          libint | libsmeagol | libtorch | libvdwxc | libxsmm | mimic | openpmd | pexsi | plumed |"
+  echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"

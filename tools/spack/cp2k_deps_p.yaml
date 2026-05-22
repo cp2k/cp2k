@@ -26,6 +26,7 @@ spack:
       buildable: true
       prefer:
         - "~cuda"
+        - "+fortran"
         - "+mpi"
         - "+mpi_f08"
         - "+openmp"
@@ -69,7 +70,6 @@ spack:
 
     openblas:
       require:
-        - "+fortran"
         - "threads=openmp"
         - "build_system=makefile"
 
@@ -108,6 +108,13 @@ spack:
     fftw:
       require:
         - "+openmp"
+
+    gauxc:
+      require:
+        - "+c"
+        - "+fortran"
+        - "+openmp"
+        - "+skala"
 
     hdf5:
       require:
@@ -190,6 +197,7 @@ spack:
     - "dla-future-fortran@0.5.0"
     - "elpa@2026.02.001"
     - "fftw@3.3.11"
+    - "gauxc@1.2.dev2"
     - "greenx@2.2"
     - "hdf5@2.1.0"
     - "libfabric@2.5.1"
