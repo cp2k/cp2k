@@ -20,7 +20,7 @@ MODULE xc_gauxc_functional
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE external_potential_types,        ONLY: gth_potential_type,&
                                               sgp_potential_type
-   USE input_constants,                 ONLY: xc_vdw_fun_none
+   USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
@@ -772,11 +772,12 @@ CONTAINS
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: abort_message = &
-         "GauXC does not support dispersion corrections. "// &
-         "Please disable the VDW_POTENTIAL section or remove the XC_FUNCTIONAL%GAUXC subsection.", &
-         gapw_xc_abort_message = "GauXC with METHOD GAPW_XC is not supported yet. "// &
-         "The GAPW_XC one-center XC correction needs a dedicated GauXC design."
+      CHARACTER(len=*), PARAMETER :: gapw_xc_abort_message = &
+         "GauXC with METHOD GAPW_XC is not supported yet. "// &
+         "The GAPW_XC one-center XC correction needs a dedicated GauXC design.", &
+         nonlocal_vdw_abort_message = &
+         "GauXC does not support non-local VDW_POTENTIAL corrections. "// &
+         "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
@@ -856,8 +857,8 @@ CONTAINS
       nspins = dft_control%nspins
 
       IF (ASSOCIATED(qs_env%dispersion_env)) THEN
-         IF (qs_env%dispersion_env%type /= xc_vdw_fun_none) THEN
-            CPABORT(abort_message)
+         IF (qs_env%dispersion_env%type == xc_vdw_fun_nonloc) THEN
+            CPABORT(nonlocal_vdw_abort_message)
          END IF
       END IF
       NULLIFY (vxc_zeta_tmp%matrix)
