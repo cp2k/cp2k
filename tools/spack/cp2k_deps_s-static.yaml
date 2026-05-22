@@ -33,7 +33,6 @@ spack:
         - "~rocm"
     #   - "~shared" this does not work because of gettext
         - "+static"
-        - "build_system=cmake"
         - "build_type=Release"
 
     # ScaLAPACK, LAPACK, BLAS

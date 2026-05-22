@@ -1172,7 +1172,10 @@ if [[ ! -d "${SPACK_BUILD_PATH}" ]]; then
         if ! spack compiler remove "gcc@${GCC_VERSION}"; then
           echo -e "\nERROR: Removing the gcc@${GCC_VERSION} compiler failed"
           ${EXIT_CMD} 1
+        else
+          echo -e "\nINFO: gcc@${GCC_VERSION} compiler removed"
         fi
+        spack compiler list
       fi
     fi
     if ! spack -e "${CP2K_ENV}" --no-user-config --no-system-config concretize --fresh --jobs $((NUM_PROCS)); then
