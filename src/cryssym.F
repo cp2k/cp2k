@@ -605,7 +605,7 @@ CONTAINS
       a1(1:3) = hmat(1:3, 1)
       a2(1:3) = hmat(1:3, 2)
       a3(1:3) = hmat(1:3, 3)
-      alat = hmat(1, 1)
+      alat = SQRT(SUM(a1**2))
       strain = 0.0_dp
       ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, 200), ty(nat), isc(nat), f0(49, nat))
       ty(1:nat) = csym%atype(1:nat)
@@ -613,7 +613,7 @@ CONTAINS
       DO i = 1, nat
          xkapa(1:3, i) = MATMUL(hmat, csym%scoord(1:3, i))
       END DO
-      nhash = 1000
+      nhash = MAX(1000, nkpoint)
       ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
       ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
 
@@ -752,7 +752,7 @@ CONTAINS
       DO i = 1, nat
          xkapa(1:3, i) = MATMUL(csym%hmat, csym%scoord(1:3, i))
       END DO
-      nhash = 1000
+      nhash = MAX(1000, nkpoint)
       ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
       ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
 
@@ -821,7 +821,7 @@ CONTAINS
       a1(1:3) = csym%hmat(1:3, 1)
       a2(1:3) = csym%hmat(1:3, 2)
       a3(1:3) = csym%hmat(1:3, 3)
-      alat = csym%hmat(1, 1)
+      alat = SQRT(SUM(a1**2))
       volum = a1(1)*a2(2)*a3(3) + a2(1)*a3(2)*a1(3) + &
               a3(1)*a1(2)*a2(3) - a1(3)*a2(2)*a3(1) - &
               a2(3)*a3(2)*a1(1) - a3(3)*a1(2)*a2(1)
