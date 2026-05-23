@@ -286,11 +286,11 @@ CONTAINS
       IF (dokp) THEN
          CALL dbcsr_allocate_matrix_set(matrixkp_s, maxder, nimg)
          CALL create_sab_matrix(ks_env, matrixkp_s, matrix_name, basis_set_list_a, basis_set_list_b, &
-                                sab_nl, do_symmetric)
+                                sab_nl, do_symmetric, lcart=.FALSE.)
       ELSE
          CALL dbcsr_allocate_matrix_set(matrix_s, maxder)
          CALL create_sab_matrix(ks_env, matrix_s, matrix_name, basis_set_list_a, basis_set_list_b, &
-                                sab_nl, do_symmetric)
+                                sab_nl, do_symmetric, lcart=.FALSE.)
       END IF
       maxs = maxder
 
@@ -563,6 +563,7 @@ CONTAINS
 !> \param   basis_set_list_a basis set list to be used for bra in <a|b>
 !> \param   basis_set_list_b basis set list to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
+!> \param lcart ...
 !> \date    11.03.2016
 !> \par     History
 !>          Simplified version of build_overlap_matrix
@@ -570,13 +571,14 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE build_overlap_matrix_simple(ks_env, matrix_s, &
-                                          basis_set_list_a, basis_set_list_b, sab_nl)
+                                          basis_set_list_a, basis_set_list_b, sab_nl, lcart)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      LOGICAL, OPTIONAL                                  :: lcart
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_simple'
 
@@ -587,13 +589,14 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: do_symmetric, found, trans
+      LOGICAL                                            :: do_symmetric, found, ldocart, trans
       REAL(KIND=dp)                                      :: dab, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, scon_a, scon_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ccona, cconb, cphia, cphib, rpgfa, &
+                                                            rpgfb, scon_a, scon_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: sint
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -606,6 +609,8 @@ CONTAINS
 !$    INTEGER(KIND=int_8)                                :: iatom8
 !$    INTEGER, PARAMETER                                 :: nlock = 501
 
+      ldocart = .FALSE.
+      IF (PRESENT(lcart)) ldocart = lcart
       NULLIFY (dft_control)
 
       CALL timeset(routineN, handle)
@@ -624,8 +629,13 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
 
       CALL dbcsr_allocate_matrix_set(matrix_s, 1)
-      CALL create_sab_matrix(ks_env, matrix_s, "Matrix", basis_set_list_a, basis_set_list_b, &
-                             sab_nl, do_symmetric)
+      IF (.NOT. ldocart) THEN
+         CALL create_sab_matrix(ks_env, matrix_s, "Matrix", basis_set_list_a, basis_set_list_b, &
+                                sab_nl, do_symmetric, lcart=ldocart)
+      ELSE
+         CALL create_sab_matrix(ks_env, matrix_s, "Cartesian Overlap Matrix", basis_set_list_a, basis_set_list_b, &
+                                sab_nl, do_symmetric, lcart=ldocart)
+      END IF
 
       ldsab = 0
       DO ikind = 1, nkind
@@ -639,12 +649,13 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (ldsab,sab_nl,do_symmetric,ncoset,natom,&
-!$OMP         matrix_s,basis_set_list_a,basis_set_list_b,locks)  &
+!$OMP         matrix_s,basis_set_list_a,basis_set_list_b,locks,ldocart)  &
 !$OMP PRIVATE (oint,owork,sint,ikind,jkind,iatom,jatom,rab,basis_set_a,basis_set_b,&
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, dab, &
 !$OMP          zetb, scon_a, scon_b, irow, icol, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
-!$OMP          slot, lock_num, hash, hash1, hash2, iatom8 )
+!$OMP          slot, lock_num, hash, hash1, hash2, iatom8, cphia, cphib,&
+!$OMP          ccona, cconb )
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -684,6 +695,12 @@ CONTAINS
          rpgfa => basis_set_a%pgf_radius
          set_radius_a => basis_set_a%set_radius
          scon_a => basis_set_a%scon
+         IF (ldocart) THEN
+            first_sgfa => basis_set_a%first_cgf
+            nsgfa => basis_set_a%ncgf_set
+            cphia => basis_set_a%cphi
+            ccona => basis_set_a%ccon
+         END IF
          zeta => basis_set_a%zet
          ! basis jkind
          first_sgfb => basis_set_b%first_sgf
@@ -695,6 +712,12 @@ CONTAINS
          rpgfb => basis_set_b%pgf_radius
          set_radius_b => basis_set_b%set_radius
          scon_b => basis_set_b%scon
+         IF (ldocart) THEN
+            first_sgfb => basis_set_b%first_cgf
+            nsgfb => basis_set_b%ncgf_set
+            cphib => basis_set_b%cphi
+            cconb => basis_set_b%ccon
+         END IF
          zetb => basis_set_b%zet
 
          IF (do_symmetric) THEN
@@ -741,8 +764,13 @@ CONTAINS
                                lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                rab, sab=oint(:, :, 1))
                ! Contraction
-               CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
-                                cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=trans)
+               IF (.NOT. ldocart) THEN
+                  CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                   cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=trans)
+               ELSE
+                  CALL contraction(oint(:, :, 1), owork, ca=ccona(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                   cb=cconb(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=trans)
+               END IF
 !$OMP CRITICAL(blockadd)
                CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(1)%block, &
                               sgfa, sgfb, trans=trans)
@@ -1028,9 +1056,10 @@ CONTAINS
 !> \param basis_set_list_b Basis set used for |b>
 !> \param sab_nl         Overlap neighbor list
 !> \param symmetric      Is symmetry used in the neighbor list?
+!> \param lcart ...
 ! **************************************************************************************************
    SUBROUTINE create_sab_matrix_1d(ks_env, matrix_s, matrix_name, &
-                                   basis_set_list_a, basis_set_list_b, sab_nl, symmetric)
+                                   basis_set_list_a, basis_set_list_b, sab_nl, symmetric, lcart)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -1039,6 +1068,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lcart
 
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string
@@ -1049,10 +1079,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
+      LOGICAL:: my_lcart
+
       CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)
 
       natom = SIZE(particle_set)
+      my_lcart = .FALSE.
+      IF (PRESENT(lcart)) my_lcart = lcart
 
       IF (PRESENT(matrix_name)) THEN
          mname = matrix_name
@@ -1064,10 +1098,17 @@ CONTAINS
 
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
 
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
-                            basis=basis_set_list_a)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes, &
-                            basis=basis_set_list_b)
+      IF (.NOT. my_lcart) THEN
+         CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
+                               basis=basis_set_list_a)
+         CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes, &
+                               basis=basis_set_list_b)
+      ELSE
+         CALL get_particle_set(particle_set, qs_kind_set, ncgf=row_blk_sizes, &
+                               basis=basis_set_list_a)
+         CALL get_particle_set(particle_set, qs_kind_set, ncgf=col_blk_sizes, &
+                               basis=basis_set_list_b)
+      END IF
 
       ! prepare for allocation
       IF (symmetric) THEN
@@ -1118,9 +1159,10 @@ CONTAINS
 !> \param basis_set_list_b Basis set used for |b>
 !> \param sab_nl         Overlap neighbor list
 !> \param symmetric      Is symmetry used in the neighbor list?
+!> \param lcart ...
 ! **************************************************************************************************
    SUBROUTINE create_sab_matrix_2d(ks_env, matrix_s, matrix_name, &
-                                   basis_set_list_a, basis_set_list_b, sab_nl, symmetric)
+                                   basis_set_list_a, basis_set_list_b, sab_nl, symmetric, lcart)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
@@ -1129,12 +1171,14 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
+      LOGICAL, INTENT(in), OPTIONAL                      :: lcart
 
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: mname, name
       INTEGER                                            :: i1, i2, natom
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      LOGICAL                                            :: my_lcart
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1143,6 +1187,8 @@ CONTAINS
                       qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)
 
       natom = SIZE(particle_set)
+      my_lcart = .FALSE.
+      IF (PRESENT(lcart)) my_lcart = lcart
 
       IF (PRESENT(matrix_name)) THEN
          mname = matrix_name
@@ -1152,10 +1198,17 @@ CONTAINS
 
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
 
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
-                            basis=basis_set_list_a)
-      CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes, &
-                            basis=basis_set_list_b)
+      IF (.NOT. my_lcart) THEN
+         CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
+                               basis=basis_set_list_a)
+         CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes, &
+                               basis=basis_set_list_b)
+      ELSE
+         CALL get_particle_set(particle_set, qs_kind_set, ncgf=row_blk_sizes, &
+                               basis=basis_set_list_a)
+         CALL get_particle_set(particle_set, qs_kind_set, ncgf=col_blk_sizes, &
+                               basis=basis_set_list_b)
+      END IF
 
       ! prepare for allocation
       IF (symmetric) THEN

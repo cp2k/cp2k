@@ -458,7 +458,7 @@ CONTAINS
                                                    umo_set=umo_set)
                ELSE
                   CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, solver_method=solver_method)
+                                                   final_mos=final_mos, solver_method=solver_method, qs_env=qs_env)
                END IF
             END IF
 
