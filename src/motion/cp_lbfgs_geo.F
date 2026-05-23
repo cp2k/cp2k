@@ -80,7 +80,6 @@ CONTAINS
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
       LOGICAL                                            :: converged, should_stop
-      REAL(KIND=dp)                                      :: trust_radius
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -118,12 +117,14 @@ CONTAINS
       IF (gopt_env%type_id == default_ts_method_id) &
          CPABORT("BFGS method not yet working with DIMER")
 
-      CALL section_vals_val_get(geo_section, "LBFGS%TRUST_RADIUS", r_val=trust_radius)
       ALLOCATE (optimizer)
       CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env, &
-                              x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error, &
-                              wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank, &
-                              max_f_per_iter=gopt_param%max_f_per_iter, trust_radius=trust_radius)
+                              x0=x0, m=gopt_param%max_h_rank, &
+                              print_every=gopt_param%print_control, &
+                              wanted_relative_f_delta=gopt_param%wanted_rel_f_error, &
+                              wanted_projected_gradient=gopt_param%wanted_proj_gradient, &
+                              max_f_per_iter=gopt_param%max_f_per_iter, &
+                              trust_radius=gopt_param%trust_radius)
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       converged = .FALSE.
 

@@ -57,11 +57,11 @@ MODULE gopt_param_types
       INTEGER                  :: method_id = default_cell_method_id, type_id = default_cell_method_id
       INTEGER                  :: ts_method_id = 0, shellcore_method_id = 0
       INTEGER                  :: max_f_per_iter = 0, max_iter = 0, max_h_rank = 0
-      INTEGER                  :: max_steep_steps = 0
-      REAL(KIND=dp)          :: restart_limit = 0.0_dp
-      REAL(KIND=dp)          :: wanted_proj_gradient = 0.0_dp, wanted_rel_f_error = 0.0_dp
-      REAL(KIND=dp)          :: max_dr = 0.0_dp, max_force = 0.0_dp, rms_dr = 0.0_dp, rms_force = 0.0_dp
-      REAL(KIND=dp)          :: dimer_angle_tol = 0.0_dp
+      INTEGER                  :: max_steep_steps = 0, print_control = 0
+      REAL(KIND=dp)            :: restart_limit = 0.0_dp
+      REAL(KIND=dp)            :: trust_radius = -1.0_dp, wanted_proj_gradient = 0.0_dp, wanted_rel_f_error = 0.0_dp
+      REAL(KIND=dp)            :: max_dr = 0.0_dp, max_force = 0.0_dp, rms_dr = 0.0_dp, rms_force = 0.0_dp
+      REAL(KIND=dp)            :: dimer_angle_tol = 0.0_dp
       TYPE(cg_ls_param_type)   :: cg_ls = cg_ls_param_type()
    END TYPE gopt_param_type
 
@@ -100,6 +100,8 @@ CONTAINS
       CASE (default_lbfgs_method_id)
          CALL section_vals_val_get(gopt_section, "LBFGS%MAX_H_RANK", i_val=gopt_param%max_h_rank)
          CALL section_vals_val_get(gopt_section, "LBFGS%MAX_F_PER_ITER", i_val=gopt_param%max_f_per_iter)
+         CALL section_vals_val_get(gopt_section, "LBFGS%PRINT_CONTROL", i_val=gopt_param%print_control)
+         CALL section_vals_val_get(gopt_section, "LBFGS%TRUST_RADIUS", r_val=gopt_param%trust_radius)
          CALL section_vals_val_get(gopt_section, "LBFGS%WANTED_PROJ_GRADIENT", r_val=gopt_param%wanted_proj_gradient)
          CALL section_vals_val_get(gopt_section, "LBFGS%WANTED_REL_F_ERROR", r_val=gopt_param%wanted_rel_f_error)
       CASE (default_bfgs_method_id)

@@ -64,7 +64,8 @@ MODULE input_cp2k_motion
                               real_t, &
                               char_t
    USE kinds, ONLY: dp
-   USE string_utilities, ONLY: s2a
+   USE string_utilities, ONLY: newline, &
+                               s2a
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1477,6 +1478,21 @@ CONTAINS
                           " (used for the line search)", &
                           usage="MAX_F_PER_ITER {integer}", &
                           default_i_val=20)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_CONTROL", &
+                          description="An integer that controls the verbosity of printing "// &
+                          "from the LBFGS optimizer. If negative, no output is generated; "// &
+                          "if exactly 0, then one line is printed at the last iteration; "// &
+                          "and if positive, then more information as well as a data file "// &
+                          "`iterate.dat` will be printed. Specifically: "//newline//newline// &
+                          "* 0 < integer < 99 prints f and |proj g| every integer iterations; "//newline// &
+                          "* integer = 99 prints details of every iteration except n-vectors; "//newline// &
+                          "* integer = 100 prints also the changes of active set and final x; "//newline// &
+                          "* integer > 100 prints details of every iteration including x and g.", &
+                          usage="PRINT_CONTROL {integer}", &
+                          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
