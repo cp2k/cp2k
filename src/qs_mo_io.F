@@ -24,10 +24,8 @@ MODULE qs_mo_io
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
                                               dbcsr_create,&
-                                              dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
@@ -1050,8 +1048,8 @@ CONTAINS
       CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       INTEGER :: after, first_mo, from, homo, iatom, icgf, ico, icol, ikind, imo, irow, iset, &
-         isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, naocart, natom, ncgf, &
-         ncol, nkind, nmo, nset, nsgf, numo, right, scf_step, to, width
+         isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, natom, ncgf, ncol, nkind, &
+         nmo, nset, nsgf, numo, right, scf_step, to, width
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       LOGICAL :: ionode, my_final, my_rtp, omit_headers, print_cartesian, print_cartesian_overlap, &
@@ -1060,7 +1058,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mo_eigenvalues, mo_occupation_numbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sro
@@ -1182,49 +1179,45 @@ CONTAINS
          END IF
       END IF
 
-      IF (PRESENT(qs_env) .AND. my_final) THEN
+      IF (PRESENT(qs_env) .AND. my_final .AND. print_cartesian_overlap) THEN
          NULLIFY (qs_kind_set)
          CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
          nkind = SIZE(qs_kind_set)
-         ALLOCATE (orb_basis_set_list(nkind))
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
-            NULLIFY (orbbasis)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=orbbasis, basis_type="ORB")
-            IF (ASSOCIATED(orbbasis)) orb_basis_set_list(ikind)%gto_basis_set => orbbasis
-         END DO
-         NULLIFY (sro_list)
-         CALL setup_neighbor_list(sro_list, orb_basis_set_list, qs_env=qs_env)
-         NULLIFY (sro)
-         NULLIFY (para_env, blacs_env)
-         CALL get_qs_env(qs_env, ks_env=ks_env, para_env=para_env, blacs_env=blacs_env)
-         CALL build_overlap_matrix_simple(ks_env, sro, &
-                                          orb_basis_set_list, orb_basis_set_list, sro_list, .TRUE.)
-         CALL dbcsr_get_info(sro(1)%matrix, nfullrows_total=naocart, nfullcols_total=naocart)
-         CALL release_neighbor_list_sets(sro_list)
 
-         ! Print the Cartesian overlap integral matrix, if requested
-         IF (print_cartesian_overlap .AND. my_final) THEN
-            IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                                 qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP"), cp_p_file)) THEN
-               iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP", &
-                                         extension=".Log")
-               CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
-               CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
-               after = MIN(MAX(after, 1), 16)
-               IF (ASSOCIATED(sro)) THEN
-                  CALL cp_dbcsr_write_sparse_matrix(sro(1)%matrix, 4, after, qs_env, para_env, &
-                                                    output_unit=iw, omit_headers=omit_headers, &
-                                                    cartesian_basis=.TRUE.)
-               END IF
-               CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
-                                                 "DFT%PRINT%AO_MATRICES/OVERLAP")
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP"), cp_p_file)) THEN
+            ALLOCATE (orb_basis_set_list(nkind))
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
+               NULLIFY (orbbasis)
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=orbbasis, basis_type="ORB")
+               IF (ASSOCIATED(orbbasis)) orb_basis_set_list(ikind)%gto_basis_set => orbbasis
+            END DO
+            NULLIFY (sro_list)
+            CALL setup_neighbor_list(sro_list, orb_basis_set_list, qs_env=qs_env)
+            NULLIFY (sro)
+            NULLIFY (para_env)
+            CALL get_qs_env(qs_env, ks_env=ks_env, para_env=para_env)
+            CALL build_overlap_matrix_simple(ks_env, sro, &
+                                             orb_basis_set_list, orb_basis_set_list, sro_list, .TRUE.)
+            CALL release_neighbor_list_sets(sro_list)
+
+            iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP", &
+                                      extension=".Log")
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+            after = MIN(MAX(after, 1), 16)
+            IF (ASSOCIATED(sro)) THEN
+               CALL cp_dbcsr_write_sparse_matrix(sro(1)%matrix, 4, after, qs_env, para_env, &
+                                                 output_unit=iw, omit_headers=omit_headers, &
+                                                 cartesian_basis=.TRUE.)
             END IF
+            CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                              "DFT%PRINT%AO_MATRICES/OVERLAP")
+            IF (ASSOCIATED(sro)) CALL dbcsr_deallocate_matrix_set(sro)
+            DEALLOCATE (orb_basis_set_list)
          END IF
-         IF (ASSOCIATED(sro)) CALL dbcsr_deallocate_matrix_set(sro)
-         DEALLOCATE (orb_basis_set_list)
       END IF
 
       iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%MO", &

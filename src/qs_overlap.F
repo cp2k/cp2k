@@ -595,8 +595,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ccona, cconb, cphia, cphib, rpgfa, &
-                                                            rpgfb, scon_a, scon_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ccona, cconb, rpgfa, rpgfb, scon_a, &
+                                                            scon_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: sint
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -654,8 +654,7 @@ CONTAINS
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, dab, &
 !$OMP          zetb, scon_a, scon_b, irow, icol, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &
-!$OMP          slot, lock_num, hash, hash1, hash2, iatom8, cphia, cphib,&
-!$OMP          ccona, cconb )
+!$OMP          slot, lock_num, hash, hash1, hash2, iatom8, ccona, cconb )
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
@@ -698,7 +697,6 @@ CONTAINS
          IF (ldocart) THEN
             first_sgfa => basis_set_a%first_cgf
             nsgfa => basis_set_a%ncgf_set
-            cphia => basis_set_a%cphi
             ccona => basis_set_a%ccon
          END IF
          zeta => basis_set_a%zet
@@ -715,7 +713,6 @@ CONTAINS
          IF (ldocart) THEN
             first_sgfb => basis_set_b%first_cgf
             nsgfb => basis_set_b%ncgf_set
-            cphib => basis_set_b%cphi
             cconb => basis_set_b%ccon
          END IF
          zetb => basis_set_b%zet

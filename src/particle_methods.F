@@ -142,6 +142,9 @@ CONTAINS
       IF (PRESENT(nmao)) THEN
          CPASSERT(SIZE(nmao) >= nparticle)
       END IF
+      IF (PRESENT(ncgf)) THEN
+         CPASSERT(SIZE(ncgf) >= nparticle)
+      END IF
 
       IF (PRESENT(first_sgf) .OR. PRESENT(last_sgf) .OR. PRESENT(nsgf)) THEN
          isgf = 0
@@ -164,7 +167,6 @@ CONTAINS
       END IF
 
       IF (PRESENT(ncgf)) THEN
-         isgf = 0
          DO iparticle = 1, nparticle
             CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
             IF (PRESENT(basis)) THEN
@@ -176,7 +178,7 @@ CONTAINS
             ELSE
                CALL get_qs_kind(qs_kind_set(ikind), ncgf=ns)
             END IF
-            IF (PRESENT(ncgf)) ncgf(iparticle) = ns
+            ncgf(iparticle) = ns
          END DO
       END IF
 
