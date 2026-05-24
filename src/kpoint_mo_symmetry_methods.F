@@ -9,8 +9,7 @@
 !> \brief Utilities for transforming k-point MO coefficients under symmetry operations
 ! **************************************************************************************************
 MODULE kpoint_mo_symmetry_methods
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_get_info,&
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
@@ -61,20 +60,22 @@ CONTAINS
 !> \param para_env global parallel environment
 !> \param success true if the transformation was performed
 !> \param reason diagnostic message
+!> \param inverse apply the inverse of the selected symmetry operation
 ! **************************************************************************************************
    SUBROUTINE kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, ikred, &
-                                      isym, para_env, success, reason)
+                                      isym, para_env, success, reason, inverse)
       TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag, dst_real, dst_imag
       TYPE(kpoint_type), POINTER                         :: qs_kpoint
       INTEGER, INTENT(IN)                                :: ikred, isym
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(OUT)                               :: success
       CHARACTER(LEN=*), INTENT(OUT)                      :: reason
+      LOGICAL, INTENT(IN), OPTIONAL                      :: inverse
 
       INTEGER :: iao, iatom, ikind, imo, irow, irow_source, irow_target, irow_work, nao, natom, &
          nmo, rot_slot, source_atom, source_dim, target_atom, target_dim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_size, ao_start
-      LOGICAL                                            :: reverse_phase, time_reversal
+      LOGICAL                                            :: reverse_phase, time_reversal, use_inverse
       REAL(KIND=dp)                                      :: arg, coeff_imag, coeff_real, coskl, &
                                                             phase_imag, phase_real, sinkl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dst_i, dst_r, src_i, src_r
@@ -85,19 +86,22 @@ CONTAINS
 
       success = .FALSE.
       reason = ""
-      IF (isym == 0) THEN
-         CALL cp_fm_copy_general(src_real, dst_real, para_env)
-         CALL cp_fm_copy_general(src_imag, dst_imag, para_env)
-         success = .TRUE.
-         RETURN
-      END IF
-
+      use_inverse = .FALSE.
+      IF (PRESENT(inverse)) use_inverse = inverse
       CALL cp_fm_get_info(src_real, nrow_global=nao, ncol_global=nmo)
       ALLOCATE (src_r(nao, nmo), src_i(nao, nmo), dst_r(nao, nmo), dst_i(nao, nmo))
       CALL cp_fm_get_submatrix(src_real, src_r)
       CALL cp_fm_get_submatrix(src_imag, src_i)
       dst_r(:, :) = 0.0_dp
       dst_i(:, :) = 0.0_dp
+
+      IF (isym == 0) THEN
+         CALL cp_fm_set_submatrix(dst_real, src_r)
+         CALL cp_fm_set_submatrix(dst_imag, src_i)
+         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         success = .TRUE.
+         RETURN
+      END IF
 
       IF (isym == -1) THEN
          dst_r(1:nao, 1:nmo) = src_r(1:nao, 1:nmo)
@@ -182,23 +186,43 @@ CONTAINS
          IF (reverse_phase) arg = -arg
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)
-         DO imo = 1, nmo
-            DO irow_work = 1, source_dim
-               irow_source = ao_start(source_atom) + irow_work - 1
-               coeff_real = src_r(irow_source, imo)
-               coeff_imag = src_i(irow_source, imo)
-               IF (time_reversal) coeff_imag = -coeff_imag
-               phase_real = coskl*coeff_real - sinkl*coeff_imag
-               phase_imag = sinkl*coeff_real + coskl*coeff_imag
-               DO iao = 1, target_dim
-                  irow_target = ao_start(target_atom) + iao - 1
-                  dst_r(irow_target, imo) = dst_r(irow_target, imo) + &
-                                            rotmat(iao, irow_work)*phase_real
-                  dst_i(irow_target, imo) = dst_i(irow_target, imo) + &
-                                            rotmat(iao, irow_work)*phase_imag
+         IF (use_inverse) THEN
+            DO imo = 1, nmo
+               DO irow_work = 1, source_dim
+                  coeff_real = 0.0_dp
+                  coeff_imag = 0.0_dp
+                  DO iao = 1, target_dim
+                     irow_target = ao_start(target_atom) + iao - 1
+                     coeff_real = coeff_real + rotmat(iao, irow_work)*src_r(irow_target, imo)
+                     coeff_imag = coeff_imag + rotmat(iao, irow_work)*src_i(irow_target, imo)
+                  END DO
+                  phase_real = coskl*coeff_real + sinkl*coeff_imag
+                  phase_imag = -sinkl*coeff_real + coskl*coeff_imag
+                  IF (time_reversal) phase_imag = -phase_imag
+                  irow_source = ao_start(source_atom) + irow_work - 1
+                  dst_r(irow_source, imo) = dst_r(irow_source, imo) + phase_real
+                  dst_i(irow_source, imo) = dst_i(irow_source, imo) + phase_imag
                END DO
             END DO
-         END DO
+         ELSE
+            DO imo = 1, nmo
+               DO irow_work = 1, source_dim
+                  irow_source = ao_start(source_atom) + irow_work - 1
+                  coeff_real = src_r(irow_source, imo)
+                  coeff_imag = src_i(irow_source, imo)
+                  IF (time_reversal) coeff_imag = -coeff_imag
+                  phase_real = coskl*coeff_real - sinkl*coeff_imag
+                  phase_imag = sinkl*coeff_real + coskl*coeff_imag
+                  DO iao = 1, target_dim
+                     irow_target = ao_start(target_atom) + iao - 1
+                     dst_r(irow_target, imo) = dst_r(irow_target, imo) + &
+                                               rotmat(iao, irow_work)*phase_real
+                     dst_i(irow_target, imo) = dst_i(irow_target, imo) + &
+                                               rotmat(iao, irow_work)*phase_imag
+                  END DO
+               END DO
+            END DO
+         END IF
       END DO
 
       CALL cp_fm_set_submatrix(dst_real, dst_r)

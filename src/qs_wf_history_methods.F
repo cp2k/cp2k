@@ -80,8 +80,11 @@ MODULE qs_wf_history_methods
                                               kpoint_density_transform,&
                                               kpoint_set_mo_occupation,&
                                               rskp_transform
+   USE kpoint_mo_symmetry_methods,      ONLY: kpoint_same_periodic,&
+                                              kpoint_transform_scf_mo
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
+                                              kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
@@ -119,6 +122,7 @@ MODULE qs_wf_history_methods
                                               qs_scf_env_type
    USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                               qs_wf_snapshot_type,&
+                                              wfi_clear,&
                                               wfi_get_snapshot,&
                                               wfi_release
    USE scf_control_types,               ONLY: scf_control_type
@@ -132,6 +136,7 @@ MODULE qs_wf_history_methods
 
    PUBLIC :: wfi_create, wfi_update, wfi_create_for_kp, &
              wfi_extrapolate, wfi_get_method_label, &
+             wfi_handle_kpoint_symmetry_refresh, &
              reorthogonalize_vectors, wfi_purge_history
 
 CONTAINS
@@ -733,7 +738,8 @@ CONTAINS
       INTEGER                                            :: actual_extrapolation_method_nr, handle, &
                                                             i, img, io_unit, ispin, k, n, nmo, &
                                                             nvec, print_level
-      LOGICAL                                            :: do_kpoints, my_orthogonal_wf, use_overlap
+      LOGICAL                                            :: do_kpoints, kp_prev_success, &
+                                                            my_orthogonal_wf, use_overlap
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeffs
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
@@ -785,8 +791,6 @@ CONTAINS
          END IF
       END SELECT
 
-      IF (PRESENT(extrapolation_method_nr)) &
-         extrapolation_method_nr = actual_extrapolation_method_nr
       my_orthogonal_wf = .FALSE.
 
       SELECT CASE (actual_extrapolation_method_nr)
@@ -848,7 +852,12 @@ CONTAINS
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
 
          IF (do_kpoints) THEN
-            CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
+            kp_prev_success = .TRUE.
+            CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level, success=kp_prev_success)
+            IF (.NOT. kp_prev_success) THEN
+               actual_extrapolation_method_nr = wfi_use_guess_method_nr
+               my_orthogonal_wf = .FALSE.
+            END IF
          ELSE
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(mos)
@@ -1342,11 +1351,181 @@ CONTAINS
                        "Unknown interpolation method: "// &
                        TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr))))
       END SELECT
+      IF (PRESENT(extrapolation_method_nr)) &
+         extrapolation_method_nr = actual_extrapolation_method_nr
       IF (PRESENT(orthogonal_wf)) orthogonal_wf = my_orthogonal_wf
       CALL cp_print_key_finished_output(io_unit, logger, qs_env%input, &
                                         "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
    END SUBROUTINE wfi_extrapolate
+
+! **************************************************************************************************
+!> \brief Decide whether k-point WFN history can survive a k-point symmetry refresh.
+!> \param wf_history wavefunction history
+!> \param kpoints refreshed k-point environment
+! **************************************************************************************************
+   SUBROUTINE wfi_handle_kpoint_symmetry_refresh(wf_history, kpoints)
+      TYPE(qs_wf_history_type), POINTER                  :: wf_history
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+
+      IF (.NOT. ASSOCIATED(wf_history)) RETURN
+      IF (wf_history%snapshot_count < 1) RETURN
+      IF (.NOT. wf_history%store_wf_kp) THEN
+         CALL wfi_clear(wf_history)
+         RETURN
+      END IF
+
+      snapshot => wfi_get_snapshot(wf_history, wf_index=1)
+      IF (.NOT. ASSOCIATED(snapshot%kp_xkp)) THEN
+         CALL wfi_clear(wf_history)
+         RETURN
+      END IF
+
+      IF (wfi_kp_snapshot_layout_matches(snapshot, kpoints)) RETURN
+
+      SELECT CASE (wf_history%interpolation_method_nr)
+      CASE (wfi_use_prev_wf_method_nr)
+         ! USE_PREV_WF only needs the latest WFN snapshot and can attempt a
+         ! symmetry remap later in wfi_use_prev_wf_kp.
+         RETURN
+      CASE DEFAULT
+         ! Higher-order extrapolation methods also need historical S(k) data in
+         ! a consistent representation; keep them conservative for now.
+         CALL wfi_clear(wf_history)
+      END SELECT
+
+   END SUBROUTINE wfi_handle_kpoint_symmetry_refresh
+
+! **************************************************************************************************
+!> \brief Check whether a saved local k-point snapshot layout matches the current one.
+!> \param snapshot latest WFN snapshot
+!> \param kpoints current k-point environment
+!> \return true if the local irreducible k-point layout is unchanged
+! **************************************************************************************************
+   LOGICAL FUNCTION wfi_kp_snapshot_layout_matches(snapshot, kpoints) RESULT(matches)
+      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      INTEGER                                            :: ik, ikp, kplocal, nkp
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: use_real_wfn
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+
+      matches = .FALSE.
+      NULLIFY (xkp, wkp)
+      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, wkp=wkp, &
+                           use_real_wfn=use_real_wfn, kp_range=kp_range)
+
+      IF (snapshot%kp_nkp /= nkp) RETURN
+      IF (ANY(snapshot%kp_range /= kp_range)) RETURN
+      IF (snapshot%kp_use_real_wfn .NEQV. use_real_wfn) RETURN
+      IF (.NOT. ASSOCIATED(snapshot%kp_xkp)) RETURN
+      IF (.NOT. ASSOCIATED(snapshot%kp_wkp)) RETURN
+
+      kplocal = kp_range(2) - kp_range(1) + 1
+      IF (SIZE(snapshot%kp_xkp, 2) /= kplocal) RETURN
+      IF (SIZE(snapshot%kp_wkp) /= kplocal) RETURN
+
+      DO ikp = 1, kplocal
+         ik = kp_range(1) + ikp - 1
+         IF (.NOT. kpoint_same_periodic(snapshot%kp_xkp(1:3, ikp), xkp(1:3, ik))) RETURN
+         IF (ABS(snapshot%kp_wkp(ikp) - wkp(ik)) > 1.0E-10_dp) RETURN
+      END DO
+
+      matches = .TRUE.
+
+   END FUNCTION wfi_kp_snapshot_layout_matches
+
+! **************************************************************************************************
+!> \brief Find a local snapshot WFN that can be reused for the current k-point.
+!> \param snapshot latest WFN snapshot
+!> \param kpoints current k-point environment
+!> \param ik current global irreducible k-point index
+!> \param source_ikp local snapshot index of the source WFN
+!> \param source_isym symmetry operation mapping current k to the source k
+!> \param direct_copy true if no symmetry transform is required
+!> \param success true if a local source WFN was found
+! **************************************************************************************************
+   SUBROUTINE wfi_find_kp_snapshot_source(snapshot, kpoints, ik, source_ikp, source_isym, &
+                                          direct_copy, success)
+      TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(IN)                                :: ik
+      INTEGER, INTENT(OUT)                               :: source_ikp, source_isym
+      LOGICAL, INTENT(OUT)                               :: direct_copy, success
+
+      INTEGER                                            :: ikp_old, isym
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      source_ikp = 0
+      source_isym = 0
+      direct_copy = .FALSE.
+      success = .FALSE.
+      NULLIFY (xkp, kpsym)
+
+      IF (.NOT. ASSOCIATED(snapshot%kp_xkp)) RETURN
+      CALL get_kpoint_info(kpoints, xkp=xkp)
+
+      DO ikp_old = 1, SIZE(snapshot%kp_xkp, 2)
+         IF (kpoint_same_periodic(snapshot%kp_xkp(1:3, ikp_old), xkp(1:3, ik))) THEN
+            source_ikp = ikp_old
+            direct_copy = .TRUE.
+            success = .TRUE.
+            RETURN
+         END IF
+      END DO
+
+      IF (.NOT. ASSOCIATED(kpoints%kp_sym)) RETURN
+      kpsym => kpoints%kp_sym(ik)%kpoint_sym
+      IF (.NOT. ASSOCIATED(kpsym)) RETURN
+      IF (.NOT. ASSOCIATED(kpsym%xkp)) RETURN
+
+      DO isym = 1, kpsym%nwred
+         DO ikp_old = 1, SIZE(snapshot%kp_xkp, 2)
+            IF (kpoint_same_periodic(snapshot%kp_xkp(1:3, ikp_old), kpsym%xkp(1:3, isym))) THEN
+               source_ikp = ikp_old
+               source_isym = isym
+               direct_copy = .FALSE.
+               success = .TRUE.
+               RETURN
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE wfi_find_kp_snapshot_source
+
+! **************************************************************************************************
+!> \brief Check whether the current local k-point set uses atomic symmetry expansion.
+!> \param kpoints current k-point environment
+!> \param kp_range local global k-point range
+!> \return true if any local k-point applies atomic k-point symmetry
+! **************************************************************************************************
+   LOGICAL FUNCTION wfi_kp_uses_atomic_symmetry(kpoints, kp_range) RESULT(uses_symmetry)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, DIMENSION(2), INTENT(IN)                  :: kp_range
+
+      INTEGER                                            :: ik
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      uses_symmetry = .FALSE.
+      IF (.NOT. ASSOCIATED(kpoints%kp_sym)) RETURN
+
+      DO ik = kp_range(1), kp_range(2)
+         NULLIFY (kpsym)
+         kpsym => kpoints%kp_sym(ik)%kpoint_sym
+         IF (ASSOCIATED(kpsym)) THEN
+            IF (kpsym%apply_symmetry) THEN
+               uses_symmetry = .TRUE.
+               RETURN
+            END IF
+         END IF
+      END DO
+
+   END FUNCTION wfi_kp_uses_atomic_symmetry
 
 ! **************************************************************************************************
 !> \brief Reorthogonalizes the wavefunctions from the previous step for k-points
@@ -1356,27 +1535,33 @@ CONTAINS
 !> \param print_level print level
 !> \param pbc_shift_ref ...
 !> \param load_snapshot_wf ...
+!> \param success ...
 ! **************************************************************************************************
-   SUBROUTINE wfi_use_prev_wf_kp(qs_env, io_unit, print_level, pbc_shift_ref, load_snapshot_wf)
+   SUBROUTINE wfi_use_prev_wf_kp(qs_env, io_unit, print_level, pbc_shift_ref, load_snapshot_wf, &
+                                 success)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: io_unit, print_level
       INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: pbc_shift_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: load_snapshot_wf
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: success
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_use_prev_wf_kp'
 
+      CHARACTER(LEN=256)                                 :: remap_reason
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: col_scaling
-      INTEGER                                            :: chol_info, handle, igroup, ik, ikp, &
-                                                            indx, ispin, j, kplocal, nao, nkp, &
-                                                            nkp_groups, nmo, nspin
+      INTEGER :: chol_info, direct_count, handle, igroup, ik, ikp, indx, ispin, j, kplocal, nao, &
+         nkp, nkp_groups, nmo, nops_tried, nspin, sym_count
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: source_ikp, source_isym
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pbc_shift_cur, pbc_shift_src
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, reload_snapshot_wf, &
-                                                            use_pbc_phase_ref, use_real_wfn
+      LOGICAL :: atomic_kp_symmetry, my_kpgrp, pbc_shift_changed, prev_wf_success, &
+         reload_snapshot_wf, source_found, use_pbc_phase_ref, use_real_wfn
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: direct_source
       REAL(KIND=dp)                                      :: eval_thresh
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type)                                  :: cfm_evecs, cfm_mhalf, cfm_nao_nmo_work, &
@@ -1402,19 +1587,21 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
+      IF (PRESENT(success)) success = .FALSE.
 
       NULLIFY (kpoints, dft_control, matrix_s_kp, scf_env, scf_control, rho, sab_nl, kp, &
-               mo_coeff, rmos, imos, wf_history, t1_state)
+               mo_coeff, rmos, imos, wf_history, t1_state, xkp, wkp, kp_dist, cell_to_index)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp, scf_env=scf_env, &
                       scf_control=scf_control, rho=rho)
-      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, &
+      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, wkp=wkp, use_real_wfn=use_real_wfn, &
                            kp_range=kp_range, nkp_groups=nkp_groups, kp_dist=kp_dist, &
                            sab_nl=sab_nl, cell_to_index=cell_to_index)
       kplocal = kp_range(2) - kp_range(1) + 1
 
       IF (use_real_wfn) THEN
+         IF (PRESENT(success)) success = .TRUE.
          CALL timestop(handle)
          RETURN
       END IF
@@ -1441,6 +1628,145 @@ CONTAINS
          END IF
       END IF
       IF (use_pbc_phase_ref) CALL wfi_compute_kp_pbc_shift(qs_env, pbc_shift_cur)
+      pbc_shift_changed = .FALSE.
+      atomic_kp_symmetry = wfi_kp_uses_atomic_symmetry(kpoints, kp_range)
+
+      IF (reload_snapshot_wf) THEN
+         remap_reason = ""
+         IF (.NOT. ASSOCIATED(t1_state)) THEN
+            remap_reason = "no WFN snapshot is available"
+         ELSE IF (.NOT. ASSOCIATED(t1_state%wf_kp)) THEN
+            remap_reason = "the WFN snapshot does not contain k-point MOs"
+         ELSE IF (.NOT. ASSOCIATED(t1_state%kp_xkp)) THEN
+            remap_reason = "the WFN snapshot does not contain k-point coordinates"
+         ELSE IF (.NOT. ASSOCIATED(t1_state%kp_wkp)) THEN
+            remap_reason = "the WFN snapshot does not contain k-point weights"
+         ELSE IF (t1_state%kp_nkp /= nkp) THEN
+            WRITE (remap_reason, "(A,I0,A,I0)") &
+               "the number of irreducible k-points changed from ", t1_state%kp_nkp, " to ", nkp
+         ELSE IF (t1_state%kp_use_real_wfn .NEQV. use_real_wfn) THEN
+            remap_reason = "the real/complex k-point WFN representation changed"
+         END IF
+         IF (LEN_TRIM(remap_reason) > 0) THEN
+            IF ((io_unit > 0) .AND. (print_level >= low_print_level)) THEN
+               WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+                  "K-point USE_PREV_WF rejected after symmetry refresh:"
+               WRITE (UNIT=io_unit, FMT="(T3,A)") TRIM(remap_reason)
+               WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,2I8)") &
+                  "current nkp=", nkp, ", current kp_range=", kp_range
+               IF (ASSOCIATED(t1_state)) THEN
+                  WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,2I8)") &
+                     "snapshot nkp=", t1_state%kp_nkp, ", snapshot kp_range=", t1_state%kp_range
+               END IF
+            END IF
+            IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
+            IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
+            CALL timestop(handle)
+            RETURN
+         END IF
+
+         ALLOCATE (source_ikp(kplocal), source_isym(kplocal), direct_source(kplocal))
+         direct_count = 0
+         sym_count = 0
+         DO ikp = 1, kplocal
+            ik = kp_range(1) + ikp - 1
+            CALL wfi_find_kp_snapshot_source(t1_state, kpoints, ik, source_ikp(ikp), &
+                                             source_isym(ikp), direct_source(ikp), source_found)
+            IF (.NOT. source_found) THEN
+               WRITE (remap_reason, "(A,I0)") &
+                  "no local snapshot source was found for current k-point ", ik
+               IF ((io_unit > 0) .AND. (print_level >= low_print_level)) THEN
+                  WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+                     "K-point USE_PREV_WF rejected after symmetry refresh:"
+                  WRITE (UNIT=io_unit, FMT="(T3,A)") TRIM(remap_reason)
+                  WRITE (UNIT=io_unit, FMT="(T3,A,3F16.10)") "current k-point: ", xkp(1:3, ik)
+                  nops_tried = 0
+                  IF (ASSOCIATED(kpoints%kp_sym)) THEN
+                     IF (ASSOCIATED(kpoints%kp_sym(ik)%kpoint_sym)) &
+                        nops_tried = kpoints%kp_sym(ik)%kpoint_sym%nwred
+                  END IF
+                  WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,I0)") &
+                     "local snapshot k-points=", SIZE(t1_state%kp_xkp, 2), &
+                     ", symmetry operations tried=", nops_tried
+               END IF
+               IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
+               IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
+               DEALLOCATE (source_ikp, source_isym, direct_source)
+               CALL timestop(handle)
+               RETURN
+            END IF
+            IF (source_ikp(ikp) < 1 .OR. source_ikp(ikp) > SIZE(t1_state%kp_xkp, 2)) THEN
+               WRITE (remap_reason, "(A,I0,A,I0)") &
+                  "invalid local snapshot source index ", source_ikp(ikp), " for current k-point ", ik
+            ELSE IF (ABS(t1_state%kp_wkp(source_ikp(ikp)) - wkp(ik)) > 1.0E-10_dp) THEN
+               WRITE (remap_reason, "(A,I0,A,ES16.8,A,ES16.8)") &
+                  "k-point weight mismatch for current k-point ", ik, &
+                  ": snapshot=", t1_state%kp_wkp(source_ikp(ikp)), ", current=", wkp(ik)
+            ELSE IF ((.NOT. direct_source(ikp)) .AND. source_isym(ikp) <= 0) THEN
+               WRITE (remap_reason, "(A,I0)") &
+                  "invalid symmetry remap operation for current k-point ", ik
+            ELSE
+               remap_reason = ""
+            END IF
+            IF (LEN_TRIM(remap_reason) > 0) THEN
+               IF ((io_unit > 0) .AND. (print_level >= low_print_level)) THEN
+                  WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+                     "K-point USE_PREV_WF rejected after symmetry refresh:"
+                  WRITE (UNIT=io_unit, FMT="(T3,A)") TRIM(remap_reason)
+                  WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,L1,A,I0)") &
+                     "source_ikp=", source_ikp(ikp), ", direct=", direct_source(ikp), &
+                     ", source_isym=", source_isym(ikp)
+               END IF
+               IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
+               IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
+               DEALLOCATE (source_ikp, source_isym, direct_source)
+               CALL timestop(handle)
+               RETURN
+            END IF
+            IF (direct_source(ikp)) THEN
+               direct_count = direct_count + 1
+            ELSE
+               sym_count = sym_count + 1
+            END IF
+         END DO
+         IF (ALLOCATED(pbc_shift_cur)) THEN
+            IF (SIZE(pbc_shift_cur, 2) /= SIZE(pbc_shift_src, 2)) THEN
+               remap_reason = "the PBC image shift arrays have incompatible sizes"
+            ELSE
+               pbc_shift_changed = ANY(pbc_shift_cur /= pbc_shift_src)
+               IF (atomic_kp_symmetry .AND. pbc_shift_changed) THEN
+                  remap_reason = &
+                     "changed PBC image shifts with atomic k-point symmetry are disabled"
+               ELSE IF (ANY(.NOT. direct_source) .AND. pbc_shift_changed) THEN
+                  remap_reason = "symmetry remap together with changed PBC image shifts is disabled"
+               ELSE
+                  remap_reason = ""
+               END IF
+            END IF
+            IF (LEN_TRIM(remap_reason) > 0) THEN
+               IF ((io_unit > 0) .AND. (print_level >= low_print_level)) THEN
+                  WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+                     "K-point USE_PREV_WF rejected after symmetry refresh:"
+                  WRITE (UNIT=io_unit, FMT="(T3,A)") TRIM(remap_reason)
+                  WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,I0)") &
+                     "direct sources=", direct_count, ", symmetry remaps=", sym_count
+                  WRITE (UNIT=io_unit, FMT="(T3,A,L1,A,L1)") &
+                     "atomic k-point symmetry=", atomic_kp_symmetry, &
+                     ", changed PBC image shifts=", pbc_shift_changed
+               END IF
+               DEALLOCATE (pbc_shift_cur, pbc_shift_src, source_ikp, source_isym, direct_source)
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
+         IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
+            WRITE (UNIT=io_unit, FMT="(T3,A,I0,A,I0,A,L1,A,L1)") &
+               "K-point USE_PREV_WF sources: direct=", direct_count, &
+               ", symmetry remaps=", sym_count, &
+               ", atomic symmetry=", atomic_kp_symmetry, &
+               ", PBC shift changed=", pbc_shift_changed
+         END IF
+      END IF
 
       kp => kpoints%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
@@ -1533,15 +1859,34 @@ CONTAINS
       ! the current convention, then orthogonalize it with respect to S(k).
       ALLOCATE (eigenvalues(nmo))
       eval_thresh = 1.0E-12_dp
+      prev_wf_success = .TRUE.
 
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
+         ik = kp_range(1) + ikp - 1
          DO ispin = 1, nspin
             CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
             IF (reload_snapshot_wf) THEN
-               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
-               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
+               IF (direct_source(ikp)) THEN
+                  CALL kpoint_transform_scf_mo(t1_state%wf_kp(source_ikp(ikp), 1, ispin), &
+                                               t1_state%wf_kp(source_ikp(ikp), 2, ispin), &
+                                               rmos, imos, kpoints, ik, 0, &
+                                               para_env, source_found, remap_reason)
+                  IF (.NOT. source_found) THEN
+                     prev_wf_success = .FALSE.
+                     EXIT
+                  END IF
+               ELSE
+                  CALL kpoint_transform_scf_mo(t1_state%wf_kp(source_ikp(ikp), 1, ispin), &
+                                               t1_state%wf_kp(source_ikp(ikp), 2, ispin), &
+                                               rmos, imos, kpoints, ik, source_isym(ikp), &
+                                               para_env, source_found, remap_reason, inverse=.TRUE.)
+                  IF (.NOT. source_found) THEN
+                     prev_wf_success = .FALSE.
+                     EXIT
+                  END IF
+               END IF
             END IF
             IF (use_pbc_phase_ref) THEN
                ik = kp_range(1) + ikp - 1
@@ -1582,8 +1927,18 @@ CONTAINS
             END IF
             CALL cp_cfm_to_fm(cmos_new, rmos, imos)
          END DO
+         IF (.NOT. prev_wf_success) EXIT
       END DO
       DEALLOCATE (eigenvalues)
+
+      IF (.NOT. prev_wf_success) THEN
+         IF ((io_unit > 0) .AND. (print_level >= low_print_level)) THEN
+            WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+               "K-point USE_PREV_WF rejected after symmetry refresh:"
+            WRITE (UNIT=io_unit, FMT="(T3,A)") TRIM(remap_reason)
+         END IF
+         GOTO 100
+      END IF
 
       ! Phase C: Rebuild Density Matrix P(R)
       CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
@@ -1593,6 +1948,8 @@ CONTAINS
                                     matrix_s_kp(1, 1)%matrix, sab_nl, scf_env%scf_work1)
       CALL qs_rho_update_rho(rho, qs_env=qs_env)
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+100   CONTINUE
 
       ! Cleanup
       DO ikp = 1, kplocal
@@ -1609,6 +1966,10 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(tmpmat)
       IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
       IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
+      IF (ALLOCATED(source_ikp)) DEALLOCATE (source_ikp)
+      IF (ALLOCATED(source_isym)) DEALLOCATE (source_isym)
+      IF (ALLOCATED(direct_source)) DEALLOCATE (direct_source)
+      IF (PRESENT(success)) success = prev_wf_success
 
       CALL timestop(handle)
    END SUBROUTINE wfi_use_prev_wf_kp
@@ -1877,6 +2238,7 @@ CONTAINS
 
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
+         ik = kp_range(1) + ikp - 1
          DO ispin = 1, nspin
             CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
@@ -2130,6 +2492,7 @@ CONTAINS
       t1_state => wfi_get_snapshot(wf_history, wf_index=1)
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
+         ik = kp_range(1) + ikp - 1
          DO ispin = 1, nspin
             CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)

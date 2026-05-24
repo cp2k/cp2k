@@ -169,8 +169,8 @@ MODULE force_env_methods
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                              wfi_clear
+   USE qs_wf_history_methods,           ONLY: wfi_handle_kpoint_symmetry_refresh
+   USE qs_wf_history_types,             ONLY: qs_wf_history_type
    USE restraint,                       ONLY: restraint_control
    USE scine_utils,                     ONLY: write_scine
    USE string_utilities,                ONLY: compress
@@ -626,8 +626,8 @@ CONTAINS
       CALL kpoint_initialize(kpoints, particle_set, cell)
       CALL kpoint_env_initialize(kpoints, para_env, blacs_env, with_aux_fit=dft_control%do_admm)
       CALL kpoint_initialize_mos(kpoints, mos)
-      CALL wfi_clear(wf_history)
       CALL qs_basis_rotation(force_env%qs_env, kpoints)
+      CALL wfi_handle_kpoint_symmetry_refresh(wf_history, kpoints)
 
    END SUBROUTINE force_env_refresh_kpoint_symmetry
 
