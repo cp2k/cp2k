@@ -785,8 +785,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
       CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
-      INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
-                                                            nspins
+      INTEGER                                            :: batch_size, env_status, img, ispin, &
+                                                            natom, nimages, nspins
       LOGICAL :: grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
          pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
          use_self_runtime, use_skala_model, write_hdf5_output
@@ -951,6 +951,12 @@ CONTAINS
                __LOCATION__, &
                "GauXC OneDFT/SKALA nuclear gradients are sensitive to the GauXC molecular grid. "// &
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
+         END IF
+         IF (TRIM(model_key) == "SKALA") THEN
+            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+            IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
+               CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+            END IF
          END IF
       END IF
       use_self_runtime = use_skala_model .AND. para_env%num_pe > 1
