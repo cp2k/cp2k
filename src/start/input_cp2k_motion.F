@@ -1018,10 +1018,10 @@ CONTAINS
                                  "of the simulation cell. As is noted in FORCE_EVAL/SUBSYS/CELL, the "// &
                                  "program convention is that the first cell vector A lies along the "// &
                                  "X-axis and the second cell vector B is in the XY plane, such that "// &
-                                 "the cell vector matrix is a lower triangle. The algorithm support "// &
-                                 "for updating the three upper triangular components during a cell "// &
-                                 "optimization is not complete or tested, so the input structure has "// &
-                                 "to be prepared accordingly with these three components precisely 0 "// &
+                                 "the cell vector matrix is a lower triangle. There is no complete, "// &
+                                 "official algorithm support and/or tests for updating the three "// &
+                                 "upper triangular components during a cell optimization; please "// &
+                                 "prepare input accordingly with these three components precisely 0 "// &
                                  "even for cases like the primitive rhombohedral cell of the FCC lattice.", &
                                  just_optimizers=.TRUE., use_model_hessian=.FALSE.)
 
