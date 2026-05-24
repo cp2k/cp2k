@@ -9,7 +9,9 @@
 !> \brief The module to read/write TREX IO files for interfacing CP2K with other programs
 !> \par History
 !>      05.2024 created [SB]
+!>      05.2026 improved [KN]
 !> \author Stefano Battaglia
+!> \author Kosuke Nakano
 ! **************************************************************************************************
 MODULE trexio_utils
 
@@ -171,7 +173,22 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
                                                             shell_index, z_core, max_ang_mom_plus_1, &
                                                             ang_mom, powers, ao_shell, mo_spin, mo_kpoint, &
-                                                            cp2k_to_trexio_ang_mom
+                                                            cp2k_to_trexio_ang_mom, ao_to_atom
+      ! Per-atom Bloch-gauge correction:
+      ! CP2K's k-space matrix builder (rskp_transform) Bloch-sums real-space blocks with
+      ! lattice vectors R supplied by the neighbour list. The neighbour list, in turn,
+      ! wraps interatomic vectors through subsys/cell_types.F :: pbc1, which uses
+      !     s = s - perd * ANINT(s)
+      ! Hence the effective per-atom gauge is agauge(:,i) = -ANINT(scoord(:,i)), i.e.
+      ! Fortran's round-half-away-from-zero ANINT (so e.g. scoord=+1/2 wraps to -1/2 and
+      ! scoord=-1/2 wraps to +1/2). Note that the agauge in kpoint_methods.F ::
+      ! kpoint_initialize is the SYMMETRY-DETECTION gauge (with a -eps_geo offset) and is
+      ! NOT the one the matrix builder uses; we must mirror pbc1 here. Since nucleus_coord
+      ! is written as the raw particle_set(i)%r, we rephase each atom's MO block by
+      ! exp(-i 2*pi * k * agauge_i) so the (coord, MO) pair is self-consistent in the
+      ! standard Bloch convention used by TREXIO consumers.
+      INTEGER, DIMENSION(:, :), ALLOCATABLE              :: agauge
+      REAL(KIND=dp)                                      :: scoord(3), kdotg, cval, sval, re_old, im_old
       INTEGER, DIMENSION(:), POINTER                     :: nshell, npgf
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
@@ -653,6 +670,7 @@ CONTAINS
       ! one-to-one mapping between AOs and ...
       ALLOCATE (ao_shell(ao_num))         ! ..shells
       ALLOCATE (ao_normalization(ao_num)) ! ..normalization factors
+      ALLOCATE (ao_to_atom(ao_num))       ! ..parent atom (needed for the k-point gauge fix)
 
       IF (.NOT. save_cartesian) THEN
          ! AO order map from CP2K to TREXIO convention
@@ -708,6 +726,9 @@ CONTAINS
                ! one-to-one mapping between AOs and shells
                ao_shell(iao + 1:iao + nao_shell) = ishell
 
+               ! one-to-one mapping between AOs and parent atoms
+               ao_to_atom(iao + 1:iao + nao_shell) = iatom
+
                ! one-to-one mapping between AOs and normalization factors
                IF (save_cartesian) THEN
                   ao_normalization(iao + 1:iao + nao_shell) = norm_cgf(icgf_atom + 1:icgf_atom + nao_shell)
@@ -755,7 +776,8 @@ CONTAINS
       ! MO group
       !========================================================================================!
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints, dft_control=dft_control, &
-                      particle_set=particle_set, qs_kind_set=kind_set, blacs_env=blacs_env)
+                      particle_set=particle_set, qs_kind_set=kind_set, blacs_env=blacs_env, &
+                      cell=cell)
       nspins = dft_control%nspins
       CALL get_qs_kind_set(kind_set, nsgf=nsgf, ncgf=ncgf)
       nmo_spin = 0
@@ -867,6 +889,20 @@ CONTAINS
          CALL para_env_inter_kp%sum(mo_occupation)
       END IF
 
+      ! Bloch-gauge correction (k-points, complex wfn only):
+      ! Build per-atom agauge matching kpoint_methods.F :: kpoint_initialize. The MO
+      ! coefficients gathered above are referenced to atoms wrapped into [-1/2, 1/2),
+      ! while nucleus_coord was written using the raw particle_set(i)%r. We compensate
+      ! by multiplying each AO column block by exp(-i 2*pi * k * agauge_i) per k-point.
+      IF (do_kpoints .AND. .NOT. use_real_wfn) THEN
+         CALL get_kpoint_info(kpoints, xkp=xkp)
+         ALLOCATE (agauge(3, natoms))
+         DO iatom = 1, natoms
+            scoord(:) = MATMUL(cell%h_inv, particle_set(iatom)%r(1:3))
+            agauge(:, iatom) = -NINT(scoord(:))
+         END DO
+      END IF
+
       ! second step: here we actually put everything in the local arrays for writing to trexio
       DO ispin = 1, nspins
          ! get number of MOs for this spin
@@ -907,6 +943,22 @@ CONTAINS
                         mo_coefficient_im(i, imo + 1:imo + nmo) = mos_sgf(cp2k_to_trexio_ang_mom(i), :)
                      END DO
                   END IF
+
+                  ! Apply per-atom Bloch-gauge phase factor exp(-i 2*pi * k_ikp * agauge_iatom)
+                  ! to remove the spurious phase the consumer would otherwise pick up from
+                  ! the (raw nucleus_coord, agauge-gauge MO) mismatch.
+                  DO iao = 1, ao_num
+                     iatom = ao_to_atom(iao)
+                     kdotg = 2.0_dp*pi*DOT_PRODUCT(xkp(:, ikp), REAL(agauge(:, iatom), KIND=dp))
+                     cval = COS(kdotg)
+                     sval = SIN(kdotg)
+                     DO j = imo + 1, imo + nmo
+                        re_old = mo_coefficient(iao, j)
+                        im_old = mo_coefficient_im(iao, j)
+                        mo_coefficient(iao, j) = cval*re_old + sval*im_old
+                        mo_coefficient_im(iao, j) = -sval*re_old + cval*im_old
+                     END DO
+                  END DO
                END IF
             END DO
          ELSE ! no k-points
@@ -976,6 +1028,8 @@ CONTAINS
          CALL cp_fm_release(fm_mo_coeff)
          CALL cp_fm_release(fm_mo_coeff_im)
       END IF
+      IF (ALLOCATED(ao_to_atom)) DEALLOCATE (ao_to_atom)
+      IF (ALLOCATED(agauge)) DEALLOCATE (agauge)
 
       !========================================================================================!
       ! RDM group
