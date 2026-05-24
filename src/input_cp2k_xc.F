@@ -1301,7 +1301,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
                           description="Use exchange-correlation functionals provided by GauXC", &
-                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1417,6 +1417,14 @@ CONTAINS
                           enum_desc=s2a("Run on host (default)", &
                                         "Run on device"), &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_PATH", &
+                          description="Optional path to an existing directory for GauXC HDF5 debug output. "// &
+                          "If set, molecule and basis set data are written as separate HDF5 files.", &
+                          usage="OUTPUT_PATH /path/to/output", &
+                          default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

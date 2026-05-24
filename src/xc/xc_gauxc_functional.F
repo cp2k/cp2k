@@ -42,13 +42,15 @@ MODULE xc_gauxc_functional
                                               set_ks_env
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE string_utilities,                ONLY: uppercase
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, cp_gauxc_xc_gradient_type, cp_gauxc_xc_type, &
         gauxc_check_status, gauxc_compute_xc, gauxc_compute_xc_gradient, gauxc_create_basisset, &
         gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
-        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule
+        gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule, &
+        gauxc_write_basisset_hdf5, gauxc_write_molecule_hdf5
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
 
@@ -780,13 +782,14 @@ CONTAINS
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
-      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
       CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, img, ispin, natom, nimages, &
                                                             nspins
-      LOGICAL :: grid_explicit, molecular_virial, molecular_virial_debug, pruning_explicit, &
-         use_fd_gradient, use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model
+      LOGICAL :: grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
+         pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
+         use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -809,6 +812,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_use, rho_xc
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
 
       NULLIFY ( &
@@ -824,7 +828,8 @@ CONTAINS
          rho, &
          rho_use, &
          rho_xc, &
-         rho_ao)
+         rho_ao, &
+         scf_env)
 
       CALL get_qs_env( &
          qs_env, &
@@ -839,7 +844,8 @@ CONTAINS
          particle_set=particle_set, &
          qs_kind_set=qs_kind_set, &
          rho=rho, &
-         rho_xc=rho_xc)
+         rho_xc=rho_xc, &
+         scf_env=scf_env)
 
       IF (dft_control%qs_control%gapw_xc) THEN
          CPABORT(gapw_xc_abort_message)
@@ -910,6 +916,10 @@ CONTAINS
          gauxc_functional_section, &
          "INT_EXECUTION_SPACE", &
          c_val=int_exec_space)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
+         "OUTPUT_PATH", &
+         c_val=output_path)
 
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
@@ -956,6 +966,27 @@ CONTAINS
                     particle_set, &
                     gauxc_status)
       CALL gauxc_check_status(gauxc_status)
+      hdf5_output = (TRIM(output_path) /= "")
+      write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
+      IF (write_hdf5_output .AND. ASSOCIATED(scf_env)) THEN
+         write_hdf5_output = scf_env%iter_count == 1
+      END IF
+      IF (write_hdf5_output) THEN
+         CALL gauxc_write_molecule_hdf5( &
+            gauxc_mol, &
+            output_path, &
+            "molecule.h5", &
+            "molecule", &
+            gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+         CALL gauxc_write_basisset_hdf5( &
+            gauxc_basis, &
+            output_path, &
+            "basisset.h5", &
+            "basisset", &
+            gauxc_status)
+         CALL gauxc_check_status(gauxc_status)
+      END IF
       use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
                         (use_skala_model .OR. gauxc_basis%max_l > 3)
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN

@@ -129,6 +129,9 @@ CONTAINS
 #if defined(GAUXC_HAS_CUDA)
       flags = TRIM(flags)//" gauxc_cuda"
 #endif
+#if defined(GAUXC_HAS_HDF5)
+      flags = TRIM(flags)//" gauxc_hdf5"
+#endif
 #if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif

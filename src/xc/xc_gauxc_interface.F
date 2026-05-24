@@ -117,6 +117,10 @@ MODULE xc_gauxc_interface
       omp_get_max_threads, &
       omp_set_num_threads
 #endif
+#ifdef GAUXC_HAS_HDF5
+   USE gauxc_external_hdf5_write, ONLY: &
+      gauxc_write_hdf5_record
+#endif
    USE string_utilities, ONLY: &
       uppercase
 #endif
@@ -215,7 +219,9 @@ MODULE xc_gauxc_interface
       gauxc_destroy_integrator, &
       gauxc_destroy_molecule, &
       gauxc_finalize, &
-      gauxc_init
+      gauxc_init, &
+      gauxc_write_basisset_hdf5, &
+      gauxc_write_molecule_hdf5
 CONTAINS
 
 ! **************************************************************************************************
@@ -1083,5 +1089,61 @@ CONTAINS
    END FUNCTION read_pruning_scheme
 
 #endif
+
+! **************************************************************************************************
+!> \brief Write molecule data to HDF5 file for debugging
+!> \param molecule ...
+!> \param output_path ...
+!> \param filename ...
+!> \param dataset ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_write_molecule_hdf5(molecule, output_path, filename, dataset, status)
+      TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
+      CHARACTER(len=*), INTENT(IN)                       :: output_path, filename, dataset
+      TYPE(cp_gauxc_status_type), INTENT(INOUT)          :: status
+
+#if defined(__GAUXC) && defined(GAUXC_HAS_HDF5)
+      CHARACTER(len=default_path_length)                 :: full_path
+
+      full_path = TRIM(output_path)//"/"//TRIM(filename)
+      CALL gauxc_write_hdf5_record(status%status, molecule%molecule, full_path, dataset)
+#else
+      MARK_USED(molecule)
+      MARK_USED(output_path)
+      MARK_USED(filename)
+      MARK_USED(dataset)
+      MARK_USED(status)
+      CPABORT("GauXC HDF5 output requires GauXC to be built with HDF5 support.")
+#endif
+   END SUBROUTINE gauxc_write_molecule_hdf5
+
+! **************************************************************************************************
+!> \brief Write basis set data to HDF5 file for debugging
+!> \param basis ...
+!> \param output_path ...
+!> \param filename ...
+!> \param dataset ...
+!> \param status ...
+! **************************************************************************************************
+   SUBROUTINE gauxc_write_basisset_hdf5(basis, output_path, filename, dataset, status)
+      TYPE(cp_gauxc_basisset_type), INTENT(IN)           :: basis
+      CHARACTER(len=*), INTENT(IN)                       :: output_path, filename, dataset
+      TYPE(cp_gauxc_status_type), INTENT(INOUT)          :: status
+
+#if defined(__GAUXC) && defined(GAUXC_HAS_HDF5)
+      CHARACTER(len=default_path_length)                 :: full_path
+
+      full_path = TRIM(output_path)//"/"//TRIM(filename)
+      CALL gauxc_write_hdf5_record(status%status, basis%basis, full_path, dataset)
+#else
+      MARK_USED(basis)
+      MARK_USED(output_path)
+      MARK_USED(filename)
+      MARK_USED(dataset)
+      MARK_USED(status)
+      CPABORT("GauXC HDF5 output requires GauXC to be built with HDF5 support.")
+#endif
+   END SUBROUTINE gauxc_write_basisset_hdf5
 
 END MODULE xc_gauxc_interface
