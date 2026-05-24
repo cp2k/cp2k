@@ -35,7 +35,8 @@ MODULE cp_dbcsr_output
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: symmetrize_matrix
    USE message_passing,                 ONLY: mp_para_env_type
-   USE orbital_pointers,                ONLY: nso
+   USE orbital_pointers,                ONLY: nco,&
+                                              nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -156,10 +157,11 @@ CONTAINS
 !> \param scale ...
 !> \param output_unit ...
 !> \param omit_headers Write only the matrix data, not the row/column headers
+!> \param cartesian_basis Use Cartesian instead of spherical basis labels
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_write_sparse_matrix(sparse_matrix, before, after, qs_env, para_env, &
                                            first_row, last_row, first_col, last_col, scale, &
-                                           output_unit, omit_headers)
+                                           output_unit, omit_headers, cartesian_basis)
 
       TYPE(dbcsr_type)                                   :: sparse_matrix
       INTEGER, INTENT(IN)                                :: before, after
@@ -168,11 +170,12 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_col, last_col
       REAL(dp), INTENT(IN), OPTIONAL                     :: scale
       INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
+      LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers, cartesian_basis
 
       CHARACTER(LEN=default_string_length)               :: matrix_name
       INTEGER                                            :: col1, col2, dim_col, dim_row, row1, row2
-      LOGICAL                                            :: my_omit_headers, print_sym
+      LOGICAL                                            :: my_cartesian_basis, my_omit_headers, &
+                                                            print_sym
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -233,11 +236,14 @@ CONTAINS
       ELSE
          my_omit_headers = .FALSE.
       END IF
+      my_cartesian_basis = .FALSE.
+      IF (PRESENT(cartesian_basis)) my_cartesian_basis = cartesian_basis
 
       CALL dbcsr_get_info(sparse_matrix, name=matrix_name)
       IF (print_sym) THEN
          CALL write_matrix_sym(matrix, matrix_name, before, after, qs_env, para_env, &
-                               row1, row2, col1, col2, output_unit, my_omit_headers)
+                               row1, row2, col1, col2, output_unit, my_omit_headers, &
+                               cartesian_basis=my_cartesian_basis)
       ELSE
          CALL write_matrix_gen(matrix, matrix_name, before, after, para_env, &
                                row1, row2, col1, col2, output_unit, my_omit_headers)
@@ -328,10 +334,11 @@ CONTAINS
 !> \param last_col ...
 !> \param output_unit ...
 !> \param omit_headers Write only the matrix data, not the row/column headers
+!> \param cartesian_basis Use Cartesian instead of spherical basis labels
 !> \author Creation (01.07.2003,MK)
 ! **************************************************************************************************
    SUBROUTINE write_matrix_sym(matrix, matrix_name, before, after, qs_env, para_env, &
-                               first_row, last_row, first_col, last_col, output_unit, omit_headers)
+                               first_row, last_row, first_col, last_col, output_unit, omit_headers, cartesian_basis)
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: matrix_name
@@ -341,7 +348,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: first_row, last_row, first_col, &
                                                             last_col, output_unit
       LOGICAL, INTENT(IN)                                :: omit_headers
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cartesian_basis
 
+      CHARACTER(LEN=12), DIMENSION(:), POINTER           :: cgf_symbol
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=35)                                  :: fmtstr2
@@ -353,6 +362,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
+      LOGICAL                                            :: my_cartesian_basis
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -367,6 +377,9 @@ CONTAINS
                          particle_set=particle_set)
 
          natom = SIZE(particle_set)
+
+         my_cartesian_basis = .FALSE.
+         IF (PRESENT(cartesian_basis)) my_cartesian_basis = cartesian_basis
 
          CALL get_qs_kind_set(qs_kind_set=qs_kind_set, nsgf=nsgf)
 
@@ -425,20 +438,27 @@ CONTAINS
                CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                         nset=nset, nshell=nshell, l=lshell, sgf_symbol=sgf_symbol)
+                                         nset=nset, nshell=nshell, l=lshell, &
+                                         cgf_symbol=cgf_symbol, sgf_symbol=sgf_symbol)
                   isgf = 1
                   DO iset = 1, nset
                      DO ishell = 1, nshell(iset)
                         l = lshell(ishell, iset)
-                        DO iso = 1, nso(l)
+                        DO iso = 1, MERGE(nco(l), nso(l), my_cartesian_basis)
                            IF ((irow >= first_row) .AND. (irow <= last_row)) THEN
                               IF (omit_headers) THEN
                                  WRITE (UNIT=output_unit, FMT=fmtstr2) &
                                     (matrix(irow, jcol), jcol=from, to)
                               ELSE
-                                 WRITE (UNIT=output_unit, FMT=fmtstr2) &
-                                    irow, iatom, element_symbol, sgf_symbol(isgf), &
-                                    (matrix(irow, jcol), jcol=from, to)
+                                 IF (my_cartesian_basis) THEN
+                                    WRITE (UNIT=output_unit, FMT=fmtstr2) &
+                                       irow, iatom, element_symbol, cgf_symbol(isgf), &
+                                       (matrix(irow, jcol), jcol=from, to)
+                                 ELSE
+                                    WRITE (UNIT=output_unit, FMT=fmtstr2) &
+                                       irow, iatom, element_symbol, sgf_symbol(isgf), &
+                                       (matrix(irow, jcol), jcol=from, to)
+                                 END IF
                               END IF
                            END IF
                            isgf = isgf + 1

@@ -1216,7 +1216,8 @@ CONTAINS
                after = MIN(MAX(after, 1), 16)
                IF (ASSOCIATED(sro)) THEN
                   CALL cp_dbcsr_write_sparse_matrix(sro(1)%matrix, 4, after, qs_env, para_env, &
-                                                    output_unit=iw, omit_headers=omit_headers)
+                                                    output_unit=iw, omit_headers=omit_headers, &
+                                                    cartesian_basis=.TRUE.)
                END IF
                CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
                                                  "DFT%PRINT%AO_MATRICES/OVERLAP")
