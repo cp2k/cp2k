@@ -1060,7 +1060,7 @@ CONTAINS
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_s, matrix_h, &
-!$OMP        cell_to_index, nimg, atom_of_kind, qs_kind_set, tb, h0, ldsab, maxder, nlock, locks, same_atom, &
+!$OMP        cell_to_index, nimg, atom_of_kind, qs_kind_set, tb, h0, ldsab, maxder, locks, &
 !$OMP        ncoset) &
 !$OMP PRIVATE (slot, hash, hash1, iatom8, lock_num, ikind, jkind, iatom, jatom, cell, rij, ic, irow, &
 !$OMP        icol, dr, n1, n2, ia, ib, i, iset, jset, sgfa, sgfb, nseta, nsetb, natorb_a, &
