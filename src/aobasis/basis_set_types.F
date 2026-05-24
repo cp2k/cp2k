@@ -911,8 +911,8 @@ CONTAINS
       END IF
 
       IF (my_lccon) THEN
-        n = SIZE(gto_basis_set%ccon, 1)
-        gto_basis_set%ccon = 0.0_dp
+         n = SIZE(gto_basis_set%ccon, 1)
+         gto_basis_set%ccon = 0.0_dp
          IF (n > 0) THEN
             DO iset = 1, gto_basis_set%nset
                lmin = gto_basis_set%lmin(iset)
