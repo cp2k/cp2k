@@ -108,6 +108,7 @@ CONTAINS
 !> \param nsgf ...
 !> \param nmao ...
 !> \param basis ...
+!> \param ncgf ...
 !> \date    14.01.2002
 !> \par History
 !>      - particle type cleaned (13.10.2003,MK)
@@ -116,12 +117,13 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_particle_set(particle_set, qs_kind_set, first_sgf, last_sgf, nsgf, &
-                               nmao, basis)
+                               nmao, basis, ncgf)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: first_sgf, last_sgf, nsgf, nmao
       TYPE(gto_basis_set_p_type), DIMENSION(:), OPTIONAL :: basis
+      INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: ncgf
 
       INTEGER                                            :: ikind, iparticle, isgf, nparticle, ns
 
@@ -139,6 +141,9 @@ CONTAINS
       END IF
       IF (PRESENT(nmao)) THEN
          CPASSERT(SIZE(nmao) >= nparticle)
+      END IF
+      IF (PRESENT(ncgf)) THEN
+         CPASSERT(SIZE(ncgf) >= nparticle)
       END IF
 
       IF (PRESENT(first_sgf) .OR. PRESENT(last_sgf) .OR. PRESENT(nsgf)) THEN
@@ -158,6 +163,22 @@ CONTAINS
             IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
             isgf = isgf + ns
             IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
+         END DO
+      END IF
+
+      IF (PRESENT(ncgf)) THEN
+         DO iparticle = 1, nparticle
+            CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
+            IF (PRESENT(basis)) THEN
+               IF (ASSOCIATED(basis(ikind)%gto_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, ncgf=ns)
+               ELSE
+                  ns = 0
+               END IF
+            ELSE
+               CALL get_qs_kind(qs_kind_set(ikind), ncgf=ns)
+            END IF
+            ncgf(iparticle) = ns
          END DO
       END IF
 

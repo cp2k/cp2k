@@ -549,6 +549,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN_OVERLAP", &
+                          description="Print the Cartesian overlap matrix in line with Cartesian MO coefficients.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ENERGIES", &
                           variants=s2a("EIGENVALUES", "EIGVALS"), &
                           description="Print the MO energies (eigenvalues).", &

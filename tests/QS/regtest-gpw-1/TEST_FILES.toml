@@ -72,4 +72,6 @@
 "h2q.inp"                               = [{matcher="E_total", tol=1.0E-10, ref=-0.76162210587786}]
 # Mol Dipole Voronoi
 "moldip_voronoi.inp"                    = [{matcher="E_total", tol=1.0E-10, ref=-41.88176215391840}]
+# Test printing of cartesian overlap matrix with header
+"h2test.inp"                            = [{matcher="E_total", tol=3e-13, ref=-1.06531398809803}]
 #EOF

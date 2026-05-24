@@ -220,6 +220,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
+      TYPE(qs_environment_type), POINTER                 :: cart_overlap_qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input
@@ -434,6 +435,8 @@ CONTAINS
             END IF ! OT is used
 
             ! Print MO information
+            NULLIFY (cart_overlap_qs_env)
+            IF ((ikp == 1) .AND. (ispin == 1)) cart_overlap_qs_env => qs_env
             IF (nspin > 1) THEN
                SELECT CASE (ispin)
                CASE (1)
@@ -446,19 +449,21 @@ CONTAINS
                IF (ASSOCIATED(umo_set)) THEN
                   CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
                                                    final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
-                                                   umo_set=umo_set)
+                                                   umo_set=umo_set, qs_env=cart_overlap_qs_env)
                ELSE
                   CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method)
+                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
+                                                   qs_env=cart_overlap_qs_env)
                END IF
             ELSE
                IF (ASSOCIATED(umo_set)) THEN
                   CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
                                                    final_mos=final_mos, solver_method=solver_method, &
-                                                   umo_set=umo_set)
+                                                   umo_set=umo_set, qs_env=cart_overlap_qs_env)
                ELSE
                   CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, solver_method=solver_method)
+                                                   final_mos=final_mos, solver_method=solver_method, &
+                                                   qs_env=cart_overlap_qs_env)
                END IF
             END IF
 

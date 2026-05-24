@@ -22,6 +22,7 @@ MODULE qs_mo_io
 
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
                                               dbcsr_create,&
@@ -30,7 +31,9 @@ MODULE qs_mo_io
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -68,13 +71,20 @@ MODULE qs_mo_io
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
+   USE qs_neighbor_lists,               ONLY: setup_neighbor_list
+   USE qs_overlap,                      ONLY: build_overlap_matrix_simple
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -995,6 +1005,7 @@ CONTAINS
 !> \param cpart ...
 !> \param sim_step ...
 !> \param umo_set ...
+!> \param qs_env ...
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005, MK)
@@ -1007,7 +1018,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, &
                                           dft_section, before, kpoint, final_mos, spin, &
-                                          solver_method, rtp, cpart, sim_step, umo_set)
+                                          solver_method, rtp, cpart, sim_step, umo_set, qs_env)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1020,6 +1031,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: rtp
       INTEGER, INTENT(IN), OPTIONAL                      :: cpart, sim_step
       TYPE(mo_set_type), INTENT(IN), OPTIONAL            :: umo_set
+      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
 
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
@@ -1036,22 +1048,27 @@ CONTAINS
       CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       INTEGER :: after, first_mo, from, homo, iatom, icgf, ico, icol, ikind, imo, irow, iset, &
-         isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, natom, ncgf, ncol, nmo, &
-         nset, nsgf, numo, right, scf_step, to, width
+         isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, natom, ncgf, ncol, nkind, &
+         nmo, nset, nsgf, numo, right, scf_step, to, width
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: ionode, my_final, my_rtp, &
-                                                            print_cartesian, print_eigvals, &
-                                                            print_eigvecs, print_occup, &
-                                                            should_output
+      LOGICAL :: ionode, my_final, my_rtp, omit_headers, print_cartesian, print_cartesian_overlap, &
+         print_eigvals, print_eigvecs, print_occup, should_output
       REAL(KIND=dp)                                      :: gap, maxocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mo_eigenvalues, mo_occupation_numbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sro
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: orb_basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set, orbbasis
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sro_list
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       NULLIFY (bcgf_symbol)
       NULLIFY (bsgf_symbol)
@@ -1068,6 +1085,7 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%MO%CARTESIAN", l_val=print_cartesian)
       CALL section_vals_val_get(dft_section, "PRINT%MO%MO_INDEX_RANGE", i_vals=mo_index_range)
       CALL section_vals_val_get(dft_section, "PRINT%MO%NDIGITS", i_val=after)
+      CALL section_vals_val_get(dft_section, "PRINT%MO%CARTESIAN_OVERLAP", l_val=print_cartesian_overlap)
       after = MIN(MAX(after, 1), 16)
 
       ! Do we print the final MO information after SCF convergence is reached (default: no)
@@ -1158,6 +1176,49 @@ CONTAINS
          END IF
          IF (.NOT. ionode) THEN
             DEALLOCATE (smatrix)
+         END IF
+      END IF
+
+      IF (PRESENT(qs_env)) THEN
+         IF (ASSOCIATED(qs_env) .AND. my_final .AND. print_cartesian_overlap) THEN
+            NULLIFY (qs_kind_set)
+            CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+            nkind = SIZE(qs_kind_set)
+
+            IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                 qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP"), cp_p_file)) THEN
+               ALLOCATE (orb_basis_set_list(nkind))
+               DO ikind = 1, nkind
+                  qs_kind => qs_kind_set(ikind)
+                  NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
+                  NULLIFY (orbbasis)
+                  CALL get_qs_kind(qs_kind=qs_kind, basis_set=orbbasis, basis_type="ORB")
+                  IF (ASSOCIATED(orbbasis)) orb_basis_set_list(ikind)%gto_basis_set => orbbasis
+               END DO
+               NULLIFY (sro_list)
+               CALL setup_neighbor_list(sro_list, orb_basis_set_list, qs_env=qs_env)
+               NULLIFY (sro)
+               NULLIFY (para_env)
+               CALL get_qs_env(qs_env, ks_env=ks_env, para_env=para_env)
+               CALL build_overlap_matrix_simple(ks_env, sro, &
+                                                orb_basis_set_list, orb_basis_set_list, sro_list, .TRUE.)
+               CALL release_neighbor_list_sets(sro_list)
+
+               iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP", &
+                                         extension=".Log")
+               CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
+               CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+               after = MIN(MAX(after, 1), 16)
+               IF (ASSOCIATED(sro)) THEN
+                  CALL cp_dbcsr_write_sparse_matrix(sro(1)%matrix, 4, after, qs_env, para_env, &
+                                                    output_unit=iw, omit_headers=omit_headers, &
+                                                    cartesian_basis=.TRUE.)
+               END IF
+               CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                                 "DFT%PRINT%AO_MATRICES/OVERLAP")
+               IF (ASSOCIATED(sro)) CALL dbcsr_deallocate_matrix_set(sro)
+               DEALLOCATE (orb_basis_set_list)
+            END IF
          END IF
       END IF
 
@@ -1441,10 +1502,10 @@ CONTAINS
 
             ! Release work storage
 
-            DEALLOCATE (smatrix)
             IF (print_cartesian) THEN
                DEALLOCATE (cmatrix)
             END IF
+            DEALLOCATE (smatrix)
 
          ELSE IF (print_occup .OR. print_eigvals) THEN
 
