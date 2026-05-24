@@ -66,9 +66,14 @@ MODULE qs_wf_history_types
       TYPE(dbcsr_type), POINTER :: overlap => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER :: wf_kp => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER :: overlap_cfm_kp => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: kp_xkp => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: kp_wkp => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: kp_pbc_shift => NULL()
       TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
       REAL(KIND=dp) :: dt = 0.0_dp
+      INTEGER, DIMENSION(2) :: kp_range = 0
+      INTEGER :: kp_nkp = 0
+      LOGICAL :: kp_use_real_wfn = .FALSE.
    END TYPE qs_wf_snapshot_type
 
 ! **************************************************************************************************
@@ -161,6 +166,12 @@ CONTAINS
             CALL cp_cfm_release(snapshot%overlap_cfm_kp(i))
          END DO
          DEALLOCATE (snapshot%overlap_cfm_kp)
+      END IF
+      IF (ASSOCIATED(snapshot%kp_xkp)) THEN
+         DEALLOCATE (snapshot%kp_xkp)
+      END IF
+      IF (ASSOCIATED(snapshot%kp_wkp)) THEN
+         DEALLOCATE (snapshot%kp_wkp)
       END IF
       IF (ASSOCIATED(snapshot%kp_pbc_shift)) THEN
          DEALLOCATE (snapshot%kp_pbc_shift)

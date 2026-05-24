@@ -150,8 +150,12 @@ CONTAINS
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
                snapshot%overlap, snapshot%wf_kp, snapshot%overlap_cfm_kp, &
-               snapshot%kp_pbc_shift, snapshot%rho_frozen)
+               snapshot%kp_xkp, snapshot%kp_wkp, snapshot%kp_pbc_shift, &
+               snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
+      snapshot%kp_range = 0
+      snapshot%kp_nkp = 0
+      snapshot%kp_use_real_wfn = .FALSE.
    END SUBROUTINE wfs_create
 
 ! **************************************************************************************************
@@ -179,7 +183,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp
+      LOGICAL                                            :: my_kpgrp, use_real_wfn
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info_ft
@@ -210,7 +215,7 @@ CONTAINS
 
       NULLIFY (pw_env, auxbas_pw_pool, ao_mo_pools, ao_ao_fm_pools, dft_control, mos, mo_coeff, &
                rho, rho_r, rho_g, rho_ao, matrix_s, matrix_s_kp, kpoints, kp, cell, &
-               particle_set, kp_dist, cell_to_index, xkp, sab_nl, scf_env, mpools_kp, para_env_ft, &
+               particle_set, kp_dist, cell_to_index, wkp, xkp, sab_nl, scf_env, mpools_kp, para_env_ft, &
                rmat_ft, cmat_ft, tmpmat_ft, ao_ao_struct_ft)
       CALL get_qs_env(qs_env, pw_env=pw_env, &
                       dft_control=dft_control, rho=rho, cell=cell, particle_set=particle_set)
@@ -332,10 +337,24 @@ CONTAINS
          IF (ASSOCIATED(kpoints%kp_env)) THEN
             ! --- k-point WFN snapshot: store complex MO coefficients per local k-point ---
             IF (wf_history%store_wf_kp) THEN
-               CALL get_kpoint_info(kpoints, kp_range=kp_range)
+               CALL get_kpoint_info(kpoints, nkp=nkp_all, xkp=xkp, wkp=wkp, &
+                                    use_real_wfn=use_real_wfn, kp_range=kp_range)
                kplocal = kp_range(2) - kp_range(1) + 1
                nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 2)
                nc = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 1) ! 2=complex, 1=real
+
+               snapshot%kp_nkp = nkp_all
+               snapshot%kp_range(:) = kp_range(:)
+               snapshot%kp_use_real_wfn = use_real_wfn
+               IF (ASSOCIATED(snapshot%kp_xkp)) DEALLOCATE (snapshot%kp_xkp)
+               IF (ASSOCIATED(snapshot%kp_wkp)) DEALLOCATE (snapshot%kp_wkp)
+               ALLOCATE (snapshot%kp_xkp(3, kplocal))
+               ALLOCATE (snapshot%kp_wkp(kplocal))
+               DO ikp = 1, kplocal
+                  ik = kp_range(1) + ikp - 1
+                  snapshot%kp_xkp(:, ikp) = xkp(:, ik)
+                  snapshot%kp_wkp(ikp) = wkp(ik)
+               END DO
 
                CALL wfi_store_kp_pbc_shift(snapshot, cell, particle_set)
 
