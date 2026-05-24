@@ -9,7 +9,9 @@
 !> \brief The module to read/write TREX IO files for interfacing CP2K with other programs
 !> \par History
 !>      05.2024 created [SB]
+!>      05.2026 improved [KN]
 !> \author Stefano Battaglia
+!> \author Kosuke Nakano
 ! **************************************************************************************************
 MODULE trexio_utils
 

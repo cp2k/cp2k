@@ -9,7 +9,9 @@
 !> \brief Simple wrapper for the official TREXIO Fortran interface
 !> \par History
 !>      05.2024 created [SB]
+!>      05.2026 improved [KN]
 !> \author Stefano Battaglia
+!> \author Kosuke Nakano
 ! **************************************************************************************************
 ! There could be an issue by including the trexio library in this way, which is that if this
 ! file is not compiled before files containing TREXIO import statements, the compiler will complain
