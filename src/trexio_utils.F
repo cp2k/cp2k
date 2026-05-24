@@ -955,7 +955,7 @@ CONTAINS
                      DO j = imo + 1, imo + nmo
                         re_old = mo_coefficient(iao, j)
                         im_old = mo_coefficient_im(iao, j)
-                        mo_coefficient(iao, j)    =  cval*re_old + sval*im_old
+                        mo_coefficient(iao, j) = cval*re_old + sval*im_old
                         mo_coefficient_im(iao, j) = -sval*re_old + cval*im_old
                      END DO
                   END DO
