@@ -218,8 +218,7 @@ CONTAINS
       TYPE(gto_basis_set_type), INTENT(IN)               :: basis_set_in
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_out
 
-      INTEGER                                            :: maxccon, maxco, maxpgf, maxshell, ncgf, &
-                                                            nset, nsgf
+      INTEGER                                            :: maxco, maxpgf, maxshell, ncgf, nset, nsgf
 
       CALL allocate_gto_basis_set(basis_set_out)
 
@@ -255,14 +254,17 @@ CONTAINS
       basis_set_out%ncgf_set = basis_set_in%ncgf_set
       basis_set_out%nsgf_set = basis_set_in%nsgf_set
       maxco = SIZE(basis_set_in%cphi, 1)
-      maxccon = MIN(maxco, SIZE(basis_set_in%ccon, 1))
       ALLOCATE (basis_set_out%cphi(maxco, ncgf), basis_set_out%sphi(maxco, nsgf), basis_set_out%scon(maxco, nsgf))
       ALLOCATE (basis_set_out%ccon(maxco, ncgf))
       basis_set_out%cphi = basis_set_in%cphi
       basis_set_out%sphi = basis_set_in%sphi
       basis_set_out%scon = basis_set_in%scon
       basis_set_out%ccon = 0.0_dp
-      basis_set_out%ccon(1:maxccon, :) = basis_set_in%ccon(1:maxccon, :)
+      IF (ASSOCIATED(basis_set_in%ccon)) THEN
+         IF ((SIZE(basis_set_in%ccon, 1) == maxco) .AND. (SIZE(basis_set_in%ccon, 2) == ncgf)) THEN
+            basis_set_out%ccon = basis_set_in%ccon
+         END IF
+      END IF
       maxpgf = MAXVAL(basis_set_in%npgf)
       ALLOCATE (basis_set_out%pgf_radius(maxpgf, nset), basis_set_out%zet(maxpgf, nset))
       basis_set_out%pgf_radius = basis_set_in%pgf_radius
