@@ -78,7 +78,7 @@ MODULE tblite_interface
                               tblite_scc_mixer_none, tblite_scc_mixer_tblite, &
                               tblite_solver_gvd, tblite_solver_gvr
    USE input_section_types, ONLY: section_vals_val_get
-   USE kinds, ONLY: default_path_length, default_string_length, dp
+   USE kinds, ONLY: default_path_length, default_string_length, dp, int_8
    USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_para_env_type
@@ -110,6 +110,9 @@ MODULE tblite_interface
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
    USE xtb_types, ONLY: xtb_atom_type
+
+!$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_init_lock, omp_set_lock, &
+!$                    omp_unset_lock, omp_lock_kind
 
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -908,8 +911,8 @@ CONTAINS
 
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, &
                                                             ic, iw, iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, &
-                                                            irow, ia, ib, sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, &
-                                                            natorb_a, natorb_b, sgfa0
+                                                            irow, ia, ib, sgfa, sgfb, ldsab, nseta, nsetb, &
+                                                            natorb_a, natorb_b, sgfa0, slot
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
@@ -930,6 +933,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, zeta, zetb, scon_a, scon_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock, fblock
+!$    INTEGER                                            :: hash, hash1, lock_num
+!$    INTEGER(KIND=int_8)                                :: iatom8
+!$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
+      INTEGER, PARAMETER                                :: nlock = 501
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(atprop_type), POINTER                            :: atprop
@@ -943,8 +950,6 @@ CONTAINS
       TYPE(kpoint_type), POINTER                            :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_kp
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                              :: nl_iterator
       TYPE(mp_para_env_type), POINTER                       :: para_env
       TYPE(qs_energy_type), POINTER                         :: energy
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
@@ -1050,14 +1055,41 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
+      ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
-      NULLIFY (nl_iterator)
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (calculate_forces, basis_set_list, sab_orb, matrix_s, matrix_h, &
+!$OMP        cell_to_index, nimg, atom_of_kind, qs_kind_set, tb, h0, ldsab, maxder, locks, &
+!$OMP        ncoset) &
+!$OMP PRIVATE (slot, hash, hash1, iatom8, lock_num, ikind, jkind, iatom, jatom, cell, rij, ic, irow, &
+!$OMP        icol, dr, n1, n2, ia, ib, i, iset, jset, sgfa, sgfb, nseta, nsetb, natorb_a, &
+!$OMP        natorb_b, sgfa0, found, zeta, first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, &
+!$OMP        scon_a, first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, scon_b, zetb, rr, hij, shpoly, &
+!$OMP        owork, oint, sint, hint, basis_set_a, basis_set_b, sblock, fblock)
 
+!$OMP SINGLE
+!$    ALLOCATE (locks(nlock))
+!$OMP END SINGLE
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       CALL omp_init_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+      ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
+
+!$OMP DO SCHEDULE(GUIDED)
+      DO slot = 1, sab_orb(1)%nl_size
+
+         ikind = sab_orb(1)%nlist_task(slot)%ikind
+         jkind = sab_orb(1)%nlist_task(slot)%jkind
+         iatom = sab_orb(1)%nlist_task(slot)%iatom
+         jatom = sab_orb(1)%nlist_task(slot)%jatom
+         cell(:) = sab_orb(1)%nlist_task(slot)%cell(:)
+         rij(1:3) = sab_orb(1)%nlist_task(slot)%r(1:3)
+
+         ! canonicalize pair ordering as in current serial flow
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
          IF (iatom < jatom) THEN
@@ -1075,6 +1107,7 @@ CONTAINS
             ic = cell_to_index(cell(1), cell(2), cell(3))
             CPASSERT(ic > 0)
          END IF
+
          NULLIFY (sblock)
          CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=sblock, found=found)
@@ -1090,8 +1123,6 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(icol)
-         atom_b = atom_of_kind(irow)
          ! basis a
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
@@ -1115,8 +1146,6 @@ CONTAINS
          scon_b => basis_set_b%scon
          zetb => basis_set_b%zet
 
-         ldsab = get_memory_usage(qs_kind_set, "ORB", "ORB")
-         ALLOCATE (oint(ldsab, ldsab, maxder), owork(ldsab, ldsab))
          natorb_a = 0
          DO iset = 1, nseta
             natorb_a = natorb_a + (2*basis_set_a%l(1, iset) + 1)
@@ -1161,12 +1190,17 @@ CONTAINS
             END DO
          END DO
 
+!$       iatom8 = INT(iatom - 1, int_8)*INT(SIZE(atom_of_kind), int_8) + INT(jatom, int_8)
+!$       hash1 = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
          ! update S matrix
+!$       hash = hash1
+!$       CALL omp_set_lock(locks(hash))
          IF (icol <= irow) THEN
             sblock(:, :) = sblock(:, :) + sint(:, :, 1)
          ELSE
             sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
          END IF
+!$       CALL omp_unset_lock(locks(hash))
 
          ! --------- Hamiltonian
          IF (icol == irow .AND. dr < same_atom) THEN
@@ -1204,16 +1238,28 @@ CONTAINS
          END IF
 
          ! update F matrix
+!$       CALL omp_set_lock(locks(hash))
          IF (icol <= irow) THEN
             fblock(:, :) = fblock(:, :) + hint(:, :, 1)
          ELSE
             fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
          END IF
+!$       CALL omp_unset_lock(locks(hash))
 
-         DEALLOCATE (oint, owork, sint, hint)
+         DEALLOCATE (sint, hint)
 
       END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
+!$OMP END DO
+      DEALLOCATE (oint, owork)
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       CALL omp_destroy_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+!$OMP SINGLE
+!$    DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
+!$OMP END PARALLEL
 
       DO img = 1, nimg
          DO i = 1, SIZE(matrix_s, 1)
