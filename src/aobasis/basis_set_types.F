@@ -916,6 +916,12 @@ CONTAINS
       END IF
 
       IF (my_lccon) THEN
+         IF (.NOT. ASSOCIATED(gto_basis_set%ccon)) THEN
+            CALL reallocate(gto_basis_set%ccon, 1, SIZE(gto_basis_set%cphi, 1), 1, gto_basis_set%ncgf)
+         ELSE IF ((SIZE(gto_basis_set%ccon, 1) /= SIZE(gto_basis_set%cphi, 1)) .OR. &
+                  (SIZE(gto_basis_set%ccon, 2) /= gto_basis_set%ncgf)) THEN
+            CALL reallocate(gto_basis_set%ccon, 1, SIZE(gto_basis_set%cphi, 1), 1, gto_basis_set%ncgf)
+         END IF
          n = SIZE(gto_basis_set%ccon, 1)
          gto_basis_set%ccon = 0.0_dp
          IF (n > 0) THEN
