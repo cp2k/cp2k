@@ -18,7 +18,6 @@ MODULE kpoint_mo_symmetry_methods
                                               kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -57,17 +56,15 @@ CONTAINS
 !> \param qs_kpoint SCF k-point object containing symmetry operations
 !> \param ikred representative k-point index
 !> \param isym symmetry operation index; 0 direct copy, -1 time reversal
-!> \param para_env global parallel environment
 !> \param success true if the transformation was performed
 !> \param reason diagnostic message
 !> \param inverse apply the inverse of the selected symmetry operation
 ! **************************************************************************************************
    SUBROUTINE kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, ikred, &
-                                      isym, para_env, success, reason, inverse)
+                                      isym, success, reason, inverse)
       TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag, dst_real, dst_imag
       TYPE(kpoint_type), POINTER                         :: qs_kpoint
       INTEGER, INTENT(IN)                                :: ikred, isym
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(OUT)                               :: success
       CHARACTER(LEN=*), INTENT(OUT)                      :: reason
       LOGICAL, INTENT(IN), OPTIONAL                      :: inverse

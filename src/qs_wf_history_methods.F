@@ -1872,7 +1872,7 @@ CONTAINS
                   CALL kpoint_transform_scf_mo(t1_state%wf_kp(source_ikp(ikp), 1, ispin), &
                                                t1_state%wf_kp(source_ikp(ikp), 2, ispin), &
                                                rmos, imos, kpoints, ik, 0, &
-                                               para_env, source_found, remap_reason)
+                                               source_found, remap_reason)
                   IF (.NOT. source_found) THEN
                      prev_wf_success = .FALSE.
                      EXIT
@@ -1881,7 +1881,7 @@ CONTAINS
                   CALL kpoint_transform_scf_mo(t1_state%wf_kp(source_ikp(ikp), 1, ispin), &
                                                t1_state%wf_kp(source_ikp(ikp), 2, ispin), &
                                                rmos, imos, kpoints, ik, source_isym(ikp), &
-                                               para_env, source_found, remap_reason, inverse=.TRUE.)
+                                               source_found, remap_reason, inverse=.TRUE.)
                   IF (.NOT. source_found) THEN
                      prev_wf_success = .FALSE.
                      EXIT

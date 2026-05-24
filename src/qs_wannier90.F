@@ -1173,8 +1173,7 @@ CONTAINS
                                                     kpsym%xkp(1:3, isym_try))) CYCLE
                      num_candidates = num_candidates + 1
                      CALL kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, &
-                                                  qs_kpoint, ikred, isym_try, para_env, ok, &
-                                                  candidate_reason)
+                                                  qs_kpoint, ikred, isym_try, ok, candidate_reason)
                      IF (.NOT. ok) THEN
                         reason = candidate_reason
                         CYCLE
@@ -1194,7 +1193,7 @@ CONTAINS
                         IF (source_window) THEN
                            CALL kpoint_transform_scf_mo(src_real_full, src_imag_full, &
                                                         dst_real_full, dst_imag_full, qs_kpoint, &
-                                                        ikred, isym_try, para_env, ok, candidate_reason)
+                                                        ikred, isym_try, ok, candidate_reason)
                            IF (ok) THEN
                               CALL ritz_reconstruct_wannier90_window(dst_real_full, dst_imag_full, &
                                                                      dst_real, dst_imag, matrix_s, &
@@ -1241,7 +1240,7 @@ CONTAINS
                END IF
             ELSE
                CALL kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, &
-                                            ikred, sym_index(ik), para_env, ok, reason)
+                                            ikred, sym_index(ik), ok, reason)
             END IF
             IF (ok .AND. sym_index(ik) <= 0) THEN
                ! Even a direct k-point copy must be a closed H(k),S(k) subspace. This catches
@@ -1254,7 +1253,7 @@ CONTAINS
                IF (.NOT. ok .AND. source_window) THEN
                   CALL kpoint_transform_scf_mo(src_real_full, src_imag_full, dst_real_full, &
                                                dst_imag_full, qs_kpoint, ikred, sym_index(ik), &
-                                               para_env, ok, reason)
+                                               ok, reason)
                   IF (ok) THEN
                      CALL ritz_reconstruct_wannier90_window(dst_real_full, dst_imag_full, dst_real, &
                                                             dst_imag, matrix_s, matrix_ks, &
@@ -1725,7 +1724,7 @@ CONTAINS
             best_svalue = 0.0_dp
             IF (sym_index(ik) <= 0) THEN
                CALL kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, &
-                                            ikred, sym_index(ik), para_env, ok, reason)
+                                            ikred, sym_index(ik), ok, reason)
                IF (ok) THEN
                   CALL measure_wannier90_subspace_error(ref_real, ref_imag, dst_real, dst_imag, matrix_s, &
                                                         kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
@@ -1760,7 +1759,7 @@ CONTAINS
                      IF (.NOT. kpoint_same_periodic(kpoint%xkp(1:3, ik), &
                                                     kpsym%xkp(1:3, isym_try))) CYCLE
                      CALL kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, &
-                                                  qs_kpoint, ikred, isym_try, para_env, ok, reason)
+                                                  qs_kpoint, ikred, isym_try, ok, reason)
                      IF (.NOT. ok) CYCLE
                      CALL measure_wannier90_subspace_error(ref_real, ref_imag, dst_real, dst_imag, &
                                                            matrix_s, kpoint%xkp(1:3, ik), cell_to_index, &
