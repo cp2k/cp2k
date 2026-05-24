@@ -2770,6 +2770,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sort_index
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: icgf_set, isgf_set
       INTEGER, DIMENSION(:), POINTER                     :: lx, ly, lz, m, npgf
+      LOGICAL                                            :: ccon_available
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tmp
       REAL(dp), DIMENSION(:), POINTER                    :: set_radius
       REAL(dp), DIMENSION(:, :), POINTER                 :: zet
@@ -2857,8 +2858,13 @@ CONTAINS
       sphi = 0.0_dp
       ALLOCATE (scon(SIZE(basis_set%scon, 1), SIZE(basis_set%scon, 2)))
       scon = 0.0_dp
-      ALLOCATE (ccon(SIZE(basis_set%ccon, 1), SIZE(basis_set%ccon, 2)))
+      ALLOCATE (ccon(SIZE(basis_set%cphi, 1), SIZE(basis_set%cphi, 2)))
       ccon = 0.0_dp
+      ccon_available = ASSOCIATED(basis_set%ccon)
+      IF (ccon_available) THEN
+         ccon_available = (SIZE(basis_set%ccon, 1) == SIZE(ccon, 1)) .AND. &
+                          (SIZE(basis_set%ccon, 2) == SIZE(ccon, 2))
+      END IF
 
       ALLOCATE (sgf_symbol(SIZE(basis_set%sgf_symbol)))
       ALLOCATE (m(SIZE(basis_set%m)))
@@ -2875,7 +2881,7 @@ CONTAINS
             ly(icgf_new) = basis_set%ly(icgf_old)
             lz(icgf_new) = basis_set%lz(icgf_old)
             cphi(:, icgf_new) = basis_set%cphi(:, icgf_old)
-            ccon(:, icgf_new) = basis_set%ccon(:, icgf_old)
+            IF (ccon_available) ccon(:, icgf_new) = basis_set%ccon(:, icgf_old)
             cgf_symbol(icgf_new) = basis_set%cgf_symbol(icgf_old)
          END DO
          DO is = 1, is_max
@@ -2905,7 +2911,7 @@ CONTAINS
       basis_set%sphi => sphi
       DEALLOCATE (basis_set%scon)
       basis_set%scon => scon
-      DEALLOCATE (basis_set%ccon)
+      IF (ASSOCIATED(basis_set%ccon)) DEALLOCATE (basis_set%ccon)
       basis_set%ccon => ccon
 
       DEALLOCATE (basis_set%m)
