@@ -21,7 +21,7 @@ python3 -m venv /opt/venv
 export PATH="/opt/venv/bin:$PATH"
 
 echo -e "\n========== Installing Phonopy =========="
-git clone --quiet --depth=1 --single-branch -b develop https://github.com/phonopy/phonopy.git /opt/phonopy
+git clone --quiet --depth=1 --single-branch -b main https://github.com/phonopy/phonopy.git /opt/phonopy
 cd /opt/phonopy/
 pip3 install ".[cp2k]"
 
