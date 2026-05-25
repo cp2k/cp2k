@@ -656,7 +656,6 @@ list(
   qs_loc_states.F
   qs_loc_types.F
   qs_loc_utils.F
-  qs_lumo_methods.F
   qs_matrix_pools.F
   qs_matrix_w.F
   qs_mfp.F
@@ -681,6 +680,7 @@ list(
   qs_ot_eigensolver.F
   qs_ot.F
   qs_ot_minimizer.F
+  qs_ot_lumo_methods.F
   qs_ot_scf.F
   qs_ot_types.F
   qs_outer_scf.F

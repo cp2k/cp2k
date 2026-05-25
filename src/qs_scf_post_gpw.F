@@ -161,7 +161,6 @@ MODULE qs_scf_post_gpw
                                               retain_history
    USE qs_local_properties,             ONLY: qs_local_energy,&
                                               qs_local_stress
-   USE qs_lumo_methods,                 ONLY: make_lumo_gpw
    USE qs_mo_io,                        ONLY: write_dm_binary_restart
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                               make_mo_eig
@@ -178,6 +177,7 @@ MODULE qs_scf_post_gpw
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_ot_lumo_methods,              ONLY: make_lumo_gpw
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_resp,                         ONLY: resp_fit
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
