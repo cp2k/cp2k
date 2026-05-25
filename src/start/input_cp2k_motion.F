@@ -19,7 +19,8 @@ MODULE input_cp2k_motion
                            Ceriotti2014, &
                            Henkelman1999, &
                            Henkelman2014, &
-                           Kapil2016
+                           Kapil2016, &
+                           Lindh1995
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -1281,6 +1282,7 @@ CONTAINS
                           description="Uses a model Hessian as initial guess instead of a unit matrix."// &
                           " Should lead in general to improved convergence might be switched off for exotic cases", &
                           usage="USE_MODEL_HESSIAN", &
+                          citations=[Lindh1995], &
                           default_l_val=use_model_hessian, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
