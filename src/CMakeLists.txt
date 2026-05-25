@@ -655,6 +655,7 @@ list(
   qs_loc_states.F
   qs_loc_types.F
   qs_loc_utils.F
+  qs_lumo_methods.F
   qs_matrix_pools.F
   qs_matrix_w.F
   qs_mfp.F

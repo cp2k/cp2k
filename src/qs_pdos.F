@@ -31,7 +31,6 @@ MODULE qs_pdos
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_init_random,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -56,7 +55,6 @@ MODULE qs_pdos
                                               sgf_symbol
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE preconditioner_types,            ONLY: preconditioner_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -69,11 +67,11 @@ MODULE qs_pdos
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
+   USE qs_lumo_methods,                 ONLY: make_lumo_gpw_spin
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-   USE scf_control_types,               ONLY: scf_control_type
+   USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                              qs_scf_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -160,7 +158,8 @@ CONTAINS
       INTEGER :: handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, in_z, ir, irow, &
          iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, &
          maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, &
-         nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit
+         nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, nvirt_generated, out_each, &
+         output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
@@ -190,6 +189,7 @@ CONTAINS
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -207,7 +207,7 @@ CONTAINS
       NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
       NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer)
       NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
-      NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, occupation_numbers)
+      NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, scf_env, occupation_numbers)
 
       CALL timeset(routineN, handle)
       iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
@@ -215,7 +215,9 @@ CONTAINS
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,I10))') &
          " Calculate PDOS at iteration step ", iterstep
       CALL get_qs_env(qs_env=qs_env, &
-                      matrix_s=s_matrix)
+                      matrix_s=s_matrix, &
+                      dft_control=dft_control, &
+                      scf_env=scf_env)
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto)
@@ -231,18 +233,32 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%OUT_EACH_MO", i_val=out_each)
       IF (out_each == -1) out_each = nao + 1
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
-      IF (nlumo == -1) nlumo = nao - homo
-      do_virt = (nlumo > (nmo - homo))
-      nvirt = nlumo - (nmo - homo)
-      ! Generate virtual orbitals
+      IF (nlumo == -1) THEN
+         nvirt = nao - nmo
+      ELSE
+         nvirt = MAX(0, nlumo - (nmo - homo))
+      END IF
+      do_virt = (nvirt > 0)
+      ! Generate virtual orbitals missing from the converged MO set.
       IF (do_virt) THEN
          IF (PRESENT(ispin)) THEN
             my_spin = ispin
          ELSE
             my_spin = 1
          END IF
+         IF (ASSOCIATED(scf_env)) THEN
+            IF (scf_env%method /= ot_method_nr) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "PRINT%PDOS%NLUMO requests more unoccupied orbitals than present in the "// &
+                            "converged MO set. Additional orbitals will be generated by a post-SCF "// &
+                            "eigensolver. For diagonalization runs, increasing ADDED_MOS is generally "// &
+                            "recommended.")
+            END IF
+         END IF
 
-         CALL generate_virtual_mo(qs_env, mo_set, evals_virt, mo_virt, nvirt, ispin=my_spin)
+         CALL make_lumo_gpw_spin(qs_env, scf_env, mo_set, mo_virt, evals_virt, nvirt, &
+                                 nvirt_generated, my_spin)
+         nvirt = nvirt_generated
       ELSE
          NULLIFY (evals_virt)
          nvirt = 0
@@ -907,70 +923,4 @@ CONTAINS
 
    END SUBROUTINE calculate_projected_dos
 
-! **************************************************************************************************
-!> \brief   Compute additional virtual states  starting from the available MOS
-!> \param qs_env ...
-!> \param mo_set ...
-!> \param evals_virt ...
-!> \param mo_virt ...
-!> \param nvirt ...
-!> \param ispin ...
-!> \date    08.03.2008
-!> \par History:
-!>       -
-!> \par Variables
-!>       -
-!>       -
-!> \author  MI
-!> \version 1.0
-! **************************************************************************************************
-
-   SUBROUTINE generate_virtual_mo(qs_env, mo_set, evals_virt, mo_virt, &
-                                  nvirt, ispin)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virt
-      TYPE(cp_fm_type), INTENT(OUT)                      :: mo_virt
-      INTEGER, INTENT(IN)                                :: nvirt, ispin
-
-      INTEGER                                            :: nmo, nrow_global
-      TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, s_matrix
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(preconditioner_type), POINTER                 :: local_preconditioner
-      TYPE(scf_control_type), POINTER                    :: scf_control
-
-      NULLIFY (evals_virt)
-      ALLOCATE (evals_virt(nvirt))
-
-      CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, &
-                      scf_control=scf_control)
-      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, nmo=nmo)
-      CALL cp_fm_get_info(mo_coeff, context=context, para_env=para_env, &
-                          nrow_global=nrow_global)
-
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
-                               nrow_global=nrow_global, ncol_global=nvirt)
-      CALL cp_fm_create(mo_virt, fm_struct_tmp, name="virtual")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_init_random(mo_virt, nvirt)
-
-      NULLIFY (local_preconditioner)
-
-      CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix, matrix_s=s_matrix(1)%matrix, &
-                          matrix_c_fm=mo_virt, matrix_orthogonal_space_fm=mo_coeff, &
-                          eps_gradient=scf_control%eps_lumos, &
-                          preconditioner=local_preconditioner, &
-                          iter_max=scf_control%max_iter_lumos, &
-                          size_ortho_space=nmo)
-
-      CALL calculate_subspace_eigenvalues(mo_virt, ks_matrix(ispin)%matrix, &
-                                          evals_virt)
-
-   END SUBROUTINE generate_virtual_mo
-
 END MODULE qs_pdos
-

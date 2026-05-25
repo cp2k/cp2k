@@ -60,13 +60,13 @@ MODULE qs_tddfpt2_utils
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
+   USE qs_lumo_methods,                 ONLY: make_lumo_gpw
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
    USE qs_scf_methods,                  ONLY: eigensolver
-   USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
