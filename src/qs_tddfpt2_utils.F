@@ -70,6 +70,7 @@ MODULE qs_tddfpt2_utils
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
+   USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE util,                            ONLY: sort
    USE xc_pot_saop,                     ONLY: add_saop_pot
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
@@ -688,8 +689,13 @@ CONTAINS
          ELSEIF (dft_control%qs_control%dftb) THEN
             CPABORT("TDDFPT with DFTB not possible")
          ELSEIF (dft_control%qs_control%xtb) THEN
-            CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
-                                     ext_ks_matrix=matrix_ks_oep)
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CALL build_tblite_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                           ext_ks_matrix=matrix_ks_oep)
+            ELSE
+               CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                        ext_ks_matrix=matrix_ks_oep)
+            END IF
          ELSE
             CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
                                               ext_ks_matrix=matrix_ks_oep)

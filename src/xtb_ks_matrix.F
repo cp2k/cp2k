@@ -374,8 +374,8 @@ CONTAINS
             mcharge(iatom) = SUM(charges(iatom, :))
          END DO
       END IF
-
-      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction .AND. &
+          (.NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
       END IF
