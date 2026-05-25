@@ -374,11 +374,12 @@ CONTAINS
             mcharge(iatom) = SUM(charges(iatom, :))
          END DO
       END IF
-
-      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
-         CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
+      
+       IF (dft_control%qs_control%xtb_control%coulomb_interaction .AND. &               
+           (.NOT. dft_control%qs_control%xtb_control%do_tblite)) THEN
+          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
-      END IF
+       END IF                                                                           
 
       IF (do_efield) THEN
          CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
