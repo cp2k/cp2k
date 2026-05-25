@@ -1189,11 +1189,11 @@ CONTAINS
                CASE (PERIODIC3D, PS_IMPLICIT)
                   ! Do Nothing
                CASE (ANALYTIC2D, MT2D)
-                  ! Zero the 1 non-periodic component
+                  ! Zero the 1 non-periodic component. Only the periodic-subspace
+                  ! stress components are defined for 2D systems.
                   alpha = poisson_env%green_fft%special_dimension
                   h_stress(:, alpha) = 0.0_dp
                   h_stress(alpha, :) = 0.0_dp
-                  CPABORT("Stress Tensor not tested for 2D systems.")
                CASE (ANALYTIC1D, MT1D)
                   ! Zero the 2 non-periodic components
                   DO alpha = 1, 3
@@ -1226,7 +1226,7 @@ CONTAINS
                   alpha = poisson_env%wavelet%special_dimension
                   h_stress(:, alpha) = 0.0_dp
                   h_stress(alpha, :) = 0.0_dp
-                  CPABORT("Stress Tensor not tested for 2D systems.")
+                  CPABORT("Stress Tensor not tested for WAVELET 2D.")
                CASE (WAVELET1D)
                   ! Zero the 2 non-periodic components
                   CPABORT("WAVELET 1D not implemented!")

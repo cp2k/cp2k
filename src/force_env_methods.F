@@ -89,8 +89,9 @@ MODULE force_env_methods
                                               globenv_retain
    USE grrm_utils,                      ONLY: write_grrm
    USE input_constants,                 ONLY: &
-        cell_opt_run, debug_run, dfet, dmfet, driver_run, ehrenfest, geo_opt_run, mix_cdft, &
-        mix_coupled, mix_generic, mix_linear_combination, mix_minimum, mix_restrained, &
+        cell_opt_run, debug_run, dfet, dmfet, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_ofgpw, do_method_rigpw, driver_run, ehrenfest, geo_opt_run, &
+        mix_cdft, mix_coupled, mix_generic, mix_linear_combination, mix_minimum, mix_restrained, &
         mixed_cdft_serial, mol_dyn_run, use_bazant_eip, use_lenosky_eip, use_stillinger_weber_eip, &
         use_tersoff_eip
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -698,22 +699,26 @@ CONTAINS
       REAL(kind=dp), PARAMETER                           :: default_dx = 0.001_dp
 
       CHARACTER(LEN=default_string_length)               :: unit_string
-      INTEGER                                            :: i, ip, iq, j, k, natom, ncore, nshell, &
-                                                            output_unit, symmetry_id
-      REAL(KIND=dp)                                      :: dx_w
+      INTEGER                                            :: i, ip, iq, j, k, method_id, natom, &
+                                                            ncore, nshell, output_unit, symmetry_id
+      LOGICAL                                            :: use_sym_strain_2d
+      REAL(KIND=dp)                                      :: dx_w, eps_w
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: s
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: numer_stress
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_deformed, numer_pv_2d, &
+                                                            numer_stress, strain
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ref_pos_atom, ref_pos_core, ref_pos_shell
       TYPE(cell_type), POINTER                           :: cell, cell_local
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (cell_local)
+      NULLIFY (dft_control)
       NULLIFY (core_particles)
       NULLIFY (particles)
       NULLIFY (shell_particles)
@@ -721,15 +726,18 @@ CONTAINS
       NULLIFY (ref_pos_core)
       NULLIFY (ref_pos_shell)
       natom = 0
+      method_id = 0
       ncore = 0
       nshell = 0
+      numer_pv_2d = 0.0_dp
       numer_stress = 0.0_dp
+      use_sym_strain_2d = .FALSE.
 
       logger => cp_get_default_logger()
 
       dx_w = default_dx
       IF (PRESENT(dx)) dx_w = dx
-      CALL force_env_get(force_env, subsys=subsys, globenv=globenv)
+      CALL force_env_get(force_env, subsys=subsys, globenv=globenv, in_use=method_id)
       CALL cp_subsys_get(subsys, &
                          core_particles=core_particles, &
                          particles=particles, &
@@ -769,12 +777,41 @@ CONTAINS
       !
       CALL cell_create(cell_local)
       CALL cell_clone(cell, cell_local)
+      IF (COUNT(cell_local%perd /= 0) == 2 .AND. method_id == use_qs_force) THEN
+         CALL get_qs_env(qs_env=force_env%qs_env, dft_control=dft_control)
+         SELECT CASE (dft_control%qs_control%method_id)
+         CASE (do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+               do_method_lrigpw, do_method_ofgpw, do_method_rigpw)
+            use_sym_strain_2d = .TRUE.
+         END SELECT
+      END IF
       ! First change box
       DO ip = 1, 3
          DO iq = 1, 3
+            IF (use_sym_strain_2d) THEN
+               IF (cell_local%perd(ip) == 0 .OR. cell_local%perd(iq) == 0) CYCLE
+               IF (iq < ip) CYCLE
+            END IF
             IF (virial%pv_diagonal .AND. (ip /= iq)) CYCLE
             DO k = 1, 2
-               cell%hmat(ip, iq) = cell_local%hmat(ip, iq) - (-1.0_dp)**k*dx_w
+               hmat_deformed = cell_local%hmat
+               IF (use_sym_strain_2d) THEN
+                  eps_w = -(-1.0_dp)**k*dx_w
+                  strain = 0.0_dp
+                  DO i = 1, 3
+                     strain(i, i) = 1.0_dp
+                  END DO
+                  IF (ip == iq) THEN
+                     strain(ip, ip) = strain(ip, ip) + eps_w
+                  ELSE
+                     strain(ip, iq) = strain(ip, iq) + 0.5_dp*eps_w
+                     strain(iq, ip) = strain(iq, ip) + 0.5_dp*eps_w
+                  END IF
+                  hmat_deformed = MATMUL(strain, cell_local%hmat)
+               ELSE
+                  hmat_deformed(ip, iq) = hmat_deformed(ip, iq) - (-1.0_dp)**k*dx_w
+               END IF
+               cell%hmat = hmat_deformed
                CALL init_cell(cell)
                ! Scale positions
                DO i = 1, natom
@@ -796,25 +833,47 @@ CONTAINS
                                                 calc_stress_tensor=.FALSE.)
                CALL force_env_get(force_env, potential_energy=numer_energy(k))
                ! Reset cell
-               cell%hmat(ip, iq) = cell_local%hmat(ip, iq)
+               cell%hmat = cell_local%hmat
             END DO
             CALL init_cell(cell)
-            numer_stress(ip, iq) = 0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
-            IF (output_unit > 0) THEN
-               IF (globenv%run_type_id == debug_run) THEN
-                  WRITE (UNIT=output_unit, FMT="(/,T2,A,T19,A,F7.4,A,T44,A,F7.4,A,T69,A)") &
-                     "DEBUG|", "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
-                     "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
-                     "f(numerical)"
-                  WRITE (UNIT=output_unit, FMT="(T2,A,2(1X,F24.8),1X,F22.8)") &
-                     "DEBUG|", numer_energy(1:2), numer_stress(ip, iq)
-               ELSE
-                  WRITE (UNIT=output_unit, FMT="(/,T7,A,F7.4,A,T27,A,F7.4,A,T49,A)") &
-                     "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
-                     "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
-                     "f(numerical)"
-                  WRITE (UNIT=output_unit, FMT="(3(1X,F19.8))") &
-                     numer_energy(1:2), numer_stress(ip, iq)
+            IF (use_sym_strain_2d) THEN
+               numer_pv_2d(ip, iq) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
+               numer_pv_2d(iq, ip) = numer_pv_2d(ip, iq)
+               IF (output_unit > 0) THEN
+                  IF (globenv%run_type_id == debug_run) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,T19,A,F7.4,A,T44,A,F7.4,A,T69,A)") &
+                        "DEBUG|", "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
+                        "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
+                        "pv(numerical)"
+                     WRITE (UNIT=output_unit, FMT="(T2,A,2(1X,F24.8),1X,F22.8)") &
+                        "DEBUG|", numer_energy(1:2), numer_pv_2d(ip, iq)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T7,A,F7.4,A,T27,A,F7.4,A,T49,A)") &
+                        "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
+                        "E(e"//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
+                        "pv(numerical)"
+                     WRITE (UNIT=output_unit, FMT="(3(1X,F19.8))") &
+                        numer_energy(1:2), numer_pv_2d(ip, iq)
+                  END IF
+               END IF
+            ELSE
+               numer_stress(ip, iq) = 0.5_dp*(numer_energy(1) - numer_energy(2))/dx_w
+               IF (output_unit > 0) THEN
+                  IF (globenv%run_type_id == debug_run) THEN
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,T19,A,F7.4,A,T44,A,F7.4,A,T69,A)") &
+                        "DEBUG|", "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
+                        "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
+                        "f(numerical)"
+                     WRITE (UNIT=output_unit, FMT="(T2,A,2(1X,F24.8),1X,F22.8)") &
+                        "DEBUG|", numer_energy(1:2), numer_stress(ip, iq)
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(/,T7,A,F7.4,A,T27,A,F7.4,A,T49,A)") &
+                        "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" +", dx_w, ")", &
+                        "E("//ACHAR(119 + ip)//ACHAR(119 + iq)//" -", dx_w, ")", &
+                        "f(numerical)"
+                     WRITE (UNIT=output_unit, FMT="(3(1X,F19.8))") &
+                        numer_energy(1:2), numer_stress(ip, iq)
+                  END IF
                END IF
             END IF
          END DO
@@ -839,16 +898,19 @@ CONTAINS
 
       ! Computing pv_test
       virial%pv_virial = 0.0_dp
-      DO i = 1, 3
-         DO j = 1, 3
-            DO k = 1, 3
-               virial%pv_virial(i, j) = virial%pv_virial(i, j) - &
-                                        0.5_dp*(numer_stress(i, k)*cell_local%hmat(j, k) + &
-                                                numer_stress(j, k)*cell_local%hmat(i, k))
+      IF (use_sym_strain_2d) THEN
+         virial%pv_virial = numer_pv_2d
+      ELSE
+         DO i = 1, 3
+            DO j = 1, 3
+               DO k = 1, 3
+                  virial%pv_virial(i, j) = virial%pv_virial(i, j) - &
+                                           0.5_dp*(numer_stress(i, k)*cell_local%hmat(j, k) + &
+                                                   numer_stress(j, k)*cell_local%hmat(i, k))
+               END DO
             END DO
          END DO
-      END DO
-
+      END IF
       IF (output_unit > 0) THEN
          IF (globenv%run_type_id == debug_run) THEN
             CALL section_vals_val_get(force_env%force_env_section, "PRINT%FORCES%FORCE_UNIT", &
