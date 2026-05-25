@@ -63,9 +63,9 @@ MODULE kpoint_mo_dump
 
    PUBLIC :: write_kpoint_mo_data
 
-   ! Enum values for OVERLAP_EXPORT_TYPE keyword
-   INTEGER, PARAMETER, PUBLIC :: mokp_overlap_gto = 1, &
-                                 mokp_overlap_matrix = 2
+   ! Enum values for AO_EXPORT_TYPE keyword
+   INTEGER, PARAMETER, PUBLIC :: mokp_ao_gto_basis = 1, &
+                                 mokp_ao_overlap_matrix = 2
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_mo_dump'
 
@@ -77,9 +77,9 @@ CONTAINS
 !>  The output file contains, for each k-point:
 !>    - Eigenvalues and occupations
 !>    - MO coefficient matrix C(k) (real and imaginary parts)
-!>    - Overlap matrix S(k)  (if OVERLAP_EXPORT_TYPE = MATRIX)
+!>    - Overlap matrix S(k)  (if AO_EXPORT_TYPE = OVERLAP_MATRIX)
 !>  Plus a header with cell, atom info, and either GTO basis set definition
-!>  (OVERLAP_EXPORT_TYPE = GTO) or AO angular momentum map (OVERLAP_EXPORT_TYPE = MATRIX).
+!>  (AO_EXPORT_TYPE = GTO_BASIS) or AO metadata list (AO_EXPORT_TYPE = OVERLAP_MATRIX).
 !>
 !>  Parallel strategy:
 !>    MO coefficients:  cp_fm_get_submatrix (collective on kp-group),
@@ -89,7 +89,7 @@ CONTAINS
 !>    File write:       Only on ionode (cp_print_key_unit_nr returns -1 elsewhere).
 !>
 !> \param qs_env  the QS environment (after converged SCF with k-points)
-!> \param print_section  the &MO_KP print key section (contains NDIGITS, OVERLAP_EXPORT_TYPE)
+!> \param print_section  the &MO_KP print key section (contains NDIGITS, AO_EXPORT_TYPE)
 ! **************************************************************************************************
    SUBROUTINE write_kpoint_mo_data(qs_env, print_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -100,10 +100,10 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=20)                                  :: fmtstr_gto, fmtstr_sparse, fmtstr_vec
-      INTEGER :: handle, i, iatom, ikind, ikp, ikp_loc, ipgf, iset, isgf_global, ishell, ispin, &
-         iw, j, lshell, n, nao, natom, ndigits, nkp, nmo, nset_atom, nspins, output_unit, &
-         overlap_data, unit_choice
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_l, first_sgf, last_sgf
+      INTEGER :: ao_export_type, atom_shell_index, handle, i, iao, iatom, ikind, ikp, ikp_loc, &
+         imo, ipgf, iset, isgf_global, ishell, ispin, iw, j, lshell, m_ao, n, nao, natom, ndigits, &
+         nkp, nmo, nset_atom, nspins, output_unit, unit_choice, z_nuc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: npgf_set, nshell_set
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_set, l_set, last_sgf_set
@@ -192,8 +192,8 @@ CONTAINS
       END IF
       CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
       ndigits = MIN(MAX(3, ndigits), 30)
-      CALL section_vals_val_get(print_section, "OVERLAP_EXPORT_TYPE", i_val=overlap_data)
-      write_overlap = (overlap_data == mokp_overlap_matrix)
+      CALL section_vals_val_get(print_section, "AO_EXPORT_TYPE", i_val=ao_export_type)
+      write_overlap = (ao_export_type == mokp_ao_overlap_matrix)
 
       ! Build format strings controlled by NDIGITS
       WRITE (UNIT=fmtstr_sparse, FMT='("(2I6,1X,ES",I0,".",I0,")")') ndigits + 10, ndigits
@@ -207,29 +207,6 @@ CONTAINS
       ALLOCATE (first_sgf(natom), last_sgf(natom))
       CALL get_particle_set(particle_set, qs_kind_set, &
                             first_sgf=first_sgf, last_sgf=last_sgf)
-
-      ! AO angular momentum map: only needed when overlap is written explicitly,
-      ! since in GTO mode l info is derivable from the basis set definition.
-      IF (write_overlap) THEN
-         ALLOCATE (ao_l(nao))
-         ao_l(:) = -1
-         DO iatom = 1, natom
-            ikind = particle_set(iatom)%atomic_kind%kind_number
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-            CALL get_gto_basis_set(orb_basis_set, nset=nset_atom, &
-                                   nshell=nshell_set, l=l_set, &
-                                   first_sgf=first_sgf_set, last_sgf=last_sgf_set)
-            DO iset = 1, nset_atom
-               DO ishell = 1, nshell_set(iset)
-                  lshell = l_set(ishell, iset)
-                  DO i = first_sgf_set(ishell, iset), last_sgf_set(ishell, iset)
-                     isgf_global = first_sgf(iatom) - 1 + i
-                     ao_l(isgf_global) = lshell
-                  END DO
-               END DO
-            END DO
-         END DO
-      END IF
 
       ! ================================================================
       ! Allocate work buffers
@@ -269,17 +246,24 @@ CONTAINS
       ! WRITE HEADER
       ! ================================================================
       IF (iw > 0) THEN
-         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP, Version 1.1"
-         IF (write_overlap) THEN
-            WRITE (iw, '(A)') "# EXPORT_MODE: Coefficients + Overlap matrices"
-         ELSE
-            WRITE (iw, '(A)') "# EXPORT_MODE: GTO + Coefficients"
-         END IF
+         WRITE (iw, '(A)') "# CP2K_KPOINT_MO_DUMP, Version 2.0"
          IF (unit_choice == 2) THEN
-            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional coords"
+            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Angstrom, k-points in fractional reciprocal coords"
+         ELSE
+            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Bohr, k-points in fractional reciprocal coords"
+         END IF
+         WRITE (iw, '(A,4I8)') "# DIMENSIONS: natom nspins nao nkp =", natom, nspins, nao, nkp
+         WRITE (iw, '(A,I8)') "# NMO =", nmo
+         WRITE (iw, '(A,L2)') "# USE_REAL_WFN =", use_real_wfn
+         IF (write_overlap) THEN
+            WRITE (iw, '(A)') "# AO_EXPORT_TYPE = OVERLAP_MATRIX"
+         ELSE
+            WRITE (iw, '(A)') "# AO_EXPORT_TYPE = GTO_BASIS"
+         END IF
+         WRITE (iw, '(A,ES12.5)') "# SPARSE_THRESHOLD =", thresh
+         IF (unit_choice == 2) THEN
             WRITE (iw, '(A)') "# CELL_VECTORS [Angstrom]"
          ELSE
-            WRITE (iw, '(A)') "# All energies in Hartree, lengths in Bohr, k-points in fractional coords"
             WRITE (iw, '(A)') "# CELL_VECTORS [Bohr]"
          END IF
          WRITE (iw, '(3(F12.6,3X))') &
@@ -288,31 +272,21 @@ CONTAINS
             cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
          WRITE (iw, '(3(F12.6,3X))') &
             cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
-
-         WRITE (iw, '(A,4I8)') "# DIMENSIONS: natom nspins nao nkp =", natom, nspins, nao, nkp
-         WRITE (iw, '(A,I8)') "# NMO =", nmo
-         WRITE (iw, '(A,L2)') "# USE_REAL_WFN =", use_real_wfn
-         IF (write_overlap) THEN
-            WRITE (iw, '(A)') "# OVERLAP_EXPORT_TYPE = MATRIX"
-         ELSE
-            WRITE (iw, '(A)') "# OVERLAP_EXPORT_TYPE = GTO"
-         END IF
-
          ! Atom table
          IF (unit_choice == 2) THEN
             WRITE (iw, '(A)') &
-               "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Ang]  Y [Ang]  Z [Ang]  First_AO  Last_AO"
+               "# ATOM_LIST: Atom_ID  Element  Z_nuc  Z_eff  X [Ang]  Y [Ang]  Z [Ang]  First_AO  Last_AO"
          ELSE
             WRITE (iw, '(A)') &
-               "# ATOM_LIST: Atom_ID  Element  Z_eff  X [Bohr]  Y [Bohr]  Z [Bohr]  First_AO  Last_AO"
+               "# ATOM_LIST: Atom_ID  Element  Z_nuc  Z_eff  X [Bohr]  Y [Bohr]  Z [Bohr]  First_AO  Last_AO"
          END IF
          DO iatom = 1, natom
             ikind = particle_set(iatom)%atomic_kind%kind_number
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
-                                 element_symbol=element_symbol)
+                                 element_symbol=element_symbol, z=z_nuc)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
-            WRITE (iw, '(I6,2X,A2,I6,3F15.6,2I10)') &
-               iatom, element_symbol, NINT(zeff), particle_set(iatom)%r(:)*scale_factor, &
+            WRITE (iw, '(I6,2X,A2,2I6,3F15.6,2I10)') &
+               iatom, element_symbol, z_nuc, NINT(zeff), particle_set(iatom)%r(:)*scale_factor, &
                first_sgf(iatom), last_sgf(iatom)
          END DO
 
@@ -323,10 +297,30 @@ CONTAINS
          END DO
 
          IF (write_overlap) THEN
-            ! MATRIX mode: write AO angular momentum map (needed since no GTO info)
-            WRITE (iw, '(A)') "# AO_L_MAP: iao  l  (1-based)"
-            DO i = 1, nao
-               WRITE (iw, '(2I6)') i, ao_l(i)
+            ! MATRIX mode: write AO metadata since no GTO basis definition is written.
+            ! Shell angular momentum ordering: spherical harmonics,
+            ! CP2K convention m = -l, -l+1, ..., 0, ..., +l
+            WRITE (iw, '(A)') "# AO_LIST: ao_index  atom_id  atom_shell_index  l  m"
+            DO iatom = 1, natom
+               ikind = particle_set(iatom)%atomic_kind%kind_number
+               atom_shell_index = 0
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                         nset=nset_atom, nshell=nshell_set, l=l_set, &
+                                         first_sgf=first_sgf_set, last_sgf=last_sgf_set)
+                  DO iset = 1, nset_atom
+                     DO ishell = 1, nshell_set(iset)
+                        atom_shell_index = atom_shell_index + 1
+                        lshell = l_set(ishell, iset)
+                        DO i = first_sgf_set(ishell, iset), last_sgf_set(ishell, iset)
+                           isgf_global = first_sgf(iatom) - 1 + i
+                           m_ao = i - first_sgf_set(ishell, iset) - lshell
+                           WRITE (iw, '(5I8)') isgf_global, iatom, atom_shell_index, lshell, m_ao
+                        END DO
+                     END DO
+                  END DO
+               END IF
             END DO
          ELSE
             ! GTO mode: write basis set definition
@@ -421,21 +415,21 @@ CONTAINS
                WRITE (iw, '(A)') "# OCCUPATIONS"
                WRITE (iw, fmtstr_vec) (occ_buf(n), n=1, nmo)
 
-               WRITE (iw, '(A)') "# MO_COEFF_RE (Sparse: i_mo j_ao value)"
-               DO i = 1, nmo
-                  DO j = 1, nao
-                     IF (ABS(Cre_buf(j, i)) >= thresh) THEN
-                        WRITE (iw, fmtstr_sparse) i, j, Cre_buf(j, i)
+               WRITE (iw, '(A)') "# MO_COEFF_RE (Sparse: mo_index  ao_index  value)"
+               DO imo = 1, nmo
+                  DO iao = 1, nao
+                     IF (ABS(Cre_buf(iao, imo)) >= thresh) THEN
+                        WRITE (iw, fmtstr_sparse) imo, iao, Cre_buf(iao, imo)
                      END IF
                   END DO
                END DO
 
                IF (.NOT. use_real_wfn) THEN
-                  WRITE (iw, '(A)') "# MO_COEFF_IM (Sparse: i_mo j_ao value)"
-                  DO i = 1, nmo
-                     DO j = 1, nao
-                        IF (ABS(Cim_buf(j, i)) >= thresh) THEN
-                           WRITE (iw, fmtstr_sparse) i, j, Cim_buf(j, i)
+                  WRITE (iw, '(A)') "# MO_COEFF_IM (Sparse: mo_index  ao_index  value)"
+                  DO imo = 1, nmo
+                     DO iao = 1, nao
+                        IF (ABS(Cim_buf(iao, imo)) >= thresh) THEN
+                           WRITE (iw, fmtstr_sparse) imo, iao, Cim_buf(iao, imo)
                         END IF
                      END DO
                   END DO
@@ -475,7 +469,7 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(A,I6)') "# BEGIN_OVERLAP ikp =", ikp
 
-               WRITE (iw, '(A)') "# OVERLAP_RE (Sparse: i_ao j_ao value)"
+               WRITE (iw, '(A)') "# OVERLAP_RE (Sparse: ao_index_1  ao_index_2  value)"
                DO i = 1, nao
                   DO j = 1, nao
                      IF (ABS(Sre_buf(i, j)) >= thresh) THEN
@@ -484,7 +478,7 @@ CONTAINS
                   END DO
                END DO
                IF (.NOT. use_real_wfn) THEN
-                  WRITE (iw, '(A)') "# OVERLAP_IM (Sparse: i_ao j_ao value)"
+                  WRITE (iw, '(A)') "# OVERLAP_IM (Sparse: ao_index_1  ao_index_2  value)"
                   DO i = 1, nao
                      DO j = 1, nao
                         IF (ABS(Sim_buf(i, j)) >= thresh) THEN
@@ -521,7 +515,6 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(cmatrix)
          CALL dbcsr_deallocate_matrix(tmpmat)
          DEALLOCATE (Sre_buf, Sim_buf)
-         DEALLOCATE (ao_l)
       END IF
       DEALLOCATE (Cre_buf, Cim_buf)
       DEALLOCATE (eval_buf, occ_buf)
