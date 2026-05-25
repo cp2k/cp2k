@@ -145,7 +145,9 @@ trust radius for quasi-Newton methods and the line-search settings for conjugate
   the optimization takes overly large steps, oscillates, or becomes unstable, the
   [TRUST_RADIUS](#CP2K_INPUT.MOTION.GEO_OPT.BFGS.TRUST_RADIUS) in the `BFGS` subsection is often the
   first parameter to reduce. A smaller trust radius makes the optimization more conservative; an
-  excessively small value can make convergence slow.
+  excessively small value can make convergence slow. The number of required iterations can often be
+  reduced by enabling the [USE_MODEL_HESSIAN](#CP2K_INPUT.MOTION.GEO_OPT.BFGS.USE_MODEL_HESSIAN)
+  option.
 - `LBFGS` is the limited-memory variant and is usually more suitable for large systems where storing
   a full approximate Hessian would be expensive. It also has a
   [TRUST_RADIUS](#CP2K_INPUT.MOTION.GEO_OPT.LBFGS.TRUST_RADIUS) control. This can be useful for

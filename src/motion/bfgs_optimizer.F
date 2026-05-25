@@ -77,6 +77,9 @@ MODULE bfgs_optimizer
                            spgr_apply_rotations_coord, &
                            spgr_apply_rotations_force
    USE space_groups_types, ONLY: spgr_type
+   USE bibliography, ONLY: Lindh1995, &
+                           cite_reference
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1017,12 +1020,12 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_bfgs_hessian
-! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Constructs model Hessian as described in https://doi.org/10.1016/0009-2614(95)00646-L.
 !> \param force_env ...
 !> \param hess_mat ...
+!> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE construct_initial_hess(force_env, hess_mat)
 
@@ -1041,6 +1044,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
+
+      CALL cite_reference(Lindh1995)
 
       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
       CALL cp_subsys_get(subsys, &

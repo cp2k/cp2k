@@ -96,7 +96,7 @@ MODULE bibliography
                             Hanasaki2025, Tan2025, Broyden1965, Johnson1988, Kerker1981, &
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
-                            Shiga2022
+                            Shiga2022, Lindh1995
 
 CONTAINS
 
@@ -2055,6 +2055,7 @@ CONTAINS
                          "the restricted subspace approximation", &
                          source="Phys. Chem. Chem. Phys.", volume="23", pages="1835-1848", &
                          year=2021, doi="10.1039/d0cp04726k")
+
       CALL add_reference(key=Shiga2022, &
                          authors=s2a("M. Shiga"), &
                          title="Path integral Brownian chain molecular dynamics: A simple approximation "// &
@@ -2149,7 +2150,7 @@ CONTAINS
                          year=2023, doi="10.1103/PhysRevB.107.195122")
 
       CALL add_reference(key=Schreder2021, &
-                         authors=s2a("L. Schreder, S. Luber"), &
+                         authors=s2a("L. Schreder", "S. Luber"), &
                          title="Local approaches for electric dipole moments in periodic "// &
                          "systems and their application to real-time time-dependent density "// &
                          "functional theory", &
@@ -2157,18 +2158,24 @@ CONTAINS
                          year=2021, doi="10.1063/5.0058793")
 
       CALL add_reference(key=Schreder2024_1, &
-                         authors=s2a("L. Schreder, S. Luber"), &
+                         authors=s2a("L. Schreder", "S. Luber"), &
                          title="Chiral Spectroscopy of Bulk Systems with Propagated Localized "// &
                          "Orbitals", &
                          source="J. Chem. Theory Comput.", volume="20", pages="3894", &
                          year=2024, doi="10.1021/acs.jctc.4c00235")
 
       CALL add_reference(key=Schreder2024_2, &
-                         authors=s2a("L. Schreder, S. Luber"), &
+                         authors=s2a("L. Schreder", "S. Luber"), &
                          title="Propagated (fragment) Pipek–Mezey Wannier functions in "// &
                          "real-time time-dependent density functional theory", &
                          source="J. Chem. Phys.", volume="160", pages="214117", &
                          year=2024, doi="10.1063/5.0203442")
+
+      CALL add_reference(key=Lindh1995, &
+                         authors=s2a("R. Lindh", "A. Bernhardsson", "G. Karlström", "P.-Å. Malmqvist"), &
+                         title="On the use of a Hessian model function in molecular geometry optimizations", &
+                         source="Chem. Phys. Lett.", volume="241", pages="423-428", &
+                         year=1995, doi="10.1016/0009-2614(95)00646-L")
 
    END SUBROUTINE add_all_references
 
