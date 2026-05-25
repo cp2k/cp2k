@@ -62,6 +62,9 @@ MODULE qs_pdos
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE qs_dos_utils,                    ONLY: broadening_cutoff,&
+                                              broadening_function,&
+                                              write_broadening_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -155,20 +158,21 @@ CONTAINS
                                                             spin(2)
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: ldos_index, r_ldos_index
-      INTEGER :: handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, in_z, ir, irow, &
-         iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, &
-         maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, &
-         nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, nvirt_generated, out_each, &
-         output_unit
+      INTEGER :: broaden_type, handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, &
+         in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, &
+         lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, &
+         ndigits, nkind, nldos, nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, &
+         nvirt_generated, out_each, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
-      LOGICAL                                            :: append, calc_matsh, do_ldos, do_r_ldos, &
-                                                            do_virt, ionode, separate_components, &
-                                                            should_output
+      LOGICAL                                            :: append, calc_matsh, do_broaden, do_ldos, &
+                                                            do_r_ldos, do_virt, ionode, &
+                                                            separate_components, should_output
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
-      REAL(KIND=dp)                                      :: dh(3, 3), dvol, e_fermi, r(3), r_vec(3), &
-                                                            ratom(3)
+      REAL(KIND=dp)                                      :: broaden_width, de, dh(3, 3), dvol, &
+                                                            e_fermi, r(3), r_vec(3), ratom(3), &
+                                                            voigt_mixing
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, evals_virt, &
                                                             occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -232,6 +236,14 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%OUT_EACH_MO", i_val=out_each)
       IF (out_each == -1) out_each = nao + 1
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%VOIGT_MIXING", r_val=voigt_mixing)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%NDIGITS", i_val=ndigits)
+      ndigits = MIN(MAX(ndigits, 1), 10)
+      do_broaden = (broaden_width > 0.0_dp)
+      IF (do_broaden) de = MAX(de, 0.00001_dp)
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
       IF (nlumo == -1) THEN
          nvirt = nao - nmo
@@ -709,8 +721,24 @@ CONTAINS
             my_spin = 1
          END IF
 
+         IF (do_broaden) THEN
+            IF (separate_components) THEN
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                         e_fermi, "Projected DOS for atomic kind "//TRIM(kind_name), &
+                                         maxl, .TRUE., pdos_array(1:nsoset(maxl), ikind, :), &
+                                         eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                         voigt_mixing, ndigits)
+            ELSE
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                         e_fermi, "Projected DOS for atomic kind "//TRIM(kind_name), &
+                                         maxl, .FALSE., pdos_array(0:maxl, ikind, :), &
+                                         eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                         voigt_mixing, ndigits)
+            END IF
+         END IF
+
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                   extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                   extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                    file_form="FORMATTED", middle_name=TRIM(my_mittle))
          IF (iw > 0) THEN
 
@@ -777,8 +805,26 @@ CONTAINS
                my_spin = 1
             END IF
 
+            IF (do_broaden) THEN
+               IF (ldos_p(ildos)%ldos%separate_components) THEN
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                            e_fermi, "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
+                                            ldos_p(ildos)%ldos%maxl, .TRUE., &
+                                            ldos_p(ildos)%ldos%pdos_array(1:nsoset(ldos_p(ildos)%ldos%maxl), :), &
+                                            eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                            voigt_mixing, ndigits)
+               ELSE
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                            e_fermi, "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
+                                            ldos_p(ildos)%ldos%maxl, .FALSE., &
+                                            ldos_p(ildos)%ldos%pdos_array(0:ldos_p(ildos)%ldos%maxl, :), &
+                                            eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                            voigt_mixing, ndigits)
+               END IF
+            END IF
+
             iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                      extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                      extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                       file_form="FORMATTED", middle_name=TRIM(my_mittle))
             IF (iw > 0) THEN
 
@@ -849,7 +895,7 @@ CONTAINS
          END IF
 
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                   extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                   extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                    file_form="FORMATTED", middle_name=TRIM(my_mittle))
          IF (iw > 0) THEN
             fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
@@ -922,5 +968,116 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_projected_dos
+
+! **************************************************************************************************
+!> \brief Write a broadened PDOS curve for a projected weight matrix.
+!> \param logger ...
+!> \param dft_section ...
+!> \param middle_name ...
+!> \param file_position ...
+!> \param file_action ...
+!> \param iterstep ...
+!> \param e_fermi ...
+!> \param title ...
+!> \param maxl ...
+!> \param separate_components ...
+!> \param weights ...
+!> \param eigenvalues ...
+!> \param nstates ...
+!> \param de ...
+!> \param broaden_type ...
+!> \param broaden_width ...
+!> \param voigt_mixing ...
+!> \param ndigits ...
+! **************************************************************************************************
+   SUBROUTINE write_broadened_pdos(logger, dft_section, middle_name, file_position, file_action, &
+                                   iterstep, e_fermi, title, maxl, separate_components, weights, &
+                                   eigenvalues, nstates, de, broaden_type, broaden_width, &
+                                   voigt_mixing, ndigits)
+
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      CHARACTER(LEN=*), INTENT(IN)                       :: middle_name, file_position, file_action
+      INTEGER, INTENT(IN)                                :: iterstep
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi
+      CHARACTER(LEN=*), INTENT(IN)                       :: title
+      INTEGER, INTENT(IN)                                :: maxl
+      LOGICAL, INTENT(IN)                                :: separate_components
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      INTEGER, INTENT(IN)                                :: nstates
+      REAL(KIND=dp), INTENT(IN)                          :: de
+      INTEGER, INTENT(IN)                                :: broaden_type
+      REAL(KIND=dp), INTENT(IN)                          :: broaden_width, voigt_mixing
+      INTEGER, INTENT(IN)                                :: ndigits
+
+      CHARACTER(LEN=20)                                  :: fmtstr_data
+      CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:, :, :)  :: tmp_str
+      INTEGER                                            :: i, icomp, il, im, imo, iw, ncomponents, &
+                                                            nhist
+      REAL(KIND=dp)                                      :: cutoff, emax, emin, eval, line_shape
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pdos_curve
+
+      IF (broaden_width <= 0.0_dp) RETURN
+
+      ncomponents = SIZE(weights, 1)
+      cutoff = broadening_cutoff(broaden_type, broaden_width)
+      emin = MINVAL(eigenvalues(1:nstates)) - cutoff
+      emax = MAXVAL(eigenvalues(1:nstates)) + cutoff
+      nhist = NINT((emax - emin)/de) + 1
+      ALLOCATE (pdos_curve(nhist, ncomponents))
+      pdos_curve = 0.0_dp
+
+      DO imo = 1, nstates
+         DO i = MAX(1, FLOOR((eigenvalues(imo) - cutoff - emin)/de) + 1), &
+            MIN(nhist, CEILING((eigenvalues(imo) + cutoff - emin)/de) + 1)
+            eval = emin + (i - 1)*de
+            line_shape = broadening_function(eval - eigenvalues(imo), broaden_type, broaden_width, &
+                                             voigt_mixing)
+            DO icomp = 1, ncomponents
+               pdos_curve(i, icomp) = pdos_curve(i, icomp) + weights(icomp, imo)*line_shape
+            END DO
+         END DO
+      END DO
+
+      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
+                                extension=".pdos", file_position=file_position, file_action=file_action, &
+                                file_form="FORMATTED", middle_name=TRIM(middle_name))
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(A,I0,A,F12.6,A)") &
+            "# "//TRIM(title)//" at iteration step i = ", iterstep, ", E(Fermi) = ", e_fermi, " a.u."
+         CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+         WRITE (UNIT=iw, FMT="(A)", ADVANCE="NO") "# Energy[a.u.]"
+         IF (separate_components) THEN
+            ALLOCATE (tmp_str(0:0, 0:maxl, -maxl:maxl))
+            tmp_str = ""
+            DO il = 0, maxl
+               DO im = -il, il
+                  tmp_str(0, il, im) = sgf_symbol(0, il, im)
+                  WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(tmp_str(0, il, im))
+               END DO
+            END DO
+            DEALLOCATE (tmp_str)
+         ELSE
+            DO il = 0, maxl
+               WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(l_sym(il))
+            END DO
+         END IF
+         WRITE (UNIT=iw, FMT="()")
+         WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2X,F20.", ndigits, ")"
+         DO i = 1, nhist
+            eval = emin + (i - 1)*de
+            WRITE (UNIT=iw, FMT="(F15.8)", ADVANCE="NO") eval
+            DO icomp = 1, ncomponents
+               WRITE (UNIT=iw, FMT=fmtstr_data, ADVANCE="NO") pdos_curve(i, icomp)
+            END DO
+            WRITE (UNIT=iw, FMT="()")
+         END DO
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%PDOS")
+
+      DEALLOCATE (pdos_curve)
+
+   END SUBROUTINE write_broadened_pdos
 
 END MODULE qs_pdos

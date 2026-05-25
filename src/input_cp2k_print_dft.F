@@ -2619,14 +2619,40 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
-                          description="Histogramm energy spacing.", &
+                          description="Energy spacing of the DOS output grid.", &
                           usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_TYPE", &
+                          description="Type of broadening function used to produce the DOS curve.", &
+                          usage="BROADEN_TYPE GAUSSIAN", type_of_var=enum_t, &
+                          enum_c_vals=s2a("GAUSSIAN", "LORENTZIAN", "PSEUDO_VOIGT"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Use a Gaussian broadening function.", &
+                                        "Use a Lorentzian broadening function.", &
+                                        "Use a pseudo-Voigt mixture of Lorentzian and Gaussian functions."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_WIDTH", &
+                          description="Full width at half maximum (FWHM) of the DOS broadening function. "// &
+                          "Set to zero to recover the unbroadened histogram output.", &
+                          usage="BROADEN_WIDTH [eV] 0.1", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VOIGT_MIXING", &
+                          description="Lorentzian fraction of the pseudo-Voigt broadening function.", &
+                          usage="VOIGT_MIXING 0.5", type_of_var=real_t, default_r_val=0.5_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
-                          description="Specify the number of digits used to print density and occupation", &
-                          default_i_val=4)
+                          description="Specify the number of digits used to print density and occupation.", &
+                          default_i_val=6)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2670,11 +2696,49 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DELTA_E", &
+                          description="Energy spacing of the broadened PDOS output grid.", &
+                          usage="DELTA_E 0.0005", type_of_var=real_t, default_r_val=0.001_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_TYPE", &
+                          description="Type of broadening function used to produce the PDOS curve.", &
+                          usage="BROADEN_TYPE GAUSSIAN", type_of_var=enum_t, &
+                          enum_c_vals=s2a("GAUSSIAN", "LORENTZIAN", "PSEUDO_VOIGT"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Use a Gaussian broadening function.", &
+                                        "Use a Lorentzian broadening function.", &
+                                        "Use a pseudo-Voigt mixture of Lorentzian and Gaussian functions."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BROADEN_WIDTH", &
+                          description="Full width at half maximum (FWHM) of the PDOS broadening function. "// &
+                          "The broadened PDOS curve is written to *.pdos, while the MO-resolved "// &
+                          "projected weights are written to *.pdos_raw. Set to zero to skip the "// &
+                          "broadened PDOS curve.", &
+                          usage="BROADEN_WIDTH [eV] 0.1", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"), unit_str="eV")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="VOIGT_MIXING", &
+                          description="Lorentzian fraction of the pseudo-Voigt broadening function.", &
+                          usage="VOIGT_MIXING 0.5", type_of_var=real_t, default_r_val=0.5_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specify the number of digits used to print broadened PDOS values.", &
+                          default_i_val=6)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="NLUMO", &
-         description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline// &
-         "CAUTION: Setting this value to be higher than the "// &
-         "number of states present may cause a Cholesky error."//newline// &
+         description="Minimum number of unoccupied orbitals to include in the PDOS (-1=all)."//newline// &
+         "Unoccupied orbitals already present in the converged MO set, e.g. from "// &
+         "ADDED_MOS, are always included."//newline// &
+         "If more unoccupied orbitals are requested than available, the remaining ones "// &
+         "are generated by a post-SCF eigensolver."//newline// &
          "This keyword only applies to MO sets, not to XAS_TDP states.", &
          usage="NLUMO integer", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)

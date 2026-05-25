@@ -28,6 +28,9 @@ MODULE qs_dos
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
+   USE qs_dos_utils,                    ONLY: add_broadened_peak,&
+                                              broadening_cutoff,&
+                                              write_broadening_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -64,10 +67,13 @@ CONTAINS
 
       CHARACTER(LEN=20)                                  :: fmtstr_data
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
-      INTEGER                                            :: handle, i, iounit, ispin, iterstep, iv, &
-                                                            iw, ndigits, nhist, nmo(2), nspins
-      LOGICAL                                            :: append, ionode, should_output
-      REAL(KIND=dp)                                      :: de, e1, e2, e_fermi(2), emax, emin, eval
+      INTEGER                                            :: broaden_type, handle, i, iounit, ispin, &
+                                                            iterstep, iv, iw, ndigits, nhist, &
+                                                            nmo(2), nspins
+      LOGICAL                                            :: append, do_broaden, ionode, should_output
+      REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
+                                                            e2, e_fermi(2), emax, emin, eval, &
+                                                            voigt_mixing
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -88,14 +94,19 @@ CONTAINS
          " Calculate DOS at iteration step ", iterstep
 
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
-      CALL section_vals_val_get(dft_section, "PRINT%PDOS%APPEND", l_val=append)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%VOIGT_MIXING", r_val=voigt_mixing)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
       ELSE
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
+      do_broaden = (broaden_width > 0.0_dp)
+      IF (do_broaden) de = MAX(de, 0.00001_dp)
 
       emin = 1.e10_dp
       emax = -1.e10_dp
@@ -112,7 +123,29 @@ CONTAINS
          emax = MAX(emax, e2)
       END DO
 
-      IF (de > 0.0_dp) THEN
+      IF (do_broaden) THEN
+         broaden_cutoff = broadening_cutoff(broaden_type, broaden_width)
+         emin = emin - broaden_cutoff
+         emax = emax + broaden_cutoff
+         nhist = NINT((emax - emin)/de) + 1
+         ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
+         hist = 0.0_dp
+         occval = 0.0_dp
+         ehist = 0.0_dp
+         DO ispin = 1, nspins
+            mo_set => mos(ispin)
+            occupation_numbers => mo_set%occupation_numbers
+            eigenvalues => mo_set%eigenvalues
+            DO i = 1, nmo(ispin)
+               CALL add_broadened_peak(hist(:, ispin), occval(:, ispin), emin, de, eigenvalues(i), &
+                                       occupation_numbers(i), 1.0_dp, broaden_type, broaden_width, &
+                                       voigt_mixing)
+            END DO
+         END DO
+         DO i = 1, nhist
+            ehist(i, 1:nspins) = emin + (i - 1)*de
+         END DO
+      ELSE IF (de > 0.0_dp) THEN
          nhist = NINT((emax - emin)/de) + 1
          ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
          hist = 0.0_dp
@@ -159,29 +192,31 @@ CONTAINS
                                 file_form="FORMATTED")
       IF (iw > 0) THEN
          IF (nspins == 2) THEN
-            WRITE (UNIT=iw, FMT="(T2,A,I0,A,2F12.6)") &
+            WRITE (UNIT=iw, FMT="(A,I0,A,2F12.6)") &
                "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1:2)
+            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
             WRITE (UNIT=iw, FMT="(T2,A, A)") "#  Energy[a.u.]  Alpha_Density    Occupation", &
                "    Energy[a.u.]  Beta_Density     Occupation"
-            ! (2(F15.8,2F15.ndigits))
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F15.", ndigits, "))"
+            ! (2(F15.8,2F20.ndigits))
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F20.", ndigits, "))"
          ELSE
-            WRITE (UNIT=iw, FMT="(T2,A,I0,A,F12.6)") &
+            WRITE (UNIT=iw, FMT="(A,I0,A,F12.6)") &
                "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1)
-            WRITE (UNIT=iw, FMT="(T2,A)") "#  Energy[a.u.]       Density     Occupation"
-            ! (F15.8,2F15.ndigits)
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F15.", ndigits, ")"
+            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+            WRITE (UNIT=iw, FMT="(A)") "# Energy[a.u.]       Density     Occupation"
+            ! (F15.8,2F20.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F20.", ndigits, ")"
          END IF
          DO i = 1, nhist
             IF (nspins == 2) THEN
                e1 = ehist(i, 1)
                e2 = ehist(i, 2)
-               ! fmtstr_data == "(2(F15.8,2F15.xx))"
+               ! fmtstr_data == "(2(F15.8,2F20.xx))"
                WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1), occval(i, 1), &
                   e2, hist(i, 2), occval(i, 2)
             ELSE
                eval = ehist(i, 1)
-               ! fmtstr_data == "(F15.8,2F15.xx)"
+               ! fmtstr_data == "(F15.8,2F20.xx)"
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1)
             END IF
          END DO
@@ -211,12 +246,14 @@ CONTAINS
 
       CHARACTER(LEN=16)                                  :: fmtstr_data
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
-      INTEGER                                            :: handle, i, ik, iounit, ispin, iterstep, &
-                                                            iv, iw, ndigits, nhist, nmo(2), &
-                                                            nmo_kp, nspins
+      INTEGER                                            :: broaden_type, handle, i, ik, iounit, &
+                                                            ispin, iterstep, iv, iw, ndigits, &
+                                                            nhist, nmo(2), nmo_kp, nspins
       INTEGER, DIMENSION(:), POINTER                     :: nkp_grid
-      LOGICAL                                            :: append, explicit, ionode, should_output
-      REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, eval, wkp
+      LOGICAL                                            :: append, do_broaden, explicit, ionode, &
+                                                            should_output
+      REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
+                                                            e2, emax, emin, eval, voigt_mixing, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -264,7 +301,10 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
-      ! ensure a lower value for the histogram width
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%BROADEN_WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%VOIGT_MIXING", r_val=voigt_mixing)
+      ! ensure a lower value for the DOS grid width
       de = MAX(de, 0.00001_dp)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
@@ -272,6 +312,7 @@ CONTAINS
          my_pos = "REWIND"
       END IF
       ndigits = MIN(MAX(ndigits, 1), 10)
+      do_broaden = (broaden_width > 0.0_dp)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
@@ -300,6 +341,11 @@ CONTAINS
       CALL para_env%max(emax)
       CALL para_env%max(nmo)
 
+      IF (do_broaden) THEN
+         broaden_cutoff = broadening_cutoff(broaden_type, broaden_width)
+         emin = emin - broaden_cutoff
+         emax = emax + broaden_cutoff
+      END IF
       nhist = NINT((emax - emin)/de) + 1
       ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
       hist = 0.0_dp
@@ -314,21 +360,31 @@ CONTAINS
                mo_set => mos(1, ispin)
                occupation_numbers => mo_set%occupation_numbers
                eigenvalues => mo_set%eigenvalues
-               DO i = 1, nmo(ispin)
-                  eval = eigenvalues(i) - emin
-                  iv = NINT(eval/de) + 1
-                  CPASSERT((iv > 0) .AND. (iv <= nhist))
-                  hist(iv, ispin) = hist(iv, ispin) + wkp
-                  occval(iv, ispin) = occval(iv, ispin) + wkp*occupation_numbers(i)
-               END DO
+               IF (do_broaden) THEN
+                  DO i = 1, nmo(ispin)
+                     CALL add_broadened_peak(hist(:, ispin), occval(:, ispin), emin, de, eigenvalues(i), &
+                                             occupation_numbers(i), wkp, broaden_type, broaden_width, &
+                                             voigt_mixing)
+                  END DO
+               ELSE
+                  DO i = 1, nmo(ispin)
+                     eval = eigenvalues(i) - emin
+                     iv = NINT(eval/de) + 1
+                     CPASSERT((iv > 0) .AND. (iv <= nhist))
+                     hist(iv, ispin) = hist(iv, ispin) + wkp
+                     occval(iv, ispin) = occval(iv, ispin) + wkp*occupation_numbers(i)
+                  END DO
+               END IF
             END DO
          END DO
       END IF
       CALL para_env%sum(hist)
       CALL para_env%sum(occval)
-      DO ispin = 1, nspins
-         hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
-      END DO
+      IF (.NOT. do_broaden) THEN
+         DO ispin = 1, nspins
+            hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
+         END DO
+      END IF
       DO i = 1, nhist
          ehist(i, 1:nspins) = emin + (i - 1)*de
       END DO
@@ -340,30 +396,32 @@ CONTAINS
       IF (iw > 0) THEN
          IF (nspins == 2) THEN
             WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
+            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
             WRITE (UNIT=iw, FMT="(T2,A,A)") "#  Energy[a.u.]  Alpha_Density    Occupation", &
                "   Beta_Density     Occupation"
-            ! (F15.8,4F15.ndigits)
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,4F15.", ndigits, ")"
+            ! (F15.8,4F20.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,4F20.", ndigits, ")"
          ELSE
             WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
+            IF (do_broaden) CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
             WRITE (UNIT=iw, FMT="(T2,A)") "#  Energy[a.u.]       Density     Occupation"
-            ! (F15.8,2F15.ndigits)
-            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F15.", ndigits, ")"
+            ! (F15.8,2F20.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F20.", ndigits, ")"
          END IF
          DO i = 1, nhist
-            eval = emin + (i - 1)*de
+            eval = ehist(i, 1)
             IF (nspins == 2) THEN
-               ! fmtstr_data == "(F15.8,4F15.xx)"
+               ! fmtstr_data == "(F15.8,4F20.xx)"
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
                   hist(i, 2), occval(i, 2)
             ELSE
-               ! fmtstr_data == "(F15.8,2F15.xx)"
+               ! fmtstr_data == "(F15.8,2F20.xx)"
                WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1)
             END IF
          END DO
       END IF
       CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%DOS")
-      DEALLOCATE (hist, occval)
+      DEALLOCATE (hist, occval, ehist)
 
       ! destroy the extra k-point set if it was created
       IF (explicit) THEN
@@ -375,4 +433,3 @@ CONTAINS
    END SUBROUTINE calculate_dos_kp
 
 END MODULE qs_dos
-
