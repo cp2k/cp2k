@@ -151,7 +151,7 @@ MODULE input_cp2k_print_dft
                               logical_t, &
                               real_t
    USE kinds, ONLY: dp
-   USE kpoint_mo_dump, ONLY: mokp_overlap_gto, mokp_overlap_matrix
+   USE kpoint_mo_dump, ONLY: mokp_ao_gto_basis, mokp_ao_overlap_matrix
    USE pw_grids, ONLY: do_pw_grid_blocked_false, &
                        do_pw_grid_blocked_free, &
                        do_pw_grid_blocked_true
@@ -669,10 +669,10 @@ CONTAINS
                                        "The information of cell and k-points is given at first. Then, "// &
                                        "the coefficients of molecular orbitals are always written, "// &
                                        "while users can choose whether to write GTO basis information "// &
-                                       "or directly overlap matrices though `OVERLAP_EXPORT_TYPE` keyword.", &
+                                       "or explicit overlap matrices through the `AO_EXPORT_TYPE` keyword.", &
                                        print_level=debug_print_level + 1, add_last=add_last_numeric, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
-                          description="Unit for coordinates and cell in the MOLDEN file.", &
+                          description="Unit for coordinates and cell in the .mokp file.", &
                           usage="UNIT ANGSTROM", &
                           enum_c_vals=s2a("BOHR", "ANGSTROM"), &
                           enum_desc=s2a("Write in Bohr (AU)", "Write in Angstrom"), &
@@ -686,15 +686,15 @@ CONTAINS
                           default_i_val=9)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="OVERLAP_EXPORT_TYPE", &
-                          description="How detailed information is provided. "// &
-                          "GTO writes basis set exponents/coefficients (compact, post-processing reconstructs S(k)). "// &
-                          "MATRIX writes S(k) directly (larger file, ready to use).", &
-                          default_i_val=mokp_overlap_gto, &
-                          enum_c_vals=s2a("GTO", "MATRIX"), &
+      CALL keyword_create(keyword, __LOCATION__, name="AO_EXPORT_TYPE", &
+                          description="How AO information is provided for interpreting MO coefficients. "// &
+                          "GTO_BASIS writes basis set exponents/coefficients (compact, post-processing reconstructs S(k)). "// &
+                          "OVERLAP_MATRIX writes S(k) directly (larger file, ready to use).", &
+                          default_i_val=mokp_ao_gto_basis, &
+                          enum_c_vals=s2a("GTO_BASIS", "OVERLAP_MATRIX"), &
                           enum_desc=s2a("Write GTO basis set definition (MOLDEN denormalization convention)", &
                                         "Write explicit overlap matrices S(k) for all k-points"), &
-                          enum_i_vals=[mokp_overlap_gto, mokp_overlap_matrix])
+                          enum_i_vals=[mokp_ao_gto_basis, mokp_ao_overlap_matrix])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
