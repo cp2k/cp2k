@@ -12,6 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_dos
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -53,15 +54,18 @@ CONTAINS
 !> \brief Compute and write density of states
 !> \param mos ...
 !> \param dft_section ...
+!> \param unoccupied_evals ...
 !> \date    26.02.2008
 !> \par History:
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_dos(mos, dft_section)
+   SUBROUTINE calculate_dos(mos, dft_section, unoccupied_evals)
 
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: unoccupied_evals
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos'
 
@@ -69,7 +73,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: broaden_type, handle, i, iounit, ispin, &
                                                             iterstep, iv, iw, ndigits, nhist, &
-                                                            nmo(2), nspins
+                                                            nmo(2), nspins, nstates(2), nvirt(2)
       LOGICAL                                            :: append, do_broaden, ionode, should_output
       REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
                                                             e2, e_fermi(2), emax, emin, eval, &
@@ -112,13 +116,23 @@ CONTAINS
       emax = -1.e10_dp
       nspins = SIZE(mos)
       nmo(:) = 0
+      nvirt(:) = 0
+      nstates(:) = 0
 
       DO ispin = 1, nspins
          mo_set => mos(ispin)
          CALL get_mo_set(mo_set=mo_set, nmo=nmo(ispin), mu=e_fermi(ispin))
          eigenvalues => mo_set%eigenvalues
+         IF (PRESENT(unoccupied_evals)) THEN
+            IF (ASSOCIATED(unoccupied_evals(ispin)%array)) nvirt(ispin) = SIZE(unoccupied_evals(ispin)%array)
+         END IF
+         nstates(ispin) = nmo(ispin) + nvirt(ispin)
          e1 = MINVAL(eigenvalues(1:nmo(ispin)))
          e2 = MAXVAL(eigenvalues(1:nmo(ispin)))
+         IF (nvirt(ispin) > 0) THEN
+            e1 = MIN(e1, MINVAL(unoccupied_evals(ispin)%array(1:nvirt(ispin))))
+            e2 = MAX(e2, MAXVAL(unoccupied_evals(ispin)%array(1:nvirt(ispin))))
+         END IF
          emin = MIN(emin, e1)
          emax = MAX(emax, e2)
       END DO
@@ -141,6 +155,11 @@ CONTAINS
                                        occupation_numbers(i), 1.0_dp, broaden_type, broaden_width, &
                                        voigt_mixing)
             END DO
+            DO i = 1, nvirt(ispin)
+               CALL add_broadened_peak(hist(:, ispin), occval(:, ispin), emin, de, &
+                                       unoccupied_evals(ispin)%array(i), 0.0_dp, 1.0_dp, &
+                                       broaden_type, broaden_width, voigt_mixing)
+            END DO
          END DO
          DO i = 1, nhist
             ehist(i, 1:nspins) = emin + (i - 1)*de
@@ -162,13 +181,19 @@ CONTAINS
                hist(iv, ispin) = hist(iv, ispin) + 1.0_dp
                occval(iv, ispin) = occval(iv, ispin) + occupation_numbers(i)
             END DO
-            hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
+            DO i = 1, nvirt(ispin)
+               eval = unoccupied_evals(ispin)%array(i) - emin
+               iv = NINT(eval/de) + 1
+               CPASSERT((iv > 0) .AND. (iv <= nhist))
+               hist(iv, ispin) = hist(iv, ispin) + 1.0_dp
+            END DO
+            hist(:, ispin) = hist(:, ispin)/REAL(nstates(ispin), KIND=dp)
          END DO
          DO i = 1, nhist
             ehist(i, 1:nspins) = emin + (i - 1)*de
          END DO
       ELSE
-         nhist = MAXVAL(nmo)
+         nhist = MAXVAL(nstates)
          ALLOCATE (hist(nhist, nspins), occval(nhist, nspins), ehist(nhist, nspins))
          hist = 0.0_dp
          occval = 0.0_dp
@@ -182,7 +207,11 @@ CONTAINS
                hist(i, ispin) = 1.0_dp
                occval(i, ispin) = occupation_numbers(i)
             END DO
-            hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
+            DO i = 1, nvirt(ispin)
+               ehist(nmo(ispin) + i, ispin) = unoccupied_evals(ispin)%array(i)
+               hist(nmo(ispin) + i, ispin) = 1.0_dp
+            END DO
+            hist(:, ispin) = hist(:, ispin)/REAL(nstates(ispin), KIND=dp)
          END DO
       END IF
 

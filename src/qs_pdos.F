@@ -20,6 +20,7 @@ MODULE qs_pdos
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
@@ -70,11 +71,8 @@ MODULE qs_pdos
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_lumo_methods,                 ONLY: make_lumo_gpw_spin
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_scf_types,                    ONLY: ot_method_nr,&
-                                              qs_scf_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -126,6 +124,8 @@ CONTAINS
 !> \param ispin ...
 !> \param xas_mittle ...
 !> \param external_matrix_shalf ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
 !> \date    26.02.2008
 !> \par History:
 !>       - Added optional external matrix_shalf to avoid recomputing it (A. Bussy, 09.2019)
@@ -136,7 +136,8 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
-                                      dft_section, ispin, xas_mittle, external_matrix_shalf)
+                                      dft_section, ispin, xas_mittle, external_matrix_shalf, &
+                                      unoccupied_orbs, unoccupied_evals)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -147,7 +148,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf, unoccupied_orbs
+      TYPE(cp_1d_r_p_type), INTENT(IN), OPTIONAL, TARGET :: unoccupied_evals
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -161,8 +163,8 @@ CONTAINS
       INTEGER :: broaden_type, handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, &
          in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, &
          lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, &
-         ndigits, nkind, nldos, nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, &
-         nvirt_generated, out_each, output_unit
+         ndigits, nkind, nldos, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, &
+         output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
@@ -180,8 +182,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work, mo_virt
-      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff
+      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work
+      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff, mo_virt
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -193,7 +195,6 @@ CONTAINS
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: wf_r
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(r_ldos_p_type), DIMENSION(:), POINTER         :: r_ldos_p
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
@@ -209,9 +210,9 @@ CONTAINS
       IF ((.NOT. should_output)) RETURN
 
       NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
-      NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer)
+      NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer, mo_virt)
       NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
-      NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, scf_env, occupation_numbers)
+      NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, occupation_numbers)
 
       CALL timeset(routineN, handle)
       iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
@@ -220,8 +221,7 @@ CONTAINS
          " Calculate PDOS at iteration step ", iterstep
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_s=s_matrix, &
-                      dft_control=dft_control, &
-                      scf_env=scf_env)
+                      dft_control=dft_control)
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto)
@@ -244,37 +244,18 @@ CONTAINS
       ndigits = MIN(MAX(ndigits, 1), 10)
       do_broaden = (broaden_width > 0.0_dp)
       IF (do_broaden) de = MAX(de, 0.00001_dp)
-      CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
-      IF (nlumo == -1) THEN
-         nvirt = nao - nmo
-      ELSE
-         nvirt = MAX(0, nlumo - (nmo - homo))
-      END IF
-      do_virt = (nvirt > 0)
-      ! Generate virtual orbitals missing from the converged MO set.
-      IF (do_virt) THEN
-         IF (PRESENT(ispin)) THEN
-            my_spin = ispin
-         ELSE
-            my_spin = 1
-         END IF
-         IF (ASSOCIATED(scf_env)) THEN
-            IF (scf_env%method /= ot_method_nr) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "PRINT%PDOS%NLUMO requests more unoccupied orbitals than present in the "// &
-                            "converged MO set. Additional orbitals will be generated by a post-SCF "// &
-                            "eigensolver. For diagonalization runs, increasing ADDED_MOS is generally "// &
-                            "recommended.")
+      nvirt = 0
+      NULLIFY (evals_virt)
+      IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
+         IF (ASSOCIATED(unoccupied_evals%array)) THEN
+            nvirt = SIZE(unoccupied_evals%array)
+            IF (nvirt > 0) THEN
+               mo_virt => unoccupied_orbs
+               evals_virt => unoccupied_evals%array
             END IF
          END IF
-
-         CALL make_lumo_gpw_spin(qs_env, scf_env, mo_set, mo_virt, evals_virt, nvirt, &
-                                 nvirt_generated, my_spin)
-         nvirt = nvirt_generated
-      ELSE
-         NULLIFY (evals_virt)
-         nvirt = 0
       END IF
+      do_virt = (nvirt > 0)
 
       calc_matsh = .TRUE.
       IF (PRESENT(external_matrix_shalf)) calc_matsh = .FALSE.
@@ -305,7 +286,7 @@ CONTAINS
 
       IF (do_virt) THEN
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T14,I10,T27,A))') &
-            " Compute ", nvirt, " additional unoccupied KS orbitals"
+            " Use ", nvirt, " additional unoccupied KS orbitals"
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
          CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_shalfc")
@@ -958,8 +939,6 @@ CONTAINS
          CALL auxbas_pw_pool%give_back_pw(wf_g)
       END IF
       IF (do_virt) THEN
-         DEALLOCATE (evals_virt)
-         CALL cp_fm_release(mo_virt)
          CALL cp_fm_release(matrix_work)
          DEALLOCATE (eigenvalues)
          DEALLOCATE (occupation_numbers)

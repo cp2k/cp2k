@@ -620,8 +620,10 @@ CONTAINS
          warning_cube_kpoint = "Print MO cubes not implemented for k-point calculations", &
          warning_openpmd_kpoint = "Writing to openPMD not implemented for k-point calculations"
 
-      INTEGER :: handle, homo, ispin, min_lumos, n_rep, nchk_nmoloc, nhomo, nlumo, nlumo_molden, &
-         nlumo_stm, nlumos, nmo, nspins, output_unit, unit_nr
+      INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
+                                                            nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
+                                                            nlumos, nmo, nspins, output_unit, &
+                                                            unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
       LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
@@ -631,7 +633,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mixed_evals, occupied_evals, &
                                                             unoccupied_evals, unoccupied_evals_stm
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mixed_orbs, occupied_orbs
@@ -667,7 +668,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, loc_print_section, &
                                                             localize_section, print_key, &
-                                                            sprint_section, stm_section
+                                                            stm_section
 
       CALL timeset(routineN, handle)
 
@@ -1166,34 +1167,6 @@ CONTAINS
                DEALLOCATE (unoccupied_evals_stm)
                CALL cp_fm_release(unoccupied_orbs_stm)
             END IF
-         END IF
-      END IF
-
-      ! Write molden file including unoccupied orbitals for OT calculations
-      IF (.NOT. do_kpoints) THEN
-         sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
-         CALL section_vals_val_get(sprint_section, "OT_NLUMO", i_val=nlumo_molden)
-         IF (nlumo_molden /= 0 .AND. scf_env%method == ot_method_nr) THEN
-            CALL get_qs_env(qs_env, mos=mos, qs_kind_set=qs_kind_set, &
-                            particle_set=particle_set, cell=cell)
-            ALLOCATE (unoccupied_orbs(dft_control%nspins))
-            ALLOCATE (unoccupied_evals(dft_control%nspins))
-            CALL make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, &
-                               nlumo_molden, nlumos)
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, '(/,T2,A,I6,A)') &
-                  "MO_MOLDEN| Writing ", nlumos, " unoccupied orbitals to molden file"
-            END IF
-            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
-                                  unoccupied_orbs=unoccupied_orbs, &
-                                  unoccupied_evals=unoccupied_evals, &
-                                  qs_env=qs_env, calc_energies=.TRUE.)
-            DO ispin = 1, dft_control%nspins
-               DEALLOCATE (unoccupied_evals(ispin)%array)
-               CALL cp_fm_release(unoccupied_orbs(ispin))
-            END DO
-            DEALLOCATE (unoccupied_evals)
-            DEALLOCATE (unoccupied_orbs)
          END IF
       END IF
 
@@ -2050,16 +2023,20 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
-      INTEGER                                            :: handle, homo, ispin, nlumo_molden, nmo, &
+      INTEGER                                            :: handle, homo, ispin, nlumo_dos, &
+                                                            nlumo_molden, nlumo_pdos, &
+                                                            nlumo_required, nlumos, nmo, &
                                                             output_unit
-      LOGICAL                                            :: all_equal, defer_molden, do_kpoints, &
-                                                            explicit
+      LOGICAL                                            :: all_equal, defer_molden, do_dos, &
+                                                            do_kpoints, do_pdos, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
@@ -2089,7 +2066,8 @@ CONTAINS
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
                mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set, &
                particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
-               molecule_set, input, particles, subsys, rho_r)
+               molecule_set, input, particles, subsys, rho_r, unoccupied_orbs, &
+               unoccupied_evals)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2123,11 +2101,11 @@ CONTAINS
             CALL write_trexio(qs_env, trexio_section)
          END IF
          sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
+         defer_molden = .FALSE.
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
             ! Check if molden write should be deferred for OT unoccupied orbitals
-            defer_molden = .FALSE.
             CALL section_vals_val_get(sprint_section, "OT_NLUMO", i_val=nlumo_molden)
             IF (nlumo_molden /= 0 .AND. PRESENT(scf_env)) THEN
                IF (scf_env%method == ot_method_nr) defer_molden = .TRUE.
@@ -2162,20 +2140,101 @@ CONTAINS
             END IF
          END IF
 
+         do_dos = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS"), &
+                        cp_p_file)
+         do_pdos = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS"), &
+                         cp_p_file)
+
+         ! For OT calculations, collect the largest request for additional unoccupied
+         ! orbitals among DOS, PDOS, and Molden, and generate them only once.
+         nlumo_required = 0
+         IF (.NOT. do_kpoints .AND. PRESENT(scf_env)) THEN
+            IF (scf_env%method == ot_method_nr) THEN
+               IF (do_dos) THEN
+                  CALL section_vals_val_get(dft_section, "PRINT%DOS%OT_NLUMO", i_val=nlumo_dos)
+                  IF (nlumo_dos == -1) THEN
+                     nlumo_required = -1
+                  ELSEIF (nlumo_required /= -1) THEN
+                     nlumo_required = MAX(nlumo_required, nlumo_dos)
+                  END IF
+               END IF
+               IF (do_pdos) THEN
+                  CALL section_vals_val_get(dft_section, "PRINT%PDOS%OT_NLUMO", i_val=nlumo_pdos)
+                  IF (nlumo_pdos == -1) THEN
+                     nlumo_required = -1
+                  ELSEIF (nlumo_required /= -1) THEN
+                     nlumo_required = MAX(nlumo_required, nlumo_pdos)
+                  END IF
+               END IF
+               IF (defer_molden) THEN
+                  IF (nlumo_molden == -1) THEN
+                     nlumo_required = -1
+                  ELSEIF (nlumo_required /= -1) THEN
+                     nlumo_required = MAX(nlumo_required, nlumo_molden)
+                  END IF
+               END IF
+               IF (nlumo_required /= 0) THEN
+                  ALLOCATE (unoccupied_orbs(dft_control%nspins))
+                  ALLOCATE (unoccupied_evals(dft_control%nspins))
+                  CALL make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, &
+                                     nlumo_required, nlumos)
+               END IF
+
+               IF (do_dos .OR. do_pdos) THEN
+                  DO ispin = 1, dft_control%nspins
+                     ! With ADMM, temporarily modify the Kohn-Sham matrix while updating the
+                     ! eigenvalues and rotating the occupied OT subspace.
+                     IF (dft_control%do_admm) THEN
+                        CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+                     END IF
+                     CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
+                                     eigenvalues=mo_eigenvalues)
+                     IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                        mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
+                     ELSE
+                        mo_coeff_deriv => NULL()
+                     END IF
+                     CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
+                                                         do_rotation=.TRUE., &
+                                                         co_rotate_dbcsr=mo_coeff_deriv)
+                     CALL set_mo_occupation(mo_set=mos(ispin))
+                     IF (dft_control%do_admm) THEN
+                        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+                     END IF
+                  END DO
+               END IF
+            END IF
+         END IF
+
+         IF (defer_molden) THEN
+            IF (ASSOCIATED(unoccupied_orbs)) THEN
+               IF (output_unit > 0) THEN
+                  WRITE (output_unit, '(/,T2,A,I6,A)') &
+                     "MO_MOLDEN| Writing ", nlumos, " unoccupied orbitals to molden file"
+               END IF
+               CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section, cell=cell, &
+                                     unoccupied_orbs=unoccupied_orbs, &
+                                     unoccupied_evals=unoccupied_evals, &
+                                     qs_env=qs_env, calc_energies=.TRUE.)
+            END IF
+         END IF
+
          ! DOS printout after the SCF cycle is completed
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS") &
-                   , cp_p_file)) THEN
+         IF (do_dos) THEN
             IF (do_kpoints) THEN
                CALL calculate_dos_kp(qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
-               CALL calculate_dos(mos, dft_section)
+               IF (ASSOCIATED(unoccupied_evals)) THEN
+                  CALL calculate_dos(mos, dft_section, unoccupied_evals=unoccupied_evals)
+               ELSE
+                  CALL calculate_dos(mos, dft_section)
+               END IF
             END IF
          END IF
 
          ! Print the projected density of states (pDOS) for each atomic kind
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS"), &
-                   cp_p_file)) THEN
+         IF (do_pdos) THEN
             IF (do_kpoints) THEN
                CPWARN("Projected density of states (pDOS) is not implemented for k points")
             ELSE
@@ -2183,38 +2242,37 @@ CONTAINS
                                mos=mos, &
                                matrix_ks=ks_rmpv)
                DO ispin = 1, dft_control%nspins
-                  IF (PRESENT(scf_env)) THEN
-                     IF (scf_env%method == ot_method_nr) THEN
-                        ! With ADMM, temporarily modify the Kohn-Sham matrix while updating the
-                        ! eigenvalues and rotating the occupied OT subspace.
-                        IF (dft_control%do_admm) THEN
-                           CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
-                        END IF
-                        CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
-                                        eigenvalues=mo_eigenvalues)
-                        IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-                           mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
-                        ELSE
-                           mo_coeff_deriv => NULL()
-                        END IF
-                        CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
-                                                            do_rotation=.TRUE., &
-                                                            co_rotate_dbcsr=mo_coeff_deriv)
-                        CALL set_mo_occupation(mo_set=mos(ispin))
-                        IF (dft_control%do_admm) THEN
-                           CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
-                        END IF
-                     END IF
-                  END IF
                   IF (dft_control%nspins == 2) THEN
-                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                  qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
+                     IF (ASSOCIATED(unoccupied_orbs)) THEN
+                        CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
+                                                     qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
+                                                     unoccupied_orbs=unoccupied_orbs(ispin), &
+                                                     unoccupied_evals=unoccupied_evals(ispin))
+                     ELSE
+                        CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
+                                                     qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
+                     END IF
                   ELSE
-                     CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                  qs_kind_set, particle_set, qs_env, dft_section)
+                     IF (ASSOCIATED(unoccupied_orbs)) THEN
+                        CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
+                                                     qs_kind_set, particle_set, qs_env, dft_section, &
+                                                     unoccupied_orbs=unoccupied_orbs(ispin), &
+                                                     unoccupied_evals=unoccupied_evals(ispin))
+                     ELSE
+                        CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
+                                                     qs_kind_set, particle_set, qs_env, dft_section)
+                     END IF
                   END IF
                END DO
             END IF
+         END IF
+         IF (ASSOCIATED(unoccupied_orbs)) THEN
+            DO ispin = 1, dft_control%nspins
+               DEALLOCATE (unoccupied_evals(ispin)%array)
+               CALL cp_fm_release(unoccupied_orbs(ispin))
+            END DO
+            DEALLOCATE (unoccupied_evals)
+            DEALLOCATE (unoccupied_orbs)
          END IF
       END IF
 
