@@ -202,7 +202,7 @@ CONTAINS
       kg = xtb_control%kg
       NULLIFY (n_list)
       CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      IF (.NOT. ASSOCIATED(n_list)) THEN                        
+      IF (.NOT. ASSOCIATED(n_list)) THEN
          CPABORT("sab_xtbe neighbor list is not associated in build_xtb_coulomb")
       END IF
       CALL neighbor_list_iterator_create(nl_iterator, n_list)

@@ -70,10 +70,10 @@ MODULE qs_tddfpt2_utils
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
+   USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE util,                            ONLY: sort
    USE xc_pot_saop,                     ONLY: add_saop_pot
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
-   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists  
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -636,8 +636,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_empty, &
                                                             xc_fun_original
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env  
-
 
       CALL timeset(routineN, handle)
 
@@ -691,10 +689,13 @@ CONTAINS
          ELSEIF (dft_control%qs_control%dftb) THEN
             CPABORT("TDDFPT with DFTB not possible")
          ELSEIF (dft_control%qs_control%xtb) THEN
-            CALL get_qs_env(qs_env=qs_env, para_env=para_env)                
-            CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., force_env_section=qs_env%input) 
-            CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
-                                     ext_ks_matrix=matrix_ks_oep)
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CALL build_tblite_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                           ext_ks_matrix=matrix_ks_oep)
+            ELSE
+               CALL build_xtb_ks_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
+                                        ext_ks_matrix=matrix_ks_oep)
+            END IF
          ELSE
             CALL qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., &
                                               ext_ks_matrix=matrix_ks_oep)

@@ -6,4 +6,5 @@
 #
 "water_xTB.inp"                         = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.125917E+00}]
 "water_xTB_2.inp"                       = [{matcher="TDDFPT_Check_Energy", tol=2.0E-05, ref=0.186821E+00}]
+"ch2o_tblite_oecorr.inp"                = []
 #EOF
