@@ -245,12 +245,10 @@ def main() -> None:
         f.write(install_deps_toolchain())
         f.write(coverage())
 
-    for gcc_version in 8, 9, 10, 11, 12, 13, 14, 15, 16:
+    for gcc_version in 9, 10, 11, 12, 13, 14, 15, 16:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
-            # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
-            testopts = "--skipdir=QS/regtest-rs-dhft" if gcc_version == 8 else ""
             f.write(install_deps_ubuntu(gcc_version=gcc_version))
-            f.write(regtest("ubuntu", "ssmp", testopts=testopts))
+            f.write(regtest("ubuntu", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:26.04"
@@ -489,12 +487,8 @@ def install_deps_toolchain(
 
 # ======================================================================================
 def install_deps_ubuntu(gcc_version: int = 15) -> str:
-    if gcc_version > 14:
-        base_image = "ubuntu:26.04"
-    elif gcc_version > 8:
-        base_image = "ubuntu:24.04"
-    else:
-        base_image = "ubuntu:20.04"
+    assert gcc_version > 8
+    base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
     output = f"\nFROM {base_image}\n"
 
     if gcc_version > 13:
@@ -524,8 +518,8 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libint2-dev \
     libxc-dev \
     libhdf5-dev \
-    {"libxsmm-dev" if gcc_version > 8 else ""} \
-    {"libspglib-f08-dev" if gcc_version > 8 else ""} \
+    libxsmm-dev \
+    libspglib-f08-dev \
    && rm -rf /var/lib/apt/lists/*
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
@@ -533,13 +527,13 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
-# Use toolchain to install DBCSR{"" if gcc_version > 8 else " and CMake"}.
+# Use toolchain to install DBCSR.
 """ + install_toolchain(
         base_image=base_image,
         mpi_mode="no",
         with_dbcsr="",
         with_gcc="system",
-        with_cmake="system" if gcc_version > 8 else "",
+        with_cmake="system",
         with_ninja="system",
         with_openblas="system",
         with_libxc="no",
