@@ -119,16 +119,16 @@ MODULE rt_bse
              get_hartree, &
              get_sigma, &
              initialize_rtbse_env, &
-            initialize_singleparticle_hamiltonian, &
-            initialize_hartree_potential, &
-            initialize_cohsex_selfenergy, &
-            get_idempotence_deviation, &
-            antiherm_metric, &
-            init_hartree, &
-            rho_metric, &
-            propagate_density, &
-            cp_cfm_gexp, &
-            get_electron_number
+             initialize_singleparticle_hamiltonian, &
+             initialize_hartree_potential, &
+             initialize_cohsex_selfenergy, &
+             get_idempotence_deviation, &
+             antiherm_metric, &
+             init_hartree, &
+             rho_metric, &
+             propagate_density, &
+             cp_cfm_gexp, &
+             get_electron_number
 
    INTERFACE get_sigma
       MODULE PROCEDURE get_sigma_complex, &
@@ -310,7 +310,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                  :: routineN = "initialize_moments"
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
-      INTEGER                                      :: i,k, handle
+      INTEGER                                      :: i, k, handle
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
       REAL(kind=dp), DIMENSION(3)                  :: rpoint
 
@@ -376,7 +376,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       ! Get pointers to parameters from qs_env
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
-
 
       ! ****** START INITIAL DENSITY MATRIX CALCULATION
       ! Get the rho from fm_MOS

@@ -1120,7 +1120,8 @@ CONTAINS
 !> \param virt_red Total number of unoccupied orbitals to include after ctuoff
 !> \param homo_incl First occupied index to include after cutoff
 !> \param virt_incl Last unoccupied index to include after cutoff
-!> \param mp2_env ...
+!> \param cutoff_occ ...
+!> \param cutoff_empty ...
 ! **************************************************************************************************
    SUBROUTINE determine_cutoff_indices(Eigenval, &
                                        homo, virtual, &

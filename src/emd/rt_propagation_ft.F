@@ -111,7 +111,7 @@ CONTAINS
          POINTER                                         :: ft_samples, samples, samples_input
       INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
       LOGICAL                                            :: subtract_initial
-      REAL(kind=dp)                                      :: damping, t0, t_total, delta_t
+      REAL(kind=dp)                                      :: damping, delta_t, t0, t_total
       TYPE(fft_plan_type)                                :: fft_plan
 
 ! For value and result series: Index 1 - different series, Index 2 - single series entry

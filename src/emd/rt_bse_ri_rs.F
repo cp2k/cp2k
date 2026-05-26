@@ -16,40 +16,31 @@
 ! **************************************************************************************************
 MODULE rt_bse_ri_rs
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: cp_cfm_create, &
-                                              cp_cfm_release, &
-                                              cp_cfm_to_fm, &
-                                              cp_cfm_type, &
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
                                               cp_fm_to_cfm
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add, &
-                                              dbcsr_create, &
-                                              dbcsr_distribution_type, &
-                                              dbcsr_get_info, &
-                                              dbcsr_iterator_blocks_left, &
-                                              dbcsr_iterator_next_block, &
-                                              dbcsr_iterator_start, &
-                                              dbcsr_iterator_stop, &
-                                              dbcsr_iterator_type, &
-                                              dbcsr_release, &
-                                              dbcsr_scale, &
-                                              dbcsr_type, &
-                                              dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag, &
-                                              dbcsr_get_diag, &
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_add, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_scale, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_get_diag,&
                                               dbcsr_set_diag
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm, &
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_fm_types,                     ONLY: cp_fm_create, &
-                                              cp_fm_release, &
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_type
-   USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: atomic_basis_at_grid_point, &
-                                              compute_coeff_Z_lP, &
-                                              contract_A_B_A, &
-                                              hadamard_product, &
-                                              release_dbcsr_topology_and_matrices, &
-                                              ri_rs_grid_assembler, &
+   USE gw_large_cell_Gamma_ri_rs,       ONLY: atomic_basis_at_grid_point,&
+                                              compute_coeff_Z_lP,&
+                                              contract_A_B_A,&
+                                              hadamard_product,&
+                                              release_dbcsr_topology_and_matrices,&
+                                              ri_rs_grid_assembler,&
                                               setup_square_topology
+   USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type

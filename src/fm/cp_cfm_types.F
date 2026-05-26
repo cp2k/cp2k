@@ -859,9 +859,9 @@ CONTAINS
          IF ((.NOT. cp_fm_struct_equivalent(msourcer%matrix_struct, mtarget%matrix_struct)) .OR. &
              (SIZE(rmat, 1) /= SIZE(zmat, 1)) .OR. &
              (SIZE(rmat, 2) /= SIZE(zmat, 2))) THEN
-               !MG to debug
-               print *, SIZE(rmat, 1), SIZE(rmat, 2), SIZE(zmat, 1), SIZE(zmat, 2)
-               print *, cp_fm_struct_equivalent(msourcer%matrix_struct, mtarget%matrix_struct)
+            !MG to debug
+            PRINT *, SIZE(rmat, 1), SIZE(rmat, 2), SIZE(zmat, 1), SIZE(zmat, 2)
+            PRINT *, cp_fm_struct_equivalent(msourcer%matrix_struct, mtarget%matrix_struct)
             CPABORT("size of local_data of msourcer differ to mtarget")
          END IF
          mode = mode + 1

@@ -1288,7 +1288,7 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtc
       INTEGER, OPTIONAL                                  :: info_opt
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
-      
+
       CHARACTER(len=*), PARAMETER                        :: routineN = 'print_ft'
 
       CHARACTER(len=11), DIMENSION(2)                    :: file_extensions

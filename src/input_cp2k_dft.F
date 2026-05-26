@@ -2137,7 +2137,7 @@ CONTAINS
                           "Omega_0 = eps_min_ai, so the lowest active OV mode oscillates at zero frequency "// &
                           "in the rotating frame (RK4-exact for peak 1). omega_max becomes the full active "// &
                           "OV width Delta = eps_max_ai - eps_min_ai. The rotation is undone at I/O so "// &
-                          "observables remain in the lab frame. Only effective when TDA=.TRUE.."// &
+                          "observables remain in the lab frame. Only effective when TDA=.TRUE.. "// &
                           "Use with caution, additional convergence checks w.r.t. dt needed.", &
                           usage="TDA_SHIFT_TO_FIRST_PEAK", &
                           default_l_val=.FALSE., &
@@ -2155,28 +2155,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="RIRS_HARTREE", &
-              description="Use the RI-RS grid kernel for the Hartree contribution in linRTBSE "// &
-              "(propagation and reference). The V_grid kernel is built on demand; the RI-RS grid "// &
-              "(mat_phi_mu_l, mat_Z_lP) is built here too if GW was not run with GW_RI_RS. "// &
-              "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
-              "GW_RI_RS implicitly enables this); set explicitly to override.", &
-              usage="RIRS_HARTREE", &
-              default_l_val=.FALSE., &
-              lone_keyword_l_val=.TRUE.)
+                          description="Use the RI-RS grid kernel for the Hartree contribution in linRTBSE "// &
+                          "(propagation and reference). The V_grid kernel is built on demand; the RI-RS grid "// &
+                          "(mat_phi_mu_l, mat_Z_lP) is built here too if GW was not run with GW_RI_RS. "// &
+                          "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
+                          "GW_RI_RS implicitly enables this); set explicitly to override.", &
+                          usage="RIRS_HARTREE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RIRS_SEX", &
-              description="Use the RI-RS grid kernel for the screened-exchange and Coulomb-hole "// &
-              "self-energy contributions in linRTBSE (propagation and reference). The W0_grid "// &
-              "kernel (V + W^c at omega=0) is built on demand from bs_env%fm_W_MIC_freq_zero. "// &
-              "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
-              "GW_RI_RS implicitly enables this); set explicitly to override.", &
-              usage="RIRS_SEX", &
-              default_l_val=.FALSE., &
-              lone_keyword_l_val=.TRUE.)
+                          description="Use the RI-RS grid kernel for the screened-exchange and Coulomb-hole "// &
+                          "self-energy contributions in linRTBSE (propagation and reference). The W0_grid "// &
+                          "kernel (V + W^c at omega=0) is built on demand from bs_env%fm_W_MIC_freq_zero. "// &
+                          "Default: inherits from whether the GW_RI_RS section is active (so running with "// &
+                          "GW_RI_RS implicitly enables this); set explicitly to override.", &
+                          usage="RIRS_SEX", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
