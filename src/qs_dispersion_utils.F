@@ -35,7 +35,7 @@ MODULE qs_dispersion_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE string_utilities,                ONLY: uppercase
+   USE string_utilities,                ONLY: uppercase, lowercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -58,26 +58,12 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       CHARACTER(len=*), INTENT(OUT)                      :: d_functional_name
 
-SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
-       CASE ("PBE")
-          d_functional_name = "pbe"
-       CASE ("PBE0")
-          d_functional_name = "pbe0"
-       CASE ("B3LYP")
-          d_functional_name = "b3lyp"
-       CASE ("BLYP")
-          d_functional_name = "blyp"
-       CASE ("BP")
-          d_functional_name = "bp86"
-       CASE ("TPSS")
-          d_functional_name = "tpss"
-       CASE ("SCAN")
-          d_functional_name = "scan"
-       CASE ("R2SCAN")
-          d_functional_name = "r2scan"
-       CASE DEFAULT
-          d_functional_name = "none"
-       END SELECT
+      IF (TRIM(ADJUSTL(xc_functional_name)) == "BP") THEN
+         d_functional_name = "bp86"
+      ELSE
+         d_functional_name = TRIM(ADJUSTL(xc_functional_name))
+         CALL lowercase(d_functional_name)
+      END IF
 
    END SUBROUTINE xc_functional_to_d_name
 
