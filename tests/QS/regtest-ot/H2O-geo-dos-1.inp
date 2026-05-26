@@ -21,7 +21,7 @@
     &END MGRID
     &PRINT
       &DOS
-        DELTA_E 0.0
+        DELTA_E 0.01
         &EACH
           GEO_OPT 2
         &END EACH
