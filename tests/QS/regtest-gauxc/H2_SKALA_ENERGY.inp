@@ -35,6 +35,7 @@
           FUNCTIONAL PBE
           GRID FINE
           MODEL SKALA
+          PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC
       &END XC_FUNCTIONAL

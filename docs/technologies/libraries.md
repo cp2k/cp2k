@@ -103,11 +103,13 @@ integrator.
   OneDFT/SKALA support and therefore also installs libtorch.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake.
 - GauXC in CP2K is primarily an energy, potential, and nuclear-gradient path for isolated QS
-  systems. A limited periodic reference path is available for Gamma-only, single-image `METHOD GPW`
-  calculations with GTH pseudopotentials; k-points, GAPW/GAPW_XC, and periodic stress tensors
-  require a dedicated periodic GauXC interface. OneDFT/SKALA gradients under MPI are evaluated with
-  a replicated single-rank GauXC runtime on each CP2K rank because GauXC does not yet provide
-  distributed OneDFT gradients.
+  systems. A limited periodic reference path can be enabled with `PERIODIC_REFERENCE T` for
+  Gamma-only, single-image `METHOD GPW` calculations with GTH pseudopotentials. This opt-in path is
+  useful for PBE-through-GauXC reference checks in periodic `PERIODIC XYZ` inputs, but it is not a
+  dedicated periodic GauXC interface. k-points, periodic neighbour-cell AO blocks, GAPW/GAPW_XC, and
+  periodic stress tensors require a dedicated periodic GauXC design. OneDFT/SKALA gradients under
+  MPI are evaluated with a replicated single-rank GauXC runtime on each CP2K rank because GauXC does
+  not yet provide distributed OneDFT gradients.
 - OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
   non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
 - `METHOD GAPW` with OneDFT/SKALA is limited to all-electron molecular inputs. In this mode GauXC

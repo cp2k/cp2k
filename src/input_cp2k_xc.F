@@ -1303,7 +1303,7 @@ CONTAINS
                           description="Use exchange-correlation functionals provided by GauXC. "// &
                           "The current periodic CP2K bridge is limited to Gamma-only, single-image "// &
                           "METHOD GPW calculations with GTH pseudopotentials.", &
-                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=14, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1374,6 +1374,15 @@ CONTAINS
                           description="Batch size for GauXC evaluation", &
                           usage="BATCH_SIZE 512", &
                           default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REFERENCE", &
+                          description="Explicitly opt into the limited periodic GauXC reference path. "// &
+                          "This path is restricted to Gamma-only, single-image METHOD GPW calculations "// &
+                          "with GTH pseudopotentials and is not a dedicated periodic GauXC interface.", &
+                          usage="PERIODIC_REFERENCE T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

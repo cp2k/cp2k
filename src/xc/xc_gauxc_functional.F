@@ -334,12 +334,14 @@ CONTAINS
 !> \param cell ...
 !> \param qs_kind_set ...
 !> \param do_kpoints ...
+!> \param periodic_reference ...
 ! **************************************************************************************************
-   SUBROUTINE ensure_gauxc_periodic_reference_scope(dft_control, cell, qs_kind_set, do_kpoints)
+   SUBROUTINE ensure_gauxc_periodic_reference_scope( &
+      dft_control, cell, qs_kind_set, do_kpoints, periodic_reference)
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      LOGICAL, INTENT(IN)                                :: do_kpoints
+      LOGICAL, INTENT(IN)                                :: do_kpoints, periodic_reference
 
       INTEGER                                            :: ikind
       LOGICAL                                            :: is_periodic
@@ -363,6 +365,13 @@ CONTAINS
                        "Periodic neighbour-cell AO blocks require a dedicated GauXC periodic interface.")
       END IF
       IF (.NOT. is_periodic) RETURN
+
+      IF (.NOT. periodic_reference) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Periodic GauXC calculations in CP2K require GAUXC%PERIODIC_REFERENCE T. "// &
+                       "This opt-in documents that the current path is only a Gamma-only, single-image "// &
+                       "METHOD GPW reference path, not a dedicated periodic GauXC interface.")
+      END IF
 
       IF (.NOT. ALL(cell%perd == 1)) THEN
          CALL cp_abort(__LOCATION__, &
@@ -850,8 +859,8 @@ CONTAINS
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
-         pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
-         use_self_runtime, use_skala_model, write_hdf5_output
+         periodic_reference, pruning_explicit, use_fd_gradient, use_gradient_self_runtime, &
+         use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -927,7 +936,6 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
-      CALL ensure_gauxc_periodic_reference_scope(dft_control, cell, qs_kind_set, do_kpoints)
 
       IF (ASSOCIATED(qs_env%dispersion_env)) THEN
          IF (qs_env%dispersion_env%type == xc_vdw_fun_nonloc) THEN
@@ -965,6 +973,10 @@ CONTAINS
          i_val=batch_size)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "PERIODIC_REFERENCE", &
+         l_val=periodic_reference)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "MOLECULAR_VIRIAL", &
          l_val=molecular_virial)
       CALL section_vals_val_get( &
@@ -999,6 +1011,8 @@ CONTAINS
          END IF
          molecular_virial = .TRUE.
       END IF
+      CALL ensure_gauxc_periodic_reference_scope( &
+         dft_control, cell, qs_kind_set, do_kpoints, periodic_reference)
       IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
          CALL cp_abort(__LOCATION__, &
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &

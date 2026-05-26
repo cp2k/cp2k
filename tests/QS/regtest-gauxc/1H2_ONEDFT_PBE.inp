@@ -32,6 +32,7 @@
         &GAUXC
           FUNCTIONAL PBE
           MODEL PBE
+          PERIODIC_REFERENCE T
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC
