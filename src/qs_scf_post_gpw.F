@@ -22,6 +22,7 @@ MODULE qs_scf_post_gpw
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE casino_utils,                    ONLY: write_casino
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -2168,8 +2169,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section, &
-                                                            trexio_section
+      TYPE(section_vals_type), POINTER                   :: casino_section, dft_section, input, &
+                                                            sprint_section, trexio_section
 
 ! TYPE(kpoint_type), POINTER                         :: kpoints
 
@@ -2179,7 +2180,7 @@ CONTAINS
                mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set, &
                particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
                molecule_set, input, particles, subsys, rho_r, unoccupied_orbs, &
-               unoccupied_evals)
+               unoccupied_evals, casino_section)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2211,6 +2212,11 @@ CONTAINS
          CALL section_vals_get(trexio_section, explicit=explicit)
          IF (explicit) THEN
             CALL write_trexio(qs_env, trexio_section)
+         END IF
+         casino_section => section_vals_get_subs_vals(dft_section, "PRINT%CASINO")
+         CALL section_vals_get(casino_section, explicit=explicit)
+         IF (explicit) THEN
+            CALL write_casino(qs_env, casino_section)
          END IF
          sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
          defer_molden = .FALSE.
