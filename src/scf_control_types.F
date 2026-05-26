@@ -304,6 +304,10 @@ CONTAINS
       IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
          CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
 
+      IF (ASSOCIATED(scf_control%gce)) THEN
+         DEALLOCATE (scf_control%gce)
+      END IF
+
       ! Maximum overlap method orbital indices lists
       ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
       ! points to memory allocated by input file parser,
@@ -331,8 +335,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: added_mos
       LOGICAL                                            :: do_mixing, explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
-      TYPE(section_vals_type), POINTER                   :: mixing_section, outer_scf_section, &
-                                                            scf_section, smear_section, gce_section
+      TYPE(section_vals_type), POINTER                   :: gce_section, mixing_section, &
+                                                            outer_scf_section, scf_section, &
+                                                            smear_section
 
       CALL timeset(routineN, handle)
 
@@ -485,7 +490,7 @@ CONTAINS
       END IF ! do mixing
 
       gce_section => section_vals_get_subs_vals(scf_section, "GCE")
-      CALL init_gce(scf_control%gce)           
+      CALL init_gce(scf_control%gce)
       CALL read_gce_section(scf_control%gce, gce_section)
 
       CALL timestop(handle)
@@ -554,33 +559,29 @@ CONTAINS
    END SUBROUTINE read_smear_section
 
 ! **************************************************************************************************
-!> \brief ...                                  
-!> \param gce ...                           
+!> \brief ...
+!> \param gce ...
 ! **************************************************************************************************
-   SUBROUTINE init_gce(gce)                    
-      TYPE(gce_type), POINTER                          :: gce
-                                               
-      CPASSERT(.NOT. ASSOCIATED(gce))          
-      ALLOCATE (gce)                           
-      gce%do_gce = .FALSE.                  
-      gce%target_workfunction = 0.16_dp     
-      gce%prev_workfunction = -1001.0_dp    
-      gce%ref_esp = 0.0_dp                  
-      gce%mixing_coef = 0.3_dp              
+   SUBROUTINE init_gce(gce)
+      TYPE(gce_type), POINTER                            :: gce
+
+      CPASSERT(.NOT. ASSOCIATED(gce))
+      ALLOCATE (gce)
+      gce%do_gce = .FALSE.
+      gce%target_workfunction = 0.16_dp
+      gce%prev_workfunction = -1001.0_dp
+      gce%ref_esp = 0.0_dp
+      gce%mixing_coef = 0.3_dp
    END SUBROUTINE init_gce
-   
+
 ! **************************************************************************************************
 !> \brief ...
-!> \param gce ...                           
-!> \param gce_section ...                   
+!> \param gce ...
+!> \param gce_section ...
 ! **************************************************************************************************
    SUBROUTINE read_gce_section(gce, gce_section)
       TYPE(gce_type), POINTER                            :: gce
       TYPE(section_vals_type), POINTER                   :: gce_section
-
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
-
-      NULLIFY (r_vals)
 
       CALL section_vals_val_get(gce_section, "_SECTION_PARAMETERS_", &
                                 l_val=gce%do_gce)
@@ -706,7 +707,7 @@ CONTAINS
                END SELECT
             END IF
 
-            IF (scf_control%gce%do_gce) THEN             
+            IF (scf_control%gce%do_gce) THEN
                WRITE (UNIT=output_unit, FMT="(T25,A,/,T25,A,T61,F20.1)") &
                   REPEAT("-", 56), &
                   "Target workfunction [eV]:", scf_control%gce%target_workfunction

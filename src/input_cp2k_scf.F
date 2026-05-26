@@ -123,7 +123,7 @@ CONTAINS
 
       CALL create_gce_section(subsection)
       CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)        
+      CALL section_release(subsection)
 
       NULLIFY (keyword)
 
@@ -2049,10 +2049,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the grand canonical ensemble DFT
-!> \param section ...     
-!> \date       
+!> \param section ...
+!> \date
 !> \author     Ziwei Chai
-!> \version    1.0        
+!> \version    1.0
 ! **************************************************************************************************
    SUBROUTINE create_gce_section(section)
 
@@ -2068,10 +2068,10 @@ CONTAINS
                           n_keywords=3, &
                           n_subsections=0, &
                           repeats=.FALSE.)
-      
-      NULLIFY (keyword)   
-                          
-      CALL keyword_create(keyword, __LOCATION__, & 
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of grand canonical ensemble DFT", &
                           usage="&GCE ON", &

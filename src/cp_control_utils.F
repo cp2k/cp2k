@@ -10,7 +10,7 @@
 ! **************************************************************************************************
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
-        Andreussi2012, Chai2024a, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
+        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Grimme2017, Hu2007, &
         Katbashev2025, Krack2000, Lippert1997, Lippert1999, Porezag1995, Pracht2019, Repasky2002, &
         Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, &
         Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, &
@@ -755,7 +755,7 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "PLANAR_AVERAGED_V_HARTREE")
       CALL section_vals_get(tmp_section, explicit=is_present)
       IF (is_present) THEN
-         ! Check section parameter if planar counter charge is activated
+         ! Check section parameter if the planar-averaged potential is activated
          CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
                                    l_val=dft_control%do_paep)
          IF (dft_control%do_paep) THEN
