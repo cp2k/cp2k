@@ -81,6 +81,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: gopt_section
       INTEGER, INTENT(IN), OPTIONAL                      :: type_id
 
+      LOGICAL                                            :: explicit
+
       CPASSERT(ASSOCIATED(gopt_section))
 
       IF (PRESENT(type_id)) THEN
@@ -100,10 +102,15 @@ CONTAINS
       CASE (default_lbfgs_method_id)
          CALL section_vals_val_get(gopt_section, "LBFGS%MAX_H_RANK", i_val=gopt_param%max_h_rank)
          CALL section_vals_val_get(gopt_section, "LBFGS%MAX_F_PER_ITER", i_val=gopt_param%max_f_per_iter)
-         CALL section_vals_val_get(gopt_section, "LBFGS%PRINT_CONTROL", i_val=gopt_param%print_control)
          CALL section_vals_val_get(gopt_section, "LBFGS%TRUST_RADIUS", r_val=gopt_param%trust_radius)
          CALL section_vals_val_get(gopt_section, "LBFGS%WANTED_PROJ_GRADIENT", r_val=gopt_param%wanted_proj_gradient)
          CALL section_vals_val_get(gopt_section, "LBFGS%WANTED_REL_F_ERROR", r_val=gopt_param%wanted_rel_f_error)
+         CALL section_vals_val_get(gopt_section, "LBFGS%__CONTROL_VAL", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(gopt_section, "LBFGS%__CONTROL_VAL", i_val=gopt_param%print_control)
+         ELSE
+            CALL section_vals_val_get(gopt_section, "LBFGS%PRINT_LEVEL", i_val=gopt_param%print_control)
+         END IF
       CASE (default_bfgs_method_id)
          ! Do nothing
       CASE (default_cg_method_id)

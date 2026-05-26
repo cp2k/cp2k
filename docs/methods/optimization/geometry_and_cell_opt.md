@@ -307,9 +307,11 @@ satisfactory convergence.
  ***********************************************
 ```
 
-The `LBFGS` optimizer has its own [PRINT_CONTROL](#CP2K_INPUT.MOTION.GEO_OPT.LBFGS.PRINT_CONTROL),
-an integer whose default is 1. This setting creates a separate `iterate.dat` file where the pair of
-criteria is listed among other data. (Some header printout is omitted in the excerpt below.)
+The `LBFGS` optimizer has its own [PRINT_LEVEL](#CP2K_INPUT.MOTION.GEO_OPT.LBFGS.PRINT_LEVEL) which
+controls the verbosity of details printed to the main output. In addition, a separate `iterate.dat`
+file is also created by `LBFGS` optimizer where the columns `projg` and `f` can be checked against
+the `WANTED_PROJ_GRADIENT` and `WANTED_REL_F_ERROR` criteria. Omitting some headers, the main body
+of an `iterate.dat` excerpt is reproduced below.
 
 ```none
    it   nf  nseg  nact  sub  itls  stepl    tstep     projg        f
@@ -396,31 +398,37 @@ and linked to the CP2K build in order to detect and preserve the space group. Us
 
 ## Electronic-structure settings
 
+Density functional theory (DFT) is an electronic-structure (wavefunction) method routinely used for
+optimization. This section elaborate on the relevant aspects, assuming basic knowledge about the
+method which can be found at [](../dft/index.md).
+
 ### SCF quality
 
-For ab-initio geometry or cell optimization, every optimization step requires an
-electronic-structure calculation. The force quality depends on the SCF convergence, grid settings,
-basis set, pseudopotentials, and method-specific thresholds. (Do not confuse the convergence of SCF
-for each iteration with the convergence of stepsize, gradient and pressure across iterations in the
-optimization process.) For `CELL_OPT`, the stress tensor and pressure must also be accurate enough
-for reliable cell updates. Important Quickstep settings include
-[EPS_DEFAULT](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EPS_DEFAULT),
-[CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF),
-[REL_CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.REL_CUTOFF), and
-[EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF).
+Every optimization step requires an electronic-structure calculation, and the force quality depends
+on the SCF convergence, grid settings, basis set, pseudopotentials, and method-specific thresholds.
+For `CELL_OPT`, the stress tensor and pressure must also be accurate enough for reliable cell
+updates. (The SCF convergence for each iteration is not to be confused with the convergence of
+geometry in terms of stepsize, gradient and pressure across iterations in the optimization process.)
 
 Optimization is driven by forces, and `CELL_OPT` is additionally driven by stress, rather than by
-total energies alone. Therefore, simply choosing `EPS_SCF`, `CUTOFF`, `REL_CUTOFF`, or `EPS_DEFAULT`
-from a final static-energy test may not be reliable. These settings usually need to be at least as
-strict as, and often stricter than, those used for routine single-point energy calculations, because
-noisy or poorly converged forces and stresses can slow down the optimization, cause oscillations,
-produce line-search failures, or lead to an unreliable structure or cell.
+total energies alone. Therefore, simply adjusting settings and tuning parameters from a final
+static-energy test may not be sufficient. They usually need to be at least as strict as, and often
+stricter than, those used for routine single-point energy calculations, because noisy or poorly
+converged forces and stresses can slow down the optimization, cause oscillations, produce
+line-search failures, or lead to an unreliable structure or cell.
+
+Important Quickstep settings include [CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.CUTOFF),
+[REL_CUTOFF](#CP2K_INPUT.FORCE_EVAL.DFT.MGRID.REL_CUTOFF),
+[EPS_DEFAULT](#CP2K_INPUT.FORCE_EVAL.DFT.QS.EPS_DEFAULT), and
+[EPS_SCF](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.EPS_SCF).
 
 ```{note}
-The mesh spacing of the plane-wave and real-space grid is determined by both the
-`CUTOFF` setting and the dimensions of the cell. A variable-cell optimization may
-witness significant variations of the cell, which will also affect the number of
-grid points and introduce unnatural jumps to the energy, force, stress and other properties.
+The mesh spacing of the plane-wave and real-space grid for electronic-structure
+calculations is determined both by the `CUTOFF` setting and by the dimensions of
+the cell. A variable-cell optimization may witness significant variations of the
+cell, which will also affect the number of grid points and introduce artificial
+discontinuities to the energy, force, stress and other properties even if the
+change in structure is small.
 
 It is recommended for better stability to set up a reference cell in the section
 [FORCE_EVAL/SUBSYS/CELL/CELL_REF](#CP2K_INPUT.FORCE_EVAL.SUBSYS.CELL.CELL_REF),
@@ -457,8 +465,16 @@ this warning appears together with abnormal changes in the geometry, cell, total
 stress, or SCF behaviour, stop using that density-matrix-based method and switch to a safer
 alternative.
 
-```{warning}
-**Do not ignore SCF convergence failure blindly.**
+```{note}
+The applicability of extrapolation schemes depends on versions. To exemplify, extrapolation
+was formerly available for gamma-only calculations, but the latest versions of CP2K has
+started supporting extrapolation with full k-point sampling. However, when k-points are
+requested to be reduced by symmetry, the dynamic refreshing of symmetry of k-points alongside
+geometry updates could make extrapolation unavailable and automatically fall back to `USE_GUESS`.
+```
+
+```{danger}
+**Be responsible, and do not ignore SCF convergence failure blindly.**
 
 By default, a failure in SCF convergence aborts the program with a message like:
 `SCF run NOT converged. To continue the calculation regardless, please set the keyword

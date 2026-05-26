@@ -555,6 +555,13 @@ MODULE input_constants
                                                do_second_rotation_step = 1, &
                                                do_third_rotation_step = 2
 
+   ! See variable "iprint" in src/motion/cp_lbfgs.F for explanation
+   INTEGER, PARAMETER, PUBLIC               :: silent_lbfgs = 0, &
+                                               low_lbfgs = 1, &
+                                               medium_lbfgs = 99, &
+                                               high_lbfgs = 100, &
+                                               debug_lbfgs = 101
+
    INTEGER, PARAMETER, PUBLIC               :: xc_funct_no_shortcut = 0, &
                                                xc_funct_blyp = 1, &
                                                xc_funct_pade = 2, &
