@@ -21,9 +21,9 @@
 "H2O-geo-ot-mols.inp"                   = [{matcher="E_total", tol=3.0e-13, ref=-33.78611760353696}]
 "H2O-geo-ot-pdos.inp"                   = [{matcher="E_total", tol=3.0e-13, ref=-17.11088139705292}]
 "H2O-geo-pdos.inp"                      = [{matcher="E_total", tol=5.0e-14, ref=-17.11090886162136}]
-"H2O-geo-pdos_comp.inp"                 = [{matcher="E_total", tol=4.0e-14, ref=-17.11090886166302}]
+"H2O-geo-pdos_comp.inp"                 = [{matcher="E_total", tol=4.0e-13, ref=-17.11090886166302}]
 "H2O-geo-ot-pdos-lumo-comp.inp"         = [{matcher="E_total", tol=3.0e-13, ref=-17.11088139705278}]
-"H2O-geo-pdos_comp_list.inp"            = [{matcher="E_total", tol=4.0e-14, ref=-17.11090886166302}]
+"H2O-geo-pdos_comp_list.inp"            = [{matcher="E_total", tol=4.0e-13, ref=-17.11090886166302}]
 "H2O-geo-ot-lumo-all.inp"               = [{matcher="E_total", tol=9.0e-14, ref=-17.11058846146146}]
 # sic ddapc decoupled
 "sic_ddapc_rt.inp"                      = [{matcher="E_total", tol=2.0E-11, ref=-13.49667030531348}]

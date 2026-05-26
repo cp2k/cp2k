@@ -100,7 +100,8 @@ MODULE qs_environment
         vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
         wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
         xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
-   USE input_section_types,             ONLY: section_get_ivals,&
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_ivals,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -980,7 +981,8 @@ CONTAINS
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: gfn_type, handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
          maxlgto_nuc, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, &
-         nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
+         nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_pdos, nlumo_required, &
+         output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
@@ -2112,6 +2114,38 @@ CONTAINS
             IF (dft_control%nspins == 2) THEN
                ! Ensure the same number for the spin-down (beta) orbitals
                scf_control%added_mos(2) = n_ao - n_mo(2)
+            END IF
+         END IF
+      END IF
+
+      nlumo_dos = section_get_ival(dft_section, "PRINT%DOS%NLUMO")
+      nlumo_pdos = section_get_ival(dft_section, "PRINT%PDOS%NLUMO")
+      nlumo_molden = section_get_ival(dft_section, "PRINT%MO_MOLDEN%NLUMO")
+      nlumo_required = MAX(nlumo_dos, nlumo_pdos, nlumo_molden)
+      IF (nlumo_dos == -1 .OR. nlumo_pdos == -1 .OR. nlumo_molden == -1) nlumo_required = -1
+      IF (.NOT. scf_control%use_ot .AND. nlumo_required /= 0) THEN
+         IF (nlumo_required == -1) THEN
+            IF (scf_control%added_mos(1) /= -1 .OR. &
+                (dft_control%nspins == 2 .AND. scf_control%added_mos(2) /= -1)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "NLUMO requested by DOS/PDOS/Molden exceeds SCF%ADDED_MOS. "// &
+                            "For diagonalization calculations, SCF%ADDED_MOS is "// &
+                            "increased to provide the requested unoccupied orbitals.")
+            END IF
+            scf_control%added_mos(1) = -1
+            IF (dft_control%nspins == 2) scf_control%added_mos(2) = -1
+         ELSE
+            IF (scf_control%added_mos(1) >= 0 .AND. &
+                nlumo_required > scf_control%added_mos(1)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "NLUMO requested by DOS/PDOS/Molden exceeds SCF%ADDED_MOS. "// &
+                            "For diagonalization calculations, SCF%ADDED_MOS is "// &
+                            "increased to provide the requested unoccupied orbitals.")
+               scf_control%added_mos(1) = nlumo_required
+            END IF
+            IF (dft_control%nspins == 2 .AND. scf_control%added_mos(2) > 0 .AND. &
+                nlumo_required > scf_control%added_mos(2)) THEN
+               scf_control%added_mos(2) = nlumo_required
             END IF
          END IF
       END IF

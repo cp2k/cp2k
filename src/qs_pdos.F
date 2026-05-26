@@ -20,6 +20,7 @@ MODULE qs_pdos
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
@@ -31,7 +32,6 @@ MODULE qs_pdos
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_init_random,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -56,7 +56,6 @@ MODULE qs_pdos
                                               sgf_symbol
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE preconditioner_types,            ONLY: preconditioner_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -64,16 +63,16 @@ MODULE qs_pdos
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE qs_dos_utils,                    ONLY: broadening_cutoff,&
+                                              broadening_function,&
+                                              write_broadening_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-   USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -125,6 +124,8 @@ CONTAINS
 !> \param ispin ...
 !> \param xas_mittle ...
 !> \param external_matrix_shalf ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
 !> \date    26.02.2008
 !> \par History:
 !>       - Added optional external matrix_shalf to avoid recomputing it (A. Bussy, 09.2019)
@@ -135,7 +136,8 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE calculate_projected_dos(mo_set, atomic_kind_set, qs_kind_set, particle_set, qs_env, &
-                                      dft_section, ispin, xas_mittle, external_matrix_shalf)
+                                      dft_section, ispin, xas_mittle, external_matrix_shalf, &
+                                      unoccupied_orbs, unoccupied_evals)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -146,7 +148,8 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf, unoccupied_orbs
+      TYPE(cp_1d_r_p_type), INTENT(IN), OPTIONAL, TARGET :: unoccupied_evals
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -157,19 +160,21 @@ CONTAINS
                                                             spin(2)
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: ldos_index, r_ldos_index
-      INTEGER :: handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, in_z, ir, irow, &
-         iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, lshell, maxl, &
-         maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, nkind, nldos, &
-         nlumo, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit
+      INTEGER :: broaden_type, handle, homo, i, iatom, ikind, il, ildos, im, imo, in_x, in_y, &
+         in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, k, lcomponent, &
+         lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, n_rep, nao, natom, ncol_global, &
+         ndigits, nkind, nldos, nmo, np_tot, npoints, nrow_global, nset, nsgf, nvirt, out_each, &
+         output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: firstrow
       INTEGER, DIMENSION(:), POINTER                     :: list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: bo, l
-      LOGICAL                                            :: append, calc_matsh, do_ldos, do_r_ldos, &
-                                                            do_virt, ionode, separate_components, &
-                                                            should_output
+      LOGICAL                                            :: append, calc_matsh, do_broaden, do_ldos, &
+                                                            do_r_ldos, do_virt, ionode, &
+                                                            separate_components, should_output
       LOGICAL, DIMENSION(:, :), POINTER                  :: read_r
-      REAL(KIND=dp)                                      :: dh(3, 3), dvol, e_fermi, r(3), r_vec(3), &
-                                                            ratom(3)
+      REAL(KIND=dp)                                      :: broaden_width, de, dh(3, 3), dvol, &
+                                                            e_fermi, r(3), r_vec(3), ratom(3), &
+                                                            voigt_mixing
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, evals_virt, &
                                                             occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
@@ -177,8 +182,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work, mo_virt
-      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff
+      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work
+      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff, mo_virt
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -205,7 +210,7 @@ CONTAINS
       IF ((.NOT. should_output)) RETURN
 
       NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
-      NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer)
+      NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer, mo_virt)
       NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
       NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, occupation_numbers)
 
@@ -215,7 +220,8 @@ CONTAINS
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,I10))') &
          " Calculate PDOS at iteration step ", iterstep
       CALL get_qs_env(qs_env=qs_env, &
-                      matrix_s=s_matrix)
+                      matrix_s=s_matrix, &
+                      dft_control=dft_control)
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto)
@@ -230,23 +236,26 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%OUT_EACH_MO", i_val=out_each)
       IF (out_each == -1) out_each = nao + 1
-      CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
-      IF (nlumo == -1) nlumo = nao - homo
-      do_virt = (nlumo > (nmo - homo))
-      nvirt = nlumo - (nmo - homo)
-      ! Generate virtual orbitals
-      IF (do_virt) THEN
-         IF (PRESENT(ispin)) THEN
-            my_spin = ispin
-         ELSE
-            my_spin = 1
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%VOIGT_MIXING", r_val=voigt_mixing)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%NDIGITS", i_val=ndigits)
+      ndigits = MIN(MAX(ndigits, 1), 10)
+      do_broaden = (broaden_width > 0.0_dp)
+      IF (do_broaden) de = MAX(de, 0.00001_dp)
+      nvirt = 0
+      NULLIFY (evals_virt)
+      IF (PRESENT(unoccupied_orbs) .AND. PRESENT(unoccupied_evals)) THEN
+         IF (ASSOCIATED(unoccupied_evals%array)) THEN
+            nvirt = SIZE(unoccupied_evals%array)
+            IF (nvirt > 0) THEN
+               mo_virt => unoccupied_orbs
+               evals_virt => unoccupied_evals%array
+            END IF
          END IF
-
-         CALL generate_virtual_mo(qs_env, mo_set, evals_virt, mo_virt, nvirt, ispin=my_spin)
-      ELSE
-         NULLIFY (evals_virt)
-         nvirt = 0
       END IF
+      do_virt = (nvirt > 0)
 
       calc_matsh = .TRUE.
       IF (PRESENT(external_matrix_shalf)) calc_matsh = .FALSE.
@@ -277,7 +286,7 @@ CONTAINS
 
       IF (do_virt) THEN
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T14,I10,T27,A))') &
-            " Compute ", nvirt, " additional unoccupied KS orbitals"
+            " Use ", nvirt, " additional unoccupied KS orbitals"
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
          CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_shalfc")
@@ -693,8 +702,24 @@ CONTAINS
             my_spin = 1
          END IF
 
+         IF (do_broaden) THEN
+            IF (separate_components) THEN
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                         e_fermi, "Projected DOS for atomic kind "//TRIM(kind_name), &
+                                         maxl, .TRUE., pdos_array(1:nsoset(maxl), ikind, :), &
+                                         eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                         voigt_mixing, ndigits)
+            ELSE
+               CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                         e_fermi, "Projected DOS for atomic kind "//TRIM(kind_name), &
+                                         maxl, .FALSE., pdos_array(0:maxl, ikind, :), &
+                                         eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                         voigt_mixing, ndigits)
+            END IF
+         END IF
+
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                   extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                   extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                    file_form="FORMATTED", middle_name=TRIM(my_mittle))
          IF (iw > 0) THEN
 
@@ -761,8 +786,26 @@ CONTAINS
                my_spin = 1
             END IF
 
+            IF (do_broaden) THEN
+               IF (ldos_p(ildos)%ldos%separate_components) THEN
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                            e_fermi, "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
+                                            ldos_p(ildos)%ldos%maxl, .TRUE., &
+                                            ldos_p(ildos)%ldos%pdos_array(1:nsoset(ldos_p(ildos)%ldos%maxl), :), &
+                                            eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                            voigt_mixing, ndigits)
+               ELSE
+                  CALL write_broadened_pdos(logger, dft_section, TRIM(my_mittle), my_pos, my_act, iterstep, &
+                                            e_fermi, "Projected DOS for atom list "//TRIM(ldos_index(ildos)), &
+                                            ldos_p(ildos)%ldos%maxl, .FALSE., &
+                                            ldos_p(ildos)%ldos%pdos_array(0:ldos_p(ildos)%ldos%maxl, :), &
+                                            eigenvalues, nmo + nvirt, de, broaden_type, broaden_width, &
+                                            voigt_mixing, ndigits)
+               END IF
+            END IF
+
             iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                      extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                      extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                       file_form="FORMATTED", middle_name=TRIM(my_mittle))
             IF (iw > 0) THEN
 
@@ -833,7 +876,7 @@ CONTAINS
          END IF
 
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                   extension=".pdos", file_position=my_pos, file_action=my_act, &
+                                   extension=".pdos_raw", file_position=my_pos, file_action=my_act, &
                                    file_form="FORMATTED", middle_name=TRIM(my_mittle))
          IF (iw > 0) THEN
             fmtstr1 = "(I8,2X,2F16.6,  (2X,F16.8))"
@@ -896,8 +939,6 @@ CONTAINS
          CALL auxbas_pw_pool%give_back_pw(wf_g)
       END IF
       IF (do_virt) THEN
-         DEALLOCATE (evals_virt)
-         CALL cp_fm_release(mo_virt)
          CALL cp_fm_release(matrix_work)
          DEALLOCATE (eigenvalues)
          DEALLOCATE (occupation_numbers)
@@ -908,69 +949,114 @@ CONTAINS
    END SUBROUTINE calculate_projected_dos
 
 ! **************************************************************************************************
-!> \brief   Compute additional virtual states  starting from the available MOS
-!> \param qs_env ...
-!> \param mo_set ...
-!> \param evals_virt ...
-!> \param mo_virt ...
-!> \param nvirt ...
-!> \param ispin ...
-!> \date    08.03.2008
-!> \par History:
-!>       -
-!> \par Variables
-!>       -
-!>       -
-!> \author  MI
-!> \version 1.0
+!> \brief Write a broadened PDOS curve for a projected weight matrix.
+!> \param logger ...
+!> \param dft_section ...
+!> \param middle_name ...
+!> \param file_position ...
+!> \param file_action ...
+!> \param iterstep ...
+!> \param e_fermi ...
+!> \param title ...
+!> \param maxl ...
+!> \param separate_components ...
+!> \param weights ...
+!> \param eigenvalues ...
+!> \param nstates ...
+!> \param de ...
+!> \param broaden_type ...
+!> \param broaden_width ...
+!> \param voigt_mixing ...
+!> \param ndigits ...
 ! **************************************************************************************************
+   SUBROUTINE write_broadened_pdos(logger, dft_section, middle_name, file_position, file_action, &
+                                   iterstep, e_fermi, title, maxl, separate_components, weights, &
+                                   eigenvalues, nstates, de, broaden_type, broaden_width, &
+                                   voigt_mixing, ndigits)
 
-   SUBROUTINE generate_virtual_mo(qs_env, mo_set, evals_virt, mo_virt, &
-                                  nvirt, ispin)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      CHARACTER(LEN=*), INTENT(IN)                       :: middle_name, file_position, file_action
+      INTEGER, INTENT(IN)                                :: iterstep
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi
+      CHARACTER(LEN=*), INTENT(IN)                       :: title
+      INTEGER, INTENT(IN)                                :: maxl
+      LOGICAL, INTENT(IN)                                :: separate_components
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      INTEGER, INTENT(IN)                                :: nstates
+      REAL(KIND=dp), INTENT(IN)                          :: de
+      INTEGER, INTENT(IN)                                :: broaden_type
+      REAL(KIND=dp), INTENT(IN)                          :: broaden_width, voigt_mixing
+      INTEGER, INTENT(IN)                                :: ndigits
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virt
-      TYPE(cp_fm_type), INTENT(OUT)                      :: mo_virt
-      INTEGER, INTENT(IN)                                :: nvirt, ispin
+      CHARACTER(LEN=20)                                  :: fmtstr_data
+      CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:, :, :)  :: tmp_str
+      INTEGER                                            :: i, icomp, il, im, imo, iw, ncomponents, &
+                                                            nhist
+      REAL(KIND=dp)                                      :: cutoff, emax, emin, eval, line_shape
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pdos_curve
 
-      INTEGER                                            :: nmo, nrow_global
-      TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, s_matrix
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(preconditioner_type), POINTER                 :: local_preconditioner
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      IF (broaden_width <= 0.0_dp) RETURN
 
-      NULLIFY (evals_virt)
-      ALLOCATE (evals_virt(nvirt))
+      ncomponents = SIZE(weights, 1)
+      cutoff = broadening_cutoff(broaden_type, broaden_width)
+      emin = MINVAL(eigenvalues(1:nstates)) - cutoff
+      emax = MAXVAL(eigenvalues(1:nstates)) + cutoff
+      nhist = NINT((emax - emin)/de) + 1
+      ALLOCATE (pdos_curve(nhist, ncomponents))
+      pdos_curve = 0.0_dp
 
-      CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, &
-                      scf_control=scf_control)
-      CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, nmo=nmo)
-      CALL cp_fm_get_info(mo_coeff, context=context, para_env=para_env, &
-                          nrow_global=nrow_global)
+      DO imo = 1, nstates
+         DO i = MAX(1, FLOOR((eigenvalues(imo) - cutoff - emin)/de) + 1), &
+            MIN(nhist, CEILING((eigenvalues(imo) + cutoff - emin)/de) + 1)
+            eval = emin + (i - 1)*de
+            line_shape = broadening_function(eval - eigenvalues(imo), broaden_type, broaden_width, &
+                                             voigt_mixing)
+            DO icomp = 1, ncomponents
+               pdos_curve(i, icomp) = pdos_curve(i, icomp) + weights(icomp, imo)*line_shape
+            END DO
+         END DO
+      END DO
 
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
-                               nrow_global=nrow_global, ncol_global=nvirt)
-      CALL cp_fm_create(mo_virt, fm_struct_tmp, name="virtual")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_init_random(mo_virt, nvirt)
+      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
+                                extension=".pdos", file_position=file_position, file_action=file_action, &
+                                file_form="FORMATTED", middle_name=TRIM(middle_name))
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(A,I0,A,F12.6,A)") &
+            "# "//TRIM(title)//" at iteration step i = ", iterstep, ", E(Fermi) = ", e_fermi, " a.u."
+         CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+         WRITE (UNIT=iw, FMT="(A)", ADVANCE="NO") "# Energy[a.u.]"
+         IF (separate_components) THEN
+            ALLOCATE (tmp_str(0:0, 0:maxl, -maxl:maxl))
+            tmp_str = ""
+            DO il = 0, maxl
+               DO im = -il, il
+                  tmp_str(0, il, im) = sgf_symbol(0, il, im)
+                  WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(tmp_str(0, il, im))
+               END DO
+            END DO
+            DEALLOCATE (tmp_str)
+         ELSE
+            DO il = 0, maxl
+               WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(l_sym(il))
+            END DO
+         END IF
+         WRITE (UNIT=iw, FMT="()")
+         WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2X,F20.", ndigits, ")"
+         DO i = 1, nhist
+            eval = emin + (i - 1)*de
+            WRITE (UNIT=iw, FMT="(F15.8)", ADVANCE="NO") eval
+            DO icomp = 1, ncomponents
+               WRITE (UNIT=iw, FMT=fmtstr_data, ADVANCE="NO") pdos_curve(i, icomp)
+            END DO
+            WRITE (UNIT=iw, FMT="()")
+         END DO
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%PDOS")
 
-      NULLIFY (local_preconditioner)
+      DEALLOCATE (pdos_curve)
 
-      CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix, matrix_s=s_matrix(1)%matrix, &
-                          matrix_c_fm=mo_virt, matrix_orthogonal_space_fm=mo_coeff, &
-                          eps_gradient=scf_control%eps_lumos, &
-                          preconditioner=local_preconditioner, &
-                          iter_max=scf_control%max_iter_lumos, &
-                          size_ortho_space=nmo)
-
-      CALL calculate_subspace_eigenvalues(mo_virt, ks_matrix(ispin)%matrix, &
-                                          evals_virt)
-
-   END SUBROUTINE generate_virtual_mo
+   END SUBROUTINE write_broadened_pdos
 
 END MODULE qs_pdos
-

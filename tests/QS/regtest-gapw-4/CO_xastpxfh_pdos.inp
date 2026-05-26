@@ -66,6 +66,7 @@
       &PRINT
         &PDOS
           COMPONENTS
+          DELTA_E 0.05
           NLUMO 20
         &END PDOS
         &RESTART
