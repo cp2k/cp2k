@@ -25,6 +25,10 @@ MODULE qs_pdos
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_submatrix,&
+                                              cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -48,6 +52,9 @@ MODULE qs_pdos
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_methods,                  ONLY: lowdin_kp_mo_coeff
+   USE kpoint_types,                    ONLY: kpoint_env_type,&
+                                              kpoint_type
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso,&
@@ -63,7 +70,8 @@ MODULE qs_pdos
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
-   USE qs_dos_utils,                    ONLY: broadening_cutoff,&
+   USE qs_dos_utils,                    ONLY: add_broadened_value,&
+                                              broadening_cutoff,&
                                               broadening_function,&
                                               write_broadening_info
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -84,7 +92,7 @@ MODULE qs_pdos
 ! **************************************************************************************************
    ! *** Public subroutines ***
 
-   PUBLIC :: calculate_projected_dos
+   PUBLIC :: calculate_projected_dos, calculate_projected_dos_kp
 
    TYPE ldos_type
       INTEGER :: maxl = -1, nlist = -1
@@ -947,6 +955,411 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_projected_dos
+
+
+! **************************************************************************************************
+!> \brief Compute and write broadened projected density of states for k-point calculations.
+!> \param qs_env ...
+!> \param dft_section ...
+! **************************************************************************************************
+   SUBROUTINE calculate_projected_dos_kp(qs_env, dft_section)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_projected_dos_kp'
+
+      CHARACTER(LEN=default_string_length)               :: kind_name, my_act, my_mittle, my_pos, &
+                                                            spin(2)
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: zvecbuffer
+      INTEGER                                            :: broaden_type, handle, icomp, ik, ikind, &
+                                                            imo, ispin, iterstep, maxl, maxlgto, &
+                                                            nao, ncomp, ndigits, nhist, nkind, nmo_kp, &
+                                                            n_r_ldos, nldos, nspins, output_unit
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_comp, ao_kind, ao_l, kind_maxl
+      LOGICAL                                            :: append, do_broaden, separate_components, &
+                                                            should_output
+      REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, e2, &
+                                                            e_fermi, emax, emin, voigt_mixing, wkp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ao_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_weight, vecbuffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: pdos_curve
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_cfm_type)                                  :: cshalfc
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type)                                   :: shalfc
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(section_vals_type), POINTER                   :: ldos_section
+
+      NULLIFY (logger, kpoints, dft_control, para_env, atomic_kind_set, qs_kind_set, particle_set)
+      NULLIFY (kp, mo_set, eigenvalues, fm_struct_tmp, orb_basis_set, ldos_section)
+      logger => cp_get_default_logger()
+      should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                       "PRINT%PDOS"), cp_p_file)
+      output_unit = cp_logger_get_default_io_unit(logger)
+      IF ((.NOT. should_output)) RETURN
+
+      CALL timeset(routineN, handle)
+      iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
+
+      IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,I10))') &
+         " Calculate k-point PDOS at iteration step ", iterstep
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      kpoints=kpoints, &
+                      dft_control=dft_control, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set)
+      para_env => kpoints%para_env_inter_kp
+      nspins = dft_control%nspins
+      nkind = SIZE(atomic_kind_set)
+      CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+      IF (.NOT. ASSOCIATED(kpoints%kp_env)) THEN
+         CPWARN("No local k points available for k-point PDOS")
+         CALL timestop(handle)
+         RETURN
+      END IF
+      IF (SIZE(kpoints%kp_env) == 0) THEN
+         CPWARN("No local k points available for k-point PDOS")
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%DELTA_E", r_val=de)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%APPEND", l_val=append)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%COMPONENTS", l_val=separate_components)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%NDIGITS", i_val=ndigits)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_TYPE", i_val=broaden_type)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_WIDTH", r_val=broaden_width)
+      CALL section_vals_val_get(dft_section, "PRINT%PDOS%VOIGT_MIXING", r_val=voigt_mixing)
+      ndigits = MIN(MAX(ndigits, 1), 10)
+      do_broaden = (broaden_width > 0.0_dp)
+      de = MAX(de, 0.00001_dp)
+
+      ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")
+      CALL section_vals_get(ldos_section, n_repetition=nldos)
+      ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%R_LDOS")
+      CALL section_vals_get(ldos_section, n_repetition=n_r_ldos)
+      IF (nldos > 0 .OR. n_r_ldos > 0) THEN
+         CPWARN("LDOS/R_LDOS are not implemented for k-point PDOS and will be ignored")
+      END IF
+      IF (.NOT. do_broaden) THEN
+         CPWARN("Raw k-point PDOS output is not implemented; use a finite BROADEN_WIDTH")
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      IF (separate_components) THEN
+         ncomp = nsoset(maxlgto)
+      ELSE
+         ncomp = maxlgto + 1
+      END IF
+      ALLOCATE (kind_maxl(nkind))
+      kind_maxl = -1
+      DO ikind = 1, nkind
+         NULLIFY (orb_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, maxl=maxl)
+         kind_maxl(ikind) = maxl
+      END DO
+
+      emin = HUGE(0.0_dp)
+      emax = -HUGE(0.0_dp)
+      e_fermi = 0.0_dp
+      IF (kpoints%nkp /= 0) THEN
+         DO ik = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(ik)%kpoint_env
+            DO ispin = 1, nspins
+               mo_set => kp%mos(1, ispin)
+               CALL get_mo_set(mo_set=mo_set, nmo=nmo_kp, mu=e_fermi)
+               eigenvalues => mo_set%eigenvalues
+               e1 = MINVAL(eigenvalues(1:nmo_kp))
+               e2 = MAXVAL(eigenvalues(1:nmo_kp))
+               emin = MIN(emin, e1)
+               emax = MAX(emax, e2)
+            END DO
+         END DO
+      END IF
+      CALL para_env%min(emin)
+      CALL para_env%max(emax)
+      broaden_cutoff = broadening_cutoff(broaden_type, broaden_width)
+      emin = emin - broaden_cutoff
+      emax = emax + broaden_cutoff
+      nhist = NINT((emax - emin)/de) + 1
+      ALLOCATE (pdos_curve(nhist, ncomp, nkind, nspins))
+      pdos_curve = 0.0_dp
+
+      ! Use the first local k point to construct the AO -> kind/l/component map.
+      kp => kpoints%kp_env(1)%kpoint_env
+      mo_set => kp%mos(1, 1)
+      CALL get_mo_set(mo_set=mo_set, nao=nao)
+      CALL build_pdos_ao_map(qs_kind_set, particle_set, nao, ao_kind, ao_l, ao_comp)
+      ALLOCATE (ao_weight(nao), proj_weight(ncomp, nkind))
+      ALLOCATE (vecbuffer(1, nao), zvecbuffer(1, nao))
+
+      IF (kpoints%nkp /= 0) THEN
+         DO ik = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(ik)%kpoint_env
+            wkp = kp%wkp
+            DO ispin = 1, nspins
+               mo_set => kp%mos(1, ispin)
+               CALL get_mo_set(mo_set=mo_set, nao=nao, nmo=nmo_kp)
+               eigenvalues => mo_set%eigenvalues
+               CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=fm_struct_tmp)
+               IF (kpoints%use_real_wfn) THEN
+                  CALL cp_fm_create(shalfc, fm_struct_tmp, name="shalfc")
+                  CALL lowdin_kp_mo_coeff(kp, ispin, kpoints%use_real_wfn, shalfc=shalfc)
+               ELSE
+                  CALL cp_cfm_create(cshalfc, fm_struct_tmp, name="cshalfc")
+                  CALL lowdin_kp_mo_coeff(kp, ispin, kpoints%use_real_wfn, cshalfc=cshalfc)
+               END IF
+
+               DO imo = 1, nmo_kp
+                  IF (kpoints%use_real_wfn) THEN
+                     CALL cp_fm_get_submatrix(shalfc, vecbuffer, 1, imo, nao, 1, transpose=.TRUE.)
+                     ao_weight(:) = vecbuffer(1, 1:nao)**2
+                  ELSE
+                     CALL cp_cfm_get_submatrix(cshalfc, zvecbuffer, 1, imo, nao, 1, transpose=.TRUE.)
+                     ao_weight(:) = REAL(CONJG(zvecbuffer(1, 1:nao))*zvecbuffer(1, 1:nao), KIND=dp)
+                  END IF
+                  proj_weight = 0.0_dp
+                  CALL accumulate_pdos_weights(ao_weight, ao_kind, ao_l, ao_comp, &
+                                               separate_components, proj_weight)
+                  DO ikind = 1, nkind
+                     IF (kind_maxl(ikind) < 0) CYCLE
+                     IF (separate_components) THEN
+                        DO icomp = 1, nsoset(kind_maxl(ikind))
+                           CALL add_broadened_value(pdos_curve(:, icomp, ikind, ispin), &
+                                                    emin, de, eigenvalues(imo), &
+                                                    wkp*proj_weight(icomp, ikind), &
+                                                    broaden_type, broaden_width, voigt_mixing)
+                        END DO
+                     ELSE
+                        DO icomp = 1, kind_maxl(ikind) + 1
+                           CALL add_broadened_value(pdos_curve(:, icomp, ikind, ispin), &
+                                                    emin, de, eigenvalues(imo), &
+                                                    wkp*proj_weight(icomp, ikind), &
+                                                    broaden_type, broaden_width, voigt_mixing)
+                        END DO
+                     END IF
+                  END DO
+               END DO
+
+               IF (kpoints%use_real_wfn) THEN
+                  CALL cp_fm_release(shalfc)
+               ELSE
+                  CALL cp_cfm_release(cshalfc)
+               END IF
+            END DO
+         END DO
+      END IF
+      CALL para_env%sum(pdos_curve)
+
+      IF (append .AND. iterstep > 1) THEN
+         my_pos = "APPEND"
+      ELSE
+         my_pos = "REWIND"
+      END IF
+      my_act = "WRITE"
+      spin(1) = "ALPHA"
+      spin(2) = "BETA"
+      DO ikind = 1, nkind
+         IF (kind_maxl(ikind) < 0) CYCLE
+         CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name)
+         DO ispin = 1, nspins
+            IF (nspins == 2) THEN
+               my_mittle = TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+            ELSE
+               my_mittle = "k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+            END IF
+            CALL write_broadened_pdos_curve(logger, dft_section, TRIM(my_mittle), my_pos, my_act, &
+                                            iterstep, e_fermi, &
+                                            "K-point projected DOS for atomic kind "//TRIM(kind_name), &
+                                            kind_maxl(ikind), separate_components, &
+                                            pdos_curve(:, :, ikind, ispin), emin, de, &
+                                            broaden_type, broaden_width, voigt_mixing, ndigits)
+         END DO
+      END DO
+
+      DEALLOCATE (ao_comp, ao_kind, ao_l, ao_weight, kind_maxl, pdos_curve, proj_weight, &
+                  vecbuffer, zvecbuffer)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_projected_dos_kp
+
+! **************************************************************************************************
+!> \brief Build AO mapping arrays for PDOS accumulation.
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param nao ...
+!> \param ao_kind ...
+!> \param ao_l ...
+!> \param ao_comp ...
+! **************************************************************************************************
+   SUBROUTINE build_pdos_ao_map(qs_kind_set, particle_set, nao, ao_kind, ao_l, ao_comp)
+
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: nao
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ao_kind, ao_l, ao_comp
+
+      INTEGER                                            :: iatom, ikind, irow, iset, ishell, iso, &
+                                                            lshell, maxl, nset
+      INTEGER, DIMENSION(:), POINTER                     :: nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: l
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+
+      ALLOCATE (ao_kind(nao), ao_l(nao), ao_comp(nao))
+      irow = 0
+      DO iatom = 1, SIZE(particle_set)
+         NULLIFY (orb_basis_set)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                nset=nset, &
+                                nshell=nshell, &
+                                l=l, maxl=maxl)
+         DO iset = 1, nset
+            DO ishell = 1, nshell(iset)
+               lshell = l(ishell, iset)
+               DO iso = 1, nso(lshell)
+                  irow = irow + 1
+                  CPASSERT(irow <= nao)
+                  ao_kind(irow) = ikind
+                  ao_l(irow) = lshell
+                  ao_comp(irow) = nsoset(lshell - 1) + iso
+               END DO
+            END DO
+         END DO
+      END DO
+      CPASSERT(irow == nao)
+
+   END SUBROUTINE build_pdos_ao_map
+
+! **************************************************************************************************
+!> \brief Accumulate AO weights into kind/l or kind/component projected weights.
+!> \param ao_weight ...
+!> \param ao_kind ...
+!> \param ao_l ...
+!> \param ao_comp ...
+!> \param separate_components ...
+!> \param proj_weight ...
+! **************************************************************************************************
+   SUBROUTINE accumulate_pdos_weights(ao_weight, ao_kind, ao_l, ao_comp, &
+                                      separate_components, proj_weight)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: ao_weight
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_kind, ao_l, ao_comp
+      LOGICAL, INTENT(IN)                                :: separate_components
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: proj_weight
+
+      INTEGER                                            :: iao, icomp, ikind
+
+      DO iao = 1, SIZE(ao_weight)
+         ikind = ao_kind(iao)
+         IF (separate_components) THEN
+            icomp = ao_comp(iao)
+         ELSE
+            icomp = ao_l(iao) + 1
+         END IF
+         proj_weight(icomp, ikind) = proj_weight(icomp, ikind) + ao_weight(iao)
+      END DO
+
+   END SUBROUTINE accumulate_pdos_weights
+
+! **************************************************************************************************
+!> \brief Write a broadened k-point PDOS curve.
+!> \param logger ...
+!> \param dft_section ...
+!> \param middle_name ...
+!> \param file_position ...
+!> \param file_action ...
+!> \param iterstep ...
+!> \param e_fermi ...
+!> \param title ...
+!> \param maxl ...
+!> \param separate_components ...
+!> \param pdos_curve ...
+!> \param emin ...
+!> \param de ...
+!> \param broaden_type ...
+!> \param broaden_width ...
+!> \param voigt_mixing ...
+!> \param ndigits ...
+! **************************************************************************************************
+   SUBROUTINE write_broadened_pdos_curve(logger, dft_section, middle_name, file_position, &
+                                         file_action, iterstep, e_fermi, title, maxl, &
+                                         separate_components, pdos_curve, emin, de, &
+                                         broaden_type, broaden_width, voigt_mixing, ndigits)
+
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: dft_section
+      CHARACTER(LEN=*), INTENT(IN)                       :: middle_name, file_position, file_action
+      INTEGER, INTENT(IN)                                :: iterstep, maxl, broaden_type, ndigits
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, emin, de, broaden_width, voigt_mixing
+      CHARACTER(LEN=*), INTENT(IN)                       :: title
+      LOGICAL, INTENT(IN)                                :: separate_components
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pdos_curve
+
+      CHARACTER(LEN=20)                                  :: fmtstr_data
+      CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:, :, :)  :: tmp_str
+      INTEGER                                            :: i, icomp, il, im, iw, ncomponents, nhist
+      REAL(KIND=dp)                                      :: eval
+
+      nhist = SIZE(pdos_curve, 1)
+      IF (separate_components) THEN
+         ncomponents = nsoset(maxl)
+      ELSE
+         ncomponents = maxl + 1
+      END IF
+      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
+                                extension=".pdos", file_position=file_position, file_action=file_action, &
+                                file_form="FORMATTED", middle_name=TRIM(middle_name))
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(A,I0,A,F12.6,A)") &
+            "# "//TRIM(title)//" at iteration step i = ", iterstep, ", E(Fermi) = ", e_fermi, " a.u."
+         CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
+         WRITE (UNIT=iw, FMT="(A)", ADVANCE="NO") "# Energy[a.u.]"
+         IF (separate_components) THEN
+            ALLOCATE (tmp_str(0:0, 0:maxl, -maxl:maxl))
+            tmp_str = ""
+            DO il = 0, maxl
+               DO im = -il, il
+                  tmp_str(0, il, im) = sgf_symbol(0, il, im)
+                  WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(tmp_str(0, il, im))
+               END DO
+            END DO
+            DEALLOCATE (tmp_str)
+         ELSE
+            DO il = 0, maxl
+               WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(l_sym(il))
+            END DO
+         END IF
+         WRITE (UNIT=iw, FMT="()")
+         WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2X,F20.", ndigits, ")"
+         DO i = 1, nhist
+            eval = emin + (i - 1)*de
+            WRITE (UNIT=iw, FMT="(F15.8)", ADVANCE="NO") eval
+            DO icomp = 1, ncomponents
+               WRITE (UNIT=iw, FMT=fmtstr_data, ADVANCE="NO") pdos_curve(i, icomp)
+            END DO
+            WRITE (UNIT=iw, FMT="()")
+         END DO
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%PDOS")
+
+   END SUBROUTINE write_broadened_pdos_curve
 
 ! **************************************************************************************************
 !> \brief Write a broadened PDOS curve for a projected weight matrix.

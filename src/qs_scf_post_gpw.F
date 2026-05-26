@@ -182,7 +182,8 @@ MODULE qs_scf_post_gpw
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-   USE qs_pdos,                         ONLY: calculate_projected_dos
+   USE qs_pdos,                         ONLY: calculate_projected_dos, &
+                                              calculate_projected_dos_kp
    USE qs_resp,                         ONLY: resp_fit
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               mpole_rho_atom,&
@@ -2354,7 +2355,7 @@ CONTAINS
          ! Print the projected density of states (pDOS) for each atomic kind
          IF (do_pdos) THEN
             IF (do_kpoints) THEN
-               CPWARN("Projected density of states (pDOS) is not implemented for k points")
+               CALL calculate_projected_dos_kp(qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, &
                                mos=mos, &
