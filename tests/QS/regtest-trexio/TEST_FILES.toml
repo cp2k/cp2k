@@ -2,5 +2,6 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 "diamond_kp_rks.inp"                    = []
+"diamond_kp_sym_full.inp"               = []
 "h2o_pbc_uks_cart.inp"                  = []
 #EOF

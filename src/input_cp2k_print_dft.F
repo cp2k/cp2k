@@ -729,7 +729,7 @@ CONTAINS
 
       CALL section_create(subsection, __LOCATION__, name="TREXIO", &
                           description="Write a TREXIO file to disk.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
                           description="Body of Filename for the trexio file.", &
                           usage="FILENAME {name}", default_c_val="TREXIO", &
@@ -739,6 +739,20 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN", &
                           description="Store the MOs in the Cartesian basis instead of the default spherical basis.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FULL_KPOINT_GRID", &
+                          description="For symmetry-reduced k-point SCF calculations, export MOs on the "// &
+                          "full unreduced k-point grid instead of the irreducible grid.", &
+                          usage="FULL_KPOINT_GRID <LOGICAL>", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="REUSE_SCF_MOS", &
+                          description="When FULL_KPOINT_GRID is active, try to reconstruct the full-grid "// &
+                          "MO coefficients from the symmetry-reduced SCF orbitals before falling back to "// &
+                          "a full-grid diagonalization.", &
+                          usage="REUSE_SCF_MOS T", default_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
