@@ -254,7 +254,7 @@ CONTAINS
       CALL section_vals_val_get(floquet_sec, "INTENSITY", r_val=bs_env%floquet_intensity)
       CALL section_vals_val_get(floquet_sec, "POLARISATION", r_vals=bs_env%floquet_polarisation)
       CALL section_vals_val_get(floquet_sec, "FREQUENCY", r_val=bs_env%floquet_omega)
-      bs_env%floquet_omega=bs_env%floquet_omega/hertz
+      bs_env%floquet_omega = bs_env%floquet_omega/hertz
       CALL section_vals_val_get(floquet_sec, "PHASE_OFFSETS", r_vals=bs_env%floquet_phi)
       CALL section_vals_val_get(floquet_sec, "MAX_FLOQUET_INDEX", i_val=bs_env%max_floquet_index)
       CALL section_vals_val_get(floquet_sec, "ELECTRONIC_TEMPERATURE", &

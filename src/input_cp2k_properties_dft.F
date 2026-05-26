@@ -2917,7 +2917,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="FLOQUET", &
                           description="Parameters controlling Floquet-theory calculations "// &
                           "of a system driven by a periodic monochromatic electric field.", &
-      n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
@@ -2952,10 +2952,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_FLOQUET_INDEX", &
-                          description="Largest absolute Floquet index retained when "// &
-                          "truncating the Floquet-Brillouin zone. Larger values "// &
-                          "increase accuracy at the cost of a bigger Floquet "// &
-                          "Hamiltonian.", &
+                          description="Largest absolute Floquet index up to which "// &
+                          "Floquet Hamiltonian is truncated. Larger values increase "// &
+                          "accuracy at the cost of a bigger Floquet Hamiltonian.", &
                           usage="MAX_FLOQUET_INDEX 50", &
                           default_i_val=50)
       CALL section_add_keyword(section, keyword)
@@ -2971,9 +2970,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
-                          description="Threshold on the errors due to truncation. "// &
-                          "Used to verify that MAX_FLOQUET_INDEX is large enough "// &
-                          "that truncation errors are negligible.", &
+                          description="Threshold on the errors due to truncation. Used to "// &
+                          "verify that MAX_FLOQUET_INDEX is large enough that truncation "// &
+                          "errors are negligible. If negative, check is removed.", &
                           usage="EPS_FLOQUET 1.e-6", default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

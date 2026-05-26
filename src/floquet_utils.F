@@ -448,7 +448,7 @@ CONTAINS
       ALLOCATE (vector_block_0(3*nao, nao), vector_block_1(3*nao, nao), source=z_zero)
       CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_0, start_row_0, start_row_0)
       CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_1, start_row_1, start_row_1)
-      IF (bs_env%eps_floquet>0) THEN
+      IF (bs_env%eps_floquet > 0) THEN
          IF (ABS(MAXVAL(ABS(vector_block_0)) - MAXVAL(ABS(vector_block_1))) > bs_env%eps_floquet) THEN
             CPABORT("FLOQUET DIAGONALIZATION DID NOT CONVERGE. MAX_FLOQUET_INDEX TOO SMALL")
          END IF
@@ -582,7 +582,7 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
          CALL open_file("QUASI_ENERGIES.out", unit_number=bs_env%floquet_qunit, &
-            file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
+                        file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
          qunit = bs_env%floquet_qunit
          WRITE (UNIT=qunit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
             "#  Point ", ikp - nkp_start, "  Spin ", ispin, ":", xkp(1:3)
