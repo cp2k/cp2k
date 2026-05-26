@@ -2218,7 +2218,7 @@ CONTAINS
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
             ! Check if molden write should be deferred for OT unoccupied orbitals
-            CALL section_vals_val_get(sprint_section, "OT_NLUMO", i_val=nlumo_molden)
+            CALL section_vals_val_get(sprint_section, "NLUMO", i_val=nlumo_molden)
             IF (nlumo_molden /= 0 .AND. PRESENT(scf_env)) THEN
                IF (scf_env%method == ot_method_nr) defer_molden = .TRUE.
             END IF

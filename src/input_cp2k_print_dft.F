@@ -650,14 +650,13 @@ CONTAINS
                           enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="OT_NLUMO", &
+      CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
                           description="Number of unoccupied orbitals to include in the Molden file. "// &
-                          "Triggers a post-SCF eigensolver to obtain virtual orbital energies and "// &
-                          "coefficients. Only available with OT method, since diagonalization "// &
-                          "can already compute unoccupied orbitals via `ADDED_MOS` during "// &
-                          "SCF and output them to the Molden file after convergence. "// &
-                          "0 means no virtual orbitals, -1 means all available.", &
-                          usage="OT_NLUMO integer", &
+                          "For OT calculations, the requested virtual orbitals are generated after "// &
+                          "SCF using the OT eigensolver. For diagonalization calculations, "// &
+                          "SCF%ADDED_MOS is increased if needed to make the requested unoccupied "// &
+                          "orbitals available. 0 means no virtual orbitals, -1 means all available.", &
+                          usage="NLUMO integer", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
