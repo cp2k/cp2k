@@ -55,6 +55,7 @@ MODULE qs_pdos
    USE kpoint_methods,                  ONLY: lowdin_kp_mo_coeff
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso,&
@@ -79,6 +80,7 @@ MODULE qs_pdos
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
 #include "./base/base_uses.f90"
@@ -991,6 +993,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: shalfc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -998,9 +1001,11 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: ldos_section
 
       NULLIFY (logger, kpoints, dft_control, para_env, atomic_kind_set, qs_kind_set, particle_set)
+      NULLIFY (matrix_s_kp, scf_env)
       NULLIFY (kp, mo_set, eigenvalues, fm_struct_tmp, orb_basis_set, ldos_section)
       logger => cp_get_default_logger()
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
@@ -1017,6 +1022,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       kpoints=kpoints, &
                       dft_control=dft_control, &
+                      matrix_s_kp=matrix_s_kp, &
+                      scf_env=scf_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set)
@@ -1098,6 +1105,10 @@ CONTAINS
       nhist = NINT((emax - emin)/de) + 1
       ALLOCATE (pdos_curve(nhist, ncomp, nkind, nspins))
       pdos_curve = 0.0_dp
+
+      ! Ensure that S(k)^1/2 is available for the Lowdin projection.
+      ! This is normally only constructed for Lowdin population/DFT+U paths.
+      CALL diag_kp_smat(matrix_s_kp, kpoints, scf_env%scf_work1)
 
       ! Use the first local k point to construct the AO -> kind/l/component map.
       kp => kpoints%kp_env(1)%kpoint_env
