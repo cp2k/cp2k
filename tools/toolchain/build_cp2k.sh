@@ -31,6 +31,10 @@ DEBUG_BUILD="__FALSE__"
 BUILD_JOBS="$(get_nprocs)"
 BUILD_SHARED_LIBS="ON"
 DRY_RUN="__FALSE__"
+REBUILD_ONLY="__FALSE__"
+PREFIX_SET="__FALSE__"
+DEBUG_SET="__FALSE__"
+BUILD_STATIC_SET="__FALSE__"
 
 show_help() {
   cat << EOF
@@ -47,6 +51,10 @@ Options:
                         rebuilding CP2K entirely
   --debug               Build debug version of CP2K (-DCMAKE_BUILD_TYPE=Debug)
   --build-static        Set -DBUILD_SHARED_LIBS=OFF (default is ON)
+  --rebuild-only        Skip CMake configuration and only rebuild/install CP2K
+                        from the existing build directory. This requires a
+                        previous successful run without --rebuild-only and does
+                        not regenerate cp2k_env.
 EOF
 }
 
@@ -54,6 +62,9 @@ while [ $# -ge 1 ]; do
   case "$1" in
     --dry-run)
       DRY_RUN="__TRUE__"
+      ;;
+    --rebuild-only)
+      REBUILD_ONLY="__TRUE__"
       ;;
     --clean)
       CLEAN_BUILD="__TRUE__"
@@ -66,6 +77,7 @@ while [ $# -ge 1 ]; do
       BUILD_JOBS="${1#-j}"
       ;;
     --prefix)
+      PREFIX_SET="__TRUE__"
       if [[ "${2}" != /* ]]; then
         report_error "The path for --prefix must be an absolute path."
         exit 1
@@ -74,9 +86,11 @@ while [ $# -ge 1 ]; do
       shift
       ;;
     --debug)
+      DEBUG_SET="__TRUE__"
       DEBUG_BUILD="__TRUE__"
       ;;
     --build-static)
+      BUILD_STATIC_SET="__TRUE__"
       BUILD_SHARED_LIBS="OFF"
       ;;
     -h | --help)
@@ -91,6 +105,20 @@ while [ $# -ge 1 ]; do
   esac
   shift
 done
+
+if [ "${REBUILD_ONLY}" = "__TRUE__" ]; then
+  if [ "${DRY_RUN}" = "__TRUE__" ] ||
+    [ "${CLEAN_BUILD}" = "__TRUE__" ] ||
+    [ "${PREFIX_SET}" = "__TRUE__" ] ||
+    [ "${DEBUG_SET}" = "__TRUE__" ] ||
+    [ "${BUILD_STATIC_SET}" = "__TRUE__" ]; then
+    cat << EOF
+ERROR: "--rebuild-only" cannot be used together with options that affect CMake configuration.
+Please run this script without "--rebuild-only" if you want to change CMake settings.
+EOF
+    exit 1
+  fi
+fi
 
 # ====================== Pre-checks ======================
 # Require complete source tree
@@ -140,7 +168,8 @@ if [ ! -f "${TOOLCHAIN_INSTALL_DIR}/setup" ]; then
 fi
 
 # Disallow combination of installing toolchain outside the source tree and CP2K under the source tree
-if [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}"/install ] &&
+if [ "${REBUILD_ONLY}" != "__TRUE__" ] &&
+  [ "${TOOLCHAIN_INSTALL_DIR}" != "${TOOLCHAIN_ROOTDIR}"/install ] &&
   [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   echo
   cat << EOF
@@ -218,44 +247,95 @@ fi
 # Set build directory
 BUILD_DIR="${CP2K_ROOT}/build"
 
-# Show CMake options
 log_cmake() {
   printf '%s\n' "$@" | tee -a cmake.log
 }
+log_build() {
+  printf '%s\n' "$@" | tee -a build.log
+}
 
-[ -f "cmake.log" ] && rm cmake.log
-log_cmake "Generated CMake flags:"
-for flag in ${CMAKE_OPTIONS}; do
-  log_cmake "   ${flag}"
-done
+if [ "${REBUILD_ONLY}" != "__TRUE__" ]; then
+  [ -f "cmake.log" ] && rm -f cmake.log
+  # Show CMake options
+  log_cmake "Generated CMake flags:"
+  for flag in ${CMAKE_OPTIONS}; do
+    log_cmake "   ${flag}"
+  done
+fi
 
 if [ "${DRY_RUN}" != "__TRUE__" ]; then
+  rm -f build.log
+
   # ====================== Optional clean ======================
   if [ "${CLEAN_BUILD}" = "__TRUE__" ] && [ -d "${BUILD_DIR}" ]; then
     echo "Removing existing build directory: ${BUILD_DIR}"
     rm -rf "${BUILD_DIR}"
   fi
 
-  mkdir -p "${BUILD_DIR}"
+  if [ "${REBUILD_ONLY}" = "__TRUE__" ]; then
+    # Check if cmake_install.cmake exists
+    CMAKE_INSTALL_FILE="${BUILD_DIR}/cmake_install.cmake"
+    if [ ! -r "${CMAKE_INSTALL_FILE}" ]; then
+      cat << EOF
+ERROR: "--rebuild-only" was requested, but no CMake install script was found:
+  ${CMAKE_INSTALL_FILE}
+This usually means that CMake configuration/generation has not completed successfully.
+Please run this script once successfully without "--rebuild-only" first.
+EOF
+      exit 1
+    fi
+    # Detect CMAKE_INSTALL_PREFIX from cmake_install.cmake
+    CMAKE_INSTALL_PREFIX="$(sed -n \
+      's/^[[:space:]]*set(CMAKE_INSTALL_PREFIX[[:space:]]*"\(.*\)")[[:space:]]*$/\1/p' \
+      "${CMAKE_INSTALL_FILE}" | head -n 1)"
+    if [ -z "${CMAKE_INSTALL_PREFIX}" ]; then
+      cat << EOF
+ERROR: Could not determine CMAKE_INSTALL_PREFIX from:
+  ${CMAKE_INSTALL_FILE}
+Please run this script once successfully without "--rebuild-only" first.
+EOF
+      exit 1
+    fi
+    # Check if cp2k_env exists under CMAKE_INSTALL_PREFIX
+    if [ ! -f "${CMAKE_INSTALL_PREFIX}/cp2k_env" ]; then
+      cat << EOF
+ERROR: "--rebuild-only" was requested, but the CP2K environment file was not found:
+  ${CMAKE_INSTALL_PREFIX}/cp2k_env
+This mode does not regenerate cp2k_env.
+Please run this script once successfully without "--rebuild-only" first.
+EOF
+      exit 1
+    fi
 
-  # ====================== Configure ======================
-  echo "================== CMake configuration ==================="
-  log_cmake "Source dir : ${CP2K_ROOT}"
-  log_cmake "Build  dir : ${BUILD_DIR}"
-  log_cmake "Install dir: ${CMAKE_INSTALL_PREFIX}"
-  log_cmake "Shared libs: ${BUILD_SHARED_LIBS}"
+    log_build "Skipping CMake configuration because \"--rebuild-only\" was requested."
+    log_build "Reusing existing build directory:"
+    log_build "  ${BUILD_DIR}"
+    log_build "Using existing CP2K environment file:"
+    log_build "  ${CMAKE_INSTALL_PREFIX}/cp2k_env"
+  else
+    mkdir -p "${BUILD_DIR}"
 
-  set -o pipefail
-  cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
+    # ====================== Configure ======================
+    log_cmake "================== CMake configuration ==================="
+    log_cmake "Source dir : ${CP2K_ROOT}"
+    log_cmake "Build  dir : ${BUILD_DIR}"
+    log_cmake "Install dir: ${CMAKE_INSTALL_PREFIX}"
+    log_cmake "Shared libs: ${BUILD_SHARED_LIBS}"
+
+    set -o pipefail
+    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
+  fi
 
   # ====================== Build ======================
-  echo "==================== Building CP2K ======================="
-  echo "Parallel jobs: ${BUILD_JOBS}" | tee build.log
+  log_build "==================== Building CP2K ======================="
+  log_build "Parallel jobs: ${BUILD_JOBS}"
+  set -o pipefail
   cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" 2>&1 | tee -a build.log
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file
-  cat << EOF > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
+  if [ "${REBUILD_ONLY}" != "__TRUE__" ]; then
+    cat << EOF > "${CMAKE_INSTALL_PREFIX}/cp2k_env"
 #!/bin/bash
 source ${TOOLCHAIN_INSTALL_DIR}/setup
 prepend_path PATH "${CMAKE_INSTALL_PREFIX}/bin"
@@ -263,8 +343,17 @@ prepend_path LD_LIBRARY_PATH "${CMAKE_INSTALL_PREFIX}/lib"
 prepend_path PKG_CONFIG_PATH "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}"
 EOF
-  cat << EOF
+    cat << EOF
 Done! Installed binaries are now available in: ${CMAKE_INSTALL_PREFIX}/bin
+EOF
+  else
+    cat << EOF
+Note: "--rebuild-only" was used, so the installation path and the existing CP2K
+environment file were not affected.
+EOF
+  fi
+
+  cat << EOF
 
 Please always source this script to load CP2K environment before running CP2K:
   source ${CMAKE_INSTALL_PREFIX}/cp2k_env
