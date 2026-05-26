@@ -45,8 +45,7 @@ MODULE trexio_utils
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
    USE kinds, ONLY: default_path_length, dp
-   USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
-                           get_kpoint_info, get_kpoint_env
+   USE kpoint_types, ONLY: kpoint_type
    USE mathconstants, ONLY: fourpi, pi, fac
    USE mathlib, ONLY: symmetrize_matrix
    USE message_passing, ONLY: mp_para_env_type
@@ -60,6 +59,17 @@ MODULE trexio_utils
                             qs_kind_type
    USE qs_mo_types, ONLY: mo_set_type, get_mo_set, init_mo_set, allocate_mo_set
 #ifdef __TREXIO
+   USE kinds, ONLY: default_string_length
+   USE kpoint_methods, ONLY: kpoint_env_initialize, kpoint_init_cell_index, &
+                             kpoint_initialize, kpoint_initialize_mo_set, &
+                             kpoint_initialize_mos
+   USE kpoint_types, ONLY: kpoint_env_p_type, &
+                           get_kpoint_info, get_kpoint_env, kpoint_create, kpoint_release
+   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE qs_scf_diagonalization, ONLY: do_general_diag_kp
+   USE qs_scf_types, ONLY: qs_scf_env_type
+   USE qs_wannier90, ONLY: prepare_wannier90_scf_mos
+   USE scf_control_types, ONLY: scf_control_type
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
@@ -136,14 +146,15 @@ CONTAINS
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
                                                             ecp_local, sgp_potential_present, ionode, &
-                                                            use_real_wfn, save_cartesian
+                                                            use_real_wfn, save_cartesian, &
+                                                            trexio_kpoints_created
       REAL(KIND=dp)                                      :: e_nn, zeff, expzet, prefac, zeta, gcca, &
                                                             prim_cart_fac, Nsgto
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints, trexio_kpoints
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
@@ -203,7 +214,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, logger, dft_control, basis_set, kpoints, particle_set, energy, kind_set)
+      NULLIFY (cell, logger, dft_control, basis_set, kpoints, trexio_kpoints, particle_set, &
+               energy, kind_set)
       NULLIFY (sgp_potential, mos, mos_kp, kp_env, para_env, para_env_inter_kp, blacs_env)
       NULLIFY (fm_struct, nshell, npgf, l_shell_set, wkp, norm_cgf, zetas, data_block, gcc)
 
@@ -222,6 +234,11 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
       ionode = para_env%is_source()
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints)
+      trexio_kpoints => kpoints
+      trexio_kpoints_created = .FALSE.
+      CALL prepare_trexio_kpoint_grid(qs_env, trexio_section, do_kpoints, kpoints, &
+                                      trexio_kpoints, trexio_kpoints_created)
 
       ! inquire whether a file with the same name already exists, if yes, delete it
       IF (ionode) THEN
@@ -315,15 +332,13 @@ CONTAINS
          !========================================================================================!
          ! PBC group
          !========================================================================================!
-         CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=kpoints)
-
          periodic = 0
          IF (SUM(cell%perd) /= 0) periodic = 1
          rc = trexio_write_pbc_periodic(f, periodic)
          CALL trexio_error(rc)
 
          IF (do_kpoints) THEN
-            CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, wkp=wkp)
+            CALL get_kpoint_info(trexio_kpoints, nkp=nkp, xkp=xkp, wkp=wkp)
 
             rc = trexio_write_pbc_k_point_num(f, nkp)
             CALL trexio_error(rc)
@@ -785,7 +800,7 @@ CONTAINS
       ! figure out that total number of MOs
       mo_num = 0
       IF (do_kpoints) THEN
-         CALL get_kpoint_info(kpoints, kp_env=kp_env, nkp=nkp, use_real_wfn=use_real_wfn)
+         CALL get_kpoint_info(trexio_kpoints, kp_env=kp_env, nkp=nkp, use_real_wfn=use_real_wfn)
          CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
          DO ispin = 1, nspins
             CALL get_mo_set(mos_kp(1, ispin), nmo=nmo)
@@ -833,7 +848,7 @@ CONTAINS
       ! 1. we gather the MOs of each kpt and pipe them into a single large distributed fm matrix;
       ! 2. we possibly transform the MOs of each kpt to Cartesian AOs and write them in the single large local array;
       IF (do_kpoints) THEN
-         CALL get_kpoint_info(kpoints, kp_env=kp_env, nkp=nkp, kp_range=kp_range)
+         CALL get_kpoint_info(trexio_kpoints, kp_env=kp_env, nkp=nkp, kp_range=kp_range)
 
          DO ispin = 1, nspins
             DO ikp = 1, nkp
@@ -884,7 +899,7 @@ CONTAINS
 
       ! reduce MO energies and occupations to the master node
       IF (do_kpoints) THEN
-         CALL get_kpoint_info(kpoints, para_env_inter_kp=para_env_inter_kp)
+         CALL get_kpoint_info(trexio_kpoints, para_env_inter_kp=para_env_inter_kp)
          CALL para_env_inter_kp%sum(mo_energy)
          CALL para_env_inter_kp%sum(mo_occupation)
       END IF
@@ -895,7 +910,7 @@ CONTAINS
       ! while nucleus_coord was written using the raw particle_set(i)%r. We compensate
       ! by multiplying each AO column block by exp(-i 2*pi * k * agauge_i) per k-point.
       IF (do_kpoints .AND. .NOT. use_real_wfn) THEN
-         CALL get_kpoint_info(kpoints, xkp=xkp)
+         CALL get_kpoint_info(trexio_kpoints, xkp=xkp)
          ALLOCATE (agauge(3, natoms))
          DO iatom = 1, natoms
             scoord(:) = MATMUL(cell%h_inv, particle_set(iatom)%r(1:3))
@@ -1030,6 +1045,7 @@ CONTAINS
       END IF
       IF (ALLOCATED(ao_to_atom)) DEALLOCATE (ao_to_atom)
       IF (ALLOCATED(agauge)) DEALLOCATE (agauge)
+      IF (trexio_kpoints_created) CALL kpoint_release(trexio_kpoints)
 
       !========================================================================================!
       ! RDM group
@@ -1118,6 +1134,189 @@ CONTAINS
 #endif
 
    END SUBROUTINE write_trexio
+
+! **************************************************************************************************
+!> \brief Prepare the k-point object used for TREXIO export.
+!> \param qs_env the QS environment
+!> \param trexio_section the TREXIO print section
+!> \param do_kpoints true when the SCF used k-points
+!> \param kpoints_scf the converged SCF k-point object
+!> \param kpoints_out the k-point object to write
+!> \param created true if kpoints_out must be released by the caller
+! **************************************************************************************************
+   SUBROUTINE prepare_trexio_kpoint_grid(qs_env, trexio_section, do_kpoints, kpoints_scf, &
+                                         kpoints_out, created)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: trexio_section
+      LOGICAL, INTENT(IN)                                :: do_kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints_scf, kpoints_out
+      LOGICAL, INTENT(OUT)                               :: created
+
+#ifdef __TREXIO
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_trexio_kpoint_grid'
+
+      CHARACTER(LEN=default_string_length)               :: kp_scheme, reuse_reason
+      INTEGER                                            :: aligned_blocks, aligned_max_size, handle, &
+                                                            nfull, output_unit
+      INTEGER, DIMENSION(3)                              :: nkp_grid
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: diis_step, full_grid, full_kpoint_grid, &
+                                                            gamma_centered, reuse_scf_mos, &
+                                                            reused_scf_mos, symmetry
+      REAL(KIND=dp)                                      :: aligned_min_svalue, eps_geo, wsum
+      REAL(KIND=dp), DIMENSION(3)                        :: kp_shift
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_source
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp_source
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      CALL timeset(routineN, handle)
+
+      created = .FALSE.
+      kpoints_out => kpoints_scf
+      NULLIFY (blacs_env, cell, cell_to_index, dft_control, logger, matrix_ks, matrix_s, mos, &
+               para_env, particle_set, sab_nl, scf_control, scf_env, wkp_source, xkp_source)
+
+      CALL section_vals_val_get(trexio_section, "FULL_KPOINT_GRID", l_val=full_kpoint_grid)
+      IF (.NOT. do_kpoints .OR. .NOT. full_kpoint_grid) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      CPASSERT(ASSOCIATED(kpoints_scf))
+
+      CALL get_kpoint_info(kpoints_scf, kp_scheme=kp_scheme, symmetry=symmetry, &
+                           full_grid=full_grid, nkp_grid=nkp_grid, kp_shift=kp_shift, &
+                           gamma_centered=gamma_centered, eps_geo=eps_geo)
+      IF (.NOT. symmetry .OR. full_grid) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      SELECT CASE (TRIM(kp_scheme))
+      CASE ("MONKHORST-PACK", "MACDONALD", "GENERAL")
+         ! supported below
+      CASE DEFAULT
+         CPABORT("TREXIO%FULL_KPOINT_GRID supports only MONKHORST-PACK, MACDONALD, and GENERAL k-points.")
+      END SELECT
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+      CALL section_vals_val_get(trexio_section, "REUSE_SCF_MOS", l_val=reuse_scf_mos)
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env, cell=cell, &
+                      particle_set=particle_set, mos=mos, dft_control=dft_control, &
+                      sab_orb=sab_nl, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
+                      scf_env=scf_env, scf_control=scf_control)
+      CPASSERT(ASSOCIATED(para_env))
+      CPASSERT(ASSOCIATED(blacs_env))
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(ASSOCIATED(mos))
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(sab_nl))
+      CPASSERT(ASSOCIATED(matrix_ks))
+      CPASSERT(ASSOCIATED(matrix_s))
+      CPASSERT(ASSOCIATED(scf_env))
+      CPASSERT(ASSOCIATED(scf_control))
+
+      NULLIFY (kpoints_out)
+      CALL kpoint_create(kpoints_out)
+      kpoints_out%kp_scheme = kp_scheme
+      kpoints_out%symmetry = .FALSE.
+      kpoints_out%full_grid = .TRUE.
+      kpoints_out%verbose = .FALSE.
+      kpoints_out%use_real_wfn = .FALSE.
+      kpoints_out%eps_geo = eps_geo
+      kpoints_out%parallel_group_size = para_env%num_pe
+
+      SELECT CASE (TRIM(kp_scheme))
+      CASE ("MONKHORST-PACK", "MACDONALD")
+         kpoints_out%nkp_grid(1:3) = nkp_grid(1:3)
+         kpoints_out%kp_shift(1:3) = kp_shift(1:3)
+         kpoints_out%gamma_centered = gamma_centered
+         CALL kpoint_initialize(kpoints_out, particle_set, cell)
+      CASE ("GENERAL")
+         IF (.NOT. ASSOCIATED(kpoints_scf%xkp_input) .OR. &
+             .NOT. ASSOCIATED(kpoints_scf%wkp_input)) THEN
+            CPABORT("TREXIO%FULL_KPOINT_GRID cannot recover the unreduced GENERAL k-point set.")
+         END IF
+         xkp_source => kpoints_scf%xkp_input
+         wkp_source => kpoints_scf%wkp_input
+         nfull = SIZE(wkp_source)
+         wsum = SUM(wkp_source)
+         IF (wsum <= 0.0_dp) CPABORT("TREXIO%FULL_KPOINT_GRID found invalid GENERAL k-point weights.")
+         kpoints_out%nkp = nfull
+         ALLOCATE (kpoints_out%xkp(3, nfull), kpoints_out%wkp(nfull))
+         kpoints_out%xkp(1:3, 1:nfull) = xkp_source(1:3, 1:nfull)
+         kpoints_out%wkp(1:nfull) = wkp_source(1:nfull)/wsum
+      END SELECT
+
+      CALL kpoint_env_initialize(kpoints_out, para_env, blacs_env)
+      CALL kpoint_initialize_mos(kpoints_out, mos)
+      CALL kpoint_initialize_mo_set(kpoints_out)
+      CALL kpoint_init_cell_index(kpoints_out, sab_nl, para_env, dft_control%nimages)
+
+      reused_scf_mos = .FALSE.
+      reuse_reason = ""
+      aligned_blocks = 0
+      aligned_max_size = 0
+      aligned_min_svalue = 0.0_dp
+      diis_step = .FALSE.
+      IF (reuse_scf_mos) THEN
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints_scf, scf_env, scf_control, .FALSE., &
+                                 diis_step)
+         CALL get_kpoint_info(kpoints_out, cell_to_index=cell_to_index)
+         CALL prepare_wannier90_scf_mos(kpoints_out, kpoints_scf, matrix_s, matrix_ks, &
+                                        cell_to_index, sab_nl, para_env, reused_scf_mos, &
+                                        reuse_reason, aligned_blocks, aligned_max_size, &
+                                        aligned_min_svalue)
+      END IF
+      IF (reused_scf_mos) THEN
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(T2,A)') &
+               "TREXIO| Reused SCF MO coefficients for the full k-point grid."
+            IF (aligned_blocks > 0) THEN
+               WRITE (output_unit, '(T2,A,I0,A,I0,A,ES10.3)') &
+                  "TREXIO| Ritz-stabilized ", aligned_blocks, &
+                  " degenerate SCF MO subspace(s); largest block has ", aligned_max_size, &
+                  " band(s), min metric eigenvalue ", aligned_min_svalue
+            END IF
+         END IF
+      ELSE
+         IF (output_unit > 0) THEN
+            IF (reuse_scf_mos) THEN
+               WRITE (output_unit, '(T2,A,A)') &
+                  "TREXIO| Could not reuse SCF MOs: ", TRIM(reuse_reason)
+            END IF
+            WRITE (output_unit, '(T2,A)') &
+               "TREXIO| Diagonalizing the full k-point grid for export."
+         END IF
+         diis_step = .FALSE.
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints_out, scf_env, scf_control, .FALSE., &
+                                 diis_step)
+      END IF
+      created = .TRUE.
+
+      CALL timestop(handle)
+#else
+      MARK_USED(qs_env)
+      MARK_USED(trexio_section)
+      MARK_USED(do_kpoints)
+      MARK_USED(kpoints_scf)
+      NULLIFY (kpoints_out)
+      created = .FALSE.
+#endif
+
+   END SUBROUTINE prepare_trexio_kpoint_grid
 
 ! **************************************************************************************************
 !> \brief Read a trexio file
