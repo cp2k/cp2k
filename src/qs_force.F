@@ -12,6 +12,7 @@
 MODULE qs_force
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
@@ -33,9 +34,9 @@ MODULE qs_force
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
    USE hfx_exx,                         ONLY: calculate_exx
-   USE input_constants,                 ONLY: ri_mp2_laplace,&
-                                              ri_mp2_method_gpw,&
-                                              ri_rpa_method_gpw
+   USE input_constants,                 ONLY: &
+        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_ofgpw, &
+        do_method_rigpw, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -79,7 +80,8 @@ MODULE qs_force
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE tblite_interface,                ONLY: build_tblite_matrices,&
                                               tb_reference_cli_compare
-   USE virial_types,                    ONLY: symmetrize_virial,&
+   USE virial_types,                    ONLY: project_virial_to_periodic_subspace,&
+                                              symmetrize_virial,&
                                               virial_type
    USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
@@ -141,6 +143,7 @@ CONTAINS
                                                             perform_ec, reuse_hfx
       REAL(dp)                                           :: dummy_real, dummy_real2(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_w, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
@@ -397,8 +400,8 @@ CONTAINS
          particle_set(iatom)%f = -force(ikind)%total(1:3, i)
       END DO
 
-      NULLIFY (virial, energy)
-      CALL get_qs_env(qs_env=qs_env, virial=virial, energy=energy)
+      NULLIFY (cell, virial, energy)
+      CALL get_qs_env(qs_env=qs_env, cell=cell, virial=virial, energy=energy)
       IF (virial%pv_availability) THEN
          CALL para_env%sum(virial%pv_overlap)
          CALL para_env%sum(virial%pv_ekinetic)
@@ -446,6 +449,13 @@ CONTAINS
                ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
                ! There should be a more elegant solution to that ...
             END DO
+         END IF
+         IF ((.NOT. virial%pv_numer) .AND. COUNT(cell%perd /= 0) == 2) THEN
+            SELECT CASE (dft_control%qs_control%method_id)
+            CASE (do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+                  do_method_lrigpw, do_method_ofgpw, do_method_rigpw)
+               CALL project_virial_to_periodic_subspace(virial, cell%perd)
+            END SELECT
          END IF
       END IF
 

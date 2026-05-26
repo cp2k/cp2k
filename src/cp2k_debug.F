@@ -91,6 +91,7 @@ CONTAINS
                                                             stop_on_mismatch
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: do_dof_atom_coor
       LOGICAL, DIMENSION(3)                              :: do_dof_dipole
+      LOGICAL, DIMENSION(3, 3)                           :: check_stress_element
       REAL(KIND=dp) :: amplitude, dd, de, derr, difference, dx, eps_no_error_check, errmax, &
          maxerr, periodic_stress_sum, std_value, sum_of_differences
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
@@ -232,6 +233,18 @@ CONTAINS
                   END DO
                END IF
 
+               CALL get_cell(cell=cell, periodic=periodic)
+               n_periodic = COUNT(periodic /= 0)
+               check_stress_element = .TRUE.
+               IF (n_periodic > 0 .AND. n_periodic < 3) THEN
+                  check_stress_element = .FALSE.
+                  DO i = 1, 3
+                     DO k = 1, 3
+                        check_stress_element(i, k) = periodic(i) /= 0 .AND. periodic(k) /= 0
+                     END DO
+                  END DO
+               END IF
+
                ! Print results
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="((T2,A))") &
@@ -249,8 +262,6 @@ CONTAINS
                   WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
                      "DEBUG| Sum of differences", &
                      SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
-                  CALL get_cell(cell=cell, periodic=periodic)
-                  n_periodic = COUNT(periodic /= 0)
                   IF (n_periodic > 0 .AND. n_periodic < 3) THEN
                      periodic_stress_sum = 0.0_dp
                      DO i = 1, 3
@@ -278,7 +289,8 @@ CONTAINS
                DO i = 1, 3
                   err(:) = 0.0_dp
                   DO k = 1, 3
-                     IF (ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
+                     IF (check_stress_element(i, k) .AND. &
+                         ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
                         err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k) - virial_analytical%pv_virial(i, k))/ &
                                  virial_analytical%pv_virial(i, k)
                         WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(1X,F17.2,A2)") err(k), " %"

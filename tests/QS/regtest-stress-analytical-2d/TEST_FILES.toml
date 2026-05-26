@@ -1,0 +1,9 @@
+"C_lda_analytic.inp"                    = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.39904283000E-04}]
+"C_lda_MT.inp"                          = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.36951827000E-04}]
+"C_lda_uks_analytic.inp"                = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.39897570000E-04}]
+"C_lda_uks_MT.inp"                      = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.36945118000E-04}]
+"C_pbe_analytic.inp"                    = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.53484159000E-04}]
+"C_pbe_MT.inp"                          = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.51148607000E-04}]
+"C_pbe_uks_analytic.inp"                = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.53480579000E-04}]
+"C_pbe_uks_MT.inp"                      = [{matcher="DEBUG_periodic_stress_sum", tol=5.0E-02, ref=8.51145028000E-04}]
+#EOF

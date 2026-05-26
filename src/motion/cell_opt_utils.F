@@ -269,11 +269,11 @@ CONTAINS
 
       SELECT CASE (my_constraint_id)
       CASE (fix_x)
-         pres_constr = ptens(2, 2) + ptens(3, 3)
+         pres_constr = 0.5_dp*(ptens(2, 2) + ptens(3, 3))
       CASE (fix_y)
-         pres_constr = ptens(1, 1) + ptens(3, 3)
+         pres_constr = 0.5_dp*(ptens(1, 1) + ptens(3, 3))
       CASE (fix_z)
-         pres_constr = ptens(1, 1) + ptens(2, 2)
+         pres_constr = 0.5_dp*(ptens(1, 1) + ptens(2, 2))
       CASE (fix_xy)
          pres_constr = ptens(3, 3)
       CASE (fix_xz)
@@ -281,9 +281,8 @@ CONTAINS
       CASE (fix_yz)
          pres_constr = ptens(1, 1)
       CASE (fix_none)
-         pres_constr = ptens(1, 1) + ptens(2, 2) + ptens(3, 3)
+         pres_constr = (ptens(1, 1) + ptens(2, 2) + ptens(3, 3))/3.0_dp
       END SELECT
-      pres_constr = pres_constr/3.0_dp
 
       ptens(1, 1) = av_ptens(1, 1) - pres_ext
       ptens(2, 2) = av_ptens(2, 2) - pres_ext

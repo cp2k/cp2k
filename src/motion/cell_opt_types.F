@@ -85,7 +85,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
 
       CHARACTER(LEN=4)                                   :: label
-      INTEGER                                            :: ip, output_unit
+      INTEGER                                            :: ip, output_unit, required_constraint_id
+      LOGICAL                                            :: constraint_explicit, valid_constraint
       REAL(KIND=dp), DIMENSION(3)                        :: r
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -100,7 +101,41 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_ANGLES", l_val=cell_env%keep_angles)
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
-      CALL section_vals_val_get(geo_section, "CONSTRAINT", i_val=cell_env%constraint_id)
+      CALL section_vals_val_get(geo_section, "CONSTRAINT", &
+                                i_val=cell_env%constraint_id, explicit=constraint_explicit)
+
+      IF (COUNT(cell%perd /= 0) == 2) THEN
+         required_constraint_id = fix_none
+         IF (cell%perd(1) == 0) required_constraint_id = fix_x
+         IF (cell%perd(2) == 0) required_constraint_id = fix_y
+         IF (cell%perd(3) == 0) required_constraint_id = fix_z
+
+         SELECT CASE (required_constraint_id)
+         CASE (fix_x)
+            valid_constraint = cell_env%constraint_id == fix_x .OR. &
+                               cell_env%constraint_id == fix_xy .OR. &
+                               cell_env%constraint_id == fix_xz
+         CASE (fix_y)
+            valid_constraint = cell_env%constraint_id == fix_y .OR. &
+                               cell_env%constraint_id == fix_xy .OR. &
+                               cell_env%constraint_id == fix_yz
+         CASE (fix_z)
+            valid_constraint = cell_env%constraint_id == fix_z .OR. &
+                               cell_env%constraint_id == fix_xz .OR. &
+                               cell_env%constraint_id == fix_yz
+         CASE DEFAULT
+            valid_constraint = .FALSE.
+         END SELECT
+
+         IF (cell_env%constraint_id == fix_none .AND. .NOT. constraint_explicit) THEN
+            cell_env%constraint_id = required_constraint_id
+            CALL cp_warn(__LOCATION__, &
+                         "2D CELL_OPT: constraining non-periodic cell direction.")
+         ELSE IF (.NOT. valid_constraint) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "2D CELL_OPT needs constrained non-periodic cell direction.")
+         END IF
+      END IF
 
       ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
       cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat, cell%h_inv)

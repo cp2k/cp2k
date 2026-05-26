@@ -53,10 +53,61 @@ MODULE virial_types
       TYPE(virial_type), POINTER     :: virial => NULL()
    END TYPE virial_p_type
 
-   PUBLIC :: virial_set, &
-             symmetrize_virial, zero_virial
+   PUBLIC :: project_virial_to_periodic_subspace, &
+             symmetrize_virial, virial_set, zero_virial
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Project a tensor to the periodic subspace of a low-dimensional cell.
+!> \param pv Tensor to be projected
+!> \param periodic Periodicity flags for x, y, and z
+! **************************************************************************************************
+   SUBROUTINE project_tensor_to_periodic_subspace(pv, periodic)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: pv
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: periodic
+
+      INTEGER                                            :: i
+
+      DO i = 1, 3
+         IF (periodic(i) == 0) THEN
+            pv(i, :) = 0.0_dp
+            pv(:, i) = 0.0_dp
+         END IF
+      END DO
+
+   END SUBROUTINE project_tensor_to_periodic_subspace
+
+! **************************************************************************************************
+!> \brief Project all virial components to the periodic subspace of a low-dimensional cell.
+!> \param virial Virial object to be projected
+!> \param periodic Periodicity flags for x, y, and z
+! **************************************************************************************************
+   SUBROUTINE project_virial_to_periodic_subspace(virial, periodic)
+      TYPE(virial_type), INTENT(INOUT)                   :: virial
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: periodic
+
+      CALL project_tensor_to_periodic_subspace(virial%pv_total, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_kinetic, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_virial, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_xc, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_fock_4c, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_constraint, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_overlap, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_ekinetic, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_ppl, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_ppnl, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_ecore_overlap, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_ehartree, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_exc, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_exx, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_vdw, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_mp2, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_nlcc, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_gapw, periodic)
+      CALL project_tensor_to_periodic_subspace(virial%pv_lrigpw, periodic)
+
+   END SUBROUTINE project_virial_to_periodic_subspace
 
 ! **************************************************************************************************
 !> \brief   Symmetrize the virial components

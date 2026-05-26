@@ -235,6 +235,7 @@ QMMM/xTB/regtest
 QS/regtest-ot-refine-2
 QS/regtest-ri-mp2                                           libint !ifx
 QS/regtest-stress
+QS/regtest-stress-analytical-2d
 QS/regtest-mom-2                                            libint !ifx
 QS/regtest-admm-2                                           libint !ifx
 QS/regtest-as-dft                                           libint libxc !ifx
