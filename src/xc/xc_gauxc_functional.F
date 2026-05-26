@@ -8,6 +8,7 @@
 MODULE xc_gauxc_functional
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_create,&
@@ -326,6 +327,67 @@ CONTAINS
       END DO
 
    END SUBROUTINE ensure_gauxc_gapw_all_electron
+
+! **************************************************************************************************
+!> \brief Check the current periodic scope of the CP2K-GauXC bridge
+!> \param dft_control ...
+!> \param cell ...
+!> \param qs_kind_set ...
+!> \param do_kpoints ...
+! **************************************************************************************************
+   SUBROUTINE ensure_gauxc_periodic_reference_scope(dft_control, cell, qs_kind_set, do_kpoints)
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL, INTENT(IN)                                :: do_kpoints
+
+      INTEGER                                            :: ikind
+      LOGICAL                                            :: is_periodic
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(dft_control))
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      is_periodic = .FALSE.
+      IF (ASSOCIATED(cell)) is_periodic = ANY(cell%perd /= 0)
+
+      IF (do_kpoints) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC currently supports only Gamma-only density matrices in CP2K. "// &
+                       "Periodic k-point density matrices require a dedicated GauXC periodic interface.")
+      END IF
+      IF (dft_control%nimages /= 1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GauXC currently supports only a single AO image in CP2K. "// &
+                       "Periodic neighbour-cell AO blocks require a dedicated GauXC periodic interface.")
+      END IF
+      IF (.NOT. is_periodic) RETURN
+
+      IF (.NOT. ALL(cell%perd == 1)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The current GauXC periodic reference path supports only PERIODIC XYZ. "// &
+                       "Partial periodicity requires a dedicated GauXC periodic interface.")
+      END IF
+      IF (.NOT. dft_control%qs_control%gpw) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The current GauXC periodic reference path is limited to METHOD GPW with GTH "// &
+                       "pseudopotentials. GAPW, GAPW_XC, and other QS methods are not supported here.")
+      END IF
+
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
+         IF (.NOT. ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The current GauXC periodic reference path is limited to GTH pseudopotentials. "// &
+                          "Use non-periodic all-electron GAPW validation for molecular GAPW cases.")
+         END IF
+      END DO
+
+   END SUBROUTINE ensure_gauxc_periodic_reference_scope
 
 ! **************************************************************************************************
 !> \brief adds a replicated GauXC energy gradient to the local CP2K force accumulator
@@ -787,12 +849,13 @@ CONTAINS
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins
-      LOGICAL :: grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
+      LOGICAL :: do_kpoints, grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
          pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
          use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_gauxc_basisset_type)                       :: gauxc_basis
       TYPE(cp_gauxc_grid_type)                           :: gauxc_gradient_grid_result, &
                                                             gauxc_grid_result
@@ -817,6 +880,7 @@ CONTAINS
 
       NULLIFY ( &
          atomic_kind_set, &
+         cell, &
          dft_control, &
          energy, &
          force, &
@@ -833,7 +897,9 @@ CONTAINS
 
       CALL get_qs_env( &
          qs_env, &
+         cell=cell, &
          dft_control=dft_control, &
+         do_kpoints=do_kpoints, &
          energy=energy, &
          ks_env=ks_env, &
          matrix_vxc=matrix_vxc, &
@@ -861,6 +927,7 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
+      CALL ensure_gauxc_periodic_reference_scope(dft_control, cell, qs_kind_set, do_kpoints)
 
       IF (ASSOCIATED(qs_env%dispersion_env)) THEN
          IF (qs_env%dispersion_env%type == xc_vdw_fun_nonloc) THEN

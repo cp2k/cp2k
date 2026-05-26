@@ -1300,7 +1300,9 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
-                          description="Use exchange-correlation functionals provided by GauXC", &
+                          description="Use exchange-correlation functionals provided by GauXC. "// &
+                          "The current periodic CP2K bridge is limited to Gamma-only, single-image "// &
+                          "METHOD GPW calculations with GTH pseudopotentials.", &
                           n_keywords=13, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
