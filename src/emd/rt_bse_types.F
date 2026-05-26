@@ -255,11 +255,19 @@ MODULE rt_bse_types
       ! Liouvillian-diagnostic scratch (allocated only when diagnose_liouvillian_eig=.TRUE.).
       ! drho_probe / L_drho live on fm_struct_mo_active (mo_active x mo_active).
       ! L_pairs / eigvecs_pairs live on fm_struct_ov_pairs (N_OV x N_OV).
+      ! A_mat / B_mat / AmB_scratch / ApB_scratch are ABBA-only N_OV x N_OV blocks holding
+      ! A, B, (A-B) -> (A-B)^{1/2}, and (A+B) for the Furche reduction; allocated only
+      ! when .NOT. tda_active (TDA path uses L_pairs alone).
       ! eigenvalues_liouvillian holds the N_OV real eigenvalues from cp_cfm_heevd.
+      ! [INTERNAL] dev_notes/rt_bse_equations.md §8.5
       TYPE(cp_cfm_type)                                         :: drho_probe = cp_cfm_type(), &
                                                                    L_drho = cp_cfm_type(), &
                                                                    L_pairs = cp_cfm_type(), &
-                                                                   eigvecs_pairs = cp_cfm_type()
+                                                                   eigvecs_pairs = cp_cfm_type(), &
+                                                                   A_mat = cp_cfm_type(), &
+                                                                   B_mat = cp_cfm_type(), &
+                                                                   AmB_scratch = cp_cfm_type(), &
+                                                                   ApB_scratch = cp_cfm_type()
       REAL(kind=dp), DIMENSION(:), POINTER                      :: eigenvalues_liouvillian => NULL()
 
       TYPE(cp_cfm_type), DIMENSION(:), POINTER                  :: rho => NULL(), &
@@ -451,11 +459,9 @@ CONTAINS
       IF (rtbse_env%tda_active .AND. .NOT. rtbse_env%linearized) THEN
          CPABORT("RTBSE TDA keyword requires LINEARIZED_BSE_PROPAGATION=.TRUE.")
       END IF
-      ! Liouvillian-eigenvalue diagnostic: TDA only, n_spin=1 only (first cut).
+      ! Liouvillian-eigenvalue diagnostic: n_spin=1 only. TDA and ABBA paths both supported;
+      ! the dispatcher in diagnose_liouvillian_eigenvalues routes on tda_active.
       IF (rtbse_env%diagnose_liouvillian_eig) THEN
-         IF (.NOT. rtbse_env%tda_active) THEN
-            CPABORT("DIAGNOSE_LIOUVILLIAN_EIG requires TDA=.TRUE. (ABBA path not yet implemented).")
-         END IF
          IF (rtbse_env%n_spin > 1) THEN
             CPABORT("DIAGNOSE_LIOUVILLIAN_EIG currently restricted to n_spin=1.")
          END IF
@@ -742,9 +748,10 @@ CONTAINS
                CALL cp_cfm_set_all(rtbse_env%rho_delta_mo(i), CMPLX(0.0_dp, 0.0_dp, kind=dp))
             END DO
          END IF
-         ! Liouvillian-eigenvalue diagnostic state (TDA, n_spin=1 first cut).
-         ! Allocated only when the user requested the diagnostic; freed in release_rtbse_env
-         ! gated on the same flag.
+         ! Liouvillian-eigenvalue diagnostic state. n_spin=1 enforced upstream.
+         ! Shared scratch (TDA + ABBA) allocated on diagnose_liouvillian_eig=T;
+         ! ABBA-only A/B/A±B blocks added below under .NOT. tda_active. Mirror of the
+         ! existing shared-scratch pattern, with the extra tda_active gate as the deviation.
          IF (rtbse_env%diagnose_liouvillian_eig) THEN
             n_ov = (rtbse_env%n_occ(1) - rtbse_env%first_active_mo + 1)* &
                    (rtbse_env%last_active_mo - rtbse_env%n_occ(1))
@@ -764,6 +771,17 @@ CONTAINS
             NULLIFY (rtbse_env%eigenvalues_liouvillian)
             ALLOCATE (rtbse_env%eigenvalues_liouvillian(n_ov))
             rtbse_env%eigenvalues_liouvillian = 0.0_dp
+            ! ABBA-only Furche-reduction scratch (A, B, A-B->sqrt, A+B).
+            IF (.NOT. rtbse_env%tda_active) THEN
+               CALL cp_cfm_create(rtbse_env%A_mat, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%B_mat, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%AmB_scratch, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_create(rtbse_env%ApB_scratch, rtbse_env%fm_struct_ov_pairs)
+               CALL cp_cfm_set_all(rtbse_env%A_mat, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%B_mat, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%AmB_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+               CALL cp_cfm_set_all(rtbse_env%ApB_scratch, CMPLX(0.0_dp, 0.0_dp, kind=dp))
+            END IF
          END IF
       END IF
 
@@ -858,6 +876,12 @@ CONTAINS
          CALL cp_cfm_release(rtbse_env%L_pairs)
          CALL cp_cfm_release(rtbse_env%eigvecs_pairs)
          IF (ASSOCIATED(rtbse_env%eigenvalues_liouvillian)) DEALLOCATE (rtbse_env%eigenvalues_liouvillian)
+         IF (.NOT. rtbse_env%tda_active) THEN
+            CALL cp_cfm_release(rtbse_env%A_mat)
+            CALL cp_cfm_release(rtbse_env%B_mat)
+            CALL cp_cfm_release(rtbse_env%AmB_scratch)
+            CALL cp_cfm_release(rtbse_env%ApB_scratch)
+         END IF
          IF (ASSOCIATED(rtbse_env%fm_struct_ov_pairs)) THEN
             CALL cp_fm_struct_release(rtbse_env%fm_struct_ov_pairs)
          END IF
