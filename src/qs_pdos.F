@@ -22,13 +22,13 @@ MODULE qs_pdos
                                               pbc
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
                                               cp_cfm_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -55,7 +55,6 @@ MODULE qs_pdos
    USE kpoint_methods,                  ONLY: lowdin_kp_mo_coeff
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
-   USE qs_scf_diagonalization,          ONLY: diag_kp_smat
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso,&
@@ -80,9 +79,10 @@ MODULE qs_pdos
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -958,7 +958,6 @@ CONTAINS
 
    END SUBROUTINE calculate_projected_dos
 
-
 ! **************************************************************************************************
 !> \brief Compute and write broadened projected density of states for k-point calculations.
 !> \param qs_env ...
@@ -969,20 +968,19 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_projected_dos_kp'
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos_kp'
 
       CHARACTER(LEN=default_string_length)               :: kind_name, my_act, my_mittle, my_pos, &
                                                             spin(2)
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: zvecbuffer
-      INTEGER                                            :: broaden_type, handle, icomp, ik, ikind, &
-                                                            imo, ispin, iterstep, maxl, maxlgto, &
-                                                            nao, ncomp, ndigits, nhist, nkind, nmo_kp, &
-                                                            n_r_ldos, nldos, nspins, output_unit
+      INTEGER :: broaden_type, handle, icomp, ik, ikind, imo, ispin, iterstep, maxl, maxlgto, &
+         n_r_ldos, nao, ncomp, ndigits, nhist, nkind, nldos, nmo_kp, nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_comp, ao_kind, ao_l, kind_maxl
-      LOGICAL                                            :: append, do_broaden, separate_components, &
+      LOGICAL                                            :: append, separate_components, &
                                                             should_output
-      REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, e2, &
-                                                            e_fermi, emax, emin, voigt_mixing, wkp
+      REAL(KIND=dp)                                      :: broaden_cutoff, broaden_width, de, e1, &
+                                                            e2, e_fermi, emax, emin, voigt_mixing, &
+                                                            wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ao_weight
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: proj_weight, vecbuffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: pdos_curve
@@ -992,8 +990,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: shalfc
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1050,7 +1048,6 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%BROADEN_WIDTH", r_val=broaden_width)
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%VOIGT_MIXING", r_val=voigt_mixing)
       ndigits = MIN(MAX(ndigits, 1), 10)
-      do_broaden = (broaden_width > 0.0_dp)
       de = MAX(de, 0.00001_dp)
 
       ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")
@@ -1060,7 +1057,7 @@ CONTAINS
       IF (nldos > 0 .OR. n_r_ldos > 0) THEN
          CPWARN("LDOS/R_LDOS are not implemented for k-point PDOS and will be ignored")
       END IF
-      IF (.NOT. do_broaden) THEN
+      IF (broaden_width <= 0.0_dp) THEN
          CPWARN("Raw k-point PDOS output is not implemented; use a finite BROADEN_WIDTH")
          CALL timestop(handle)
          RETURN
@@ -1317,11 +1314,16 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*), INTENT(IN)                       :: middle_name, file_position, file_action
-      INTEGER, INTENT(IN)                                :: iterstep, maxl, broaden_type, ndigits
-      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, emin, de, broaden_width, voigt_mixing
+      INTEGER, INTENT(IN)                                :: iterstep
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi
       CHARACTER(LEN=*), INTENT(IN)                       :: title
+      INTEGER, INTENT(IN)                                :: maxl
       LOGICAL, INTENT(IN)                                :: separate_components
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pdos_curve
+      REAL(KIND=dp), INTENT(IN)                          :: emin, de
+      INTEGER, INTENT(IN)                                :: broaden_type
+      REAL(KIND=dp), INTENT(IN)                          :: broaden_width, voigt_mixing
+      INTEGER, INTENT(IN)                                :: ndigits
 
       CHARACTER(LEN=20)                                  :: fmtstr_data
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:, :, :)  :: tmp_str
@@ -1414,10 +1416,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: broaden_width, voigt_mixing
       INTEGER, INTENT(IN)                                :: ndigits
 
-      CHARACTER(LEN=20)                                  :: fmtstr_data
-      CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:, :, :)  :: tmp_str
-      INTEGER                                            :: i, icomp, il, im, imo, iw, ncomponents, &
-                                                            nhist
+      INTEGER                                            :: i, icomp, imo, ncomponents, nhist
       REAL(KIND=dp)                                      :: cutoff, emax, emin, eval, line_shape
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pdos_curve
 
@@ -1443,41 +1442,10 @@ CONTAINS
          END DO
       END DO
 
-      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PDOS", &
-                                extension=".pdos", file_position=file_position, file_action=file_action, &
-                                file_form="FORMATTED", middle_name=TRIM(middle_name))
-      IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT="(A,I0,A,F12.6,A)") &
-            "# "//TRIM(title)//" at iteration step i = ", iterstep, ", E(Fermi) = ", e_fermi, " a.u."
-         CALL write_broadening_info(iw, broaden_type, broaden_width, voigt_mixing)
-         WRITE (UNIT=iw, FMT="(A)", ADVANCE="NO") "# Energy[a.u.]"
-         IF (separate_components) THEN
-            ALLOCATE (tmp_str(0:0, 0:maxl, -maxl:maxl))
-            tmp_str = ""
-            DO il = 0, maxl
-               DO im = -il, il
-                  tmp_str(0, il, im) = sgf_symbol(0, il, im)
-                  WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(tmp_str(0, il, im))
-               END DO
-            END DO
-            DEALLOCATE (tmp_str)
-         ELSE
-            DO il = 0, maxl
-               WRITE (UNIT=iw, FMT="(2X,A)", ADVANCE="NO") TRIM(l_sym(il))
-            END DO
-         END IF
-         WRITE (UNIT=iw, FMT="()")
-         WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2X,F20.", ndigits, ")"
-         DO i = 1, nhist
-            eval = emin + (i - 1)*de
-            WRITE (UNIT=iw, FMT="(F15.8)", ADVANCE="NO") eval
-            DO icomp = 1, ncomponents
-               WRITE (UNIT=iw, FMT=fmtstr_data, ADVANCE="NO") pdos_curve(i, icomp)
-            END DO
-            WRITE (UNIT=iw, FMT="()")
-         END DO
-      END IF
-      CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%PDOS")
+      CALL write_broadened_pdos_curve(logger, dft_section, middle_name, file_position, file_action, &
+                                      iterstep, e_fermi, title, maxl, separate_components, &
+                                      pdos_curve, emin, de, broaden_type, broaden_width, &
+                                      voigt_mixing, ndigits)
 
       DEALLOCATE (pdos_curve)
 

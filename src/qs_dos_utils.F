@@ -65,7 +65,6 @@ CONTAINS
 
    END SUBROUTINE add_broadened_peak
 
-
 ! **************************************************************************************************
 !> \brief Add a broadened spectral line with a scalar weight to a curve.
 !> \param curve ...

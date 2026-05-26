@@ -1648,7 +1648,6 @@ CONTAINS
 
    END SUBROUTINE lowdin_kp_trans
 
-
 ! **************************************************************************************************
 !> \brief Calculate S(k)^1/2 C(k) for real or complex k-point wavefunctions
 !> \param kp           K-point environment for one local k point

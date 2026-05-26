@@ -182,7 +182,7 @@ MODULE qs_scf_post_gpw
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-   USE qs_pdos,                         ONLY: calculate_projected_dos, &
+   USE qs_pdos,                         ONLY: calculate_projected_dos,&
                                               calculate_projected_dos_kp
    USE qs_resp,                         ONLY: resp_fit
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
