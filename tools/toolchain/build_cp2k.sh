@@ -219,9 +219,14 @@ fi
 BUILD_DIR="${CP2K_ROOT}/build"
 
 # Show CMake options
-echo "Generated CMake flags:"
+log_cmake() {
+  printf '%s\n' "$@" | tee -a cmake.log
+}
+
+[ -f "cmake.log" ] && rm cmake.log
+log_cmake "Generated CMake flags:"
 for flag in ${CMAKE_OPTIONS}; do
-  echo "   ${flag}"
+  log_cmake "   ${flag}"
 done
 
 if [ "${DRY_RUN}" != "__TRUE__" ]; then
@@ -235,27 +240,18 @@ if [ "${DRY_RUN}" != "__TRUE__" ]; then
 
   # ====================== Configure ======================
   echo "================== CMake configuration ==================="
-  echo "Source dir : ${CP2K_ROOT}"
-  echo "Build  dir : ${BUILD_DIR}"
-  echo "Install dir: ${CMAKE_INSTALL_PREFIX}"
-  echo "Shared libs: ${BUILD_SHARED_LIBS}"
+  log_cmake "Source dir : ${CP2K_ROOT}"
+  log_cmake "Build  dir : ${BUILD_DIR}"
+  log_cmake "Install dir: ${CMAKE_INSTALL_PREFIX}"
+  log_cmake "Shared libs: ${BUILD_SHARED_LIBS}"
 
-  echo -n "Configuring ... "
-  cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} > cmake.log 2>&1 || tail_excerpt cmake.log
-  echo "done."
+  set -o pipefail
+  cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
 
   # ====================== Build ======================
   echo "==================== Building CP2K ======================="
-  echo "Parallel jobs: ${BUILD_JOBS}"
-
-  echo -n "Building CP2K ... "
-  if ! cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" > build.log 2>&1; then
-    echo "failed."
-    tail_excerpt build.log
-    exit 1
-  else
-    echo "done."
-  fi
+  echo "Parallel jobs: ${BUILD_JOBS}" | tee build.log
+  cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" 2>&1 | tee -a build.log
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file
