@@ -2656,14 +2656,14 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OT_NLUMO", &
+      CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
                           description="Number of unoccupied orbitals to include in the "//TRIM(label)// &
-                          " for OT calculations (-1=all)."//newline// &
-                          "Triggers a post-SCF eigensolver to obtain virtual orbital energies and, "// &
-                          "if needed, coefficients."//newline// &
-                          "Only available with OT method; diagonalization calculations use the "// &
-                          "unoccupied orbitals already present from ADDED_MOS.", &
-                          usage="OT_NLUMO integer", default_i_val=0)
+                          " (-1=all)."//newline// &
+                          "For OT calculations, the requested virtual orbitals are generated after "// &
+                          "SCF using the OT eigensolver. For diagonalization calculations, "// &
+                          "SCF%ADDED_MOS is increased if needed to make the requested unoccupied "// &
+                          "orbitals available.", &
+                          usage="NLUMO integer", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

@@ -1263,7 +1263,10 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          NULLIFY (unoccupied_evals(ispin)%array)
          IF (output_unit > 0) WRITE (output_unit, *) " "
-         IF (output_unit > 0) WRITE (output_unit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
+         IF (output_unit > 0) WRITE (output_unit, *) &
+            " Using OT eigensolver for additional unoccupied orbitals spin ", ispin
+         IF (output_unit > 0) WRITE (output_unit, *) &
+            " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
          IF (output_unit > 0) WRITE (output_unit, FMT='(1X,A)') "-----------------------------------------------------"
          CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
          CALL cp_fm_get_info(mo_coeff, nrow_global=n)
@@ -2260,7 +2263,7 @@ CONTAINS
          IF (.NOT. do_kpoints .AND. PRESENT(scf_env)) THEN
             IF (scf_env%method == ot_method_nr) THEN
                IF (do_dos) THEN
-                  CALL section_vals_val_get(dft_section, "PRINT%DOS%OT_NLUMO", i_val=nlumo_dos)
+                  CALL section_vals_val_get(dft_section, "PRINT%DOS%NLUMO", i_val=nlumo_dos)
                   IF (nlumo_dos == -1) THEN
                      nlumo_required = -1
                   ELSEIF (nlumo_required /= -1) THEN
@@ -2268,7 +2271,7 @@ CONTAINS
                   END IF
                END IF
                IF (do_pdos) THEN
-                  CALL section_vals_val_get(dft_section, "PRINT%PDOS%OT_NLUMO", i_val=nlumo_pdos)
+                  CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo_pdos)
                   IF (nlumo_pdos == -1) THEN
                      nlumo_required = -1
                   ELSEIF (nlumo_required /= -1) THEN
