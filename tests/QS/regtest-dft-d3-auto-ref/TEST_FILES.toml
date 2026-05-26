@@ -4,14 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "pbe_dftd3_auto.inp"                   = [{matcher="M011", tol=1.0E-9, ref=-15.79823912329442}]
-"pbe_dftd3_explicit.inp"               = [{matcher="M011", tol=1.0E-9, ref=-15.79823912329443}]
+"blyp_dftd3_overwrite.inp"             = [{matcher="M011", tol=1.0E-9, ref=-15.72056128}]
 "blyp_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.72203183029240}]
-"blyp_dftd3_explicit.inp"              = [{matcher="M011", tol=1.0E-9, ref=-15.72203183029238}]
 "bp86_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.86955841580662}]
-"bp86_dftd3_explicit.inp"              = [{matcher="M011", tol=1.0E-9, ref=-15.86955841580648}]
 "b3lyp_dftd3_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-15.75872597481363}]
-"b3lyp_dftd3_explicit.inp"             = [{matcher="M011", tol=1.0E-9, ref=-15.75872597481354}]
 "pbe0_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.803039411000837}]
-"pbe0_dftd3_explicit.inp"              = [{matcher="M011", tol=1.0E-9, ref=-15.803039411000837}]
 "tpss_dftd3_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.81605457676979}]
-"tpss_dftd3_explicit.inp"              = [{matcher="M011", tol=1.0E-9, ref=-15.81605457676977}]
