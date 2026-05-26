@@ -104,9 +104,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      present_ek = PRESENT(e_k)
-      present_dedk = PRESENT(de_dk)
+      present_ek = PRESENT(e_k)  ! calculate band energies, ε_k for all kpoints xkp
+      present_dedk = PRESENT(de_dk)  ! calculate derivative, ∇_k ε_k of band energies for all kpoints xkp
+
       IF (.NOT. (present_ek .OR. present_dedk)) CPABORT("Subroutine needs either e_k or de_dk")
+
       CALL get_qs_env(qs_env, &
                       matrix_ks_kp=matrix_ks_kp, &
                       matrix_s_kp=matrix_s_kp, &
@@ -161,6 +163,8 @@ CONTAINS
             IF (present_ek) e_k(ispin, ikp, :) = eigenvals(:)
 
             IF (present_dedk) THEN
+               ! Evaluate the derivatives using
+               ! ∇ ε_k = C^H(k) ∇ H_k C(k) - ε_k C^H(k) ∇ S_k C(k)
                DO i_dir = 1, 3
                   CALL rs_to_kp(S_rs(1, :, :, :), dS_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
                   CALL rs_to_kp(H_rs(ispin, :, :, :), dH_dk_i, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
@@ -210,6 +214,10 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
+
+      ! We calculate momentum matrix elements p_nm = <ψ_n|-iħ∇_r|ψ_m>
+      ! p_nm = <u_n|(ħk - iħ∇_r)|u_m>
+      ! p_nm = i d_nm (ε_n - ε_m) + ∇_k ε_n δ_nm
 
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env, dft_control=dft_control, mos=mos)
@@ -266,17 +274,20 @@ CONTAINS
          DIMENSION(:, :, :, :)                           :: momentum
       COMPLEX(KIND=dp), DIMENSION(3)                     :: efactor
       INTEGER                                            :: handle, i, i_dir, j, n_spin, nao
-      REAL(KIND=dp)                                      :: omega
-      REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, pol_pump
+      REAL(KIND=dp)                                      :: omega, strength
+      REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, polarisation
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
-      pol_pump(:) = bs_env%floquet_pol_pump(:)
-      IF (SQRT(SUM(pol_pump**2.0_dp)) < EPSILON(0.0_dp)) THEN
+      ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
+
+      polarisation(:) = bs_env%floquet_polarisation(:)
+      IF (SQRT(SUM(polarisation**2.0_dp)) < EPSILON(0.0_dp)) THEN
          CPABORT("Invalid (too small) polarisation vector specified for POLARISATION_PUMP")
       END IF
-      e_vec(:) = bs_env%floquet_amplitude*pol_pump/SQRT(SUM(pol_pump**2))
+      strength = SQRT(bs_env%floquet_intensity/(3.50944_dp*10.0_dp**16))
+      e_vec(:) = strength*polarisation
       phi(:) = bs_env%floquet_phi(:)
       omega = bs_env%floquet_omega
       n_spin = bs_env%n_spin
@@ -329,6 +340,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
+
       omega = bs_env%floquet_omega
       n_spin = bs_env%n_spin
 
@@ -377,6 +390,8 @@ CONTAINS
       max_f_index = bs_env%max_floquet_index
       n_fbands = 1 + 2*max_f_index
       n_spin = bs_env%n_spin
+
+      ! Creates the floquet matrix H_F by placing the diagonal and off diagonal blocks
 
       ALLOCATE (xkp1(3, 1), source=0.0_dp)
       ALLOCATE (diag_e(nao, nao), source=z_zero)
@@ -433,8 +448,10 @@ CONTAINS
       ALLOCATE (vector_block_0(3*nao, nao), vector_block_1(3*nao, nao), source=z_zero)
       CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_0, start_row_0, start_row_0)
       CALL cp_cfm_get_submatrix(cfm_eigenvectors, vector_block_1, start_row_1, start_row_1)
-      IF (ABS(MAXVAL(ABS(vector_block_0)) - MAXVAL(ABS(vector_block_1))) > bs_env%eps_floquet) THEN
-         CPABORT("FLOQUET DIAGONALIZATION DID NOT CONVERGE. MAX_FLOQUET_INDEX TOO SMALL")
+      IF (bs_env%eps_floquet>0) THEN
+         IF (ABS(MAXVAL(ABS(vector_block_0)) - MAXVAL(ABS(vector_block_1))) > bs_env%eps_floquet) THEN
+            CPABORT("FLOQUET DIAGONALIZATION DID NOT CONVERGE. MAX_FLOQUET_INDEX TOO SMALL")
+         END IF
       END IF
       DEALLOCATE (vector_block_0, vector_block_1)
       CALL timestop(handle)
@@ -565,14 +582,14 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
          CALL open_file("QUASI_ENERGIES.out", unit_number=bs_env%floquet_qunit, &
-                        file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
+            file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
          qunit = bs_env%floquet_qunit
-         WRITE (UNIT=qunit, FMT="(/,A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
+         WRITE (UNIT=qunit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
             "#  Point ", ikp - nkp_start, "  Spin ", ispin, ":", xkp(1:3)
-         WRITE (UNIT=qunit, FMT="(A)") "#   Floquet_index  Quasi_energy"
+         WRITE (UNIT=qunit, FMT="(A)") "#  Floquet band  Quasi energy [eV]"
          DO i = 1, nao
             qe = quasi_energies(i)
-            WRITE (qunit, "(2X,I3,G11.4)") i, qe
+            WRITE (qunit, "(I8,F18.8)") i, qe
          END DO
          CALL close_file(bs_env%floquet_qunit)
       END IF
@@ -618,12 +635,12 @@ CONTAINS
          CALL open_file("FLOQUET_SPECTRAL_FUNCTION.out", unit_number=bs_env%floquet_wunit, &
                         file_status="UNKNOWN", file_action="WRITE", file_position="APPEND")
          wunit = bs_env%floquet_wunit
-         WRITE (UNIT=wunit, FMT="(/,A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
+         WRITE (UNIT=wunit, FMT="(A,I0,T15,A,I0,A,T24,3(1X,F14.8))") &
             "#  Point ", ikp - nkp_start, "  Spin ", ispin, ":", xkp(1:3)
-         WRITE (UNIT=wunit, FMT="(A)") "#   ENERGY  SPECTRAL_FUNCTION"
+         WRITE (UNIT=wunit, FMT="(A)") "#    ENERGY       A(ω,k)"
          DO i_E = 1, n_E
             energy = E_min + i_E*energy_step
-            WRITE (wunit, "(2X,2G11.4)") energy, a_k(i_E)
+            WRITE (wunit, "(2X,2G13.4)") energy, a_k(i_E)
          END DO
          CALL close_file(bs_env%floquet_wunit)
       END IF

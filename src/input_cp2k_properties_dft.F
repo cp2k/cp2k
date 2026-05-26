@@ -2915,86 +2915,95 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CALL section_create(section, __LOCATION__, name="FLOQUET", &
-                          description="Specifies FLOQUET", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
+                          description="Parameters controlling Floquet-theory calculations "// &
+                          "of a system driven by a periodic monochromatic electric field.", &
+      n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PUMP_AMPLITUDE", &
-                          description="Intensity of the electric field in a.u,", &
-                          usage="PUMP_AMPLITUDE 0.001", n_var=1, &
-                          type_of_var=real_t)
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
+                          description="Intensity of the electric field. Units are "// &
+                          "in W*cm-2 which corresponds "// &
+                          "to an amplitude in a.u. of sqrt(I/(3.50944*10^16)).", &
+                          usage="INTENSITY  0.001", n_var=1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION_PUMP", &
-                          description="E", &
-                          usage="POLARISATION_PUMP 1 1 1", n_var=3, &
-                          default_r_vals=[1.0_dp, 0.0_dp, 0.0_dp], &
-                          type_of_var=real_t)
+      CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
+                          description="Polarisation vector of electric field", &
+                          usage="POLARISATION  0.0 0.0 1.0", &
+                          repeats=.FALSE., n_var=3, &
+                          type_of_var=real_t, default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PUMP_PHASE", &
-                          description="PUMP_PHASE", &
-                          usage="PUMP_PHASE 0.0 1.57 0.0", n_var=3, &
-                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp], &
-                          type_of_var=real_t)
+      CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
+                          description="Frequency of electric field for Floquet calculations [Hz]", &
+                          usage="FREQUENCY 750.E12", &
+                          n_var=1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
-                          description="FREQUENCY", &
-                          usage="OMEGA 1", n_var=1, &
-                          type_of_var=real_t)
+      CALL keyword_create(keyword, __LOCATION__, name="PHASE_OFFSETS", &
+                          description="Phase offset of the electric field in the "// &
+                          "x, y, and z directions given in multiples of pi. ", &
+                          usage="PHASE_OFFSETS  0.5 0 0", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_FLOQUET_INDEX", &
-                          description="MAX_FLOQUET_INDEX", &
-                          usage="MAX_FLOQUET_INDEX 600", n_var=1, &
-                          default_i_val=600, &
-                          type_of_var=integer_t)
+                          description="Largest absolute Floquet index retained when "// &
+                          "truncating the Floquet-Brillouin zone. Larger values "// &
+                          "increase accuracy at the cost of a bigger Floquet "// &
+                          "Hamiltonian.", &
+                          usage="MAX_FLOQUET_INDEX 50", &
+                          default_i_val=50)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ELECTRONIC_TEMPERATURE", &
-                          description="ELECTRONIC TEMPERATURE", &
-                          usage="ELECTRONIC_TEMPERATURE 1000", n_var=1, &
-                          default_r_val=0.0_dp, &
-                          type_of_var=real_t)
+                          description="Electronic temperature used to evaluate the fermi-dirac "// &
+                          "occupation for the spectral function. If not used or negative, "// &
+                          "infinite electronic temperature is used.", &
+                          usage="ELECTRONIC_TEMPERATURE 1000", &
+                          default_r_val=-1.0_dp, unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
-                          description="EPS FLOQUET", &
-                          usage="EPS_FLOQUET 1.e-6", n_var=1, &
-                          default_r_val=1.0e-10_dp, &
-                          type_of_var=real_t)
+                          description="Threshold on the errors due to truncation. "// &
+                          "Used to verify that MAX_FLOQUET_INDEX is large enough "// &
+                          "that truncation errors are negligible.", &
+                          usage="EPS_FLOQUET 1.e-6", default_r_val=1.0e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
-                          description="THE ENERGY WINDOW", &
-                          usage="ENERGY_WINDOW 1", n_var=1, &
-                          default_r_val=1.0_dp, &
-                          type_of_var=real_t)
+                          description="Half-width of the energy range, in eV, centred "// &
+                          "on the Fermi level, over which the Floquet spectral "// &
+                          "function is evaluated.", &
+                          usage="ENERGY_WINDOW 5.0", &
+                          default_r_val=cp_unit_to_cp2k(value=10.0_dp, unit_str="eV"), &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_STEP", &
-                          description="ENERGY_STEP", &
-                          usage="ENERGY_STEP 0.01", n_var=1, &
-                          default_r_val=0.01_dp, &
-                          type_of_var=real_t)
+                          description="Resolution of the energy E used to compute the "// &
+                          "spectral function within the energy window.", &
+                          usage="ENERGY_STEP 0.01", &
+                          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="eV"), &
+                          unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BROADENING", &
-                          description="BROADENING", &
-                          usage="BROADENING 0.05", n_var=1, &
-                          default_r_val=0.05_dp, &
-                          type_of_var=real_t)
+                          description="Lorentzian broadening applied to the peaks of the "// &
+                          "Floquet spectral function.", &
+                          usage="BROADENING 0.02", &
+                          default_r_val=cp_unit_to_cp2k(value=0.02_dp, unit_str="eV"), &
+                          unit_str="eV")
+
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

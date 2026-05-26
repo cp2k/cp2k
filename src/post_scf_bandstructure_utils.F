@@ -80,7 +80,8 @@ MODULE post_scf_bandstructure_utils
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
-                                              evolt
+                                              evolt,&
+                                              hertz
    USE post_scf_bandstructure_types,    ONLY: band_edges_type,&
                                               post_scf_bandstructure_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -250,12 +251,14 @@ CONTAINS
       NULLIFY (floquet_sec)
       floquet_sec => section_vals_get_subs_vals(bs_sec, "FLOQUET")
       CALL section_vals_get(floquet_sec, explicit=bs_env%do_floquet)
-      CALL section_vals_val_get(floquet_sec, "POLARISATION_PUMP", r_vals=bs_env%floquet_pol_pump)
-      CALL section_vals_val_get(floquet_sec, "OMEGA", r_val=bs_env%floquet_omega)
-      CALL section_vals_val_get(floquet_sec, "PUMP_AMPLITUDE", r_val=bs_env%floquet_amplitude)
-      CALL section_vals_val_get(floquet_sec, "PUMP_PHASE", r_vals=bs_env%floquet_phi)
+      CALL section_vals_val_get(floquet_sec, "INTENSITY", r_val=bs_env%floquet_intensity)
+      CALL section_vals_val_get(floquet_sec, "POLARISATION", r_vals=bs_env%floquet_polarisation)
+      CALL section_vals_val_get(floquet_sec, "FREQUENCY", r_val=bs_env%floquet_omega)
+      bs_env%floquet_omega=bs_env%floquet_omega/hertz
+      CALL section_vals_val_get(floquet_sec, "PHASE_OFFSETS", r_vals=bs_env%floquet_phi)
       CALL section_vals_val_get(floquet_sec, "MAX_FLOQUET_INDEX", i_val=bs_env%max_floquet_index)
-      CALL section_vals_val_get(floquet_sec, "ELECTRONIC_TEMPERATURE", r_val=bs_env%energy_window_floquet)
+      CALL section_vals_val_get(floquet_sec, "ELECTRONIC_TEMPERATURE", &
+                                r_val=bs_env%floquet_electronic_temperature)
       CALL section_vals_val_get(floquet_sec, "EPS_FLOQUET", r_val=bs_env%eps_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_STEP", r_val=bs_env%energy_step_floquet)
