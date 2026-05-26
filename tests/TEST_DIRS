@@ -332,7 +332,7 @@ QS/regtest-ri-rpa-exchange                                  libint !ifx
 QS/regtest-cdft-4-1
 QS/regtest-epr-2
 QS/regtest-double-hybrid-grad-numer-meta                    libxc !ifx
-xTB/regtest-stda
+xTB/regtest-stda                                            tblite
 QS/regtest-double-hybrid-grad-numer                         !ifx
 QS/regtest-nlmo
 QS/regtest-admm-type                                        libint !ifx
