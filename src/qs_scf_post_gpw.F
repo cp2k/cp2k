@@ -24,6 +24,7 @@ MODULE qs_scf_post_gpw
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
@@ -39,6 +40,7 @@ MODULE qs_scf_post_gpw
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_init_random,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -74,7 +76,7 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
+        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -105,6 +107,7 @@ MODULE qs_scf_post_gpw
                                               evolt
    USE population_analyses,             ONLY: lowdin_population_analysis,&
                                               mulliken_population_analysis
+   USE preconditioner_types,            ONLY: preconditioner_type
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
                                               NEUMANN_BC,&
@@ -177,7 +180,7 @@ MODULE qs_scf_post_gpw
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_ot_lumo_methods,              ONLY: make_lumo_gpw
+   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_resp,                         ONLY: resp_fit
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -214,7 +217,8 @@ MODULE qs_scf_post_gpw
 
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
-   PUBLIC :: scf_post_calculation_gpw, &
+   PUBLIC :: make_lumo_gpw, &
+             scf_post_calculation_gpw, &
              qs_scf_post_moments, &
              write_mo_dependent_results, &
              write_mo_free_results
@@ -1205,6 +1209,111 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE scf_post_calculation_gpw
+
+! **************************************************************************************************
+!> \brief Gets the LUMOs and their eigenvalues for all spin channels.
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
+!> \param nlumo ...
+!> \param nlumos ...
+! **************************************************************************************************
+   SUBROUTINE make_lumo_gpw(qs_env, scf_env, unoccupied_orbs, unoccupied_evals, nlumo, nlumos)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: unoccupied_orbs
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals
+      INTEGER, INTENT(IN)                                :: nlumo
+      INTEGER, INTENT(OUT)                               :: nlumos
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'make_lumo_gpw'
+
+      INTEGER                                            :: handle, homo, ispin, n, nao, nmo, &
+                                                            output_unit
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(preconditioner_type), POINTER                 :: local_preconditioner
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (ks_rmpv, matrix_s, scf_control, dft_control, admm_env, para_env, blacs_env, mos)
+      CALL get_qs_env(qs_env, &
+                      matrix_ks=ks_rmpv, &
+                      matrix_s=matrix_s, &
+                      scf_control=scf_control, &
+                      dft_control=dft_control, &
+                      admm_env=admm_env, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env, &
+                      mos=mos)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      DO ispin = 1, dft_control%nspins
+         NULLIFY (unoccupied_evals(ispin)%array)
+         IF (output_unit > 0) WRITE (output_unit, *) " "
+         IF (output_unit > 0) WRITE (output_unit, *) " Lowest Eigenvalues of the unoccupied subspace spin ", ispin
+         IF (output_unit > 0) WRITE (output_unit, FMT='(1X,A)') "-----------------------------------------------------"
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo)
+         CALL cp_fm_get_info(mo_coeff, nrow_global=n)
+         nlumos = MAX(1, MIN(nlumo, nao - nmo))
+         IF (nlumo == -1) nlumos = nao - nmo
+         ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
+                                  nrow_global=n, ncol_global=nlumos)
+         CALL cp_fm_create(unoccupied_orbs(ispin), fm_struct_tmp, name="lumos")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
+
+         ! the full_all preconditioner makes not much sense for lumos search
+         NULLIFY (local_preconditioner)
+         IF (ASSOCIATED(scf_env)) THEN
+            IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+               local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
+               ! this one can for sure not be right (as it has to match a given C0)
+               IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+                  NULLIFY (local_preconditioner)
+               END IF
+            END IF
+         END IF
+
+         ! If we do ADMM, we add have to modify the Kohn-Sham matrix
+         IF (dft_control%do_admm) THEN
+            CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+         END IF
+
+         CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
+                             matrix_c_fm=unoccupied_orbs(ispin), &
+                             matrix_orthogonal_space_fm=mo_coeff, &
+                             eps_gradient=scf_control%eps_lumos, &
+                             preconditioner=local_preconditioner, &
+                             iter_max=scf_control%max_iter_lumos, &
+                             size_ortho_space=nmo)
+
+         CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin), ks_rmpv(ispin)%matrix, &
+                                             unoccupied_evals(ispin)%array, scr=output_unit, &
+                                             ionode=output_unit > 0)
+
+         ! If we do ADMM, we restore the original Kohn-Sham matrix
+         IF (dft_control%do_admm) THEN
+            CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
+         END IF
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_lumo_gpw
 
 ! **************************************************************************************************
 !> \brief Computes and Prints Atomic Charges with several methods

@@ -65,8 +65,8 @@ MODULE qs_tddfpt2_utils
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-   USE qs_ot_lumo_methods,              ONLY: make_lumo_gpw
    USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_scf_post_gpw,                 ONLY: make_lumo_gpw
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
