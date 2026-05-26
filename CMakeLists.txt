@@ -1131,7 +1131,7 @@ if(CP2K_USE_LIBXSMM)
   message(
     "  - LIBXSMM\n"
     "    - include directories: ${CP2K_LIBXSMM_INCLUDE_DIRS}\n"
-    "    - libraries: ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES}\n\n"
+    "    - libraries: ${CP2K_LIBXSMMEXT_LINK_LIBRARIES};${CP2K_LIBXSMMF_LINK_LIBRARIES};${CP2K_LIBXSMM_LINK_LIBRARIES}\n\n"
   )
 endif()
 

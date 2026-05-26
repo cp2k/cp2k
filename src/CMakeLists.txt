@@ -1624,6 +1624,7 @@ target_link_libraries(
   INTERFACE cp2k::LAPACK::lapack
             $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf>
             $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmext>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmm>
             cp2k::BLAS::blas
             $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
             $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
