@@ -517,31 +517,25 @@ CONTAINS
       CALL dbcsr_add(rtbse_env%w_dbcsr, rtbse_env%v_dbcsr, 1.0_dp, 1.0_dp)
       CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the COHSEX starting energies
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-         ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
-         DO i = 1, rtbse_env%n_spin
+      DO i = 1, rtbse_env%n_spin
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+            ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
             ! TODO : Allow no COH calculation for static screening
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(i), -0.5_dp, rtbse_env%S_inv_fm)
             ! Copy and subtract from the complex reference hamiltonian
             CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
                                       CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
-            ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
-            ! So far only closed shell tested
-            ! Uses rho_orig - same as rho for initial run but different for continued run
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
-            ! Subtract from the complex reference Hamiltonian
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
-         END DO
-      ELSE
-         ! KS Hamiltonian - use time-dependent Fock exchange
-         DO i = 1, rtbse_env%n_spin
-            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
-            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
-         END DO
-      END IF
+         END IF
+         ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
+         ! So far only closed shell tested
+         ! Uses rho_orig - same as rho for initial run but different for continued run
+         ! For KS reference this is the time-dependent Fock exchange (w_dbcsr = v only).
+         CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX(i), -1.0_dp, rtbse_env%rho_orig(i))
+         ! Subtract from the complex reference Hamiltonian
+         CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                   CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
+      END DO
       ! ****** END COHSEX REFERENCE CALCULATION
 
       CALL timestop(handle)

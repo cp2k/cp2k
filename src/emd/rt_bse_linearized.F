@@ -931,68 +931,49 @@ CONTAINS
          CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       END IF
       ! Calculate the COHSEX starting energies
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-         ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
-         DO i = 1, rtbse_env%n_spin
-            IF (use_coh_reference) THEN
-               ! TODO : Allow no COH calculation for static screening
-               IF (use_rirs_sex) THEN
-                  CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, &
-                                           rtbse_env%S_inv_fm)
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
-               END IF
-               ! Transform to MO basis (AO scratch -> MO-active result)
-               CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
-               ! Apply occupation factor f_n-f_m
-               CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
-               ! Copy and subtract from the complex reference hamiltonian
-               CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
-               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
+      DO i = 1, rtbse_env%n_spin
+         ! COH is only meaningful with screening (g0w0 path); KS reference has W^c = 0.
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh_reference) THEN
+            ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
+            ! TODO : Allow no COH calculation for static screening
+            IF (use_rirs_sex) THEN
+               CALL compute_sigma_ri_rs(rtbse_env%bs_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, &
+                                        rtbse_env%S_inv_fm)
+            ELSE
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_COH_ao(i), -0.5_dp, rtbse_env%S_inv_fm)
             END IF
-            ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
-            ! So far only closed shell tested
-            ! Uses rho_orig - same as rho for initial run but different for continued run
-            ! In TDA the propagator evaluates separate OV/VO-projected kernel passes.
-            ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
-            ! vanish and the SEX reference must remain zero in TDA.
-            IF (use_sex_reference) THEN
-               IF (use_rirs_sex) THEN
-                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
-                                                   rtbse_env%rho_ao_lrrtbse(i))
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
-               END IF
-               ! Transform to MO basis (AO scratch -> MO-active result)
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
-               ! Apply occupation factor f_n-f_m
-               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
-               ! Subtract from the complex reference Hamiltonian
-               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
-            END IF
-         END DO
-      ELSE
-         ! KS Hamiltonian - use time-dependent Fock exchange
-         ! Same TDA reasoning as above: skip the SEX reference subtraction in TDA.
-         IF (use_sex_reference) THEN
-            DO i = 1, rtbse_env%n_spin
-               IF (use_rirs_sex) THEN
-                  CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
-                                                   rtbse_env%rho_ao_lrrtbse(i))
-               ELSE
-                  CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
-               END IF
-               ! Transform to MO basis (AO scratch -> MO-active result)
-               CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
-               ! Apply occupation factor f_n-f_m
-               CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
-               CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
-                                         CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
-            END DO
+            ! Transform to MO basis (AO scratch -> MO-active result)
+            CALL transform_ao_to_mo_covariant_fm(rtbse_env, rtbse_env%sigma_COH_ao(i), rtbse_env%sigma_COH(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_fm(rtbse_env, rtbse_env%sigma_COH(i), i)
+            ! Copy and subtract from the complex reference hamiltonian
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(i), mtarget=rtbse_env%ham_workspace(1))
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END IF
-      END IF
+         ! Calculate exchange part - TODO : should this be applied for different spins? - TEST with O2 HF propagation?
+         ! So far only closed shell tested
+         ! Uses rho_orig - same as rho for initial run but different for continued run
+         ! For KS reference this is the time-dependent Fock exchange (w_dbcsr = v only).
+         ! In TDA the propagator evaluates separate OV/VO-projected kernel passes.
+         ! rho_orig is OO-diagonal in the MO basis, so its OV/VO projections
+         ! vanish and the SEX reference must remain zero in TDA.
+         IF (use_sex_reference) THEN
+            IF (use_rirs_sex) THEN
+               CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, &
+                                                rtbse_env%rho_ao_lrrtbse(i))
+            ELSE
+               CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(i), -1.0_dp, rtbse_env%rho_ao_lrrtbse(i))
+            END IF
+            ! Transform to MO basis (AO scratch -> MO-active result)
+            CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(i), rtbse_env%sigma_SEX(i), i)
+            ! Apply occupation factor f_n-f_m
+            CALL transform_mo_occupation_factor_diff_cfm(rtbse_env, rtbse_env%sigma_SEX(i), i)
+            ! Subtract from the complex reference Hamiltonian
+            CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_reference(i), &
+                                      CMPLX(-1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(i))
+         END IF
+      END DO
       ! ****** END COHSEX REFERENCE CALCULATION
 
       CALL timestop(handle)
