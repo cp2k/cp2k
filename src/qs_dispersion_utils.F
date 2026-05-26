@@ -35,7 +35,8 @@ MODULE qs_dispersion_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE string_utilities,                ONLY: uppercase, lowercase
+   USE string_utilities,                ONLY: lowercase,&
+                                              uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -320,11 +321,7 @@ CONTAINS
                                             c_val=dispersion_env%ref_functional)
                END IF
                IF (TRIM(ADJUSTL(dispersion_env%ref_functional)) == "none") THEN
-                  IF (exfun) THEN
-                     CPABORT("D4: Unknown REFERENCE_FUNCTIONAL. Check supported functionals.")
-                  ELSE
-                     CPABORT("D4: XC_FUNCTIONAL not supported. Set REFERENCE_FUNCTIONAL explicitly.")
-                  END IF
+                  CPABORT("D4: XC_FUNCTIONAL not supported. Set REFERENCE_FUNCTIONAL explicitly.")
                END IF
             ELSE
                CALL section_vals_val_get(pp_section, "D4_SCALING", r_vals=scal)
