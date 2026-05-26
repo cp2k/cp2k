@@ -58,26 +58,26 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
       CHARACTER(len=*), INTENT(OUT)                      :: d_functional_name
 
-      SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
-      CASE ("PBE")
-         d_functional_name = "pbe"
-      CASE ("PBE0")
-         d_functional_name = "pbe0"
-      CASE ("B3LYP")
-         d_functional_name = "b3lyp"
-      CASE ("BLYP")
-         d_functional_name = "blyp"
-      CASE ("BP")
-         d_functional_name = "bp86"
-      CASE ("TPSS")
-         d_functional_name = "tpss"
-      CASE ("SCAN")
-         d_functional_name = "scan"
-      CASE ("R2SCAN")
-         d_functional_name = "r2scan"
-      CASE DEFAULT
-         d_functional_name = "none"
-      END SELECT
+SELECT CASE (TRIM(ADJUSTL(xc_functional_name)))
+       CASE ("PBE")
+          d_functional_name = "pbe"
+       CASE ("PBE0")
+          d_functional_name = "pbe0"
+       CASE ("B3LYP")
+          d_functional_name = "b3lyp"
+       CASE ("BLYP")
+          d_functional_name = "blyp"
+       CASE ("BP")
+          d_functional_name = "bp86"
+       CASE ("TPSS")
+          d_functional_name = "tpss"
+       CASE ("SCAN")
+          d_functional_name = "scan"
+       CASE ("R2SCAN")
+          d_functional_name = "r2scan"
+       CASE DEFAULT
+          d_functional_name = "none"
+       END SELECT
 
    END SUBROUTINE xc_functional_to_d_name
 
@@ -121,7 +121,8 @@ CONTAINS
       CHARACTER(len=20), ALLOCATABLE                     :: sub_names(:)
       INTEGER                                            :: i, n_explicit
       LOGICAL :: has_becke88, has_lyp, has_mgga_c_r2scan, has_mgga_c_scan, has_mgga_x_r2scan, &
-         has_mgga_x_scan, has_optx, has_p86c, has_vwn, has_xalpha
+         has_mgga_x_scan, has_optx, has_p86c, has_pbe0_13, has_vwn, has_xalpha
+      REAL(dp)                                           :: scal_x_pbe
       TYPE(section_vals_type), POINTER                   :: sub_section
 
       n_explicit = 0
@@ -142,6 +143,7 @@ CONTAINS
       has_mgga_x_r2scan = .FALSE.
       has_mgga_c_scan = .FALSE.
       has_mgga_x_scan = .FALSE.
+      has_pbe0_13 = .FALSE.
 
       n_explicit = 0
       DO i = 1, xc_fun_section%section%n_subsections
@@ -162,6 +164,13 @@ CONTAINS
                has_xalpha = .TRUE.
             CASE ("OPTX")
                has_optx = .TRUE.
+            CASE ("PBE0_1/3")
+               has_pbe0_13 = .TRUE.
+            CASE ("PBE")
+               CALL section_vals_val_get(sub_section, "SCALE_X", r_val=scal_x_pbe)
+               IF (ABS(scal_x_pbe - 0.75_dp) < 0.01_dp) THEN
+                  has_pbe0_13 = .TRUE.
+               END IF
             CASE ("MGGA_C_R2SCAN")
                has_mgga_c_r2scan = .TRUE.
             CASE ("MGGA_X_R2SCAN")
@@ -177,7 +186,11 @@ CONTAINS
       IF (has_becke88 .AND. has_lyp .AND. has_vwn .AND. has_xalpha) THEN
          xc_functional_name = "B3LYP"
       ELSE IF (has_becke88 .AND. has_lyp) THEN
-         xc_functional_name = "BLYP"
+         IF (has_pbe0_13) THEN
+            xc_functional_name = "PBE0"
+         ELSE
+            xc_functional_name = "BLYP"
+         END IF
       ELSE IF (has_becke88 .AND. has_p86c) THEN
          xc_functional_name = "BP"
       ELSE IF (has_optx .AND. has_lyp) THEN
@@ -186,6 +199,8 @@ CONTAINS
          xc_functional_name = "R2SCAN"
       ELSE IF (has_mgga_c_scan .AND. has_mgga_x_scan) THEN
          xc_functional_name = "SCAN"
+      ELSE IF (n_explicit == 1 .AND. has_pbe0_13) THEN
+         xc_functional_name = "PBE0"
       ELSE IF (n_explicit == 1) THEN
          xc_functional_name = sub_names(1)
       ELSE
