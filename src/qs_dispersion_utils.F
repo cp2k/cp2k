@@ -112,59 +112,33 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: sub_section
 
       n_explicit = 0
-      DO i = 1, xc_fun_section%section%n_subsections
-         IF (SIZE(xc_fun_section%subs_vals(i, 1)%section_vals%values, 2) > 0) THEN
-            n_explicit = n_explicit + 1
-         END IF
-      END DO
+      has_becke88 = .FALSE.; has_lyp = .FALSE.; has_vwn = .FALSE.; has_p86c = .FALSE.
+      has_xalpha = .FALSE.; has_optx = .FALSE.; has_pbe0_13 = .FALSE.
+      has_mgga_c_r2scan = .FALSE.; has_mgga_x_r2scan = .FALSE.
+      has_mgga_c_scan = .FALSE.; has_mgga_x_scan = .FALSE.
 
-      ALLOCATE (sub_names(n_explicit))
-      has_becke88 = .FALSE.
-      has_lyp = .FALSE.
-      has_vwn = .FALSE.
-      has_p86c = .FALSE.
-      has_xalpha = .FALSE.
-      has_optx = .FALSE.
-      has_mgga_c_r2scan = .FALSE.
-      has_mgga_x_r2scan = .FALSE.
-      has_mgga_c_scan = .FALSE.
-      has_mgga_x_scan = .FALSE.
-      has_pbe0_13 = .FALSE.
+      ALLOCATE (sub_names(xc_fun_section%section%n_subsections))
 
-      n_explicit = 0
       DO i = 1, xc_fun_section%section%n_subsections
          sub_section => xc_fun_section%subs_vals(i, 1)%section_vals
          IF (SIZE(sub_section%values, 2) > 0) THEN
             n_explicit = n_explicit + 1
             sub_names(n_explicit) = TRIM(ADJUSTL(sub_section%section%name))
             SELECT CASE (sub_names(n_explicit))
-            CASE ("BECKE88")
-               has_becke88 = .TRUE.
-            CASE ("LYP")
-               has_lyp = .TRUE.
-            CASE ("VWN")
-               has_vwn = .TRUE.
-            CASE ("P86C")
-               has_p86c = .TRUE.
-            CASE ("XALPHA")
-               has_xalpha = .TRUE.
-            CASE ("OPTX")
-               has_optx = .TRUE.
-            CASE ("PBE0_1/3")
-               has_pbe0_13 = .TRUE.
+            CASE ("BECKE88"); has_becke88 = .TRUE.
+            CASE ("LYP"); has_lyp = .TRUE.
+            CASE ("VWN"); has_vwn = .TRUE.
+            CASE ("P86C"); has_p86c = .TRUE.
+            CASE ("XALPHA"); has_xalpha = .TRUE.
+            CASE ("OPTX"); has_optx = .TRUE.
+            CASE ("MGGA_C_R2SCAN"); has_mgga_c_r2scan = .TRUE.
+            CASE ("MGGA_X_R2SCAN"); has_mgga_x_r2scan = .TRUE.
+            CASE ("MGGA_C_SCAN"); has_mgga_c_scan = .TRUE.
+            CASE ("MGGA_X_SCAN"); has_mgga_x_scan = .TRUE.
+            CASE ("PBE0_1/3"); has_pbe0_13 = .TRUE.
             CASE ("PBE")
                CALL section_vals_val_get(sub_section, "SCALE_X", r_val=scal_x_pbe)
-               IF (ABS(scal_x_pbe - 0.75_dp) < 0.01_dp) THEN
-                  has_pbe0_13 = .TRUE.
-               END IF
-            CASE ("MGGA_C_R2SCAN")
-               has_mgga_c_r2scan = .TRUE.
-            CASE ("MGGA_X_R2SCAN")
-               has_mgga_x_r2scan = .TRUE.
-            CASE ("MGGA_C_SCAN")
-               has_mgga_c_scan = .TRUE.
-            CASE ("MGGA_X_SCAN")
-               has_mgga_x_scan = .TRUE.
+               IF (ABS(scal_x_pbe - 0.75_dp) < 0.01_dp) has_pbe0_13 = .TRUE.
             END SELECT
          END IF
       END DO
@@ -172,11 +146,7 @@ CONTAINS
       IF (has_becke88 .AND. has_lyp .AND. has_vwn .AND. has_xalpha) THEN
          xc_functional_name = "B3LYP"
       ELSE IF (has_becke88 .AND. has_lyp) THEN
-         IF (has_pbe0_13) THEN
-            xc_functional_name = "PBE0"
-         ELSE
-            xc_functional_name = "BLYP"
-         END IF
+         xc_functional_name = MERGE("PBE0", "BLYP", has_pbe0_13)
       ELSE IF (has_becke88 .AND. has_p86c) THEN
          xc_functional_name = "BP"
       ELSE IF (has_optx .AND. has_lyp) THEN
@@ -192,8 +162,6 @@ CONTAINS
       ELSE
          xc_functional_name = "NONE"
       END IF
-
-      DEALLOCATE (sub_names)
 
    END SUBROUTINE xc_functional_detect_expanded
 
