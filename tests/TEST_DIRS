@@ -422,6 +422,7 @@ QS/regtest-elpa                                             elpa mpiranks==1||mp
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
 QS/regtest-eht-guess                                        libdftd4
+QS/regtest-casino
 QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio
 QS/regtest-rtbse-gxac                                       libint greenx !ifx

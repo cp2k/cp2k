@@ -97,7 +97,7 @@ MODULE qs_wannier90
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat => NULL(), cosmat => NULL()
    END TYPE berry_matrix_type
 
-   PUBLIC :: wannier90_interface
+   PUBLIC :: wannier90_interface, prepare_wannier90_scf_mos
 
 ! **************************************************************************************************
 

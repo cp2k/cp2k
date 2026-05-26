@@ -1,0 +1,7 @@
+# runs are executed in the same order as in this file
+"h2_gapw_casino.inp"                    = [{matcher="E_total", tol=1.0e-12, ref=-1.145605560934698}]
+"h2_periodic_kpoints_sym_casino.inp"    = [{matcher="E_total", tol=1.0e-12, ref=-1.146969144374115}]
+"h_uks_casino.inp"                      = [{matcher="E_total", tol=1.0e-12, ref=-0.474856620320986}]
+"h2_ecp_casino.inp"                     = [{matcher="E_total", tol=1.0e-12, ref=-1.163309060886234}]
+"h2_gth_casino.inp"                     = [{matcher="E_total", tol=1.0e-12, ref=-1.154929982526858}]
+#EOF

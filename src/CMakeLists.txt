@@ -79,6 +79,7 @@ list(
   bse_properties.F
   bse_util.F
   bsse.F
+  casino_utils.F
   cell_methods.F
   colvar_methods.F
   colvar_utils.F
