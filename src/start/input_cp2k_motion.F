@@ -29,7 +29,7 @@ MODULE input_cp2k_motion
                                  medium_print_level
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
-      default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
+      debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
       do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
       fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
@@ -37,10 +37,10 @@ MODULE input_cp2k_motion
       helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
       helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
       helium_sampling_ceperley, helium_sampling_worm, helium_solute_intpot_mwater, helium_solute_intpot_nnp, &
-      helium_solute_intpot_none, integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, &
-      ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, perm_cycle, &
-      perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, propagator_bcmd, transformation_normal, &
-      transformation_stage
+      helium_solute_intpot_none, high_lbfgs, integrate_exact, integrate_numeric, low_lbfgs, ls_2pnt, ls_3pnt, ls_fit, &
+      ls_gold, ls_none, matrix_init_cholesky, matrix_init_diagonal, medium_lbfgs, numerical, perm_cycle, &
+      perm_plain, propagator_pimd, propagator_rpmd, propagator_cmd, propagator_bcmd, silent_lbfgs, &
+      transformation_normal, transformation_stage
    USE input_cp2k_constraints, ONLY: create_constraint_section
    USE input_cp2k_free_energy, ONLY: create_fe_section
    USE input_cp2k_md, ONLY: create_md_section
@@ -65,7 +65,8 @@ MODULE input_cp2k_motion
                               real_t, &
                               char_t
    USE kinds, ONLY: dp
-   USE string_utilities, ONLY: s2a
+   USE string_utilities, ONLY: newline, &
+                               s2a
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1018,10 +1019,10 @@ CONTAINS
                                  "of the simulation cell. As is noted in FORCE_EVAL/SUBSYS/CELL, the "// &
                                  "program convention is that the first cell vector A lies along the "// &
                                  "X-axis and the second cell vector B is in the XY plane, such that "// &
-                                 "the cell vector matrix is a lower triangle. The algorithm support "// &
-                                 "for updating the three upper triangular components during a cell "// &
-                                 "optimization is not complete or tested, so the input structure has "// &
-                                 "to be prepared accordingly with these three components precisely 0 "// &
+                                 "the cell vector matrix is a lower triangle. There is no complete, "// &
+                                 "official algorithm support and/or tests for updating the three "// &
+                                 "upper triangular components during a cell optimization; please "// &
+                                 "prepare input accordingly with these three components precisely 0 "// &
                                  "even for cases like the primitive rhombohedral cell of the FCC lattice.", &
                                  just_optimizers=.TRUE., use_model_hessian=.FALSE.)
 
@@ -1482,6 +1483,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
+                          description="How much output is written out by the LBFGS algorithm. ", &
+                          usage="PRINT_LEVEL MEDIUM", &
+                          enum_c_vals=s2a("SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"), &
+                          enum_desc=s2a("Almost no output", &
+                                        "Little output about f and |proj g| every iteration", &
+                                        "Quite some output about details every iteration", &
+                                        "Lots of output about changes of active set and final x", &
+                                        "Everything is written out, useful for debugging purposes only"), &
+                          enum_i_vals=[silent_lbfgs, low_lbfgs, medium_lbfgs, &
+                                       high_lbfgs, debug_lbfgs], &
+                          default_i_val=low_print_level)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="WANTED_PROJ_GRADIENT", &
                           description="Convergence criterion (overrides the general ones):"// &
                           " Requested norm threshold of the gradient multiplied"// &
@@ -1505,6 +1521,14 @@ CONTAINS
          description="Trust radius used in LBFGS. Not completely in depth tested. Negativ values means no trust radius is used.", &
          usage="TRUST_RADIUS {real}", unit_str='angstrom', &
          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="__CONTROL_VAL", &
+                          description="Hidden parameter that controls the printing behavior "// &
+                          "of the LBFGS optimizer for advanced debug purposes. This option "// &
+                          "overrides PRINT_LEVEL setting if explicit.", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
