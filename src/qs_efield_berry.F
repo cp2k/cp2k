@@ -497,7 +497,7 @@ CONTAINS
                      icol = iatom
                   END IF
 
-                  IF (iatom == jatom .AND. dab < 1.e-10_dp) THEN
+                  IF (iatom == jatom) THEN
                      fab = 1.0_dp*occ
                   ELSE
                      fab = 2.0_dp*occ
@@ -982,7 +982,7 @@ CONTAINS
                   icol = iatom
                END IF
 
-               IF (iatom == jatom .AND. dab < 1.e-10_dp) THEN
+               IF (iatom == jatom) THEN
                   fab = 1.0_dp*occ
                ELSE
                   fab = 2.0_dp*occ
