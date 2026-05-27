@@ -24,7 +24,8 @@ MODULE qs_dos_utils
                                  broadening_lorentzian = 2, &
                                  broadening_pseudo_voigt = 3
 
-   PUBLIC :: add_broadened_peak, broadening_cutoff, broadening_function, write_broadening_info
+   PUBLIC :: add_broadened_peak, add_broadened_value, broadening_cutoff, broadening_function, &
+             write_broadening_info
 
 CONTAINS
 
@@ -63,6 +64,39 @@ CONTAINS
       END DO
 
    END SUBROUTINE add_broadened_peak
+
+! **************************************************************************************************
+!> \brief Add a broadened spectral line with a scalar weight to a curve.
+!> \param curve ...
+!> \param emin ...
+!> \param de ...
+!> \param eig ...
+!> \param weight ...
+!> \param broaden_type ...
+!> \param broaden_width ...
+!> \param voigt_mixing ...
+! **************************************************************************************************
+   SUBROUTINE add_broadened_value(curve, emin, de, eig, weight, broaden_type, &
+                                  broaden_width, voigt_mixing)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: curve
+      REAL(KIND=dp), INTENT(IN)                          :: emin, de, eig, weight
+      INTEGER, INTENT(IN)                                :: broaden_type
+      REAL(KIND=dp), INTENT(IN)                          :: broaden_width, voigt_mixing
+
+      INTEGER                                            :: i, iend, istart, nhist
+      REAL(KIND=dp)                                      :: eval, line_shape
+
+      nhist = SIZE(curve)
+      istart = MAX(1, FLOOR((eig - broadening_cutoff(broaden_type, broaden_width) - emin)/de) + 1)
+      iend = MIN(nhist, CEILING((eig + broadening_cutoff(broaden_type, broaden_width) - emin)/de) + 1)
+      DO i = istart, iend
+         eval = emin + (i - 1)*de
+         line_shape = broadening_function(eval - eig, broaden_type, broaden_width, voigt_mixing)
+         curve(i) = curve(i) + weight*line_shape
+      END DO
+
+   END SUBROUTINE add_broadened_value
 
 ! **************************************************************************************************
 !> \brief Broadening cutoff used for numerical accumulation.

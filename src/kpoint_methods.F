@@ -19,6 +19,7 @@ MODULE kpoint_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
@@ -104,7 +105,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos, kpoint_initialize_mo_set
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
-   PUBLIC :: rskp_transform, lowdin_kp_trans
+   PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
 
 ! **************************************************************************************************
 
@@ -1646,6 +1647,71 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE lowdin_kp_trans
+
+! **************************************************************************************************
+!> \brief Calculate S(k)^1/2 C(k) for real or complex k-point wavefunctions
+!> \param kp           K-point environment for one local k point
+!> \param ispin        Spin index
+!> \param use_real_wfn Use real k-point wavefunctions
+!> \param shalfc       Output matrix containing S(k)^1/2 C(k) for real wavefunctions
+!> \param cshalfc      Output matrix containing S(k)^1/2 C(k) for complex wavefunctions
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_mo_coeff(kp, ispin, use_real_wfn, shalfc, cshalfc)
+
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      INTEGER, INTENT(IN)                                :: ispin
+      LOGICAL, INTENT(IN)                                :: use_real_wfn
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: shalfc
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: cshalfc
+
+      INTEGER                                            :: nao, nmo
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mo, matrix_struct_shalf
+      TYPE(cp_fm_type)                                   :: cshalf_im, cshalf_re, shalf_im, shalf_re
+      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im, mo_set_re
+
+      IF (use_real_wfn) THEN
+         CPASSERT(PRESENT(shalfc))
+         mo_set => kp%mos(1, ispin)
+         CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
+
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, kp%shalf, &
+                            mo_set%mo_coeff, 0.0_dp, shalfc)
+      ELSE
+         CPASSERT(PRESENT(cshalfc))
+         mo_set_re => kp%mos(1, ispin)
+         mo_set_im => kp%mos(2, ispin)
+         CALL get_mo_set(mo_set_re, nao=nao, nmo=nmo)
+         CALL cp_fm_get_info(mo_set_re%mo_coeff, matrix_struct=matrix_struct_mo)
+         CALL cp_cfm_get_info(kp%cshalf, matrix_struct=matrix_struct_shalf)
+
+         CALL cp_fm_create(shalf_re, matrix_struct_shalf, nrow=nao, ncol=nao)
+         CALL cp_fm_create(shalf_im, matrix_struct_shalf, nrow=nao, ncol=nao)
+         CALL cp_fm_create(cshalf_re, matrix_struct_mo, nrow=nao, ncol=nmo)
+         CALL cp_fm_create(cshalf_im, matrix_struct_mo, nrow=nao, ncol=nmo)
+
+         CALL cp_cfm_to_fm(kp%cshalf, mtargetr=shalf_re, mtargeti=shalf_im)
+
+         ! Re[S(k)^1/2 C(k)] = Re[S(k)^1/2] C_re(k) - Im[S(k)^1/2] C_im(k)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_re, &
+                            mo_set_re%mo_coeff, 0.0_dp, cshalf_re)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, -1.0_dp, shalf_im, &
+                            mo_set_im%mo_coeff, 1.0_dp, cshalf_re)
+
+         ! Im[S(k)^1/2 C(k)] = Re[S(k)^1/2] C_im(k) + Im[S(k)^1/2] C_re(k)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_re, &
+                            mo_set_im%mo_coeff, 0.0_dp, cshalf_im)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_im, &
+                            mo_set_re%mo_coeff, 1.0_dp, cshalf_im)
+
+         CALL cp_fm_to_cfm(cshalf_re, cshalf_im, cshalfc)
+
+         CALL cp_fm_release(shalf_re)
+         CALL cp_fm_release(shalf_im)
+         CALL cp_fm_release(cshalf_re)
+         CALL cp_fm_release(cshalf_im)
+      END IF
+
+   END SUBROUTINE lowdin_kp_mo_coeff
 
 ! **************************************************************************************************
 !> \brief generate real space density matrices in DBCSR format
