@@ -54,6 +54,15 @@ technologies/libraries
 
 ```{toctree}
 ---
+caption: Developer Notes
+titlesonly:
+maxdepth: 1
+---
+developer/index
+```
+
+```{toctree}
+---
 caption: References
 titlesonly:
 maxdepth: 1
