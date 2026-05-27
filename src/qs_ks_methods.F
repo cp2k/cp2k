@@ -619,18 +619,23 @@ CONTAINS
          END IF
 
          ! Everything else, either via GauXC or manual XC computation
-         IF (dft_control%use_gauxc .AND. gapw_xc) THEN
-            CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
-         ELSE IF (dft_control%use_gauxc) THEN
+         IF (dft_control%use_gauxc) THEN
             IF (xc_section_uses_native_skala_grid(xc_section)) THEN
-               IF (gapw .OR. gapw_xc) THEN
-                  CPABORT("Native SKALA GPW currently supports METHOD GPW only.")
+               IF (gapw_xc) THEN
+                  CPABORT("Native SKALA grid evaluation does not support METHOD GAPW_XC. "// &
+                          "The GAPW_XC one-center XC correction needs a dedicated SKALA design.")
+               END IF
+               IF (gapw) THEN
+                  CPABORT("Native SKALA grid evaluation does not support METHOD GAPW yet. "// &
+                          "A GAPW grid path needs a consistent all-electron density, gradient, and "// &
+                          "kinetic-energy-density reconstruction. Use the GauXC AO path without NATIVE_GRID "// &
+                          "for molecular all-electron GAPW calculations.")
                END IF
                IF (dokp) THEN
-                  CPABORT("Native SKALA GPW currently supports Gamma-only calculations only.")
+                  CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
                END IF
                IF (calculate_forces) THEN
-                  CPABORT("Native SKALA GPW nuclear gradients are not implemented yet.")
+                  CPABORT("Native SKALA grid evaluation nuclear gradients are not implemented yet.")
                END IF
                CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                   vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -642,6 +647,9 @@ CONTAINS
                   CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
                END IF
             ELSE
+               IF (gapw_xc) THEN
+                  CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
+               END IF
                use_gauxc_matrix = .TRUE.
                CALL apply_gauxc(qs_env, xc_section, calculate_forces)
             END IF
