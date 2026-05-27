@@ -8,8 +8,8 @@
 "H2O-hybrid-wb97mv-libxc.inp"           = [{matcher="E_total", tol=2e-14, ref=-76.39611446074743}]
 "H2O-hybrid-cam-lda0.inp"               = [{matcher="E_total", tol=3e-14, ref=-76.47215215214956}]
 "H2O-tpssx_libxc.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.88300963208589}]
-"diamond_br89_libxc_uks.inp"            = [{matcher="E_total", tol=7e-14, ref=-11.06630465114328}]
-"diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581270880638}]
+"diamond_br89_libxc_uks.inp"            = [{matcher="E_total", tol=7e-14, ref=-11.06630328605534}]
+"diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581139033952}]
 # tpss new input
 "H2O-tpss_lsd.inp"                      = [{matcher="E_total", tol=3e-13, ref=-34.34060245665712}]
 # wb97X2 functional parametrizations

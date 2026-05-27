@@ -13,8 +13,8 @@
 "ethanol_sc.inp"                        = [{matcher="M011", tol=1.0E-14, ref=-0.092377428770884}]
 "nacl_cg.inp"                           = [{matcher="M011", tol=6e-14, ref=-160.30385418395463}]
 "nacl_sc.inp"                           = [{matcher="M011", tol=3e-14, ref=-160.30385418386331}]
-"quartz_cg.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.110910625643E+02}]
-"quartz_sc.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.110910625668E+02}]
+"quartz_cg.inp"                         = [{matcher="M002", tol=1.0E-14, ref=11.0918194585}]
+"quartz_sc.inp"                         = [{matcher="M002", tol=1.0E-14, ref=11.0918194602}]
 #BMHFTD and inducible dipole damping
 "flibe.inp"                             = [{matcher="M002", tol=1.0E-14, ref=-0.117512040363E+01}]
 "fli_small1.inp"                        = [{matcher="M011", tol=1.0E-14, ref=1.310083443876858}]

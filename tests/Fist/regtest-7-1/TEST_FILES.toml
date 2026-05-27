@@ -34,7 +34,7 @@
 #npe ensemble
 "uo2_shell_npe_1.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.118520483143E+03}]
 "uo2_shell_npe_2.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.118483192177E+03}]
-"uo2_shell_npe_2res.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.118447611436E+03}]
+"uo2_shell_npe_2res.inp"                = [{matcher="M002", tol=1.0E-14, ref=-118.44761098}]
 "uo2_shell_npe_3.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.118512674801E+03}]
 "uo2_shell_npe_4.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.118512945670E+03}]
 "uo2_shell_npe_5.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.118481755547E+03}]

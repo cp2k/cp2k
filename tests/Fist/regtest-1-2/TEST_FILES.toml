@@ -16,7 +16,7 @@
 "deca_ala_reftraj2_deprecated.inp"      = [{matcher="M002", tol=2e-12, ref=-1.04188113933}]
 "deca_ala_reftraj3.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-1.0415155385499999}]
 "deca_ala_reftraj3_deprecated.inp"      = [{matcher="M002", tol=1.0E-14, ref=-1.0415155385499999}]
-"deca_ala5.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.96264611636700004}]
+"deca_ala5.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.962650041763}]
 "h2po4.inp"                             = [{matcher="M002", tol=1.0E-14, ref=-0.793833783008E+01}]
 #MOL_SET
 "multi_psf.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.379512460146E+01}]

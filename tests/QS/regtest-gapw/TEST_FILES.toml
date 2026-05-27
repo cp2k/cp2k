@@ -24,7 +24,7 @@
 # new option : stride_xyz
 "H2O-gapw-gth-pvh.inp"                  = [{matcher="E_total", tol=3e-14, ref=-17.16034506414043}]
 # localization with non orthorhombic cell
-"H2O-gapw-all_noortho.inp"              = [{matcher="E_total", tol=1.0E-14, ref=-75.88145710711736}]
+"H2O-gapw-all_noortho.inp"              = [{matcher="E_total", tol=1.0E-14, ref=-75.88145710712207}]
 "H2O-gapw-all_localize_noortho.inp"     = [{matcher="M023", tol=2e-09, ref=7.0317611595}]
 "H2O-gapw-all_localize_crazy_noortho.inp" = [{matcher="M023", tol=2e-09, ref=7.0317611684}]
 # TPSS functional

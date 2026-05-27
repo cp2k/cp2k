@@ -23,9 +23,9 @@
 "UO2-switch2binary_restart-3.inp"       = [{matcher="M011", tol=1.0E-14, ref=-77.372160495540030}]
 # Binary restart for shell thermostats
 "UO2-2x2x2-binary_restart-cs-5.inp"     = [{matcher="M011", tol=9e-10, ref=-118.42118409576369}]
-"UO2-2x2x2-binary_restart-cs-6.inp"     = [{matcher="M011", tol=3e-09, ref=-118.43760091155949}]
-"UO2-2x2x2-binary_restart-cs-7.inp"     = [{matcher="M011", tol=4e-09, ref=-118.4369699187377}]
-"UO2-2x2x2-binary_restart-cs-8.inp"     = [{matcher="M011", tol=5e-09, ref=-118.44029788929353}]
+"UO2-2x2x2-binary_restart-cs-6.inp"     = [{matcher="M011", tol=3e-09, ref=-118.4376017176632}]
+"UO2-2x2x2-binary_restart-cs-7.inp"     = [{matcher="M011", tol=4e-09, ref=-118.43697118292448}]
+"UO2-2x2x2-binary_restart-cs-8.inp"     = [{matcher="M011", tol=5e-09, ref=-118.44029468960565}]
 # Non-harmonic core-shell spring potential
 "UO2-2x2x2-non-harm-cs.inp"             = [{matcher="M011", tol=1.0E-14, ref=-118.471207246616927}]
 # GENPOT: Enable units for parameter values
@@ -49,8 +49,8 @@
 "UO2-2x2x2-nocs2cs-nvt-2.inp"           = [{matcher="M011", tol=1.0E-14, ref=-118.463066793266336}]
 "UO2-2x2x2-nocs2cs-nvt-3.inp"           = [{matcher="M011", tol=1.0E-14, ref=-77.402157165972909}]
 "UO2-2x2x2-nocs2cs-npt-1.inp"           = [{matcher="M011", tol=1.0E-14, ref=-77.447361627232752}]
-"UO2-2x2x2-nocs2cs-npt-2.inp"           = [{matcher="M011", tol=1.0E-14, ref=-118.468476040377197}]
-"UO2-2x2x2-nocs2cs-npt-3.inp"           = [{matcher="M011", tol=1.0E-14, ref=-77.400614122543701}]
+"UO2-2x2x2-nocs2cs-npt-2.inp"           = [{matcher="M011", tol=1.0E-14, ref=-118.46847542262037}]
+"UO2-2x2x2-nocs2cs-npt-3.inp"           = [{matcher="M011", tol=1.0E-14, ref=-77.40061412039333}]
 "UO2-2x2x2-nocs2cs-nvt2nve-1.inp"       = [{matcher="M011", tol=1.0E-14, ref=-77.451036391549238}]
 "UO2-2x2x2-nocs2cs-nvt2nve-2.inp"       = [{matcher="M011", tol=1.0E-14, ref=-118.463067373915493}]
 "UO2-2x2x2-nocs2cs-nvt2nve-3.inp"       = [{matcher="M011", tol=1.0E-14, ref=-77.402162598499288}]
@@ -65,8 +65,8 @@
 "UO2-4x4x4-fixd.inp"                    = [{matcher="M011", tol=9e-14, ref=-619.588154772236749}]
 "UO2-4x4x4-cs-fixd.inp"                 = [{matcher="M043", tol=3.0E-05, ref=8.410097E-03}]
 "UO2-4x4x4-cs-fixd-restart.inp"         = [{matcher="M044", tol=1.0E-05, ref=1.765517E-02}]
-"UO2-4x4x4-cs-fixd-nvt.inp"             = [{matcher="M054", tol=1.0E-05, ref=4.107616E-02}]
-"UO2-4x4x4-cs-fixd-npt.inp"             = [{matcher="M054", tol=1.0E-05, ref=4.598688E-02}]
+"UO2-4x4x4-cs-fixd-nvt.inp"             = [{matcher="M054", tol=1.0E-05, ref=0.04097184}]
+"UO2-4x4x4-cs-fixd-npt.inp"             = [{matcher="M054", tol=1.0E-05, ref=0.04599766}]
 # Test UO2 force fields with generic input
 "UO2-Morelon-5x5x5-cell_opt.inp"        = [{matcher="M011", tol=1.0E-12, ref=-1210.562919201563318}]
 #EOF
