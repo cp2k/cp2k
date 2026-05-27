@@ -369,18 +369,19 @@ CONTAINS
       IF (.NOT. periodic_reference) THEN
          CALL cp_abort(__LOCATION__, &
                        "Periodic GauXC calculations in CP2K require GAUXC%PERIODIC_REFERENCE T. "// &
-                       "This opt-in documents that the current path is only a Gamma-only, single-image "// &
-                       "METHOD GPW reference path, not a dedicated periodic GauXC interface.")
+                       "This opt-in documents that the current path is only an isolated-cell, "// &
+                       "Gamma-only, single-image METHOD GPW reference path using GauXC molecular "// &
+                       "quadrature, not a dedicated periodic GauXC interface.")
       END IF
 
       IF (.NOT. ALL(cell%perd == 1)) THEN
          CALL cp_abort(__LOCATION__, &
-                       "The current GauXC periodic reference path supports only PERIODIC XYZ. "// &
+                       "The current GauXC isolated-cell reference path supports only PERIODIC XYZ. "// &
                        "Partial periodicity requires a dedicated GauXC periodic interface.")
       END IF
       IF (.NOT. dft_control%qs_control%gpw) THEN
          CALL cp_abort(__LOCATION__, &
-                       "The current GauXC periodic reference path is limited to METHOD GPW with GTH "// &
+                       "The current GauXC isolated-cell reference path is limited to METHOD GPW with GTH "// &
                        "pseudopotentials. GAPW, GAPW_XC, and other QS methods are not supported here.")
       END IF
 
@@ -391,7 +392,7 @@ CONTAINS
                           sgp_potential=sgp_potential)
          IF (.NOT. ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) THEN
             CALL cp_abort(__LOCATION__, &
-                          "The current GauXC periodic reference path is limited to GTH pseudopotentials. "// &
+                          "The current GauXC isolated-cell reference path is limited to GTH pseudopotentials. "// &
                           "Use non-periodic all-electron GAPW validation for molecular GAPW cases.")
          END IF
       END DO
@@ -858,9 +859,10 @@ CONTAINS
          pruning_key, pruning_scheme, radial_quadrature, xc_fun_name
       INTEGER                                            :: batch_size, env_status, img, ispin, &
                                                             natom, nimages, nspins
-      LOGICAL :: do_kpoints, grid_explicit, hdf5_output, molecular_virial, molecular_virial_debug, &
-         periodic_reference, pruning_explicit, use_fd_gradient, use_gradient_self_runtime, &
-         use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
+      LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
+         molecular_virial_debug, periodic_reference, pruning_explicit, use_fd_gradient, &
+         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model, &
+         write_hdf5_output
       REAL(KIND=dp)                                      :: molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -936,6 +938,8 @@ CONTAINS
 
       nimages = dft_control%nimages
       nspins = dft_control%nspins
+      is_periodic = .FALSE.
+      IF (ASSOCIATED(cell)) is_periodic = ANY(cell%perd /= 0)
 
       IF (ASSOCIATED(qs_env%dispersion_env)) THEN
          IF (qs_env%dispersion_env%type == xc_vdw_fun_nonloc) THEN
@@ -1013,6 +1017,16 @@ CONTAINS
       END IF
       CALL ensure_gauxc_periodic_reference_scope( &
          dft_control, cell, qs_kind_set, do_kpoints, periodic_reference)
+      IF (is_periodic .AND. periodic_reference .AND. para_env%mepos == 0) THEN
+         IF (ASSOCIATED(scf_env)) THEN
+            IF (scf_env%iter_count == 1) THEN
+               CALL cp_warn( &
+                  __LOCATION__, &
+                  "GAUXC%PERIODIC_REFERENCE uses GauXC molecular quadrature for isolated validation "// &
+                  "cells. Compact periodic materials require a dedicated periodic GauXC interface.")
+            END IF
+         END IF
+      END IF
       IF (dft_control%qs_control%gapw_xc .AND. use_onedft) THEN
          CALL cp_abort(__LOCATION__, &
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &

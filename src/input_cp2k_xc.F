@@ -1301,8 +1301,9 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
                           description="Use exchange-correlation functionals provided by GauXC. "// &
-                          "The current periodic CP2K bridge is limited to Gamma-only, single-image "// &
-                          "METHOD GPW calculations with GTH pseudopotentials.", &
+                          "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
+                          "are limited to isolated validation cells and are not compact periodic "// &
+                          "material calculations.", &
                           n_keywords=14, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1378,9 +1379,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REFERENCE", &
-                          description="Explicitly opt into the limited periodic GauXC reference path. "// &
-                          "This path is restricted to Gamma-only, single-image METHOD GPW calculations "// &
-                          "with GTH pseudopotentials and is not a dedicated periodic GauXC interface.", &
+                          description="Explicitly opt into the limited isolated-cell GauXC reference "// &
+                          "path for periodic CP2K inputs. This path is restricted to Gamma-only, "// &
+                          "single-image METHOD GPW calculations with GTH pseudopotentials and uses "// &
+                          "GauXC's molecular quadrature; compact periodic materials require a "// &
+                          "dedicated periodic GauXC interface.", &
                           usage="PERIODIC_REFERENCE T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
