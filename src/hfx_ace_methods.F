@@ -57,8 +57,7 @@ MODULE hfx_ace_methods
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                              cp_fm_scale,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_trace,&
                                               cp_fm_triangular_multiply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -78,6 +77,7 @@ MODULE hfx_ace_methods
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -492,8 +492,8 @@ CONTAINS
          CALL cp_fm_to_fm(mo_coeff, C_occ_fm)
 
          ! Step 4: xi = K_AO * C_occ
-         CALL cp_fm_gemm('N', 'N', nao, nocc, nao, &
-                         1.0_dp, K_fm, C_occ_fm, 0.0_dp, xi_fm)
+         CALL parallel_gemm('N', 'N', nao, nocc, nao, &
+                            1.0_dp, K_fm, C_occ_fm, 0.0_dp, xi_fm)
          CALL cp_fm_release(K_fm)
 
          IF (DBG_BUILD .AND. iw > 0) THEN
@@ -508,8 +508,8 @@ CONTAINS
          CALL cp_fm_create(M_fm, fmstruct, name="M")
          CALL cp_fm_struct_release(fmstruct)
 
-         CALL cp_fm_gemm('T', 'N', nocc, nocc, nao, &
-                         1.0_dp, C_occ_fm, xi_fm, 0.0_dp, M_fm)
+         CALL parallel_gemm('T', 'N', nocc, nocc, nao, &
+                            1.0_dp, C_occ_fm, xi_fm, 0.0_dp, M_fm)
          CALL cp_fm_release(C_occ_fm)
 
          IF (DBG_BUILD .AND. iw > 0) THEN
@@ -583,8 +583,8 @@ CONTAINS
             CALL cp_fm_create(A_ref_fm, fmstruct, name="WtC_ref")
             CALL cp_fm_struct_release(fmstruct)
 
-            CALL cp_fm_gemm('T', 'N', nocc, nocc, nao, &
-                            1.0_dp, ace_W(1, ispin), C_occ_fm, 0.0_dp, A_ref_fm)
+            CALL parallel_gemm('T', 'N', nocc, nocc, nao, &
+                               1.0_dp, ace_W(1, ispin), C_occ_fm, 0.0_dp, A_ref_fm)
             CALL cp_fm_trace(A_ref_fm, A_ref_fm, frob)
             ace_W_ref_norm = ace_W_ref_norm + SQRT(MAX(frob, 0.0_dp))
 
@@ -727,8 +727,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(rho_ao(ispin, 1)%matrix, P_fm)
 
          CALL cp_fm_create(PW_fm, ace_W(1, ispin)%matrix_struct, name="PW")
-         CALL cp_fm_gemm('N', 'N', nao, nocc, nao, &
-                         1.0_dp, P_fm, ace_W(1, ispin), 0.0_dp, PW_fm)
+         CALL parallel_gemm('N', 'N', nao, nocc, nao, &
+                            1.0_dp, P_fm, ace_W(1, ispin), 0.0_dp, PW_fm)
          CALL cp_fm_trace(ace_W(1, ispin), PW_fm, trace_val)
          ehfx_ace = ehfx_ace - 0.5_dp*trace_val
 
@@ -804,8 +804,8 @@ CONTAINS
             CALL cp_fm_create(A_diag_fm, fmstruct_diag, name="WtC_stale")
             CALL cp_fm_struct_release(fmstruct_diag)
 
-            CALL cp_fm_gemm('T', 'N', nocc_d, nocc_d, nao_d, &
-                            1.0_dp, ace_W(1, ispin), C_occ_diag, 0.0_dp, A_diag_fm)
+            CALL parallel_gemm('T', 'N', nocc_d, nocc_d, nao_d, &
+                               1.0_dp, ace_W(1, ispin), C_occ_diag, 0.0_dp, A_diag_fm)
             CALL cp_fm_trace(A_diag_fm, A_diag_fm, frob_A)
             stale_norm = stale_norm + SQRT(MAX(frob_A, 0.0_dp))
 

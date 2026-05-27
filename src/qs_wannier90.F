@@ -2464,61 +2464,63 @@ CONTAINS
       s_projected(:, :) = 0.5_dp*(s_projected + CONJG(TRANSPOSE(s_projected)))
       h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
 
-      CALL diag_complex(s_projected, metric_vectors, metric_values)
-      min_svalue = MINVAL(metric_values)
-      metric_deviation = MAXVAL(ABS(metric_values - 1.0_dp))
-      IF (min_svalue < 1.0e-10_dp) THEN
-         WRITE (reason, "(A,ES9.2,A,ES9.2)") &
-            "singular expanded metric smin=", min_svalue, " dS=", metric_deviation
-         GOTO 100
-      END IF
-
-      DO ib = 1, nmo_source
-         metric_vectors(:, ib) = metric_vectors(:, ib)/SQRT(metric_values(ib))
-      END DO
-      h_projected_work(:, :) = MATMUL(h_projected, metric_vectors)
-      h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(metric_vectors)), h_projected_work)
-      h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
-      CALL diag_complex(h_projected, ritz_vectors, ritz_values)
-      h_projected_work(:, :) = MATMUL(metric_vectors, ritz_vectors)
-      ritz_vectors(:, :) = h_projected_work
-      stabilized(:, :) = MATMUL(source_coeff, ritz_vectors(:, 1:nmo_export))
-      coeff_work(:, :) = MATMUL(h_coeff, ritz_vectors)
-      h_coeff(:, :) = coeff_work
-      coeff_work(:, :) = MATMUL(s_coeff, ritz_vectors)
-      s_coeff(:, :) = coeff_work
-      DO ib = 1, nmo_export
-         norm_value = SQRT(ABS(REAL(DOT_PRODUCT(stabilized(:, ib), s_coeff(:, ib)), KIND=dp)))
-         IF (norm_value > EPSILON(1.0_dp)) THEN
-            stabilized(:, ib) = stabilized(:, ib)/norm_value
-            h_coeff(:, ib) = h_coeff(:, ib)/norm_value
-            s_coeff(:, ib) = s_coeff(:, ib)/norm_value
+      reconstruct_window: BLOCK
+         CALL diag_complex(s_projected, metric_vectors, metric_values)
+         min_svalue = MINVAL(metric_values)
+         metric_deviation = MAXVAL(ABS(metric_values - 1.0_dp))
+         IF (min_svalue < 1.0e-10_dp) THEN
+            WRITE (reason, "(A,ES9.2,A,ES9.2)") &
+               "singular expanded metric smin=", min_svalue, " dS=", metric_deviation
+            EXIT reconstruct_window
          END IF
-      END DO
-      residual_block(:, :) = h_coeff(:, 1:nmo_export)
-      DO ib = 1, nmo_export
-         residual_block(:, ib) = residual_block(:, ib) - ritz_values(ib)*s_coeff(:, ib)
-      END DO
-      max_residual = MAXVAL(ABS(residual_block))
-      IF (max_residual > residual_tol) THEN
-         WRITE (reason, "(A,ES9.2)") &
-            "expanded dS=", metric_deviation
-         GOTO 100
-      END IF
-      max_eigenvalue_shift = MAXVAL(ABS(ritz_values(1:nmo_export) - source_eigenvalues(1:nmo_export)))
-      IF (max_eigenvalue_shift > eigenvalue_tol) THEN
-         WRITE (reason, "(A,ES9.2)") &
-            "expanded dS=", metric_deviation
-         GOTO 100
-      END IF
 
-      dst_r(:, :) = REAL(stabilized, KIND=dp)
-      dst_i(:, :) = AIMAG(stabilized)
-      CALL cp_fm_set_submatrix(dst_real, dst_r)
-      CALL cp_fm_set_submatrix(dst_imag, dst_i)
-      success = .TRUE.
+         DO ib = 1, nmo_source
+            metric_vectors(:, ib) = metric_vectors(:, ib)/SQRT(metric_values(ib))
+         END DO
+         h_projected_work(:, :) = MATMUL(h_projected, metric_vectors)
+         h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(metric_vectors)), h_projected_work)
+         h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
+         CALL diag_complex(h_projected, ritz_vectors, ritz_values)
+         h_projected_work(:, :) = MATMUL(metric_vectors, ritz_vectors)
+         ritz_vectors(:, :) = h_projected_work
+         stabilized(:, :) = MATMUL(source_coeff, ritz_vectors(:, 1:nmo_export))
+         coeff_work(:, :) = MATMUL(h_coeff, ritz_vectors)
+         h_coeff(:, :) = coeff_work
+         coeff_work(:, :) = MATMUL(s_coeff, ritz_vectors)
+         s_coeff(:, :) = coeff_work
+         DO ib = 1, nmo_export
+            norm_value = SQRT(ABS(REAL(DOT_PRODUCT(stabilized(:, ib), s_coeff(:, ib)), KIND=dp)))
+            IF (norm_value > EPSILON(1.0_dp)) THEN
+               stabilized(:, ib) = stabilized(:, ib)/norm_value
+               h_coeff(:, ib) = h_coeff(:, ib)/norm_value
+               s_coeff(:, ib) = s_coeff(:, ib)/norm_value
+            END IF
+         END DO
+         residual_block(:, :) = h_coeff(:, 1:nmo_export)
+         DO ib = 1, nmo_export
+            residual_block(:, ib) = residual_block(:, ib) - ritz_values(ib)*s_coeff(:, ib)
+         END DO
+         max_residual = MAXVAL(ABS(residual_block))
+         IF (max_residual > residual_tol) THEN
+            WRITE (reason, "(A,ES9.2)") &
+               "expanded dS=", metric_deviation
+            EXIT reconstruct_window
+         END IF
+         max_eigenvalue_shift = MAXVAL(ABS(ritz_values(1:nmo_export) - source_eigenvalues(1:nmo_export)))
+         IF (max_eigenvalue_shift > eigenvalue_tol) THEN
+            WRITE (reason, "(A,ES9.2)") &
+               "expanded dS=", metric_deviation
+            EXIT reconstruct_window
+         END IF
 
-100   CONTINUE
+         dst_r(:, :) = REAL(stabilized, KIND=dp)
+         dst_i(:, :) = AIMAG(stabilized)
+         CALL cp_fm_set_submatrix(dst_real, dst_r)
+         CALL cp_fm_set_submatrix(dst_imag, dst_i)
+         success = .TRUE.
+
+      END BLOCK reconstruct_window
+
       DEALLOCATE (source_coeff, s_coeff, h_coeff, h_projected, h_projected_work, metric_vectors, &
                   residual_block, ritz_vectors, s_projected, stabilized, coeff_work, metric_values, &
                   ritz_values, source_eigenvalues)
