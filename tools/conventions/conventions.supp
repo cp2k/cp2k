@@ -236,6 +236,7 @@ swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master" https://cp2
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize" https://cp2k.org/conv#c203
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list" https://cp2k.org/conv#c012
 tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_compare" https://cp2k.org/conv#c106
+tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
 tblite_interface.F: Found CLOSE statement in procedure "tb_add_stress" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_delete_file" https://cp2k.org/conv#c204
 tblite_interface.F: Found CLOSE statement in procedure "tb_dump_sigma_component" https://cp2k.org/conv#c204
@@ -252,6 +253,9 @@ tblite_interface.F: Found OPEN statement in procedure "tb_grad2force" https://cp
 tblite_interface.F: Found OPEN statement in procedure "tb_read_reference_grad" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_update_charges" https://cp2k.org/conv#c203
 tblite_interface.F: Found OPEN statement in procedure "tb_write_reference_gen" https://cp2k.org/conv#c203
+tblite_scc_mixer.F: Found type cp2k_tblite_broyden_mixer_type without initializer https://cp2k.org/conv#c016
+tblite_scc_mixer.F: Module "mctc_env" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+tblite_scc_mixer.F: Module "tblite_lapack" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 tblite_types.F: Found type tblite_type without initializer https://cp2k.org/conv#c016
 tblite_types.F: Module "tblite_container" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler" https://cp2k.org/conv#c012
@@ -274,6 +278,7 @@ topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb" https://
 trexio.F: Found STOP statement in procedure "trexio_assert" https://cp2k.org/conv#c205
 trexio.F: Found WRITE statement with hardcoded unit in "trexio_assert" https://cp2k.org/conv#c012
 trexio_utils.F: Module "trexio" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+xc_gauxc_interface.F: Found type cp_gauxc_status_type without initializer https://cp2k.org/conv#c016
 xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd" https://cp2k.org/conv#c204
 xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd" https://cp2k.org/conv#c203
 xyz2dcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205

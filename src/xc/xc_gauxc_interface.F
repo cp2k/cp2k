@@ -33,6 +33,8 @@ MODULE xc_gauxc_interface
       qs_kind_type
    USE cp_dbcsr_api, ONLY: &
       dbcsr_p_type
+   USE cp_log_handling, ONLY: &
+      cp_logger_get_default_io_unit
 
 #ifdef __GAUXC
 
@@ -189,7 +191,7 @@ MODULE xc_gauxc_interface
 #endif
 
    TYPE cp_gauxc_xc_type
-      REAL(c_double) :: exc
+      REAL(c_double) :: exc = 0.0_c_double
       REAL(c_double), DIMENSION(:, :), ALLOCATABLE :: vxc_scalar, vxc_zeta
    END TYPE cp_gauxc_xc_type
 
@@ -234,21 +236,24 @@ CONTAINS
 
 #ifdef __GAUXC
       CHARACTER(kind=c_char), POINTER                    :: s(:)
-      INTEGER                                            :: i
+      INTEGER                                            :: i, iw
 
-      WRITE (0, '(a,1x,i0)') "GauXC returned with status code", status%status%code
-      IF (c_associated(status%status%message)) THEN
-         WRITE (0, '(a)', ADVANCE='no') "GauXC status message: ["
+      iw = cp_logger_get_default_io_unit()
+      IF (iw > 0) THEN
+         WRITE (iw, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         IF (c_associated(status%status%message)) THEN
+            WRITE (iw, '(a)', ADVANCE='no') "GauXC status message: ["
 
-         CALL c_f_pointer(status%status%message, s, [default_string_length])
-         DO i = 1, SIZE(s)
-            IF (s(i) == c_null_char) EXIT
-            WRITE (0, '(A)', advance='no') s(i)
-         END DO
+            CALL c_f_pointer(status%status%message, s, [default_string_length])
+            DO i = 1, SIZE(s)
+               IF (s(i) == c_null_char) EXIT
+               WRITE (iw, '(A)', advance='no') s(i)
+            END DO
 
-         WRITE (0, '(a)') "]"
-      ELSE
-         WRITE (0, '(a)') "GauXC status message: [null]"
+            WRITE (iw, '(a)') "]"
+         ELSE
+            WRITE (iw, '(a)') "GauXC status message: [null]"
+         END IF
       END IF
 #else
       MARK_USED(status)
