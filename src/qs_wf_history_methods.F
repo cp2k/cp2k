@@ -113,7 +113,6 @@ MODULE qs_wf_history_methods
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
@@ -530,10 +529,7 @@ CONTAINS
          wf_history%memory_depth = 0
       CASE (wfi_use_prev_wf_method_nr)
          wf_history%memory_depth = 0
-      CASE (wfi_use_prev_p_method_nr)
-         wf_history%memory_depth = 1
-         wf_history%store_rho_ao = .TRUE.
-      CASE (wfi_use_prev_rho_r_method_nr)
+      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
          wf_history%memory_depth = 1
          wf_history%store_rho_ao = .TRUE.
       CASE (wfi_linear_wf_method_nr)
@@ -792,56 +788,7 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
          my_orthogonal_wf = .FALSE.
-      CASE (wfi_use_prev_rho_r_method_nr)
-         t0_state => wfi_get_snapshot(wf_history, wf_index=1)
-         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-         CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
-         IF (do_kpoints) THEN
-            CPASSERT(ASSOCIATED(t0_state%rho_ao_kp))
-            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-            DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
-               DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  IF (img > SIZE(rho_ao_kp, 2)) THEN
-                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
-                  ELSE
-                     CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                     keep_sparsity=.TRUE.)
-                  END IF
-               END DO
-            END DO
-         ELSE
-            CPASSERT(ASSOCIATED(t0_state%rho_ao))
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-            DO ispin = 1, SIZE(t0_state%rho_ao)
-               CALL dbcsr_copy(rho_ao(ispin)%matrix, &
-                               t0_state%rho_ao(ispin)%matrix, &
-                               keep_sparsity=.TRUE.)
-            END DO
-         END IF
-         ! Why is rho_g valid at this point ?
-         CALL qs_rho_set(rho, rho_g_valid=.TRUE.)
-
-         ! does nothing
-      CASE (wfi_use_prev_wf_method_nr)
-         my_orthogonal_wf = .TRUE.
-         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-         CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
-
-         IF (do_kpoints) THEN
-            CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
-         ELSE
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-            DO ispin = 1, SIZE(mos)
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
-               CALL reorthogonalize_vectors(qs_env, v_matrix=mo_coeff, n_col=nmo)
-               CALL calculate_density_matrix(mo_set=mos(ispin), density_matrix=rho_ao(ispin)%matrix)
-            END DO
-            CALL qs_rho_update_rho(rho, qs_env=qs_env)
-            CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
-         END IF
-
-      CASE (wfi_use_prev_p_method_nr)
+      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
          t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
@@ -872,6 +819,23 @@ CONTAINS
          !FM wrong matrix structure
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+      CASE (wfi_use_prev_wf_method_nr)
+         my_orthogonal_wf = .TRUE.
+         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
+
+         IF (do_kpoints) THEN
+            CALL wfi_use_prev_wf_kp(qs_env, io_unit, print_level)
+         ELSE
+            CALL qs_rho_get(rho, rho_ao=rho_ao)
+            DO ispin = 1, SIZE(mos)
+               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
+               CALL reorthogonalize_vectors(qs_env, v_matrix=mo_coeff, n_col=nmo)
+               CALL calculate_density_matrix(mo_set=mos(ispin), density_matrix=rho_ao(ispin)%matrix)
+            END DO
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+            CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+         END IF
 
       CASE (wfi_use_guess_method_nr)
          !FM more clean to do it here, but it
