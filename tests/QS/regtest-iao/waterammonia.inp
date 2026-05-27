@@ -1,0 +1,97 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT h2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    BASIS_SET_FILE_NAME BASIS_MOLOPT_UCL
+    &MGRID
+      CUTOFF 500
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER WAVELET
+    &END POISSON
+    &PRINT
+      &IAO_ANALYSIS
+        &BOND_ORBITALS
+          &CHARGE_CENTER
+          &END CHARGE_CENTER
+          &IBO_MOLDEN
+          &END IBO_MOLDEN
+        &END BOND_ORBITALS
+        &IAO_OVERLAP
+        &END IAO_OVERLAP
+      &END IAO_ANALYSIS
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-14
+      LMAXN0 4
+      METHOD GAPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 300
+      SCF_GUESS RESTART
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9. 9. 9.
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      N          3.065535      4.387890      4.446870
+      H          2.831315      5.370550      4.340610
+      H          2.598355      3.896910      3.690860
+      H          2.627575      4.078680      5.309140
+      O          6.029625      4.515340      4.446840
+      H          5.067865      4.375490      4.446200
+      H          6.401645      3.629450      4.447050
+    &END COORD
+    &KIND H
+      BASIS_SET Ahlrichs-pVDZ
+      ELEMENT H
+      HARD_EXP_RADIUS 1.00
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 50
+    &END KIND
+    &KIND O
+      BASIS_SET Ahlrichs-pVDZ
+      HARD_EXP_RADIUS 1.00
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 50
+    &END KIND
+    &KIND N
+      BASIS_SET Ahlrichs-pVDZ
+      HARD_EXP_RADIUS 1.00
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 50
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+      &FRAGMENTS
+        &FRAGMENT
+          FRAG_RANGE 1 4
+        &END FRAGMENT
+        &FRAGMENT
+          FRAG_RANGE 5 7
+        &END FRAGMENT
+      &END FRAGMENTS
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

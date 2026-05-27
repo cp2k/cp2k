@@ -1861,6 +1861,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_fragments_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_topology_section
 
 ! **************************************************************************************************
@@ -1925,6 +1929,42 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_center_section
+
+! **************************************************************************************************
+!> \brief Specify keywords used to setup several fragments
+!> \param section the section to create
+! **************************************************************************************************
+   SUBROUTINE create_fragments_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection, subsubsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      NULLIFY (keyword, subsection, subsubsection)
+      CALL section_create(section, __LOCATION__, name="FRAGMENTS", &
+                          description="Specify the fragments of a full system.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      CALL section_create(subsection, __LOCATION__, name="FRAGMENT", &
+                          description="Specify information about the fragments.", &
+                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="FRAG_RANGE", &
+                          variants=s2a("RANGE"), &
+                          description="Defines fragments. This keyword can be repeated.", &
+                          repeats=.FALSE., &
+                          n_var=-1, &
+                          type_of_var=integer_t, &
+                          usage="FRAG_RANGE 1 5")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_fragments_section
 
 ! **************************************************************************************************
 !> \brief Specify keywords used to setup several molecules with few connectivity files

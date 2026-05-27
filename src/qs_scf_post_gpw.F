@@ -1314,6 +1314,7 @@ CONTAINS
          IF (dft_control%do_admm) THEN
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
          END IF
+
       END DO
 
       CALL timestop(handle)
@@ -3446,6 +3447,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%IAO_ANALYSIS", extension=".iao", log_filename=.FALSE.)
          CALL iao_read_input(iao_env, print_key, cell)
+         IF (particle_set(1)%fragment_index /= 0) iao_env%do_fragments = .TRUE.
          IF (iao_env%do_iao) THEN
             CALL iao_wfn_analysis(qs_env, iao_env, unit_nr)
          END IF
