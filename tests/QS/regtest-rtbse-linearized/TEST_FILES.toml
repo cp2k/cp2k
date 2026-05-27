@@ -1,0 +1,20 @@
+"h2_linrtbse_tda_diag.inp"                       = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5562}]
+"h2_linrtbse_abba_diag.inp"                      = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4346},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0489},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2290}]
+"h2_linrtbse_tda_cutoff.inp"                     = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0266},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2704},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5565}]
+"h2_linrtbse_abba_cutoff.inp"                    = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4514},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0919},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2515}]
+"h2_linrtbse_tda_static_pol.inp"                 = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0331788235E+001}]
+"h2_linrtbse_tda_static_pol_shift.inp"           = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0331788219E+001}]
+"h2_linrtbse_tda_static_pol_shift_enforce_dt.inp" = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0606845011E+001}]
+"h2_linrtbse_tda_static_pol_enforce_dt.inp"      = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0586517910E+001}]
+"h2_linrtbse_abba_static_pol.inp"                = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=8.3554173064E+000}]
+"h2_linrtbse_tda_static_pol_cutoff.inp"          = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0330435119E+001}]
+"h2_linrtbse_abba_static_pol_cutoff.inp"         = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=8.3441161465E+000}]
+#EOF

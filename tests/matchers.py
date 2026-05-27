@@ -280,6 +280,26 @@ registry["RTBSE_GXAC_H2_pol"] = GenericMatcher(
     r"POLARIZABILITY_PADE|     0.30450000E+002", col=4
 )
 
+# Lowest excitation energy from the linRTBSE Liouvillian diagnostic.
+# Tied to the F12.4 eV column of the n=1 row.
+registry["LinRTBSE_1st_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+1\s+\d+\.\d+\s*$", col=3, regex=True
+)
+
+# 2nd and 3rd excitation energy on the same table; the "\s+N\s+" boundary
+# uniquely selects each row (e.g. "12" / "20" / "22" never matches "\s+2\s+").
+registry["LinRTBSE_2nd_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+2\s+\d+\.\d+\s*$", col=3, regex=True
+)
+registry["LinRTBSE_3rd_excit_ener"] = GenericMatcher(
+    r" RTBSE\|\s+3\s+\d+\.\d+\s*$", col=3, regex=True
+)
+
+# Static polarizability alpha(0), Re part, spin=1, xx element.
+registry["LinRTBSE_static_pol_xx"] = GenericMatcher(
+    r" STATIC_POL\|\s+1\s+1,\s*1\s+", col=5, regex=True
+)
+
 registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
 
 registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
