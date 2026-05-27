@@ -119,6 +119,12 @@ integrator.
   use `GAPW_ACCURATE_XCINT T` to keep the GAPW setup explicit.
 - `METHOD GAPW_XC` with GauXC remains disabled pending a dedicated design for the smooth-density and
   one-center XC terms. It must not be used for non-local OneDFT/SKALA models.
+- A true compact-cell periodic GauXC path needs a new GauXC interface rather than only a CP2K input
+  change. The missing pieces are an explicit cell/lattice descriptor, a unit-cell quadrature or
+  CP2K-grid task interface, periodic AO images or an equivalent periodic density representation,
+  return of the periodic XC matrix to CP2K's image/k-point layout, and separate force/stress
+  derivatives. PBE-through-GauXC on compact Gamma-only `METHOD GPW` test cells should be the first
+  quantitative validation target for that interface.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
