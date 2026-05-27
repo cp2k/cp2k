@@ -727,6 +727,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: kpoint_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a_vec
 
+      REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-14_dp
+
       CHARACTER(LEN=default_string_length)               :: ustr
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
@@ -827,6 +829,17 @@ CONTAINS
                                    i_val=kpoint%symmetry_reduction_method, explicit=reduction_explicit)
          CALL resolve_kpoint_symmetry_settings(kpoint, backend_explicit, reduction_explicit)
          CALL section_vals_val_get(kpoint_section, "EPS_SYMMETRY", r_val=kpoint%eps_geo)
+         IF ((kpoint%kp_scheme == "MONKHORST-PACK" .OR. kpoint%kp_scheme == "MACDONALD") .AND. &
+             ((ABS(a_vec(2, 1)) > eps_cell) .OR. (ABS(a_vec(3, 1)) > eps_cell) .OR. &
+              (ABS(a_vec(3, 2)) > eps_cell)) .AND. kpoint%symmetry .AND. &
+             .NOT. kpoint%full_grid .AND. .NOT. kpoint%inversion_symmetry_only) THEN
+            kpoint%inversion_symmetry_only = .TRUE.
+            CALL cp_warn(__LOCATION__, &
+                         "Full atomic k-point symmetry was requested for a cell matrix that does "// &
+                         "not follow the CP2K lower-triangular convention. Falling back to "// &
+                         "KPOINTS%INVERSION_SYMMETRY_ONLY. Use ABC/ALPHA_BETA_GAMMA or canonical "// &
+                         "A/B/C vectors to enable full point-group k-point reduction.")
+         END IF
          CALL section_vals_val_get(kpoint_section, "PARALLEL_GROUP_SIZE", &
                                    i_val=kpoint%parallel_group_size)
          SELECT CASE (wfntype)
