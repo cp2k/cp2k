@@ -425,7 +425,7 @@ CONTAINS
          enum_desc=s2a( &
          "Use the method specified with SCF_GUESS, i.e. no extrapolation", &
          "Use the previous density matrix", &
-         "Legacy alias for USE_PREV_P; use the previous density matrix", &
+         "Legacy alias for USE_PREV_P, using the previous density matrix; deprecated", &
          "Linear extrapolation of the wavefunction (not available for k-points)", &
          "Linear extrapolation of the density matrix", &
          "Linear extrapolation of the density matrix times the overlap matrix (not available for k-points)", &

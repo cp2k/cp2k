@@ -578,7 +578,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Unknown interpolation method: "// &
                        TRIM(ADJUSTL(cp_to_string(interpolation_method_nr))))
-         wf_history%interpolation_method_nr = wfi_use_prev_rho_r_method_nr
       END SELECT
       ALLOCATE (wf_history%past_states(wf_history%memory_depth))
 
@@ -789,6 +788,11 @@ CONTAINS
 
          my_orthogonal_wf = .FALSE.
       CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
+         IF (actual_extrapolation_method_nr == wfi_use_prev_rho_r_method_nr) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "USE_PREV_RHO_R is deprecated and will be removed in a future "// &
+                         "release; it is now an alias of USE_PREV_P.")
+         END IF
          t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
