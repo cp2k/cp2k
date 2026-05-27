@@ -22,8 +22,8 @@ MODULE md_vel_utils
    USE bibliography,                    ONLY: West2006,&
                                               cite_reference
    USE cell_types,                      ONLY: &
-        cell_type, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, &
-        use_perd_yz, use_perd_z
+        cell_transform_input_cartesian, cell_type, use_perd_none, use_perd_x, use_perd_xy, &
+        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
    USE cp_linked_list_input,            ONLY: cp_sll_val_next,&
                                               cp_sll_val_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -708,6 +708,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: vc, vcom, vs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vel
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_sll_val_type), POINTER                     :: atom_list, core_list, shell_list
       TYPE(section_vals_type), POINTER                   :: atomvel_section, corevel_section, &
                                                             shellvel_section
@@ -724,7 +725,8 @@ CONTAINS
       shellvel_read = .FALSE.
       NULLIFY (vel, atomic_kind, atom_list, core_list, shell_list)
       NULLIFY (atomvel_section, shellvel_section, corevel_section)
-      NULLIFY (shell, thermal_regions, val)
+      NULLIFY (cell, shell, thermal_regions, val)
+      CALL force_env_get(force_env, cell=cell)
 
       ! Core-Shell Model
       nshell = 0
@@ -745,11 +747,11 @@ CONTAINS
       CPASSERT(shellvel_explicit .EQV. corevel_explicit)
 
       CALL read_binary_velocities("", part, force_env%root_section, para_env, &
-                                  subsys_section, atomvel_read)
+                                  subsys_section, atomvel_read, cell)
       CALL read_binary_velocities("SHELL", shell_part, force_env%root_section, para_env, &
-                                  subsys_section, shellvel_read)
+                                  subsys_section, shellvel_read, cell)
       CALL read_binary_velocities("CORE", core_part, force_env%root_section, para_env, &
-                                  subsys_section, corevel_read)
+                                  subsys_section, corevel_read, cell)
 
       IF (.NOT. (atomvel_explicit .OR. atomvel_read)) RETURN
       success = .TRUE.
@@ -761,6 +763,7 @@ CONTAINS
             is_ok = cp_sll_val_next(atom_list, val)
             CALL val_get(val, r_vals=vel)
             part(i)%v = vel
+            CALL cell_transform_input_cartesian(cell, part(i)%v)
          END DO
       END IF
       DO i = 1, natoms
@@ -794,9 +797,11 @@ CONTAINS
                is_ok = cp_sll_val_next(shell_list, val)
                CALL val_get(val, r_vals=vel)
                shell_part(i)%v = vel
+               CALL cell_transform_input_cartesian(cell, shell_part(i)%v)
                is_ok = cp_sll_val_next(core_list, val)
                CALL val_get(val, r_vals=vel)
                core_part(i)%v = vel
+               CALL cell_transform_input_cartesian(cell, core_part(i)%v)
             END DO
          ELSE
             IF (.NOT. (shellvel_read .AND. corevel_read)) THEN

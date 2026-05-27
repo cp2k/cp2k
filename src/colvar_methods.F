@@ -15,7 +15,8 @@
 ! **************************************************************************************************
 MODULE colvar_methods
 
-   USE cell_types,                      ONLY: cell_type,&
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type,&
                                               pbc
    USE colvar_types,                    ONLY: &
         HBP_colvar_id, Wc_colvar_id, acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, &
@@ -115,15 +116,17 @@ CONTAINS
 !> \param icol number of the current colvar (repetition in colvar_section)
 !> \param colvar_section the colvar section
 !> \param para_env ...
+!> \param cell ...
 !> \par History
 !>      04.2004 created [alessandro laio and fawzi mohamed]
 !> \author teo
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section, para_env)
+   RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section, para_env, cell)
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: icol
       TYPE(section_vals_type), POINTER                   :: colvar_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_read'
 
@@ -245,7 +248,7 @@ CONTAINS
          ! Distance
          wrk_section => distance_section
          CALL colvar_create(colvar, dist_colvar_id)
-         CALL colvar_check_points(colvar, distance_section)
+         CALL colvar_check_points(colvar, distance_section, cell)
          CALL section_vals_val_get(distance_section, "ATOMS", i_vals=iatms)
          colvar%dist_param%i_at = iatms(1)
          colvar%dist_param%j_at = iatms(2)
@@ -255,14 +258,14 @@ CONTAINS
          ! Angle
          wrk_section => angle_section
          CALL colvar_create(colvar, angle_colvar_id)
-         CALL colvar_check_points(colvar, angle_section)
+         CALL colvar_check_points(colvar, angle_section, cell)
          CALL section_vals_val_get(angle_section, "ATOMS", i_vals=iatms)
          colvar%angle_param%i_at_angle = iatms
       ELSE IF (my_subsection(3)) THEN
          ! Torsion
          wrk_section => torsion_section
          CALL colvar_create(colvar, torsion_colvar_id)
-         CALL colvar_check_points(colvar, torsion_section)
+         CALL colvar_check_points(colvar, torsion_section, cell)
          CALL section_vals_val_get(torsion_section, "ATOMS", i_vals=iatms)
          colvar%torsion_param%i_at_tors = iatms
          colvar%torsion_param%o0 = 0.0_dp
@@ -270,7 +273,7 @@ CONTAINS
          ! Coordination
          wrk_section => coordination_section
          CALL colvar_create(colvar, coord_colvar_id)
-         CALL colvar_check_points(colvar, coordination_section)
+         CALL colvar_check_points(colvar, coordination_section, cell)
          NULLIFY (colvar%coord_param%i_at_from, colvar%coord_param%c_kinds_from)
          NULLIFY (colvar%coord_param%i_at_to, colvar%coord_param%c_kinds_to)
          NULLIFY (colvar%coord_param%i_at_to_b, colvar%coord_param%c_kinds_to_b)
@@ -390,7 +393,7 @@ CONTAINS
          ! Distance point from plane
          wrk_section => plane_dist_section
          CALL colvar_create(colvar, plane_distance_colvar_id)
-         CALL colvar_check_points(colvar, plane_dist_section)
+         CALL colvar_check_points(colvar, plane_dist_section, cell)
          CALL section_vals_val_get(plane_dist_section, "ATOMS_PLANE", i_vals=iatms)
          CPASSERT(SIZE(iatms) == 3)
          colvar%plane_distance_param%plane = iatms
@@ -401,7 +404,7 @@ CONTAINS
          ! Rotation colvar of a segment w.r.t. another segment
          wrk_section => rotation_section
          CALL colvar_create(colvar, rotation_colvar_id)
-         CALL colvar_check_points(colvar, rotation_section)
+         CALL colvar_check_points(colvar, rotation_section, cell)
          CALL section_vals_val_get(rotation_section, "P1_BOND1", i_val=colvar%rotation_param%i_at1_bond1)
          CALL section_vals_val_get(rotation_section, "P2_BOND1", i_val=colvar%rotation_param%i_at2_bond1)
          CALL section_vals_val_get(rotation_section, "P1_BOND2", i_val=colvar%rotation_param%i_at1_bond2)
@@ -410,7 +413,7 @@ CONTAINS
          ! Difference of two distances
          wrk_section => dfunct_section
          CALL colvar_create(colvar, dfunct_colvar_id)
-         CALL colvar_check_points(colvar, dfunct_section)
+         CALL colvar_check_points(colvar, dfunct_section, cell)
          CALL section_vals_val_get(dfunct_section, "ATOMS", i_vals=iatms)
          colvar%dfunct_param%i_at_dfunct = iatms
          CALL section_vals_val_get(dfunct_section, "COEFFICIENT", r_val=colvar%dfunct_param%coeff)
@@ -419,7 +422,7 @@ CONTAINS
          ! Q Parameter
          wrk_section => qparm_section
          CALL colvar_create(colvar, qparm_colvar_id)
-         CALL colvar_check_points(colvar, qparm_section)
+         CALL colvar_check_points(colvar, qparm_section, cell)
          CALL section_vals_val_get(qparm_section, "RCUT", r_val=colvar%qparm_param%rcut)
          CALL section_vals_val_get(qparm_section, "RSTART", r_val=colvar%qparm_param%rstart)
          CALL section_vals_val_get(qparm_section, "INCLUDE_IMAGES", l_val=colvar%qparm_param%include_images)
@@ -516,7 +519,7 @@ CONTAINS
             IF (ncol > 0) THEN
                DO i = 1, ncol
                   NULLIFY (colvar%reaction_path_param%colvar_p(i)%colvar)
-                  CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar, i, colvar_subsection, para_env)
+                  CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar, i, colvar_subsection, para_env, cell)
                END DO
             ELSE
                CPABORT("CV REACTION PATH: the number of CV to define the path must be >0 ")
@@ -605,7 +608,7 @@ CONTAINS
          ! Parsing the real COLVARs
          DO i = 1, ncol
             NULLIFY (colvar%combine_cvs_param%colvar_p(i)%colvar)
-            CALL colvar_read(colvar%combine_cvs_param%colvar_p(i)%colvar, i, colvar_subsection, para_env)
+            CALL colvar_read(colvar%combine_cvs_param%colvar_p(i)%colvar, i, colvar_subsection, para_env, cell)
          END DO
          ! Function definition
          CALL section_vals_val_get(combine_section, "FUNCTION", c_val=colvar%combine_cvs_param%function)
@@ -644,7 +647,7 @@ CONTAINS
          ! Population
          wrk_section => population_section
          CALL colvar_create(colvar, population_colvar_id)
-         CALL colvar_check_points(colvar, population_section)
+         CALL colvar_check_points(colvar, population_section, cell)
 
          NULLIFY (colvar%population_param%i_at_from, colvar%population_param%c_kinds_from)
          NULLIFY (colvar%population_param%i_at_to, colvar%population_param%c_kinds_to)
@@ -719,7 +722,7 @@ CONTAINS
          ! Angle between two planes
          wrk_section => plane_plane_angle_section
          CALL colvar_create(colvar, plane_plane_angle_colvar_id)
-         CALL colvar_check_points(colvar, plane_plane_angle_section)
+         CALL colvar_check_points(colvar, plane_plane_angle_section, cell)
          ! Read the specification of the two planes
          plane_sections => section_vals_get_subs_vals(plane_plane_angle_section, "PLANE")
          CALL section_vals_get(plane_sections, n_repetition=n_var)
@@ -732,6 +735,10 @@ CONTAINS
             CALL section_vals_val_get(plane_sections, "NORMAL_VECTOR", i_rep_section=1, &
                                       r_vals=s1)
             colvar%plane_plane_angle_param%plane1%normal_vec = s1
+            IF (PRESENT(cell)) THEN
+               IF (ASSOCIATED(cell)) &
+                  CALL cell_transform_input_cartesian(cell, colvar%plane_plane_angle_param%plane1%normal_vec)
+            END IF
          ELSE
             CALL section_vals_val_get(plane_sections, "ATOMS", i_rep_section=1, &
                                       i_vals=iatms)
@@ -745,6 +752,10 @@ CONTAINS
             CALL section_vals_val_get(plane_sections, "NORMAL_VECTOR", i_rep_section=2, &
                                       r_vals=s1)
             colvar%plane_plane_angle_param%plane2%normal_vec = s1
+            IF (PRESENT(cell)) THEN
+               IF (ASSOCIATED(cell)) &
+                  CALL cell_transform_input_cartesian(cell, colvar%plane_plane_angle_param%plane2%normal_vec)
+            END IF
          ELSE
             CALL section_vals_val_get(plane_sections, "ATOMS", i_rep_section=2, &
                                       i_vals=iatms)
@@ -754,7 +765,7 @@ CONTAINS
          ! Gyration Radius
          wrk_section => gyration_section
          CALL colvar_create(colvar, gyration_colvar_id)
-         CALL colvar_check_points(colvar, gyration_section)
+         CALL colvar_check_points(colvar, gyration_section, cell)
 
          NULLIFY (colvar%gyration_param%i_at, colvar%gyration_param%c_kinds)
 
@@ -874,7 +885,7 @@ CONTAINS
          ! Work on XYZ positions of atoms
          wrk_section => xyz_diag_section
          CALL colvar_create(colvar, xyz_diag_colvar_id)
-         CALL colvar_check_points(colvar, wrk_section)
+         CALL colvar_check_points(colvar, wrk_section, cell)
          CALL section_vals_val_get(wrk_section, "ATOM", i_val=iatm)
          CALL section_vals_val_get(wrk_section, "COMPONENT", i_val=icomponent)
          CALL section_vals_val_get(wrk_section, "PBC", l_val=colvar%xyz_diag_param%use_pbc)
@@ -885,7 +896,7 @@ CONTAINS
          ! Work on the outer diagonal (two atoms A,B) XYZ positions
          wrk_section => xyz_outerdiag_section
          CALL colvar_create(colvar, xyz_outerdiag_colvar_id)
-         CALL colvar_check_points(colvar, wrk_section)
+         CALL colvar_check_points(colvar, wrk_section, cell)
          CALL section_vals_val_get(wrk_section, "ATOMS", i_vals=iatms)
          colvar%xyz_outerdiag_param%i_atoms = iatms
          CALL section_vals_val_get(wrk_section, "COMPONENT_A", i_val=icomponent)
@@ -904,7 +915,7 @@ CONTAINS
          ! Wc hydrogen bond
          wrk_section => Wc_section
          CALL colvar_create(colvar, Wc_colvar_id)
-         CALL colvar_check_points(colvar, Wc_section)
+         CALL colvar_check_points(colvar, Wc_section, cell)
          CALL section_vals_val_get(Wc_section, "ATOMS", i_vals=iatms)
          CALL section_vals_val_get(wrk_section, "RCUT", r_val=my_val(1))
          colvar%Wc%rcut = cp_unit_to_cp2k(my_val(1), "angstrom")
@@ -913,7 +924,7 @@ CONTAINS
          ! HBP colvar
          wrk_section => HBP_section
          CALL colvar_create(colvar, HBP_colvar_id)
-         CALL colvar_check_points(colvar, HBP_section)
+         CALL colvar_check_points(colvar, HBP_section, cell)
          CALL section_vals_val_get(wrk_section, "NPOINTS", i_val=colvar%HBP%nPoints)
          CALL section_vals_val_get(wrk_section, "RCUT", r_val=my_val(1))
          colvar%HBP%rcut = cp_unit_to_cp2k(my_val(1), "angstrom")
@@ -945,7 +956,7 @@ CONTAINS
          ! Minimum Distance
          wrk_section => mindist_section
          CALL colvar_create(colvar, mindist_colvar_id)
-         CALL colvar_check_points(colvar, mindist_section)
+         CALL colvar_check_points(colvar, mindist_section, cell)
          NULLIFY (colvar%mindist_param%i_dist_from, colvar%mindist_param%i_coord_from, &
                   colvar%mindist_param%k_coord_from, colvar%mindist_param%i_coord_to, &
                   colvar%mindist_param%k_coord_to)
@@ -1550,11 +1561,13 @@ CONTAINS
 !> \brief Check and setup about the use of geometrical points instead of atoms
 !> \param colvar the colvat to initialize
 !> \param section ...
+!> \param cell ...
 !> \author Teodoro Laino, [teo] 03.2007
 ! **************************************************************************************************
-   SUBROUTINE colvar_check_points(colvar, section)
+   SUBROUTINE colvar_check_points(colvar, section, cell)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(section_vals_type), POINTER                   :: section
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       INTEGER                                            :: i, irep, natoms, npoints, nrep, nweights
       INTEGER, DIMENSION(:), POINTER                     :: atoms
@@ -1611,6 +1624,9 @@ CONTAINS
                ! Define the point as a fixed point in space..
                CALL section_vals_val_get(point_sections, "XYZ", i_rep_section=i, r_vals=r)
                colvar%points(i)%r = r
+               IF (PRESENT(cell)) THEN
+                  IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, colvar%points(i)%r)
+               END IF
             END SELECT
          END DO
       END IF

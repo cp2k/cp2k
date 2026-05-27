@@ -14,6 +14,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_binary_restarts
 
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -207,6 +209,11 @@ CONTAINS
                                         input_unit)
       END IF
       CALL para_env%bcast(atom_info%r)
+      IF (ASSOCIATED(topology%cell_muc)) THEN
+         DO iatom = 1, natom
+            CALL cell_transform_input_cartesian(topology%cell_muc, atom_info%r(:, iatom))
+         END DO
+      END IF
 
       ! Read molecule information if available
       IF (nmolecule > 0) THEN
@@ -287,18 +294,20 @@ CONTAINS
 !> \param root_section ...
 !> \param subsys_section ...
 !> \param binary_file_read ...
+!> \param cell ...
 !> \par History
 !>      - Creation (17.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_binary_cs_coordinates(prefix, particle_set, root_section, &
-                                         subsys_section, binary_file_read)
+                                         subsys_section, binary_file_read, cell)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: prefix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: root_section, subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates'
 
@@ -426,6 +435,9 @@ CONTAINS
 
       DO iparticle = 1, nparticle
          particle_set(iparticle)%r(1:3) = rbuf(1:3, iparticle)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, particle_set(iparticle)%r(1:3))
+         END IF
       END DO
 
       DEALLOCATE (rbuf)
@@ -483,13 +495,14 @@ CONTAINS
 !> \param para_env ...
 !> \param subsys_section ...
 !> \param binary_file_read ...
+!> \param cell ...
 !> \par History
 !>      - Creation (17.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_binary_velocities(prefix, particle_set, root_section, para_env, &
-                                     subsys_section, binary_file_read)
+                                     subsys_section, binary_file_read, cell)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: prefix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -497,6 +510,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities'
 
@@ -612,6 +626,9 @@ CONTAINS
             CALL para_env%bcast(rbuf)
             DO iparticle = 1, nparticle
                particle_set(iparticle)%v(1:3) = rbuf(1:3, iparticle)
+               IF (PRESENT(cell)) THEN
+                  IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, particle_set(iparticle)%v(1:3))
+               END IF
             END DO
          ELSE
             IF (iw > 0) THEN

@@ -385,7 +385,7 @@ CONTAINS
          CALL kpoint_create(kpoints)
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
          kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
-         CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
+         CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat, my_cell)
          CALL get_kpoint_info(kpoints, verbose=kpoint_verbose)
          IF (kpoint_verbose) CALL set_kpoint_info(kpoints, verbose=.FALSE.)
          do_hfx = .FALSE.
@@ -1074,13 +1074,13 @@ CONTAINS
                          molecule_kind_set=molecule_kind_set)
 
       ! Read the input section with the DFT control parameters
-      CALL read_dft_control(dft_control, dft_section)
+      CALL read_dft_control(dft_control, dft_section, cell)
 
       ! Set periodicity flag
       dft_control%qs_control%periodicity = SUM(cell%perd)
 
       ! Read the input section with the Quickstep control parameters
-      CALL read_qs_section(dft_control%qs_control, qs_section)
+      CALL read_qs_section(dft_control%qs_control, qs_section, cell)
 
       ! Print the Quickstep program banner (copyright and version number)
       IF (.NOT. be_silent) THEN

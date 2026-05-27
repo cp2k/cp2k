@@ -3337,7 +3337,7 @@ CONTAINS
    SUBROUTINE get_xkp_for_dipole_calc(qs_env, xkp, special_pnts)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: kpnts, kpset
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat, hmat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_xkp_for_dipole_calc'
 
@@ -3367,6 +3367,8 @@ CONTAINS
       IF (explicit_kpset) THEN
          CALL get_qs_env(qs_env, cell=cell)
          CALL get_cell(cell, h=hmat)
+         cart_hmat(:, :) = hmat(:, :)
+         IF (cell%input_cell_canonicalized) cart_hmat(:, :) = cell%input_hmat(:, :)
          CALL section_vals_val_get(kpset, "NPOINTS", i_val=npline)
          CALL section_vals_val_get(kpset, "UNITS", c_val=ustr)
          CALL uppercase(ustr)
@@ -3395,13 +3397,13 @@ CONTAINS
             CASE ("B_VECTOR")
                kspecial(1:3, ip) = kpptr(1:3)
             CASE ("CART_ANGSTROM")
-               kspecial(1:3, ip) = (kpptr(1)*hmat(1, 1:3) + &
-                                    kpptr(2)*hmat(2, 1:3) + &
-                                    kpptr(3)*hmat(3, 1:3))/twopi*angstrom
+               kspecial(1:3, ip) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                    kpptr(2)*cart_hmat(2, 1:3) + &
+                                    kpptr(3)*cart_hmat(3, 1:3))/twopi*angstrom
             CASE ("CART_BOHR")
-               kspecial(1:3, ip) = (kpptr(1)*hmat(1, 1:3) + &
-                                    kpptr(2)*hmat(2, 1:3) + &
-                                    kpptr(3)*hmat(3, 1:3))/twopi
+               kspecial(1:3, ip) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                    kpptr(2)*cart_hmat(2, 1:3) + &
+                                    kpptr(3)*cart_hmat(3, 1:3))/twopi
             CASE DEFAULT
                CPABORT("Unknown unit <"//TRIM(ustr)//"> specified for k-point definition")
             END SELECT
@@ -3431,7 +3433,7 @@ CONTAINS
          CALL get_cell(cell, h=hmat)
          NULLIFY (kpoint_work)
          CALL kpoint_create(kpoint_work)
-         CALL read_kpoint_section(kpoint_work, kpnts, hmat)
+         CALL read_kpoint_section(kpoint_work, kpnts, hmat, cell)
          CALL kpoint_initialize(kpoint_work, particle_set, cell)
          nkp = kpoint_work%nkp
          ALLOCATE (xkp(3, nkp))

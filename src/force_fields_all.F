@@ -2642,9 +2642,9 @@ CONTAINS
 
       ! Read the shell (and core) coordinates from the restart file, if available
       CALL read_binary_cs_coordinates("SHELL", shell_particle_set, root_section, &
-                                      subsys_section, shell_coord_read)
+                                      subsys_section, shell_coord_read, cell)
       CALL read_binary_cs_coordinates("CORE", core_particle_set, root_section, &
-                                      subsys_section, core_coord_read)
+                                      subsys_section, core_coord_read, cell)
 
       IF (nshell_tot > 0) THEN
          ! Read the shell (and core) coordinates from the input, if no coordinates were found

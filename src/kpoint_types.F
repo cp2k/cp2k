@@ -13,6 +13,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE kpoint_types
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
@@ -720,12 +721,14 @@ CONTAINS
 !> \param kpoint  The kpoint environment
 !> \param kpoint_section The input section
 !> \param a_vec ...
+!> \param cell ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec)
+   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec, cell)
       TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       TYPE(section_vals_type), POINTER                   :: kpoint_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a_vec
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-14_dp
 
@@ -736,9 +739,16 @@ CONTAINS
       LOGICAL                                            :: available, backend_explicit, &
                                                             reduction_explicit
       REAL(KIND=dp)                                      :: ff
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_a_vec
       REAL(KIND=dp), DIMENSION(:), POINTER               :: reallist
 
       CALL section_vals_get(kpoint_section, explicit=available)
+      cart_a_vec(:, :) = a_vec(:, :)
+      IF (PRESENT(cell)) THEN
+         IF (ASSOCIATED(cell)) THEN
+            IF (cell%input_cell_canonicalized) cart_a_vec(:, :) = cell%input_hmat(:, :)
+         END IF
+      END IF
 
       IF (available) THEN
          CALL section_vals_val_get(kpoint_section, "SCHEME", c_vals=tmpstringlist)
@@ -789,13 +799,13 @@ CONTAINS
                CASE ("B_VECTOR")
                   kpoint%xkp(1:3, i) = reallist(1:3)
                CASE ("CART_ANGSTROM")
-                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3) + &
-                                        reallist(2)*a_vec(2, 1:3) + &
-                                        reallist(3)*a_vec(3, 1:3))/twopi*angstrom
+                  kpoint%xkp(1:3, i) = (reallist(1)*cart_a_vec(1, 1:3) + &
+                                        reallist(2)*cart_a_vec(2, 1:3) + &
+                                        reallist(3)*cart_a_vec(3, 1:3))/twopi*angstrom
                CASE ("CART_BOHR")
-                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3) + &
-                                        reallist(2)*a_vec(2, 1:3) + &
-                                        reallist(3)*a_vec(3, 1:3))/twopi
+                  kpoint%xkp(1:3, i) = (reallist(1)*cart_a_vec(1, 1:3) + &
+                                        reallist(2)*cart_a_vec(2, 1:3) + &
+                                        reallist(3)*cart_a_vec(3, 1:3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown Unit for kpoint definition")
                END SELECT
