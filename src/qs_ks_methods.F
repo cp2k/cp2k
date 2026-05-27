@@ -626,6 +626,9 @@ CONTAINS
                IF (gapw .OR. gapw_xc) THEN
                   CPABORT("Native SKALA GPW currently supports METHOD GPW only.")
                END IF
+               IF (dokp) THEN
+                  CPABORT("Native SKALA GPW currently supports Gamma-only calculations only.")
+               END IF
                IF (calculate_forces) THEN
                   CPABORT("Native SKALA GPW nuclear gradients are not implemented yet.")
                END IF

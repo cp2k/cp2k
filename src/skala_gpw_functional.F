@@ -189,6 +189,7 @@ CONTAINS
       CALL torch_tensor_release(exc_tensor)
       CALL skala_gpw_feature_release(features)
       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool)
+      CALL torch_use_cuda(.TRUE.)
 
    END SUBROUTINE skala_gpw_eval
 
