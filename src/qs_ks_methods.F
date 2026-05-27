@@ -192,12 +192,17 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
-
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ace_rebuild_frequency, handle, iatom, &
                                                             img, ispin, natom, nimages, nspins
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, &
          gapw_xc, just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
+      CHARACTER(LEN=*), PARAMETER :: native_skala_gapw_xc_msg = &
+         "Native SKALA grid does not support METHOD GAPW_XC; "// &
+         "the GAPW_XC one-center XC correction needs a dedicated SKALA design.", &
+         native_skala_gapw_msg = "Native SKALA grid does not support METHOD GAPW yet; "// &
+         "a GAPW grid path needs all-electron density, gradient, and tau."
+
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
@@ -622,14 +627,10 @@ CONTAINS
          IF (dft_control%use_gauxc) THEN
             IF (xc_section_uses_native_skala_grid(xc_section)) THEN
                IF (gapw_xc) THEN
-                  CPABORT("Native SKALA grid evaluation does not support METHOD GAPW_XC. "// &
-                          "The GAPW_XC one-center XC correction needs a dedicated SKALA design.")
+                  CPABORT(native_skala_gapw_xc_msg)
                END IF
                IF (gapw) THEN
-                  CPABORT("Native SKALA grid evaluation does not support METHOD GAPW yet. "// &
-                          "A GAPW grid path needs a consistent all-electron density, gradient, and "// &
-                          "kinetic-energy-density reconstruction. Use the GauXC AO path without NATIVE_GRID "// &
-                          "for molecular all-electron GAPW calculations.")
+                  CPABORT(native_skala_gapw_msg)
                END IF
                IF (dokp) THEN
                   CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
