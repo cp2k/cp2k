@@ -733,6 +733,38 @@ CONTAINS
          END IF
       END IF
 
+      ! Read the planar counter charge section
+      tmp_section => section_vals_get_subs_vals(dft_section, "PLANAR_COUNTER_CHARGE")
+      CALL section_vals_get(tmp_section, explicit=is_present)
+      IF (is_present) THEN
+         ! Check section parameter if planar counter charge is activated
+         CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
+                                   l_val=dft_control%do_pcc)
+         IF (dft_control%do_pcc) THEN
+            ALLOCATE (dft_control%pcc_control)
+            CALL section_vals_val_get(tmp_section, "DIST_EDGE", &
+                                      r_val=dft_control%pcc_control%dist_edge)
+            CALL section_vals_val_get(tmp_section, "GAU_C", &
+                                      r_val=dft_control%pcc_control%gau_c)
+            CALL section_vals_val_get(tmp_section, "PARALLEL_PLANE", &
+                                      i_val=dft_control%pcc_control%surf_normal)
+         END IF
+      END IF
+
+      ! Read the planar averaged Hartree potential section
+      tmp_section => section_vals_get_subs_vals(dft_section, "PLANAR_AVERAGED_V_HARTREE")
+      CALL section_vals_get(tmp_section, explicit=is_present)
+      IF (is_present) THEN
+         ! Check section parameter if the planar-averaged potential is activated
+         CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
+                                   l_val=dft_control%do_paep)
+         IF (dft_control%do_paep) THEN
+            ALLOCATE (dft_control%paep_control)
+            CALL section_vals_val_get(tmp_section, "PARALLEL_PLANE", &
+                                      i_val=dft_control%paep_control%surf_normal)
+         END IF
+      END IF
+
       ! ZMP added input sections
       ! Read the external density input section
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_DENSITY")

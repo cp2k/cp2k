@@ -1,0 +1,2 @@
+# runs are executed in the same order as in this file
+"H2plus_pcc_paep.inp"                    = [{matcher="E_total", tol=1e-12, ref=-0.570963905149144}]

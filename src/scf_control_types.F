@@ -60,7 +60,8 @@ MODULE scf_control_types
    ! Public data types
 
    PUBLIC :: scf_control_type, &
-             smear_type
+             smear_type, &
+             gce_type
 
    ! Public subroutines
 
@@ -126,6 +127,7 @@ MODULE scf_control_types
       TYPE(outer_scf_control_type)          :: outer_scf = outer_scf_control_type()
       TYPE(smear_type), POINTER             :: smear => NULL()
       TYPE(diagonalization_type)            :: diagonalization = diagonalization_type()
+      TYPE(gce_type), POINTER               :: gce => NULL()
       INTEGER                               :: density_guess = -1, mixing_method = -1
       REAL(KIND=dp)                         :: eps_eigval = -1.0_dp, eps_scf = -1.0_dp, eps_scf_hist = -1.0_dp, &
                                                level_shift = -1.0_dp, &
@@ -144,6 +146,14 @@ MODULE scf_control_types
       REAL(KIND=dp)                         :: roks_f = -1.0_dp
       REAL(KIND=dp), DIMENSION(0:2, 0:2, 1:2) :: roks_parameter = -1.0_dp
    END TYPE scf_control_type
+
+   TYPE gce_type
+      LOGICAL                               :: do_gce = .FALSE.
+      REAL(KIND=dp)                         :: target_workfunction = 0.16_dp, &
+                                               ref_esp = 0.0_dp, &
+                                               mixing_coef = 0.3_dp, &
+                                               prev_workfunction = -1001.0_dp
+   END TYPE gce_type
 
 CONTAINS
 
@@ -294,6 +304,10 @@ CONTAINS
       IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
          CALL cdft_opt_type_release(scf_control%outer_scf%cdft_opt_control)
 
+      IF (ASSOCIATED(scf_control%gce)) THEN
+         DEALLOCATE (scf_control%gce)
+      END IF
+
       ! Maximum overlap method orbital indices lists
       ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
       ! points to memory allocated by input file parser,
@@ -321,8 +335,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: added_mos
       LOGICAL                                            :: do_mixing, explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
-      TYPE(section_vals_type), POINTER                   :: mixing_section, outer_scf_section, &
-                                                            scf_section, smear_section
+      TYPE(section_vals_type), POINTER                   :: gce_section, mixing_section, &
+                                                            outer_scf_section, scf_section, &
+                                                            smear_section
 
       CALL timeset(routineN, handle)
 
@@ -474,6 +489,10 @@ CONTAINS
          CALL section_vals_val_get(mixing_section, "NMIXING", i_val=scf_control%nmixing)
       END IF ! do mixing
 
+      gce_section => section_vals_get_subs_vals(scf_section, "GCE")
+      CALL init_gce(scf_control%gce)
+      CALL read_gce_section(scf_control%gce, gce_section)
+
       CALL timestop(handle)
 
    END SUBROUTINE scf_c_read_parameters
@@ -538,6 +557,41 @@ CONTAINS
                                    r_val=smear%fixed_mag_mom)
       END IF ! do smear
    END SUBROUTINE read_smear_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param gce ...
+! **************************************************************************************************
+   SUBROUTINE init_gce(gce)
+      TYPE(gce_type), POINTER                            :: gce
+
+      CPASSERT(.NOT. ASSOCIATED(gce))
+      ALLOCATE (gce)
+      gce%do_gce = .FALSE.
+      gce%target_workfunction = 0.16_dp
+      gce%prev_workfunction = -1001.0_dp
+      gce%ref_esp = 0.0_dp
+      gce%mixing_coef = 0.3_dp
+   END SUBROUTINE init_gce
+
+! **************************************************************************************************
+!> \brief ...
+!> \param gce ...
+!> \param gce_section ...
+! **************************************************************************************************
+   SUBROUTINE read_gce_section(gce, gce_section)
+      TYPE(gce_type), POINTER                            :: gce
+      TYPE(section_vals_type), POINTER                   :: gce_section
+
+      CALL section_vals_val_get(gce_section, "_SECTION_PARAMETERS_", &
+                                l_val=gce%do_gce)
+      IF (gce%do_gce) THEN
+         CALL section_vals_val_get(gce_section, "TARGET_WORKFUNCTION", &
+                                   r_val=gce%target_workfunction)
+         CALL section_vals_val_get(gce_section, "MIXING_COEF", &
+                                   r_val=gce%mixing_coef)
+      END IF ! do gce
+   END SUBROUTINE read_gce_section
 
 ! **************************************************************************************************
 !> \brief writes out the scf parameters
@@ -651,6 +705,14 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,F10.6)") &
                      "Smear window [a.u.]:       ", scf_control%smear%window_size
                END SELECT
+            END IF
+
+            IF (scf_control%gce%do_gce) THEN
+               WRITE (UNIT=output_unit, FMT="(T25,A,/,T25,A,T61,F20.1)") &
+                  REPEAT("-", 56), &
+                  "Target workfunction [eV]:", scf_control%gce%target_workfunction
+               WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") "Mixing coefficient:", scf_control%gce%mixing_coef
+               WRITE (UNIT=output_unit, FMT="(T25,A)") "Grand canonical SCF is activated."
             END IF
 
             CALL section_vals_val_get(dft_section, "ROKS", l_val=roks)
