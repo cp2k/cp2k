@@ -18,8 +18,11 @@ typedef torch::jit::Module torch_c_model_t;
  * \brief Internal helper for selecting the CUDA device when available.
  * \author Ole Schuett
  ******************************************************************************/
+static bool use_cuda_if_available = true;
+
 static torch::Device get_device() {
-  return (torch::cuda::is_available()) ? torch::kCUDA : torch::kCPU;
+  return (use_cuda_if_available && torch::cuda::is_available()) ? torch::kCUDA
+                                                                : torch::kCPU;
 }
 
 /*******************************************************************************
@@ -152,6 +155,29 @@ void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
                              const torch_c_tensor_t *outer_grad) {
   tensor->backward(*outer_grad);
 }
+
+/*******************************************************************************
+ * \brief Runs autograd on a scalar Torch tensor.
+ ******************************************************************************/
+void torch_c_tensor_backward_scalar(const torch_c_tensor_t *tensor) {
+  tensor->backward();
+}
+
+/*******************************************************************************
+ * \brief Moves a tensor to the active device and makes it an autograd leaf.
+ ******************************************************************************/
+void torch_c_tensor_to_device_leaf(torch_c_tensor_t **tensor,
+                                   const bool req_grad) {
+  auto moved = (*tensor)->to(get_device()).detach();
+  moved.set_requires_grad(req_grad);
+  delete (*tensor);
+  *tensor = new torch_c_tensor_t(moved);
+}
+
+/*******************************************************************************
+ * \brief Select whether Torch wrappers should use CUDA when available.
+ ******************************************************************************/
+void torch_c_use_cuda(const bool use_cuda) { use_cuda_if_available = use_cuda; }
 
 /*******************************************************************************
  * \brief Returns the gradient of a Torch tensor which was computed by autograd.

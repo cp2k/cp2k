@@ -69,13 +69,14 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
-   PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_grad
+   PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
+   PUBLIC :: torch_tensor_grad, torch_tensor_to_device_leaf
    PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
    PUBLIC :: torch_dict_type, torch_dict_create, torch_dict_insert, torch_dict_get, torch_dict_release
    PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
    PUBLIC :: torch_model_forward_mol_tensor
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
-   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze
+   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze, torch_use_cuda
 
 CONTAINS
 
@@ -219,6 +220,77 @@ CONTAINS
       MARK_USED(outer_grad)
 #endif
    END SUBROUTINE torch_tensor_backward
+
+! **************************************************************************************************
+!> \brief Runs autograd on a scalar Torch tensor.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_backward_scalar(tensor)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_backward_scalar(tensor) &
+            BIND(C, name="torch_c_tensor_backward_scalar")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+         END SUBROUTINE torch_c_tensor_backward_scalar
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CALL torch_c_tensor_backward_scalar(tensor=tensor%c_ptr)
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+#endif
+   END SUBROUTINE torch_tensor_backward_scalar
+
+! **************************************************************************************************
+!> \brief Moves a tensor to the active Torch device and makes it an autograd leaf.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_to_device_leaf(tensor, requires_grad)
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_to_device_leaf(tensor, req_grad) &
+            BIND(C, name="torch_c_tensor_to_device_leaf")
+            IMPORT :: C_BOOL, C_PTR
+            TYPE(C_PTR)                                  :: tensor
+            LOGICAL(kind=C_BOOL), VALUE                  :: req_grad
+         END SUBROUTINE torch_c_tensor_to_device_leaf
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CALL torch_c_tensor_to_device_leaf(tensor=tensor%c_ptr, &
+                                         req_grad=LOGICAL(requires_grad, C_BOOL))
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(requires_grad)
+#endif
+   END SUBROUTINE torch_tensor_to_device_leaf
+
+! **************************************************************************************************
+!> \brief Select whether Torch wrappers should use CUDA when available.
+! **************************************************************************************************
+   SUBROUTINE torch_use_cuda(use_cuda)
+      LOGICAL, INTENT(IN)                                :: use_cuda
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_use_cuda(use_cuda) BIND(C, name="torch_c_use_cuda")
+            IMPORT :: C_BOOL
+            LOGICAL(kind=C_BOOL), VALUE                  :: use_cuda
+         END SUBROUTINE torch_c_use_cuda
+      END INTERFACE
+
+      CALL torch_c_use_cuda(use_cuda=LOGICAL(use_cuda, C_BOOL))
+#else
+      MARK_USED(use_cuda)
+#endif
+   END SUBROUTINE torch_use_cuda
 
 ! **************************************************************************************************
 !> \brief Returns the gradient of a Torch tensor which was computed by autograd.

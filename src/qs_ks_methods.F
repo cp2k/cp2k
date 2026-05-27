@@ -136,6 +136,7 @@ MODULE qs_ks_methods
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
+   USE skala_gpw_functional,            ONLY: xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
@@ -621,8 +622,26 @@ CONTAINS
          IF (dft_control%use_gauxc .AND. gapw_xc) THEN
             CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
          ELSE IF (dft_control%use_gauxc) THEN
-            use_gauxc_matrix = .TRUE.
-            CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+            IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+               IF (gapw .OR. gapw_xc) THEN
+                  CPABORT("Native SKALA GPW currently supports METHOD GPW only.")
+               END IF
+               IF (calculate_forces) THEN
+                  CPABORT("Native SKALA GPW nuclear gradients are not implemented yet.")
+               END IF
+               CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                                  edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                                  just_energy=just_energy_xc)
+               IF (edisp /= 0.0_dp) energy%dispersion = edisp
+               IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
+                  CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+                  CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+               END IF
+            ELSE
+               use_gauxc_matrix = .TRUE.
+               CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+            END IF
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &

@@ -128,7 +128,7 @@ CONTAINS
       INTEGER                                            :: admmtype, irep, isize, kg_tnadd_method, &
                                                             method_id, nrep, xc_deriv_method_id
       LOGICAL :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, exopt1, exopt2, exopt3, explicit, &
-         is_present, l_param, local_moment_possible, not_SE, was_present
+         is_present, l_param, local_moment_possible, native_skala_grid, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -206,6 +206,11 @@ CONTAINS
 
       dft_control%lsd = (dft_control%nspins > 1)
       dft_control%use_kinetic_energy_density = xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
+      IF (dft_control%use_gauxc) THEN
+         native_skala_grid = .FALSE.
+         CALL section_vals_val_get(xc_gauxc_subsection, "NATIVE_GRID", l_val=native_skala_grid)
+         IF (native_skala_grid) dft_control%use_kinetic_energy_density = .TRUE.
+      END IF
       tmp_section => section_vals_get_subs_vals(dft_section, "KG_METHOD")
       CALL section_vals_get(tmp_section, explicit=explicit)
       IF (explicit) THEN

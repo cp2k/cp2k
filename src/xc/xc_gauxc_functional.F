@@ -803,9 +803,11 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_name
+      LOGICAL                                            :: native_grid
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+      CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
       model_key = ADJUSTL(model_name)
       CALL uppercase(model_key)
 
@@ -824,9 +826,21 @@ CONTAINS
          END IF
       END IF
       IF (PRESENT(needs)) THEN
-         needs%rho = .TRUE.
-         IF (lsd) THEN
-            needs%rho_spin = .TRUE.
+         IF (native_grid .AND. TRIM(model_key) /= "NONE" .AND. TRIM(model_key) /= "") THEN
+            IF (lsd) THEN
+               needs%rho_spin = .TRUE.
+               needs%drho_spin = .TRUE.
+               needs%tau_spin = .TRUE.
+            ELSE
+               needs%rho = .TRUE.
+               needs%drho = .TRUE.
+               needs%tau = .TRUE.
+            END IF
+         ELSE
+            needs%rho = .TRUE.
+            IF (lsd) THEN
+               needs%rho_spin = .TRUE.
+            END IF
          END IF
       END IF
       IF (PRESENT(max_deriv)) max_deriv = 1

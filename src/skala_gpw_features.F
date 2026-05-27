@@ -24,6 +24,7 @@ MODULE skala_gpw_features
                                               torch_dict_type,&
                                               torch_tensor_from_array,&
                                               torch_tensor_release,&
+                                              torch_tensor_to_device_leaf,&
                                               torch_tensor_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
@@ -48,6 +49,7 @@ MODULE skala_gpw_features
       TYPE(torch_tensor_type)                           :: grid_coords_t
       TYPE(torch_tensor_type)                           :: grid_weights_t
       TYPE(torch_tensor_type)                           :: kin_t
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)          :: feature_index
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)    :: atomic_grid_sizes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :) :: atomic_grid_size_bound_shape
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)          :: atomic_grid_weights, grid_weights
@@ -67,14 +69,17 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param requires_grad ...
+!> \param weights ...
 ! **************************************************************************************************
-   SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, requires_grad)
+   SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
+                                      requires_grad, weights)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
 
       INTEGER                                            :: i, iatom, ipt, ispin, j, k, &
                                                             max_grid_size, natom, nflat, nspins, &
@@ -129,6 +134,9 @@ CONTAINS
                 features%grid_coords(3, nflat), features%grid_weights(nflat), &
                 features%atomic_grid_weights(nflat), features%coarse_0_atomic_coords(3, natom), &
                 features%atomic_grid_size_bound_shape(0, max_grid_size))
+      ALLOCATE (features%feature_index(bo(1, 1):bo(2, 1), &
+                                       bo(1, 2):bo(2, 2), &
+                                       bo(1, 3):bo(2, 3)))
 
       features%density = 0.0_dp
       features%grad = 0.0_dp
@@ -136,6 +144,7 @@ CONTAINS
       features%grid_coords = 0.0_dp
       features%grid_weights = pw_grid%dvol
       features%atomic_grid_weights = pw_grid%dvol
+      features%feature_index = 0
 
       DO iatom = 1, natom
          features%coarse_0_atomic_coords(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
@@ -155,10 +164,17 @@ CONTAINS
                owner = nearest_atom(grid_point, particle_set, cell)
                ipt = atom_position(owner)
                atom_position(owner) = atom_position(owner) + 1
+               features%feature_index(i, j, k) = ipt
 
                features%grid_coords(:, ipt) = features%coarse_0_atomic_coords(:, owner) + &
                                               pbc(features%coarse_0_atomic_coords(:, owner), &
                                                   grid_point, cell)
+               IF (PRESENT(weights)) THEN
+                  IF (ASSOCIATED(weights)) THEN
+                     features%grid_weights(ipt) = pw_grid%dvol*weights%array(i, j, k)
+                     features%atomic_grid_weights(ipt) = features%grid_weights(ipt)
+                  END IF
+               END IF
 
                IF (nspins == 1) THEN
                   features%density(ipt, 1) = 0.5_dp*rho(i, j, k)
@@ -217,6 +233,7 @@ CONTAINS
       IF (ALLOCATED(features%density)) DEALLOCATE (features%density)
       IF (ALLOCATED(features%grad)) DEALLOCATE (features%grad)
       IF (ALLOCATED(features%kin)) DEALLOCATE (features%kin)
+      IF (ALLOCATED(features%feature_index)) DEALLOCATE (features%feature_index)
       IF (ALLOCATED(features%grid_coords)) DEALLOCATE (features%grid_coords)
       IF (ALLOCATED(features%grid_weights)) DEALLOCATE (features%grid_weights)
       IF (ALLOCATED(features%atomic_grid_weights)) DEALLOCATE (features%atomic_grid_weights)
@@ -237,23 +254,32 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: requires_grad
 
       CALL torch_tensor_from_array(features%density_t, features%density, requires_grad=requires_grad)
+      CALL torch_tensor_to_device_leaf(features%density_t, requires_grad)
       CALL torch_dict_insert(features%inputs, "density", features%density_t)
       CALL torch_tensor_from_array(features%grad_t, features%grad, requires_grad=requires_grad)
+      CALL torch_tensor_to_device_leaf(features%grad_t, requires_grad)
       CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
       CALL torch_tensor_from_array(features%kin_t, features%kin, requires_grad=requires_grad)
+      CALL torch_tensor_to_device_leaf(features%kin_t, requires_grad)
       CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
       CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
+      CALL torch_tensor_to_device_leaf(features%grid_coords_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
       CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
+      CALL torch_tensor_to_device_leaf(features%grid_weights_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
       CALL torch_tensor_from_array(features%atomic_grid_weights_t, features%atomic_grid_weights)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "atomic_grid_weights", features%atomic_grid_weights_t)
       CALL torch_tensor_from_array(features%atomic_grid_sizes_t, features%atomic_grid_sizes)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_sizes_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", features%atomic_grid_sizes_t)
       CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, features%coarse_0_atomic_coords)
+      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", features%coarse_0_atomic_coords_t)
       CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
                                    features%atomic_grid_size_bound_shape)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_size_bound_shape_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
                              features%atomic_grid_size_bound_shape_t)
 

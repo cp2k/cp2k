@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=14, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=15, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1385,6 +1385,16 @@ CONTAINS
                           "GauXC's molecular quadrature; compact periodic materials require a "// &
                           "dedicated periodic GauXC interface.", &
                           usage="PERIODIC_REFERENCE T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
+                          description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
+                          "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
+                          "to energy/VXC evaluations; nuclear gradients, stress, GAPW, and k-points are "// &
+                          "not implemented in this path.", &
+                          usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
