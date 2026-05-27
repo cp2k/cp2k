@@ -1270,8 +1270,15 @@ CONTAINS
                                                             j_col_global, jj, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: use_hartree, use_sex
 
       CALL timeset(routineN, handle)
+
+      ! Mirror update_effective_ham_MO:1048-1050. No use_coh: COH has no LR action
+      ! (Q6) and is not applied in this routine; only Hartree + SX are gated.
+      ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q5
+      use_hartree = .NOT. rtbse_env%debug_disable_hartree
+      use_sex = .NOT. rtbse_env%debug_disable_sex
 
       ! 1. Stage drho_in into drho_probe. TDA: mask to OV (propagator carries only OV
       !    and the VO contribution is recovered later via the (.)^C shortcut). ABBA: keep
@@ -1334,22 +1341,26 @@ CONTAINS
       !    VO contribution comes from the Hermitian conjugate of the OV result (P2 in
       !    rt_bse_pitfalls_physics.md): for real C_active + AO-pair-symmetric kernel,
       !    K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C.
-      CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                               rtbse_env%sigma_SEX_ao(ispin), ispin)
-      CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                            rtbse_env%ham_workspace(1), ispin)
-      CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%ham_workspace(1), L_drho_out, &
-                              CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), ispin)
+      IF (use_hartree) THEN
+         CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                  rtbse_env%sigma_SEX_ao(ispin), ispin)
+         CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                               rtbse_env%ham_workspace(1), ispin)
+         CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%ham_workspace(1), L_drho_out, &
+                                 CMPLX(rtbse_env%spin_degeneracy, 0.0_dp, kind=dp), ispin)
+      END IF
 
       ! 6. Screened-exchange contribution: get_sigma is already complex-aware. The
       !    -1.0_dp factor passed to get_sigma builds the -W contribution; we then add
       !    +1.0 here (no occupation-factor flip), giving raw K^SX = -W as required by
       !    K = (ia|jb) - W_{ij,ab} (Casida convention with +K).
-      CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
-      CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
-                                            rtbse_env%sigma_SEX(ispin), ispin)
-      CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(ispin), L_drho_out, &
-                              CMPLX(1.0_dp, 0.0_dp, kind=dp), ispin)
+      IF (use_sex) THEN
+         CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+         CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                               rtbse_env%sigma_SEX(ispin), ispin)
+         CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(ispin), L_drho_out, &
+                                 CMPLX(1.0_dp, 0.0_dp, kind=dp), ispin)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE apply_liouvillian_to_drho

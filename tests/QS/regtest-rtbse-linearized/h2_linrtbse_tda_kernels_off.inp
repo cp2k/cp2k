@@ -1,0 +1,104 @@
+&GLOBAL
+  PROJECT_NAME H2_LINRTBSE_TDA_KERNELS_OFF
+  RUN_TYPE RT_PROPAGATION
+&END GLOBAL
+
+! With Hartree + SX kernels disabled the TDA Liouvillian collapses to the
+! bare diag(eps_ai). Lowest eigenvalue must equal the G0W0 direct band gap
+! AND must equal h2_linrtbse_abba_kernels_off.inp (ABBA with B=0 reduces to
+! TDA-bare-diag). DEBUG_DISABLE_COH set for clarity but irrelevant: COH is
+! currently a static no-op (see dev_notes/rt_bse_open_questions.md Q6).
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE [K] 0.0
+    TIMESTEP [fs] 1e-3
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MINIMAL
+    POTENTIAL_FILE_NAME ALL_POTENTIALS
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 40
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER WAVELET
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-10
+      METHOD GAPW
+    &END QS
+    &REAL_TIME_PROPAGATION
+      APPLY_DELTA_PULSE
+      DELTA_PULSE_DIRECTION 1 0 0
+      DELTA_PULSE_SCALE 1.0E-5
+      INITIAL_WFN SCF_WFN
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+      &RTBSE
+        DEBUG_DISABLE_COH T
+        DEBUG_DISABLE_HARTREE T
+        DEBUG_DISABLE_SEX T
+        DIAGNOSE_LIOUVILLIAN_EIG T
+        LRRTBSE T
+        TDA T
+      &END RTBSE
+    &END REAL_TIME_PROPAGATION
+    &SCF
+      ADDED_MOS -1
+      EPS_SCF 1.0E-8
+      MAX_SCF 200
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION ON
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
+        NBROYDEN 4
+      &END MIXING
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &BANDSTRUCTURE
+      &GW
+        NUM_TIME_FREQ_POINTS 20
+        &PRINT
+          &RESTART OFF
+          &END RESTART
+        &END PRINT
+      &END GW
+    &END BANDSTRUCTURE
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H 0.0 0.0 0.0
+      H 0.74 0.0 0.0
+    &END COORD
+    &KIND H
+      BASIS_SET ORB def2-SVP-custom
+      BASIS_SET RI_AUX def2-SVP-RIFIT-custom
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
