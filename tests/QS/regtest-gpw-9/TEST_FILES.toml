@@ -6,7 +6,7 @@
 "C2H4_frozen_GRRM.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-13.93037233386821}]
 "h2o_frozen_GRRM.inp"                   = [{matcher="Vib_freq", tol=8.0E-06, ref=872.26594122}]
 #
-"C2H4_SCINE.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-13.14346149279209}]
+"C2H4_SCINE.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-13.14333519718223}]
 "h2o_SCINE.inp"                         = [{matcher="Vib_freq", tol=8.0E-06, ref=1465.6104041},
                                            {matcher="Vib_frc_const", tol=1.0E-04, ref=0.087928}]
 "h2o_NEWTONX.inp"                       = [{matcher="Vib_freq", tol=8.0E-06, ref=1447.326016},

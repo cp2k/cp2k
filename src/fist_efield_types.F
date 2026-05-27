@@ -10,6 +10,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE fist_efield_types
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -44,12 +46,14 @@ CONTAINS
 !> \brief Read input section PERIODIC_EFIELD
 !> \param input_section ...
 !> \param efield ...
+!> \param cell ...
 !> \par History
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_efield_section(input_section, efield)
+   SUBROUTINE read_efield_section(input_section, efield, cell)
       TYPE(section_vals_type), POINTER                   :: input_section
       TYPE(fist_efield_type), POINTER                    :: efield
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pp
       TYPE(section_vals_type), POINTER                   :: tmp_section
@@ -62,8 +66,14 @@ CONTAINS
       IF (efield%apply_field) THEN
          CALL section_vals_val_get(tmp_section, "POLARISATION", r_vals=pp)
          efield%polarisation(1:3) = pp(1:3)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, efield%polarisation(1:3))
+         END IF
          CALL section_vals_val_get(tmp_section, "D_FILTER", r_vals=pp)
          efield%dfilter(1:3) = pp(1:3)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, efield%dfilter(1:3))
+         END IF
          CALL section_vals_val_get(tmp_section, "INTENSITY", r_val=efield%strength)
          CALL section_vals_val_get(tmp_section, "DISPLACEMENT_FIELD", l_val=efield%displacement)
       END IF

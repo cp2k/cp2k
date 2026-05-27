@@ -19,6 +19,7 @@ MODULE topology
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_release,&
                                               cell_retain,&
+                                              cell_transform_input_cartesian,&
                                               cell_type
    USE colvar_types,                    ONLY: colvar_p_type,&
                                               colvar_setup,&
@@ -587,12 +588,16 @@ CONTAINS
          ! Do nothing.. we will parse later from the &COORD section..
       CASE (do_coord_g96)
          CALL read_coordinate_g96(topology, para_env, subsys_section)
+         CALL transform_external_cartesian_coordinates(topology)
       CASE (do_coord_crd)
          CALL read_coordinate_crd(topology, para_env, subsys_section)
+         CALL transform_external_cartesian_coordinates(topology)
       CASE (do_coord_pdb)
          CALL read_coordinate_pdb(topology, para_env, subsys_section)
+         CALL transform_external_cartesian_coordinates(topology)
       CASE (do_coord_xyz)
          CALL read_coordinate_xyz(topology, para_env, subsys_section)
+         CALL transform_external_cartesian_coordinates(topology)
       CASE (do_coord_cif)
          CALL read_coordinate_cif(topology, para_env, subsys_section)
       CASE (do_coord_xtl)
@@ -619,6 +624,24 @@ CONTAINS
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO")
    END SUBROUTINE coordinate_control
+
+! **************************************************************************************************
+!> \brief Transform Cartesian coordinates read from external files to the internal cell frame.
+!> \param topology ...
+! **************************************************************************************************
+   SUBROUTINE transform_external_cartesian_coordinates(topology)
+
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+
+      INTEGER                                            :: iatom
+
+      IF (.NOT. ASSOCIATED(topology%cell_muc)) RETURN
+
+      DO iatom = 1, topology%natoms
+         CALL cell_transform_input_cartesian(topology%cell_muc, topology%atom_info%r(:, iatom))
+      END DO
+
+   END SUBROUTINE transform_external_cartesian_coordinates
 
 ! **************************************************************************************************
 !> \brief ...

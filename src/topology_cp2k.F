@@ -7,7 +7,8 @@
 ! **************************************************************************************************
 MODULE topology_cp2k
 
-   USE cell_types,                      ONLY: cell_type,&
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type,&
                                               scaled_to_real
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -178,6 +179,7 @@ CONTAINS
             CALL scaled_to_real(atom_info%r(1:3, natom), r, cell)
          ELSE
             atom_info%r(1:3, natom) = r(1:3)*unit_conv
+            CALL cell_transform_input_cartesian(cell, atom_info%r(1:3, natom))
          END IF
          IF (parser_test_next_token(parser) /= "EOL") THEN
             CALL parser_get_object(parser, object=string)

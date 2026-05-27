@@ -277,7 +277,7 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
             CALL kpoint_create(ec_env%kpoints)
-            CALL read_kpoint_section(ec_env%kpoints, kp_section, cell%hmat)
+            CALL read_kpoint_section(ec_env%kpoints, kp_section, cell%hmat, cell)
             CALL kpoint_initialize(ec_env%kpoints, particle_set, cell)
             CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
             CALL kpoint_env_initialize(ec_env%kpoints, para_env, blacs_env)

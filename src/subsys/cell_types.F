@@ -62,10 +62,14 @@ MODULE cell_types
       INTEGER                           :: ref_count = -1, &
                                            symmetry_id = use_perd_none
       LOGICAL                           :: orthorhombic = .FALSE. ! actually means a diagonal hmat
+      LOGICAL                           :: input_cell_canonicalized = .FALSE.
       REAL(KIND=dp)                     :: deth = 0.0_dp
       INTEGER, DIMENSION(3)             :: perd = -1
       REAL(KIND=dp), DIMENSION(3, 3)    :: hmat = 0.0_dp, &
-                                           h_inv = 0.0_dp
+                                           h_inv = 0.0_dp, &
+                                           input_hmat = 0.0_dp, &
+                                           input_to_canonical = 0.0_dp, &
+                                           input_recip_to_canonical = 0.0_dp
    END TYPE cell_type
 
    TYPE cell_p_type
@@ -79,6 +83,8 @@ MODULE cell_types
    ! Public subroutines
    PUBLIC :: cell_clone, &
              cell_copy, &
+             cell_transform_input_cartesian, &
+             cell_transform_input_reciprocal, &
              cell_release, &
              cell_retain, &
              get_cell, &
@@ -136,6 +142,10 @@ CONTAINS
       cell_out%perd = cell_in%perd
       cell_out%hmat = cell_in%hmat
       cell_out%h_inv = cell_in%h_inv
+      cell_out%input_cell_canonicalized = cell_in%input_cell_canonicalized
+      cell_out%input_hmat = cell_in%input_hmat
+      cell_out%input_to_canonical = cell_in%input_to_canonical
+      cell_out%input_recip_to_canonical = cell_in%input_recip_to_canonical
       cell_out%orthorhombic = cell_in%orthorhombic
       cell_out%symmetry_id = cell_in%symmetry_id
       IF (PRESENT(tag)) THEN
@@ -240,6 +250,40 @@ CONTAINS
       IF (PRESENT(tag)) tag = cell%tag
 
    END SUBROUTINE get_cell
+
+! **************************************************************************************************
+!> \brief Transform a Cartesian real-space vector from the user input cell frame
+!>        into CP2K's canonical internal cell frame.
+!> \param cell ...
+!> \param vector ...
+! **************************************************************************************************
+   SUBROUTINE cell_transform_input_cartesian(cell, vector)
+
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: vector
+
+      CPASSERT(ASSOCIATED(cell))
+
+      IF (cell%input_cell_canonicalized) vector = MATMUL(cell%input_to_canonical, vector)
+
+   END SUBROUTINE cell_transform_input_cartesian
+
+! **************************************************************************************************
+!> \brief Transform a Cartesian reciprocal-space vector from the user input cell
+!>        frame into CP2K's canonical internal cell frame.
+!> \param cell ...
+!> \param vector ...
+! **************************************************************************************************
+   SUBROUTINE cell_transform_input_reciprocal(cell, vector)
+
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: vector
+
+      CPASSERT(ASSOCIATED(cell))
+
+      IF (cell%input_cell_canonicalized) vector = MATMUL(cell%input_recip_to_canonical, vector)
+
+   END SUBROUTINE cell_transform_input_reciprocal
 
 ! **************************************************************************************************
 !> \brief   Calculate the distance between two lattice planes as defined by

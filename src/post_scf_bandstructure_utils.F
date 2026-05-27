@@ -105,6 +105,7 @@ MODULE post_scf_bandstructure_utils
                                               cfm_add_on_diag,&
                                               create_cfm_double,&
                                               get_cfm_submat
+   USE string_utilities,                ONLY: uppercase
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -141,7 +142,7 @@ CONTAINS
 
       CALL print_header(bs_env)
 
-      CALL read_bandstructure_input_parameters(bs_env, post_scf_bandstructure_section)
+      CALL read_bandstructure_input_parameters(bs_env, post_scf_bandstructure_section, qs_env)
 
       CALL get_parameters_from_qs_env(qs_env, bs_env)
 
@@ -179,21 +180,31 @@ CONTAINS
 !> \brief ...
 !> \param bs_env ...
 !> \param bs_sec ...
+!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE read_bandstructure_input_parameters(bs_env, bs_sec)
+   SUBROUTINE read_bandstructure_input_parameters(bs_env, bs_sec, qs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: bs_sec
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bandstructure_input_parameters'
 
+      CHARACTER(LEN=default_string_length)               :: ustr
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: string_ptr
       CHARACTER(LEN=max_line_length)                     :: error_msg
       INTEGER                                            :: handle, i, ikp
+      REAL(KIND=dp), DIMENSION(3)                        :: kpptr
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: gw_ri_rs_sec, gw_sec, kp_bs_sec, &
                                                             ldos_sec, soc_sec
 
       CALL timeset(routineN, handle)
+      NULLIFY (cell)
+      CALL get_qs_env(qs_env=qs_env, cell=cell)
+      cart_hmat(:, :) = cell%hmat(:, :)
+      IF (cell%input_cell_canonicalized) cart_hmat(:, :) = cell%input_hmat(:, :)
 
       NULLIFY (gw_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
@@ -228,6 +239,8 @@ CONTAINS
       NULLIFY (kp_bs_sec)
       kp_bs_sec => section_vals_get_subs_vals(bs_sec, "BANDSTRUCTURE_PATH")
       CALL section_vals_val_get(kp_bs_sec, "NPOINTS", i_val=bs_env%input_kp_bs_npoints)
+      CALL section_vals_val_get(kp_bs_sec, "UNITS", c_val=ustr)
+      CALL uppercase(ustr)
       CALL section_vals_val_get(kp_bs_sec, "SPECIAL_POINT", n_rep_val=bs_env%input_kp_bs_n_sp_pts)
 
       ! read special points for band structure
@@ -236,9 +249,23 @@ CONTAINS
          CALL section_vals_val_get(kp_bs_sec, "SPECIAL_POINT", i_rep_val=ikp, c_vals=string_ptr)
          CPASSERT(SIZE(string_ptr(:), 1) == 4)
          DO i = 1, 3
-            CALL read_float_object(string_ptr(i + 1), bs_env%xkp_special(i, ikp), error_msg)
+            CALL read_float_object(string_ptr(i + 1), kpptr(i), error_msg)
             IF (LEN_TRIM(error_msg) > 0) CPABORT(TRIM(error_msg))
          END DO
+         SELECT CASE (ustr)
+         CASE ("B_VECTOR")
+            bs_env%xkp_special(1:3, ikp) = kpptr(1:3)
+         CASE ("CART_ANGSTROM")
+            bs_env%xkp_special(1:3, ikp) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                            kpptr(2)*cart_hmat(2, 1:3) + &
+                                            kpptr(3)*cart_hmat(3, 1:3))/twopi*angstrom
+         CASE ("CART_BOHR")
+            bs_env%xkp_special(1:3, ikp) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                            kpptr(2)*cart_hmat(2, 1:3) + &
+                                            kpptr(3)*cart_hmat(3, 1:3))/twopi
+         CASE DEFAULT
+            CPABORT("Unknown unit <"//TRIM(ustr)//"> specified for k-point definition")
+         END SELECT
       END DO
 
       CALL timestop(handle)

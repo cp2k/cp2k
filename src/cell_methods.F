@@ -64,6 +64,7 @@ MODULE cell_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_methods'
 
    PUBLIC :: cell_create, &
+             cell_finalize_canonical_input, &
              init_cell, &
              read_cell, &
              read_cell_cif, &
@@ -104,11 +105,69 @@ CONTAINS
          cell%perd = 1
       END IF
       cell%orthorhombic = .FALSE.
+      cell%input_cell_canonicalized = .FALSE.
+      cell%input_hmat(:, :) = 0.0_dp
+      cell%input_to_canonical(:, :) = 0.0_dp
+      cell%input_recip_to_canonical(:, :) = 0.0_dp
       cell%symmetry_id = cell_sym_none
       IF (PRESENT(hmat)) CALL init_cell(cell, hmat)
       IF (PRESENT(tag)) cell%tag = tag
 
    END SUBROUTINE cell_create
+
+! **************************************************************************************************
+!> \brief Store the transform between the user input cell and the canonical cell.
+!> \param cell ...
+!> \param hmat_input ...
+!> \param hmat_canonical ...
+! **************************************************************************************************
+   SUBROUTINE cell_finalize_canonical_input(cell, hmat_input, hmat_canonical)
+
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat_input, hmat_canonical
+
+      REAL(KIND=dp), PARAMETER                           :: eps_hmat = 1.0E-12_dp
+
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: tmat
+
+      CPASSERT(ASSOCIATED(cell))
+
+      IF (MAXVAL(ABS(hmat_canonical - hmat_input)) <= eps_hmat) THEN
+         cell%input_cell_canonicalized = .FALSE.
+         cell%input_hmat(:, :) = 0.0_dp
+         cell%input_to_canonical(:, :) = 0.0_dp
+         cell%input_recip_to_canonical(:, :) = 0.0_dp
+      ELSE
+         tmat = MATMUL(hmat_canonical, inv_3x3(hmat_input))
+         cell%input_cell_canonicalized = .TRUE.
+         cell%input_hmat(:, :) = hmat_input(:, :)
+         cell%input_to_canonical(:, :) = tmat(:, :)
+         cell%input_recip_to_canonical(:, :) = TRANSPOSE(inv_3x3(tmat))
+      END IF
+
+   END SUBROUTINE cell_finalize_canonical_input
+
+! **************************************************************************************************
+!> \brief Canonicalize a general cell matrix without changing lengths and angles.
+!> \param cell ...
+! **************************************************************************************************
+   SUBROUTINE canonicalize_cell_matrix(cell)
+
+      TYPE(cell_type), POINTER                           :: cell
+
+      REAL(KIND=dp), DIMENSION(3)                        :: abc, cell_angle
+
+      CPASSERT(ASSOCIATED(cell))
+
+      CALL get_cell(cell=cell, abc=abc)
+      cell_angle(1) = angle(cell%hmat(:, 2), cell%hmat(:, 3))
+      cell_angle(2) = angle(cell%hmat(:, 1), cell%hmat(:, 3))
+      cell_angle(3) = angle(cell%hmat(:, 1), cell%hmat(:, 2))
+
+      CALL set_cell_param(cell, cell_length=abc, cell_angle=cell_angle, &
+                          periodic=cell%perd, do_init_cell=.TRUE.)
+
+   END SUBROUTINE canonicalize_cell_matrix
 
 ! **************************************************************************************************
 !> \brief   Initialise/readjust a simulation cell after hmat has been changed
@@ -291,10 +350,11 @@ CONTAINS
       INTEGER                                            :: cell_file_format, coord_file_format, &
                                                             my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
-      LOGICAL :: cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, cell_read_b, cell_read_c, &
-         cell_read_file, my_check_ref, tmp_comb_abc, tmp_comb_cell, tmp_comb_top, topo_read_coord
+      LOGICAL :: canonicalize_cell, cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, &
+         cell_read_b, cell_read_c, cell_read_file, my_check_ref, tmp_comb_abc, tmp_comb_cell, &
+         tmp_comb_top, topo_read_coord
       REAL(KIND=dp), DIMENSION(3)                        :: read_ang, read_len
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: read_mat
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_input, read_mat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_par
       TYPE(cell_type), POINTER                           :: cell_tmp
       TYPE(section_vals_type), POINTER                   :: cell_ref_section
@@ -318,12 +378,17 @@ CONTAINS
       cell%symmetry_id = cell_sym_none
       cell%hmat(:, :) = 0.0_dp
       cell%h_inv(:, :) = 0.0_dp
+      cell%input_cell_canonicalized = .FALSE.
+      cell%input_hmat(:, :) = 0.0_dp
+      cell%input_to_canonical(:, :) = 0.0_dp
+      cell%input_recip_to_canonical(:, :) = 0.0_dp
       cell_read_file = .FALSE.
       cell_read_a = .FALSE.
       cell_read_b = .FALSE.
       cell_read_c = .FALSE.
       cell_read_abc = .FALSE.
       cell_read_alpha_beta_gamma = .FALSE.
+      hmat_input(:, :) = 0.0_dp
       read_mat(:, :) = 0.0_dp
       read_ang(:) = 0.0_dp
       read_len(:) = 0.0_dp
@@ -343,6 +408,7 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "ABC", explicit=cell_read_abc)
       CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", explicit=cell_read_alpha_beta_gamma)
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
+      CALL section_vals_val_get(cell_section, "CANONICALIZE", l_val=canonicalize_cell)
 
       ! Case 4
       tmp_comb_top = (.NOT. (cell_read_file .OR. cell_read_abc))
@@ -451,9 +517,10 @@ CONTAINS
       IF (ANY(read_mat(:, :) > eps)) THEN
          ! Make a warning before storing cell vectors that
          ! do not form a triangular matrix.
-         IF ((ABS(read_mat(2, 1)) > eps) .OR. &
-             (ABS(read_mat(3, 1)) > eps) .OR. &
-             (ABS(read_mat(3, 2)) > eps)) &
+         IF (.NOT. canonicalize_cell .AND. &
+             ((ABS(read_mat(2, 1)) > eps) .OR. &
+              (ABS(read_mat(3, 1)) > eps) .OR. &
+              (ABS(read_mat(3, 2)) > eps))) &
             CALL cp_warn(__LOCATION__, &
                          "Cell vectors are read but cell matrix is not "// &
                          "a lower triangle, not conforming to the program "// &
@@ -502,9 +569,10 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "SYMMETRY", i_val=cell%symmetry_id)
       ! Try enforcing symmetry by initializing a temporary copy of cell
       ! and see if the resulting cell matrix differ significantly
+      hmat_input(:, :) = cell%hmat(:, :)
       CALL cell_clone(cell, cell_tmp)
       CALL init_cell(cell_tmp)
-      IF (ANY(ABS(cell_tmp%hmat - cell%hmat) > eps)) THEN
+      IF (.NOT. canonicalize_cell .AND. ANY(ABS(cell_tmp%hmat - cell%hmat) > eps)) THEN
          WRITE (UNIT=error_msg, FMT="(A)") &
             "When initializing cell vectors with requested symmetry, one "// &
             "or more elements of the cell matrix has varied significantly. "// &
@@ -514,8 +582,13 @@ CONTAINS
             "anyway with the input atomic coordinates."
          CALL cp_warn(__LOCATION__, error_msg)
       END IF
+      IF (canonicalize_cell) THEN
+         CALL canonicalize_cell_matrix(cell_tmp)
+         CALL cell_finalize_canonical_input(cell_tmp, hmat_input, cell_tmp%hmat)
+      END IF
       CALL cell_clone(cell_tmp, cell)
       CALL cell_release(cell_tmp)
+      CALL reset_cell_section_by_cell_mat(cell, cell_section)
 
       IF (my_check_ref) THEN
          ! Recursive check for reference cell requested

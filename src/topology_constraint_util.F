@@ -14,7 +14,8 @@ MODULE topology_constraint_util
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               is_hydrogen
-   USE cell_types,                      ONLY: use_perd_x,&
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              use_perd_x,&
                                               use_perd_xy,&
                                               use_perd_xyz,&
                                               use_perd_xz,&
@@ -733,6 +734,14 @@ CONTAINS
                      END IF
                      ! Let's store the atom index
                      IF (fix_fixed_atom .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
+                        IF (ASSOCIATED(topology%cell_muc)) THEN
+                           IF (topology%cell_muc%input_cell_canonicalized .AND. itype /= use_perd_xyz) THEN
+                              CALL cp_abort(__LOCATION__, &
+                                            "Partial FIXED_ATOMS components cannot be transformed "// &
+                                            "after CELL%CANONICALIZE. Use COMPONENTS_TO_FIX XYZ or "// &
+                                            "disable CELL%CANONICALIZE for this input.")
+                           END IF
+                        END IF
                         kk = kk + 1
                         fixd_list(kk)%fixd = k
                         fixd_list(kk)%coord = particle_set(k)%r
@@ -804,6 +813,8 @@ CONTAINS
                               CASE (use_perd_xyz)
                                  CPASSERT(SIZE(r) == 3)
                                  fixd_list(kk)%coord(1:3) = r(1:3)
+                                 IF (ASSOCIATED(topology%cell_muc)) &
+                                    CALL cell_transform_input_cartesian(topology%cell_muc, fixd_list(kk)%coord)
                               END SELECT
                            ELSE
                               ! Write coord0 value for restraint

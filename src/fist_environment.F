@@ -139,17 +139,16 @@ CONTAINS
       CALL read_ewald_section(ewald_env, ewald_section)
       CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
 
-      ! Read the efield section
-      NULLIFY (efield)
-      CALL read_efield_section(mm_section, efield)
-      CALL fist_env_set(fist_env, efield=efield)
-
       ! Topology
       CALL fist_env_get(fist_env, qmmm=qmmm, qmmm_env=qmmm_env)
       CALL cp_subsys_create(subsys, para_env=para_env, root_section=root_section, &
                             force_env_section=force_env_section, subsys_section=subsys_section, &
                             qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, &
                             use_motion_section=use_motion_section)
+      ! Read the efield section after the cell has been canonicalized.
+      NULLIFY (efield)
+      CALL read_efield_section(mm_section, efield, subsys%cell)
+      CALL fist_env_set(fist_env, efield=efield)
       CALL fist_env_set(fist_env, subsys=subsys, exclusions=exclusions)
 
       CALL force_field_control(subsys%atomic_kinds%els, subsys%particles%els, &

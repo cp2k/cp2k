@@ -15,6 +15,8 @@ MODULE cp_control_utils
         Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, &
         Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, &
         Zhechkov2005, cite_reference
+   USE cell_types,                      ONLY: cell_transform_input_cartesian,&
+                                              cell_type
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
@@ -111,10 +113,12 @@ CONTAINS
 !> \brief ...
 !> \param dft_control ...
 !> \param dft_section ...
+!> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE read_dft_control(dft_control, dft_section)
+   SUBROUTINE read_dft_control(dft_control, dft_section, cell)
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, &
                                                             intensities_file_name, &
@@ -522,7 +526,7 @@ CONTAINS
       CALL section_vals_get(tmp_section, n_repetition=nrep, explicit=is_present)
       IF (is_present) THEN
          ALLOCATE (dft_control%efield_fields(nrep))
-         CALL read_efield_sections(dft_control, tmp_section)
+         CALL read_efield_sections(dft_control, tmp_section, cell)
          IF (do_rtp) THEN
             IF (.NOT. dft_control%rtp_control%velocity_gauge) THEN
                dft_control%apply_efield_field = .TRUE.
@@ -557,8 +561,15 @@ CONTAINS
          ALLOCATE (dft_control%period_efield)
          CALL section_vals_val_get(tmp_section, "POLARISATION", r_vals=pol)
          dft_control%period_efield%polarisation(1:3) = pol(1:3)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) &
+               CALL cell_transform_input_cartesian(cell, dft_control%period_efield%polarisation(1:3))
+         END IF
          CALL section_vals_val_get(tmp_section, "D_FILTER", r_vals=pol)
          dft_control%period_efield%d_filter(1:3) = pol(1:3)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, dft_control%period_efield%d_filter(1:3))
+         END IF
          CALL section_vals_val_get(tmp_section, "INTENSITY", &
                                    r_val=dft_control%period_efield%strength)
          dft_control%period_efield%displacement_field = .FALSE.
@@ -903,11 +914,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_control ...
 !> \param qs_section ...
+!> \param cell optional cell used to transform Cartesian input vectors
 ! **************************************************************************************************
-   SUBROUTINE read_qs_section(qs_control, qs_section)
+   SUBROUTINE read_qs_section(qs_control, qs_section, cell)
 
       TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
       TYPE(section_vals_type), POINTER                   :: qs_section
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_qs_section'
 
@@ -1812,7 +1825,7 @@ CONTAINS
          IF (tblite_reference_cli .AND. (.NOT. tblite_reference_cli_section)) &
             CPABORT("XTB/TBLITE/REFERENCE_CLI keyword requires an XTB/TBLITE/REFERENCE_CLI section")
          IF (tblite_reference_cli .OR. tblite_reference_cli_section) THEN
-            CALL read_xtb_reference_cli_section(xtb_tblite_ref_cli, qs_control%xtb_control%reference_cli)
+            CALL read_xtb_reference_cli_section(xtb_tblite_ref_cli, qs_control%xtb_control%reference_cli, cell)
             qs_control%xtb_control%reference_cli%enabled = .TRUE.
          END IF
          CALL cite_reference(Katbashev2025)
@@ -1884,10 +1897,12 @@ CONTAINS
 !> \brief Read native tblite CLI reference options.
 !> \param ref_cli_section input section
 !> \param ref_cli reference CLI control data
+!> \param cell optional cell used to transform Cartesian input vectors
 ! **************************************************************************************************
-   SUBROUTINE read_xtb_reference_cli_section(ref_cli_section, ref_cli)
+   SUBROUTINE read_xtb_reference_cli_section(ref_cli_section, ref_cli, cell)
       TYPE(section_vals_type), POINTER                   :: ref_cli_section
       TYPE(xtb_reference_cli_type), INTENT(INOUT)        :: ref_cli
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: efield
       TYPE(section_vals_type), POINTER                   :: fit_section, guess_section, &
@@ -1911,6 +1926,9 @@ CONTAINS
          NULLIFY (efield)
          CALL section_vals_val_get(ref_cli_section, "EFIELD", r_vals=efield)
          ref_cli%efield = efield(1:3)
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, ref_cli%efield)
+         END IF
       END IF
       solvation_section => section_vals_get_subs_vals(ref_cli_section, "IMPLICIT_SOLVATION")
       CALL section_vals_get(solvation_section, explicit=ref_cli%solvation_active)
@@ -1953,6 +1971,9 @@ CONTAINS
             NULLIFY (efield)
             CALL section_vals_val_get(guess_section, "EFIELD", r_vals=efield)
             ref_cli%guess_cli%efield = efield(1:3)
+            IF (PRESENT(cell)) THEN
+               IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, ref_cli%guess_cli%efield)
+            END IF
          END IF
          CALL section_vals_val_get(guess_section, "GRAD", l_val=ref_cli%guess_cli%grad)
          CALL section_vals_val_get(guess_section, "JSON", c_val=ref_cli%guess_cli%json_file)
@@ -3095,10 +3116,12 @@ CONTAINS
 !> \brief ...
 !> \param dft_control ...
 !> \param efield_section ...
+!> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE read_efield_sections(dft_control, efield_section)
+   SUBROUTINE read_efield_sections(dft_control, efield_section, cell)
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: efield_section
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=default_path_length)                 :: file_name
       INTEGER                                            :: i, io, j, n, unit_nr
@@ -3118,6 +3141,9 @@ CONTAINS
                                    r_vals=tmp_vals)
          ALLOCATE (efield%polarisation(SIZE(tmp_vals)))
          efield%polarisation = tmp_vals
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, efield%polarisation(1:3))
+         END IF
          CALL section_vals_val_get(efield_section, "PHASE", i_rep_section=i, &
                                    r_val=efield%phase_offset)
          CALL section_vals_val_get(efield_section, "ENVELOP", i_rep_section=i, &
@@ -3127,6 +3153,9 @@ CONTAINS
          CALL section_vals_val_get(efield_section, "VEC_POT_INITIAL", i_rep_section=i, &
                                    r_vals=tmp_vals)
          efield%vec_pot_initial = tmp_vals
+         IF (PRESENT(cell)) THEN
+            IF (ASSOCIATED(cell)) CALL cell_transform_input_cartesian(cell, efield%vec_pot_initial(1:3))
+         END IF
 
          IF (efield%envelop_id == constant_env) THEN
             ALLOCATE (efield%envelop_i_vars(2))

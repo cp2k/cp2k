@@ -13,13 +13,9 @@
 ! **************************************************************************************************
 MODULE dimer_types
 
-   USE cell_types,                      ONLY: use_perd_x,&
-                                              use_perd_xy,&
-                                              use_perd_xyz,&
-                                              use_perd_xz,&
-                                              use_perd_y,&
-                                              use_perd_yz,&
-                                              use_perd_z
+   USE cell_types,                      ONLY: &
+        cell_transform_input_cartesian, cell_type, use_perd_x, use_perd_xy, use_perd_xyz, &
+        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
@@ -125,15 +121,17 @@ CONTAINS
       LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: norm, xval(3)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: nvec_section
 
+      NULLIFY (cell)
       unit_nr = cp_logger_get_default_io_unit()
       CPASSERT(.NOT. ASSOCIATED(dimer_env))
       ALLOCATE (dimer_env)
       dimer_env%ref_count = 1
       ! Setup NVEC
       ! get natom
-      CALL cp_subsys_get(subsys=subsys, natom=natom)
+      CALL cp_subsys_get(subsys=subsys, cell=cell, natom=natom)
       ! Allocate the working arrays
       ALLOCATE (dimer_env%nvec(natom*3))
       ALLOCATE (dimer_env%rot%g0(natom*3))
@@ -155,6 +153,11 @@ CONTAINS
             END DO
          END DO
          CPASSERT(isize == SIZE(dimer_env%nvec))
+         DO i = 1, natom
+            xval(:) = dimer_env%nvec(3*i - 2:3*i)
+            CALL cell_transform_input_cartesian(cell, xval)
+            dimer_env%nvec(3*i - 2:3*i) = xval(:)
+         END DO
       ELSE
          CALL globenv%gaussian_rng_stream%fill(dimer_env%nvec)
       END IF

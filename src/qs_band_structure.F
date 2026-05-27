@@ -116,6 +116,7 @@ CONTAINS
       LOGICAL                                            :: explicit, io_default, my_kpgrp
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: kpptr
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cart_hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, occnum, &
                                                             occupation_numbers, wkp
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
@@ -134,6 +135,8 @@ CONTAINS
          unit_nr = cp_logger_get_default_io_unit()
          CALL get_qs_env(qs_env=qs_env, para_env=para_env)
          CALL get_qs_env(qs_env, cell=cell)
+         cart_hmat(:, :) = cell%hmat(:, :)
+         IF (cell%input_cell_canonicalized) cart_hmat(:, :) = cell%input_hmat(:, :)
          kpset => section_vals_get_subs_vals(bs_input, "KPOINT_SET")
          CALL section_vals_get(kpset, n_repetition=n_rep)
          IF (unit_nr > 0) THEN
@@ -185,13 +188,13 @@ CONTAINS
                CASE ("B_VECTOR")
                   kspecial(1:3, ip) = kpptr(1:3)
                CASE ("CART_ANGSTROM")
-                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3) + &
-                                       kpptr(2)*cell%hmat(2, 1:3) + &
-                                       kpptr(3)*cell%hmat(3, 1:3))/twopi*angstrom
+                  kspecial(1:3, ip) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                       kpptr(2)*cart_hmat(2, 1:3) + &
+                                       kpptr(3)*cart_hmat(3, 1:3))/twopi*angstrom
                CASE ("CART_BOHR")
-                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3) + &
-                                       kpptr(2)*cell%hmat(2, 1:3) + &
-                                       kpptr(3)*cell%hmat(3, 1:3))/twopi
+                  kspecial(1:3, ip) = (kpptr(1)*cart_hmat(1, 1:3) + &
+                                       kpptr(2)*cart_hmat(2, 1:3) + &
+                                       kpptr(3)*cart_hmat(3, 1:3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown unit <"//TRIM(ustr)//"> specified for k-point definition")
                END SELECT

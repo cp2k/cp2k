@@ -230,7 +230,7 @@ CONTAINS
       ALLOCATE (subsys%colvar_p(ncol))
       DO ig = 1, ncol
          NULLIFY (subsys%colvar_p(ig)%colvar)
-         CALL colvar_read(subsys%colvar_p(ig)%colvar, ig, colvar_section, subsys%para_env)
+         CALL colvar_read(subsys%colvar_p(ig)%colvar, ig, colvar_section, subsys%para_env, subsys%cell)
       END DO
    END SUBROUTINE cp_subsys_read_colvar
 

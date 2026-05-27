@@ -201,6 +201,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="CANONICALIZE", &
+                          description="Transform a general input cell to CP2K's internal convention "// &
+                          "that A lies along the X-axis and B is in the XY plane. Cell-dependent "// &
+                          "Cartesian input such as coordinates, restarts, velocities, k-points, band "// &
+                          "paths, electric-field directions, and fixed spatial points is transformed "// &
+                          "consistently. The stress tensor follows the canonical internal cell.", &
+                          usage="CANONICALIZE T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Specify the directions for which periodic boundary conditions (PBC) will be applied. "// &
                           "Important notice: This applies to the generation of the pair lists as well as to the "// &
