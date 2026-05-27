@@ -901,6 +901,11 @@ CONTAINS
       DO i = 1, rtbse_env%n_spin
          ! COH is only meaningful with screening (g0w0 path); KS reference has W^c = 0.
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0 .AND. use_coh_reference) THEN
+            ! COH is currently a static no-op: this reference subtraction is cancelled
+            ! exactly by the per-step addition in update_effective_ham_MO (both build
+            ! Sigma_COH from S_inv_fm, no rho dependence). DEBUG_DISABLE_COH is inert.
+            ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q6
+            CPWARN("linRTBSE COH is currently a static no-op")
             ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
             ! TODO : Allow no COH calculation for static screening
             IF (use_rirs_sex) THEN
