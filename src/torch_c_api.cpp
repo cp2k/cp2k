@@ -237,6 +237,38 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
 }
 
 /*******************************************************************************
+ * \brief Evaluates a TorchScript model method expecting keyword argument "mol".
+ ******************************************************************************/
+void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
+                                      const char *method_name,
+                                      const torch_c_dict_t *inputs,
+                                      torch_c_tensor_t **output) {
+
+  std::vector<c10::IValue> args;
+  std::unordered_map<std::string, c10::IValue> kwargs;
+  kwargs["mol"] = *inputs;
+  *output = new torch_c_tensor_t(
+      model->get_method(method_name)(args, kwargs).toTensor());
+}
+
+/*******************************************************************************
+ * \brief Returns the weighted sum of two Torch tensors.
+ ******************************************************************************/
+void torch_c_tensor_weighted_sum(const torch_c_tensor_t *values,
+                                 const torch_c_tensor_t *weights,
+                                 torch_c_tensor_t **result) {
+  const auto weights_on_device = weights->to(values->device());
+  *result = new torch_c_tensor_t((*values * weights_on_device).sum());
+}
+
+/*******************************************************************************
+ * \brief Returns a scalar double value from a Torch tensor.
+ ******************************************************************************/
+double torch_c_tensor_item_double(const torch_c_tensor_t *tensor) {
+  return tensor->item<double>();
+}
+
+/*******************************************************************************
  * \brief Releases a Torch model and all its ressources.
  * \author Ole Schuett
  ******************************************************************************/

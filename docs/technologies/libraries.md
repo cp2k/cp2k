@@ -125,6 +125,19 @@ integrator.
   return of the periodic XC matrix to CP2K's image/k-point layout, and separate force/stress
   derivatives. PBE-through-GauXC on compact Gamma-only `METHOD GPW` test cells should be the first
   quantitative validation target for that interface.
+- A CP2K-native SKALA grid path is a separate research direction from periodic GauXC. The SKALA
+  TorchScript protocol requires the meta-GGA grid features `density`, `grad`, and `kin`, the
+  integration features `grid_coords` and `grid_weights`, and the per-atom packing metadata
+  `atomic_grid_weights`, `atomic_grid_sizes`, `atomic_grid_size_bound_shape`, and
+  `coarse_0_atomic_coords`. For Gamma-only periodic `METHOD GPW` this maps naturally to CP2K's
+  regular real-space grid for the density, gradient, kinetic-energy density, grid coordinates, and
+  weights. The non-local SKALA part still requires an explicit, validated atom-to-grid partition
+  before it can be considered a compact periodic implementation.
+- For such a native SKALA path the first useful implementation target is energy and VXC on
+  Gamma-only `METHOD GPW` with GTH pseudopotentials. Forces need the explicit derivatives of the
+  grid coordinates, grid weights, atom partition, and coarse atomic coordinates. Periodic stress,
+  k-points, GAPW, and pseudopotential augmentation corrections should remain separate validation
+  steps.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
