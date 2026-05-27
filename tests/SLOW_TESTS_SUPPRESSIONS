@@ -107,7 +107,7 @@ QS/regtest-gauxc/H2_PBE_CDFT_REFERENCE.inp
 QS/regtest-gauxc/H2_ONEDFT_PBE_CDFT.inp
 QS/regtest-gauxc/H2_PBE_CDFT_CI_REFERENCE.inp
 QS/regtest-gauxc/H2_ONEDFT_PBE_CDFT_CI_NGROUPS.inp
-QS/regtest-gauxc/O_ONEDFT_PBE_UKS_TZV2PX.inp
+QS/regtest-gauxc/OH_ONEDFT_PBE_UKS_TZV2PX.inp
 QS/regtest-gauxc/H2_ONEDFT_PBE_FORCE_DEBUG.inp
 QS/regtest-gauxc/NH3_ONEDFT_PBE_FORCE_DEBUG.inp
 
