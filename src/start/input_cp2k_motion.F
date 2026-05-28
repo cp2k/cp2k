@@ -31,6 +31,7 @@ MODULE input_cp2k_motion
    USE input_constants, ONLY: &
       debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
+      dimer_init_molden, dimer_init_random, &
       do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
       fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
       helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
@@ -61,6 +62,7 @@ MODULE input_cp2k_motion
                                   section_release, &
                                   section_type
    USE input_val_types, ONLY: integer_t, &
+                              lchar_t, &
                               logical_t, &
                               real_t, &
                               char_t
@@ -1166,6 +1168,52 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="INITIALIZATION_METHOD", &
+                          description="Specify the initialization method of the dimer vector, "// &
+                          "which is crucial for converging to the desired transition state. "// &
+                          "If the DIMER_VECTOR section is defined explicitly, it will always "// &
+                          "be parsed directly (e.g. in restart files); INITIALIZATION_METHOD "// &
+                          "is only effective if the DIMER_VECTOR section is not explicit.", &
+                          usage="INITIALIZATION_METHOD (RANDOM|MOLDEN)", &
+                          enum_desc=s2a("Generate the initial dimer vector randomly. This is "// &
+                                        "the default for backwards compatibility; in practice "// &
+                                        "it may distort the structure and slow down convergence.", &
+                                        "Generate the initial dimer vector from one or more "// &
+                                        "vibrational normal modes as read from a MOLDEN file "// &
+                                        "produced by `VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB` "// &
+                                        "in a vibrational analysis task. Requires setting up "// &
+                                        "keywords `VIB_MOLDEN_NAME`, `VIB_INDEX` and `VIB_WEIGHT`."), &
+                          enum_c_vals=s2a("RANDOM", "MOLDEN"), &
+                          enum_i_vals=[dimer_init_random, dimer_init_molden], &
+                          default_i_val=dimer_init_random)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VIB_MOLDEN_NAME", &
+                          description="The external molden file containing vibrational "// &
+                          "normal modes for `INITIALIZATION_METHOD MOLDEN`.", &
+                          usage="VIB_MOLDEN_NAME <CHARACTER>", type_of_var=lchar_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VIB_INDEX", &
+                          description="The index of one or more vibrational normal modes "// &
+                          "from the file whose linear combination will form the initial "// &
+                          "dimer vector.", &
+                          usage="VIB_INDEX {integer} {integer} .. {integer}", repeats=.TRUE., &
+                          n_var=-1, default_i_vals=[1], type_of_var=integer_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VIB_WEIGHT", &
+                          description="The weight of one or more vibrational normal modes "// &
+                          "from the file whose linear combination will form the initial "// &
+                          "dimer vector.", &
+                          usage="VIB_WEIGHT {real} {real} .. {real}", repeats=.TRUE., &
+                          n_var=-1, default_r_vals=[1.0_dp], type_of_var=real_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="INTERPOLATE_GRADIENT", &
                           description="This keyword controls the interpolation of the gradient whenever possible"// &
                           " during the optimization of the Dimer. The use of this keywords saves 1 evaluation"// &
@@ -1235,8 +1283,9 @@ CONTAINS
       CALL section_release(subsection2)
 
       CALL section_create(subsection2, __LOCATION__, name="DIMER_VECTOR", &
-                          description="Specifies the initial dimer vector (used frequently to restart DIMER calculations)."// &
-                          " If not provided the starting orientation of the dimer is chosen randomly.", &
+                          description="Specifies the initial dimer vector. This "// &
+                          "section overrides INITIALIZATION_METHOD, and will be "// &
+                          "updated on each step for producing the restart files.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_DEFAULT_KEYWORD_", &
                           description="Specify on each line the components of the dimer vector.", repeats=.TRUE., &
