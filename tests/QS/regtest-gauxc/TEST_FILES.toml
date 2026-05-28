@@ -11,6 +11,10 @@
 "OH_NATIVE_SKALA_GPW_UKS.inp"  = [{matcher="E_total", tol=1e-8,  ref=-16.548261433641002},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=7.00009285099},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-8, ref=1.00003058875}]
+"AR4_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
+"AR4_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=1e-8, ref=-84.318681472847985},
+                                  {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999605},
+                                  {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0}]
 "H2_GAPW_SKALA_ENERGY.inp"     = [{matcher="E_total", tol=1e-8,  ref=-1.165186711376540}]
 "H2_SKALA_CDFT.inp"            = [{matcher="M071", tol=1e-3, ref=0.200232289362}]
 "H2_GAPW_SKALA_CDFT.inp"       = [{matcher="M071", tol=1e-3, ref=0.199494521160}]
