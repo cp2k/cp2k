@@ -185,8 +185,10 @@ CONTAINS
       DO pe = 2, nproc
          feature_displs(pe) = feature_displs(pe - 1) + feature_counts(pe - 1)
       END DO
-      real_counts = nreal_per_point*feature_counts
-      real_displs = nreal_per_point*feature_displs
+      DO pe = 1, nproc
+         real_counts(pe) = nreal_per_point*feature_counts(pe)
+         real_displs(pe) = nreal_per_point*feature_displs(pe)
+      END DO
       nflat = SUM(feature_counts)
       ALLOCATE (global_owner(nflat), global_feature(nreal_per_point*nflat))
       CALL pw_grid%para%group%allgatherv(local_owner, global_owner, feature_counts, feature_displs)
@@ -202,7 +204,9 @@ CONTAINS
       DO iatom = 1, natom
          atom_offset(iatom + 1) = atom_offset(iatom) + INT(features%atomic_grid_sizes(iatom))
       END DO
-      atom_position = atom_offset(:natom)
+      DO iatom = 1, natom
+         atom_position(iatom) = atom_offset(iatom)
+      END DO
       max_grid_size = MAXVAL(INT(features%atomic_grid_sizes))
 
       ALLOCATE (features%density(nflat, 2), features%grad(nflat, 3, 2), features%kin(nflat, 2), &
