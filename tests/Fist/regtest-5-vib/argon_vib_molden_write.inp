@@ -1,0 +1,62 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT argon_vib_molden_write
+  RUN_TYPE VIBRATIONAL_ANALYSIS
+&END GLOBAL
+
+&VIBRATIONAL_ANALYSIS
+  DX 0.001
+  &PRINT
+    &MOLDEN_VIB
+    &END MOLDEN_VIB
+  &END PRINT
+&END VIBRATIONAL_ANALYSIS
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 11.66
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE 1000.0
+        EPS_SPLINE 1.0E-9
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+      &END FF_INFO
+    &END PRINT
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.9057 12.9595 13.9676
+    &END CELL
+    &COORD
+      Ar                 8.75404000    7.58124000    3.09502000
+      Ar                 5.47128000    5.68592000    3.09502000
+      Ar                 7.65982000    5.68592000    6.19005000
+      Ar                 7.65982000    9.47654000    6.19005000
+      Ar                 4.37703000    7.58124000    6.19005000
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

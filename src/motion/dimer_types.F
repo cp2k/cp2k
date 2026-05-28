@@ -197,7 +197,7 @@ CONTAINS
          CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(T2,A,T9,A,T69,F12.6)") &
-            "DIMER|", "Norm of dimer vector to be removed by normalization", norm
+            "DIMER|", "Norm of dimer vector to be normalized by rescaling", norm
       END IF
       dimer_env%nvec = dimer_env%nvec/norm
       dimer_env%rot%rotation_step = do_first_rotation_step
@@ -524,7 +524,7 @@ CONTAINS
       END IF
       IF (unit > 0) THEN
          WRITE (unit, "(/,T2,A,T9,A)") &
-            "DIMER|", "Weight and indices of vibrational modes in linear combination"
+            "DIMER|", "Indices and weights of vibrational modes in linear combination"
          DO i = 1, vib_list_size
             WRITE (unit, "(T2,A,T10,I6,T18,F12.6)") &
                "DIMER|", vib_id_list(i), vib_wt_list(i)
