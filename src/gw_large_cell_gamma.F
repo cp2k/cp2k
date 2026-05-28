@@ -1031,6 +1031,12 @@ CONTAINS
 
       ! Marek : Reading of the W(w=0) potential for RTP
       ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C13: this block builds
+      ! bs_env%fm_W_MIC_freq_zero specifically for RT-BSE consumption (read by
+      ! rt_bse_linearized.F initialize_cohsex_selfenergy and by
+      ! rt_bse_ri_rs.F rt_bse_ri_rs_ensure_W0_grid). RT-BSE-specific compute
+      ! embedded in GW; left here because moving it would require keeping
+      ! fm_W_MIC_time alive past compute_W_MIC.
       IF (bs_env%rtp_method == rtp_method_bse .OR. &
           bs_env%rtp_method == rtp_method_bse_linearized) THEN
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
@@ -1136,6 +1142,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
       ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C13: same RT-BSE coupling as read_W_MIC_time.
       IF (bs_env%rtp_method == rtp_method_bse .OR. &
           bs_env%rtp_method == rtp_method_bse_linearized) THEN
          t1 = m_walltime()

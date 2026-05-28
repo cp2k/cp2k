@@ -99,11 +99,16 @@ MODULE rt_bse_linearized
    ! gap-based omega_max estimate. Diagnostic only
    LOGICAL, PARAMETER :: debug_krylov_estimate = .FALSE.
 
-   ! Validation-only: H2 G0W0 QPs from a bse_full_diag.F TDA+ABBA reference run (2026-05-26,
-   ! single SCF, single GW for both TDA and ABBA eigenvalues). Used by both the propagator's
-   ! reference H and the diagnostic's eps source to align QP inputs across the two pipelines
-   ! for a clean cross-check. REMOVE this PARAMETER plus both hack call sites after validation.
-   REAL(KIND=dp), DIMENSION(12), PARAMETER, PRIVATE      :: last_column = [ &
+   ! Validation-only fixed QPs for H2 with the def2-SVP-custom basis (12 MOs total),
+   ! taken from a bse_full_diag.F TDA+ABBA reference run (2026-05-26). Enabled via
+   ! the RTBSE/DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES input flag; overrides both the
+   ! propagator's H_qp diagonal (initialize_singleparticle_hamiltonian) and the
+   ! Liouvillian diagnostic's H_eps source (apply_liouvillian_to_drho) so the QP
+   ! input to linRTBSE matches the bse_full reference exactly. Strictly for
+   ! H2/def2-SVP-custom; the size of this array must equal rtbse_env%mo_active
+   ! (checked at startup), and the values are basis-specific.
+   ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C11 (LRBSE cross-check) / P-C15 (this flag)
+   REAL(KIND=dp), DIMENSION(12), PARAMETER, PRIVATE      :: hacked_GW_H2_eigenvalues = [ &
                                                             -15.7837_dp, 9.0662_dp, 21.4040_dp, 33.0524_dp, &
                                                             37.7741_dp, 37.7848_dp, 59.7905_dp, 55.5754_dp, &
                                                             55.5908_dp, 82.1245_dp, 112.9021_dp, 114.1125_dp &
@@ -151,6 +156,20 @@ CONTAINS
       ! Build the truncated MO coefficient slabs C_active(:, first_active_mo..last_active_mo)
       ! used by all AO<->MO transforms in the linearized path.
       CALL populate_C_active(rtbse_env)
+
+      ! Dimension check for the H2/def2-SVP-custom hacked-GW debug flag. The hardcoded
+      ! reference array hacked_GW_H2_eigenvalues has SIZE 12; it is indexed by the
+      ! local-to-active-window index 1..mo_active in both override sites, so the array
+      ! must cover the full active window. CPABORT immediately if the basis/window
+      ! doesn't match - the values are H2/def2-SVP-custom-specific and meaningless
+      ! otherwise.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
+      IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
+         IF (rtbse_env%mo_active /= SIZE(hacked_GW_H2_eigenvalues)) THEN
+            CPABORT("hacked GW eigs: mo_active != 12 (H2 only)")
+         END IF
+         CPWARN("hacked GW eigs active: H2/def2-SVP-custom only")
+      END IF
 
       ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
       CALL cp_add_iter_level(logger%iter_info, "MD")
@@ -772,11 +791,16 @@ CONTAINS
                            rtbse_env%real_workspace_mo(1)%local_data(ii, jj) - 0.5_dp*rtbse_env%omega_shift
                      END IF
                   END IF
-                  ! Debug-only QP override (paired with the matching hack in
-                  ! apply_liouvillian_to_drho). Uncomment BOTH sites together to inject the
-                  ! module-level last_column QPs (bse_full_diag.F values) for LRBSE cross-check
-                  ! parity. Validated 2026-05-26: TDA + ABBA both within 55 meV of LRBSE.
-                  !rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
+                  ! Debug-only QP override: H2/def2-SVP-custom hardcoded GW eigenvalues
+                  ! (paired with the matching override in apply_liouvillian_to_drho). Both
+                  ! sites gate on rtbse_env%debug_force_hacked_gw_h2_eigenvalues; the size
+                  ! check at run_propagation_linearized_bse startup guarantees the index
+                  ! i_row_global is in range. Validated 2026-05-26: TDA + ABBA both within
+                  ! 55 meV of LRBSE.
+                  ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
+                  IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
+                     rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_H2_eigenvalues(i_row_global)/evolt
+                  END IF
                END IF
             END DO
          END DO
@@ -1323,10 +1347,12 @@ CONTAINS
                abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
                rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = &
                   rtbse_env%bs_env%eigenval_G0W0(abs_mo_idx, 1, ispin)
-               ! Debug-only QP override (paired with the matching hack in
-               ! initialize_singleparticle_hamiltonian). Uncomment BOTH sites together to inject
-               ! the module-level last_column QPs for LRBSE cross-check parity.
-               !rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = last_column(i_row_global)/evolt
+               ! Debug-only QP override (paired with initialize_singleparticle_hamiltonian).
+               ! Same gate + size-check guarantee as the propagator site.
+               ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
+               IF (rtbse_env%debug_force_hacked_gw_h2_eigenvalues) THEN
+                  rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = hacked_GW_H2_eigenvalues(i_row_global)/evolt
+               END IF
             END IF
          END DO
       END DO

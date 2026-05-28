@@ -170,6 +170,14 @@ MODULE rt_bse_types
       LOGICAL                                                   :: debug_disable_hartree = .FALSE., &
                                                                    debug_disable_sex = .FALSE., &
                                                                    debug_disable_coh = .FALSE.
+      ! Debug-only QP override. When .TRUE., the propagator's H_qp diagonal and the
+      ! Liouvillian diagnostic's H_eps source are replaced by the module-level
+      ! parameter array hacked_GW_H2_eigenvalues in rt_bse_linearized.F. Strictly
+      ! for H2 with def2-SVP-custom basis (12 active MOs). At
+      ! run_propagation_linearized_bse startup the size of the parameter array is
+      ! checked against rtbse_env%mo_active; mismatch aborts.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C15
+      LOGICAL                                                   :: debug_force_hacked_gw_h2_eigenvalues = .FALSE.
       ! Per-kernel RI-RS dispatch. Independent toggles: rirs_hartree controls Hartree only,
       ! rirs_sex controls both COH and SEX (they share W = V + W^c). The required grid and
       ! V_grid/W0_grid kernels are built on demand and reused across steps.
@@ -439,6 +447,8 @@ CONTAINS
       END IF
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DEBUG_FORCE_HACKED_GW_H2_EIGENVALUES", &
+                                l_val=rtbse_env%debug_force_hacked_gw_h2_eigenvalues)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -451,6 +461,7 @@ CONTAINS
          rtbse_env%rirs_hartree = .FALSE.
          rtbse_env%rirs_sex = .FALSE.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
+         rtbse_env%debug_force_hacked_gw_h2_eigenvalues = .FALSE.
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.
@@ -1001,6 +1012,15 @@ CONTAINS
       TYPE(rtbse_env_type)                              :: rtbse_env
       TYPE(post_scf_bandstructure_type), POINTER        :: bs_env
 
+      ! Skip the AO-RI Hartree scratch when the RT-BSE Hartree path is fully RI-RS.
+      ! In that case rho_dbcsr / v_ao_dbcsr / int_3c_array are never read.
+      ! get_sigma_real (AO-RI SX) used to borrow rho_dbcsr as a workspace; that
+      ! cross-dependency was removed by giving get_sigma_real its own local
+      ! dbcsr scratch (see rt_bse.F::get_sigma_real). rho_dbcsr is now AO-RI
+      ! Hartree only, as its name suggests.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      IF (rtbse_env%rirs_hartree) RETURN
+
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
       CALL dbcsr_create(rtbse_env%rho_dbcsr, name="Sparse density", template=bs_env%mat_ao_ao%matrix)
@@ -1110,14 +1130,19 @@ CONTAINS
    SUBROUTINE release_hartree_ri_workspace(rtbse_env)
       TYPE(rtbse_env_type)                              :: rtbse_env
 
-      DEALLOCATE (rtbse_env%int_3c_array)
-
-      CALL dbcsr_release(rtbse_env%rho_dbcsr)
-
-      CALL dbcsr_release(rtbse_env%v_dbcsr)
-
-      CALL dbcsr_release(rtbse_env%v_ao_dbcsr)
-
+      ! Mirror the gate in create_hartree_ri_workspace and the v_dbcsr gate in
+      ! initialize_hartree_potential (rt_bse_linearized.F:819-821). v_dbcsr is
+      ! created by init_hartree iff `(.NOT. rirs_hartree) .OR. (.NOT. rirs_sex)`;
+      ! the rest of the scratch is created iff `.NOT. rirs_hartree`.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      IF (.NOT. rtbse_env%rirs_hartree) THEN
+         DEALLOCATE (rtbse_env%int_3c_array)
+         CALL dbcsr_release(rtbse_env%rho_dbcsr)
+         CALL dbcsr_release(rtbse_env%v_ao_dbcsr)
+      END IF
+      IF ((.NOT. rtbse_env%rirs_hartree) .OR. (.NOT. rtbse_env%rirs_sex)) THEN
+         CALL dbcsr_release(rtbse_env%v_dbcsr)
+      END IF
    END SUBROUTINE release_hartree_ri_workspace
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for self-energy determination routine
@@ -1128,6 +1153,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
+
+      ! Skip the AO-RI sigma scratch (W matrix + 3c integrals + work tensors)
+      ! when the RT-BSE SEX path is fully RI-RS — these workspaces are read
+      ! only by get_sigma in the `.NOT. use_rirs_sex` branches.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      IF (rtbse_env%rirs_sex) RETURN
 
       CALL create_sigma_workspace_qs_only(rtbse_env%qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
                                           rtbse_env%t_3c_w, rtbse_env%t_3c_work_RI_AO__AO, &
@@ -1178,6 +1209,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_sigma_workspace(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
+
+      ! Mirror the gate in create_sigma_workspace.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      IF (rtbse_env%rirs_sex) RETURN
 
       CALL dbt_destroy(rtbse_env%t_3c_w)
       CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)

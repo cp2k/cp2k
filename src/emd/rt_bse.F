@@ -1087,15 +1087,25 @@ CONTAINS
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_fm_type), INTENT(IN)                       :: greens_fm ! matrix to contract with RI_W
       REAL(kind=dp)                                      :: prefactor
+      TYPE(dbcsr_type)                                   :: greens_dbcsr_scratch
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       prefactor = 1.0_dp
       IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
 
-      ! Carry out the sigma part twice
-      ! Convert to dbcsr
-      CALL copy_fm_to_dbcsr(greens_fm, rtbse_env%rho_dbcsr)
-      CALL get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor, rtbse_env%rho_dbcsr)
+      ! Local AO-AO dbcsr scratch for the FM->DBCSR conversion. Previously this
+      ! routine used rtbse_env%rho_dbcsr as the workspace, which coupled AO-RI SX
+      ! to the AO-RI Hartree allocation path - the (RIRS-H + AO-RI-SX) cross-combo
+      ! then segfaulted because rho_dbcsr is skipped when rirs_hartree=T.
+      ! [INTERNAL] dev_notes/rt_bse_pitfalls_code.md P-C14
+      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
+      CALL dbcsr_create(greens_dbcsr_scratch, name="get_sigma greens scratch", &
+                        template=bs_env%mat_ao_ao%matrix)
 
+      CALL copy_fm_to_dbcsr(greens_fm, greens_dbcsr_scratch)
+      CALL get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor, greens_dbcsr_scratch)
+
+      CALL dbcsr_release(greens_dbcsr_scratch)
    END SUBROUTINE get_sigma_real
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
