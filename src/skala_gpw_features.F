@@ -55,6 +55,9 @@ MODULE skala_gpw_features
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)       :: coarse_0_atomic_coords, density, &
                                                            grid_coords, kin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)    :: grad
+      REAL(KIND=dp)                                      :: electron_count = 0.0_dp, &
+                                                            grid_weight_sum = 0.0_dp, &
+                                                            spin_moment = 0.0_dp
       LOGICAL                                            :: active = .FALSE.
    END TYPE skala_gpw_feature_type
 
@@ -245,6 +248,12 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      features%electron_count = SUM((features%density(:, 1) + features%density(:, 2))* &
+                                    features%grid_weights)
+      features%spin_moment = SUM((features%density(:, 1) - features%density(:, 2))* &
+                                 features%grid_weights)
+      features%grid_weight_sum = SUM(features%grid_weights)
 
       CALL torch_dict_create(features%inputs)
       CALL add_feature_tensors(features, my_requires_grad)

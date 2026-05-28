@@ -10,6 +10,7 @@
 ! **************************************************************************************************
 MODULE skala_gpw_functional
    USE cell_types,                      ONLY: cell_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE input_section_types,             ONLY: section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -175,7 +176,9 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER                                            :: nspins, xc_deriv_method_id, &
                                                             xc_rho_smooth_id
-      LOGICAL                                            :: lsd, my_just_energy
+      LOGICAL                                            :: lsd, my_just_energy, &
+                                                            native_grid_diagnostics
+      TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(skala_gpw_feature_type)                       :: features
       TYPE(torch_tensor_type)                            :: density_grad_t, exc_tensor, grad_grad_t, &
                                                             kin_grad_t
@@ -230,6 +233,11 @@ CONTAINS
 
       CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                    requires_grad=(.NOT. my_just_energy), weights=weights)
+      gauxc_section => get_gauxc_section(xc_section)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", l_val=native_grid_diagnostics)
+      IF (native_grid_diagnostics) THEN
+         CALL print_native_grid_diagnostics(features, rho_r(1)%pw_grid%para%group%mepos == 0)
+      END IF
       CALL skala_torch_model_get_exc(cached_model, features%inputs, &
                                      features%grid_weights_t, exc_tensor, exc)
 
@@ -350,6 +358,29 @@ CONTAINS
       IF (ASSOCIATED(tmp_g%pw_grid)) CALL pw_pool%give_back_pw(tmp_g)
 
    END SUBROUTINE build_vxc_from_feature_grads
+
+! **************************************************************************************************
+!> \brief Print optional diagnostics for the CP2K-native SKALA GPW feature block.
+!> \param features ...
+!> \param print_active ...
+! **************************************************************************************************
+   SUBROUTINE print_native_grid_diagnostics(features, print_active)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      LOGICAL, INTENT(IN)                                :: print_active
+
+      INTEGER                                            :: iw
+
+      IF (.NOT. print_active) RETURN
+
+      iw = cp_logger_get_default_io_unit()
+      WRITE (UNIT=iw, FMT="(/,T2,A,1X,ES19.11)") &
+         "SKALA_GPW| Native grid feature electrons", features%electron_count
+      WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
+         "SKALA_GPW| Native grid feature spin moment", features%spin_moment
+      WRITE (UNIT=iw, FMT="(T2,A,1X,ES19.11)") &
+         "SKALA_GPW| Native grid feature weight sum", features%grid_weight_sum
+
+   END SUBROUTINE print_native_grid_diagnostics
 
 ! **************************************************************************************************
 !> \brief Load and cache the TorchScript SKALA model.
