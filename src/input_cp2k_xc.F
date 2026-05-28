@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=16, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=18, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1375,6 +1375,15 @@ CONTAINS
                           description="Batch size for GauXC evaluation", &
                           usage="BATCH_SIZE 512", &
                           default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DEVICE_RUNTIME_FILL_FRACTION", &
+                          description="Fraction of currently available GPU memory preallocated by "// &
+                          "a GauXC device runtime. Lower values leave more memory for OneDFT/SKALA "// &
+                          "Torch inference; this keyword is used only with LB_EXECUTION_SPACE DEVICE.", &
+                          usage="DEVICE_RUNTIME_FILL_FRACTION 0.1", &
+                          default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1450,6 +1459,21 @@ CONTAINS
                           enum_i_vals=[1, 2], &
                           enum_desc=s2a("Run on host (default)", &
                                         "Run on device"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SKALA_RUNTIME", &
+                          description="MPI communicator policy for GauXC OneDFT/SKALA. AUTO uses "// &
+                          "the force-evaluation communicator for closed-shell calculations and a "// &
+                          "rank-local replicated runtime for open-shell calculations. MPI forces the "// &
+                          "force-evaluation communicator. SELF forces the previous replicated mode.", &
+                          usage="SKALA_RUNTIME AUTO", &
+                          enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Closed-shell MPI, open-shell replicated (default)", &
+                                        "Use the force-evaluation MPI communicator", &
+                                        "Use rank-local replicated GauXC runtimes"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
