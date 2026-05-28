@@ -1250,6 +1250,9 @@ CONTAINS
 !>        Matrix elements correspond to the Casida-A matrix:
 !>            L_{ia,jb} = (eps_a - eps_i) delta_{ij} delta_{ab} + (ia|jb) - W_{ij,ab}
 !>        with no (f_n - f_m) factor (the propagator path applies -1 on OV; we want raw +K).
+!>        Honors rtbse_env%rirs_hartree / rirs_sex to dispatch Hartree / SX to the RI-RS
+!>        grid kernels (compute_hartree_ri_rs_complex / compute_sigma_ri_rs_complex),
+!>        otherwise uses the AO-RI kernels (get_hartree_complex / get_sigma).
 !> [INTERNAL] dev_notes/rt_bse_equations.md §8 (derivation of L_TDA = A_Casida)
 !>
 !> \param rtbse_env RT-BSE environment (TDA, n_spin=1).
@@ -1279,6 +1282,9 @@ CONTAINS
       ! [INTERNAL] dev_notes/rt_bse_open_questions.md Q5
       use_hartree = .NOT. rtbse_env%debug_disable_hartree
       use_sex = .NOT. rtbse_env%debug_disable_sex
+      ! RI-RS dispatch reads rtbse_env%rirs_hartree / %rirs_sex directly below.
+      ! V_grid / W0_grid are populated by initialize_hartree_potential /
+      ! initialize_cohsex_selfenergy, which run before this diagnostic.
 
       ! 1. Stage drho_in into drho_probe. TDA: mask to OV (propagator carries only OV
       !    and the VO contribution is recovered later via the (.)^C shortcut). ABBA: keep
@@ -1342,8 +1348,13 @@ CONTAINS
       !    rt_bse_pitfalls_physics.md): for real C_active + AO-pair-symmetric kernel,
       !    K_MO[Delta rho_VO] = (K_MO[Delta rho_OV])^C.
       IF (use_hartree) THEN
-         CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
-                                  rtbse_env%sigma_SEX_ao(ispin), ispin)
+         IF (rtbse_env%rirs_hartree) THEN
+            CALL compute_hartree_ri_rs_complex(rtbse_env%bs_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                               rtbse_env%sigma_SEX_ao(ispin))
+         ELSE
+            CALL get_hartree_complex(rtbse_env, rtbse_env%rho_ao_lrrtbse(ispin), &
+                                     rtbse_env%sigma_SEX_ao(ispin), ispin)
+         END IF
          CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                rtbse_env%ham_workspace(1), ispin)
          CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%ham_workspace(1), L_drho_out, &
@@ -1355,7 +1366,12 @@ CONTAINS
       !    +1.0 here (no occupation-factor flip), giving raw K^SX = -W as required by
       !    K = (ia|jb) - W_{ij,ab} (Casida convention with +K).
       IF (use_sex) THEN
-         CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+         IF (rtbse_env%rirs_sex) THEN
+            CALL compute_sigma_ri_rs_complex(rtbse_env%bs_env, rtbse_env%sigma_SEX_ao(ispin), &
+                                             -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+         ELSE
+            CALL get_sigma(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), -1.0_dp, rtbse_env%rho_ao_lrrtbse(ispin))
+         END IF
          CALL transform_ao_to_mo_covariant_cfm(rtbse_env, rtbse_env%sigma_SEX_ao(ispin), &
                                                rtbse_env%sigma_SEX(ispin), ispin)
          CALL add_K_MO_to_L_drho(rtbse_env, rtbse_env%sigma_SEX(ispin), L_drho_out, &

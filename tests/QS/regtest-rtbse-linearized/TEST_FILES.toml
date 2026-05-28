@@ -25,4 +25,12 @@
 "h2_linrtbse_abba_static_pol_cutoff.inp"         = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=8.3441161465E+000}]
 "h2_linrtbse_tda_static_pol_kernels_off.inp"     = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=6.7281237258E+000}]
 "h2_linrtbse_abba_static_pol_kernels_off.inp"    = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=6.7281237262E+000}]
+"h2_linrtbse_tda_rirs.inp"                       = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=18.0141},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.2581},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.5563}]
+"h2_linrtbse_abba_rirs.inp"                      = [{matcher="LinRTBSE_1st_excit_ener", tol=1e-04, ref=17.4347},
+                                                    {matcher="LinRTBSE_2nd_excit_ener", tol=1e-04, ref=30.0489},
+                                                    {matcher="LinRTBSE_3rd_excit_ener", tol=1e-04, ref=42.2291}]
+"h2_linrtbse_tda_static_pol_rirs.inp"            = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=1.0306769733E+001}]
+"h2_linrtbse_abba_static_pol_rirs.inp"           = [{matcher="LinRTBSE_static_pol_xx",  tol=1e-04, ref=8.4040426082E+000}]
 #EOF
