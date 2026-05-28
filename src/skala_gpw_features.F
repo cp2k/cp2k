@@ -15,8 +15,7 @@ MODULE skala_gpw_features
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE particle_types,                  ONLY: particle_type
-   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
-                                              pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE torch_api,                       ONLY: torch_dict_create,&
                                               torch_dict_insert,&
@@ -81,13 +80,18 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
 
-      INTEGER                                            :: i, iatom, ipt, ispin, j, k, &
-                                                            max_grid_size, natom, nflat, nspins, &
-                                                            owner
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_offset, atom_position
+      INTEGER, PARAMETER                                 :: nreal_per_point = 14
+
+      INTEGER                                            :: i, iatom, ipt, ispin, j, k, local_row, &
+                                                            max_grid_size, natom, nflat, &
+                                                            nflat_local, nproc, nspins, owner, pe, &
+                                                            pe_index, real_base
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_offset, atom_position, feature_counts, &
+         feature_displs, global_owner, local_owner, local_to_global, real_counts, real_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: my_requires_grad
-      REAL(KIND=dp), DIMENSION(3)                        :: grid_point
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_feature, local_feature
+      REAL(KIND=dp), DIMENSION(3)                        :: grid_point, owner_coord
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -100,29 +104,97 @@ CONTAINS
       CPASSERT(SIZE(rho_r) == 1 .OR. SIZE(rho_r) == 2)
       CPASSERT(ASSOCIATED(rho_r(1)%pw_grid))
       pw_grid => rho_r(1)%pw_grid
-      IF (pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CPABORT("Native SKALA GPW feature construction currently requires a replicated PW grid")
-      END IF
 
       natom = SIZE(particle_set)
       nspins = SIZE(rho_r)
       bo = pw_grid%bounds_local
-      nflat = pw_grid%ngpts_local
+      nflat_local = pw_grid%ngpts_local
+      nproc = pw_grid%para%group%num_pe
+      pe_index = pw_grid%para%group%mepos + 1
 
       CALL skala_gpw_feature_release(features)
-      ALLOCATE (features%atomic_grid_sizes(natom), atom_offset(natom + 1), atom_position(natom))
-      features%atomic_grid_sizes = 0_int_8
+      ALLOCATE (local_owner(nflat_local), local_feature(nreal_per_point*nflat_local), &
+                feature_counts(nproc), feature_displs(nproc), real_counts(nproc), real_displs(nproc))
+      ALLOCATE (features%feature_index(bo(1, 1):bo(2, 1), &
+                                       bo(1, 2):bo(2, 2), &
+                                       bo(1, 3):bo(2, 3)))
+      features%feature_index = 0
+      local_feature = 0.0_dp
 
+      IF (nspins == 1) THEN
+         CALL xc_rho_set_get(rho_set, rho=rho, drho=drho, tau=tau_total)
+      ELSE
+         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, drhoa=drhoa, drhob=drhob, &
+                             tau_a=tau_a, tau_b=tau_b)
+      END IF
+
+      local_row = 0
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
+               local_row = local_row + 1
+               real_base = nreal_per_point*(local_row - 1)
                grid_point = grid_coordinate(pw_grid, [i, j, k])
                owner = nearest_atom(grid_point, particle_set, cell)
-               features%atomic_grid_sizes(owner) = features%atomic_grid_sizes(owner) + 1_int_8
+               local_owner(local_row) = owner
+               features%feature_index(i, j, k) = local_row
+
+               owner_coord = pbc(particle_set(owner)%r, cell, positive_range=.TRUE.)
+               local_feature(real_base + 11:real_base + 13) = owner_coord + &
+                                                              pbc(owner_coord, grid_point, cell)
+               local_feature(real_base + 14) = pw_grid%dvol
+               IF (PRESENT(weights)) THEN
+                  IF (ASSOCIATED(weights)) THEN
+                     local_feature(real_base + 14) = pw_grid%dvol*weights%array(i, j, k)
+                  END IF
+               END IF
+
+               IF (nspins == 1) THEN
+                  local_feature(real_base + 1) = 0.5_dp*rho(i, j, k)
+                  local_feature(real_base + 2) = 0.5_dp*rho(i, j, k)
+                  DO ispin = 1, 2
+                     local_feature(real_base + 2 + 3*(ispin - 1) + 1) = 0.5_dp*drho(1)%array(i, j, k)
+                     local_feature(real_base + 2 + 3*(ispin - 1) + 2) = 0.5_dp*drho(2)%array(i, j, k)
+                     local_feature(real_base + 2 + 3*(ispin - 1) + 3) = 0.5_dp*drho(3)%array(i, j, k)
+                     local_feature(real_base + 8 + ispin) = 0.5_dp*tau_total(i, j, k)
+                  END DO
+               ELSE
+                  local_feature(real_base + 1) = rhoa(i, j, k)
+                  local_feature(real_base + 2) = rhob(i, j, k)
+                  local_feature(real_base + 3) = drhoa(1)%array(i, j, k)
+                  local_feature(real_base + 4) = drhoa(2)%array(i, j, k)
+                  local_feature(real_base + 5) = drhoa(3)%array(i, j, k)
+                  local_feature(real_base + 6) = drhob(1)%array(i, j, k)
+                  local_feature(real_base + 7) = drhob(2)%array(i, j, k)
+                  local_feature(real_base + 8) = drhob(3)%array(i, j, k)
+                  local_feature(real_base + 9) = tau_a(i, j, k)
+                  local_feature(real_base + 10) = tau_b(i, j, k)
+               END IF
             END DO
          END DO
       END DO
 
+      ! SKALA groups all grid points by atom. For distributed GPW grids, each rank
+      ! reconstructs this same global feature ordering and later maps only its local
+      ! grid slice back to VXC.
+      CALL pw_grid%para%group%allgather(nflat_local, feature_counts)
+      feature_displs(1) = 0
+      DO pe = 2, nproc
+         feature_displs(pe) = feature_displs(pe - 1) + feature_counts(pe - 1)
+      END DO
+      real_counts = nreal_per_point*feature_counts
+      real_displs = nreal_per_point*feature_displs
+      nflat = SUM(feature_counts)
+      ALLOCATE (global_owner(nflat), global_feature(nreal_per_point*nflat))
+      CALL pw_grid%para%group%allgatherv(local_owner, global_owner, feature_counts, feature_displs)
+      CALL pw_grid%para%group%allgatherv(local_feature, global_feature, real_counts, real_displs)
+
+      ALLOCATE (features%atomic_grid_sizes(natom), atom_offset(natom + 1), atom_position(natom), &
+                local_to_global(nflat_local))
+      features%atomic_grid_sizes = 0_int_8
+      DO ipt = 1, nflat
+         features%atomic_grid_sizes(global_owner(ipt)) = features%atomic_grid_sizes(global_owner(ipt)) + 1_int_8
+      END DO
       atom_offset(1) = 1
       DO iatom = 1, natom
          atom_offset(iatom + 1) = atom_offset(iatom) + INT(features%atomic_grid_sizes(iatom))
@@ -134,69 +206,42 @@ CONTAINS
                 features%grid_coords(3, nflat), features%grid_weights(nflat), &
                 features%atomic_grid_weights(nflat), features%coarse_0_atomic_coords(3, natom), &
                 features%atomic_grid_size_bound_shape(0, max_grid_size))
-      ALLOCATE (features%feature_index(bo(1, 1):bo(2, 1), &
-                                       bo(1, 2):bo(2, 2), &
-                                       bo(1, 3):bo(2, 3)))
-
       features%density = 0.0_dp
       features%grad = 0.0_dp
       features%kin = 0.0_dp
       features%grid_coords = 0.0_dp
       features%grid_weights = pw_grid%dvol
       features%atomic_grid_weights = pw_grid%dvol
-      features%feature_index = 0
 
       DO iatom = 1, natom
          features%coarse_0_atomic_coords(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
       END DO
 
-      IF (nspins == 1) THEN
-         CALL xc_rho_set_get(rho_set, rho=rho, drho=drho, tau=tau_total)
-      ELSE
-         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, drhoa=drhoa, drhob=drhob, &
-                             tau_a=tau_a, tau_b=tau_b)
-      END IF
+      DO ipt = 1, nflat
+         owner = global_owner(ipt)
+         local_row = atom_position(owner)
+         atom_position(owner) = atom_position(owner) + 1
+         real_base = nreal_per_point*(ipt - 1)
+         features%density(local_row, :) = global_feature(real_base + 1:real_base + 2)
+         features%grad(local_row, 1, 1) = global_feature(real_base + 3)
+         features%grad(local_row, 2, 1) = global_feature(real_base + 4)
+         features%grad(local_row, 3, 1) = global_feature(real_base + 5)
+         features%grad(local_row, 1, 2) = global_feature(real_base + 6)
+         features%grad(local_row, 2, 2) = global_feature(real_base + 7)
+         features%grad(local_row, 3, 2) = global_feature(real_base + 8)
+         features%kin(local_row, :) = global_feature(real_base + 9:real_base + 10)
+         features%grid_coords(:, local_row) = global_feature(real_base + 11:real_base + 13)
+         features%grid_weights(local_row) = global_feature(real_base + 14)
+         features%atomic_grid_weights(local_row) = features%grid_weights(local_row)
+         IF (ipt > feature_displs(pe_index) .AND. ipt <= feature_displs(pe_index) + nflat_local) THEN
+            local_to_global(ipt - feature_displs(pe_index)) = local_row
+         END IF
+      END DO
 
       DO k = bo(1, 3), bo(2, 3)
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
-               grid_point = grid_coordinate(pw_grid, [i, j, k])
-               owner = nearest_atom(grid_point, particle_set, cell)
-               ipt = atom_position(owner)
-               atom_position(owner) = atom_position(owner) + 1
-               features%feature_index(i, j, k) = ipt
-
-               features%grid_coords(:, ipt) = features%coarse_0_atomic_coords(:, owner) + &
-                                              pbc(features%coarse_0_atomic_coords(:, owner), &
-                                                  grid_point, cell)
-               IF (PRESENT(weights)) THEN
-                  IF (ASSOCIATED(weights)) THEN
-                     features%grid_weights(ipt) = pw_grid%dvol*weights%array(i, j, k)
-                     features%atomic_grid_weights(ipt) = features%grid_weights(ipt)
-                  END IF
-               END IF
-
-               IF (nspins == 1) THEN
-                  features%density(ipt, 1) = 0.5_dp*rho(i, j, k)
-                  features%density(ipt, 2) = 0.5_dp*rho(i, j, k)
-                  DO ispin = 1, 2
-                     features%grad(ipt, 1, ispin) = 0.5_dp*drho(1)%array(i, j, k)
-                     features%grad(ipt, 2, ispin) = 0.5_dp*drho(2)%array(i, j, k)
-                     features%grad(ipt, 3, ispin) = 0.5_dp*drho(3)%array(i, j, k)
-                     features%kin(ipt, ispin) = 0.5_dp*tau_total(i, j, k)
-                  END DO
-               ELSE
-                  features%density(ipt, 1) = rhoa(i, j, k)
-                  features%density(ipt, 2) = rhob(i, j, k)
-                  features%kin(ipt, 1) = tau_a(i, j, k)
-                  features%kin(ipt, 2) = tau_b(i, j, k)
-                  features%grad(ipt, 1, 1) = drhoa(1)%array(i, j, k)
-                  features%grad(ipt, 2, 1) = drhoa(2)%array(i, j, k)
-                  features%grad(ipt, 3, 1) = drhoa(3)%array(i, j, k)
-                  features%grad(ipt, 1, 2) = drhob(1)%array(i, j, k)
-                  features%grad(ipt, 2, 2) = drhob(2)%array(i, j, k)
-                  features%grad(ipt, 3, 2) = drhob(3)%array(i, j, k)
-               END IF
+               features%feature_index(i, j, k) = local_to_global(features%feature_index(i, j, k))
             END DO
          END DO
       END DO
@@ -205,7 +250,8 @@ CONTAINS
       CALL add_feature_tensors(features, my_requires_grad)
       features%active = .TRUE.
 
-      DEALLOCATE (atom_offset, atom_position)
+      DEALLOCATE (atom_offset, atom_position, feature_counts, feature_displs, global_feature, &
+                  global_owner, local_feature, local_owner, local_to_global, real_counts, real_displs)
 
    END SUBROUTINE skala_gpw_feature_build
 

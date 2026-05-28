@@ -132,7 +132,10 @@ integrator.
   `coarse_0_atomic_coords`. For Gamma-only periodic `METHOD GPW` this maps naturally to CP2K's
   regular real-space grid for the density, gradient, kinetic-energy density, grid coordinates, and
   weights. The non-local SKALA part still requires an explicit, validated atom-to-grid partition
-  before it can be considered a compact periodic implementation.
+  before it can be considered a compact periodic implementation. MPI runs gather the local GPW grid
+  features into the same atom-partitioned feature block on every rank and evaluate the Torch model
+  redundantly; this is a correctness path for distributed CP2K grids, not yet a scalable distributed
+  SKALA integration algorithm.
 - For such a native SKALA path the first useful implementation target is energy and VXC on
   Gamma-only `METHOD GPW` with GTH pseudopotentials. Forces need the explicit derivatives of the
   grid coordinates, grid weights, atom partition, and coarse atomic coordinates. Periodic stress and

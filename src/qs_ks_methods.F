@@ -635,6 +635,9 @@ CONTAINS
                IF (dokp) THEN
                   CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
                END IF
+               IF (use_virial .AND. calculate_forces) THEN
+                  CPABORT("Native SKALA grid evaluation stress tensors are not implemented yet.")
+               END IF
                IF (calculate_forces) THEN
                   CPABORT("Native SKALA grid evaluation nuclear gradients are not implemented yet.")
                END IF
