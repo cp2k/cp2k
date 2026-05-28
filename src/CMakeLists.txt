@@ -1517,6 +1517,7 @@ set(CP2K_PROGS_C
     grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
 )
 set(CP2K_PROGS_F
+    aobasis/orbital_transformation_matrices_unittest.F
     dbt/dbt_unittest.F
     dbt/tas/dbt_tas_unittest.F
     start/cp2k.F
@@ -1868,6 +1869,7 @@ add_library(cp2k::cp2k ALIAS cp2k)
 list(
   APPEND
   __CP2K_APPS
+  "orbital_transformation_matrices_unittest"
   "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
@@ -1884,6 +1886,8 @@ list(
 add_executable(cp2k-bin start/cp2k.F)
 # for linking
 
+add_executable(orbital_transformation_matrices_unittest
+               aobasis/orbital_transformation_matrices_unittest.F)
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
