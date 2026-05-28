@@ -137,12 +137,14 @@ integrator.
   redundantly; this is a correctness path for distributed CP2K grids, not yet a scalable distributed
   SKALA integration algorithm.
 - For such a native SKALA path the first useful implementation target is energy and VXC on
-  Gamma-only `METHOD GPW` with GTH pseudopotentials. Forces need the explicit derivatives of the
-  grid coordinates, grid weights, atom partition, and coarse atomic coordinates. Periodic stress and
-  k-points should remain separate validation steps. `METHOD GAPW` is not enabled in this native grid
-  path yet: a valid GAPW extension has to reconstruct not only an all-electron density on the CP2K
-  grid, but also the corresponding density gradients and kinetic-energy density entering the SKALA
-  features. GAPW pseudopotential augmentation corrections remain a separate methodological problem.
+  Gamma-only `METHOD GPW` with GTH pseudopotentials, `FUNCTIONAL PBE`, one `GAUXC` functional, and a
+  single image. Forces need the explicit derivatives of the grid coordinates, grid weights, atom
+  partition, and coarse atomic coordinates. Periodic stress, k-points, ROKS, ADMM, and NLCC
+  pseudopotentials should remain separate validation steps. `METHOD GAPW` is not enabled in this
+  native grid path yet: a valid GAPW extension has to reconstruct not only an all-electron density on
+  the CP2K grid, but also the corresponding density gradients and kinetic-energy density entering the
+  SKALA features. GAPW pseudopotential augmentation corrections remain a separate methodological
+  problem.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and

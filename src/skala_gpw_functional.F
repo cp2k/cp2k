@@ -16,6 +16,7 @@ MODULE skala_gpw_functional
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE particle_types,                  ONLY: particle_type
    USE pw_methods,                      ONLY: pw_scale,&
@@ -52,7 +53,7 @@ MODULE skala_gpw_functional
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'skala_gpw_functional'
 
-   PUBLIC :: skala_gpw_eval, xc_section_uses_native_skala_grid
+   PUBLIC :: ensure_native_skala_grid_scope, skala_gpw_eval, xc_section_uses_native_skala_grid
 
    TYPE(skala_torch_model_type), SAVE                  :: cached_model
    CHARACTER(len=default_path_length), SAVE            :: cached_model_path = ""
@@ -78,6 +79,65 @@ CONTAINS
       END IF
 
    END FUNCTION xc_section_uses_native_skala_grid
+
+! **************************************************************************************************
+!> \brief Enforce the currently implemented native SKALA GPW input scope.
+!> \param xc_section ...
+! **************************************************************************************************
+   SUBROUTINE ensure_native_skala_grid_scope(xc_section)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+
+      CHARACTER(len=default_path_length)                 :: model_key, model_name
+      CHARACTER(len=default_string_length)               :: functional_key, functional_name
+      INTEGER                                            :: ifun, nfun
+      LOGICAL                                            :: native_grid
+      TYPE(section_vals_type), POINTER                   :: functionals, gauxc_section, xc_fun
+
+      NULLIFY (gauxc_section)
+      IF (.NOT. ASSOCIATED(xc_section)) THEN
+         CPABORT("Native SKALA GPW requires an XC section")
+      END IF
+
+      functionals => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(functionals)) THEN
+         CPABORT("Native SKALA GPW requires an XC_FUNCTIONAL section")
+      END IF
+
+      nfun = 0
+      ifun = 0
+      DO
+         ifun = ifun + 1
+         xc_fun => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+         nfun = nfun + 1
+         IF (xc_fun%section%name == "GAUXC") gauxc_section => xc_fun
+      END DO
+
+      IF (.NOT. ASSOCIATED(gauxc_section)) THEN
+         CPABORT("Native SKALA GPW requires an XC_FUNCTIONAL%GAUXC section")
+      END IF
+      IF (nfun /= 1) THEN
+         CPABORT("Native SKALA GPW requires GAUXC to be the only XC functional")
+      END IF
+
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID", l_val=native_grid)
+      IF (.NOT. native_grid) RETURN
+
+      CALL section_vals_val_get(gauxc_section, "FUNCTIONAL", c_val=functional_name)
+      functional_key = ADJUSTL(functional_name)
+      CALL uppercase(functional_key)
+      IF (TRIM(functional_key) /= "PBE") THEN
+         CPABORT("Native SKALA GPW currently requires GAUXC%FUNCTIONAL PBE")
+      END IF
+
+      CALL section_vals_val_get(gauxc_section, "MODEL", c_val=model_name)
+      model_key = ADJUSTL(model_name)
+      CALL uppercase(model_key)
+      IF (TRIM(model_key) == "NONE" .OR. TRIM(model_key) == "") THEN
+         CPABORT("Native SKALA GPW requires GAUXC%MODEL SKALA or a TorchScript model path")
+      END IF
+
+   END SUBROUTINE ensure_native_skala_grid_scope
 
 ! **************************************************************************************************
 !> \brief Evaluate SKALA energy and first derivatives on a CP2K GPW grid.

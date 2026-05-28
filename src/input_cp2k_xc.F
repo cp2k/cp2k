@@ -1392,9 +1392,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
                           description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
                           "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
-                          "to energy/VXC evaluations. MPI runs collect a global atom-partitioned feature "// &
-                          "block on each rank before the Torch model is evaluated. Nuclear gradients, "// &
-                          "stress, GAPW, and k-points are not implemented in this path.", &
+                          "to energy/VXC evaluations with FUNCTIONAL PBE and a single GAUXC functional. "// &
+                          "MPI runs collect a global atom-partitioned feature block on each rank before "// &
+                          "the Torch model is evaluated. Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
+                          "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

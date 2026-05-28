@@ -136,7 +136,8 @@ MODULE qs_ks_methods
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
-   USE skala_gpw_functional,            ONLY: xc_section_uses_native_skala_grid
+   USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
+                                              xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
@@ -626,11 +627,21 @@ CONTAINS
          ! Everything else, either via GauXC or manual XC computation
          IF (dft_control%use_gauxc) THEN
             IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+               CALL ensure_native_skala_grid_scope(xc_section)
                IF (gapw_xc) THEN
                   CPABORT(native_skala_gapw_xc_msg)
                END IF
                IF (gapw) THEN
                   CPABORT(native_skala_gapw_msg)
+               END IF
+               IF (nimages /= 1) THEN
+                  CPABORT("Native SKALA grid evaluation supports single-image calculations only.")
+               END IF
+               IF (dft_control%roks) THEN
+                  CPABORT("Native SKALA grid evaluation does not support ROKS.")
+               END IF
+               IF (dft_control%do_admm) THEN
+                  CPABORT("Native SKALA grid evaluation does not support ADMM.")
                END IF
                IF (dokp) THEN
                   CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
