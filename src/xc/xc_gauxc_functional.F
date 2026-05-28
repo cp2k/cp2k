@@ -38,6 +38,7 @@ MODULE xc_gauxc_functional
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              has_nlcc,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
@@ -1047,6 +1048,13 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "GauXC OneDFT/SKALA with METHOD GAPW_XC is not implemented. "// &
                        "The GAPW_XC one-center XC correction must be evaluated by the same GauXC model.")
+      END IF
+      IF (use_onedft) THEN
+         IF (has_nlcc(qs_kind_set)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GauXC OneDFT/SKALA with NLCC pseudopotentials is not implemented. "// &
+                          "The frozen core density would need a SKALA-consistent feature definition.")
+         END IF
       END IF
       IF (use_onedft) THEN
          IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
