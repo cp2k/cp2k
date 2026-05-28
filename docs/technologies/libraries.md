@@ -141,13 +141,13 @@ integrator.
   single image. Forces need the explicit derivatives of the grid coordinates, grid weights, atom
   partition, and coarse atomic coordinates. Periodic stress, k-points, ROKS, ADMM, and NLCC
   pseudopotentials should remain separate validation steps. `METHOD GAPW` is not enabled in this
-  native grid path yet: a valid GAPW extension has to reconstruct not only an all-electron density on
-  the CP2K grid, but also the corresponding density gradients and kinetic-energy density entering the
-  SKALA features. GAPW pseudopotential augmentation corrections remain a separate methodological
+  native grid path yet: a valid GAPW extension has to reconstruct not only an all-electron density
+  on the CP2K grid, but also the corresponding density gradients and kinetic-energy density entering
+  the SKALA features. GAPW pseudopotential augmentation corrections remain a separate methodological
   problem.
 - `NATIVE_GRID_DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
-  CP2K-native SKALA feature block passed to Torch. This is intended for compact RKS/UKS and MPI/OpenMP
-  validation runs.
+  CP2K-native SKALA feature block passed to Torch. This is intended for compact RKS/UKS,
+  wrapped-cell atom-partition, and MPI/OpenMP validation runs.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
