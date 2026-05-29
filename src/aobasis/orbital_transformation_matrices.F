@@ -503,10 +503,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lr, -lr:lr, -lr:lr)     :: r
       REAL(KIND=dp)                                      :: p
 
-      IF (m == l) THEN
-         p = r1(i, 1)*r(l - 1, mu, m) - r1(i, -1)*r(l - 1, mu, -m)
+      IF (ABS(mu) > l - 1) THEN
+         p = 0.0_dp
+      ELSE IF (m == l) THEN
+         p = r1(i, 1)*r(l - 1, mu, l - 1) - r1(i, -1)*r(l - 1, mu, -l + 1)
       ELSE IF (m == -l) THEN
-         p = r1(i, 1)*r(l - 1, mu, m) + r1(i, -1)*r(l - 1, mu, -m)
+         p = r1(i, 1)*r(l - 1, mu, -l + 1) + r1(i, -1)*r(l - 1, mu, l - 1)
       ELSE IF (ABS(m) < l) THEN
          p = r1(i, 0)*r(l - 1, mu, m)
       ELSE
@@ -540,13 +542,13 @@ CONTAINS
          v = p_func(1, l, 1, mb, r1, r, lr) + p_func(-1, l, -1, mb, r1, r, lr)
          w = 0.0_dp
       ELSE IF (ma > 0) THEN
-         dd = 1.0_dp
+         dd = 0.0_dp
          IF (ma == 1) dd = 1.0_dp
          u = p_func(0, l, ma, mb, r1, r, lr)
          v = p_func(1, l, ma - 1, mb, r1, r, lr)*SQRT(1.0_dp + dd) - p_func(-1, l, -ma + 1, mb, r1, r, lr)*(1.0_dp - dd)
          w = p_func(1, l, ma + 1, mb, r1, r, lr) + p_func(-1, l, -1 - ma, mb, r1, r, lr)
       ELSE IF (ma < 0) THEN
-         dd = 1.0_dp
+         dd = 0.0_dp
          IF (ma == -1) dd = 1.0_dp
          u = p_func(0, l, ma, mb, r1, r, lr)
          v = p_func(1, l, ma + 1, mb, r1, r, lr)*(1.0_dp - dd) + p_func(-1, l, -ma - 1, mb, r1, r, lr)*SQRT(1.0_dp + dd)

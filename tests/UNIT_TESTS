@@ -7,6 +7,7 @@ grid_unittest
 libcp2k_unittest
 gemm_square_unittest
 memory_utilities_unittest
+orbital_transformation_matrices_unittest
 nequip_unittest                                          libtorch
 parallel_rng_types_unittest
 realspace_grid_cube_unittest
