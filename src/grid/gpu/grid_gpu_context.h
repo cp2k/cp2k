@@ -185,8 +185,6 @@ public:
         offloadFree(device_ptr_);
       device_ptr_ = nullptr;
       allocated_size_ = (new_size__ < 16) ? 16 : round_up16(new_size__);
-      if (allocated_size_ == 0)
-        printf("new_size__ %d\n", new_size__);
       offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
       internal_allocation_ = true;
       host_ptr_ = nullptr;
@@ -531,8 +529,8 @@ public:
         tasks_dev{std::move(other.tasks_dev)},
         num_tasks_per_block_dev_{std::move(other.num_tasks_per_block_dev_)},
         grid_{std::move(other.grid_)},
-        number_of_tasks_per_level_{std::move(number_of_tasks_per_level_)},
-        first_task_per_level_{std::move(first_task_per_level_)},
+        number_of_tasks_per_level_{std::move(other.number_of_tasks_per_level_)},
+        first_task_per_level_{std::move(other.first_task_per_level_)},
         sphi_size{std::move(other.sphi_size)},
         sphi_dev{std::move(other.sphi_dev)},
         task_sorted_by_blocks_dev{std::move(other.task_sorted_by_blocks_dev)},

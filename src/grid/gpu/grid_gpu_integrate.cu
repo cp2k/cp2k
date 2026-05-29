@@ -89,10 +89,10 @@ __device__ __inline__ T reduce_two_warps(const T in, const int tid) {
 #if defined(__CUDACC__)
     // reduce across first warp only
     for (int offset = 16; offset > 0; offset >>= 1)
-      v += __shfl_down_sync(mask, v, offset);
+      v += __shfl_down_sync(0xFFFFFFFF, v, offset);
 #else
     for (int offset = warpSize / 2; offset > 0; offset >>= 1)
-      v += __shfl_down(v, offset);
+      v += __shfl_down_sync(0xFFFFFFFFFFFFFFFF, v, offset);
 #endif
     return v;
   }
@@ -683,7 +683,11 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
         // Warp-level reduction (32 lanes)
         // After this loop, lane 0 of warp 0 holds the result
         for (int offset = 16; offset > 0; offset >>= 1) {
+#if defined(__CUDA_CC__)
           val += __shfl_down_sync(0xffffffff, val, offset);
+#else
+          val += __shfl_down_sync(0xffffffffffffffff, val, offset);
+#endif
         }
 
         if (tid == 0)
