@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=18, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=19, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1384,6 +1384,16 @@ CONTAINS
                           "Torch inference; this keyword is used only with LB_EXECUTION_SPACE DEVICE.", &
                           usage="DEVICE_RUNTIME_FILL_FRACTION 0.1", &
                           default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ONEDFT_ATOM_CHUNK_SIZE", &
+                          description="Atom chunk size for GauXC OneDFT/SKALA Torch inference. "// &
+                          "A positive value evaluates the Torch model atom block by atom block; "// &
+                          "zero disables chunking; the default leaves GauXC's model-specific policy "// &
+                          "or the GAUXC_ONEDFT_ATOM_CHUNK_SIZE environment variable in control.", &
+                          usage="ONEDFT_ATOM_CHUNK_SIZE 3", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

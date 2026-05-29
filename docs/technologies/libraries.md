@@ -113,6 +113,10 @@ integrator.
   runtime on each CP2K rank because GauXC does not yet provide distributed OneDFT gradients.
 - OneDFT/SKALA is selected in the `&GAUXC` subsection with a conventional base `FUNCTIONAL` and a
   non-`NONE` `MODEL`, for example a `.fun` model file or a GauXC-installed model name.
+- `ONEDFT_ATOM_CHUNK_SIZE` can be used to control the GauXC OneDFT/SKALA Torch atom blocking from
+  CP2K. A positive value requests atom-by-atom chunks of that size, zero disables atom chunking, and
+  the default leaves GauXC's model policy or `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment setting in
+  control.
 - `METHOD GAPW` with OneDFT/SKALA is limited to all-electron molecular inputs. In this mode GauXC
   evaluates the full XC term directly on its molecular quadrature from the all-electron AO density;
   CP2K's local/semi-local GAPW XC correction is not used for OneDFT/SKALA. Validation inputs should
@@ -145,6 +149,11 @@ integrator.
   on the CP2K grid, but also the corresponding density gradients and kinetic-energy density entering
   the SKALA features. GAPW pseudopotential augmentation corrections remain a separate methodological
   problem.
+- The first native-grid GAPW target should be all-electron GAPW only. The required design is to
+  build a SKALA feature block from the reconstructed all-electron density, gradient, and
+  kinetic-energy density on a well-defined grid and validate it against the molecular all-electron
+  GauXC matrix path before adding pseudopotential augmentation corrections, `GAPW_XC`, periodic
+  stresses, or k-points.
 - `NATIVE_GRID_DIAGNOSTICS T` prints the electron count, spin moment, and summed grid weights of the
   CP2K-native SKALA feature block passed to Torch. This is intended for compact RKS/UKS,
   wrapped-cell atom-partition, and MPI/OpenMP validation runs.

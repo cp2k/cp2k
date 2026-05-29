@@ -26,7 +26,10 @@ MODULE xc_gauxc_functional
                                               section_vals_get_subs_vals2,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE iso_c_binding,                   ONLY: c_double
+   USE iso_c_binding,                   ONLY: c_char,&
+                                              c_double,&
+                                              c_int,&
+                                              c_null_char
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -65,7 +68,49 @@ MODULE xc_gauxc_functional
 
    PUBLIC :: apply_gauxc, skala_info, xc_section_uses_gauxc
 
+   INTERFACE
+      INTEGER(c_int) FUNCTION c_setenv(name, value, overwrite) BIND(C, name="setenv")
+         IMPORT :: c_char, c_int
+         CHARACTER(KIND=c_char), DIMENSION(*), INTENT(IN) :: name, value
+         INTEGER(c_int), VALUE                            :: overwrite
+      END FUNCTION c_setenv
+
+      INTEGER(c_int) FUNCTION c_unsetenv(name) BIND(C, name="unsetenv")
+         IMPORT :: c_char, c_int
+         CHARACTER(KIND=c_char), DIMENSION(*), INTENT(IN) :: name
+      END FUNCTION c_unsetenv
+   END INTERFACE
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Set the GauXC OneDFT atom chunk environment knob when the CP2K keyword is explicit.
+!> \param atom_chunk_size ...
+!> \param is_explicit ...
+! **************************************************************************************************
+   SUBROUTINE set_gauxc_onedft_atom_chunk_env(atom_chunk_size, is_explicit)
+      INTEGER, INTENT(IN)                                :: atom_chunk_size
+      LOGICAL, INTENT(IN)                                :: is_explicit
+
+      CHARACTER(LEN=32)                                  :: chunk_value
+      INTEGER(c_int)                                     :: ierr
+
+      IF (.NOT. is_explicit) RETURN
+
+      IF (atom_chunk_size < 0) THEN
+         ierr = c_unsetenv("GAUXC_ONEDFT_ATOM_CHUNK_SIZE"//c_null_char)
+      ELSE
+         WRITE (chunk_value, '(I0)') atom_chunk_size
+         ierr = c_setenv( &
+                "GAUXC_ONEDFT_ATOM_CHUNK_SIZE"//c_null_char, &
+                TRIM(chunk_value)//c_null_char, &
+                1_c_int)
+      END IF
+      IF (ierr /= 0_c_int) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Could not set GAUXC_ONEDFT_ATOM_CHUNK_SIZE for GauXC OneDFT/SKALA.")
+      END IF
+   END SUBROUTINE set_gauxc_onedft_atom_chunk_env
 
 ! **************************************************************************************************
 !> \brief ...
@@ -886,11 +931,12 @@ CONTAINS
          pruning_key, pruning_scheme, radial_quadrature, skala_runtime, skala_runtime_key, &
          xc_fun_name
       INTEGER                                            :: batch_size, env_status, img, ispin, &
-                                                            natom, nimages, nspins
+                                                            natom, nimages, nspins, &
+                                                            onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
-         molecular_virial_debug, periodic_reference, pruning_explicit, use_fd_gradient, &
-         use_gradient_self_runtime, use_onedft, use_self_runtime, use_skala_model, &
-         write_hdf5_output
+         molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
+         pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
+         use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
@@ -1010,6 +1056,11 @@ CONTAINS
          r_val=device_runtime_fill_fraction)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "ONEDFT_ATOM_CHUNK_SIZE", &
+         i_val=onedft_atom_chunk_size, &
+         explicit=onedft_atom_chunk_size_explicit)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "PERIODIC_REFERENCE", &
          l_val=periodic_reference)
       CALL section_vals_val_get( &
@@ -1051,6 +1102,10 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%DEVICE_RUNTIME_FILL_FRACTION must be > 0 and <= 1.")
       END IF
+      IF (onedft_atom_chunk_size < -1) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "GAUXC%ONEDFT_ATOM_CHUNK_SIZE must be -1, zero, or positive.")
+      END IF
       IF (molecular_virial_debug) THEN
          IF (molecular_virial_debug_dx <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
@@ -1083,6 +1138,8 @@ CONTAINS
          END IF
       END IF
       IF (use_onedft) THEN
+         CALL set_gauxc_onedft_atom_chunk_env( &
+            onedft_atom_chunk_size, onedft_atom_chunk_size_explicit)
          IF (.NOT. grid_explicit) grid_type = "SUPERFINE"
          IF (.NOT. pruning_explicit) pruning_scheme = "UNPRUNED"
 
@@ -1123,8 +1180,8 @@ CONTAINS
             CALL cp_warn( &
                __LOCATION__, &
                "GAUXC%SKALA_RUNTIME uses the MPI communicator for energy/VXC. "// &
-               "The current GauXC OneDFT MPI path gathers Torch inference on rank 0; "// &
-               "pre/post-processing is distributed, but Torch itself is not yet distributed.")
+               "SKALA Torch atom chunks can be distributed across MPI ranks; "// &
+               "set GAUXC_ONEDFT_DISTRIBUTED_TORCH=0 to force rank-0 Torch inference.")
          END IF
       END IF
 

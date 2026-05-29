@@ -2,6 +2,7 @@
 "1H2_GAUXC_PBE.inp"            = [{matcher="E_total", tol=1e-10, ref=-1.163121772046629}]
 "1H2_ONEDFT_PBE.inp"           = [{matcher="E_total", tol=1e-10, ref=-1.163121899608445}]
 "H2_SKALA_ENERGY.inp"          = [{matcher="E_total", tol=1e-8,  ref=-1.170732897473910}]
+"H2_SKALA_ENERGY_CHUNKED.inp"  = [{matcher="E_total", tol=1e-8,  ref=-1.170732897491972}]
 "H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=1e-8,  ref=-1.168725851074172}]
 "H2O_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.200873708850686}]
 "H2O_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=1e-8,  ref=-17.216310337636450},
