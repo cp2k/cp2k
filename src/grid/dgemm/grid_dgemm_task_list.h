@@ -17,7 +17,7 @@
  * It is not needed to know what exact structure for the public interface.
  * Equivalent to private member in c++ class
  ******************************************************************************/
-typedef struct grid_context_ grid_dgemm_task_list;
+typedef void grid_dgemm_task_list;
 
 /*******************************************************************************
  * \brief Allocates a task list for the dgemm backend.

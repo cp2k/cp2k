@@ -17,6 +17,7 @@
 #include "grid_ref_collocate.h"
 #include "grid_ref_integrate.h"
 #include "grid_ref_task_list.h"
+#include "grid_ref_task_list_internal.h"
 
 /*******************************************************************************
  * \brief Comperator passed to qsort to compare two tasks.
@@ -59,7 +60,8 @@ void grid_ref_create_task_list(
     grid_ref_free_task_list(*task_list_out);
   }
 
-  grid_ref_task_list *task_list = malloc(sizeof(grid_ref_task_list));
+  grid_ref_task_list_internal *task_list =
+      malloc(sizeof(grid_ref_task_list_internal));
   assert(task_list != NULL);
 
   task_list->orthorhombic = orthorhombic;
@@ -183,7 +185,12 @@ void grid_ref_create_task_list(
  * \brief Deallocates given task list, basis_sets have to be freed separately.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_ref_free_task_list(grid_ref_task_list *task_list) {
+void grid_ref_free_task_list(grid_ref_task_list *ptr) {
+  if (ptr == NULL)
+    return;
+
+  grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
+
   free(task_list->block_offsets);
   free(task_list->atom_positions);
   free(task_list->atom_kinds);
@@ -268,11 +275,16 @@ static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
  * \author Ole Schuett
  ******************************************************************************/
 static void collocate_one_grid_level(
-    const grid_ref_task_list *task_list, const int *first_block_task,
+    const grid_ref_task_list *ptr, const int *first_block_task,
     const int *last_block_task, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const double *pab_blocks, offload_buffer *grid) {
+
+  if (ptr == NULL)
+    return;
+
+  grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -419,10 +431,15 @@ static void collocate_one_grid_level(
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
+void grid_ref_collocate_task_list(const grid_ref_task_list *ptr,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
                                   offload_buffer *grids[nlevels]) {
+
+  if (ptr == NULL)
+    return;
+
+  grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
 
   assert(task_list->nlevels == nlevels);
 
@@ -486,12 +503,17 @@ static inline void store_hab(const grid_basis_set *ibasis,
  * \author Ole Schuett
  ******************************************************************************/
 static void integrate_one_grid_level(
-    const grid_ref_task_list *task_list, const int *first_block_task,
+    const grid_ref_task_list *ptr, const int *first_block_task,
     const int *last_block_task, const bool compute_tau, const int natoms,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const offload_buffer *pab_blocks, const offload_buffer *grid,
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+
+  if (ptr == NULL)
+    return;
+
+  grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -635,11 +657,14 @@ static void integrate_one_grid_level(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_integrate_task_list(
-    const grid_ref_task_list *task_list, const bool compute_tau,
-    const int natoms, const int nlevels, const offload_buffer *pab_blocks,
+    const grid_ref_task_list *ptr, const bool compute_tau, const int natoms,
+    const int nlevels, const offload_buffer *pab_blocks,
     const offload_buffer *grids[nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]) {
+  if (ptr == NULL)
+    return;
 
+  grid_ref_task_list_internal *task_list = (grid_ref_task_list_internal *)ptr;
   assert(task_list->nlevels == nlevels);
   assert(task_list->natoms == natoms);
 

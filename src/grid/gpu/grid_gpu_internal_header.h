@@ -278,6 +278,16 @@ inline static void init_constant_memory() {
   initialized = true;
 }
 
+// calculate the global index of a thread block
+__inline__ __device__ unsigned int block_index() {
+  return blockIdx.x + gridDim.x * (blockIdx.y + gridDim.y * blockIdx.z);
+}
+
+// Calculating the global index of any given device thread
+__inline__ __device__ unsigned int thread_global_index() {
+  return threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+}
+
 __inline__ __device__ double3
 compute_coordinates(const double *__restrict__ dh_, const double x,
                     const double y, const double z) {
@@ -735,6 +745,7 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
     // size of decontracted set, ie. pab and hab
     task.ncoseta = ncoset(la_max_basis);
     task.ncosetb = ncoset(lb_max_basis);
+
     // size of the cab matrix
     task.n1 = ncoset(task.la_max);
     task.n2 = ncoset(task.lb_max);
@@ -778,8 +789,8 @@ private:
   int la_max_{-1};
   int lb_max_{-1};
   int smem_per_block_{0};
-  int alpha_len_{-1};
-  int cab_len_{-1};
+  int alpha_size_{-1};
+  int cab_size_{-1};
   int lp_max_{-1};
   ldiffs_value ldiffs_;
   int lp_diff_{-1};
@@ -792,16 +803,18 @@ public:
     lb_max_ = lmax + ldiffs.lb_max_diff;
     lp_max_ = la_max_ + lb_max_;
 
-    cab_len_ = ncoset(lb_max_) * ncoset(la_max_);
-    alpha_len_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
-    smem_per_block_ = std::max(alpha_len_, 64) * sizeof(double);
+    // NB: cab is allocated in global memory not shared memory. Each block has
+    // its own cab space
+
+    cab_size_ = (rocm_backend::ncoset(la_max_) * rocm_backend::ncoset(lb_max_));
+    alpha_size_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
+    smem_per_block_ = std::max(alpha_size_, 64) * sizeof(double);
 
     if (smem_per_block_ > 64 * 1024) {
       fprintf(stderr,
               "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
-      fprintf(stderr, "cab_len: %i, ", cab_len_);
-      fprintf(stderr, "alpha_len: %i, ", alpha_len_);
-      fprintf(stderr, "total smem_per_block: %f kb\n\n",
+      fprintf(stderr, "alpha_len: %i, ", alpha_size_);
+      fprintf(stderr, "total smem_per_block: %f kB\n\n",
               smem_per_block_ / 1024.0);
       abort();
     }
@@ -811,11 +824,9 @@ public:
 
   // copy and move are trivial
 
-  inline int smem_alpha_offset() const { return 0; }
+  inline int alpha_size() const { return alpha_size_; }
 
-  inline int smem_cab_offset() const { return alpha_len_; }
-
-  inline int smem_cxyz_offset() const { return alpha_len_ + cab_len_; }
+  inline int cab_size() const { return cab_size_; }
 
   inline int smem_per_block() const { return smem_per_block_; }
 
@@ -825,8 +836,13 @@ public:
 
   inline int lp_max() const { return lp_max_; }
 
-  inline int cxyz_len() const { return ncoset(lp_max_); }
+  inline int cxyz_size() const { return ncoset(lp_max_); }
 };
+template <typename T>
+__inline__ __device__ T *allocate_workspace(const kernel_params &dev_) {
+  unsigned int offset = dev_.cab_block_offset_dev[block_index()];
+  return (T *)(dev_.ptr_dev[6] + offset);
+}
 
 } // namespace rocm_backend
 #endif
