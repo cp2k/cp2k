@@ -182,7 +182,7 @@ CONTAINS
                                                             xc_rho_smooth_id
       LOGICAL                                            :: lsd, my_just_energy, &
                                                             native_grid_diagnostics, &
-                                                            needs_atom_force
+                                                            native_grid_use_cuda, needs_atom_force
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(skala_gpw_feature_type)                       :: features
       TYPE(torch_tensor_type)                            :: atom_coord_grad_t, density_grad_t, &
@@ -213,8 +213,10 @@ CONTAINS
       nspins = SIZE(rho_r)
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
-      ! The current SKALA 1.1 TorchScript model creates internal ragged-index tensors on CPU.
-      CALL torch_use_cuda(.FALSE.)
+      gauxc_section => get_gauxc_section(xc_section)
+      CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_USE_CUDA", l_val=native_grid_use_cuda)
+      ! The portable SKALA export used by the regtests builds ragged-index tensors on CPU.
+      CALL torch_use_cuda(native_grid_use_cuda)
       CALL ensure_model_loaded(model_path)
 
       IF (lsd) THEN
@@ -241,7 +243,6 @@ CONTAINS
       CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
                                    requires_grad=(.NOT. my_just_energy), weights=weights, &
                                    requires_coordinate_grad=needs_atom_force)
-      gauxc_section => get_gauxc_section(xc_section)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", l_val=native_grid_diagnostics)
       IF (native_grid_diagnostics) THEN
          CALL print_native_grid_diagnostics(features, rho_r(1)%pw_grid%para%group%mepos == 0)

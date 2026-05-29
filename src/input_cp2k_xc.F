@@ -1304,7 +1304,7 @@ CONTAINS
                           "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
                           "are limited to isolated validation cells and are not compact periodic "// &
                           "material calculations.", &
-                          n_keywords=19, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=20, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1416,6 +1416,15 @@ CONTAINS
                           "the Torch model is evaluated. Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
                           "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
                           usage="NATIVE_GRID T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_USE_CUDA", &
+                          description="Evaluate the experimental CP2K-native SKALA GPW TorchScript "// &
+                          "model on CUDA when libtorch CUDA support is available. This requires a "// &
+                          "CUDA-compatible SKALA model export; the portable default uses CPU tensors.", &
+                          usage="NATIVE_GRID_USE_CUDA T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
