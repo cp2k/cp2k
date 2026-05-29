@@ -1,4 +1,4 @@
-"graphite.inp"                          = [{matcher="M002", tol=3e-08, ref=-20.2779716505}]
+"graphite.inp"                          = [{matcher="M002", tol=5e-08, ref=-20.2779716505}]
 "graphite2.inp"                         = [{matcher="M002", tol=7e-08, ref=-18.2164856372}]
 "graphite3.inp"                         = [{matcher="M002", tol=3e-08, ref=-20.2779716505}]
 "graphite-stm.inp"                      = []

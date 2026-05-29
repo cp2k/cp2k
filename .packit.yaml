@@ -45,11 +45,11 @@ jobs:
   - <<: *tests
     identifier: smoke
     trigger: pull_request
-    #manual_trigger: true
+    manual_trigger: true
   - <<: *tests
     identifier: full
     trigger: pull_request
-    manual_trigger: true
+    #manual_trigger: true
     tmt_plan: .*/full
   - job: propose_downstream
     trigger: release
