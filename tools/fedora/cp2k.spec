@@ -27,6 +27,7 @@ BuildRequires: python3-fypp
 # Project dependencies
 BuildRequires: flexiblas-devel
 BuildRequires: cmake(DBCSR)
+BuildRequires: cmake(libint2)
 BuildRequires: pkgconfig(fftw3)
 %if %{with libxsmm}
 BuildRequires: pkgconfig(libxsmm)
@@ -139,7 +140,7 @@ cmake_common_args=(
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
   # Dependencies equivalent with Default
   "-DCP2K_USE_FFTW3:BOOL=ON"
-  "-DCP2K_USE_LIBINT2:BOOL=OFF" # Package has no Fortran interface
+  "-DCP2K_USE_LIBINT2:BOOL=ON"
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
   %if %{with libxsmm}
