@@ -1,0 +1,93 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT argon_dimer_molden_read
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+
+#CPQA DEPENDS argon_vib_molden_write.inp
+&MOTION
+  &GEO_OPT
+    MAX_ITER 6
+    OPTIMIZER CG
+    TYPE TRANSITION_STATE
+    &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        ANGLE_TOLERANCE [deg] 2.0
+        INITIALIZATION_METHOD MOLDEN
+        VIB_INDEX 1
+        VIB_MOLDEN_NAME argon_vib_molden_write-VIBRATIONS-1.mol
+        VIB_WEIGHT 1.00
+        &ROT_OPT
+          OPTIMIZER CG
+          &CG
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END LINE_SEARCH
+          &END CG
+        &END ROT_OPT
+      &END DIMER
+    &END TRANSITION_STATE
+  &END GEO_OPT
+  &PRINT
+    &RESTART OFF
+    &END RESTART
+    &TRAJECTORY ON
+      FORMAT EXTXYZ
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 11.66
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE 1000.0
+        EPS_SPLINE 1.0E-9
+      &END SPLINE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+      &END FF_INFO
+    &END PRINT
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.9057 12.9595 13.9676
+    &END CELL
+    &COORD
+      Ar                 8.75404000    7.58124000    3.09502000
+      Ar                 5.47128000    5.68592000    3.09502000
+      Ar                 7.65982000    5.68592000    6.19005000
+      Ar                 7.65982000    9.47654000    6.19005000
+      Ar                 4.37703000    7.58124000    6.19005000
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

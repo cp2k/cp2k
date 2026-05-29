@@ -551,6 +551,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: none_ts_method_id = 0, &
                                                default_dimer_method_id = 1
 
+   INTEGER, PARAMETER, PUBLIC               :: dimer_init_random = 0, &
+                                               dimer_init_molden = 1
+
    INTEGER, PARAMETER, PUBLIC               :: do_first_rotation_step = 0, &
                                                do_second_rotation_step = 1, &
                                                do_third_rotation_step = 2

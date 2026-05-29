@@ -17,4 +17,7 @@
 "N3dye_vib_restart_vec2.inp"            = [{matcher="M018", tol=1.0E-14, ref=1434.156631}]
 "N3dye_vib_restart_vec.inp"             = [{matcher="M018", tol=1.0E-14, ref=1720.504999}]
 "N3dye_vib_restart_vec4.inp"            = [{matcher="M018", tol=1.0E-14, ref=1720.506967}]
+# write vibrational normal modes to molden, then re-read as initial dimer vector
+"argon_vib_molden_write.inp"            = [{matcher="Vib_freq", tol=1.0E-14, ref=33.245417079}]
+"argon_dimer_molden_read.inp"           = [{matcher="M007", tol=1.0E-7, ref=0.0000033386}]
 #EOF
