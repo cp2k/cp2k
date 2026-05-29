@@ -145,6 +145,7 @@ MODULE topology_types
       TYPE(connectivity_info_type), POINTER     :: conn_info => NULL()
       TYPE(constraint_info_type), POINTER       :: cons_info => NULL()
       TYPE(cell_type), POINTER                  :: cell => NULL(), cell_ref => NULL(), cell_muc => NULL()
+      TYPE(frag_list_p_type), DIMENSION(:), POINTER:: fragments => NULL()
       INTEGER                                   :: conn_type = -1
       INTEGER                                   :: coord_type = -1
       INTEGER                                   :: exclude_vdw = -1
@@ -180,12 +181,17 @@ MODULE topology_types
    TYPE constr_list_type
       INTEGER, DIMENSION(:), POINTER :: constr => NULL()
    END TYPE constr_list_type
+! **************************************************************************************************
+   TYPE frag_list_p_type
+      INTEGER                                     :: frag_start = -1
+      INTEGER                                     :: frag_end = -1
+   END TYPE frag_list_p_type
 
    PUBLIC :: atom_info_type, &
              connectivity_info_type, &
              constraint_info_type, &
              topology_parameters_type, &
-             constr_list_type
+             constr_list_type, frag_list_p_type
 
    PUBLIC :: init_topology, &
              deallocate_topology, &
@@ -534,6 +540,12 @@ CONTAINS
       END IF
       IF (ASSOCIATED(topology%cons_info)) THEN
          DEALLOCATE (topology%cons_info)
+      END IF
+      !------------------------------------------------
+      ! 5. DEALLOCATE fragments
+      !-----------------------------------------------
+      IF (ASSOCIATED(topology%fragments)) THEN
+         DEALLOCATE (topology%fragments)
       END IF
 
    END SUBROUTINE deallocate_topology

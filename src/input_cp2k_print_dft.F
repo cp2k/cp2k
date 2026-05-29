@@ -435,6 +435,7 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specify the number of digits used to print the AO matrices", &
                           default_i_val=6)
@@ -478,6 +479,7 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="COMMUTATOR_HR", &
                           description="Controls the printing of the [H,r] commutator matrix", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1877,8 +1879,21 @@ CONTAINS
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+
       CALL section_add_subsection(sub_print_key, subsection)
       CALL section_release(subsection)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, __LOCATION__, name="IAO_OVERLAP", &
+                                       description="Controls the printout required for ROSE.", &
+                                       print_level=debug_print_level, filename="CP2K_ROSE")
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specify the number of digits used to print the MO information.", &
+                          default_i_val=6)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)
       CALL section_release(sub_print_key)
 

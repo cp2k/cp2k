@@ -63,7 +63,9 @@ MODULE iao_analysis
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE iao_types,                       ONLY: iao_env_type
+   USE iao_types,                       ONLY: iao_env_type,&
+                                              organise_printout_for_rose,&
+                                              print_fragment_association
    USE input_constants,                 ONLY: do_iaoloc_enone,&
                                               do_iaoloc_pm2
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -200,7 +202,8 @@ CONTAINS
       CPASSERT(iao_env%do_iao)
 
       ! k-points?
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      NULLIFY (particle_set)
+      CALL get_qs_env(qs_env, dft_control=dft_control, particle_set=particle_set)
       nspin = dft_control%nspins
       nimages = dft_control%nimages
       IF (nimages > 1) THEN
@@ -252,7 +255,7 @@ CONTAINS
       ! overlap matrices
       CALL get_qs_env(qs_env, matrix_s_kp=matrix_s)
       smat => matrix_s(1, 1)%matrix
-      !
+
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       nkind = SIZE(qs_kind_set)
       ALLOCATE (ref_basis_set_list(nkind), orb_basis_set_list(nkind))
@@ -279,7 +282,16 @@ CONTAINS
                                        ref_basis_set_list, ref_basis_set_list, srr_list)
       CALL build_overlap_matrix_simple(ks_env, sro, &
                                        ref_basis_set_list, orb_basis_set_list, sro_list)
-      !
+
+      IF (PRESENT(mos)) THEN
+         my_mos => mos
+      ELSE
+         CALL get_qs_env(qs_env, mos=my_mos)
+      END IF
+      CALL get_mo_set(my_mos(1), mo_coeff=mo_coeff)
+
+      IF (iao_env%do_fragments) CALL organise_printout_for_rose(qs_env, orb_basis_set_list)
+
       IF (PRESENT(mos)) THEN
          my_mos => mos
       ELSE
@@ -631,7 +643,9 @@ CONTAINS
             IF (ASSOCIATED(ibo_cc_section)) THEN
                CALL print_center_spread(moments, nocc, ibo_cc_section)
             END IF
-            !
+
+            IF (iao_env%do_fragments) CALL print_fragment_association(qs_env, moments, unit_nr)
+
             IF (PRESENT(bond_centers)) THEN
                nx = SIZE(bond_centers, 1)
                no = SIZE(bond_centers, 2)

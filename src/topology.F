@@ -157,13 +157,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: cell_ref_section, cell_section, &
-                                                            constraint_section, topology_section
+                                                            constraint_section, fragment_section, &
+                                                            topology_section
       TYPE(topology_parameters_type)                     :: topology
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
-      NULLIFY (cell_section, cell_ref_section, constraint_section, topology_section)
+      NULLIFY (cell_section, cell_ref_section, constraint_section, topology_section, fragment_section)
 
       cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
       IF (use_motion_section) THEN
@@ -285,12 +286,19 @@ CONTAINS
       END IF
       CALL cp_print_key_finished_output(iw2, logger, subsys_section, &
                                         "TOPOLOGY%DUMP_PSF")
+      !13. Read fragmentation
+      fragment_section => section_vals_get_subs_vals(subsys_section, "TOPOLOGY%FRAGMENTS")
+      CALL section_vals_get(fragment_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL read_fragments(topology, subsys_section, particle_set=particle_set)
+      END IF
 
       !13. Cleanup the topology structure type
       CALL deallocate_topology(topology)
       CALL timestop(handle)
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                         "PRINT%TOPOLOGY_INFO")
+
    END SUBROUTINE topology_control
 
 ! **************************************************************************************************
@@ -460,6 +468,40 @@ CONTAINS
                                         "PRINT%TOPOLOGY_INFO")
 
    END SUBROUTINE connectivity_control
+! **************************************************************************************************
+!> \brief Reads fragments from input file
+!> \param topology ...
+!> \param subsys_section ...
+!> \param particle_set ...
+! **************************************************************************************************
+   SUBROUTINE read_fragments(topology, subsys_section, particle_set)
+
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      INTEGER                                            :: i_rep, ifrag, n_rep
+      INTEGER, DIMENSION(:), POINTER                     :: frag_range
+      TYPE(section_vals_type), POINTER                   :: section
+
+      NULLIFY (section)
+      NULLIFY (frag_range)
+
+      section => section_vals_get_subs_vals(subsys_section, "TOPOLOGY%FRAGMENTS")
+      section => section_vals_get_subs_vals(section, "FRAGMENT")
+      CALL section_vals_get(section, n_repetition=n_rep)
+      ALLOCATE (topology%fragments(n_rep))
+
+      DO i_rep = 1, n_rep
+         CALL section_vals_val_get(section, "FRAG_RANGE", i_vals=frag_range, i_rep_section=i_rep)
+         topology%fragments(i_rep)%frag_start = frag_range(1)
+         topology%fragments(i_rep)%frag_end = frag_range(2)
+         DO ifrag = topology%fragments(i_rep)%frag_start, topology%fragments(i_rep)%frag_end
+            particle_set(ifrag)%fragment_index = i_rep
+         END DO
+      END DO
+
+   END SUBROUTINE read_fragments
 
 ! **************************************************************************************************
 !> \brief Reads connectivity from file

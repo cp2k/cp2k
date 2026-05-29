@@ -40,7 +40,8 @@ MODULE particle_types
       ! Particle dependent terms for shell-model
       INTEGER                               :: atom_index = 0, &
                                                t_region_index = 0, &
-                                               shell_index = 0
+                                               shell_index = 0, &
+                                               fragment_index = 0
    END TYPE particle_type
 
    ! Public data types
