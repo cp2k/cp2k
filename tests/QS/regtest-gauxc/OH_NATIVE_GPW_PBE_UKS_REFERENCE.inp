@@ -24,7 +24,7 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-4
       MAX_SCF 80
       SCF_GUESS ATOMIC
       &DIAGONALIZATION

@@ -12,6 +12,12 @@
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=7.00009285099},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-8, ref=1.00003058875}]
 "AR4_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
+"AR4_NATIVE_GPW_PBE_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
+"NE4_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-139.361323676360371}]
+"NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-139.359845899349239},
+                              {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9974498453},
+                              {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
+                              {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=574.850133126}]
 "AR4_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=1e-8, ref=-84.318681472847985},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999605},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
@@ -20,10 +26,16 @@
                                       {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999605},
                                       {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                       {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
-"H2O_NATIVE_SKALA_GPW_WRAPPED.inp" = [{matcher="E_total", tol=1e-8, ref=-17.206968567656659},
-                                      {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.00001918339},
+"H2O_NATIVE_SKALA_GPW_WRAPPED.inp" = [{matcher="E_total", tol=1e-8, ref=-17.198851437382721},
+                                      {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=7.99990365886},
                                       {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                       {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1457.64026995}]
+"H2O_NATIVE_GPW_PBE_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.190128057784435}]
+"OH_NATIVE_GPW_PBE_UKS_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=5e-7, ref=-16.519258379915687}]
+"OH_NATIVE_SKALA_GPW_UKS_WRAPPED.inp" = [{matcher="E_total", tol=1e-8, ref=-16.534850202333839},
+                                         {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=7.00000567829},
+                                         {matcher="SKALA_GPW_feature_spin_moment", tol=1e-8, ref=1.00000021527},
+                                         {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1457.64026995}]
 "H2_GAPW_SKALA_ENERGY.inp"     = [{matcher="E_total", tol=1e-8,  ref=-1.165186711376540}]
 "H2_SKALA_CDFT.inp"            = [{matcher="M071", tol=1e-3, ref=0.200232289362}]
 "H2_GAPW_SKALA_CDFT.inp"       = [{matcher="M071", tol=1e-3, ref=0.199494521160}]
