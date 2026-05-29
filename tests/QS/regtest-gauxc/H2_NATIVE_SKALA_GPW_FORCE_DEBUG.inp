@@ -33,8 +33,8 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
-      MAX_SCF 80
+      EPS_SCF 1.0E-5
+      MAX_SCF 50
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
@@ -45,7 +45,7 @@
           FUNCTIONAL PBE
           MODEL SKALA
           NATIVE_GRID T
-          NATIVE_GRID_DIAGNOSTICS T
+          NATIVE_GRID_DIAGNOSTICS F
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC
