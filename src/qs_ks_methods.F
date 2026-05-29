@@ -32,6 +32,8 @@ MODULE qs_ks_methods
                                               calc_admm_ovlp_forces_kp
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -104,6 +106,7 @@ MODULE qs_ks_methods
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_harris_types,                 ONLY: harris_type
    USE qs_harris_utils,                 ONLY: harris_set_potentials
@@ -194,8 +197,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: ace_rebuild_frequency, handle, iatom, &
-                                                            img, ispin, natom, nimages, nspins
+      INTEGER                                            :: ace_rebuild_frequency, atom_a, handle, &
+                                                            iatom, ikind, img, ispin, natom, &
+                                                            nimages, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, &
          gapw_xc, just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
       CHARACTER(LEN=*), PARAMETER :: native_skala_gapw_xc_msg = &
@@ -206,8 +211,10 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_skala_atom_force
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -234,6 +241,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER :: rho0_s_rs, rho_nlcc, rhoz_cneo_s_rs, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
@@ -244,7 +252,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
+      NULLIFY (admm_env, atomic_kind_set, cell, dft_control, force, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
@@ -271,6 +279,7 @@ CONTAINS
                       matrix_vxc=matrix_vxc, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      atomic_kind_set=atomic_kind_set, &
                       para_env=para_env, &
                       input=input, &
                       virial=virial, &
@@ -281,6 +290,7 @@ CONTAINS
                       rho_core=rho_core, &
                       rho_xc=rho_xc, &
                       energy=energy, &
+                      force=force, &
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       natom=natom)
@@ -650,12 +660,28 @@ CONTAINS
                   CPABORT("Native SKALA grid evaluation stress tensors are not implemented yet.")
                END IF
                IF (calculate_forces) THEN
-                  CPABORT("Native SKALA grid evaluation nuclear gradients are not implemented yet.")
+                  ALLOCATE (native_skala_atom_force(3, natom))
+                  CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                                     vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                                     edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                                     just_energy=just_energy_xc, &
+                                     native_skala_atom_force=native_skala_atom_force)
+                  CPASSERT(ASSOCIATED(force))
+                  CPASSERT(ASSOCIATED(atomic_kind_set))
+                  CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+                  DO iatom = 1, natom
+                     ikind = kind_of(iatom)
+                     atom_a = atom_of_kind(iatom)
+                     force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + &
+                                                        native_skala_atom_force(:, iatom)
+                  END DO
+                  DEALLOCATE (atom_of_kind, kind_of, native_skala_atom_force)
+               ELSE
+                  CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                                     vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                                     edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                                     just_energy=just_energy_xc)
                END IF
-               CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
-                                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                                  edisp=edisp, dispersion_env=qs_env%dispersion_env, &
-                                  just_energy=just_energy_xc)
                IF (edisp /= 0.0_dp) energy%dispersion = edisp
                IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
                   CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)

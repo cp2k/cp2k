@@ -85,6 +85,7 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param adiabatic_rescale_factor ...
 !> \param pw_env_external    external plane wave environment
+!> \param native_skala_atom_force ...
 !> \par History
 !>      - 05.2002 modified to use the mp_allgather function each pe
 !>        computes only part of the grid and this is broadcasted to all
@@ -97,7 +98,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_vxc_create(ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc, &
                             just_energy, edisp, dispersion_env, adiabatic_rescale_factor, &
-                            pw_env_external)
+                            pw_env_external, native_skala_atom_force)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -109,6 +110,8 @@ CONTAINS
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: adiabatic_rescale_factor
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: native_skala_atom_force
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_vxc_create'
 
@@ -339,7 +342,7 @@ CONTAINS
                                 weights=weights_use, pw_pool=xc_pw_pool, &
                                 particle_set=particle_set, cell=cell, &
                                 compute_virial=compute_virial, virial_xc=virial%pv_xc, &
-                                just_energy=my_just_energy)
+                                just_energy=my_just_energy, atom_force=native_skala_atom_force)
          ELSE IF (my_just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, tau=tau, &
                               rho_g=rho_g, xc_section=xc_section, &

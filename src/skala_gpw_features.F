@@ -72,9 +72,10 @@ CONTAINS
 !> \param cell ...
 !> \param requires_grad ...
 !> \param weights ...
+!> \param requires_coordinate_grad ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
-                                      requires_grad, weights)
+                                      requires_grad, weights, requires_coordinate_grad)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN)     :: rho_r
@@ -82,6 +83,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN), OPTIONAL                      :: requires_grad
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: weights
+      LOGICAL, INTENT(IN), OPTIONAL                      :: requires_coordinate_grad
 
       INTEGER, PARAMETER                                 :: nreal_per_point = 14
 
@@ -92,7 +94,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_offset, atom_position, feature_counts, &
          feature_displs, global_owner, local_owner, local_to_global, real_counts, real_displs
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: my_requires_grad
+      LOGICAL                                            :: my_requires_coordinate_grad, &
+                                                            my_requires_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_feature, local_feature
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point, owner_coord
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
@@ -101,6 +104,9 @@ CONTAINS
 
       my_requires_grad = .FALSE.
       IF (PRESENT(requires_grad)) my_requires_grad = requires_grad
+      my_requires_coordinate_grad = .FALSE.
+      IF (PRESENT(requires_coordinate_grad)) &
+         my_requires_coordinate_grad = requires_coordinate_grad
 
       CPASSERT(ASSOCIATED(cell))
       CPASSERT(ASSOCIATED(particle_set))
@@ -260,7 +266,7 @@ CONTAINS
       features%grid_weight_sum = SUM(features%grid_weights)
 
       CALL torch_dict_create(features%inputs)
-      CALL add_feature_tensors(features, my_requires_grad)
+      CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad)
       features%active = .TRUE.
 
       DEALLOCATE (atom_offset, atom_position, feature_counts, feature_displs, global_feature, &
@@ -307,10 +313,11 @@ CONTAINS
 !> \brief Insert all SKALA feature tensors into the Torch dictionary.
 !> \param features ...
 !> \param requires_grad ...
+!> \param requires_coordinate_grad ...
 ! **************************************************************************************************
-   SUBROUTINE add_feature_tensors(features, requires_grad)
+   SUBROUTINE add_feature_tensors(features, requires_grad, requires_coordinate_grad)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
-      LOGICAL, INTENT(IN)                                :: requires_grad
+      LOGICAL, INTENT(IN)                                :: requires_grad, requires_coordinate_grad
 
       CALL torch_tensor_from_array(features%density_t, features%density, requires_grad=requires_grad)
       CALL torch_tensor_to_device_leaf(features%density_t, requires_grad)
@@ -334,7 +341,7 @@ CONTAINS
       CALL torch_tensor_to_device_leaf(features%atomic_grid_sizes_t, .FALSE.)
       CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", features%atomic_grid_sizes_t)
       CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, features%coarse_0_atomic_coords)
-      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, .FALSE.)
+      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, requires_coordinate_grad)
       CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", features%coarse_0_atomic_coords_t)
       CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
                                    features%atomic_grid_size_bound_shape)

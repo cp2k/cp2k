@@ -156,9 +156,11 @@ CONTAINS
 !> \param compute_virial ...
 !> \param virial_xc ...
 !> \param just_energy ...
+!> \param atom_force ...
 ! **************************************************************************************************
    SUBROUTINE skala_gpw_eval(vxc_rho, vxc_tau, exc, rho_r, rho_g, tau, xc_section, &
-                             weights, pw_pool, particle_set, cell, compute_virial, virial_xc, just_energy)
+                             weights, pw_pool, particle_set, cell, compute_virial, virial_xc, &
+                             just_energy, atom_force)
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho, vxc_tau
       REAL(KIND=dp), INTENT(OUT)                         :: exc
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -172,16 +174,19 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
       LOGICAL, INTENT(IN), OPTIONAL                      :: just_energy
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: atom_force
 
       CHARACTER(len=default_path_length)                 :: model_path
       INTEGER                                            :: nspins, xc_deriv_method_id, &
                                                             xc_rho_smooth_id
       LOGICAL                                            :: lsd, my_just_energy, &
-                                                            native_grid_diagnostics
+                                                            native_grid_diagnostics, &
+                                                            needs_atom_force
       TYPE(section_vals_type), POINTER                   :: gauxc_section
       TYPE(skala_gpw_feature_type)                       :: features
-      TYPE(torch_tensor_type)                            :: density_grad_t, exc_tensor, grad_grad_t, &
-                                                            kin_grad_t
+      TYPE(torch_tensor_type)                            :: atom_coord_grad_t, density_grad_t, &
+                                                            exc_tensor, grad_grad_t, kin_grad_t
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho_set
 
@@ -189,6 +194,8 @@ CONTAINS
       exc = 0.0_dp
       my_just_energy = .FALSE.
       IF (PRESENT(just_energy)) my_just_energy = just_energy
+      needs_atom_force = PRESENT(atom_force)
+      IF (needs_atom_force) atom_force = 0.0_dp
 
       IF (compute_virial) THEN
          CALL cp_abort(__LOCATION__, &
@@ -232,7 +239,8 @@ CONTAINS
                              xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
 
       CALL skala_gpw_feature_build(features, rho_set, rho_r, particle_set, cell, &
-                                   requires_grad=(.NOT. my_just_energy), weights=weights)
+                                   requires_grad=(.NOT. my_just_energy), weights=weights, &
+                                   requires_coordinate_grad=needs_atom_force)
       gauxc_section => get_gauxc_section(xc_section)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_DIAGNOSTICS", l_val=native_grid_diagnostics)
       IF (native_grid_diagnostics) THEN
@@ -246,12 +254,17 @@ CONTAINS
          CALL torch_tensor_grad(features%density_t, density_grad_t)
          CALL torch_tensor_grad(features%grad_t, grad_grad_t)
          CALL torch_tensor_grad(features%kin_t, kin_grad_t)
+         IF (needs_atom_force) THEN
+            CALL add_explicit_coordinate_force(atom_force, features, atom_coord_grad_t, &
+                                               rho_r(1)%pw_grid%para%group%mepos == 0)
+         END IF
          CALL build_vxc_from_feature_grads(vxc_rho, vxc_tau, rho_r, pw_pool, features, &
                                            density_grad_t, grad_grad_t, kin_grad_t, &
                                            xc_deriv_method_id)
          CALL torch_tensor_release(density_grad_t)
          CALL torch_tensor_release(grad_grad_t)
          CALL torch_tensor_release(kin_grad_t)
+         IF (needs_atom_force) CALL torch_tensor_release(atom_coord_grad_t)
       END IF
 
       CALL torch_tensor_release(exc_tensor)
@@ -260,6 +273,32 @@ CONTAINS
       CALL torch_use_cuda(.TRUE.)
 
    END SUBROUTINE skala_gpw_eval
+
+! **************************************************************************************************
+!> \brief Add the explicit SKALA derivative with respect to atom-center coordinates.
+!> \param atom_force ...
+!> \param features ...
+!> \param atom_coord_grad_t ...
+!> \param root_rank ...
+! **************************************************************************************************
+   SUBROUTINE add_explicit_coordinate_force(atom_force, features, atom_coord_grad_t, root_rank)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: atom_force
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: atom_coord_grad_t
+      LOGICAL, INTENT(IN)                                :: root_rank
+
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: atom_coord_grad
+
+      NULLIFY (atom_coord_grad)
+      CALL torch_tensor_grad(features%coarse_0_atomic_coords_t, atom_coord_grad_t)
+      IF (root_rank) THEN
+         CALL torch_tensor_data_ptr(atom_coord_grad_t, atom_coord_grad)
+         CPASSERT(SIZE(atom_force, 1) == SIZE(atom_coord_grad, 1))
+         CPASSERT(SIZE(atom_force, 2) == SIZE(atom_coord_grad, 2))
+         atom_force(:, :) = atom_force(:, :) + atom_coord_grad(:, :)
+      END IF
+
+   END SUBROUTINE add_explicit_coordinate_force
 
 ! **************************************************************************************************
 !> \brief Fill CP2K VXC real-space arrays from Torch feature gradients.

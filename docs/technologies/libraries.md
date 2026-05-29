@@ -140,15 +140,16 @@ integrator.
   features into the same atom-partitioned feature block on every rank and evaluate the Torch model
   redundantly; this is a correctness path for distributed CP2K grids, not yet a scalable distributed
   SKALA integration algorithm.
-- For such a native SKALA path the first useful implementation target is energy and VXC on
-  Gamma-only `METHOD GPW` with GTH pseudopotentials, `FUNCTIONAL PBE`, one `GAUXC` functional, and a
-  single image. Forces need the explicit derivatives of the grid coordinates, grid weights, atom
-  partition, and coarse atomic coordinates. Periodic stress, k-points, ROKS, ADMM, and NLCC
-  pseudopotentials should remain separate validation steps. `METHOD GAPW` is not enabled in this
-  native grid path yet: a valid GAPW extension has to reconstruct not only an all-electron density
-  on the CP2K grid, but also the corresponding density gradients and kinetic-energy density entering
-  the SKALA features. GAPW pseudopotential augmentation corrections remain a separate methodological
-  problem.
+- For such a native SKALA path the first useful implementation target is energy, VXC, and nuclear
+  gradients on Gamma-only `METHOD GPW` with GTH pseudopotentials, `FUNCTIONAL PBE`, one `GAUXC`
+  functional, and a single image. The force path combines CP2K's regular GPW density-response
+  integration with the explicit Torch autograd derivative of the SKALA coarse atomic coordinates.
+  The current atom partition is a fixed nearest-atom partition between assignment changes; periodic
+  stress, k-points, ROKS, ADMM, and NLCC pseudopotentials should remain separate validation steps.
+  `METHOD GAPW` is not enabled in this native grid path yet: a valid GAPW extension has to
+  reconstruct not only an all-electron density on the CP2K grid, but also the corresponding density
+  gradients and kinetic-energy density entering the SKALA features. GAPW pseudopotential
+  augmentation corrections remain a separate methodological problem.
 - The first native-grid GAPW target should be all-electron GAPW only. The required design is to
   build a SKALA feature block from the reconstructed all-electron density, gradient, and
   kinetic-energy density on a well-defined grid and validate it against the molecular all-electron
