@@ -926,6 +926,7 @@ CONTAINS
          "Use an additive PAIR_POTENTIAL dispersion correction or disable GauXC."
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
+      CHARACTER(len=32)                                  :: gradient_mpi_runtime_env
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
       CHARACTER(len=default_string_length) :: grid_key, grid_type, int_exec_space, lb_exec_space, &
          pruning_key, pruning_scheme, radial_quadrature, skala_runtime, skala_runtime_key, &
@@ -935,8 +936,8 @@ CONTAINS
                                                             onedft_atom_chunk_size
       LOGICAL :: do_kpoints, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
          molecular_virial_debug, onedft_atom_chunk_size_explicit, periodic_reference, &
-         pruning_explicit, use_fd_gradient, use_gradient_self_runtime, use_onedft, &
-         use_self_runtime, use_skala_model, write_hdf5_output
+         pruning_explicit, use_fd_gradient, use_gradient_mpi_runtime, use_gradient_self_runtime, &
+         use_onedft, use_self_runtime, use_skala_model, write_hdf5_output
       REAL(KIND=dp)                                      :: device_runtime_fill_fraction, &
                                                             molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
@@ -1184,6 +1185,21 @@ CONTAINS
                "set GAUXC_ONEDFT_DISTRIBUTED_TORCH=0 to force rank-0 Torch inference.")
          END IF
       END IF
+      use_gradient_mpi_runtime = .FALSE.
+      CALL GET_ENVIRONMENT_VARIABLE("GAUXC_GRADIENT_MPI_RUNTIME", gradient_mpi_runtime_env, &
+                                    STATUS=env_status)
+      IF (env_status == 0) THEN
+         CALL uppercase(gradient_mpi_runtime_env)
+         SELECT CASE (TRIM(gradient_mpi_runtime_env))
+         CASE ("", "0", "FALSE", "F", "OFF", "AUTO")
+            use_gradient_mpi_runtime = .FALSE.
+         CASE ("1", "TRUE", "T", "ON", "MPI")
+            use_gradient_mpi_runtime = .TRUE.
+         CASE DEFAULT
+            CALL cp_abort(__LOCATION__, &
+                          "GAUXC_GRADIENT_MPI_RUNTIME must be 0/1, TRUE/FALSE, ON/OFF, or MPI.")
+         END SELECT
+      END IF
 
       gauxc_mol = gauxc_create_molecule( &
                   particle_set, &
@@ -1217,6 +1233,9 @@ CONTAINS
       END IF
       use_fd_gradient = dft_control%qs_control%gapw .AND. calculate_forces .AND. &
                         (use_skala_model .OR. gauxc_basis%max_l > 3)
+      IF (use_gradient_mpi_runtime) THEN
+         use_gradient_self_runtime = .FALSE.
+      END IF
       IF (use_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
             __LOCATION__, &

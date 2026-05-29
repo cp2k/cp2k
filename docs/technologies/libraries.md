@@ -117,6 +117,11 @@ integrator.
   CP2K. A positive value requests atom-by-atom chunks of that size, zero disables atom chunking, and
   the default leaves GauXC's model policy or `GAUXC_ONEDFT_ATOM_CHUNK_SIZE` environment setting in
   control.
+- `GAUXC_GRADIENT_MPI_RUNTIME=1` is an experimental runtime override for testing GauXC versions that
+  provide distributed OneDFT nuclear gradients. The default remains the conservative replicated
+  single-rank gradient runtime for MPI calculations.
+- `CP2K_GAUXC_STATUS_STDERR=1` mirrors GauXC status messages to standard error. This is useful when
+  launcher or CI logs hide the CP2K output file after an external-library failure.
 - `METHOD GAPW` with OneDFT/SKALA is limited to all-electron molecular inputs. In this mode GauXC
   evaluates the full XC term directly on its molecular quadrature from the all-electron AO density;
   CP2K's local/semi-local GAPW XC correction is not used for OneDFT/SKALA. Validation inputs should

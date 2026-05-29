@@ -13,6 +13,8 @@
 
 MODULE xc_gauxc_interface
 
+   USE iso_fortran_env, ONLY: &
+      error_unit
    USE iso_c_binding, ONLY: &
       c_associated, &
       c_bool, &
@@ -240,10 +242,22 @@ CONTAINS
 
 #ifdef __GAUXC
       CHARACTER(kind=c_char), POINTER                    :: s(:)
+      CHARACTER(len=32)                                  :: stderr_env
       INTEGER                                            :: i, iw
+      LOGICAL                                            :: print_to_stderr
       INTEGER, PARAMETER                                 :: status_message_length = 4096
 
       iw = cp_logger_get_default_io_unit()
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_GAUXC_STATUS_STDERR", stderr_env)
+      CALL uppercase(stderr_env)
+      SELECT CASE (TRIM(stderr_env))
+      CASE ("", "0", "FALSE", "F", "OFF", "NO")
+         print_to_stderr = .FALSE.
+      CASE ("1", "TRUE", "T", "ON", "YES")
+         print_to_stderr = .TRUE.
+      CASE DEFAULT
+         print_to_stderr = .TRUE.
+      END SELECT
       IF (iw > 0) THEN
          WRITE (iw, '(a,1x,i0)') "GauXC returned with status code", status%status%code
          IF (c_associated(status%status%message)) THEN
@@ -258,6 +272,22 @@ CONTAINS
             WRITE (iw, '(a)') "]"
          ELSE
             WRITE (iw, '(a)') "GauXC status message: [null]"
+         END IF
+      END IF
+      IF (print_to_stderr) THEN
+         WRITE (error_unit, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         IF (c_associated(status%status%message)) THEN
+            WRITE (error_unit, '(a)', ADVANCE='no') "GauXC status message: ["
+
+            CALL c_f_pointer(status%status%message, s, [status_message_length])
+            DO i = 1, SIZE(s)
+               IF (s(i) == c_null_char) EXIT
+               WRITE (error_unit, '(A)', advance='no') s(i)
+            END DO
+
+            WRITE (error_unit, '(a)') "]"
+         ELSE
+            WRITE (error_unit, '(a)') "GauXC status message: [null]"
          END IF
       END IF
 #else
