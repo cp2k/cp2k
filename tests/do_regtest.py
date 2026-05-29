@@ -670,7 +670,20 @@ def eval_regtest(
     # run the matchers
     results = []
     for spec in test.matcher_specs:
-        m = run_matcher(output, **spec)
+        spec = dict(spec)  # shallow copy so we can pop without mutating the original
+        alt_file = spec.pop("file", None)
+        if alt_file:
+            alt_path = test.out_path.parent / alt_file
+            if not alt_path.exists():
+                err = f"{error}Spec: {spec}\nExpected output file not found: {alt_path}"
+                results += [
+                    TestResult(batch, test, spec, duration, "WRONG RESULT", err)
+                ]
+                continue
+            match_output = alt_path.read_bytes().decode("utf8", errors="replace")
+        else:
+            match_output = output
+        m = run_matcher(match_output, **spec)
         if m.error:
             m.error = f"{error}Spec: {spec}\n{m.error}"
         results += [TestResult(batch, test, spec, duration, m.status, m.error, m.value)]
