@@ -676,7 +676,7 @@ def eval_regtest(
             alt_path = test.out_path.parent / alt_file
             if not alt_path.exists():
                 err = f"{error}Spec: {spec}\nExpected output file not found: {alt_path}"
-                results += [TestResult(batch, test, spec, duration, "MISSING FILE", err)]
+                results += [TestResult(batch, test, spec, duration, "WRONG RESULT", err)]
                 continue
             match_output = alt_path.read_bytes().decode("utf8", errors="replace")
         else:
