@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"pbe_dftd2_auto.inp"                   = [{matcher="M011", tol=1.0E-9, ref=-15.79967298548846}]
+"pbe_dftd2_overwrite.inp"              = [{matcher="M011", tol=1.0E-9, ref=-15.801419413997351}]
+"blyp_dftd2_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.72374156840363}]
+"bp86_dftd2_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.87090467653188}]
+"b3lyp_dftd2_auto.inp"                 = [{matcher="M011", tol=1.0E-9, ref=-15.76060968995188}]
+"pbe0_dftd2_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.80397499593197}]
+"tpss_dftd2_auto.inp"                  = [{matcher="M011", tol=1.0E-9, ref=-15.81786781808606}]

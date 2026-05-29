@@ -19,7 +19,9 @@ MODULE qs_dispersion_utils
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: &
         vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_no_shortcut, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_none, &
+        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -33,7 +35,8 @@ MODULE qs_dispersion_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE string_utilities,                ONLY: uppercase
+   USE string_utilities,                ONLY: lowercase,&
+                                              uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -43,11 +46,126 @@ MODULE qs_dispersion_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_utils'
 
    PUBLIC :: qs_dispersion_env_set, qs_write_dispersion
-   PUBLIC :: cellhash
+   PUBLIC :: cellhash, xc_functional_to_d_name, xc_functional_to_d4_name_int, xc_functional_detect_expanded
 
 ! **************************************************************************************************
 CONTAINS
+   ! **************************************************************************************************
+!> \brief ...
+!> \param xc_functional_name ...
+!> \param d_functional_name ...
 ! **************************************************************************************************
+   SUBROUTINE xc_functional_to_d_name(xc_functional_name, d_functional_name)
+      CHARACTER(len=*), INTENT(IN)                       :: xc_functional_name
+      CHARACTER(len=*), INTENT(OUT)                      :: d_functional_name
+
+      IF (TRIM(ADJUSTL(xc_functional_name)) == "BP") THEN
+         d_functional_name = "bp86"
+      ELSE
+         d_functional_name = TRIM(ADJUSTL(xc_functional_name))
+         CALL lowercase(d_functional_name)
+      END IF
+
+   END SUBROUTINE xc_functional_to_d_name
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_functional_id ...
+!> \param xc_functional_name ...
+! **************************************************************************************************
+   SUBROUTINE xc_functional_to_d4_name_int(xc_functional_id, xc_functional_name)
+      INTEGER, INTENT(IN)                                :: xc_functional_id
+      CHARACTER(len=*), INTENT(OUT)                      :: xc_functional_name
+
+      SELECT CASE (xc_functional_id)
+      CASE (xc_funct_pbe)
+         xc_functional_name = "PBE"
+      CASE (xc_funct_pbe0)
+         xc_functional_name = "PBE0"
+      CASE (xc_funct_b3lyp)
+         xc_functional_name = "B3LYP"
+      CASE (xc_funct_blyp)
+         xc_functional_name = "BLYP"
+      CASE (xc_funct_bp)
+         xc_functional_name = "BP"
+      CASE (xc_funct_tpss)
+         xc_functional_name = "TPSS"
+      CASE DEFAULT
+         xc_functional_name = "NONE"
+      END SELECT
+
+   END SUBROUTINE xc_functional_to_d4_name_int
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xc_fun_section ...
+!> \param xc_functional_name ...
+! **************************************************************************************************
+   SUBROUTINE xc_functional_detect_expanded(xc_fun_section, xc_functional_name)
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      CHARACTER(len=*), INTENT(OUT)                      :: xc_functional_name
+
+      CHARACTER(len=20), ALLOCATABLE                     :: sub_names(:)
+      INTEGER                                            :: i, n_explicit
+      LOGICAL :: has_becke88, has_lyp, has_mgga_c_r2scan, has_mgga_c_scan, has_mgga_x_r2scan, &
+         has_mgga_x_scan, has_optx, has_p86c, has_pbe0_13, has_vwn, has_xalpha
+      REAL(dp)                                           :: scal_x_pbe
+      TYPE(section_vals_type), POINTER                   :: sub_section
+
+      n_explicit = 0
+      has_becke88 = .FALSE.; has_lyp = .FALSE.; has_vwn = .FALSE.; has_p86c = .FALSE.
+      has_xalpha = .FALSE.; has_optx = .FALSE.; has_pbe0_13 = .FALSE.
+      has_mgga_c_r2scan = .FALSE.; has_mgga_x_r2scan = .FALSE.
+      has_mgga_c_scan = .FALSE.; has_mgga_x_scan = .FALSE.
+
+      ALLOCATE (sub_names(xc_fun_section%section%n_subsections))
+
+      DO i = 1, xc_fun_section%section%n_subsections
+         sub_section => xc_fun_section%subs_vals(i, 1)%section_vals
+         IF (SIZE(sub_section%values, 2) > 0) THEN
+            n_explicit = n_explicit + 1
+            sub_names(n_explicit) = TRIM(ADJUSTL(sub_section%section%name))
+            SELECT CASE (sub_names(n_explicit))
+            CASE ("BECKE88"); has_becke88 = .TRUE.
+            CASE ("LYP"); has_lyp = .TRUE.
+            CASE ("VWN"); has_vwn = .TRUE.
+            CASE ("P86C"); has_p86c = .TRUE.
+            CASE ("XALPHA"); has_xalpha = .TRUE.
+            CASE ("OPTX"); has_optx = .TRUE.
+            CASE ("MGGA_C_R2SCAN"); has_mgga_c_r2scan = .TRUE.
+            CASE ("MGGA_X_R2SCAN"); has_mgga_x_r2scan = .TRUE.
+            CASE ("MGGA_C_SCAN"); has_mgga_c_scan = .TRUE.
+            CASE ("MGGA_X_SCAN"); has_mgga_x_scan = .TRUE.
+            CASE ("PBE0_1/3"); has_pbe0_13 = .TRUE.
+            CASE ("PBE")
+               CALL section_vals_val_get(sub_section, "SCALE_X", r_val=scal_x_pbe)
+               IF (ABS(scal_x_pbe - 0.75_dp) < 0.01_dp) has_pbe0_13 = .TRUE.
+            END SELECT
+         END IF
+      END DO
+
+      IF (has_becke88 .AND. has_lyp .AND. has_vwn .AND. has_xalpha) THEN
+         xc_functional_name = "B3LYP"
+      ELSE IF (has_becke88 .AND. has_lyp) THEN
+         xc_functional_name = MERGE("PBE0", "BLYP", has_pbe0_13)
+      ELSE IF (has_becke88 .AND. has_p86c) THEN
+         xc_functional_name = "BP"
+      ELSE IF (has_optx .AND. has_lyp) THEN
+         xc_functional_name = "OLYP"
+      ELSE IF (has_mgga_c_r2scan .AND. has_mgga_x_r2scan) THEN
+         xc_functional_name = "R2SCAN"
+      ELSE IF (has_mgga_c_scan .AND. has_mgga_x_scan) THEN
+         xc_functional_name = "SCAN"
+      ELSE IF (n_explicit == 1 .AND. has_pbe0_13) THEN
+         xc_functional_name = "PBE0"
+      ELSE IF (n_explicit == 1) THEN
+         xc_functional_name = sub_names(1)
+      ELSE
+         xc_functional_name = "NONE"
+      END IF
+
+   END SUBROUTINE xc_functional_detect_expanded
+
 !> \brief ...
 !> \param dispersion_env ...
 !> \param xc_section ...
@@ -56,6 +174,8 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(section_vals_type), POINTER                   :: xc_section
 
+      CHARACTER(len=60)                                  :: xc_functional_name
+      INTEGER                                            :: xc_functional_id
       LOGICAL                                            :: exfun, explicit
       REAL(dp), POINTER                                  :: params(:), scal(:)
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, vdw_section, &
@@ -80,6 +200,12 @@ CONTAINS
       NULLIFY (vdw_section, xc_fun_section)
       vdw_section => section_vals_get_subs_vals(xc_section, "vdw_potential")
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=xc_functional_id)
+      IF (xc_functional_id == xc_funct_no_shortcut .OR. xc_functional_id == xc_none) THEN
+         CALL xc_functional_detect_expanded(xc_fun_section, xc_functional_name)
+      ELSE
+         CALL xc_functional_to_d4_name_int(xc_functional_id, xc_functional_name)
+      END IF
       CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type)
       IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
          NULLIFY (pp_section)
@@ -93,12 +219,20 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CALL cp_abort(__LOCATION__, "D2 vdW REFERENCE_FUNCTIONAL expected a second parameter "// &
-                                "(example REFERENCE_FUNCTIONAL PBE). "// &
-                                "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ "// &
-                                "for a full list of supported functionals")
+                  CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
+                  IF (dispersion_env%ref_functional == "none") THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "D2 vdW: XC_FUNCTIONAL not supported. "// &
+                                   "Set REFERENCE_FUNCTIONAL explicitly. "// &
+                                   "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ "// &
+                                   "for a full list of supported functionals")
+                  END IF
+               ELSE
+                  CALL section_vals_val_get(vdw_section, &
+                                            "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                            c_val=dispersion_env%ref_functional)
                END IF
-               CALL qs_scaling_dftd2(dispersion_env%scaling, vdw_section)
+               CALL qs_scaling_dftd2(dispersion_env%scaling, dispersion_env%ref_functional)
             ELSE
                CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling)
             END IF
@@ -127,10 +261,14 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CALL cp_abort(__LOCATION__, "D3 vdW REFERENCE_FUNCTIONAL expected a second parameter "// &
-                                "(example REFERENCE_FUNCTIONAL PBE). "// &
-                                "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
-                                "list of supported functionals")
+                  CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
+                  IF (dispersion_env%ref_functional == "none") THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "D3 vdW: XC_FUNCTIONAL not supported. "// &
+                                   "Set REFERENCE_FUNCTIONAL explicitly. "// &
+                                   "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                   "list of supported functionals")
+                  END IF
                ELSE
                   CALL section_vals_val_get(vdw_section, &
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
@@ -138,10 +276,10 @@ CONTAINS
                END IF
                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                   CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, &
-                                        dispersion_env%s8, vdw_section)
+                                        dispersion_env%s8, dispersion_env%ref_functional)
                ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
                   CALL qs_scaling_dftd3bj(dispersion_env%s6, dispersion_env%a1, dispersion_env%s8, &
-                                          dispersion_env%a2, vdw_section)
+                                          dispersion_env%a2, dispersion_env%ref_functional)
                END IF
             ELSE
                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
@@ -176,11 +314,14 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CPABORT("Missing REFERENCE_FUNCTIONAL or D4_SCALING for D4")
+                  CALL xc_functional_to_d_name(xc_functional_name, dispersion_env%ref_functional)
                ELSE
                   CALL section_vals_val_get(vdw_section, &
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
                                             c_val=dispersion_env%ref_functional)
+               END IF
+               IF (TRIM(ADJUSTL(dispersion_env%ref_functional)) == "none") THEN
+                  CPABORT("D4: XC_FUNCTIONAL not supported. Set REFERENCE_FUNCTIONAL explicitly.")
                END IF
             ELSE
                CALL section_vals_val_get(pp_section, "D4_SCALING", r_vals=scal)
@@ -190,9 +331,6 @@ CONTAINS
                dispersion_env%a2 = scal(4)
                dispersion_env%sr6 = 0.0_dp
                dispersion_env%ref_functional = "none"
-            END IF
-            IF (TRIM(ADJUSTL(dispersion_env%ref_functional)) == "none") THEN
-               CPABORT("Missing REFERENCE_FUNCTIONAL or D4_SCALING for D4")
             END IF
             CALL section_vals_val_get(pp_section, "EPS_CN", r_val=dispersion_env%eps_cn)
             CALL section_vals_val_get(pp_section, "D4_REFERENCE_CODE", &
@@ -372,16 +510,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param scaling ...
-!> \param vdw_section ...
+!> \param ref_functional ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd2(scaling, vdw_section)
+   SUBROUTINE qs_scaling_dftd2(scaling, ref_functional)
       REAL(KIND=dp), INTENT(inout)                       :: scaling
-      TYPE(section_vals_type), POINTER                   :: vdw_section
+      CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
 
       CHARACTER(LEN=default_string_length)               :: functional
 
-      CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
-
+      functional = ref_functional
+      CALL uppercase(functional)
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
          ! unknown functional
@@ -411,16 +549,16 @@ CONTAINS
 !> \param s6 ...
 !> \param sr6 ...
 !> \param s8 ...
-!> \param vdw_section ...
+!> \param ref_functional ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, vdw_section)
+   SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, ref_functional)
 
       REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
-      TYPE(section_vals_type), POINTER                   :: vdw_section
+      CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
 
       CHARACTER(LEN=default_string_length)               :: functional
 
-      CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
+      functional = ref_functional
       CALL uppercase(functional)
       ! values for different functionals from:
       ! https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3
@@ -428,7 +566,7 @@ CONTAINS
       SELECT CASE (TRIM(functional))
       CASE DEFAULT
          ! unknown functional
-         CPABORT("No DFT-D3 values available for this functional:"//TRIM(functional))
+         CPABORT("No DFT-D3 values available for this functional:"//TRIM(ref_functional))
       CASE ("B1B95")
          s6 = 1.000_dp
          sr6 = 1.613_dp
@@ -785,15 +923,16 @@ CONTAINS
 !> \param a1 ...
 !> \param s8 ...
 !> \param a2 ...
-!> \param vdw_section ...
+!> \param ref_functional ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scaling_dftd3bj(s6, a1, s8, a2, vdw_section)
+   SUBROUTINE qs_scaling_dftd3bj(s6, a1, s8, a2, ref_functional)
       REAL(KIND=dp), INTENT(inout)                       :: s6, a1, s8, a2
-      TYPE(section_vals_type), POINTER                   :: vdw_section
+      CHARACTER(LEN=default_string_length), INTENT(in)   :: ref_functional
 
       CHARACTER(LEN=default_string_length)               :: functional
 
-      CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
+      functional = ref_functional
+      CALL uppercase(functional)
 
       ! values for different functionals from:
       ! http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html
@@ -837,7 +976,7 @@ CONTAINS
          a1 = 0.4567_dp
          s8 = 4.0728_dp
          a2 = 4.3908_dp
-      CASE ("B97-3c")
+      CASE ("B97-3C")
          s6 = 1.0000_dp
          a1 = 0.3700_dp
          s8 = 1.5000_dp
