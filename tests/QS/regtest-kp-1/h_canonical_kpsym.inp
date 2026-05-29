@@ -49,6 +49,7 @@
       A 0.0 3.56683 0.0
       B 3.56683 0.0 0.0
       C 0.0 0.0 3.56683
+      CANONICALIZE T
     &END CELL
     &COORD
       SCALED

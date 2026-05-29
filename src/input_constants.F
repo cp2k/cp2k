@@ -86,6 +86,9 @@ MODULE input_constants
                                                do_cell_xsc = 3, &
                                                do_cell_extxyz = 4, &
                                                do_cell_pdb = 5
+   INTEGER, PARAMETER, PUBLIC               :: canonicalize_cell_auto = 0, &
+                                               canonicalize_cell_true = 1, &
+                                               canonicalize_cell_false = 2
 
    INTEGER, PARAMETER, PUBLIC               :: rmsd_all = 0, &
                                                rmsd_list = 1, &

@@ -33,8 +33,8 @@ MODULE cell_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        do_cell_cif, do_cell_cp2k, do_cell_extxyz, do_cell_pdb, do_cell_xsc, do_coord_cif, &
-        do_coord_cp2k, do_coord_pdb, do_coord_xyz
+        canonicalize_cell_auto, canonicalize_cell_true, do_cell_cif, do_cell_cp2k, do_cell_extxyz, &
+        do_cell_pdb, do_cell_xsc, do_coord_cif, do_coord_cp2k, do_coord_pdb, do_coord_xyz
    USE input_cp2k_subsys,               ONLY: create_cell_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -347,8 +347,8 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: cell_file_name, coord_file_name, &
                                                             error_msg
-      INTEGER                                            :: cell_file_format, coord_file_format, &
-                                                            my_per
+      INTEGER                                            :: canonicalize_mode, cell_file_format, &
+                                                            coord_file_format, my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       LOGICAL :: canonicalize_cell, cell_read_a, cell_read_abc, cell_read_alpha_beta_gamma, &
          cell_read_b, cell_read_c, cell_read_file, my_check_ref, tmp_comb_abc, tmp_comb_cell, &
@@ -408,7 +408,8 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "ABC", explicit=cell_read_abc)
       CALL section_vals_val_get(cell_section, "ALPHA_BETA_GAMMA", explicit=cell_read_alpha_beta_gamma)
       CALL section_vals_val_get(cell_section, "CELL_FILE_NAME", explicit=cell_read_file)
-      CALL section_vals_val_get(cell_section, "CANONICALIZE", l_val=canonicalize_cell)
+      CALL section_vals_val_get(cell_section, "CANONICALIZE", i_val=canonicalize_mode)
+      canonicalize_cell = (canonicalize_mode == canonicalize_cell_true)
 
       ! Case 4
       tmp_comb_top = (.NOT. (cell_read_file .OR. cell_read_abc))
@@ -520,12 +521,22 @@ CONTAINS
          IF (.NOT. canonicalize_cell .AND. &
              ((ABS(read_mat(2, 1)) > eps) .OR. &
               (ABS(read_mat(3, 1)) > eps) .OR. &
-              (ABS(read_mat(3, 2)) > eps))) &
-            CALL cp_warn(__LOCATION__, &
-                         "Cell vectors are read but cell matrix is not "// &
-                         "a lower triangle, not conforming to the program "// &
-                         "convention that A lies along the X-axis and "// &
-                         "B is in the XY plane.")
+              (ABS(read_mat(3, 2)) > eps))) THEN
+            IF (canonicalize_mode == canonicalize_cell_auto) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "CELL%CANONICALIZE AUTO keeps the general input cell orientation. "// &
+                            "The cell matrix is not a lower triangle and does not conform to the "// &
+                            "program convention that A lies along the X-axis and B is in the XY plane. "// &
+                            "Set CELL%CANONICALIZE TRUE to explicitly transform the cell and supported "// &
+                            "cell-dependent input to the canonical internal frame.")
+            ELSE
+               CALL cp_warn(__LOCATION__, &
+                            "Cell vectors are read but cell matrix is not "// &
+                            "a lower triangle, not conforming to the program "// &
+                            "convention that A lies along the X-axis and "// &
+                            "B is in the XY plane.")
+            END IF
+         END IF
          cell%hmat = read_mat
       ELSE
          IF (ANY(read_ang(:) > eps) .AND. ANY(read_len(:) > eps)) THEN
