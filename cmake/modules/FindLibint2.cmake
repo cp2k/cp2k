@@ -31,9 +31,19 @@ endif()
 find_file(
   CP2K_LIBINT2_MOD_FILE
   NAMES "libint_f.mod"
-  PATHS "${CP2K_LIBINT2_ROOT}/include" "${CP2K_LIBINT2_ROOT}/include/libint2")
+  PATHS "${CP2K_LIBINT2_ROOT}/include"
+        "${CP2K_LIBINT2_ROOT}/include/libint2"
+        "${CP2K_LIBINT2_ROOT}/lib/gfortran/modules"
+        "${CP2K_LIBINT2_ROOT}/lib64/gfortran/modules"
+        "/usr/lib/gfortran/modules"
+        "/usr/lib64/gfortran/modules")
 
-if(NOT CP2K_LIBINT2_MOD_FILE)
+if(CP2K_LIBINT2_MOD_FILE)
+  get_filename_component(CP2K_LIBINT2_MOD_DIR "${CP2K_LIBINT2_MOD_FILE}"
+                         DIRECTORY)
+  list(APPEND CP2K_LIBINT2_INCLUDE_DIRS "${CP2K_LIBINT2_MOD_DIR}")
+  list(REMOVE_DUPLICATES CP2K_LIBINT2_INCLUDE_DIRS)
+else()
   message(FATAL_ERROR "Libint2 : Fortran support is missing")
 endif()
 
