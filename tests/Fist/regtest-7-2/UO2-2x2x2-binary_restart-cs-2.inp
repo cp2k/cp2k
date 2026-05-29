@@ -140,6 +140,7 @@
   &SUBSYS
     &CELL
       ABC 10.8949 10.8949 10.8949
+      CANONICALIZE T
     &END CELL
     &COORD
       U      0.000000    0.000000    0.000000  UO2  1

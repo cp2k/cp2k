@@ -58,6 +58,7 @@
       A 8.0 -0.1 0.2
       B -0.2 8.0 0.1
       C 0.2 -0.2 8.0
+      CANONICALIZE T
     &END CELL
     &KIND H
       BASIS_SET DZVP-GTH
