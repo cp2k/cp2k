@@ -19,7 +19,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cuda/atomic>
 
 #include "grid_gpu_internal_header.h"
 #include "grid_gpu_prepare_pab.h"
@@ -66,7 +65,7 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
       }
 
       if (IS_FUNC_AB) {
-        cab[jco * task.ncoseta + ico] = pab_val;
+        cab[jco * task.ncoseta + ico] += pab_val;
       } else {
         const auto a = coset_inv[ico];
         const auto b = coset_inv[jco];
