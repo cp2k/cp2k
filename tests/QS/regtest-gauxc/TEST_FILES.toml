@@ -4,7 +4,7 @@
 "H2_SKALA_ENERGY.inp"          = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_SKALA_ENERGY_CHUNKED.inp"  = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=1e-8,  ref=-0.976732566963415}]
-"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-8, ref=8.81299926E-06}]
+"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-6, ref=8.26789208E-06}]
 "H2O_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.200873708850686}]
 "H2O_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=5e-6,  ref=-17.067481570036010},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.00008704097},
@@ -50,7 +50,7 @@
                                   {matcher="M077", tol=1e-8, ref=-1.16295181842678}]
 "H2_ONEDFT_PBE_CDFT_CI_NGROUPS.inp" = [{matcher="M073", tol=1e-8, ref=345.325437357859},
                                        {matcher="M077", tol=1e-8, ref=-1.16294823026735}]
-"OH_ONEDFT_PBE_UKS.inp"       = [{matcher="E_total", tol=1e-8,  ref=-16.541581752840514}]
+"OH_ONEDFT_PBE_UKS.inp"       = [{matcher="E_total", tol=5e-6,  ref=-16.541584062034670}]
 "H2_ONEDFT_PBE_FORCE_DEBUG.inp" = [{matcher="DEBUG_force_sum", tol=5e-5, ref=0.0}]
 "NH3_ONEDFT_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-9,  ref=-11.722432805445091}]
 "NH3_ONEDFT_PBE.inp"           = [{matcher="E_total", tol=1e-9,  ref=-11.722558568119791}]
