@@ -6,10 +6,10 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-ace_ver="2023.11.25.fix2"
+ace_ver="2025.12.4.p1"
 ace_dir="lammps-user-pace-v.${ace_ver}"
 ace_pkg="ace-${ace_ver}.tar.gz"
-ace_sha256="e0885351a8a730f5576dace2374fa470523a4526383c6a64af571e1344a40686"
+ace_sha256="21e9d7ad2094eef0f19958d154866fc725fc6ccfa82ec3681ef2b006545ced96"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -51,30 +51,14 @@ case "$with_ace" in
       fi
 
       rm -rf build
-      mkdir -p build
-
+      mkdir -p build && cd build
       # fix: without DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp the cp line below will crash in all those cases where yaml is system installed.
-      cmake -S . -B build \
-        -DCMAKE_CXX_STANDARD=17 \
+      cmake .. \
+        -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+        -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_DISABLE_FIND_PACKAGE_yaml-cpp=TRUE \
-        > build/cmake.log 2>&1 || tail_excerpt build/cmake.log
-
-      # build (uses the generator CMake picked: make/ninja)
-      cmake --build build -j ${NPROCS:-16} \
-        > build/make.log 2>&1 || tail_excerpt build/make.log
-
-      cd build
-      # no make install.
-      [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}
-      mkdir -p ${pkg_install_dir}/lib
-      cp -a libpace.a libcnpy.a build-yaml-cpp/libyaml-cpp-pace.a \
-        ${pkg_install_dir}/lib
-      cp -a ../yaml-cpp/include ${pkg_install_dir}
-      mkdir ${pkg_install_dir}/include/ace
-      cp -a ../ML-PACE/ace/*.h ${pkg_install_dir}/include/ace
-      mkdir ${pkg_install_dir}/include/ace-evaluator
-      cp -a ../ML-PACE/ace-evaluator/*.h ${pkg_install_dir}/include/ace-evaluator
-      #
+        > cmake.log 2>&1 || tail_excerpt cmake.log
+      make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
     ACE_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -82,14 +66,15 @@ case "$with_ace" in
     ACE_DFLAGS="-D__ACE ${ACE_CFLAGS}"
     ACE_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
-    #    not supported
-    #  __SYSTEM__)
-    #    echo "==================== Finding Ace from system paths ===================="
-    #    check_lib -lace "ACE"
-    #    add_lib_from_paths ACE_LDFLAGS "libpace*" $LIB_PATHS
-    #    add_include_from_paths ACE_CFLAGS "ace" $INCLUDE_PATHS
-    #    ACE_DFLAGS="-D__ACE"
-    #    ;;
+  __SYSTEM__)
+    echo "==================== Finding Ace from system paths ===================="
+    # check_lib -lace "ACE"
+    # add_lib_from_paths ACE_LDFLAGS "libpace*" $LIB_PATHS
+    # add_include_from_paths ACE_CFLAGS "ace" $INCLUDE_PATHS
+    # ACE_DFLAGS="-D__ACE"
+    report_error "The system detection of Ace is not supported; please use \"--with-ace=install\"."
+    exit 1
+    ;;
   __DONTUSE__) ;;
   *)
     echo "==================== Linking ACE to user paths ===================="
