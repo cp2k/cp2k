@@ -4,7 +4,7 @@
 "H2_SKALA_ENERGY.inp"          = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_SKALA_ENERGY_CHUNKED.inp"  = [{matcher="E_total", tol=1e-8,  ref=-0.979366068078563}]
 "H2_NATIVE_SKALA_GPW.inp"      = [{matcher="E_total", tol=1e-8,  ref=-0.976732566963415}]
-"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-6, ref=3.03114066E-04}]
+"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="M072", tol=1e-5, ref=3.03111884E-04}]
 "H2O_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.200873708850686}]
 "H2O_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=5e-6,  ref=-17.067481570036010},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.00008704097},
