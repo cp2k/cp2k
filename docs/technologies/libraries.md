@@ -164,8 +164,8 @@ integrator.
   CP2K-native SKALA feature block passed to Torch. This is intended for compact RKS/UKS,
   wrapped-cell atom-partition, and MPI/OpenMP validation runs.
 - `NATIVE_GRID_USE_CUDA T` evaluates the experimental CP2K-native SKALA Torch model on CUDA if the
-  linked libtorch provides CUDA support. This is an explicit opt-in because the portable SKALA model
-  export used by the regression tests builds some internal ragged-index tensors on CPU.
+  linked libtorch provides CUDA support. This is an explicit opt-in because CUDA-exported SKALA
+  models can create internal ragged-index tensors on CUDA.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and

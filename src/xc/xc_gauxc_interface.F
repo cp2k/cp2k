@@ -555,6 +555,7 @@ CONTAINS
          GAUXC_RETURN_IF_ERROR(status)
          res%owns_rt = .TRUE.
 #else
+         MARK_USED(device_runtime_fill_fraction)
          CPABORT("GauXC was built without device runtime support")
 #endif
       ELSE
