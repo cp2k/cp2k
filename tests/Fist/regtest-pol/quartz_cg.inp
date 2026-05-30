@@ -96,6 +96,7 @@
       A 4.914 8.510 0.0
       B 4.914 -8.510 0.0
       C 0.0 0.0 10.810
+      CANONICALIZE T
       PERIODIC XYZ
     &END CELL
     &COORD

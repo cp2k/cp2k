@@ -33,6 +33,7 @@
   &END MM
   &SUBSYS
     &CELL
+      CANONICALIZE T
       CELL_FILE_FORMAT CP2K
       CELL_FILE_NAME deca_ala4-1.cell
     &END CELL

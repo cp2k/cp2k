@@ -67,6 +67,7 @@
       A 2.7 0.0 2.7
       B 0.0 2.7 2.7
       C 2.7 2.7 0.0
+      CANONICALIZE T
       MULTIPLE_UNIT_CELL 2 2 2
       PERIODIC XYZ
     &END CELL

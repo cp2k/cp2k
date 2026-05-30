@@ -18,6 +18,8 @@
 "h_sym_red_restart.inp"                 = [{matcher="E_total", tol=1e-8, ref=-4.34916647312477}]
 "h_noncanonical_kpsym.inp"              = [{matcher="E_total", tol=1e-12, ref=-4.34916646889997},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"h_auto_noncanonical_kpsym.inp"         = [{matcher="E_total", tol=1e-12, ref=-4.34916646889997},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "h_canonical_kpsym.inp"                 = [{matcher="E_total", tol=1e-12, ref=-4.34916646889997},
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
 "h_canonical_cart_kpsym.inp"            = [{matcher="E_total", tol=1e-12, ref=-4.34916646889997},

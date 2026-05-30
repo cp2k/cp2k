@@ -135,6 +135,7 @@
   &SUBSYS
     &CELL
       ABC 10.936 10.936 10.936
+      CANONICALIZE T
     &END CELL
     &KIND U
       MASS 238.03000
