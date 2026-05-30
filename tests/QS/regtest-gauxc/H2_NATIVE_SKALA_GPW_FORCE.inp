@@ -12,8 +12,8 @@
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     UKS FALSE
     &MGRID
-      CUTOFF 150
-      REL_CUTOFF 30
+      CUTOFF 80
+      REL_CUTOFF 20
     &END MGRID
     &POISSON
       PERIODIC XYZ
@@ -48,12 +48,12 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 4.0 4.0 4.0
       PERIODIC XYZ
     &END CELL
     &COORD
-      H 3.0 3.0 2.6
-      H 3.0 3.0 3.4
+      H 2.0 2.0 1.6
+      H 2.0 2.0 2.4
     &END COORD
     &KIND H
       BASIS_SET DZVP-GTH
