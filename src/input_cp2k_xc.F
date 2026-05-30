@@ -1412,8 +1412,9 @@ CONTAINS
                           description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
                           "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
                           "to energy/VXC evaluations with FUNCTIONAL PBE and a single GAUXC functional. "// &
-                          "MPI runs collect a global atom-partitioned feature block on each rank before "// &
-                          "the Torch model is evaluated. Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
+                          "MPI runs collect a global atom-partitioned feature block by default; "// &
+                          "NATIVE_GRID_ATOM_CHUNKS can split the Torch evaluation by atom block. "// &
+                          "Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
                           "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
                           usage="NATIVE_GRID T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1425,6 +1426,36 @@ CONTAINS
                           "model on CUDA when libtorch CUDA support is available. This requires a "// &
                           "CUDA-compatible SKALA model export; the portable default uses CPU tensors.", &
                           usage="NATIVE_GRID_USE_CUDA T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_CUDA_DEVICE", &
+                          description="CUDA device used by the experimental CP2K-native SKALA GPW "// &
+                          "TorchScript path when NATIVE_GRID_USE_CUDA is enabled. A negative value "// &
+                          "maps the MPI-local rank to one of the CUDA devices visible to the process; "// &
+                          "a non-negative value selects that visible CUDA device explicitly.", &
+                          usage="NATIVE_GRID_CUDA_DEVICE -1", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNKS", &
+                          description="Split the experimental CP2K-native SKALA GPW TorchScript "// &
+                          "evaluation into contiguous atom blocks across MPI ranks. Each rank evaluates "// &
+                          "only its atom block and then gathers the feature gradients needed to fill the "// &
+                          "local CP2K real-space VXC arrays. This is intended for multi-GPU experiments.", &
+                          usage="NATIVE_GRID_ATOM_CHUNKS T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNK_ROUTING", &
+                          description="Use point-to-point owner routing for experimental CP2K-native "// &
+                          "SKALA GPW atom chunks. Dynamic feature rows are sent only to their atom-block "// &
+                          "owner rank and VXC gradients are routed back to the local grid owners. This "// &
+                          "implies NATIVE_GRID_ATOM_CHUNKS and is intended for routing experiments.", &
+                          usage="NATIVE_GRID_ATOM_CHUNK_ROUTING T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

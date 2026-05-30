@@ -51,6 +51,18 @@ MODULE torch_api
       #:endfor
    END INTERFACE torch_tensor_from_array
 
+   INTERFACE torch_tensor_reset_from_array
+      #:for ndims  in range(1, max_dim+1)
+         MODULE PROCEDURE torch_tensor_reset_from_array_double_${ndims}$d
+      #:endfor
+   END INTERFACE torch_tensor_reset_from_array
+
+   INTERFACE torch_tensor_grad_select_to_array
+      #:for ndims  in range(1, max_dim+1)
+         MODULE PROCEDURE torch_tensor_grad_select_to_array_double_${ndims}$d
+      #:endfor
+   END INTERFACE torch_tensor_grad_select_to_array
+
    INTERFACE torch_tensor_data_ptr
       #:for ndims  in range(1, max_dim+1)
          MODULE PROCEDURE torch_tensor_data_ptr_int32_${ndims}$d
@@ -69,14 +81,19 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
+   PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
-   PUBLIC :: torch_tensor_grad, torch_tensor_to_device_leaf
+   PUBLIC :: torch_tensor_grad, torch_tensor_grad_select_to_array, torch_tensor_to_device_leaf
    PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
-   PUBLIC :: torch_dict_type, torch_dict_create, torch_dict_insert, torch_dict_get, torch_dict_release
-   PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
+   PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
+   PUBLIC :: torch_dict_get, torch_dict_release
+   PUBLIC :: torch_model_type, torch_model_load, torch_model_load_metadata2, &
+             torch_model_forward, torch_model_release
    PUBLIC :: torch_model_forward_mol_tensor
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
-   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze, torch_use_cuda
+   PUBLIC :: torch_cuda_device_count, torch_cuda_is_available, torch_cuda_select_device
+   PUBLIC :: torch_cuda_visible_device
+   PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
 
 CONTAINS
 
@@ -186,6 +203,104 @@ CONTAINS
          END SUBROUTINE torch_tensor_data_ptr_${typename}$_${ndims}$d
 
       #:endfor
+   #:endfor
+
+   #:for ndims in range(1, max_dim+1)
+
+! **************************************************************************************************
+!> \brief Reuses or creates a device leaf tensor and copies data into it.
+!>        The source must be an ALLOCATABLE to prevent passing a temporary array.
+! **************************************************************************************************
+      SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d(tensor, source, requires_grad)
+         TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
+         #:set arraydims = ", ".join(":" for i in range(ndims))
+         REAL(dp), DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(IN)  :: source
+         LOGICAL, OPTIONAL, INTENT(IN)                      :: requires_grad
+
+#if defined(__LIBTORCH)
+         INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
+         LOGICAL                                            :: my_req_grad
+
+         INTERFACE
+            SUBROUTINE torch_c_tensor_reset_from_array_double(tensor, req_grad, ndims, sizes, source) &
+               BIND(C, name="torch_c_tensor_reset_from_array_double")
+               IMPORT :: C_PTR, C_INT, C_INT64_T, C_DOUBLE, C_BOOL
+               TYPE(C_PTR)                                  :: tensor
+               LOGICAL(kind=C_BOOL), VALUE                  :: req_grad
+               INTEGER(kind=C_INT), VALUE                   :: ndims
+               INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes
+               REAL(kind=C_DOUBLE), DIMENSION(*)            :: source
+            END SUBROUTINE torch_c_tensor_reset_from_array_double
+         END INTERFACE
+
+         my_req_grad = .FALSE.
+         IF (PRESENT(requires_grad)) my_req_grad = requires_grad
+
+         #:for axis in range(ndims)
+            sizes_c(${axis + 1}$) = SIZE(source, ${ndims - axis}$) ! C arrays are stored row-major.
+         #:endfor
+
+         CALL torch_c_tensor_reset_from_array_double(tensor=tensor%c_ptr, &
+                                                     req_grad=LOGICAL(my_req_grad, C_BOOL), &
+                                                     ndims=${ndims}$, &
+                                                     sizes=sizes_c, &
+                                                     source=source)
+         CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+#else
+         CPABORT("CP2K compiled without the Torch library.")
+         MARK_USED(tensor)
+         MARK_USED(source)
+         MARK_USED(requires_grad)
+#endif
+      END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
+
+   #:endfor
+
+   #:for ndims in range(1, max_dim+1)
+
+! **************************************************************************************************
+!> \brief Copies selected rows from a device tensor's gradient to a host array.
+! **************************************************************************************************
+      SUBROUTINE torch_tensor_grad_select_to_array_double_${ndims}$d(tensor, indices, target)
+         TYPE(torch_tensor_type), INTENT(IN)                :: tensor, indices
+         #:set arraydims = ", ".join(":" for i in range(ndims))
+         REAL(dp), DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(INOUT) :: target
+
+#if defined(__LIBTORCH)
+         INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
+
+         INTERFACE
+            SUBROUTINE torch_c_tensor_grad_select_to_array_double(tensor, indices, ndims, sizes, target) &
+               BIND(C, name="torch_c_tensor_grad_select_to_array_double")
+               IMPORT :: C_PTR, C_INT, C_INT64_T, C_DOUBLE
+               TYPE(C_PTR), VALUE                           :: tensor
+               TYPE(C_PTR), VALUE                           :: indices
+               INTEGER(kind=C_INT), VALUE                   :: ndims
+               INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes
+               REAL(kind=C_DOUBLE), DIMENSION(*)            :: target
+            END SUBROUTINE torch_c_tensor_grad_select_to_array_double
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+         CPASSERT(C_ASSOCIATED(indices%c_ptr))
+         CPASSERT(ALLOCATED(target))
+         #:for axis in range(ndims)
+            sizes_c(${axis + 1}$) = SIZE(target, ${ndims - axis}$) ! C arrays are stored row-major.
+         #:endfor
+
+         CALL torch_c_tensor_grad_select_to_array_double(tensor=tensor%c_ptr, &
+                                                         indices=indices%c_ptr, &
+                                                         ndims=${ndims}$, &
+                                                         sizes=sizes_c, &
+                                                         target=target)
+#else
+         CPABORT("CP2K compiled without the Torch library.")
+         MARK_USED(tensor)
+         MARK_USED(indices)
+         MARK_USED(target)
+#endif
+      END SUBROUTINE torch_tensor_grad_select_to_array_double_${ndims}$d
+
    #:endfor
 
 ! **************************************************************************************************
@@ -427,6 +542,33 @@ CONTAINS
    END SUBROUTINE torch_dict_create
 
 ! **************************************************************************************************
+!> \brief Clones a Torch dictionary.
+! **************************************************************************************************
+   SUBROUTINE torch_dict_clone(source, target)
+      TYPE(torch_dict_type), INTENT(IN)                  :: source
+      TYPE(torch_dict_type), INTENT(INOUT)               :: target
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_dict_clone(source, target) BIND(C, name="torch_c_dict_clone")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                        :: source
+            TYPE(C_PTR)                               :: target
+         END SUBROUTINE torch_c_dict_clone
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(source%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(target%c_ptr))
+      CALL torch_c_dict_clone(source=source%c_ptr, target=target%c_ptr)
+      CPASSERT(C_ASSOCIATED(target%c_ptr))
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(source)
+      MARK_USED(target)
+#endif
+   END SUBROUTINE torch_dict_clone
+
+! **************************************************************************************************
 !> \brief Inserts a Torch tensor into a Torch dictionary.
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -549,6 +691,60 @@ CONTAINS
    END SUBROUTINE torch_model_load
 
 ! **************************************************************************************************
+!> \brief Loads a Torch model and two "*.pth" metadata entries in one pass.
+! **************************************************************************************************
+   SUBROUTINE torch_model_load_metadata2(model, filename, key1, key2, metadata1, metadata2)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+      CHARACTER(len=*), INTENT(IN)                       :: filename, key1, key2
+      CHARACTER(:), ALLOCATABLE, INTENT(OUT)             :: metadata1, metadata2
+
+#if defined(__LIBTORCH)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_load_metadata2'
+      INTEGER                                            :: handle
+
+      INTEGER                                            :: length1, length2
+      TYPE(C_PTR)                                        :: content1_c, content2_c
+
+      INTERFACE
+         SUBROUTINE torch_c_model_load_metadata2(model, filename, key1, key2, content1, &
+                                                 length1, content2, length2) &
+            BIND(C, name="torch_c_model_load_metadata2")
+            IMPORT :: C_CHAR, C_INT, C_PTR
+            TYPE(C_PTR)                               :: model
+            CHARACTER(kind=C_CHAR), DIMENSION(*)      :: filename, key1, key2
+            TYPE(C_PTR)                               :: content1, content2
+            INTEGER(kind=C_INT)                       :: length1, length2
+         END SUBROUTINE torch_c_model_load_metadata2
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+      CPASSERT(.NOT. C_ASSOCIATED(model%c_ptr))
+      content1_c = C_NULL_PTR
+      content2_c = C_NULL_PTR
+      length1 = -1
+      length2 = -1
+      CALL torch_c_model_load_metadata2(model=model%c_ptr, &
+                                        filename=TRIM(filename)//C_NULL_CHAR, &
+                                        key1=TRIM(key1)//C_NULL_CHAR, &
+                                        key2=TRIM(key2)//C_NULL_CHAR, &
+                                        content1=content1_c, length1=length1, &
+                                        content2=content2_c, length2=length2)
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL c_string_to_allocatable(content1_c, length1, metadata1)
+      CALL c_string_to_allocatable(content2_c, length2, metadata2)
+      CALL timestop(handle)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+      MARK_USED(filename)
+      MARK_USED(key1)
+      MARK_USED(key2)
+      metadata1 = ""
+      metadata2 = ""
+#endif
+   END SUBROUTINE torch_model_load_metadata2
+
+! **************************************************************************************************
 !> \brief Evaluates the given Torch model.
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -663,9 +859,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_read_metadata'
       INTEGER                                            :: handle
 
-      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
-         POINTER                                         :: content_f
-      INTEGER                                            :: i
       INTEGER                                            :: length
       TYPE(C_PTR)                                        :: content_c
 
@@ -686,6 +879,28 @@ CONTAINS
                                        key=TRIM(key)//C_NULL_CHAR, &
                                        content=content_c, &
                                        length=length)
+      CALL c_string_to_allocatable(content_c, length, res)
+      CALL timestop(handle)
+#else
+      res = ""
+      MARK_USED(filename)
+      MARK_USED(key)
+      CPABORT("CP2K was compiled without Torch library.")
+#endif
+   END FUNCTION torch_model_read_metadata
+
+! **************************************************************************************************
+!> \brief Move a C-allocated null-terminated string into an allocatable Fortran string.
+! **************************************************************************************************
+   SUBROUTINE c_string_to_allocatable(content_c, length, res)
+      TYPE(C_PTR), INTENT(INOUT)                         :: content_c
+      INTEGER, INTENT(IN)                                :: length
+      CHARACTER(:), ALLOCATABLE, INTENT(OUT)             :: res
+
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
+         POINTER                                         :: content_f
+      INTEGER                                            :: i
+
       CPASSERT(C_ASSOCIATED(content_c))
       CPASSERT(length >= 0)
 
@@ -699,14 +914,9 @@ CONTAINS
       END DO
 
       DEALLOCATE (content_f) ! Was allocated on the C side.
-      CALL timestop(handle)
-#else
-      res = ""
-      MARK_USED(filename)
-      MARK_USED(key)
-      CPABORT("CP2K was compiled without Torch library.")
-#endif
-   END FUNCTION torch_model_read_metadata
+      content_c = C_NULL_PTR
+
+   END SUBROUTINE c_string_to_allocatable
 
 ! **************************************************************************************************
 !> \brief Returns true iff the Torch CUDA backend is available.
@@ -729,6 +939,75 @@ CONTAINS
       res = .FALSE.
 #endif
    END FUNCTION torch_cuda_is_available
+
+! **************************************************************************************************
+!> \brief Returns the number of CUDA devices visible to Torch.
+! **************************************************************************************************
+   FUNCTION torch_cuda_device_count() RESULT(count)
+      INTEGER                                            :: count
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_cuda_device_count() RESULT(count) BIND(C, name="torch_c_cuda_device_count")
+            IMPORT :: C_INT
+            INTEGER(C_INT)                            :: count
+         END FUNCTION torch_c_cuda_device_count
+      END INTERFACE
+
+      count = INT(torch_c_cuda_device_count())
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      count = 0
+#endif
+   END FUNCTION torch_cuda_device_count
+
+! **************************************************************************************************
+!> \brief Select the CUDA device used by subsequent Torch wrapper calls.
+!> \param requested_device negative maps the MPI-local rank to a visible device
+! **************************************************************************************************
+   FUNCTION torch_cuda_select_device(requested_device) RESULT(device)
+      INTEGER, INTENT(IN)                                :: requested_device
+      INTEGER                                            :: device
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_cuda_select_device(requested_device) RESULT(device) &
+            BIND(C, name="torch_c_cuda_select_device")
+            IMPORT :: C_INT
+            INTEGER(C_INT), VALUE                     :: requested_device
+            INTEGER(C_INT)                            :: device
+         END FUNCTION torch_c_cuda_select_device
+      END INTERFACE
+
+      device = INT(torch_c_cuda_select_device(INT(requested_device, KIND=C_INT)))
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(requested_device)
+      device = -1
+#endif
+   END FUNCTION torch_cuda_select_device
+
+! **************************************************************************************************
+!> \brief Return the physical CUDA device made visible to Torch, if known.
+! **************************************************************************************************
+   FUNCTION torch_cuda_visible_device() RESULT(device)
+      INTEGER                                            :: device
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_cuda_visible_device() RESULT(device) &
+            BIND(C, name="torch_c_cuda_visible_device")
+            IMPORT :: C_INT
+            INTEGER(C_INT)                            :: device
+         END FUNCTION torch_c_cuda_visible_device
+      END INTERFACE
+
+      device = INT(torch_c_cuda_visible_device())
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      device = -1
+#endif
+   END FUNCTION torch_cuda_visible_device
 
 ! **************************************************************************************************
 !> \brief Set whether to allow the use of TF32.

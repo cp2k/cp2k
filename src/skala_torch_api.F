@@ -13,10 +13,9 @@ MODULE skala_torch_api
                                               dp
    USE string_utilities,                ONLY: uppercase
    USE torch_api,                       ONLY: &
-        torch_dict_type, torch_model_forward_mol_tensor, torch_model_load, &
-        torch_model_read_metadata, torch_model_release, torch_model_type, &
-        torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
-        torch_tensor_weighted_sum
+        torch_dict_type, torch_model_forward_mol_tensor, torch_model_load_metadata2, &
+        torch_model_release, torch_model_type, torch_tensor_item_double, torch_tensor_release, &
+        torch_tensor_type, torch_tensor_weighted_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -51,17 +50,15 @@ CONTAINS
       CHARACTER(:), ALLOCATABLE                          :: features_json, protocol_string
       INTEGER                                            :: ios
 
-      protocol_string = torch_model_read_metadata(filename, "protocol_version")
+      CALL torch_model_load_metadata2(model%torch_model, filename, "protocol_version", &
+                                      "features", protocol_string, features_json)
       READ (protocol_string, *, IOSTAT=ios) model%protocol_version
       IF (ios /= 0) CPABORT("Could not parse SKALA TorchScript protocol_version metadata")
       IF (model%protocol_version /= 2) THEN
          CPABORT("Unsupported SKALA TorchScript protocol version")
       END IF
 
-      features_json = torch_model_read_metadata(filename, "features")
       CALL parse_feature_list(features_json, model%features)
-
-      CALL torch_model_load(model%torch_model, filename)
 
    END SUBROUTINE skala_torch_model_load
 
