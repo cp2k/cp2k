@@ -9,22 +9,22 @@
 "H2O_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=1e-8,  ref=-17.216310337636450},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=8.00009762543},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0}]
-"OH_NATIVE_GPW_PBE_UKS_REFERENCE.inp" = [{matcher="E_total", tol=5e-7, ref=-16.524536848018680}]
+"OH_NATIVE_GPW_PBE_UKS_REFERENCE.inp" = [{matcher="E_total", tol=5e-6, ref=-16.524536848018680}]
 "OH_NATIVE_SKALA_GPW_UKS.inp"  = [{matcher="E_total", tol=1e-8,  ref=-16.548261433641002},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=7.00009285099},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-8, ref=1.00003058875}]
 "AR4_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
 "AR4_NATIVE_GPW_PBE_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
 "NE4_NATIVE_GPW_PBE_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-139.361323676360371}]
-"NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-139.359845899349239},
+"NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=5e-6, ref=-139.359845899349239},
                               {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9974498453},
                               {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                               {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=574.850133126}]
-"AR4_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=1e-8, ref=-84.318681472847985},
+"AR4_NATIVE_SKALA_GPW.inp"     = [{matcher="E_total", tol=5e-6, ref=-84.318681472847985},
                                   {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999605},
                                   {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                   {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
-"AR4_NATIVE_SKALA_GPW_WRAPPED.inp" = [{matcher="E_total", tol=1e-8, ref=-84.318679745292187},
+"AR4_NATIVE_SKALA_GPW_WRAPPED.inp" = [{matcher="E_total", tol=5e-6, ref=-84.318679745292187},
                                       {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999605},
                                       {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                       {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]

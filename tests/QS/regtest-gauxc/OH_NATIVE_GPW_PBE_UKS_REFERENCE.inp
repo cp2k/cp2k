@@ -29,6 +29,9 @@
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.4
+      &END MIXING
     &END SCF
     &XC
       &XC_FUNCTIONAL
