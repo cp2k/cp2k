@@ -392,7 +392,8 @@ CONTAINS
          INTENT(OUT)                                     :: grad_grad
 
       INTEGER                                            :: base, isubchunk, local_row, nflat_local, &
-                                                            nsubchunks, phase_handle, point_pos
+                                                            nsubchunks, phase_handle, point_pos, &
+                                                            subphase_handle
       REAL(KIND=dp)                                      :: subchunk_exc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_grad_buffer, send_grad_buffer
       TYPE(skala_gpw_feature_type)                       :: subchunk
@@ -415,18 +416,28 @@ CONTAINS
 
       CALL timeset("skala_gpw_atom_subchunks", phase_handle)
       DO isubchunk = 1, nsubchunks
+         CALL timeset("skala_gpw_atom_subchunk_build", subphase_handle)
          CALL skala_gpw_feature_build_atom_subchunk(features, subchunk, isubchunk, &
                                                     max_rows, compute_grads)
+         CALL timestop(subphase_handle)
+         CALL timeset("skala_gpw_atom_subchunk_forward", subphase_handle)
          CALL skala_torch_model_get_exc(cached_model, subchunk%inputs, &
                                         subchunk%grid_weights_t, subchunk_exc_tensor, &
                                         subchunk_exc)
+         CALL timestop(subphase_handle)
          exc = exc + subchunk_exc
          IF (compute_grads) THEN
+            CALL timeset("skala_gpw_atom_subchunk_backward", subphase_handle)
             CALL torch_tensor_backward_scalar(subchunk_exc_tensor)
+            CALL timestop(subphase_handle)
+            CALL timeset("skala_gpw_atom_subchunk_grad_pack", subphase_handle)
             CALL pack_atom_chunk_grads(subchunk, send_grad_buffer, .TRUE.)
+            CALL timestop(subphase_handle)
          END IF
+         CALL timeset("skala_gpw_atom_subchunk_release", subphase_handle)
          CALL torch_tensor_release(subchunk_exc_tensor)
          CALL skala_gpw_feature_release(subchunk)
+         CALL timestop(subphase_handle)
       END DO
       CALL timestop(phase_handle)
 
