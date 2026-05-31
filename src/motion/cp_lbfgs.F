@@ -21,7 +21,8 @@ MODULE cp_lbfgs
                                               cite_reference
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: default_output_unit,&
+                                              m_walltime
    USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
    USE space_groups_types,              ONLY: spgr_type
@@ -37,7 +38,7 @@ MODULE cp_lbfgs
 
 CONTAINS
 
-!===========   L-BFGS-B (version 3.0.  April 25, 2011  =================
+!===========   L-BFGS-B (version 3.0,  April 25, 2011)  ================
 !
 !     This is a modified version of L-BFGS-B.
 !
@@ -171,6 +172,8 @@ CONTAINS
 !>                 dsave(16) = the square of the 2-norm of the line search direction vector.
 !> \param trust_radius ...
 !> \param spgr ...
+!> \param iwunit   User-specified write unit, if not set then WRITE statements
+!>                 write to default_output_unit by default
 !> \par History
 !>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author         NEOS, November 1994. (Latest revision June 1996.)
@@ -181,7 +184,7 @@ CONTAINS
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa, &
-                     task, iprint, csave, lsave, isave, dsave, trust_radius, spgr)
+                     task, iprint, csave, lsave, isave, dsave, trust_radius, spgr, iwunit)
 
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
@@ -199,9 +202,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: dsave(29)
       REAL(KIND=dp), INTENT(in)                          :: trust_radius
       TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
+      INTEGER, OPTIONAL                                  :: iwunit
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
-                                                            lws, lwt, lwy, lxp, lz
+                                                            lws, lwt, lwy, lxp, lz, wunit
 
 !     References:
 !
@@ -218,6 +222,9 @@ CONTAINS
 !        ftp to eecs.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
 !
 !                           *  *  *
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       IF (task == 'START') THEN
          CALL cite_reference(Byrd1995)
@@ -277,13 +284,13 @@ CONTAINS
          END DO
       END IF
 
-      ! passes spgr to mainlb
+      ! passes spgr and wunit to mainlb
       CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
                   wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
                   wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
                   wa(lwa), &
                   iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
-                  csave, lsave, isave(22), dsave, spgr=spgr)
+                  csave, lsave, isave(22), dsave, spgr, wunit)
 
       RETURN
 
@@ -378,6 +385,8 @@ CONTAINS
 !> \param isave  isave is an integer working array
 !> \param dsave  is a double precision working array
 !> \param spgr ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \par History
 !>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
@@ -390,7 +399,7 @@ CONTAINS
    SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                      sy, ss, wt, wn, snd, z, r, d, t, xp, wa, &
                      index, iwhere, indx2, task, &
-                     iprint, csave, lsave, isave, dsave, spgr)
+                     iprint, csave, lsave, isave, dsave, spgr, iwunit)
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
@@ -405,6 +414,7 @@ CONTAINS
       INTEGER                                            :: isave(23)
       REAL(KIND=dp)                                      :: dsave(29)
       TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
+      INTEGER, OPTIONAL                                  :: iwunit
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -412,7 +422,7 @@ CONTAINS
       INTEGER                                            :: col, head, i, iback, ifun, ileave, info, &
                                                             itail, iter, itfile, iupdat, iword, k, &
                                                             nact, nenter, nfgv, nfree, nintol, &
-                                                            nseg, nskip
+                                                            nseg, nskip, wunit
       LOGICAL                                            :: boxed, constrained, first, &
                                                             keep_space_group, updatd, wrk, &
                                                             x_projected
@@ -438,6 +448,9 @@ CONTAINS
 !        ftp to eecs.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
 !
 !                           *  *  *
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       keep_space_group = .FALSE.
       IF (PRESENT(spgr)) THEN
@@ -509,15 +522,15 @@ CONTAINS
             CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                         iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                         zero, nseg, word, iback, stp, xstep, k, &
-                        cachyt, sbtime, lnscht)
+                        cachyt, sbtime, lnscht, wunit)
             RETURN
          END IF
 
-         CALL prn1lb(n, m, lower_bound, upper_bound, x, iprint, itfile, epsmch)
+         CALL prn1lb(n, m, lower_bound, upper_bound, x, iprint, itfile, epsmch, wunit)
 
 !        Initialize iwhere & project x onto the feasible set.
 
-         CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed)
+         CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed, wunit)
          ! applies rotation matrices to coordinates
          IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
@@ -595,7 +608,7 @@ CONTAINS
             CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                         iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                         time, nseg, word, iback, stp, xstep, k, &
-                        cachyt, sbtime, lnscht)
+                        cachyt, sbtime, lnscht, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
@@ -613,7 +626,7 @@ CONTAINS
          CALL projgr(n, lower_bound, upper_bound, nbd, x, g, g_inf_norm)
 
          IF (iprint >= 1) THEN
-            WRITE (*, 1002) iter, f, g_inf_norm
+            WRITE (wunit, 1002) iter, f, g_inf_norm
             WRITE (itfile, 1003) iter, nfgv, g_inf_norm, f
          END IF
          IF (g_inf_norm <= pgtol) THEN
@@ -624,7 +637,7 @@ CONTAINS
             CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                         iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                         time, nseg, word, iback, stp, xstep, k, &
-                        cachyt, sbtime, lnscht)
+                        cachyt, sbtime, lnscht, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
@@ -635,7 +648,7 @@ CONTAINS
       first = .TRUE.
       DO WHILE (.TRUE.)
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'FG_LN' .OR. task(1:5) == 'NEW_X')) THEN
-         IF (iprint >= 99) WRITE (*, 1001) iter + 1
+         IF (iprint >= 99) WRITE (wunit, 1001) iter + 1
          iword = -1
 !
          IF (.NOT. constrained .AND. col > 0) THEN
@@ -655,14 +668,14 @@ CONTAINS
             CALL cauchy(n, x, lower_bound, upper_bound, nbd, g, indx2, iwhere, t, d, z, &
                         m, wy, ws, sy, wt, theta, col, head, &
                         wa(1), wa(2*m + 1), wa(4*m + 1), wa(6*m + 1), nseg, &
-                        iprint, g_inf_norm, info, epsmch)
+                        iprint, g_inf_norm, info, epsmch, wunit)
             ! applies rotation matrices to coordinates
             IF (keep_space_group) THEN
                CALL spgr_apply_rotations_coord(spgr, z)
             END IF
             IF (info /= 0) THEN
 !            singular triangular system detected; refresh the lbfgs memory.
-               IF (iprint >= 1) WRITE (*, 1005)
+               IF (iprint >= 1) WRITE (wunit, 1005)
                info = 0
                col = 0
                head = 1
@@ -682,7 +695,7 @@ CONTAINS
 !        find the index set of free and active variables at the GCP.
 
             CALL freev(n, nfree, index, nenter, ileave, indx2, &
-                       iwhere, wrk, updatd, constrained, iprint, iter)
+                       iwhere, wrk, updatd, constrained, iprint, iter, wunit)
             nact = n - nfree
 
          END IF
@@ -711,7 +724,7 @@ CONTAINS
             IF (info /= 0) THEN
 !          nonpositive definiteness in Cholesky factorization;
 !          refresh the lbfgs memory and restart the iteration.
-               IF (iprint >= 1) WRITE (*, 1006)
+               IF (iprint >= 1) WRITE (wunit, 1006)
                info = 0
                col = 0
                head = 1
@@ -737,7 +750,7 @@ CONTAINS
 !     call the direct method.
 
                CALL subsm(n, m, nfree, index, lower_bound, upper_bound, nbd, z, r, xp, ws, wy, &
-                          theta, x, g, col, head, iword, wa, wn, iprint, info)
+                          theta, x, g, col, head, iword, wa, wn, iprint, info, wunit)
                ! applies rotation matrices to coordinates
                IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, z)
@@ -747,7 +760,7 @@ CONTAINS
             IF (info /= 0) THEN
 !          singular triangular system detected;
 !          refresh the lbfgs memory and restart the iteration.
-               IF (iprint >= 1) WRITE (*, 1005)
+               IF (iprint >= 1) WRITE (wunit, 1005)
                info = 0
                col = 0
                head = 1
@@ -792,7 +805,7 @@ CONTAINS
          END IF
          CALL lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t, z, stp, dnorm, &
                      dtd, xstep, step_max, iter, ifun, iback, nfgv, info, task, &
-                     boxed, constrained, csave, isave(22), dsave(17))
+                     boxed, constrained, csave, isave(22), dsave(17), wunit)
          ! applies rotation matrices to coordinates
          IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
@@ -819,14 +832,14 @@ CONTAINS
                CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                            iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                            time, nseg, word, iback, stp, xstep, k, &
-                           cachyt, sbtime, lnscht)
+                           cachyt, sbtime, lnscht, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                                cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
                RETURN
             ELSE
 !             refresh the lbfgs memory and restart the iteration.
-               IF (iprint >= 1) WRITE (*, 1008)
+               IF (iprint >= 1) WRITE (wunit, 1008)
                IF (info == 0) nfgv = nfgv - 1
                info = 0
                col = 0
@@ -859,7 +872,7 @@ CONTAINS
 !        Print iteration information.
 
             CALL prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact, &
-                        g_inf_norm, nseg, word, iword, iback, stp, xstep)
+                        g_inf_norm, nseg, word, iword, iback, stp, xstep, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
@@ -877,7 +890,7 @@ CONTAINS
          CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                      iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                      time, nseg, word, iback, stp, xstep, k, &
-                     cachyt, sbtime, lnscht)
+                     cachyt, sbtime, lnscht, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
@@ -895,7 +908,7 @@ CONTAINS
          CALL prn3lb(n, x, f, task, iprint, info, itfile, &
                      iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                      time, nseg, word, iback, stp, xstep, k, &
-                     cachyt, sbtime, lnscht)
+                     cachyt, sbtime, lnscht, wunit)
      CALL save_local(lsave, isave, dsave, x_projected, constrained, boxed, updatd, nintol, itfile, iback, nskip, head, col, itail, &
                         iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, &
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
@@ -924,7 +937,7 @@ CONTAINS
 !                            skip the L-BFGS update.
          nskip = nskip + 1
          updatd = .FALSE.
-         IF (iprint >= 1) WRITE (*, 1004) dr, ddum
+         IF (iprint >= 1) WRITE (wunit, 1004) dr, ddum
          first = .FALSE.
          CYCLE
       END IF
@@ -953,7 +966,7 @@ CONTAINS
       IF (info /= 0) THEN
 !          nonpositive definiteness in Cholesky factorization;
 !          refresh the lbfgs memory and restart the iteration.
-         IF (iprint >= 1) WRITE (*, 1007)
+         IF (iprint >= 1) WRITE (wunit, 1007)
          info = 0
          col = 0
          head = 1
@@ -970,24 +983,24 @@ CONTAINS
       first = .FALSE.
       END DO
 
-1001  FORMAT(//, 'ITERATION ', i5)
+1001  FORMAT(//, ' L-BFGS| ITERATION ', i5)
 1002  FORMAT &
-         (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
+         (/, ' L-BFGS| At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
 1003  FORMAT(2(1x, i4), 5x, '-', 5x, '-', 3x, '-', 5x, '-', 5x, '-', 8x, '-', 3x, &
              1p, 2(1x, d10.3))
-1004  FORMAT('  ys=', 1p, e10.3, '  -gs=', 1p, e10.3, ' BFGS update SKIPPED')
+1004  FORMAT(' L-BFGS|   ys=', 1p, e10.3, '  -gs=', 1p, e10.3, ' BFGS update SKIPPED')
 1005  FORMAT(/, &
-              ' Singular triangular system detected;', /, &
-              '   refresh the lbfgs memory and restart the iteration.')
+              ' L-BFGS|  Singular triangular system detected;', /, &
+              ' L-BFGS|    refresh the lbfgs memory and restart the iteration.')
 1006  FORMAT(/, &
-              ' Nonpositive definiteness in Cholesky factorization in formk;', /, &
-              '   refresh the lbfgs memory and restart the iteration.')
+              ' L-BFGS|  Nonpositive definiteness in Cholesky factorization in formk;', /, &
+              ' L-BFGS|    refresh the lbfgs memory and restart the iteration.')
 1007  FORMAT(/, &
-              ' Nonpositive definiteness in Cholesky factorization in formt;', /, &
-              '   refresh the lbfgs memory and restart the iteration.')
+              ' L-BFGS|  Nonpositive definiteness in Cholesky factorization in formt;', /, &
+              ' L-BFGS|    refresh the lbfgs memory and restart the iteration.')
 1008  FORMAT(/, &
-              ' Bad direction in the line search;', /, &
-              '   refresh the lbfgs memory and restart the iteration.')
+              ' L-BFGS|  Bad direction in the line search;', /, &
+              ' L-BFGS|    refresh the lbfgs memory and restart the iteration.')
 
       RETURN
 
@@ -1008,6 +1021,8 @@ CONTAINS
 !> \param x_projected ...
 !> \param constrained ...
 !> \param boxed ...
+!> \param iwunit  User-specified write unit, if not set then WRITE statements
+!>                write to default_output_unit by default
 !> \author        NEOS, November 1994. (Latest revision June 1996.)
 !>                Optimization Technology Center.
 !>                Argonne National Laboratory and Northwestern University.
@@ -1016,7 +1031,7 @@ CONTAINS
 !>                in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, &
-                     x_projected, constrained, boxed)
+                     x_projected, constrained, boxed, iwunit)
 
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
@@ -1025,10 +1040,14 @@ CONTAINS
       INTEGER, INTENT(out)                               :: iwhere(n)
       INTEGER                                            :: iprint
       LOGICAL                                            :: x_projected, constrained, boxed
+      INTEGER, OPTIONAL                                  :: iwunit
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      INTEGER                                            :: i, nbdd
+      INTEGER                                            :: i, nbdd, wunit
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
 !     ************
 !     Initialize nbdd, x_projected, constrained and boxed.
@@ -1079,15 +1098,15 @@ CONTAINS
       END DO
 
       IF (iprint >= 0) THEN
-         IF (x_projected) WRITE (*, *)                                        &
-     &   'The initial X is infeasible.  Restart with its projection.'
-         IF (.NOT. constrained) &
-            WRITE (*, *) 'This problem is unconstrained.'
+         IF (x_projected) WRITE (wunit, 2001)
+         IF (.NOT. constrained) WRITE (wunit, 3001)
       END IF
 
-      IF (iprint > 0) WRITE (*, 1001) nbdd
+      IF (iprint > 0) WRITE (wunit, 1001) nbdd
 
-1001  FORMAT(/, 'At X0 ', i9, ' variables are exactly at the bounds')
+1001  FORMAT(/, ' L-BFGS| At X0 ', i9, ' variables are exactly at the bounds')
+2001  FORMAT(' L-BFGS| The initial X is infeasible.  Restart with its projection.')
+3001  FORMAT(' L-BFGS| This problem is unconstrained.')
 
       RETURN
 
@@ -1247,6 +1266,8 @@ CONTAINS
 !>                            = nonzero for abnormal return when the the system
 !>                              used in routine bmv is singular.
 !> \param epsmch ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -1256,7 +1277,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cauchy(n, x, lower_bound, upper_bound, nbd, g, iorder, iwhere, t, d, xcp, &
                      m, wy, ws, sy, wt, theta, col, head, p, c, wbp, &
-                     v, nseg, iprint, g_inf_norm, info, epsmch)
+                     v, nseg, iprint, g_inf_norm, info, epsmch, iwunit)
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(in)                          :: x(n), lower_bound(n), upper_bound(n)
       INTEGER, INTENT(in)                                :: nbd(n)
@@ -1274,15 +1295,19 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: g_inf_norm
       INTEGER, INTENT(inout)                             :: info
       REAL(KIND=dp)                                      :: epsmch
+      INTEGER, OPTIONAL                                  :: iwunit
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: col2, i, ibkmin, ibp, iter, j, nbreak, &
-                                                            nfree, nleft, pointr
+                                                            nfree, nleft, pointr, wunit
       LOGICAL                                            :: bnded, xlower, xupper
       REAL(KIND=dp)                                      :: bkmin, ddot, dibp, dibp2, dt, dtm, f1, &
                                                             f2, f2_org, neggi, tj, tj0, tl, tsum, &
                                                             tu, wmc, wmp, wmw, zibp
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
 !     References:
 !
@@ -1304,7 +1329,7 @@ CONTAINS
 !       the derivative f1 and the vector p = W'd (for theta = 1).
 
       IF (g_inf_norm <= zero) THEN
-         IF (iprint >= 0) WRITE (*, *) 'Subgnorm = 0.  GCP = X.'
+         IF (iprint >= 0) WRITE (wunit, 7010)
          CALL dcopy(n, x, 1, xcp, 1)
          RETURN
       END IF
@@ -1315,7 +1340,7 @@ CONTAINS
       bkmin = zero
       col2 = 2*col
       f1 = zero
-      IF (iprint >= 99) WRITE (*, 3010)
+      IF (iprint >= 99) WRITE (wunit, 3010)
 
 !     We set p to zero and build it up as we determine d.
 
@@ -1405,7 +1430,7 @@ CONTAINS
 
       IF (nbreak == 0 .AND. nfree == n + 1) THEN
 !                  is a zero vector, return with the initial xcp as GCP.
-         IF (iprint > 100) WRITE (*, 1010) (xcp(i), i=1, n)
+         IF (iprint > 100) WRITE (wunit, 1010) (xcp(i), i=1, n)
          RETURN
       END IF
 
@@ -1428,7 +1453,7 @@ CONTAINS
       tsum = zero
       nseg = 1
       IF (iprint >= 99) &
-         WRITE (*, *) 'There are ', nbreak, '  breakpoints '
+         WRITE (wunit, 1011) nbreak
 
       nleft = nbreak
       iter = 1
@@ -1439,10 +1464,9 @@ CONTAINS
 
       IF (nleft == 0) THEN
          IF (iprint >= 99) THEN
-            WRITE (*, *)
-            WRITE (*, *) 'GCP found in this segment'
-            WRITE (*, 4010) nseg, f1, f2
-            WRITE (*, 6010) dtm
+            WRITE (wunit, 4012)
+            WRITE (wunit, 4010) nseg, f1, f2
+            WRITE (wunit, 6010) dtm
          END IF
          IF (dtm <= zero) dtm = zero
          tsum = tsum + dtm
@@ -1484,19 +1508,18 @@ CONTAINS
          dt = tj - tj0
 
          IF (dt /= zero .AND. iprint >= 100) THEN
-            WRITE (*, 4011) nseg, f1, f2
-            WRITE (*, 5010) dt
-            WRITE (*, 6010) dtm
+            WRITE (wunit, 4011) nseg, f1, f2
+            WRITE (wunit, 5010) dt
+            WRITE (wunit, 6010) dtm
          END IF
 
 !     If a minimizer is within this interval, locate the GCP and return.
 
          IF (dtm < dt) THEN
             IF (iprint >= 99) THEN
-               WRITE (*, *)
-               WRITE (*, *) 'GCP found in this segment'
-               WRITE (*, 4010) nseg, f1, f2
-               WRITE (*, 6010) dtm
+               WRITE (wunit, 4012)
+               WRITE (wunit, 4010) nseg, f1, f2
+               WRITE (wunit, 6010) dtm
             END IF
             IF (dtm <= zero) dtm = zero
             tsum = tsum + dtm
@@ -1525,7 +1548,7 @@ CONTAINS
             xcp(ibp) = lower_bound(ibp)
             iwhere(ibp) = 1
          END IF
-         IF (iprint >= 100) WRITE (*, *) 'Variable  ', ibp, '  is fixed.'
+         IF (iprint >= 100) WRITE (wunit, 8010) ibp
          IF (nleft == 0 .AND. nbreak == n) THEN
 !                                             all n variables are fixed,
 !                                                return with xcp as GCP.
@@ -1586,10 +1609,9 @@ CONTAINS
                dtm = -f1/f2
             END IF
             IF (iprint >= 99) THEN
-               WRITE (*, *)
-               WRITE (*, *) 'GCP found in this segment'
-               WRITE (*, 4010) nseg, f1, f2
-               WRITE (*, 6010) dtm
+               WRITE (wunit, 4012)
+               WRITE (wunit, 4010) nseg, f1, f2
+               WRITE (wunit, 6010) dtm
             END IF
             IF (dtm <= zero) dtm = zero
             tsum = tsum + dtm
@@ -1606,17 +1628,21 @@ CONTAINS
 !       which will be used in computing r = Z'(B(x^c - x) + g).
 
       IF (col > 0) CALL daxpy(col2, dtm, p, 1, c, 1)
-      IF (iprint > 100) WRITE (*, 1010) (xcp(i), i=1, n)
-      IF (iprint >= 99) WRITE (*, 2010)
+      IF (iprint > 100) WRITE (wunit, 1010) (xcp(i), i=1, n)
+      IF (iprint >= 99) WRITE (wunit, 2010)
 
-1010  FORMAT('Cauchy X =  ', /, (4x, 1p, 6(1x, d11.4)))
-2010  FORMAT(/, '---------------- exit CAUCHY----------------------',/)
-3010  FORMAT(/, '---------------- CAUCHY entered-------------------')
-4010  FORMAT('Piece    ', i3, ' --f1, f2 at start point ', 1p, 2(1x, d11.4))
-4011  FORMAT(/, 'Piece    ', i3, ' --f1, f2 at start point ', &
+1010  FORMAT(' L-BFGS| Cauchy X =  ', /, (4x, 1p, 6(1x, d11.4)))
+1011  FORMAT(/, ' L-BFGS| There are ', i12, ' breakpoints ')
+2010  FORMAT(/, ' L-BFGS| ---------------- exit CAUCHY-----------------')
+3010  FORMAT(/, ' L-BFGS| ---------------- enter CAUCHY ---------------')
+4010  FORMAT(' L-BFGS| Piece    ', i3, ' --f1, f2 at start point ', 1p, 2(1x, d11.4))
+4011  FORMAT(/, ' L-BFGS| Piece    ', i3, ' --f1, f2 at start point ', &
               1p, 2(1x, d11.4))
-5010  FORMAT('Distance to the next break point =  ', 1p, d11.4)
-6010  FORMAT('Distance to the stationary point =  ', 1p, d11.4)
+4012  FORMAT(/, ' L-BFGS| GCP found in this segment')
+5010  FORMAT(' L-BFGS| Distance to the next break point =  ', 1p, d11.4)
+6010  FORMAT(' L-BFGS| Distance to the stationary point =  ', 1p, d11.4)
+7010  FORMAT(' L-BFGS| Subgnorm = 0.  GCP = X.')
+8010  FORMAT(' L-BFGS| Variable  ', i12, '  is fixed.')
 
       RETURN
 
@@ -2105,6 +2131,8 @@ CONTAINS
 !> \param constrained     A variable indicating whether bounds are present
 !> \param iprint ...
 !> \param iter ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2113,7 +2141,7 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE freev(n, nfree, index, nenter, ileave, indx2, &
-                    iwhere, wrk, updatd, constrained, iprint, iter)
+                    iwhere, wrk, updatd, constrained, iprint, iter, iwunit)
 
       INTEGER                                            :: n, nfree
       INTEGER, INTENT(inout)                             :: INDEX(n)
@@ -2122,8 +2150,12 @@ CONTAINS
       INTEGER                                            :: iwhere(n)
       LOGICAL                                            :: wrk, updatd, constrained
       INTEGER                                            :: iprint, iter
+      INTEGER, OPTIONAL                                  :: iwunit
 
-      INTEGER                                            :: i, iact, k
+      INTEGER                                            :: i, iact, k, wunit
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       nenter = 0
       ileave = n + 1
@@ -2132,14 +2164,10 @@ CONTAINS
          DO i = 1, nfree
             k = INDEX(i)
 
-!            write(*,*) ' k  = index(i) ', k
-!            write(*,*) ' index = ', i
-
             IF (iwhere(k) > 0) THEN
                ileave = ileave - 1
                indx2(ileave) = k
-               IF (iprint >= 100) WRITE (*, *)                         &
-     &             'Variable ', k, ' leaves the set of free variables'
+               IF (iprint >= 100) WRITE (wunit, 1030) k
             END IF
          END DO
          DO i = 1 + nfree, n
@@ -2147,12 +2175,10 @@ CONTAINS
             IF (iwhere(k) <= 0) THEN
                nenter = nenter + 1
                indx2(nenter) = k
-               IF (iprint >= 100) WRITE (*, *)                         &
-     &             'Variable ', k, ' enters the set of free variables'
+               IF (iprint >= 100) WRITE (wunit, 2030) k
             END IF
          END DO
-         IF (iprint >= 99) WRITE (*, *) &
-            n + 1 - ileave, ' variables leave; ', nenter, ' variables enter'
+         IF (iprint >= 99) WRITE (wunit, 3030) n + 1 - ileave, nenter
       END IF
       wrk = (ileave < n + 1) .OR. (nenter > 0) .OR. updatd
 
@@ -2169,8 +2195,12 @@ CONTAINS
             INDEX(iact) = i
          END IF
       END DO
-      IF (iprint >= 99) WRITE (*, *) &
-         nfree, ' variables are free at GCP ', iter + 1
+      IF (iprint >= 99) WRITE (wunit, 4030) nfree, iter + 1
+
+1030  FORMAT(' L-BFGS| Variable ', i12, ' leaves the set of free variables')
+2030  FORMAT(' L-BFGS| Variable ', i12, ' enters the set of free variables')
+3030  FORMAT(' L-BFGS| ', i12, ' variables leave; ', i12, ' variables enter')
+4030  FORMAT(' L-BFGS| ', i12, ' variables are free at GCP ', i12)
 
       RETURN
 
@@ -2307,6 +2337,8 @@ CONTAINS
 !> \param csave ...
 !> \param isave ...
 !> \param dsave ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2317,7 +2349,7 @@ CONTAINS
    SUBROUTINE lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t, &
                      z, stp, dnorm, dtd, xstep, step_max, iter, ifun, &
                      iback, nfgv, info, task, boxed, constrained, csave, &
-                     isave, dsave)
+                     isave, dsave, iwunit)
 
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
@@ -2331,13 +2363,17 @@ CONTAINS
       CHARACTER(LEN=60)                                  :: csave
       INTEGER                                            :: isave(2)
       REAL(KIND=dp)                                      :: dsave(13)
+      INTEGER, OPTIONAL                                  :: iwunit
 
       REAL(KIND=dp), PARAMETER                           :: big = 1.0E10_dp, ftol = 1.0E-3_dp, &
                                                             gtol = 0.9_dp, one = 1.0_dp, &
                                                             xtol = 0.1_dp, zero = 0.0_dp
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, wunit
       REAL(KIND=dp)                                      :: a1, a2, ddot
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       IF (.NOT. (task(1:5) == 'FG_LN')) THEN
 
@@ -2393,7 +2429,7 @@ CONTAINS
          IF (gd >= zero) THEN
 !                               the directional derivative >=0.
 !                               Line search is impossible.
-            WRITE (*, *) ' ascent direction in projection gd = ', gd
+            WRITE (wunit, 1020) gd
             info = -4
             RETURN
          END IF
@@ -2417,6 +2453,8 @@ CONTAINS
       ELSE
          task = 'NEW_X'
       END IF
+
+1020  FORMAT(' L-BFGS|  ascent direction in projection gd = ', d12.5)
 
       RETURN
 
@@ -2525,6 +2563,8 @@ CONTAINS
 !> \param iprint ...
 !> \param itfile ...
 !> \param epsmch ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2532,31 +2572,35 @@ CONTAINS
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
-   SUBROUTINE prn1lb(n, m, lower_bound, upper_bound, x, iprint, itfile, epsmch)
+   SUBROUTINE prn1lb(n, m, lower_bound, upper_bound, x, iprint, itfile, epsmch, iwunit)
 
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n), x(n)
       INTEGER                                            :: iprint, itfile
       REAL(KIND=dp)                                      :: epsmch
+      INTEGER, OPTIONAL                                  :: iwunit
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, wunit
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       IF (iprint >= 0) THEN
-         WRITE (*, 7001) epsmch
-         WRITE (*, *) 'N = ', n, '    M = ', m
+         WRITE (wunit, 7001) epsmch
+         WRITE (wunit, 7002) n, m
          IF (iprint >= 1) THEN
             WRITE (itfile, 2001) epsmch
-            WRITE (itfile, *) 'N = ', n, '    M = ', m
+            WRITE (itfile, 7003) n, m
             WRITE (itfile, 9001)
             IF (iprint > 100) THEN
-               WRITE (*, 1004) 'L =', (lower_bound(i), i=1, n)
-               WRITE (*, 1004) 'X0 =', (x(i), i=1, n)
-               WRITE (*, 1004) 'U =', (upper_bound(i), i=1, n)
+               WRITE (wunit, 1004) ' L-BFGS|  L =', (lower_bound(i), i=1, n)
+               WRITE (wunit, 1004) ' L-BFGS| X0 =', (x(i), i=1, n)
+               WRITE (wunit, 1004) ' L-BFGS|  U =', (upper_bound(i), i=1, n)
             END IF
          END IF
       END IF
 
-1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
+1004  FORMAT(/, a13, 1p, /, (4x, 1p, 6(1x, d11.4)))
 2001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /, &
              'it    = iteration number', /, &
              'nf    = number of function evaluations', /, &
@@ -2572,9 +2616,10 @@ CONTAINS
              'f     = function value', /, /, &
              '           * * *', /, /, &
              'Machine precision =', 1p, d10.3)
-7001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /, &
-             '           * * *', /, /, &
-             'Machine precision =', 1p, d10.3)
+7001  FORMAT(/, ' L-BFGS| RUNNING THE L-BFGS-B CODE', /, &
+              ' L-BFGS| Machine precision =', 1p, d10.3)
+7002  FORMAT(/, ' L-BFGS| N = ', i12, '    M = ', i12)
+7003  FORMAT(' N = ', i12, '    M = ', i12)
 9001  FORMAT(/, 3x, 'it', 3x, 'nf', 2x, 'nseg', 2x, 'nact', 2x, 'sub', 2x, 'itls', &
               2x, 'stepl', 4x, 'tstep', 5x, 'projg', 8x, 'f')
 
@@ -2600,6 +2645,8 @@ CONTAINS
 !> \param iback ...
 !> \param stp ...
 !> \param xstep ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2608,7 +2655,7 @@ CONTAINS
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact, &
-                     g_inf_norm, nseg, word, iword, iback, stp, xstep)
+                     g_inf_norm, nseg, word, iword, iback, stp, xstep, iwunit)
 
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(in)                          :: x(n), f, g(n)
@@ -2618,8 +2665,12 @@ CONTAINS
       CHARACTER(LEN=3)                                   :: word
       INTEGER                                            :: iword, iback
       REAL(KIND=dp)                                      :: stp, xstep
+      INTEGER, OPTIONAL                                  :: iwunit
 
-      INTEGER                                            :: i, imod
+      INTEGER                                            :: i, imod, wunit
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
 !           'word' records the status of subspace solutions.
 
@@ -2636,22 +2687,23 @@ CONTAINS
          word = '---'
       END IF
       IF (iprint >= 99) THEN
-         WRITE (*, *) 'LINE SEARCH', iback, ' times; norm of step = ', xstep
-         WRITE (*, 2001) iter, f, g_inf_norm
+         WRITE (wunit, 2002) iback, xstep
+         WRITE (wunit, 2001) iter, f, g_inf_norm
          IF (iprint > 100) THEN
-            WRITE (*, 1004) 'X =', (x(i), i=1, n)
-            WRITE (*, 1004) 'G =', (g(i), i=1, n)
+            WRITE (wunit, 1004) ' L-BFGS| X =', (x(i), i=1, n)
+            WRITE (wunit, 1004) ' L-BFGS| G =', (g(i), i=1, n)
          END IF
       ELSE IF (iprint > 0) THEN
          imod = MOD(iter, iprint)
-         IF (imod == 0) WRITE (*, 2001) iter, f, g_inf_norm
+         IF (imod == 0) WRITE (wunit, 2001) iter, f, g_inf_norm
       END IF
       IF (iprint >= 1) WRITE (itfile, 3001) &
          iter, nfgv, nseg, nact, word, iback, stp, xstep, g_inf_norm, f
 
-1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
+1004  FORMAT(/, a12, 1p, /, (4x, 1p, 6(1x, d11.4)))
 2001  FORMAT &
-         (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
+         (/, ' L-BFGS| At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
+2002  FORMAT(/, ' L-BFGS| LINE SEARCH ', i12, ' times; norm of step = ', 1p, d24.15)
 3001  FORMAT(2(1x, i4), 2(1x, i5), 2x, a3, 1x, i4, 1p, 2(2x, d7.1), 1p, 2(1x, d10.3))
 
       RETURN
@@ -2685,6 +2737,8 @@ CONTAINS
 !> \param cachyt ...
 !> \param sbtime ...
 !> \param lnscht ...
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2695,7 +2749,7 @@ CONTAINS
    SUBROUTINE prn3lb(n, x, f, task, iprint, info, itfile, &
                      iter, nfgv, nintol, nskip, nact, g_inf_norm, &
                      time, nseg, word, iback, stp, xstep, k, &
-                     cachyt, sbtime, lnscht)
+                     cachyt, sbtime, lnscht, iwunit)
 
       INTEGER, INTENT(in)                                :: n
       REAL(KIND=dp), INTENT(in)                          :: x(n), f
@@ -2709,40 +2763,47 @@ CONTAINS
       REAL(KIND=dp)                                      :: stp, xstep
       INTEGER                                            :: k
       REAL(KIND=dp)                                      :: cachyt, sbtime, lnscht
+      INTEGER, OPTIONAL                                  :: iwunit
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, wunit
+
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
 
       IF (iprint >= 0 .AND. .NOT. (task(1:5) == 'ERROR')) THEN
-         WRITE (*, 3003)
-         WRITE (*, 3004)
-         WRITE (*, 3005) n, iter, nfgv, nintol, nskip, nact, g_inf_norm, f
+         WRITE (wunit, 3003)
+         WRITE (wunit, 3004)
+         WRITE (wunit, 3005) n, iter, nfgv, nintol, nskip, nact, g_inf_norm, f
          IF (iprint >= 100) THEN
-            WRITE (*, 1004) 'X =', (x(i), i=1, n)
+            WRITE (wunit, 1004) ' L-BFGS| X =', (x(i), i=1, n)
          END IF
-         IF (iprint >= 1) WRITE (*, *) ' F =', f
+         IF (iprint >= 1) WRITE (wunit, 3006) f
       END IF
       IF (iprint >= 0) THEN
-         WRITE (*, 3009) task
+
+         WRITE (wunit, 3001)
+         WRITE (wunit, 3009) task
          IF (info /= 0) THEN
-            IF (info == -1) WRITE (*, 9011)
-            IF (info == -2) WRITE (*, 9012)
-            IF (info == -3) WRITE (*, 9013)
-            IF (info == -4) WRITE (*, 9014)
-            IF (info == -5) WRITE (*, 9015)
-            IF (info == -6) WRITE (*, *) ' Input nbd(', k, ') is invalid.'
-            IF (info == -7) &
-               WRITE (*, *) ' l(', k, ') > u(', k, ').  No feasible solution.'
-            IF (info == -8) WRITE (*, 9018)
-            IF (info == -9) WRITE (*, 9019)
+            IF (info == -1) WRITE (wunit, 9011)
+            IF (info == -2) WRITE (wunit, 9012)
+            IF (info == -3) WRITE (wunit, 9013)
+            IF (info == -4) WRITE (wunit, 9014)
+            IF (info == -5) WRITE (wunit, 9015)
+            IF (info == -6) WRITE (wunit, 9016) k
+            IF (info == -7) WRITE (wunit, 9017) k, k
+            IF (info == -8) WRITE (wunit, 9018)
+            IF (info == -9) WRITE (wunit, 9019)
          END IF
-         IF (iprint >= 1) WRITE (*, 3007) cachyt, sbtime, lnscht
-         WRITE (*, 3008) time
+         IF (iprint >= 1) WRITE (wunit, 3007) cachyt, sbtime, lnscht
+         WRITE (wunit, 3008) time
+         WRITE (wunit, 3001)
+
          IF (iprint >= 1) THEN
             IF (info == -4 .OR. info == -9) THEN
                WRITE (itfile, 3002) &
                   iter, nfgv, nseg, nact, word, iback, stp, xstep
             END IF
-            WRITE (itfile, 3009) task
+            WRITE (itfile, 4009) task
             IF (info /= 0) THEN
                IF (info == -1) WRITE (itfile, 9011)
                IF (info == -2) WRITE (itfile, 9012)
@@ -2756,28 +2817,32 @@ CONTAINS
          END IF
       END IF
 
-1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
+1004  FORMAT(/, a12, 1p, /, (4x, 1p, 6(1x, d11.4)))
+3001  FORMAT(/, ' L-BFGS| ---------------- Information ----------------')
 3002  FORMAT(2(1x, i4), 2(1x, i5), 2x, a3, 1x, i4, 1p, 2(2x, d7.1), 6x, '-', 10x, '-')
 3003  FORMAT(/, &
-              '           * * *', /, /, &
-              'Tit   = total number of iterations', /, &
-              'Tnf   = total number of function evaluations', /, &
-              'Tnint = total number of segments explored during', &
-              ' Cauchy searches', /, &
-              'Skip  = number of BFGS updates skipped', /, &
-              'Nact  = number of active bounds at final generalized', &
-              ' Cauchy point', /, &
-              'Projg = norm of the final projected gradient', /, &
-              'F     = final function value', /, /, &
-              '           * * *')
-3004  FORMAT(/, 3x, 'N', 4x, 'Tit', 5x, 'Tnf', 2x, 'Tnint', 2x, &
+              ' L-BFGS|            * * *', /, /, &
+              ' L-BFGS| Tit   = total number of iterations', /, &
+              ' L-BFGS| Tnf   = total number of function evaluations', /, &
+              ' L-BFGS| Tnint = total number of segments explored during', &
+              ' L-BFGS|  Cauchy searches', /, &
+              ' L-BFGS| Skip  = number of BFGS updates skipped', /, &
+              ' L-BFGS| Nact  = number of active bounds at final generalized', &
+              ' L-BFGS|  Cauchy point', /, &
+              ' L-BFGS| Projg = norm of the final projected gradient', /, &
+              ' L-BFGS| F     = final function value', /, /, &
+              ' L-BFGS|            * * *')
+3004  FORMAT(/, ' L-BFGS| ', 3x, 'N', 4x, 'Tit', 5x, 'Tnf', 2x, 'Tnint', 2x, &
               'Skip', 2x, 'Nact', 5x, 'Projg', 8x, 'F')
-3005  FORMAT(i5, 2(1x, i6), (1x, i6), (2x, i4), (1x, i5), 1p, 2(2x, d10.3))
-3007  FORMAT(/, ' Cauchy                time', 1p, e10.3, ' seconds.', / &
-              ' Subspace minimization time', 1p, e10.3, ' seconds.', / &
-              ' Line search           time', 1p, e10.3, ' seconds.')
+3005  FORMAT(' L-BFGS| ', i5, 2(1x, i6), (1x, i6), (2x, i4), (1x, i5), 1p, 2(2x, d10.3))
+3006  FORMAT(' L-BFGS|  F =', d12.5)
+3007  FORMAT(/, &
+              ' L-BFGS|  Cauchy                time', 1p, e10.3, ' seconds.', / &
+              ' L-BFGS|  Subspace minimization time', 1p, e10.3, ' seconds.', / &
+              ' L-BFGS|  Line search           time', 1p, e10.3, ' seconds.')
 3008  FORMAT(/, ' Total User time', 1p, e10.3, ' seconds.',/)
-3009  FORMAT(/, a60)
+3009  FORMAT(/, ' L-BFGS| ', a60)
+4009  FORMAT(/, a60)
 9011  FORMAT(/, &
               ' Matrix in 1st Cholesky factorization in formk is not Pos. Def.')
 9012  FORMAT(/, &
@@ -2793,6 +2858,8 @@ CONTAINS
               ' Warning:  more than 10 function and gradient', /, &
               '   evaluations in the last line search.  Termination', /, &
               '   may possibly be caused by a bad search direction.')
+9016  FORMAT(' Input nbd(', i12, ') is invalid.')
+9017  FORMAT(' l(', i12, ') > u(', i12, ').  No feasible solution.')
 9018  FORMAT(/, ' The triangular system is singular.')
 9019  FORMAT(/, &
               ' Line search cannot locate an adequate point after 20 function', /, &
@@ -2948,6 +3015,8 @@ CONTAINS
 !>               When iprint > 0, the file iterate.dat will be created to summarize the iteration.
 !> \param info   info = 0       for normal return,
 !>                    = nonzero for abnormal return when the matrix K is ill-conditioned.
+!> \param iwunit User-specified write unit, if not set then WRITE statements
+!>               write to default_output_unit by default
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -2957,7 +3026,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE subsm(n, m, nsub, ind, lower_bound, upper_bound, nbd, x, d, xp, ws, wy, &
                     theta, xx, gg, &
-                    col, head, iword, wv, wn, iprint, info)
+                    col, head, iword, wv, wn, iprint, info, iwunit)
       INTEGER, INTENT(in)                                :: n, m, nsub, ind(nsub)
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
       INTEGER, INTENT(in)                                :: nbd(n)
@@ -2970,10 +3039,12 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: wn(2*m, 2*m)
       INTEGER                                            :: iprint
       INTEGER, INTENT(out)                               :: info
+      INTEGER, OPTIONAL                                  :: iwunit
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: col2, i, ibd, j, js, jy, k, m2, pointr
+      INTEGER                                            :: col2, i, ibd, j, js, jy, k, m2, pointr, &
+                                                            wunit
       REAL(KIND=dp)                                      :: alpha, dd_p, dk, temp1, temp2, xk
 
 !     References:
@@ -2987,8 +3058,11 @@ CONTAINS
 !                           *  *  *
 !
 
+      wunit = default_output_unit
+      IF (PRESENT(iwunit) .AND. iwunit > 0) wunit = iwunit
+
       IF (nsub <= 0) RETURN
-      IF (iprint >= 99) WRITE (*, 1001)
+      IF (iprint >= 99) WRITE (wunit, 4001)
 
 !     Compute wv = W'Zd.
 
@@ -3083,8 +3157,8 @@ CONTAINS
          END DO
          IF (dd_p > zero) THEN
             CALL dcopy(n, xp, 1, x, 1)
-            IF (iprint > 0) WRITE (*, *) ' Positive dir derivative in projection '
-            IF (iprint > 0) WRITE (*, *) ' Using the backtracking step '
+            IF (iprint > 0) WRITE (wunit, 4002)
+            IF (iprint > 0) WRITE (wunit, 4003)
             alpha = one
             temp1 = alpha
             ibd = 0
@@ -3132,10 +3206,12 @@ CONTAINS
          END IF
       END IF
 
-      IF (iprint >= 99) WRITE (*, 1004)
+      IF (iprint >= 99) WRITE (wunit, 4004)
 
-1001  FORMAT(/, '----------------SUBSM entered-----------------',/)
-1004  FORMAT(/, '----------------exit SUBSM --------------------',/)
+4001  FORMAT(/, ' L-BFGS| ---------------- enter SUBSM ----------------',/)
+4002  FORMAT(' L-BFGS|  Positive dir derivative in projection ')
+4003  FORMAT(' L-BFGS|  Using the backtracking step ')
+4004  FORMAT(/, ' L-BFGS| ---------------- exit SUBSM -----------------',/)
 
       RETURN
 
