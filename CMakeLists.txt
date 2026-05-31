@@ -875,10 +875,10 @@ if(CP2K_USE_PEXSI)
 endif()
 
 if(CP2K_USE_ACE)
-  find_package(ACE REQUIRED)
-  get_target_property(CP2K_ACE_INCLUDE_DIRS cp2k::ACE
+  find_package(pace REQUIRED CONFIG)
+  get_target_property(CP2K_ACE_INCLUDE_DIRS pace::pace
                       INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(CP2K_ACE_LINK_LIBRARIES cp2k::ACE
+  get_target_property(CP2K_ACE_LINK_LIBRARIES pace::pace
                       INTERFACE_LINK_LIBRARIES)
 endif()
 
