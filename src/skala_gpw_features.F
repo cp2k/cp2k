@@ -57,10 +57,7 @@ MODULE skala_gpw_features
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
                                                             route_grad_return_send_displs, &
-                                                            route_local_dest, route_meta_recv_counts, &
-                                                            route_meta_recv_displs, &
-                                                            route_meta_send_counts, &
-                                                            route_meta_send_displs, &
+                                                            route_local_dest, chunk_return_positions, &
                                                             route_point_recv_counts, &
                                                             route_point_recv_displs, &
                                                             route_point_send_counts, &
@@ -129,7 +126,6 @@ MODULE skala_gpw_features
       TYPE(torch_tensor_type)                           :: local_feature_indices_t
       INTEGER, ALLOCATABLE, DIMENSION(:)                :: chunk_grad_counts, chunk_grad_displs, &
                                                            chunk_return_positions, &
-                                                           chunk_return_ranks, chunk_return_rows, &
                                                            route_grad_return_recv_counts, &
                                                            route_grad_return_recv_displs, &
                                                            route_grad_return_send_counts, &
@@ -573,10 +569,6 @@ CONTAINS
                 cached_layout%route_grad_return_recv_displs(nproc), &
                 cached_layout%route_grad_return_send_counts(nproc), &
                 cached_layout%route_grad_return_send_displs(nproc), &
-                cached_layout%route_meta_recv_counts(nproc), &
-                cached_layout%route_meta_recv_displs(nproc), &
-                cached_layout%route_meta_send_counts(nproc), &
-                cached_layout%route_meta_send_displs(nproc), &
                 cached_layout%route_point_recv_counts(nproc), &
                 cached_layout%route_point_recv_displs(nproc), &
                 cached_layout%route_point_send_counts(nproc), &
@@ -979,14 +971,16 @@ CONTAINS
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
-      INTEGER                                            :: dest, local_row, point_pos
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor
+      INTEGER                                            :: chunk_row, dest, local_row, point_pos, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, recv_meta, send_meta
 
       ALLOCATE (cache%route_local_dest(SIZE(local_to_global)), &
                 cache%route_send_local_rows(SIZE(local_to_global)), &
+                cache%chunk_return_positions(cache%chunk_feature_count), &
                 cursor(SIZE(cache%route_point_send_counts)))
       cache%route_point_send_counts = 0
       cache%route_send_local_rows = 0
+      cache%chunk_return_positions = 0
       DO local_row = 1, SIZE(local_to_global)
          dest = feature_row_chunk_owner(local_to_global(local_row), &
                                         cache%chunk_feature_counts, &
@@ -1006,10 +1000,25 @@ CONTAINS
       CALL group%alltoall(cache%route_point_send_counts, cache%route_point_recv_counts, 1)
       CALL counts_to_displs(cache%route_point_recv_counts, cache%route_point_recv_displs)
 
-      cache%route_meta_send_counts(:) = 2*cache%route_point_send_counts
-      cache%route_meta_send_displs(:) = 2*cache%route_point_send_displs
-      cache%route_meta_recv_counts(:) = 2*cache%route_point_recv_counts
-      cache%route_meta_recv_displs(:) = 2*cache%route_point_recv_displs
+      ALLOCATE (send_meta(SIZE(local_to_global)), recv_meta(cache%chunk_feature_count))
+      cursor(:) = cache%route_point_send_displs + 1
+      DO local_row = 1, SIZE(local_to_global)
+         dest = cache%route_local_dest(local_row)
+         point_pos = cursor(dest)
+         cursor(dest) = cursor(dest) + 1
+         send_meta(point_pos) = local_to_global(local_row)
+      END DO
+      CALL group%alltoall(send_meta, cache%route_point_send_counts, &
+                          cache%route_point_send_displs, recv_meta, &
+                          cache%route_point_recv_counts, &
+                          cache%route_point_recv_displs)
+      DO point_pos = 1, cache%chunk_feature_count
+         row = recv_meta(point_pos)
+         chunk_row = row - cache%chunk_feature_begin + 1
+         CPASSERT(chunk_row >= 1 .AND. chunk_row <= cache%chunk_feature_count)
+         cache%chunk_return_positions(chunk_row) = point_pos
+      END DO
+
       cache%route_dynamic_send_counts(:) = ndynamic_per_point*cache%route_point_send_counts
       cache%route_dynamic_send_displs(:) = ndynamic_per_point*cache%route_point_send_displs
       cache%route_dynamic_recv_counts(:) = ndynamic_per_point*cache%route_point_recv_counts
@@ -1022,8 +1031,9 @@ CONTAINS
       CPASSERT(SUM(cache%route_point_send_counts) == SIZE(local_to_global))
       CPASSERT(SUM(cache%route_point_recv_counts) == cache%chunk_feature_count)
       CPASSERT(ALL(cache%route_send_local_rows > 0))
+      CPASSERT(ALL(cache%chunk_return_positions > 0))
 
-      DEALLOCATE (cursor)
+      DEALLOCATE (cursor, recv_meta, send_meta)
 
    END SUBROUTINE build_atom_chunk_routes
 
@@ -1075,10 +1085,9 @@ CONTAINS
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
-      INTEGER                                            :: chunk_row, dest, dyn_base, irow, local_row, &
-                                                            meta_base, nrecv, nsend, pe, point_pos, &
-                                                            row, src_base
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, recv_meta, send_meta
+      INTEGER                                            :: chunk_row, dest, dyn_base, local_row, &
+                                                            nrecv, nsend, point_pos, src_base
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_dynamic, send_dynamic
 
       CPASSERT(cached_layout%chunk_feature_count > 0)
@@ -1087,27 +1096,20 @@ CONTAINS
       CPASSERT(nsend == cached_layout%nflat_local)
       CPASSERT(nrecv == cached_layout%chunk_feature_count)
 
-      ALLOCATE (send_meta(2*nsend), send_dynamic(ndynamic_per_point*nsend), &
-                recv_meta(2*nrecv), recv_dynamic(ndynamic_per_point*nrecv), &
+      ALLOCATE (send_dynamic(ndynamic_per_point*nsend), &
+                recv_dynamic(ndynamic_per_point*nrecv), &
                 cursor(cached_layout%nproc))
       cursor(:) = cached_layout%route_point_send_displs + 1
       DO local_row = 1, nsend
          dest = cached_layout%route_local_dest(local_row)
          point_pos = cursor(dest)
          cursor(dest) = cursor(dest) + 1
-         meta_base = 2*(point_pos - 1)
          dyn_base = ndynamic_per_point*(point_pos - 1)
          src_base = ndynamic_per_point*(local_row - 1)
-         send_meta(meta_base + 1) = INT(cached_layout%local_feature_indices(local_row) + 1_int_8)
-         send_meta(meta_base + 2) = local_row
          send_dynamic(dyn_base + 1:dyn_base + ndynamic_per_point) = &
             local_dynamic(src_base + 1:src_base + ndynamic_per_point)
       END DO
 
-      CALL group%alltoall(send_meta, cached_layout%route_meta_send_counts, &
-                          cached_layout%route_meta_send_displs, recv_meta, &
-                          cached_layout%route_meta_recv_counts, &
-                          cached_layout%route_meta_recv_displs)
       CALL group%alltoall(send_dynamic, cached_layout%route_dynamic_send_counts, &
                           cached_layout%route_dynamic_send_displs, recv_dynamic, &
                           cached_layout%route_dynamic_recv_counts, &
@@ -1116,40 +1118,25 @@ CONTAINS
       ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
                 features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
                 features%chunk_kin(cached_layout%chunk_feature_count, 2), &
-                features%chunk_return_positions(cached_layout%chunk_feature_count), &
-                features%chunk_return_ranks(cached_layout%chunk_feature_count), &
-                features%chunk_return_rows(cached_layout%chunk_feature_count))
-      features%chunk_return_positions = 0
-      features%chunk_return_ranks = 0
-      features%chunk_return_rows = 0
+                features%chunk_return_positions(cached_layout%chunk_feature_count))
+      features%chunk_return_positions(:) = cached_layout%chunk_return_positions
 
-      DO pe = 1, cached_layout%nproc
-         DO irow = 1, cached_layout%route_point_recv_counts(pe)
-            point_pos = cached_layout%route_point_recv_displs(pe) + irow
-            meta_base = 2*(point_pos - 1)
-            dyn_base = ndynamic_per_point*(point_pos - 1)
-            row = recv_meta(meta_base + 1)
-            local_row = recv_meta(meta_base + 2)
-            chunk_row = row - cached_layout%chunk_feature_begin + 1
-            CPASSERT(chunk_row >= 1 .AND. chunk_row <= cached_layout%chunk_feature_count)
-            features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
-            features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
-            features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
-            features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
-            features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
-            features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
-            features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
-            features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
-            features%chunk_return_positions(chunk_row) = point_pos
-            features%chunk_return_ranks(chunk_row) = pe
-            features%chunk_return_rows(chunk_row) = local_row
-         END DO
+      DO chunk_row = 1, cached_layout%chunk_feature_count
+         point_pos = cached_layout%chunk_return_positions(chunk_row)
+         CPASSERT(point_pos >= 1 .AND. point_pos <= cached_layout%chunk_feature_count)
+         dyn_base = ndynamic_per_point*(point_pos - 1)
+         features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
+         features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
+         features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
+         features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
+         features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
+         features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
+         features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
+         features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
       END DO
       CPASSERT(ALL(features%chunk_return_positions > 0))
-      CPASSERT(ALL(features%chunk_return_ranks > 0))
-      CPASSERT(ALL(features%chunk_return_rows > 0))
 
-      DEALLOCATE (cursor, recv_dynamic, recv_meta, send_dynamic, send_meta)
+      DEALLOCATE (cursor, recv_dynamic, send_dynamic)
 
    END SUBROUTINE route_atom_chunk_dynamics
 
@@ -1271,10 +1258,7 @@ CONTAINS
       IF (ALLOCATED(cache%route_grad_return_send_displs)) &
          DEALLOCATE (cache%route_grad_return_send_displs)
       IF (ALLOCATED(cache%route_local_dest)) DEALLOCATE (cache%route_local_dest)
-      IF (ALLOCATED(cache%route_meta_recv_counts)) DEALLOCATE (cache%route_meta_recv_counts)
-      IF (ALLOCATED(cache%route_meta_recv_displs)) DEALLOCATE (cache%route_meta_recv_displs)
-      IF (ALLOCATED(cache%route_meta_send_counts)) DEALLOCATE (cache%route_meta_send_counts)
-      IF (ALLOCATED(cache%route_meta_send_displs)) DEALLOCATE (cache%route_meta_send_displs)
+      IF (ALLOCATED(cache%chunk_return_positions)) DEALLOCATE (cache%chunk_return_positions)
       IF (ALLOCATED(cache%route_point_recv_counts)) DEALLOCATE (cache%route_point_recv_counts)
       IF (ALLOCATED(cache%route_point_recv_displs)) DEALLOCATE (cache%route_point_recv_displs)
       IF (ALLOCATED(cache%route_point_send_counts)) DEALLOCATE (cache%route_point_send_counts)
@@ -1375,8 +1359,6 @@ CONTAINS
       IF (ALLOCATED(features%chunk_grad_counts)) DEALLOCATE (features%chunk_grad_counts)
       IF (ALLOCATED(features%chunk_grad_displs)) DEALLOCATE (features%chunk_grad_displs)
       IF (ALLOCATED(features%chunk_return_positions)) DEALLOCATE (features%chunk_return_positions)
-      IF (ALLOCATED(features%chunk_return_ranks)) DEALLOCATE (features%chunk_return_ranks)
-      IF (ALLOCATED(features%chunk_return_rows)) DEALLOCATE (features%chunk_return_rows)
       IF (ALLOCATED(features%route_grad_return_recv_counts)) &
          DEALLOCATE (features%route_grad_return_recv_counts)
       IF (ALLOCATED(features%route_grad_return_recv_displs)) &
