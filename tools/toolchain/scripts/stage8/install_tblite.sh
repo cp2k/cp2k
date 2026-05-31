@@ -22,22 +22,6 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-retrieve_github_archive() {
-  local __sha256="$1"
-  local __filename="$2"
-  local __urlpath="$3"
-  local __outfile="$4"
-  if ! [ -f "${__outfile}" ]; then
-    download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}"
-  elif ! checksum "${__sha256}" "${__outfile}"; then
-    echo "${__outfile} is found but checksum is wrong; delete and re-download"
-    rm -vf "${__outfile}"
-    download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}"
-  else
-    echo "${__outfile} is found and checksum is right"
-  fi
-}
-
 case "$with_tblite" in
   __DONTUSE__) ;;
 
@@ -52,10 +36,7 @@ case "$with_tblite" in
     if verify_checksums "${install_lock_file}"; then
       echo "tblite-${tblite_ver} is already installed, skipping it."
     else
-      #retrieve_package "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
-      retrieve_github_archive "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz" \
-        "https://github.com/tblite/tblite/releases/download/v${tblite_ver}" \
-        "tblite-${tblite_ver}.tar.xz"
+      retrieve_package "${tblite_sha256}" "tblite-${tblite_ver}.tar.xz"
       [ -d tblite-${tblite_ver} ] && rm -rf tblite-${tblite_ver}
       tar -xJf tblite-${tblite_ver}.tar.xz
       cd tblite-${tblite_ver}
