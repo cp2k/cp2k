@@ -20,7 +20,7 @@ MODULE skala_gpw_features
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE torch_api,                       ONLY: &
         torch_dict_clone, torch_dict_create, torch_dict_insert, torch_dict_release, &
-        torch_dict_type, torch_tensor_from_array, torch_tensor_release, &
+        torch_dict_type, torch_tensor_from_array, torch_tensor_narrow, torch_tensor_release, &
         torch_tensor_reset_from_array, torch_tensor_to_device_leaf, torch_tensor_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
@@ -1457,32 +1457,22 @@ CONTAINS
                 features%chunk_grad(row_count, 3, 2), &
                 features%chunk_kin(row_count, 2), &
                 features%chunk_return_positions(row_count), &
-                features%grid_coords(3, row_count), &
-                features%grid_weights(row_count), &
-                features%atomic_grid_weights(row_count), &
-                features%atomic_grid_sizes(atom_count), &
-                features%coarse_0_atomic_coords(3, atom_count), &
                 features%atomic_grid_size_bound_shape(0, max_grid_size))
 
       features%chunk_density(:, :) = parent%chunk_density(row_begin:row_end, :)
       features%chunk_grad(:, :, :) = parent%chunk_grad(row_begin:row_end, :, :)
       features%chunk_kin(:, :) = parent%chunk_kin(row_begin:row_end, :)
       features%chunk_return_positions(:) = parent%chunk_return_positions(row_begin:row_end)
-      features%grid_coords(:, :) = cached_layout%chunk_grid_coords(:, row_begin:row_end)
-      features%grid_weights(:) = cached_layout%chunk_grid_weights(row_begin:row_end)
-      features%atomic_grid_weights(:) = cached_layout%chunk_atomic_grid_weights(row_begin:row_end)
-      features%atomic_grid_sizes(:) = cached_layout%chunk_atomic_grid_sizes(atom_begin:atom_end)
-      features%coarse_0_atomic_coords(:, :) = &
-         cached_layout%chunk_coarse_0_atomic_coords(:, atom_begin:atom_end)
       features%atomic_grid_size_bound_shape = 0_int_8
 
       features%chunk_feature_count = row_count
       features%nflat = parent%nflat
       features%nflat_local = parent%nflat_local
-      features%grid_weight_sum = SUM(features%grid_weights)
+      features%grid_weight_sum = SUM(cached_layout%chunk_grid_weights(row_begin:row_end))
       features%uses_atom_chunks = .TRUE.
       features%uses_atom_chunk_routing = parent%uses_atom_chunk_routing
-      CALL add_owned_feature_tensors(features, requires_grad)
+      CALL add_subchunk_feature_tensors(features, atom_begin, atom_count, row_begin, &
+                                        row_count, requires_grad)
       features%active = .TRUE.
 
    END SUBROUTINE skala_gpw_feature_build_atom_subchunk
@@ -1541,6 +1531,70 @@ CONTAINS
       CPABORT("Requested native SKALA atom subchunk does not exist.")
 
    END SUBROUTINE atom_subchunk_bounds
+
+! **************************************************************************************************
+!> \brief Insert a subchunk into a Torch dictionary using static views of the cached chunk tensors.
+!> \param features ...
+!> \param atom_begin ...
+!> \param atom_count ...
+!> \param row_begin ...
+!> \param row_count ...
+!> \param requires_grad ...
+! **************************************************************************************************
+   SUBROUTINE add_subchunk_feature_tensors(features, atom_begin, atom_count, row_begin, &
+                                           row_count, requires_grad)
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      INTEGER, INTENT(IN)                                :: atom_begin, atom_count, row_begin, &
+                                                            row_count
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+      CPASSERT(cached_layout%chunk_static_tensors_active)
+      CPASSERT(ALLOCATED(features%chunk_density))
+      CPASSERT(ALLOCATED(features%chunk_grad))
+      CPASSERT(ALLOCATED(features%chunk_kin))
+      CPASSERT(ALLOCATED(features%atomic_grid_size_bound_shape))
+
+      features%owns_coordinate_tensor = .FALSE.
+      features%owns_dynamic_tensors = .TRUE.
+      features%owns_inputs = .TRUE.
+      features%owns_static_tensors = .TRUE.
+
+      CALL torch_tensor_narrow(cached_layout%chunk_grid_coords_t, 0, row_begin - 1, &
+                               row_count, features%grid_coords_t)
+      CALL torch_tensor_narrow(cached_layout%chunk_grid_weights_t, 0, row_begin - 1, &
+                               row_count, features%grid_weights_t)
+      CALL torch_tensor_narrow(cached_layout%chunk_atomic_grid_weights_t, 0, row_begin - 1, &
+                               row_count, features%atomic_grid_weights_t)
+      CALL torch_tensor_narrow(cached_layout%chunk_atomic_grid_sizes_t, 0, atom_begin - 1, &
+                               atom_count, features%atomic_grid_sizes_t)
+      CALL torch_tensor_narrow(cached_layout%chunk_coarse_0_atomic_coords_t, 0, &
+                               atom_begin - 1, atom_count, features%coarse_0_atomic_coords_t)
+      CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
+                                   features%atomic_grid_size_bound_shape)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_size_bound_shape_t, .FALSE.)
+      CALL torch_tensor_from_array(features%density_t, features%chunk_density)
+      CALL torch_tensor_to_device_leaf(features%density_t, requires_grad)
+      CALL torch_tensor_from_array(features%grad_t, features%chunk_grad)
+      CALL torch_tensor_to_device_leaf(features%grad_t, requires_grad)
+      CALL torch_tensor_from_array(features%kin_t, features%chunk_kin)
+      CALL torch_tensor_to_device_leaf(features%kin_t, requires_grad)
+
+      CALL torch_dict_create(features%inputs)
+      CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
+      CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_weights", &
+                             features%atomic_grid_weights_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", &
+                             features%atomic_grid_sizes_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
+                             features%atomic_grid_size_bound_shape_t)
+      CALL torch_dict_insert(features%inputs, "density", features%density_t)
+      CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
+      CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
+      CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
+                             features%coarse_0_atomic_coords_t)
+
+   END SUBROUTINE add_subchunk_feature_tensors
 
 ! **************************************************************************************************
 !> \brief Insert owned subchunk arrays into a Torch dictionary.

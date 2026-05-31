@@ -218,6 +218,24 @@ void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
 }
 
 /*******************************************************************************
+ * \brief Creates a tensor view narrowed along one dimension.
+ ******************************************************************************/
+void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
+                           const int64_t start_index, const int64_t length,
+                           torch_c_tensor_t **result) {
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  assert(*result == NULL);
+  assert(dim >= 0);
+  assert(start_index >= 0);
+  assert(length >= 0);
+  assert(dim < tensor->ndimension());
+  assert(start_index + length <= tensor->size(dim));
+  *result = new torch_c_tensor_t(
+      tensor->narrow(dim, start_index, length).to(device).detach());
+}
+
+/*******************************************************************************
  * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
  *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
