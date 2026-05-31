@@ -7,8 +7,8 @@
 
 /*
  * Authors :
-   - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
-   - Advanced Micro Devices, Inc.
+ - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
+ - Advanced Micro Devices, Inc.
 */
 
 #ifndef GRID_GPU_CONTEXT_H
@@ -19,6 +19,7 @@
 #else
 #include <cuda_runtime.h>
 #endif
+#include <array>
 #include <vector>
 
 extern "C" {
@@ -34,86 +35,123 @@ namespace rocm_backend {
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
 
+inline size_t round_up16(size_t n) { return (n + 15) & ~size_t(15); }
+
 class smem_parameters;
 template <typename T> class gpu_vector {
   size_t allocated_size_{0};
   size_t current_size_{0};
-  bool allocated_outside_{false};
-  bool internal_allocation_ = {false};
-  T *device_ptr_ = nullptr;
-  T *host_ptr_ = nullptr;
+  bool internal_allocation_{false};
+  T *device_ptr_{nullptr};
+  T *host_ptr_{nullptr};
+
+  void move_from(gpu_vector &&other) noexcept {
+    allocated_size_ = other.allocated_size_;
+    current_size_ = other.current_size_;
+    internal_allocation_ = other.internal_allocation_;
+    device_ptr_ = other.device_ptr_;
+    host_ptr_ = other.host_ptr_;
+
+    other.allocated_size_ = 0;
+    other.current_size_ = 0;
+    other.internal_allocation_ = false;
+    other.device_ptr_ = nullptr;
+    other.host_ptr_ = nullptr;
+  }
 
 public:
-  gpu_vector() {}
+  gpu_vector() = default;
+
+  gpu_vector(const gpu_vector &) = delete;
+  gpu_vector &operator=(const gpu_vector &) = delete;
+
+  gpu_vector(gpu_vector &&other) noexcept { move_from(std::move(other)); }
+
+  gpu_vector &operator=(gpu_vector &&other) noexcept {
+    if (this != &other) {
+      reset();
+      move_from(std::move(other));
+    }
+    return *this;
+  }
 
   // size is the number of elements not the memory size
-  gpu_vector(const size_t size__) {
-    if (size__ < 16) {
-      allocated_size_ = 16;
-    } else {
-      allocated_size_ = (size__ / 16 + 1) * 16;
-    }
+  explicit gpu_vector(const size_t size__) {
+    allocated_size_ = (size__ < 16) ? 16 : round_up16(size__);
     current_size_ = size__;
     internal_allocation_ = true;
+
 #ifndef __OFFLOAD_UNIFIED_MEMORY
     offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
 #else
     hipMallocManaged((void **)&device_ptr_, sizeof(T) * allocated_size_);
 #endif
+    assert(device_ptr_ != nullptr);
   }
 
-  gpu_vector(const size_t size__, const void *ptr__) {
+  gpu_vector(const size_t size__, void *ptr__) {
     allocated_size_ = size__;
     current_size_ = size__;
-    allocated_outside_ = true;
-    device_ptr_ = ptr__;
+    internal_allocation_ = false;
+    device_ptr_ = static_cast<T *>(ptr__);
   }
   ~gpu_vector() { reset(); }
 
-  inline size_t size() { return current_size_; }
+  inline size_t size() const { return current_size_; }
 
   inline void copy_to_gpu(const T *data__) {
+    assert(device_ptr_ != nullptr);
+    assert(data__ != nullptr);
     offloadMemcpyHtoD(device_ptr_, data__, sizeof(T) * current_size_);
   }
 
   inline void copy_to_gpu(const T *data__, offloadStream_t &stream__) {
+    assert(device_ptr_ != nullptr);
+    assert(data__ != nullptr);
     offloadMemcpyAsyncHtoD(device_ptr_, data__, sizeof(T) * current_size_,
                            stream__);
   }
 
-  inline void copy_to_gpu(offloadStream_t &stream__) {
+  inline void copy_associated_host_to_gpu(offloadStream_t &stream__) {
+    assert(device_ptr_ != nullptr);
+    assert(host_ptr_ != nullptr);
+    // If the second assert fails it means that the object was created without
+    // host buffer. It should not happen in the current scenario
+
     offloadMemcpyAsyncHtoD(device_ptr_, host_ptr_, sizeof(T) * current_size_,
                            stream__);
   }
 
   inline void copy_from_gpu(T *data__, offloadStream_t &stream__) {
+    assert(device_ptr_ != nullptr);
+    assert(data__ != nullptr);
     offloadMemcpyAsyncDtoH(data__, device_ptr_, sizeof(T) * current_size_,
                            stream__);
   }
 
-  inline void copy_from_gpu(offloadStream_t &stream__) {
+  inline void copy_gpu_to_associated_host(offloadStream_t &stream__) {
+    assert(device_ptr_ != nullptr);
+    assert(host_ptr_ != nullptr);
+    // If the second assert fails it means that the object was created without
+    // host buffer. It should not happen in the current scenario
+
     offloadMemcpyAsyncDtoH(host_ptr_, device_ptr_, sizeof(T) * current_size_,
                            stream__);
   }
 
   inline void zero(offloadStream_t &stream__) {
+    assert(device_ptr_ != nullptr);
     // zero device grid buffers
     offloadMemsetAsync(device_ptr_, 0, sizeof(T) * current_size_, stream__);
   }
 
   inline void associate(void *host_ptr__, void *device_ptr__,
                         const size_t size__) {
-
-    if (internal_allocation_) {
-      if (device_ptr_)
-        offloadFree(device_ptr_);
-      if (host_ptr_)
-        std::free(host_ptr_);
-      internal_allocation_ = false;
-    }
-
-    allocated_outside_ = true;
-    // size__ is the number of elements not the size of the memory block
+    assert(host_ptr__ != nullptr);
+    assert(device_ptr__ != nullptr);
+    reset();
+    internal_allocation_ = false;
+    allocated_size_ = size__;
     current_size_ = size__;
     device_ptr_ = static_cast<T *>(device_ptr__);
     host_ptr_ = static_cast<T *>(host_ptr__);
@@ -130,26 +168,29 @@ public:
     // size. two option then
     // - resize the gpu vector
     // - or the cpu vector and gpu vector are not representing the quantity.
-
+    assert(device_ptr_ != nullptr);
     offloadMemcpyHtoD(device_ptr_, data__.data(), sizeof(T) * data__.size());
   }
 
-  inline void resize(const size_t new_size_) {
-    if (allocated_outside_) {
-      allocated_outside_ = false;
+  inline void resize(const size_t new_size__) {
+    if (!internal_allocation_) {
       allocated_size_ = 0;
       device_ptr_ = nullptr;
       host_ptr_ = nullptr;
     }
 
-    if (allocated_size_ < new_size_) {
-      if (device_ptr_ != nullptr)
+    assert(new_size__ != 0);
+    if (allocated_size_ < new_size__) {
+      if (internal_allocation_ && device_ptr_ != nullptr)
         offloadFree(device_ptr_);
-      allocated_size_ = (new_size_ / 16 + (new_size_ % 16 != 0)) * 16;
+      device_ptr_ = nullptr;
+      allocated_size_ = (new_size__ < 16) ? 16 : round_up16(new_size__);
       offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
       internal_allocation_ = true;
+      host_ptr_ = nullptr;
     }
-    current_size_ = new_size_;
+    assert(device_ptr_ != nullptr);
+    current_size_ = new_size__;
   }
 
   // does not invalidate the pointer. The memory is still allocated
@@ -157,12 +198,8 @@ public:
 
   // reset the class and free memory
   inline void reset() {
-    if (!allocated_outside_) {
-      if (device_ptr_ != nullptr)
-        offloadFree(device_ptr_);
-
-      if (host_ptr_ != nullptr)
-        std::free(device_ptr_);
+    if (internal_allocation_ && (device_ptr_ != nullptr)) {
+      offloadFree(device_ptr_);
     }
 
     allocated_size_ = 0;
@@ -173,38 +210,46 @@ public:
   }
 
   inline T *data() { return device_ptr_; }
+  inline const T *data() const { return device_ptr_; }
 };
 
 template <typename T> class grid_info {
-  int full_size_[3] = {0, 0, 0};
-  int local_size_[3] = {0, 0, 0};
+private:
+  std::array<int, 3> full_size_;
+  std::array<int, 3> local_size_;
   // origin of the local part of the grid in grid point
-  int lower_corner_[3] = {0, 0, 0};
-  int border_width_[3] = {0, 0, 0};
-  double dh_[9];
-  double dh_inv_[9];
+  std::array<int, 3> lower_corner_;
+  std::array<int, 3> border_width_;
+  std::array<T, 9> dh_;
+  std::array<T, 9> dh_inv_;
   bool orthorhombic_{false};
   bool is_distributed_{false};
   gpu_vector<T> grid_;
 
 public:
+  grid_info(const grid_info &) = delete;
+  grid_info &operator=(const grid_info &) = delete;
+
+  grid_info(grid_info &&) noexcept = default;
+  grid_info &operator=(grid_info &&) noexcept = default;
+
   grid_info(){};
 
   grid_info(const int *full_size__, const int *local_size__,
             const int *border_width__) {
-    initialize(full_size__, local_size__, border_width__);
+    int roffset__[3] = {0, 0, 0};
+    initialize(full_size__, local_size__, roffset__, border_width__);
   }
 
-  ~grid_info() { grid_.reset(); };
-
-  inline T *data() { return grid_.data(); }
+  ~grid_info() = default;
 
   inline void copy_to_gpu(const T *data, offloadStream_t &stream) {
+    assert(data != nullptr);
     grid_.copy_to_gpu(data, stream);
   }
 
   inline void copy_to_gpu(offloadStream_t &stream) {
-    grid_.copy_to_gpu(stream);
+    grid_.copy_associated_host_to_gpu(stream);
   }
 
   inline void reset() { grid_.reset(); }
@@ -222,17 +267,13 @@ public:
   inline size_t size() const { return grid_.size(); }
 
   inline void zero(offloadStream_t &stream) { grid_.zero(stream); }
-  inline gpu_vector<T> &grid() { return grid_; }
-  inline void set_lattice_vectors(const double *dh__, const double *dh_inv__) {
-    memcpy(dh_, dh__, sizeof(double) * 9);
-    memcpy(dh_inv_, dh_inv__, sizeof(double) * 9);
+
+  inline void set_lattice_vectors(const T *dh__, const T *dh_inv__) {
+    for (int i = 0; i < 9; ++i) {
+      dh_[i] = dh__[i];
+      dh_inv_[i] = dh_inv__[i];
+    }
   }
-
-  inline T *dh() { return dh_; }
-
-  inline T *dh_inv() { return dh_inv_; }
-
-  inline bool is_orthorhombic() { return orthorhombic_; }
 
   inline void is_distributed(const bool distributed__) {
     is_distributed_ = distributed__;
@@ -243,7 +284,7 @@ public:
       orthorhombic_ = true;
       return;
     }
-    double norm1, norm2, norm3;
+    T norm1, norm2, norm3;
     bool orthogonal[3] = {false, false, false};
     norm1 = dh_[0] * dh_[0] + dh_[1] * dh_[1] + dh_[2] * dh_[2];
     norm2 = dh_[3] * dh_[3] + dh_[4] * dh_[4] + dh_[5] * dh_[5];
@@ -269,16 +310,19 @@ public:
     orthorhombic_ = orthogonal[0] && orthogonal[1] && orthogonal[2];
   }
 
-  inline void copy_to_host(double *data__, offloadStream_t &stream) {
+  inline void copy_to_host(T *data__, offloadStream_t &stream) {
+    assert(data__ != nullptr);
     grid_.copy_from_gpu(data__, stream);
   }
 
   inline void copy_to_host(offloadStream_t &stream) {
-    grid_.copy_from_gpu(stream);
+    grid_.copy_gpu_to_associated_host(stream);
   }
 
   inline void associate(void *host_ptr__, void *device_ptr__,
                         const size_t size__) {
+    assert(host_ptr__ != nullptr);
+    assert(device_ptr__ != nullptr);
     grid_.associate(host_ptr__, device_ptr__, size__);
   }
   inline bool is_distributed() { return is_distributed_; }
@@ -302,6 +346,21 @@ public:
     assert(i < 3);
     return border_width_[i];
   }
+
+  inline T *data() { return grid_.data(); }
+  inline const T *data() const { return grid_.data(); }
+
+  inline gpu_vector<T> &grid() { return grid_; }
+  inline const gpu_vector<T> &grid() const { return grid_; }
+
+  inline T *dh() { return dh_.data(); }
+  inline const T *dh() const { return dh_.data(); }
+
+  inline T *dh_inv() { return dh_inv_.data(); }
+  inline const T *dh_inv() const { return dh_inv_.data(); }
+
+  inline bool is_orthorhombic() const { return orthorhombic_; }
+  inline bool is_distributed() const { return is_distributed_; }
 
 private:
   void initialize(const int *const full_size__, const int *const local_size__,
@@ -346,6 +405,7 @@ struct task_info {
   int ikind, jkind;
   int border_mask;
   int block_num;
+  int max_cab_size{0};
   double radius;
   double ra[3], rb[3], rp[3];
   double rab2;
@@ -353,7 +413,6 @@ struct task_info {
   double rab[3];
   int lp_max{0};
   size_t coef_offset{0};
-  size_t cab_offset{0};
   int la_max, lb_max, la_min, lb_min, first_coseta, first_cosetb, ncoseta,
       ncosetb, nsgfa, nsgfb, nsgf_seta, nsgf_setb, maxcoa, maxcob;
   int sgfa, sgfb, subblock_offset;
@@ -372,9 +431,9 @@ struct task_info {
  ******************************************************************************/
 
 struct kernel_params {
-  int smem_alpha_offset{0};
-  int smem_cab_offset{0};
   int first_task{0};
+  // max size of cab.
+  int cab_size_{0};
   int grid_full_size_[3] = {0, 0, 0};
   int grid_local_size_[3] = {0, 0, 0};
   int grid_lower_corner_[3] = {0, 0, 0};
@@ -395,6 +454,7 @@ struct kernel_params {
   int *task_sorted_by_blocks_dev{nullptr};
   int *sorted_blocks_offset_dev{nullptr};
   int *num_tasks_per_block_dev{nullptr};
+  int *cab_block_offset_dev{nullptr};
 };
 
 /* regroup all information about the context. */
@@ -410,6 +470,7 @@ public:
   int natoms{0};
   int nkinds{0};
   int nblocks{0};
+  int cab_size_per_block_{0};
   std::vector<double *> sphi;
   std::vector<offloadStream_t> level_streams;
   offloadStream_t main_stream;
@@ -417,6 +478,7 @@ public:
   // all these tables are on the gpu. we can resize them copy to them and copy
   // from them
   gpu_vector<int> block_offsets_dev;
+  gpu_vector<int> cab_block_offset_dev;
   gpu_vector<double> coef_dev_;
   gpu_vector<double> cab_dev_;
   gpu_vector<double> pab_block_;
@@ -435,21 +497,140 @@ public:
   bool calculate_virial{false};
   bool compute_tau{false};
   bool apply_border_mask{false};
+  // Default constructor
+  context_info() = default;
 
-  context_info() {}
-  context_info(const int device_id__) {
-    if (device_id__ < 0)
-      device_id_ = 0;
-    else
-      device_id_ = device_id__;
+  explicit context_info(int device_id__) {
+    device_id_ = (device_id__ < 0) ? 0 : device_id__;
   }
+
   ~context_info() { clear(); }
 
+  // Non-copyable
+  context_info(const context_info &) = delete;
+  context_info &operator=(const context_info &) = delete;
+
+  // Movable
+  context_info(context_info &&other) noexcept
+      : device_id_{other.device_id_}, lmax_{other.lmax_},
+        checksum_{other.checksum_}, ntasks{other.ntasks},
+        nlevels{other.nlevels}, natoms{other.natoms}, nkinds{other.nkinds},
+        nblocks{other.nblocks}, cab_size_per_block_{other.cab_size_per_block_},
+        sphi{std::move(other.sphi)},
+        level_streams{std::move(other.level_streams)},
+        main_stream{other.main_stream},
+        block_offsets_dev{std::move(other.block_offsets_dev)},
+        cab_block_offset_dev{std::move(other.cab_block_offset_dev)},
+        coef_dev_{std::move(other.coef_dev_)},
+        cab_dev_{std::move(other.cab_dev_)},
+        pab_block_{std::move(other.pab_block_)},
+        hab_block_{std::move(other.hab_block_)},
+        forces_{std::move(other.forces_)}, virial_{std::move(other.virial_)},
+        tasks_dev{std::move(other.tasks_dev)},
+        num_tasks_per_block_dev_{std::move(other.num_tasks_per_block_dev_)},
+        grid_{std::move(other.grid_)},
+        number_of_tasks_per_level_{std::move(other.number_of_tasks_per_level_)},
+        first_task_per_level_{std::move(other.first_task_per_level_)},
+        sphi_size{std::move(other.sphi_size)},
+        sphi_dev{std::move(other.sphi_dev)},
+        task_sorted_by_blocks_dev{std::move(other.task_sorted_by_blocks_dev)},
+        sorted_blocks_offset_dev{std::move(other.sorted_blocks_offset_dev)},
+        calculate_forces{other.calculate_forces},
+        calculate_virial{other.calculate_virial},
+        compute_tau{other.compute_tau},
+        apply_border_mask{other.apply_border_mask} {
+
+    // copy stats
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < 20; ++j)
+        stats[i][j] = other.stats[i][j];
+
+    // leave other in a safe state (no ownership)
+    other.device_id_ = -1;
+    other.lmax_ = 0;
+    other.checksum_ = 0;
+    other.ntasks = 0;
+    other.nlevels = 0;
+    other.natoms = 0;
+    other.nkinds = 0;
+    other.nblocks = 0;
+    other.main_stream = {};
+    other.calculate_forces = false;
+    other.calculate_virial = false;
+    other.compute_tau = false;
+    other.apply_border_mask = false;
+  }
+
+  context_info &operator=(context_info &&other) noexcept {
+    if (this != &other) {
+      clear(); // free current GPU resources and streams
+
+      device_id_ = other.device_id_;
+      lmax_ = other.lmax_;
+      checksum_ = other.checksum_;
+      ntasks = other.ntasks;
+      nlevels = other.nlevels;
+      natoms = other.natoms;
+      nkinds = other.nkinds;
+      nblocks = other.nblocks;
+      sphi = std::move(other.sphi);
+      level_streams = std::move(other.level_streams);
+      main_stream = other.main_stream;
+
+      for (int i = 0; i < 2; ++i)
+        for (int j = 0; j < 20; ++j)
+          stats[i][j] = other.stats[i][j];
+
+      block_offsets_dev = std::move(other.block_offsets_dev);
+      cab_block_offset_dev = std::move(other.cab_block_offset_dev);
+      coef_dev_ = std::move(other.coef_dev_);
+      cab_dev_ = std::move(other.cab_dev_);
+      pab_block_ = std::move(other.pab_block_);
+      hab_block_ = std::move(other.hab_block_);
+      forces_ = std::move(other.forces_);
+      virial_ = std::move(other.virial_);
+      tasks_dev = std::move(other.tasks_dev);
+      num_tasks_per_block_dev_ = std::move(other.num_tasks_per_block_dev_);
+      grid_ = std::move(other.grid_);
+      number_of_tasks_per_level_ = std::move(other.number_of_tasks_per_level_);
+      first_task_per_level_ = std::move(other.first_task_per_level_);
+      sphi_size = std::move(other.sphi_size);
+      sphi_dev = std::move(other.sphi_dev);
+      task_sorted_by_blocks_dev = std::move(other.task_sorted_by_blocks_dev);
+      sorted_blocks_offset_dev = std::move(other.sorted_blocks_offset_dev);
+
+      calculate_forces = other.calculate_forces;
+      calculate_virial = other.calculate_virial;
+      compute_tau = other.compute_tau;
+      apply_border_mask = other.apply_border_mask;
+
+      // reset other
+      other.device_id_ = -1;
+      other.lmax_ = 0;
+      other.checksum_ = 0;
+      other.ntasks = 0;
+      other.nlevels = 0;
+      other.natoms = 0;
+      other.nkinds = 0;
+      other.nblocks = 0;
+      other.main_stream = {};
+      other.calculate_forces = false;
+      other.calculate_virial = false;
+      other.compute_tau = false;
+      other.apply_border_mask = false;
+    }
+    return *this;
+  }
+
   void clear() {
-    offload_set_chosen_device(device_id_);
-    offload_activate_chosen_device();
+    if (device_id_ >= 0) {
+      offload_set_chosen_device(device_id_);
+      offload_activate_chosen_device();
+    }
+
     tasks_dev.reset();
     block_offsets_dev.reset();
+    cab_block_offset_dev.reset();
     coef_dev_.reset();
     cab_dev_.reset();
     task_sorted_by_blocks_dev.reset();
@@ -457,20 +638,26 @@ public:
     sphi_dev.reset();
     forces_.reset();
     virial_.reset();
-    for (auto &phi : sphi)
+
+    for (auto &phi : sphi) {
       if (phi != nullptr)
         offloadFree(phi);
+    }
     sphi.clear();
 
-    offloadStreamDestroy(main_stream);
+    if (main_stream) {
+      offloadStreamDestroy(main_stream);
+      main_stream = {};
+    }
 
-    for (int i = 0; i < nlevels; i++) {
-      offloadStreamDestroy(level_streams[i]);
+    for (auto &stream : level_streams) {
+      if (stream)
+        offloadStreamDestroy(stream);
     }
     level_streams.clear();
 
-    for (auto &grid : grid_) {
-      grid.reset();
+    for (auto &g : grid_) {
+      g.reset();
     }
     grid_.clear();
   }
@@ -502,7 +689,7 @@ public:
                       basis_set->nsgf * basis_set->maxco * sizeof(double));
         sphi_size[i] = basis_set->nsgf * basis_set->maxco;
       }
-      offloadMemset(sphi[i], 0, sizeof(double) * sphi_size[i]);
+      //      offloadMemset(sphi[i], 0, sizeof(double) * sphi_size[i]);
       offloadMemcpyHtoD(sphi[i], basis_set->sphi,
                         basis_set->nsgf * basis_set->maxco * sizeof(double));
     }
@@ -557,6 +744,7 @@ public:
       abort();
     }
   }
+  void calculate_all_coefficients(const enum grid_func func, int *lp_diff);
 
 private:
   kernel_params set_kernel_parameters(const int level,

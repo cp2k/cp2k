@@ -59,7 +59,6 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
             block_val =
                 task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
           }
-          //          const T sphia = task.sphia[j * task.maxcoa + ico];
           tmp_val += block_val * task.sphia[j * task.maxcoa + ico];
         }
         pab_val += tmp_val * sphib;
@@ -81,29 +80,37 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
 template <typename T, bool IS_FUNC_AB>
 __global__
 __launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
-  __shared__ smem_task<T> task;
-  if (dev_.tasks[dev_.first_task + blockIdx.x].skip_task)
+  // Copy task from global to shared memory and precompute some stuff.
+  extern __shared__ T shared_memory[];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+
+  if (number_of_tasks == 0)
     return;
 
+  T *smem_alpha = &shared_memory[0];
   const int tid =
       threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  T *smem_cab = allocate_workspace<T>(dev_);
 
-  fill_smem_task_coef(dev_, dev_.first_task + blockIdx.x, task);
-  extern __shared__ T shared_memory[];
-  // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
-  T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
-  T *coef_ =
-      &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset];
-  T *smem_cab =
-      &dev_.ptr_dev[6][dev_.tasks[dev_.first_task + blockIdx.x].cab_offset];
-  compute_alpha(task, smem_alpha);
-  for (int z = tid; z < task.n1 * task.n2;
-       z += blockDim.x * blockDim.y * blockDim.z)
-    smem_cab[z] = 0.0;
-  __syncthreads();
-  block_to_cab<T, IS_FUNC_AB>(dev_, task, smem_cab);
-  __syncthreads();
-  cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
+  for (int tk = 0; tk < number_of_tasks; tk++) {
+    __shared__ smem_task<T> task;
+    const int task_id = dev_.task_sorted_by_blocks_dev[offset + tk];
+    if (dev_.tasks[task_id].skip_task)
+      continue;
+    fill_smem_task_coef(dev_, task_id, task);
+
+    T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
+
+    compute_alpha(task, smem_alpha);
+    for (int z = tid; z < task.n1 * task.n2;
+         z += blockDim.x * blockDim.y * blockDim.z)
+      smem_cab[z] = 0.0;
+    __syncthreads();
+    block_to_cab<T, IS_FUNC_AB>(dev_, task, smem_cab);
+    __syncthreads();
+    cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
+  }
 }
 
 /*
@@ -396,7 +403,6 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
 
           if (task.lp >= 7) {
             for (int ic = ncoset(6); ic < ncoset(task.lp); ic++) {
-              T tmp1 = coef_[ic];
               auto &co = coset_inv[ic];
               T tmp = 1.0;
               for (int po = 0; po < (co.l[2] >> 1); po++)
@@ -411,7 +417,7 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
                 tmp *= r3x2;
               if (co.l[0] & 0x1)
                 tmp *= r3.x;
-              res += tmp * tmp1;
+              res += tmp * coef_[ic];
             }
           }
         }
@@ -424,6 +430,33 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
                   res);
       }
     }
+  }
+}
+
+void context_info::calculate_all_coefficients(const enum grid_func func,
+                                              int *lp_diff) {
+  // Compute max angular momentum.
+  const ldiffs_value ldiffs = prepare_get_ldiffs(func);
+  smem_parameters smem_params(ldiffs, lmax());
+
+  *lp_diff = smem_params.lp_diff();
+  init_constant_memory();
+
+  // kernel parameters
+  kernel_params params = set_kernel_parameters(-1, smem_params);
+  params.func = func;
+
+  // Launch !
+  const dim3 threads_per_block(4, 4, 4);
+
+  if (func == GRID_FUNC_AB) {
+    calculate_coefficients<double, true>
+        <<<nblocks, threads_per_block, smem_params.smem_per_block(),
+           main_stream>>>(params);
+  } else {
+    calculate_coefficients<double, false>
+        <<<nblocks, threads_per_block, smem_params.smem_per_block(),
+           main_stream>>>(params);
   }
 }
 /*******************************************************************************
@@ -449,16 +482,6 @@ void context_info::collocate_one_grid_level(const int level,
 
   // Launch !
   const dim3 threads_per_block(4, 4, 4);
-
-  if (func == GRID_FUNC_AB) {
-    calculate_coefficients<double, true>
-        <<<number_of_tasks_per_level_[level], threads_per_block,
-           smem_params.smem_per_block(), level_streams[level]>>>(params);
-  } else {
-    calculate_coefficients<double, false>
-        <<<number_of_tasks_per_level_[level], threads_per_block,
-           smem_params.smem_per_block(), level_streams[level]>>>(params);
-  }
 
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthorhombic())

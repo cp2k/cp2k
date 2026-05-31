@@ -23,6 +23,7 @@
 #include "cpu/grid_cpu_collocate.h"
 #include "cpu/grid_cpu_integrate.h"
 #include "grid_task_list.h"
+#include "grid_task_list_internal.h"
 
 /*******************************************************************************
  * \brief Reads next line from given filehandle and handles errors.

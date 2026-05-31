@@ -12,10 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common/grid_common.h"
-#include "common/grid_constants.h"
-#include "common/grid_library.h"
 #include "grid_task_list.h"
+#include "grid_task_list_internal.h"
 
 /*******************************************************************************
  * \brief Allocates a task list which can be passed to grid_collocate_task_list.
@@ -39,16 +37,19 @@ void grid_create_task_list(
 
   const grid_library_config config = grid_library_get_config();
 
-  grid_task_list *task_list = NULL;
+  grid_task_list_internal *task_list = NULL;
 
   if (*task_list_out == NULL) {
-    task_list = malloc(sizeof(grid_task_list));
+    task_list = malloc(sizeof(grid_task_list_internal));
+    // not a proper handling of errors. assert is a debug tool
     assert(task_list != NULL);
-    memset(task_list, 0, sizeof(grid_task_list));
+    memset(task_list, 0, sizeof(grid_task_list_internal));
+    *task_list_out = task_list;
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) &&                     \
+    !defined(__NO_OFFLOAD_GRID)
       task_list->backend = GRID_BACKEND_GPU;
 #else
       task_list->backend = GRID_BACKEND_CPU;
@@ -58,14 +59,25 @@ void grid_create_task_list(
     }
   } else {
     // Reuse existing task list.
-    task_list = *task_list_out;
+    task_list = (grid_task_list_internal *)*task_list_out;
+  }
+
+  if ((nblocks == 0) || (ntasks == 0) || (nlevels == 0)) {
+    task_list->empty = true;
+    return;
+  } else {
+    task_list->empty = false;
+  }
+
+  size_t size = (size_t)nlevels * 3 * sizeof(int);
+
+  if (task_list->nlevels < nlevels) {
     free(task_list->npts_local);
+    task_list->npts_local = malloc(size);
   }
 
   // Store npts_local for bounds checking and validation.
   task_list->nlevels = nlevels;
-  size_t size = nlevels * 3 * sizeof(int);
-  task_list->npts_local = malloc(size);
   assert(task_list->npts_local != NULL);
   memcpy(task_list->npts_local, npts_local, size);
 
@@ -99,7 +111,8 @@ void grid_create_task_list(
     break;
 
   case GRID_BACKEND_GPU:
-#if (defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID))
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) &&                     \
+    !defined(__NO_OFFLOAD_GRID)
     grid_gpu_create_task_list(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         &atom_positions[0][0], atom_kinds, basis_sets, level_list, iatom_list,
@@ -119,15 +132,17 @@ void grid_create_task_list(
     abort();
     break;
   }
-
-  *task_list_out = task_list;
 }
 
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_free_task_list(grid_task_list *task_list) {
+void grid_free_task_list(grid_task_list *ptr) {
+  if (ptr == NULL)
+    return;
+
+  grid_task_list_internal *task_list = (grid_task_list_internal *)ptr;
 
   if (task_list->ref != NULL) {
     grid_ref_free_task_list(task_list->ref);
@@ -157,11 +172,21 @@ void grid_free_task_list(grid_task_list *task_list) {
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_collocate_task_list(const grid_task_list *task_list,
+void grid_collocate_task_list(const grid_task_list *ptr,
                               const enum grid_func func, const int nlevels,
                               const int npts_local[nlevels][3],
                               const offload_buffer *pab_blocks,
                               offload_buffer *grids[nlevels]) {
+  if (ptr == NULL)
+    return;
+
+  grid_task_list_internal *task_list = (grid_task_list_internal *)ptr;
+
+  if (task_list->empty) {
+    for (int level = 0; level < nlevels; level++)
+      memset(grids[level]->host_buffer, 0, grids[level]->size);
+    return;
+  }
 
   // Bounds check.
   assert(task_list->nlevels == nlevels);
@@ -184,7 +209,8 @@ void grid_collocate_task_list(const grid_task_list *task_list,
     grid_dgemm_collocate_task_list(task_list->dgemm, func, nlevels, pab_blocks,
                                    grids);
     break;
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) &&                     \
+    !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
                                  grids);
@@ -248,11 +274,41 @@ void grid_collocate_task_list(const grid_task_list *task_list,
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_integrate_task_list(
-    const grid_task_list *task_list, const bool compute_tau, const int natoms,
-    const int nlevels, const int npts_local[nlevels][3],
-    const offload_buffer *pab_blocks, const offload_buffer *grids[nlevels],
-    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+void grid_integrate_task_list(const grid_task_list *ptr, const bool compute_tau,
+                              const int natoms, const int nlevels,
+                              const int npts_local[nlevels][3],
+                              const offload_buffer *pab_blocks,
+                              const offload_buffer *grids[nlevels],
+                              offload_buffer *hab_blocks,
+                              double forces[natoms][3], double virial[3][3]) {
+
+  if (ptr == NULL)
+    return;
+
+  grid_task_list_internal *task_list = (grid_task_list_internal *)ptr;
+
+  if (task_list->empty) {
+    memset(hab_blocks->host_buffer, 0, hab_blocks->size);
+    if (virial) {
+      virial[0][0] = 0.0;
+      virial[0][1] = 0.0;
+      virial[0][2] = 0.0;
+      virial[1][0] = 0.0;
+      virial[1][1] = 0.0;
+      virial[1][2] = 0.0;
+      virial[2][0] = 0.0;
+      virial[2][1] = 0.0;
+      virial[2][2] = 0.0;
+    }
+    if (forces) {
+      for (int atom = 0; atom < natoms; atom++) {
+        forces[atom][0] = 0.0;
+        forces[atom][1] = 0.0;
+        forces[atom][2] = 0.0;
+      }
+    }
+    return;
+  }
 
   // Bounds check.
   assert(task_list->nlevels == nlevels);
@@ -266,7 +322,8 @@ void grid_integrate_task_list(
   assert(virial == NULL || pab_blocks != NULL);
 
   switch (task_list->backend) {
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) &&                     \
+    !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_integrate_task_list(task_list->gpu, compute_tau, nlevels,
                                  pab_blocks, grids, hab_blocks, &forces[0][0],

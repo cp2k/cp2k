@@ -10,30 +10,10 @@
 #include <stdbool.h>
 
 #include "../offload/offload_buffer.h"
-#include "../offload/offload_runtime.h"
 #include "common/grid_basis_set.h"
 #include "common/grid_constants.h"
-#include "cpu/grid_cpu_task_list.h"
-#include "dgemm/grid_dgemm_task_list.h"
-#include "gpu/grid_gpu_task_list.h"
-#include "ref/grid_ref_task_list.h"
 
-/*******************************************************************************
- * \brief Internal representation of a task list, abstracting various backends.
- * \author Ole Schuett
- ******************************************************************************/
-typedef struct {
-  int backend;
-  int nlevels;
-  int (*npts_local)[3];
-  grid_ref_task_list *ref;
-  grid_cpu_task_list *cpu;
-  grid_dgemm_task_list *dgemm;
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
-  grid_gpu_task_list *gpu;
-#endif
-  // more backends to be added here
-} grid_task_list;
+typedef void grid_task_list;
 
 /*******************************************************************************
  * \brief Allocates a task list which can be passed to grid_collocate_task_list.

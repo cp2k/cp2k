@@ -30,6 +30,7 @@
 #endif
 
 namespace rocm_backend {
+
 // do a warp reduction and return the final sum to thread_id = 0
 template <typename T>
 __device__ __inline__ T warp_reduce(T *table, const int tid) {
@@ -59,19 +60,113 @@ __device__ __inline__ T warp_reduce(T *table, const int tid) {
 }
 // #endif
 
-template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
-__global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
+template <typename T>
+__device__ __inline__ T reduce_two_warps(const T in, const int tid) {
+  int lane = tid & 31; // lane within warp
+  int warp = tid >> 5; // warp index (0 or 1)
+
+  T x = in;
+  __shared__ T sdata[2];
+  // Step 1: per‑warp reduction via shuffles
+#if defined(__CUDACC__)
+  unsigned mask = 0xffffffff;
+  for (int offset = 16; offset > 0; offset >>= 1)
+    x += __shfl_down_sync(mask, x, offset);
+#else
+  for (int offset = warpSize / 2; offset > 0; offset >>= 1)
+    x += __shfl_down(x, offset);
+#endif
+  // Step 2: each warp writes its partial sum to shared memory
+  if (lane == 0)
+    sdata[warp] = x;
+
+  __syncthreads(); // ensures both partial sums are visible
+
+  // Step 3: first warp loads the partials and finishes reduction
+  if (warp == 0) {
+    T v = (lane < 2) ? sdata[lane] : 0; // 2 warps → 2 partials
+
+#if defined(__CUDACC__)
+    // reduce across first warp only
+    for (int offset = 16; offset > 0; offset >>= 1)
+      v += __shfl_down_sync(0xFFFFFFFF, v, offset);
+#else
+    for (int offset = warpSize / 2; offset > 0; offset >>= 1)
+      v += __shfl_down_sync(0xFFFFFFFFFFFFFFFF, v, offset);
+#endif
+    return v;
+  }
+}
+
+template <typename T, bool COMPUTE_TAU>
+__global__ __launch_bounds__(64) void compute_hab_v4(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   extern __shared__ T shared_memory[];
   // T *smem_cab = &shared_memory[dev_.smem_cab_offset];
-  T *smem_alpha = &shared_memory[dev_.smem_alpha_offset];
-  const int tid =
-      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
   const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
 
   if (number_of_tasks == 0)
     return;
+
+  T *smem_alpha = &shared_memory[0];
+  const int tid =
+      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
+  T *smem_cab = allocate_workspace<T>(dev_);
+
+  for (int tk = 0; tk < number_of_tasks; tk++) {
+    __shared__ smem_task<T> task;
+    const int task_id = dev_.task_sorted_by_blocks_dev[offset + tk];
+    if (dev_.tasks[task_id].skip_task)
+      continue;
+    fill_smem_task_coef(dev_, task_id, task);
+
+    T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
+
+    compute_alpha(task, smem_alpha);
+    __syncthreads();
+    cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
+    __syncthreads();
+
+    for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
+      const auto &b = coset_inv[jco];
+      for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
+        const auto &a = coset_inv[ico];
+        const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
+                                              task.n1, smem_cab);
+        __syncthreads();
+        // Try to use as many contiguous threads as possible and limit the
+        // number of warps that do partial work
+        for (int ix = tid; ix < task.nsgf_setb * task.nsgf_seta;
+             ix += blockDim.x * blockDim.y * blockDim.z) {
+          const int i = ix / task.nsgf_seta;
+          const int j = ix % task.nsgf_seta;
+          const T sphia_times_sphib = task.sphia[j * task.maxcoa + ico] *
+                                      task.sphib[i * task.maxcob + jco];
+          if (task.block_transposed) {
+            task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
+          } else {
+            task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename T, typename T3, bool COMPUTE_TAU, bool CALCULATE_FORCES>
+__global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
+  // Copy task from global to shared memory and precompute some stuff.
+  extern __shared__ T shared_memory[];
+  const int number_of_tasks = dev_.num_tasks_per_block_dev[blockIdx.x];
+
+  if (number_of_tasks == 0)
+    return;
+
+  T *smem_alpha = &shared_memory[0];
+  const int tid =
+      threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
+  const int offset = dev_.sorted_blocks_offset_dev[blockIdx.x];
 
   T fa[3], fb[3];
   T virial[9];
@@ -92,6 +187,7 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
   virial[6] = 0.0;
   virial[7] = 0.0;
   virial[8] = 0.0;
+  T *smem_cab = allocate_workspace<T>(dev_);
 
   for (int tk = 0; tk < number_of_tasks; tk++) {
     __shared__ smem_task<T> task;
@@ -101,7 +197,6 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     fill_smem_task_coef(dev_, task_id, task);
 
     T *coef_ = &dev_.ptr_dev[2][dev_.tasks[task_id].coef_offset];
-    T *smem_cab = &dev_.ptr_dev[6][dev_.tasks[task_id].cab_offset];
 
     compute_alpha(task, smem_alpha);
     __syncthreads();
@@ -135,28 +230,30 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
           }
         }
         __syncthreads();
+
         T block_val1 = 0.0;
-        for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
+        // Try to use as many contiguous threads as possible and limit the
+        // number of warps that do partial work
+
+        for (int elem = tid; elem < task.nsgf_setb * task.nsgf_seta;
+             elem += blockDim.x * blockDim.y * blockDim.z) {
+          const int i = elem / task.nsgf_seta;
+          const int j = elem % task.nsgf_seta;
           const T sphib = task.sphib[i * task.maxcob + jco];
-          for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
-            const T sphia_times_sphib =
-                task.sphia[j * task.maxcoa + ico] * sphib;
-
-            if (CALCULATE_FORCES) {
-              if (task.block_transposed) {
-                block_val1 += task.pab_block[j * task.nsgfb + i] *
-                              task.off_diag_twice * sphia_times_sphib;
-              } else {
-                block_val1 += task.pab_block[i * task.nsgfa + j] *
-                              task.off_diag_twice * sphia_times_sphib;
-              }
-            }
-
+          const T sphia_times_sphib = task.sphia[j * task.maxcoa + ico] * sphib;
+          if (CALCULATE_FORCES) {
             if (task.block_transposed) {
-              task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
+              block_val1 += task.pab_block[j * task.nsgfb + i] *
+                            task.off_diag_twice * sphia_times_sphib;
             } else {
-              task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
+              block_val1 += task.pab_block[i * task.nsgfa + j] *
+                            task.off_diag_twice * sphia_times_sphib;
             }
+          }
+          if (task.block_transposed) {
+            task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
+          } else {
+            task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
           }
         }
 
@@ -562,101 +659,81 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
       }
     }
 
+    const int max_i = min(length - ico, lbatch);
+
     __syncthreads();
 
-    // we know there is only 1 wavefront in each block
-    // lbatch threads could reduce the values saved by all threads of the warp
-    // and save results do a shuffle_down by hand
+    // we know there is only 1 wavefront in each block lbatch threads could
+    // reduce the values saved by all threads of the warp and save results do a
+    // shuffle_down by hand
+
     if (tid < 32) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
+      for (int i = 0; i < max_i; i++) {
         accumulator[i][tid] += accumulator[i][tid + 32];
       }
     }
+
     __syncthreads();
-    if (tid < 16) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
-        accumulator[i][tid] += accumulator[i][tid + 16];
-      }
-    }
-    __syncthreads();
-    if (tid < 8) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
-        accumulator[i][tid] += accumulator[i][tid + 8];
-      }
-    }
-    __syncthreads();
-    if (tid < 4) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
-        accumulator[i][tid] += accumulator[i][tid + 4];
-      }
-    }
-    __syncthreads();
-    if (tid < 2) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
-        accumulator[i][tid] += accumulator[i][tid + 2];
+
+    if (tid < 32) {
+      for (int i = 0; i < max_i; i++) {
+        // Load local value
+        T val = accumulator[i][tid];
+
+        // Warp-level reduction (32 lanes)
+        // After this loop, lane 0 of warp 0 holds the result
+        for (int offset = 16; offset > 0; offset >>= 1) {
+#if defined(__CUDA_CC__)
+          val += __shfl_down_sync(0xffffffff, val, offset);
+#else
+          val += __shfl_down_sync(0xffffffffffffffff, val, offset);
+#endif
+        }
+
+        if (tid == 0)
+          sum[i] = val;
       }
     }
     __syncthreads();
 
-    if (tid == 0) {
-      for (int i = 0; i < min(length - ico, lbatch); i++) {
-        sum[i] = accumulator[i][0] + accumulator[i][1];
-      }
-    }
-    __syncthreads();
+    // if (tid < 16) {
+    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
+    //     accumulator[i][tid] += accumulator[i][tid + 16];
+    //   }
+    // }
+    // __syncthreads();
+    // if (tid < 8) {
+    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
+    //     accumulator[i][tid] += accumulator[i][tid + 8];
+    //   }
+    // }
+    // __syncthreads();
+    // if (tid < 4) {
+    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
+    //     accumulator[i][tid] += accumulator[i][tid + 4];
+    //   }
+    // }
+    // __syncthreads();
+    // if (tid < 2) {
+    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
+    //     accumulator[i][tid] += accumulator[i][tid + 2];
+    //   }
+    // }
+    // __syncthreads();
+
+    // if (tid == 0) {
+    //   for (int i = 0; i < min(length - ico, lbatch); i++) {
+    //     sum[i] = accumulator[i][0] + accumulator[i][1];
+    //   }
+    // }
+
+    // __syncthreads();
 
     if (tid < min(length - ico, lbatch))
       dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset +
                       tid + ico] = sum[tid];
     __syncthreads();
   }
-}
-
-kernel_params
-context_info::set_kernel_parameters(const int level,
-                                    const smem_parameters &smem_params) {
-  kernel_params params;
-  params.smem_cab_offset = smem_params.smem_cab_offset();
-  params.smem_alpha_offset = smem_params.smem_alpha_offset();
-  params.first_task = 0;
-
-  params.la_min_diff = smem_params.ldiffs().la_min_diff;
-  params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
-
-  params.la_max_diff = smem_params.ldiffs().la_max_diff;
-  params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
-  params.first_task = 0;
-  params.tasks = this->tasks_dev.data();
-  params.task_sorted_by_blocks_dev = task_sorted_by_blocks_dev.data();
-  params.sorted_blocks_offset_dev = sorted_blocks_offset_dev.data();
-  params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
-  params.block_offsets = this->block_offsets_dev.data();
-  params.la_min_diff = smem_params.ldiffs().la_min_diff;
-  params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
-  params.la_max_diff = smem_params.ldiffs().la_max_diff;
-  params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
-
-  params.ptr_dev[0] = pab_block_.data();
-
-  if (level >= 0) {
-    params.ptr_dev[1] = grid_[level].data();
-    for (int i = 0; i < 3; i++) {
-      memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
-      memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
-      params.grid_full_size_[i] = grid_[level].full_size(i);
-      params.grid_local_size_[i] = grid_[level].local_size(i);
-      params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
-      params.grid_border_width_[i] = grid_[level].border_width(i);
-    }
-    params.first_task = first_task_per_level_[level];
-  }
-  params.ptr_dev[2] = this->coef_dev_.data();
-  params.ptr_dev[3] = hab_block_.data();
-  params.ptr_dev[4] = forces_.data();
-  params.ptr_dev[5] = virial_.data();
-  params.ptr_dev[6] = this->cab_dev_.data();
-  params.sphi_dev = this->sphi_dev.data();
-  return params;
 }
 
 /*******************************************************************************
@@ -728,9 +805,12 @@ void context_info::compute_hab_coefficients() {
   const dim3 threads_per_block(4, 4, 4);
 
   if (!compute_tau && !calculate_forces) {
-    compute_hab_v2<double, double3, false, false>
+    compute_hab_v4<double, false>
         <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
            this->main_stream>>>(params);
+    // compute_hab_v2<double, double3, false, false>
+    //   <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+    //   this->main_stream>>>(params);
     return;
   }
 
