@@ -449,7 +449,7 @@ CONTAINS
                CALL calculate_dos_kp(qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
-               CALL calculate_dos(mos, dft_section)
+               CALL calculate_dos(mos, dft_section, smearing_enabled=dft_control%smear)
             END IF
          END IF
       END IF

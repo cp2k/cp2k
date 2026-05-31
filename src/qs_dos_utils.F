@@ -23,11 +23,118 @@ MODULE qs_dos_utils
    INTEGER, PARAMETER, PUBLIC :: broadening_gaussian = 1, &
                                  broadening_lorentzian = 2, &
                                  broadening_pseudo_voigt = 3
+   INTEGER, PARAMETER, PUBLIC :: dos_energy_unit_hartree = 1, &
+                                 dos_energy_unit_ev = 2
+   INTEGER, PARAMETER, PUBLIC :: dos_energy_zero_auto = 1, &
+                                 dos_energy_zero_absolute = 2, &
+                                 dos_energy_zero_fermi = 3, &
+                                 dos_energy_zero_hoco = 4
 
    PUBLIC :: add_broadened_peak, add_broadened_value, broadening_cutoff, broadening_function, &
-             write_broadening_info
+             dos_density_scale, dos_energy_label, dos_energy_scale, dos_energy_zero_label, &
+             dos_resolve_energy_zero, write_broadening_info
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Return the conversion factor from internal energy units to the selected DOS energy unit.
+!> \param energy_unit ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dos_energy_scale(energy_unit) RESULT(scale)
+
+      INTEGER, INTENT(IN)                                :: energy_unit
+      REAL(KIND=dp)                                      :: scale
+
+      SELECT CASE (energy_unit)
+      CASE (dos_energy_unit_ev)
+         scale = cp_unit_from_cp2k(value=1.0_dp, unit_str="eV")
+      CASE DEFAULT
+         scale = 1.0_dp
+      END SELECT
+
+   END FUNCTION dos_energy_scale
+
+! **************************************************************************************************
+!> \brief Return the DOS-density conversion factor for the selected energy unit.
+!> \param energy_unit ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dos_density_scale(energy_unit) RESULT(scale)
+
+      INTEGER, INTENT(IN)                                :: energy_unit
+      REAL(KIND=dp)                                      :: scale
+
+      scale = 1.0_dp/dos_energy_scale(energy_unit)
+
+   END FUNCTION dos_density_scale
+
+! **************************************************************************************************
+!> \brief Return the energy-column label for DOS-like output.
+!> \param energy_unit ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dos_energy_label(energy_unit) RESULT(label)
+
+      INTEGER, INTENT(IN)                                :: energy_unit
+      CHARACTER(LEN=16)                                  :: label
+
+      SELECT CASE (energy_unit)
+      CASE (dos_energy_unit_ev)
+         label = "Energy[eV]"
+      CASE DEFAULT
+         label = "Energy[a.u.]"
+      END SELECT
+
+   END FUNCTION dos_energy_label
+
+! **************************************************************************************************
+!> \brief Return the label for the selected DOS energy zero.
+!> \param energy_zero ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dos_energy_zero_label(energy_zero) RESULT(label)
+
+      INTEGER, INTENT(IN)                                :: energy_zero
+      CHARACTER(LEN=16)                                  :: label
+
+      SELECT CASE (energy_zero)
+      CASE (dos_energy_zero_absolute)
+         label = "ABSOLUTE"
+      CASE (dos_energy_zero_hoco)
+         label = "HOCO"
+      CASE (dos_energy_zero_auto)
+         label = "AUTO"
+      CASE DEFAULT
+         label = "FERMI"
+      END SELECT
+
+   END FUNCTION dos_energy_zero_label
+
+! **************************************************************************************************
+!> \brief Resolve AUTO energy-zero selection for DOS-like output.
+!> \param energy_zero ...
+!> \param smearing_enabled ...
+!> \param fractional_occupation ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dos_resolve_energy_zero(energy_zero, smearing_enabled, fractional_occupation) RESULT(resolved)
+
+      INTEGER, INTENT(IN)                                :: energy_zero
+      LOGICAL, INTENT(IN)                                :: smearing_enabled, fractional_occupation
+      INTEGER                                            :: resolved
+
+      IF (energy_zero == dos_energy_zero_auto) THEN
+         IF (smearing_enabled .OR. fractional_occupation) THEN
+            resolved = dos_energy_zero_fermi
+         ELSE
+            resolved = dos_energy_zero_hoco
+         END IF
+      ELSE
+         resolved = energy_zero
+      END IF
+
+   END FUNCTION dos_resolve_energy_zero
 
 ! **************************************************************************************************
 !> \brief Add a broadened spectral line to a DOS curve.

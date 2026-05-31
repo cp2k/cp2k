@@ -2346,9 +2346,10 @@ CONTAINS
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
                IF (ASSOCIATED(unoccupied_evals)) THEN
-                  CALL calculate_dos(mos, dft_section, unoccupied_evals=unoccupied_evals)
+                  CALL calculate_dos(mos, dft_section, unoccupied_evals=unoccupied_evals, &
+                                     smearing_enabled=dft_control%smear)
                ELSE
-                  CALL calculate_dos(mos, dft_section)
+                  CALL calculate_dos(mos, dft_section, smearing_enabled=dft_control%smear)
                END IF
             END IF
          END IF

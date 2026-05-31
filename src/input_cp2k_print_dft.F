@@ -2691,6 +2691,34 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_UNIT", &
+                          description="Energy unit used for the printed energy axis of the "//TRIM(label)// &
+                          ". For broadened spectra, the "//TRIM(label)// &
+                          " intensity is converted consistently to the selected energy unit.", &
+                          usage="ENERGY_UNIT HARTREE", type_of_var=enum_t, &
+                          enum_c_vals=s2a("HARTREE", "EV"), &
+                          enum_i_vals=[1, 2], &
+                          enum_desc=s2a("Print energies in Hartree (a.u.).", &
+                                        "Print energies in electronvolt."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY_ZERO", &
+                          description="Reference energy used for the printed energy axis of the "//TRIM(label)//". "// &
+                          "With AUTO, the Fermi energy is used if smearing is enabled or fractional "// &
+                          "occupations are found; otherwise the highest occupied crystal orbital is used.", &
+                          usage="ENERGY_ZERO AUTO", type_of_var=enum_t, &
+                          enum_c_vals=s2a("AUTO", "ABSOLUTE", "FERMI", "HOCO"), &
+                          enum_i_vals=[1, 2, 3, 4], &
+                          enum_desc=s2a("Choose FERMI for smeared or fractionally occupied systems, otherwise HOCO.", &
+                                        "Print absolute orbital energies.", &
+                                        "Shift orbital energies by the Fermi energy.", &
+                                        "Shift orbital energies by the highest occupied crystal orbital."), &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="BROADEN_TYPE", &
                           description="Type of broadening function used to produce the "//TRIM(label)//" curve.", &
                           usage="BROADEN_TYPE GAUSSIAN", type_of_var=enum_t, &
