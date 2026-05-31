@@ -11,6 +11,8 @@
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
 
+#include <cassert>
+
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
@@ -267,6 +269,60 @@ static void grad_to_array_double(const torch_c_tensor_t *tensor,
   std::memcpy(target, selected.data_ptr<double>(), selected.nbytes());
 }
 
+static void grad_pack_atom_chunks_double(const torch_c_tensor_t *density,
+                                         const torch_c_tensor_t *grad,
+                                         const torch_c_tensor_t *kin,
+                                         const int nrows,
+                                         const int return_positions[],
+                                         double target[]) {
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  const torch::Tensor density_maybe_grad = density->grad();
+  const torch::Tensor maybe_grad_grad = grad->grad();
+  const torch::Tensor kin_maybe_grad = kin->grad();
+
+  assert(density_maybe_grad.defined());
+  assert(maybe_grad_grad.defined());
+  assert(kin_maybe_grad.defined());
+  assert(density_maybe_grad.scalar_type() == torch::kFloat64);
+  assert(maybe_grad_grad.scalar_type() == torch::kFloat64);
+  assert(kin_maybe_grad.scalar_type() == torch::kFloat64);
+
+  const torch::Tensor density_grad = density_maybe_grad.cpu().contiguous();
+  const torch::Tensor grad_grad = maybe_grad_grad.cpu().contiguous();
+  const torch::Tensor kin_grad = kin_maybe_grad.cpu().contiguous();
+  assert(density_grad.ndimension() == 2);
+  assert(grad_grad.ndimension() == 3);
+  assert(kin_grad.ndimension() == 2);
+  assert(density_grad.size(0) == 2);
+  assert(density_grad.size(1) == nrows);
+  assert(grad_grad.size(0) == 2);
+  assert(grad_grad.size(1) == 3);
+  assert(grad_grad.size(2) == nrows);
+  assert(kin_grad.size(0) == 2);
+  assert(kin_grad.size(1) == nrows);
+
+  const double *density_ptr = density_grad.data_ptr<double>();
+  const double *grad_ptr = grad_grad.data_ptr<double>();
+  const double *kin_ptr = kin_grad.data_ptr<double>();
+  for (int row = 0; row < nrows; row++) {
+    const int point_pos = return_positions[row] - 1;
+    assert(point_pos >= 0);
+    assert(point_pos < nrows);
+    double *out = target + 10 * point_pos;
+    out[0] = density_ptr[row];
+    out[1] = density_ptr[nrows + row];
+    out[2] = grad_ptr[row];
+    out[3] = grad_ptr[nrows + row];
+    out[4] = grad_ptr[2 * nrows + row];
+    out[5] = grad_ptr[3 * nrows + row];
+    out[6] = grad_ptr[4 * nrows + row];
+    out[7] = grad_ptr[5 * nrows + row];
+    out[8] = kin_ptr[row];
+    out[9] = kin_ptr[nrows + row];
+  }
+}
+
 /*******************************************************************************
  * \brief Internal helper for getting the data_ptr and sizes of a Torch tensor.
  * \author Ole Schuett
@@ -361,6 +417,19 @@ void torch_c_tensor_grad_to_array_double(const torch_c_tensor_t *tensor,
                                          const int ndims, const int64_t sizes[],
                                          double target[]) {
   grad_to_array_double(tensor, ndims, sizes, target);
+}
+
+/*******************************************************************************
+ * \brief Copies SKALA atom-chunk gradients directly into a routed host buffer.
+ ******************************************************************************/
+void torch_c_tensor_grad_pack_atom_chunks(const torch_c_tensor_t *density,
+                                          const torch_c_tensor_t *grad,
+                                          const torch_c_tensor_t *kin,
+                                          const int nrows,
+                                          const int return_positions[],
+                                          double target[]) {
+  grad_pack_atom_chunks_double(density, grad, kin, nrows, return_positions,
+                               target);
 }
 
 /*******************************************************************************

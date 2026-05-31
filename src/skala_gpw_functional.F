@@ -37,8 +37,8 @@ MODULE skala_gpw_functional
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_select_device, torch_cuda_visible_device, &
         torch_tensor_backward_scalar, torch_tensor_data_ptr, torch_tensor_grad, &
-        torch_tensor_grad_select_to_array, torch_tensor_grad_to_array, torch_tensor_release, &
-        torch_tensor_type, torch_use_cuda
+        torch_tensor_grad_pack_atom_chunks, torch_tensor_grad_select_to_array, &
+        torch_tensor_grad_to_array, torch_tensor_release, torch_tensor_type, torch_use_cuda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_release,&
@@ -375,37 +375,19 @@ CONTAINS
       CPASSERT(features%uses_atom_chunks)
       CPASSERT(features%chunk_feature_count > 0)
 
-      CALL timeset("skala_gpw_grad_torch", phase_handle)
-      ALLOCATE (chunk_density_grad(features%chunk_feature_count, 2), &
-                chunk_grad_grad(features%chunk_feature_count, 3, 2), &
-                chunk_kin_grad(features%chunk_feature_count, 2))
-      CALL torch_tensor_grad_to_array(features%density_t, chunk_density_grad)
-      CALL torch_tensor_grad_to_array(features%grad_t, chunk_grad_grad)
-      CALL torch_tensor_grad_to_array(features%kin_t, chunk_kin_grad)
-      CALL timestop(phase_handle)
-
       nflat_local = features%nflat_local
       IF (features%uses_atom_chunk_routing) THEN
          CPASSERT(SUM(features%route_point_recv_counts) == features%chunk_feature_count)
          CPASSERT(SUM(features%route_point_send_counts) == nflat_local)
 
-         CALL timeset("skala_gpw_grad_route_pack", phase_handle)
          ALLOCATE (send_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    recv_grad_buffer(ngrad_per_point*nflat_local))
-         send_grad_buffer = 0.0_dp
-         DO irow = 1, features%chunk_feature_count
-            point_pos = features%chunk_return_positions(irow)
-            CPASSERT(point_pos >= 1 .AND. point_pos <= features%chunk_feature_count)
-            base = ngrad_per_point*(point_pos - 1)
-            send_grad_buffer(base + 1:base + 2) = chunk_density_grad(irow, :)
-            send_grad_buffer(base + 3) = chunk_grad_grad(irow, 1, 1)
-            send_grad_buffer(base + 4) = chunk_grad_grad(irow, 2, 1)
-            send_grad_buffer(base + 5) = chunk_grad_grad(irow, 3, 1)
-            send_grad_buffer(base + 6) = chunk_grad_grad(irow, 1, 2)
-            send_grad_buffer(base + 7) = chunk_grad_grad(irow, 2, 2)
-            send_grad_buffer(base + 8) = chunk_grad_grad(irow, 3, 2)
-            send_grad_buffer(base + 9:base + 10) = chunk_kin_grad(irow, :)
-         END DO
+
+         CALL timeset("skala_gpw_grad_torch_pack", phase_handle)
+         CALL torch_tensor_grad_pack_atom_chunks(features%density_t, features%grad_t, &
+                                                 features%kin_t, &
+                                                 features%chunk_return_positions, &
+                                                 send_grad_buffer)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_grad_route_comm", phase_handle)
@@ -438,6 +420,15 @@ CONTAINS
 
          DEALLOCATE (recv_grad_buffer, send_grad_buffer)
       ELSE
+         CALL timeset("skala_gpw_grad_torch", phase_handle)
+         ALLOCATE (chunk_density_grad(features%chunk_feature_count, 2), &
+                   chunk_grad_grad(features%chunk_feature_count, 3, 2), &
+                   chunk_kin_grad(features%chunk_feature_count, 2))
+         CALL torch_tensor_grad_to_array(features%density_t, chunk_density_grad)
+         CALL torch_tensor_grad_to_array(features%grad_t, chunk_grad_grad)
+         CALL torch_tensor_grad_to_array(features%kin_t, chunk_kin_grad)
+         CALL timestop(phase_handle)
+
          CALL timeset("skala_gpw_grad_pack", phase_handle)
          ALLOCATE (chunk_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    global_grad_buffer(ngrad_per_point*features%nflat))
@@ -484,11 +475,11 @@ CONTAINS
          END DO
          CALL timestop(phase_handle)
          DEALLOCATE (chunk_grad_buffer, global_grad_buffer)
-      END IF
 
-      CALL timeset("skala_gpw_grad_tmp_release", phase_handle)
-      DEALLOCATE (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-      CALL timestop(phase_handle)
+         CALL timeset("skala_gpw_grad_tmp_release", phase_handle)
+         DEALLOCATE (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+         CALL timestop(phase_handle)
+      END IF
 
    END SUBROUTINE fetch_and_gather_atom_chunk_grads
 

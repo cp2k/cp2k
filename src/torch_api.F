@@ -89,7 +89,8 @@ MODULE torch_api
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
-   PUBLIC :: torch_tensor_grad, torch_tensor_grad_select_to_array, torch_tensor_grad_to_array
+   PUBLIC :: torch_tensor_grad, torch_tensor_grad_pack_atom_chunks
+   PUBLIC :: torch_tensor_grad_select_to_array, torch_tensor_grad_to_array
    PUBLIC :: torch_tensor_to_device_leaf
    PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
@@ -352,6 +353,51 @@ CONTAINS
       END SUBROUTINE torch_tensor_grad_to_array_double_${ndims}$d
 
    #:endfor
+
+! **************************************************************************************************
+!> \brief Copies SKALA atom-chunk gradients directly into a routed host buffer.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_grad_pack_atom_chunks(density, grad, kin, return_positions, target)
+      TYPE(torch_tensor_type), INTENT(IN)                :: density, grad, kin
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: return_positions
+      REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(INOUT) :: target
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_grad_pack_atom_chunks(density, grad, kin, nrows, &
+                                                         return_positions, target) &
+            BIND(C, name="torch_c_tensor_grad_pack_atom_chunks")
+            IMPORT :: C_DOUBLE, C_INT, C_PTR
+            TYPE(C_PTR), VALUE                           :: density
+            TYPE(C_PTR), VALUE                           :: grad
+            TYPE(C_PTR), VALUE                           :: kin
+            INTEGER(kind=C_INT), VALUE                   :: nrows
+            INTEGER(kind=C_INT), DIMENSION(*)            :: return_positions
+            REAL(kind=C_DOUBLE), DIMENSION(*)            :: target
+         END SUBROUTINE torch_c_tensor_grad_pack_atom_chunks
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(density%c_ptr))
+      CPASSERT(C_ASSOCIATED(grad%c_ptr))
+      CPASSERT(C_ASSOCIATED(kin%c_ptr))
+      CPASSERT(ALLOCATED(target))
+      CPASSERT(SIZE(target) == 10*SIZE(return_positions))
+
+      CALL torch_c_tensor_grad_pack_atom_chunks(density=density%c_ptr, &
+                                                grad=grad%c_ptr, &
+                                                kin=kin%c_ptr, &
+                                                nrows=INT(SIZE(return_positions), KIND=C_INT), &
+                                                return_positions=return_positions, &
+                                                target=target)
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(density)
+      MARK_USED(grad)
+      MARK_USED(kin)
+      MARK_USED(return_positions)
+      MARK_USED(target)
+#endif
+   END SUBROUTINE torch_tensor_grad_pack_atom_chunks
 
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.
