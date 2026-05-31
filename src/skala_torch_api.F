@@ -12,11 +12,14 @@ MODULE skala_torch_api
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: &
-        torch_dict_type, torch_model_forward_mol_tensor, torch_model_load, &
-        torch_model_read_metadata, torch_model_release, torch_model_type, &
-        torch_tensor_item_double, torch_tensor_release, torch_tensor_type, &
-        torch_tensor_weighted_sum
+   USE torch_api,                       ONLY: torch_dict_type,&
+                                              torch_model_forward_mol_tensor,&
+                                              torch_model_load,&
+                                              torch_model_read_metadata,&
+                                              torch_model_release,&
+                                              torch_model_type,&
+                                              torch_tensor_item_double,&
+                                              torch_tensor_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -151,12 +154,9 @@ CONTAINS
       TYPE(torch_tensor_type), INTENT(INOUT)             :: exc_tensor
       REAL(KIND=dp), INTENT(OUT)                         :: exc
 
-      TYPE(torch_tensor_type)                            :: exc_density
-
-      CALL skala_torch_model_get_exc_density(model, inputs, exc_density)
-      CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
+      CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc", inputs, exc_tensor)
       exc = torch_tensor_item_double(exc_tensor)
-      CALL torch_tensor_release(exc_density)
+      MARK_USED(grid_weights)
 
    END SUBROUTINE skala_torch_model_get_exc
 
