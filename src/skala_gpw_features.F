@@ -64,7 +64,7 @@ MODULE skala_gpw_features
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Build a flat SKALA molecular feature dictionary from a local GPW grid.
+!> \brief Build a flat SKALA feature dictionary from a local GPW grid.
 !> \param features ...
 !> \param rho_set ...
 !> \param rho_r ...
@@ -97,6 +97,7 @@ CONTAINS
       LOGICAL                                            :: my_requires_coordinate_grad, &
                                                             my_requires_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_feature, local_feature
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_coords_pbc
       REAL(KIND=dp), DIMENSION(3)                        :: grid_point, owner_coord
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -123,12 +124,16 @@ CONTAINS
 
       CALL skala_gpw_feature_release(features)
       ALLOCATE (local_owner(nflat_local), local_feature(nreal_per_point*nflat_local), &
-                feature_counts(nproc), feature_displs(nproc), real_counts(nproc), real_displs(nproc))
+                feature_counts(nproc), feature_displs(nproc), real_counts(nproc), &
+                real_displs(nproc), atom_coords_pbc(3, natom))
       ALLOCATE (features%feature_index(bo(1, 1):bo(2, 1), &
                                        bo(1, 2):bo(2, 2), &
                                        bo(1, 3):bo(2, 3)))
       features%feature_index = 0
       local_feature = 0.0_dp
+      DO iatom = 1, natom
+         atom_coords_pbc(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
+      END DO
 
       IF (nspins == 1) THEN
          CALL xc_rho_set_get(rho_set, rho=rho, drho=drho, tau=tau_total)
@@ -144,13 +149,13 @@ CONTAINS
                local_row = local_row + 1
                real_base = nreal_per_point*(local_row - 1)
                grid_point = grid_coordinate(pw_grid, [i, j, k])
-               owner = nearest_atom(grid_point, particle_set, cell)
+               owner = nearest_atom(grid_point, atom_coords_pbc, cell)
                local_owner(local_row) = owner
                features%feature_index(i, j, k) = local_row
 
-               owner_coord = pbc(particle_set(owner)%r, cell, positive_range=.TRUE.)
-               local_feature(real_base + 11:real_base + 13) = owner_coord + &
-                                                              pbc(owner_coord, grid_point, cell)
+               owner_coord = atom_coords_pbc(:, owner)
+               local_feature(real_base + 11:real_base + 13) = &
+                  nearest_image_coordinate(owner_coord, grid_point, cell)
                local_feature(real_base + 14) = pw_grid%dvol
                IF (PRESENT(weights)) THEN
                   IF (ASSOCIATED(weights)) THEN
@@ -227,7 +232,7 @@ CONTAINS
       features%atomic_grid_weights = pw_grid%dvol
 
       DO iatom = 1, natom
-         features%coarse_0_atomic_coords(:, iatom) = pbc(particle_set(iatom)%r, cell, positive_range=.TRUE.)
+         features%coarse_0_atomic_coords(:, iatom) = atom_coords_pbc(:, iatom)
       END DO
 
       DO ipt = 1, nflat
@@ -269,8 +274,9 @@ CONTAINS
       CALL add_feature_tensors(features, my_requires_grad, my_requires_coordinate_grad)
       features%active = .TRUE.
 
-      DEALLOCATE (atom_offset, atom_position, feature_counts, feature_displs, global_feature, &
-                  global_owner, local_feature, local_owner, local_to_global, real_counts, real_displs)
+      DEALLOCATE (atom_coords_pbc, atom_offset, atom_position, feature_counts, feature_displs, &
+                  global_feature, global_owner, local_feature, local_owner, local_to_global, &
+                  real_counts, real_displs)
 
    END SUBROUTINE skala_gpw_feature_build
 
@@ -374,13 +380,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Assign a grid point to the nearest periodic atom.
 !> \param grid_point ...
-!> \param particle_set ...
+!> \param atom_coords ...
 !> \param cell ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION nearest_atom(grid_point, particle_set, cell) RESULT(owner)
+   FUNCTION nearest_atom(grid_point, atom_coords, cell) RESULT(owner)
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: grid_point
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: atom_coords
       TYPE(cell_type), POINTER                           :: cell
       INTEGER                                            :: owner
 
@@ -390,8 +396,8 @@ CONTAINS
 
       owner = 1
       best_r2 = HUGE(1.0_dp)
-      DO iatom = 1, SIZE(particle_set)
-         rij = pbc(grid_point, particle_set(iatom)%r, cell)
+      DO iatom = 1, SIZE(atom_coords, 2)
+         rij = pbc(grid_point, atom_coords(:, iatom), cell)
          r2 = SUM(rij**2)
          IF (r2 < best_r2) THEN
             best_r2 = r2
@@ -400,5 +406,21 @@ CONTAINS
       END DO
 
    END FUNCTION nearest_atom
+
+! **************************************************************************************************
+!> \brief Return the nearest periodic image of an atom center to a GPW grid point.
+!> \param atom_coord ...
+!> \param grid_point ...
+!> \param cell ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION nearest_image_coordinate(atom_coord, grid_point, cell) RESULT(coord)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: atom_coord, grid_point
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(3)                        :: coord
+
+      coord = atom_coord + pbc(atom_coord, grid_point, cell)
+
+   END FUNCTION nearest_image_coordinate
 
 END MODULE skala_gpw_features
