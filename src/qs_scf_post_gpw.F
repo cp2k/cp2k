@@ -137,6 +137,7 @@ MODULE qs_scf_post_gpw
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dos,                          ONLY: calculate_dos,&
                                               calculate_dos_kp
+   USE qs_dos_utils,                    ONLY: get_dos_pdos_flags
    USE qs_electric_field_gradient,      ONLY: qs_efg_calc
    USE qs_elf_methods,                  ONLY: qs_elf_calc
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -2139,11 +2140,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results'
 
       INTEGER                                            :: handle, homo, ispin, nlumo_dos, &
-                                                            nlumo_molden, nlumo_pdos, &
-                                                            nlumo_required, nlumos, nmo, &
-                                                            output_unit
+                                                            nlumo_molden, nlumo_required, nlumos, &
+                                                            nmo, output_unit
       LOGICAL                                            :: all_equal, defer_molden, do_dos, &
-                                                            do_kpoints, do_pdos, explicit
+                                                            do_kpoints, do_pdos, do_pdos_raw, &
+                                                            explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
@@ -2171,8 +2172,9 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: casino_section, dft_section, input, &
-                                                            sprint_section, trexio_section
+      TYPE(section_vals_type), POINTER                   :: casino_section, dft_section, &
+                                                            dos_section, input, sprint_section, &
+                                                            trexio_section
 
 ! TYPE(kpoint_type), POINTER                         :: kpoints
 
@@ -2182,7 +2184,7 @@ CONTAINS
                mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set, &
                particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
                molecule_set, input, particles, subsys, rho_r, unoccupied_orbs, &
-               unoccupied_evals, casino_section)
+               unoccupied_evals, casino_section, dos_section)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2260,10 +2262,9 @@ CONTAINS
             END IF
          END IF
 
-         do_dos = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS"), &
-                        cp_p_file)
-         do_pdos = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS"), &
-                         cp_p_file)
+         dos_section => section_vals_get_subs_vals(dft_section, "PRINT%DOS")
+         do_dos = BTEST(cp_print_key_should_output(logger%iter_info, dos_section), cp_p_file)
+         CALL get_dos_pdos_flags(dos_section, do_dos, do_pdos, do_pdos_raw)
 
          ! For OT calculations, collect the largest request for additional unoccupied
          ! orbitals among DOS, PDOS, and Molden, and generate them only once.
@@ -2278,14 +2279,7 @@ CONTAINS
                      nlumo_required = MAX(nlumo_required, nlumo_dos)
                   END IF
                END IF
-               IF (do_pdos) THEN
-                  CALL section_vals_val_get(dft_section, "PRINT%PDOS%NLUMO", i_val=nlumo_pdos)
-                  IF (nlumo_pdos == -1) THEN
-                     nlumo_required = -1
-                  ELSEIF (nlumo_required /= -1) THEN
-                     nlumo_required = MAX(nlumo_required, nlumo_pdos)
-                  END IF
-               END IF
+
                IF (defer_molden) THEN
                   IF (nlumo_molden == -1) THEN
                      nlumo_required = -1
@@ -2357,7 +2351,8 @@ CONTAINS
          ! Print the projected density of states (pDOS) for each atomic kind
          IF (do_pdos) THEN
             IF (do_kpoints) THEN
-               CALL calculate_projected_dos_kp(qs_env, dft_section)
+               CALL calculate_projected_dos_kp(qs_env, dft_section, pdos_print_key="PRINT%DOS", &
+                                               write_pdos_raw=do_pdos_raw)
             ELSE
                CALL get_qs_env(qs_env, &
                                mos=mos, &
@@ -2368,20 +2363,24 @@ CONTAINS
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                      qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
                                                      unoccupied_orbs=unoccupied_orbs(ispin), &
-                                                     unoccupied_evals=unoccupied_evals(ispin))
+                                                     unoccupied_evals=unoccupied_evals(ispin), &
+                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                      ELSE
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                     qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin)
+                                                     qs_kind_set, particle_set, qs_env, dft_section, ispin=ispin, &
+                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                      END IF
                   ELSE
                      IF (ASSOCIATED(unoccupied_orbs)) THEN
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
                                                      qs_kind_set, particle_set, qs_env, dft_section, &
                                                      unoccupied_orbs=unoccupied_orbs(ispin), &
-                                                     unoccupied_evals=unoccupied_evals(ispin))
+                                                     unoccupied_evals=unoccupied_evals(ispin), &
+                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                      ELSE
                         CALL calculate_projected_dos(mos(ispin), atomic_kind_set, &
-                                                     qs_kind_set, particle_set, qs_env, dft_section)
+                                                     qs_kind_set, particle_set, qs_env, dft_section, &
+                                                     pdos_print_key="PRINT%DOS", write_pdos_raw=do_pdos_raw)
                      END IF
                   END IF
                END DO

@@ -608,7 +608,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results'
 
       INTEGER                                            :: after, handle, ispin, iw, output_unit
-      LOGICAL                                            :: omit_headers
+      LOGICAL                                            :: omit_headers, requested_pdos
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -618,11 +618,11 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_key
 
       CALL timeset(routineN, handle)
       NULLIFY (dft_control, particle_set, rho, ks_rmpv, dft_section, input, &
-               particles, subsys, para_env, rho_ao)
+               particles, subsys, para_env, rho_ao, print_key)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
@@ -642,10 +642,14 @@ CONTAINS
       ! Print MO information if requested
       CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.TRUE.)
 
-      ! Aat the end of SCF printout the projected DOS for each atomic kind
+      ! At the end of SCF printout the projected DOS for each atomic kind
       dft_section => section_vals_get_subs_vals(input, "DFT")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &
-                , cp_p_file)) THEN
+      print_key => section_vals_get_subs_vals(dft_section, "PRINT%DOS")
+      requested_pdos = .FALSE.
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CALL section_vals_val_get(print_key, "PDOS", l_val=requested_pdos)
+      END IF
+      IF (requested_pdos) THEN
          CPWARN("PDOS not implemented for Semi-Empirical calculations!")
       END IF
 

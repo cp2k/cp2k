@@ -10,6 +10,10 @@
 ! **************************************************************************************************
 MODULE qs_dos_utils
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
 #include "./base/base_uses.f90"
@@ -32,7 +36,7 @@ MODULE qs_dos_utils
 
    PUBLIC :: add_broadened_peak, add_broadened_value, broadening_cutoff, broadening_function, &
              dos_density_scale, dos_energy_label, dos_energy_scale, dos_energy_zero_label, &
-             dos_resolve_energy_zero, write_broadening_info
+             dos_resolve_energy_zero, get_dos_pdos_flags, write_broadening_info
 
 CONTAINS
 
@@ -135,6 +139,48 @@ CONTAINS
       END IF
 
    END FUNCTION dos_resolve_energy_zero
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dos_section DOS print section
+!> \param do_dos_output whether the DOS print key is active
+!> \param do_pdos whether projected DOS output is requested or implied
+!> \param do_pdos_raw whether raw projected DOS output is requested
+!> rief Resolve projected-DOS requests from a DOS print section.
+! **************************************************************************************************
+   SUBROUTINE get_dos_pdos_flags(dos_section, do_dos_output, do_pdos, do_pdos_raw)
+
+      TYPE(section_vals_type), POINTER                   :: dos_section
+      LOGICAL, INTENT(IN)                                :: do_dos_output
+      LOGICAL, INTENT(OUT)                               :: do_pdos, do_pdos_raw
+
+      INTEGER                                            :: nrep
+      LOGICAL                                            :: has_ldos, has_r_ldos, requested_pdos
+      TYPE(section_vals_type), POINTER                   :: ldos_section
+
+      requested_pdos = .FALSE.
+      do_pdos_raw = .FALSE.
+      has_ldos = .FALSE.
+      has_r_ldos = .FALSE.
+
+      IF (do_dos_output) THEN
+         CALL section_vals_val_get(dos_section, "PDOS", l_val=requested_pdos)
+         CALL section_vals_val_get(dos_section, "PDOS_RAW", l_val=do_pdos_raw)
+         ldos_section => section_vals_get_subs_vals(dos_section, "LDOS")
+         CALL section_vals_get(ldos_section, n_repetition=nrep)
+         has_ldos = (nrep > 0)
+         ldos_section => section_vals_get_subs_vals(dos_section, "R_LDOS")
+         CALL section_vals_get(ldos_section, n_repetition=nrep)
+         has_r_ldos = (nrep > 0)
+      END IF
+
+      do_pdos = requested_pdos .OR. do_pdos_raw .OR. has_ldos .OR. has_r_ldos
+      IF (do_pdos .AND. .NOT. requested_pdos) THEN
+         IF (do_pdos_raw) CPWARN("PRINT%DOS%PDOS_RAW requires PDOS; enabling PDOS output.")
+         IF (has_ldos .OR. has_r_ldos) CPWARN("PRINT%DOS%LDOS/R_LDOS require PDOS; enabling PDOS output.")
+      END IF
+
+   END SUBROUTINE get_dos_pdos_flags
 
 ! **************************************************************************************************
 !> \brief Add a broadened spectral line to a DOS curve.

@@ -18,10 +18,11 @@
       REL_CUTOFF 40
     &END MGRID
     &PRINT
-      &PDOS
+      &DOS
         COMPONENTS T
         NLUMO 5
-      &END PDOS
+        PDOS T
+      &END DOS
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12

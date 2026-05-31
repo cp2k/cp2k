@@ -154,10 +154,11 @@
       PERIODIC xyz
     &END POISSON
     &PRINT
-      &PDOS
+      &DOS
         COMPONENTS
         NLUMO -1
-      &END PDOS
+        PDOS T
+      &END DOS
     &END PRINT
     &SCF
       !atomic restart

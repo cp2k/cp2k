@@ -17,6 +17,11 @@
       &END EWALD
     &END POISSON
     &PRINT
+      &DOS
+        DELTA_E 0.01
+        NLUMO -1
+        PDOS T
+      &END DOS
       &MULLIKEN
         COMMON_ITERATION_LEVELS 10
         FILENAME=MULLIKEN
@@ -24,9 +29,6 @@
           MD 1
         &END EACH
       &END MULLIKEN
-      &PDOS
-        NLUMO -1
-      &END PDOS
     &END PRINT
     &QS
       METHOD xTB

@@ -20,7 +20,8 @@
       CUTOFF 200
     &END MGRID
     &PRINT
-      &PDOS
+      &DOS
+        PDOS T
         &EACH
           GEO_OPT 2
         &END EACH
@@ -30,7 +31,7 @@
         &LDOS
           LIST 3 2 1
         &END LDOS
-      &END PDOS
+      &END DOS
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12

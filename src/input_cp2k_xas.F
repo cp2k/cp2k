@@ -29,7 +29,7 @@ MODULE input_cp2k_xas
         xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_loc,                  ONLY: create_localize_section,&
                                               print_wanniers
-   USE input_cp2k_print_dft,            ONLY: create_pdos_section
+   USE input_cp2k_print_dft,            ONLY: add_dos_keywords
    USE input_cp2k_scf,                  ONLY: create_scf_section
    USE input_cp2k_xc,                   ONLY: create_xc_fun_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -56,6 +56,21 @@ MODULE input_cp2k_xas
    PUBLIC :: create_xas_section, create_xas_tdp_section
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Create the XAS-specific PDOS print section.
+!> \param print_key the PDOS print section
+! **************************************************************************************************
+   SUBROUTINE create_xas_pdos_section(print_key)
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PDOS", &
+                                       description="Print out the XAS PDOS projected per kind and angular momentum", &
+                                       print_level=debug_print_level, common_iter_levels=1, filename="")
+      CALL add_dos_keywords(print_key, xas_mode=.TRUE.)
+
+   END SUBROUTINE create_xas_pdos_section
 
 ! **************************************************************************************************
 !> \brief makes the input section for core-level spectroscopy simulations
@@ -296,7 +311,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL create_pdos_section(print_key)
+      CALL create_xas_pdos_section(print_key)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -975,7 +990,7 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL create_pdos_section(print_key)
+      CALL create_xas_pdos_section(print_key)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
