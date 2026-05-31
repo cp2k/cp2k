@@ -74,7 +74,7 @@ MODULE torch_api
       MODULE PROCEDURE torch_model_get_attr_strlist
    END INTERFACE torch_model_get_attr
 
-   PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
+   PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_narrow, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
    PUBLIC :: torch_tensor_grad
@@ -248,6 +248,46 @@ CONTAINS
       END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
 
    #:endfor
+
+! **************************************************************************************************
+!> \brief Creates a view of a contiguous tensor slice.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_narrow(tensor, dim, start_index, length, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      INTEGER, INTENT(IN)                                :: dim, start_index, length
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_narrow(tensor, dim, start_index, length, result) &
+            BIND(C, name="torch_c_tensor_narrow")
+            IMPORT :: C_INT64_T, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            INTEGER(kind=C_INT64_T), VALUE               :: dim, start_index, length
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_narrow
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CPASSERT(dim >= 0)
+      CPASSERT(start_index >= 0)
+      CPASSERT(length >= 0)
+      CALL torch_c_tensor_narrow(tensor=tensor%c_ptr, &
+                                 dim=INT(dim, C_INT64_T), &
+                                 start_index=INT(start_index, C_INT64_T), &
+                                 length=INT(length, C_INT64_T), &
+                                 result=result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(dim)
+      MARK_USED(start_index)
+      MARK_USED(length)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_narrow
 
 ! **************************************************************************************************
 !> \brief Runs autograd on a Torch tensor.
