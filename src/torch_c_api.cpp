@@ -464,6 +464,13 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
 bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
 
 /*******************************************************************************
+ * \brief Return the number of CUDA devices visible to Torch.
+ ******************************************************************************/
+int torch_c_cuda_device_count() {
+  return torch::cuda::is_available() ? torch::cuda::device_count() : 0;
+}
+
+/*******************************************************************************
  * \brief Set whether to allow TF32.
  *        Needed due to changes in defaults from pytorch 1.7 to 1.11 to >=1.12
  *        See https://pytorch.org/docs/stable/notes/cuda.html
