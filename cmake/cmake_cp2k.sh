@@ -140,6 +140,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_GAUXC=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
