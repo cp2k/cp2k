@@ -59,7 +59,10 @@ MODULE skala_gpw_functional
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'skala_gpw_functional'
-   INTEGER, PARAMETER, PRIVATE          :: ncollapsed_grad_per_point = 5, ngrad_per_point = 10
+   INTEGER, PARAMETER, PRIVATE          :: atom_chunk_auto_max_rows = 400000, &
+                                           atom_chunk_auto_min_rows = 100000, &
+                                           atom_chunk_auto_row_quantum = 100000, &
+                                           ncollapsed_grad_per_point = 5, ngrad_per_point = 10
 
    PUBLIC :: ensure_native_skala_grid_scope, skala_gpw_eval, xc_section_uses_native_skala_grid
 
@@ -238,9 +241,9 @@ CONTAINS
                                 i_val=native_grid_atom_chunk_max_rows)
       native_grid_atom_chunk_routing = native_grid_atom_chunk_routing .OR. native_grid_atom_chunks
       native_grid_atom_chunks = native_grid_atom_chunks .OR. native_grid_atom_chunk_routing
-      IF (native_grid_atom_chunk_max_rows < 0) THEN
+      IF (native_grid_atom_chunk_max_rows < -1) THEN
          CALL cp_abort(__LOCATION__, &
-                       "GAUXC%NATIVE_GRID_ATOM_CHUNK_MAX_ROWS must be non-negative.")
+                       "GAUXC%NATIVE_GRID_ATOM_CHUNK_MAX_ROWS must be -1, zero, or positive.")
       END IF
       IF (native_grid_atom_chunks .AND. needs_atom_force) THEN
          CALL cp_abort(__LOCATION__, &
@@ -283,6 +286,19 @@ CONTAINS
          CALL print_native_grid_diagnostics(features, rho_r(1)%pw_grid%para%group%mepos == 0)
       END IF
 
+      IF (features%uses_atom_chunks .AND. native_grid_atom_chunk_max_rows == -1) THEN
+         IF (native_grid_use_cuda) THEN
+            native_grid_atom_chunk_max_rows = auto_atom_chunk_max_rows(features, &
+                                                                       rho_r(1)%pw_grid%para%group)
+         ELSE
+            native_grid_atom_chunk_max_rows = 0
+         END IF
+      END IF
+      IF (native_grid_diagnostics .AND. features%uses_atom_chunks .AND. &
+          rho_r(1)%pw_grid%para%group%mepos == 0) THEN
+         WRITE (UNIT=cp_logger_get_default_io_unit(), FMT="(T2,A,1X,I0)") &
+            "SKALA_GPW| Native grid atom chunk max rows", native_grid_atom_chunk_max_rows
+      END IF
       native_grid_atom_subchunks = 1
       IF (features%uses_atom_chunks .AND. native_grid_atom_chunk_max_rows > 0) THEN
          native_grid_atom_subchunks = skala_gpw_atom_subchunk_count(native_grid_atom_chunk_max_rows)
@@ -501,6 +517,40 @@ CONTAINS
       END IF
 
    END SUBROUTINE evaluate_atom_subchunks
+
+! **************************************************************************************************
+!> \brief Select an automatic CUDA atom-subchunk row cap.
+!> \param features ...
+!> \param group ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION auto_atom_chunk_max_rows(features, group) RESULT(max_rows)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      CLASS(mp_comm_type), INTENT(IN)                    :: group
+      INTEGER                                            :: max_rows
+
+      INTEGER                                            :: local_rows_max, target_rows
+
+      local_rows_max = features%chunk_feature_count
+      CALL group%max(local_rows_max)
+      IF (local_rows_max <= 0) THEN
+         max_rows = 0
+         RETURN
+      END IF
+
+      IF (group%num_pe > 1) THEN
+         target_rows = CEILING(REAL(local_rows_max, KIND=dp)/2.0_dp)
+         max_rows = atom_chunk_auto_row_quantum* &
+                    ((target_rows + atom_chunk_auto_row_quantum - 1)/atom_chunk_auto_row_quantum)
+      ELSE
+         target_rows = NINT(REAL(local_rows_max, KIND=dp)/4.0_dp)
+         max_rows = atom_chunk_auto_row_quantum* &
+                    MAX(1, NINT(REAL(target_rows, KIND=dp)/ &
+                                REAL(atom_chunk_auto_row_quantum, KIND=dp)))
+      END IF
+      max_rows = MAX(atom_chunk_auto_min_rows, MIN(atom_chunk_auto_max_rows, max_rows))
+
+   END FUNCTION auto_atom_chunk_max_rows
 
 ! **************************************************************************************************
 !> \brief Map full Torch feature gradients back to this rank's local grid order.
