@@ -1445,10 +1445,10 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNKS", &
                           description="Split the experimental CP2K-native SKALA GPW TorchScript "// &
-                          "evaluation into contiguous atom blocks across MPI ranks. Each rank evaluates "// &
-                          "only its atom block. Dynamic feature rows and VXC gradients are routed "// &
-                          "between their local grid and atom-block owner ranks. This is intended for "// &
-                          "multi-GPU experiments.", &
+                          "evaluation into contiguous atom blocks. MPI runs evaluate one atom block per "// &
+                          "rank, while single-rank runs can still use atom subchunks to reduce peak CUDA "// &
+                          "memory. Dynamic feature rows and VXC gradients are routed between their "// &
+                          "local grid and atom-block owner ranks.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

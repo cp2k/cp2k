@@ -234,8 +234,7 @@ CONTAINS
       CALL ensure_layout_cache(pw_grid, particle_set, cell, weights)
       CALL timestop(phase_handle)
       nflat = cached_layout%nflat
-      can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%nproc > 1 .AND. &
-                            cached_layout%chunk_feature_count > 0
+      can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%chunk_feature_count > 0
       collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
                                 my_route_atom_chunks)
       ndynamic_local_per_point = ndynamic_per_point
