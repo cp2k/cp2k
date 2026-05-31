@@ -430,15 +430,17 @@ CONTAINS
             CALL timeset("skala_gpw_atom_subchunk_backward", subphase_handle)
             CALL torch_tensor_backward_scalar(subchunk_exc_tensor)
             CALL timestop(subphase_handle)
-            CALL timeset("skala_gpw_atom_subchunk_grad_pack", subphase_handle)
-            CALL pack_atom_chunk_grads(subchunk, send_grad_buffer, .TRUE.)
-            CALL timestop(subphase_handle)
          END IF
          CALL timeset("skala_gpw_atom_subchunk_release", subphase_handle)
          CALL torch_tensor_release(subchunk_exc_tensor)
          CALL skala_gpw_feature_release(subchunk)
          CALL timestop(subphase_handle)
       END DO
+      IF (compute_grads) THEN
+         CALL timeset("skala_gpw_atom_subchunk_grad_pack", subphase_handle)
+         CALL pack_atom_chunk_grads(features, send_grad_buffer, .TRUE.)
+         CALL timestop(subphase_handle)
+      END IF
       CALL timestop(phase_handle)
 
       IF (compute_grads) THEN
