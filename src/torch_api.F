@@ -253,18 +253,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Creates an expanded tensor view along one singleton dimension.
 ! **************************************************************************************************
-   SUBROUTINE torch_tensor_expand_dim(tensor, dim, size, result)
+   SUBROUTINE torch_tensor_expand_dim(tensor, dim, extent, result)
       TYPE(torch_tensor_type), INTENT(IN)                :: tensor
-      INTEGER, INTENT(IN)                                :: dim, size
+      INTEGER, INTENT(IN)                                :: dim, extent
       TYPE(torch_tensor_type), INTENT(INOUT)             :: result
 
 #if defined(__LIBTORCH)
       INTERFACE
-         SUBROUTINE torch_c_tensor_expand_dim(tensor, dim, size, result) &
+         SUBROUTINE torch_c_tensor_expand_dim(tensor, dim, extent, result) &
             BIND(C, name="torch_c_tensor_expand_dim")
             IMPORT :: C_INT64_T, C_PTR
             TYPE(C_PTR), VALUE                           :: tensor
-            INTEGER(kind=C_INT64_T), VALUE               :: dim, size
+            INTEGER(kind=C_INT64_T), VALUE               :: dim, extent
             TYPE(C_PTR)                                  :: result
          END SUBROUTINE torch_c_tensor_expand_dim
       END INTERFACE
@@ -272,17 +272,17 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(tensor%c_ptr))
       CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
       CPASSERT(dim >= 0)
-      CPASSERT(size >= 0)
+      CPASSERT(extent >= 0)
       CALL torch_c_tensor_expand_dim(tensor=tensor%c_ptr, &
                                      dim=INT(dim, C_INT64_T), &
-                                     size=INT(size, C_INT64_T), &
+                                     extent=INT(extent, C_INT64_T), &
                                      result=result%c_ptr)
       CPASSERT(C_ASSOCIATED(result%c_ptr))
 #else
       CPABORT("CP2K compiled without the Torch library.")
       MARK_USED(tensor)
       MARK_USED(dim)
-      MARK_USED(size)
+      MARK_USED(extent)
       MARK_USED(result)
 #endif
    END SUBROUTINE torch_tensor_expand_dim
