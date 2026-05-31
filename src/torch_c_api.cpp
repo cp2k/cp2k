@@ -11,9 +11,10 @@
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
 
+#include "offload/offload_library.h"
+
 #include <cassert>
 
-#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -29,8 +30,6 @@ typedef torch::jit::Module torch_c_model_t;
  * \author Ole Schuett
  ******************************************************************************/
 static bool use_cuda_if_available = true;
-static int selected_cuda_device = -1;
-static int selected_cuda_visible_device = -1;
 
 static torch::Device get_device() {
   if (!use_cuda_if_available || !torch::cuda::is_available()) {
@@ -40,7 +39,9 @@ static torch::Device get_device() {
   if (device_count <= 0) {
     return torch::kCPU;
   }
-  const int device = (selected_cuda_device >= 0) ? selected_cuda_device : 0;
+  const int chosen_device = offload_get_chosen_device();
+  const int device = (chosen_device >= 0) ? chosen_device : 0;
+  assert(device < device_count);
   return torch::Device(torch::kCUDA, device);
 }
 
@@ -50,90 +51,6 @@ static torch::Device get_device_with_guard(c10::OptionalDeviceGuard &guard) {
     guard.reset_device(device);
   }
   return device;
-}
-
-static int local_rank_from_env() {
-  const char *rank_env_names[] = {
-      "OMPI_COMM_WORLD_LOCAL_RANK", "PMI_LOCAL_RANK",  "PMIX_LOCAL_RANK",
-      "MV2_COMM_WORLD_LOCAL_RANK",  "MPI_LOCALRANKID", "SLURM_LOCALID"};
-  for (const auto *name : rank_env_names) {
-    const char *value = std::getenv(name);
-    if (value == nullptr || value[0] == '\0') {
-      continue;
-    }
-    char *end = nullptr;
-    const long rank = std::strtol(value, &end, 10);
-    if (end != value && rank >= 0) {
-      return static_cast<int>(rank);
-    }
-  }
-  return 0;
-}
-
-static bool parse_nonnegative_int(const std::string &text, int &value) {
-  if (text.empty()) {
-    return false;
-  }
-  char *end = nullptr;
-  const long parsed = std::strtol(text.c_str(), &end, 10);
-  if (end != text.c_str() + text.size() || parsed < 0) {
-    return false;
-  }
-  value = static_cast<int>(parsed);
-  return true;
-}
-
-static std::string trim_string(const std::string &text) {
-  std::size_t begin = 0;
-  while (begin < text.size() &&
-         std::isspace(static_cast<unsigned char>(text[begin]))) {
-    ++begin;
-  }
-  std::size_t end = text.size();
-  while (end > begin &&
-         std::isspace(static_cast<unsigned char>(text[end - 1]))) {
-    --end;
-  }
-  return text.substr(begin, end - begin);
-}
-
-static std::vector<std::string> cuda_visible_device_tokens() {
-  std::vector<std::string> tokens;
-  const char *visible = std::getenv("CUDA_VISIBLE_DEVICES");
-  if (visible == nullptr || visible[0] == '\0') {
-    return tokens;
-  }
-  std::string list(visible);
-  std::size_t begin = 0;
-  while (begin <= list.size()) {
-    const std::size_t comma = list.find(',', begin);
-    const std::size_t end = (comma == std::string::npos) ? list.size() : comma;
-    const std::string token = trim_string(list.substr(begin, end - begin));
-    if (!token.empty()) {
-      tokens.push_back(token);
-    }
-    if (comma == std::string::npos) {
-      break;
-    }
-    begin = comma + 1;
-  }
-  if (tokens.size() == 1 && tokens[0] == "-1") {
-    tokens.clear();
-  }
-  return tokens;
-}
-
-static int cuda_visible_device_for_log(const int logical_device) {
-  const std::vector<std::string> tokens = cuda_visible_device_tokens();
-  if (tokens.empty()) {
-    return logical_device;
-  }
-  if (logical_device < 0 || logical_device >= static_cast<int>(tokens.size())) {
-    return -1;
-  }
-  int visible_device = -1;
-  parse_nonnegative_int(tokens[logical_device], visible_device);
-  return visible_device;
 }
 
 static void set_jit_fusion_strategy() {
@@ -162,17 +79,6 @@ static torch::jit::Module load_module_for_device(const char *filename,
     return torch::jit::load(filename, device);
   }
   auto model = torch::jit::load(filename, torch::kCPU);
-  model.to(device);
-  return model;
-}
-
-static torch::jit::Module load_module_for_device(
-    const char *filename, const torch::Device &device,
-    std::unordered_map<std::string, std::string> &extra_files) {
-  if (can_load_directly_to_device(device)) {
-    return torch::jit::load(filename, device, extra_files);
-  }
-  auto model = torch::jit::load(filename, torch::kCPU, extra_files);
   model.to(device);
   return model;
 }
@@ -228,99 +134,6 @@ static void reset_tensor_from_array_double(torch_c_tensor_t **tensor,
     (*tensor)->mutable_grad() = torch::Tensor();
   }
   (*tensor)->set_requires_grad(req_grad);
-}
-
-static void grad_select_to_array_double(const torch_c_tensor_t *tensor,
-                                        const torch_c_tensor_t *indices,
-                                        const int ndims, const int64_t sizes[],
-                                        double target[]) {
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  const torch::Tensor grad = tensor->grad();
-  assert(grad.defined());
-  assert(grad.scalar_type() == torch::kFloat64);
-  assert(indices->scalar_type() == torch::kInt64);
-  assert(indices->ndimension() == 1);
-
-  const auto selected = grad.index_select(ndims - 1, indices->to(grad.device()))
-                            .cpu()
-                            .contiguous();
-  assert(selected.ndimension() == ndims);
-  for (int i = 0; i < ndims; i++) {
-    assert(selected.size(i) == sizes[i]);
-  }
-  std::memcpy(target, selected.data_ptr<double>(), selected.nbytes());
-}
-
-static void grad_to_array_double(const torch_c_tensor_t *tensor,
-                                 const int ndims, const int64_t sizes[],
-                                 double target[]) {
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  const torch::Tensor grad = tensor->grad();
-  assert(grad.defined());
-  assert(grad.scalar_type() == torch::kFloat64);
-
-  const auto selected = grad.cpu().contiguous();
-  assert(selected.ndimension() == ndims);
-  for (int i = 0; i < ndims; i++) {
-    assert(selected.size(i) == sizes[i]);
-  }
-  std::memcpy(target, selected.data_ptr<double>(), selected.nbytes());
-}
-
-static void grad_pack_atom_chunks_double(const torch_c_tensor_t *density,
-                                         const torch_c_tensor_t *grad,
-                                         const torch_c_tensor_t *kin,
-                                         const int nrows,
-                                         const int return_positions[],
-                                         double target[]) {
-  c10::OptionalDeviceGuard guard;
-  get_device_with_guard(guard);
-  const torch::Tensor density_maybe_grad = density->grad();
-  const torch::Tensor maybe_grad_grad = grad->grad();
-  const torch::Tensor kin_maybe_grad = kin->grad();
-
-  assert(density_maybe_grad.defined());
-  assert(maybe_grad_grad.defined());
-  assert(kin_maybe_grad.defined());
-  assert(density_maybe_grad.scalar_type() == torch::kFloat64);
-  assert(maybe_grad_grad.scalar_type() == torch::kFloat64);
-  assert(kin_maybe_grad.scalar_type() == torch::kFloat64);
-
-  const torch::Tensor density_grad = density_maybe_grad.cpu().contiguous();
-  const torch::Tensor grad_grad = maybe_grad_grad.cpu().contiguous();
-  const torch::Tensor kin_grad = kin_maybe_grad.cpu().contiguous();
-  assert(density_grad.ndimension() == 2);
-  assert(grad_grad.ndimension() == 3);
-  assert(kin_grad.ndimension() == 2);
-  assert(density_grad.size(0) == 2);
-  assert(density_grad.size(1) == nrows);
-  assert(grad_grad.size(0) == 2);
-  assert(grad_grad.size(1) == 3);
-  assert(grad_grad.size(2) == nrows);
-  assert(kin_grad.size(0) == 2);
-  assert(kin_grad.size(1) == nrows);
-
-  const double *density_ptr = density_grad.data_ptr<double>();
-  const double *grad_ptr = grad_grad.data_ptr<double>();
-  const double *kin_ptr = kin_grad.data_ptr<double>();
-  for (int row = 0; row < nrows; row++) {
-    const int point_pos = return_positions[row] - 1;
-    assert(point_pos >= 0);
-    assert(point_pos < nrows);
-    double *out = target + 10 * point_pos;
-    out[0] = density_ptr[row];
-    out[1] = density_ptr[nrows + row];
-    out[2] = grad_ptr[row];
-    out[3] = grad_ptr[nrows + row];
-    out[4] = grad_ptr[2 * nrows + row];
-    out[5] = grad_ptr[3 * nrows + row];
-    out[6] = grad_ptr[4 * nrows + row];
-    out[7] = grad_ptr[5 * nrows + row];
-    out[8] = kin_ptr[row];
-    out[9] = kin_ptr[nrows + row];
-  }
 }
 
 /*******************************************************************************
@@ -389,6 +202,11 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
 }
 
 /*******************************************************************************
+ * \brief Releases a string returned from the Torch C API.
+ ******************************************************************************/
+void torch_c_free_string(char *content) { free(content); }
+
+/*******************************************************************************
  * \brief Reuses or creates a device tensor and copies double data into it.
  ******************************************************************************/
 void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
@@ -397,39 +215,6 @@ void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
                                             const int64_t sizes[],
                                             double source[]) {
   reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
-}
-
-/*******************************************************************************
- * \brief Copies selected rows from a double tensor's gradient to a host array.
- ******************************************************************************/
-void torch_c_tensor_grad_select_to_array_double(const torch_c_tensor_t *tensor,
-                                                const torch_c_tensor_t *indices,
-                                                const int ndims,
-                                                const int64_t sizes[],
-                                                double target[]) {
-  grad_select_to_array_double(tensor, indices, ndims, sizes, target);
-}
-
-/*******************************************************************************
- * \brief Copies a double tensor's gradient to a host array.
- ******************************************************************************/
-void torch_c_tensor_grad_to_array_double(const torch_c_tensor_t *tensor,
-                                         const int ndims, const int64_t sizes[],
-                                         double target[]) {
-  grad_to_array_double(tensor, ndims, sizes, target);
-}
-
-/*******************************************************************************
- * \brief Copies SKALA atom-chunk gradients directly into a routed host buffer.
- ******************************************************************************/
-void torch_c_tensor_grad_pack_atom_chunks(const torch_c_tensor_t *density,
-                                          const torch_c_tensor_t *grad,
-                                          const torch_c_tensor_t *kin,
-                                          const int nrows,
-                                          const int return_positions[],
-                                          double target[]) {
-  grad_pack_atom_chunks_double(density, grad, kin, nrows, return_positions,
-                               target);
 }
 
 /*******************************************************************************
@@ -598,27 +383,6 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
 }
 
 /*******************************************************************************
- * \brief Loads a Torch model and two extra-file metadata entries in one pass.
- ******************************************************************************/
-void torch_c_model_load_metadata2(torch_c_model_t **model_out,
-                                  const char *filename, const char *key1,
-                                  const char *key2, char **content1,
-                                  int *length1, char **content2, int *length2) {
-  assert(*model_out == NULL);
-  c10::OptionalDeviceGuard guard;
-  const auto device = get_device_with_guard(guard);
-  set_jit_fusion_strategy();
-  std::unordered_map<std::string, std::string> extra_files = {{key1, ""},
-                                                              {key2, ""}};
-  torch::jit::Module *model = new torch::jit::Module();
-  *model = load_module_for_device(filename, device, extra_files);
-  model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
-  *model_out = model;
-  copy_string_to_c_buffer(extra_files[key1], content1, length1);
-  copy_string_to_c_buffer(extra_files[key2], content2, length2);
-}
-
-/*******************************************************************************
  * \brief Evaluates the given Torch model.
  * \author Ole Schuett
  ******************************************************************************/
@@ -698,47 +462,6 @@ void torch_c_model_read_metadata(const char *filename, const char *key,
  * \author Ole Schuett
  ******************************************************************************/
 bool torch_c_cuda_is_available() { return torch::cuda::is_available(); }
-
-/*******************************************************************************
- * \brief Returns the number of CUDA devices visible to Torch.
- ******************************************************************************/
-int torch_c_cuda_device_count() {
-  return torch::cuda::is_available()
-             ? static_cast<int>(torch::cuda::device_count())
-             : 0;
-}
-
-/*******************************************************************************
- * \brief Select the CUDA device used by subsequent Torch wrapper calls.
- *
- * A negative device maps the MPI-local rank to a visible CUDA device. This
- *keeps multi-rank CP2K jobs from collapsing all native SKALA Torch work onto
- *device 0 when CUDA_VISIBLE_DEVICES exposes more than one GPU.
- ******************************************************************************/
-int torch_c_cuda_select_device(const int requested_device) {
-  const int device_count = torch_c_cuda_device_count();
-  if (device_count <= 0) {
-    selected_cuda_device = -1;
-    selected_cuda_visible_device = -1;
-    return -1;
-  }
-  int device = requested_device;
-  if (requested_device < 0) {
-    device = local_rank_from_env() % device_count;
-  }
-  if (device < 0 || device >= device_count) {
-    return -2;
-  }
-  selected_cuda_device = device;
-  selected_cuda_visible_device =
-      cuda_visible_device_for_log(selected_cuda_device);
-  return selected_cuda_device;
-}
-
-/*******************************************************************************
- * \brief Returns the physical CUDA device made visible to Torch, if known.
- ******************************************************************************/
-int torch_c_cuda_visible_device() { return selected_cuda_visible_device; }
 
 /*******************************************************************************
  * \brief Set whether to allow TF32.

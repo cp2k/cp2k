@@ -20,6 +20,8 @@ MODULE skala_gpw_functional
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
+   USE offload_api,                     ONLY: offload_get_device_count,&
+                                              offload_set_chosen_device
    USE particle_types,                  ONLY: particle_type
    USE pw_methods,                      ONLY: pw_scale,&
                                               pw_zero
@@ -34,11 +36,13 @@ MODULE skala_gpw_functional
                                               skala_torch_model_release,&
                                               skala_torch_model_type
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: &
-        torch_cuda_device_count, torch_cuda_select_device, torch_cuda_visible_device, &
-        torch_tensor_backward_scalar, torch_tensor_data_ptr, torch_tensor_grad, &
-        torch_tensor_grad_pack_atom_chunks, torch_tensor_grad_select_to_array, &
-        torch_tensor_grad_to_array, torch_tensor_release, torch_tensor_type, torch_use_cuda
+   USE torch_api,                       ONLY: torch_cuda_is_available,&
+                                              torch_tensor_backward_scalar,&
+                                              torch_tensor_data_ptr,&
+                                              torch_tensor_grad,&
+                                              torch_tensor_release,&
+                                              torch_tensor_type,&
+                                              torch_use_cuda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_release,&
@@ -184,8 +188,9 @@ CONTAINS
          OPTIONAL                                        :: atom_force
 
       CHARACTER(len=default_path_length)                 :: model_path
-      INTEGER :: native_grid_cuda_device, nflat_local, nspins, phase_handle, selected_cuda_device, &
-         xc_deriv_method_id, xc_rho_smooth_id
+      INTEGER                                            :: native_grid_cuda_device, nspins, &
+                                                            phase_handle, selected_cuda_device, &
+                                                            xc_deriv_method_id, xc_rho_smooth_id
       LOGICAL :: lsd, my_just_energy, native_grid_atom_chunk_routing, native_grid_atom_chunks, &
          native_grid_diagnostics, native_grid_use_cuda, needs_atom_force
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_grad, kin_grad
@@ -217,7 +222,6 @@ CONTAINS
       END IF
 
       nspins = SIZE(rho_r)
-      nflat_local = rho_r(1)%pw_grid%ngpts_local
       lsd = (nspins /= 1)
       CALL get_skala_model_path(xc_section, model_path)
       gauxc_section => get_gauxc_section(xc_section)
@@ -284,14 +288,7 @@ CONTAINS
             CALL fetch_and_gather_atom_chunk_grads(features, rho_r(1)%pw_grid%para%group, &
                                                    density_grad, grad_grad, kin_grad)
          ELSE
-            ALLOCATE (density_grad(nflat_local, 2), grad_grad(nflat_local, 3, 2), &
-                      kin_grad(nflat_local, 2))
-            CALL torch_tensor_grad_select_to_array(features%density_t, &
-                                                   features%local_feature_indices_t, density_grad)
-            CALL torch_tensor_grad_select_to_array(features%grad_t, &
-                                                   features%local_feature_indices_t, grad_grad)
-            CALL torch_tensor_grad_select_to_array(features%kin_t, &
-                                                   features%local_feature_indices_t, kin_grad)
+            CALL fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad)
          END IF
          IF (needs_atom_force) THEN
             CALL add_explicit_coordinate_force(atom_force, features, atom_coord_grad_t, &
@@ -347,6 +344,144 @@ CONTAINS
    END SUBROUTINE add_explicit_coordinate_force
 
 ! **************************************************************************************************
+!> \brief Map full Torch feature gradients back to this rank's local grid order.
+!> \param features ...
+!> \param density_grad ...
+!> \param grad_grad ...
+!> \param kin_grad ...
+! **************************************************************************************************
+   SUBROUTINE fetch_local_feature_grads(features, density_grad, grad_grad, kin_grad)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: density_grad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: grad_grad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: kin_grad
+
+      INTEGER                                            :: i, j, k, local_row, row
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: density_grad_all, kin_grad_all
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grad_grad_all
+      TYPE(torch_tensor_type)                            :: density_grad_t, grad_grad_t, kin_grad_t
+
+      NULLIFY (density_grad_all, grad_grad_all, kin_grad_all)
+      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                  density_grad_all, grad_grad_all, kin_grad_all)
+      CPASSERT(SIZE(density_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(density_grad_all, 2) == 2)
+      CPASSERT(SIZE(grad_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(grad_grad_all, 2) == 3)
+      CPASSERT(SIZE(grad_grad_all, 3) == 2)
+      CPASSERT(SIZE(kin_grad_all, 1) == features%nflat)
+      CPASSERT(SIZE(kin_grad_all, 2) == 2)
+
+      ALLOCATE (density_grad(features%nflat_local, 2), &
+                grad_grad(features%nflat_local, 3, 2), &
+                kin_grad(features%nflat_local, 2))
+      local_row = 0
+      DO k = LBOUND(features%feature_index, 3), UBOUND(features%feature_index, 3)
+         DO j = LBOUND(features%feature_index, 2), UBOUND(features%feature_index, 2)
+            DO i = LBOUND(features%feature_index, 1), UBOUND(features%feature_index, 1)
+               local_row = local_row + 1
+               row = features%feature_index(i, j, k)
+               CPASSERT(row >= 1 .AND. row <= features%nflat)
+               density_grad(local_row, :) = density_grad_all(row, :)
+               grad_grad(local_row, :, :) = grad_grad_all(row, :, :)
+               kin_grad(local_row, :) = kin_grad_all(row, :)
+            END DO
+         END DO
+      END DO
+      CPASSERT(local_row == features%nflat_local)
+
+      CALL torch_tensor_release(density_grad_t)
+      CALL torch_tensor_release(grad_grad_t)
+      CALL torch_tensor_release(kin_grad_t)
+
+   END SUBROUTINE fetch_local_feature_grads
+
+! **************************************************************************************************
+!> \brief Pack atom-chunk Torch gradients into CP2K communication buffers.
+!> \param features ...
+!> \param TARGET ...
+!> \param route_to_return_positions ...
+! **************************************************************************************************
+   SUBROUTINE pack_atom_chunk_grads(features, TARGET, route_to_return_positions)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: target
+      LOGICAL, INTENT(IN)                                :: route_to_return_positions
+
+      INTEGER                                            :: base, irow, point_pos
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: chunk_density_grad, chunk_kin_grad
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: chunk_grad_grad
+      TYPE(torch_tensor_type)                            :: density_grad_t, grad_grad_t, kin_grad_t
+
+      NULLIFY (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+      CALL get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                  chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+      CPASSERT(SIZE(TARGET) == ngrad_per_point*features%chunk_feature_count)
+      CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
+      CPASSERT(SIZE(chunk_density_grad, 2) == 2)
+      CPASSERT(SIZE(chunk_grad_grad, 1) == features%chunk_feature_count)
+      CPASSERT(SIZE(chunk_grad_grad, 2) == 3)
+      CPASSERT(SIZE(chunk_grad_grad, 3) == 2)
+      CPASSERT(SIZE(chunk_kin_grad, 1) == features%chunk_feature_count)
+      CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
+
+      TARGET = 0.0_dp
+      DO irow = 1, features%chunk_feature_count
+         IF (route_to_return_positions) THEN
+            point_pos = features%chunk_return_positions(irow)
+            CPASSERT(point_pos >= 1 .AND. point_pos <= features%chunk_feature_count)
+         ELSE
+            point_pos = irow
+         END IF
+         base = ngrad_per_point*(point_pos - 1)
+         TARGET(base + 1:base + 2) = chunk_density_grad(irow, :)
+         TARGET(base + 3) = chunk_grad_grad(irow, 1, 1)
+         TARGET(base + 4) = chunk_grad_grad(irow, 2, 1)
+         TARGET(base + 5) = chunk_grad_grad(irow, 3, 1)
+         TARGET(base + 6) = chunk_grad_grad(irow, 1, 2)
+         TARGET(base + 7) = chunk_grad_grad(irow, 2, 2)
+         TARGET(base + 8) = chunk_grad_grad(irow, 3, 2)
+         TARGET(base + 9:base + 10) = chunk_kin_grad(irow, :)
+      END DO
+
+      CALL torch_tensor_release(density_grad_t)
+      CALL torch_tensor_release(grad_grad_t)
+      CALL torch_tensor_release(kin_grad_t)
+
+   END SUBROUTINE pack_atom_chunk_grads
+
+! **************************************************************************************************
+!> \brief Return CPU views of autograd outputs for the SKALA dynamic feature tensors.
+!> \param features ...
+!> \param density_grad_t ...
+!> \param grad_grad_t ...
+!> \param kin_grad_t ...
+!> \param density_grad ...
+!> \param grad_grad ...
+!> \param kin_grad ...
+! **************************************************************************************************
+   SUBROUTINE get_feature_grad_views(features, density_grad_t, grad_grad_t, kin_grad_t, &
+                                     density_grad, grad_grad, kin_grad)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: density_grad_t, grad_grad_t, kin_grad_t
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: density_grad
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grad_grad
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kin_grad
+
+      NULLIFY (density_grad, grad_grad, kin_grad)
+      CALL torch_tensor_grad(features%density_t, density_grad_t)
+      CALL torch_tensor_grad(features%grad_t, grad_grad_t)
+      CALL torch_tensor_grad(features%kin_t, kin_grad_t)
+      CALL torch_tensor_data_ptr(density_grad_t, density_grad)
+      CALL torch_tensor_data_ptr(grad_grad_t, grad_grad)
+      CALL torch_tensor_data_ptr(kin_grad_t, kin_grad)
+
+   END SUBROUTINE get_feature_grad_views
+
+! **************************************************************************************************
 !> \brief Fetch atom-chunk gradients and route them back to their local grid owners.
 !> \param features ...
 !> \param group ...
@@ -364,13 +499,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: grad_grad
 
-      INTEGER                                            :: base, i, irow, j, k, local_row, &
+      INTEGER                                            :: base, i, j, k, local_row, &
                                                             nflat_local, phase_handle, &
                                                             point_pos, row
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chunk_grad_buffer, global_grad_buffer, &
                                                             recv_grad_buffer, send_grad_buffer
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chunk_density_grad, chunk_kin_grad
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: chunk_grad_grad
 
       CPASSERT(features%uses_atom_chunks)
       CPASSERT(features%chunk_feature_count > 0)
@@ -384,10 +517,7 @@ CONTAINS
                    recv_grad_buffer(ngrad_per_point*nflat_local))
 
          CALL timeset("skala_gpw_grad_torch_pack", phase_handle)
-         CALL torch_tensor_grad_pack_atom_chunks(features%density_t, features%grad_t, &
-                                                 features%kin_t, &
-                                                 features%chunk_return_positions, &
-                                                 send_grad_buffer)
+         CALL pack_atom_chunk_grads(features, send_grad_buffer, .TRUE.)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_grad_route_comm", phase_handle)
@@ -420,30 +550,10 @@ CONTAINS
 
          DEALLOCATE (recv_grad_buffer, send_grad_buffer)
       ELSE
-         CALL timeset("skala_gpw_grad_torch", phase_handle)
-         ALLOCATE (chunk_density_grad(features%chunk_feature_count, 2), &
-                   chunk_grad_grad(features%chunk_feature_count, 3, 2), &
-                   chunk_kin_grad(features%chunk_feature_count, 2))
-         CALL torch_tensor_grad_to_array(features%density_t, chunk_density_grad)
-         CALL torch_tensor_grad_to_array(features%grad_t, chunk_grad_grad)
-         CALL torch_tensor_grad_to_array(features%kin_t, chunk_kin_grad)
-         CALL timestop(phase_handle)
-
-         CALL timeset("skala_gpw_grad_pack", phase_handle)
          ALLOCATE (chunk_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    global_grad_buffer(ngrad_per_point*features%nflat))
-         chunk_grad_buffer = 0.0_dp
-         DO irow = 1, features%chunk_feature_count
-            base = ngrad_per_point*(irow - 1)
-            chunk_grad_buffer(base + 1:base + 2) = chunk_density_grad(irow, :)
-            chunk_grad_buffer(base + 3) = chunk_grad_grad(irow, 1, 1)
-            chunk_grad_buffer(base + 4) = chunk_grad_grad(irow, 2, 1)
-            chunk_grad_buffer(base + 5) = chunk_grad_grad(irow, 3, 1)
-            chunk_grad_buffer(base + 6) = chunk_grad_grad(irow, 1, 2)
-            chunk_grad_buffer(base + 7) = chunk_grad_grad(irow, 2, 2)
-            chunk_grad_buffer(base + 8) = chunk_grad_grad(irow, 3, 2)
-            chunk_grad_buffer(base + 9:base + 10) = chunk_kin_grad(irow, :)
-         END DO
+         CALL timeset("skala_gpw_grad_torch_pack", phase_handle)
+         CALL pack_atom_chunk_grads(features, chunk_grad_buffer, .FALSE.)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_grad_allgatherv", phase_handle)
@@ -476,9 +586,6 @@ CONTAINS
          CALL timestop(phase_handle)
          DEALLOCATE (chunk_grad_buffer, global_grad_buffer)
 
-         CALL timeset("skala_gpw_grad_tmp_release", phase_handle)
-         DEALLOCATE (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
-         CALL timestop(phase_handle)
       END IF
 
    END SUBROUTINE fetch_and_gather_atom_chunk_grads
@@ -616,26 +723,34 @@ CONTAINS
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
 
-      INTEGER                                            :: cuda_device_count, iw, pe, selected_device, &
-                                                            visible_device
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected_devices, visible_devices
+      INTEGER                                            :: cuda_device_count, iw, pe, selected_device
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected_devices
 
       selected_device = -1
 
       IF (.NOT. use_cuda) RETURN
 
-      selected_device = torch_cuda_select_device(requested_device)
-      IF (selected_device == -2) THEN
+      IF (.NOT. torch_cuda_is_available()) THEN
+         cuda_device_count = 0
+      ELSE
+         cuda_device_count = offload_get_device_count()
+      END IF
+      IF (cuda_device_count > 0) THEN
+         IF (requested_device < 0) THEN
+            selected_device = MOD(group%mepos, cuda_device_count)
+         ELSE
+            selected_device = requested_device
+         END IF
+      END IF
+      IF (selected_device >= cuda_device_count) THEN
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%NATIVE_GRID_CUDA_DEVICE selects a CUDA device outside the visible "// &
-                       "Torch CUDA device range.")
+                       "CP2K offload device range.")
       END IF
-      cuda_device_count = torch_cuda_device_count()
-      visible_device = torch_cuda_visible_device()
+      IF (selected_device >= 0) CALL offload_set_chosen_device(selected_device)
 
-      ALLOCATE (selected_devices(group%num_pe), visible_devices(group%num_pe))
+      ALLOCATE (selected_devices(group%num_pe))
       CALL group%allgather(selected_device, selected_devices)
-      CALL group%allgather(visible_device, visible_devices)
 
       IF (group%mepos /= 0) RETURN
       IF (selected_device == logged_cuda_device .AND. &
@@ -650,7 +765,7 @@ CONTAINS
             "of", cuda_device_count, "requested", requested_device
       ELSE
          WRITE (UNIT=iw, FMT="(/,T2,A)") &
-            "SKALA_GPW| Native grid Torch CUDA requested, but no CUDA device is visible to Torch"
+            "SKALA_GPW| Native grid Torch CUDA requested, but no CP2K offload device is visible"
       END IF
       WRITE (UNIT=iw, FMT="(T2,A)", ADVANCE="NO") &
          "SKALA_GPW| Native grid Torch CUDA rank devices"
@@ -658,14 +773,6 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(1X,I0,A,I0)", ADVANCE="NO") pe - 1, ":", selected_devices(pe)
       END DO
       WRITE (UNIT=iw, FMT=*)
-      IF (ANY(visible_devices >= 0)) THEN
-         WRITE (UNIT=iw, FMT="(T2,A)", ADVANCE="NO") &
-            "SKALA_GPW| Native grid Torch CUDA visible devices"
-         DO pe = 1, group%num_pe
-            WRITE (UNIT=iw, FMT="(1X,I0,A,I0)", ADVANCE="NO") pe - 1, ":", visible_devices(pe)
-         END DO
-         WRITE (UNIT=iw, FMT=*)
-      END IF
 
       logged_cuda_device = selected_device
       logged_cuda_device_count = cuda_device_count
