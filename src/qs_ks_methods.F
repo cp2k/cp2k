@@ -32,6 +32,8 @@ MODULE qs_ks_methods
                                               calc_admm_ovlp_forces_kp
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -104,6 +106,7 @@ MODULE qs_ks_methods
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_harris_types,                 ONLY: harris_type
    USE qs_harris_utils,                 ONLY: harris_set_potentials
@@ -136,6 +139,8 @@ MODULE qs_ks_methods
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
+   USE skala_gpw_functional,            ONLY: ensure_native_skala_grid_scope,&
+                                              xc_section_uses_native_skala_grid
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
@@ -191,16 +196,25 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: ext_xc_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
-
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: ace_rebuild_frequency, handle, iatom, &
-                                                            img, ispin, natom, nimages, nspins
+      INTEGER                                            :: ace_rebuild_frequency, atom_a, handle, &
+                                                            iatom, ikind, img, ispin, natom, &
+                                                            nimages, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL :: ace_active, do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, dokp, gapw, &
          gapw_xc, just_energy_xc, lrigpw, my_print, rigpw, use_gauxc_matrix, use_virial
+      CHARACTER(LEN=*), PARAMETER :: native_skala_gapw_xc_msg = &
+         "Native SKALA grid does not support METHOD GAPW_XC; "// &
+         "the GAPW_XC one-center XC correction needs a dedicated SKALA design.", &
+         native_skala_gapw_msg = "Native SKALA grid does not support METHOD GAPW yet; "// &
+         "a GAPW grid path needs all-electron density, gradient, and tau."
+
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p, vscale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: native_skala_atom_force
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -227,6 +241,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), POINTER :: rho0_s_rs, rho_nlcc, rhoz_cneo_s_rs, v_hartree_rspace, &
          v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct, rho_xc
@@ -237,7 +252,7 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-      NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
+      NULLIFY (admm_env, atomic_kind_set, cell, dft_control, force, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                ace_section, &
                adiabatic_rescaling_section, hfx_sections, input, scf_section, &
@@ -264,6 +279,7 @@ CONTAINS
                       matrix_vxc=matrix_vxc, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      atomic_kind_set=atomic_kind_set, &
                       para_env=para_env, &
                       input=input, &
                       virial=virial, &
@@ -274,6 +290,7 @@ CONTAINS
                       rho_core=rho_core, &
                       rho_xc=rho_xc, &
                       energy=energy, &
+                      force=force, &
                       particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, &
                       natom=natom)
@@ -618,11 +635,65 @@ CONTAINS
          END IF
 
          ! Everything else, either via GauXC or manual XC computation
-         IF (dft_control%use_gauxc .AND. gapw_xc) THEN
-            CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
-         ELSE IF (dft_control%use_gauxc) THEN
-            use_gauxc_matrix = .TRUE.
-            CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+         IF (dft_control%use_gauxc) THEN
+            IF (xc_section_uses_native_skala_grid(xc_section)) THEN
+               CALL ensure_native_skala_grid_scope(xc_section)
+               IF (gapw_xc) THEN
+                  CPABORT(native_skala_gapw_xc_msg)
+               END IF
+               IF (gapw) THEN
+                  CPABORT(native_skala_gapw_msg)
+               END IF
+               IF (nimages /= 1) THEN
+                  CPABORT("Native SKALA grid evaluation supports single-image calculations only.")
+               END IF
+               IF (dft_control%roks) THEN
+                  CPABORT("Native SKALA grid evaluation does not support ROKS.")
+               END IF
+               IF (dft_control%do_admm) THEN
+                  CPABORT("Native SKALA grid evaluation does not support ADMM.")
+               END IF
+               IF (dokp) THEN
+                  CPABORT("Native SKALA grid evaluation currently supports Gamma-only calculations only.")
+               END IF
+               IF (use_virial .AND. calculate_forces) THEN
+                  CPABORT("Native SKALA grid evaluation stress tensors are not implemented yet.")
+               END IF
+               IF (calculate_forces) THEN
+                  ALLOCATE (native_skala_atom_force(3, natom))
+                  CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                                     vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                                     edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                                     just_energy=just_energy_xc, &
+                                     native_skala_atom_force=native_skala_atom_force)
+                  CPASSERT(ASSOCIATED(force))
+                  CPASSERT(ASSOCIATED(atomic_kind_set))
+                  CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+                  DO iatom = 1, natom
+                     ikind = kind_of(iatom)
+                     atom_a = atom_of_kind(iatom)
+                     force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + &
+                                                        native_skala_atom_force(:, iatom)
+                  END DO
+                  DEALLOCATE (atom_of_kind, kind_of, native_skala_atom_force)
+               ELSE
+                  CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
+                                     vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                                     edisp=edisp, dispersion_env=qs_env%dispersion_env, &
+                                     just_energy=just_energy_xc)
+               END IF
+               IF (edisp /= 0.0_dp) energy%dispersion = edisp
+               IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
+                  CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+                  CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+               END IF
+            ELSE
+               IF (gapw_xc) THEN
+                  CPABORT("GauXC with METHOD GAPW_XC is not supported yet.")
+               END IF
+               use_gauxc_matrix = .TRUE.
+               CALL apply_gauxc(qs_env, xc_section, calculate_forces)
+            END IF
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &

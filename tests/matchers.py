@@ -126,6 +126,15 @@ registry["Kubo_reused_mos"] = TextPresenceMatcher("CP2K canonical MOs")
 registry["Kubo_reference"] = TextPresenceMatcher(
     "https://doi.org/10.1016/j.aop.2020.168290"
 )
+registry["SKALA_GPW_feature_electrons"] = GenericMatcher(
+    r"SKALA_GPW| Native grid feature electrons", col=6
+)
+registry["SKALA_GPW_feature_spin_moment"] = GenericMatcher(
+    r"SKALA_GPW| Native grid feature spin moment", col=7
+)
+registry["SKALA_GPW_feature_weight_sum"] = GenericMatcher(
+    r"SKALA_GPW| Native grid feature weight sum", col=7
+)
 registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )

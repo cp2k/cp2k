@@ -807,6 +807,9 @@ list(
   semi_empirical_utils.F
   simpar_types.F
   sirius_interface.F
+  skala_gpw_functional.F
+  skala_gpw_features.F
+  skala_torch_api.F
   smeagol_control_types.F
   smeagol_emtoptions.F
   smeagol_interface.F

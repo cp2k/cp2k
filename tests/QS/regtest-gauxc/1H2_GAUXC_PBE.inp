@@ -30,6 +30,7 @@
       &XC_FUNCTIONAL
         &GAUXC
           FUNCTIONAL PBE
+          PERIODIC_REFERENCE T
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

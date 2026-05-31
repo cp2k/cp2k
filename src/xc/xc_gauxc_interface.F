@@ -13,6 +13,8 @@
 
 MODULE xc_gauxc_interface
 
+   USE iso_fortran_env, ONLY: &
+      error_unit
    USE iso_c_binding, ONLY: &
       c_associated, &
       c_bool, &
@@ -68,6 +70,10 @@ MODULE xc_gauxc_interface
       gauxc_runtime_environment_delete, &
       gauxc_runtime_environment_new, &
       gauxc_runtime_environment_type
+#ifdef GAUXC_HAS_DEVICE
+   USE gauxc_runtime_environment, ONLY: &
+      gauxc_device_runtime_environment_new
+#endif
    USE gauxc_molecule, ONLY: &
       gauxc_delete, &
       gauxc_molecule_new_from_atoms, &
@@ -236,15 +242,28 @@ CONTAINS
 
 #ifdef __GAUXC
       CHARACTER(kind=c_char), POINTER                    :: s(:)
+      CHARACTER(len=32)                                  :: stderr_env
       INTEGER                                            :: i, iw
+      LOGICAL                                            :: print_to_stderr
+      INTEGER, PARAMETER                                 :: status_message_length = 4096
 
       iw = cp_logger_get_default_io_unit()
+      CALL GET_ENVIRONMENT_VARIABLE("CP2K_GAUXC_STATUS_STDERR", stderr_env)
+      CALL uppercase(stderr_env)
+      SELECT CASE (TRIM(stderr_env))
+      CASE ("", "0", "FALSE", "F", "OFF", "NO")
+         print_to_stderr = .FALSE.
+      CASE ("1", "TRUE", "T", "ON", "YES")
+         print_to_stderr = .TRUE.
+      CASE DEFAULT
+         print_to_stderr = .TRUE.
+      END SELECT
       IF (iw > 0) THEN
          WRITE (iw, '(a,1x,i0)') "GauXC returned with status code", status%status%code
          IF (c_associated(status%status%message)) THEN
             WRITE (iw, '(a)', ADVANCE='no') "GauXC status message: ["
 
-            CALL c_f_pointer(status%status%message, s, [default_string_length])
+            CALL c_f_pointer(status%status%message, s, [status_message_length])
             DO i = 1, SIZE(s)
                IF (s(i) == c_null_char) EXIT
                WRITE (iw, '(A)', advance='no') s(i)
@@ -253,6 +272,22 @@ CONTAINS
             WRITE (iw, '(a)') "]"
          ELSE
             WRITE (iw, '(a)') "GauXC status message: [null]"
+         END IF
+      END IF
+      IF (print_to_stderr) THEN
+         WRITE (error_unit, '(a,1x,i0)') "GauXC returned with status code", status%status%code
+         IF (c_associated(status%status%message)) THEN
+            WRITE (error_unit, '(a)', ADVANCE='no') "GauXC status message: ["
+
+            CALL c_f_pointer(status%status%message, s, [status_message_length])
+            DO i = 1, SIZE(s)
+               IF (s(i) == c_null_char) EXIT
+               WRITE (error_unit, '(A)', advance='no') s(i)
+            END DO
+
+            WRITE (error_unit, '(a)') "]"
+         ELSE
+            WRITE (error_unit, '(a)') "GauXC status message: [null]"
          END IF
       END IF
 #else
@@ -461,6 +496,7 @@ CONTAINS
 !> \param pruning_scheme ...
 !> \param lb_exec_space ...
 !> \param batch_size ...
+!> \param device_runtime_fill_fraction ...
 !> \param status ...
 !> \param mpi_comm optional communicator for a grid-local GauXC runtime
 !> \return ...
@@ -473,6 +509,7 @@ CONTAINS
       pruning_scheme, &
       lb_exec_space, &
       batch_size, &
+      device_runtime_fill_fraction, &
       status, &
       mpi_comm) RESULT(res)
 
@@ -481,6 +518,7 @@ CONTAINS
       CHARACTER(len=*)               :: grid_type, lb_exec_space, &
                                         pruning_scheme, radial_quadrature
       INTEGER                                            :: batch_size
+      REAL(c_double), INTENT(IN)                         :: device_runtime_fill_fraction
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status
       INTEGER, INTENT(IN), OPTIONAL                      :: mpi_comm
       TYPE(cp_gauxc_grid_type)                           :: res
@@ -489,27 +527,52 @@ CONTAINS
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             lb_exec_space_local, &
                                                             pruning_scheme_local, radial_quad_local
+      LOGICAL                                            :: use_device_runtime
 
       grid_type_local = read_atomic_grid_size(grid_type)
       radial_quad_local = read_radial_quad(radial_quadrature)
       pruning_scheme_local = read_pruning_scheme(pruning_scheme)
       lb_exec_space_local = read_execution_space(lb_exec_space)
       int_exec_space_local = read_execution_space("host")
+      use_device_runtime = (lb_exec_space_local == gauxc_executionspace%device)
       res%owns_rt = .FALSE.
 
+      IF (use_device_runtime) THEN
+#ifdef GAUXC_HAS_DEVICE
 #if defined(GAUXC_HAS_MPI) && defined(__parallel)
-      IF (PRESENT(mpi_comm)) THEN
-         ! Reuse the global runtime when the requested communicator matches
-         ! the communicator used during gauxc_init.
-         IF (.NOT. rt_has_mpi_comm .OR. mpi_comm /= rt_mpi_comm) THEN
-            res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
-            GAUXC_RETURN_IF_ERROR(status)
-            res%owns_rt = .TRUE.
+         IF (PRESENT(mpi_comm)) THEN
+            res%rt = gauxc_device_runtime_environment_new( &
+                     status%status, mpi_comm, device_runtime_fill_fraction)
+         ELSE
+            res%rt = gauxc_device_runtime_environment_new( &
+                     status%status, device_runtime_fill_fraction)
          END IF
-      END IF
 #else
-      MARK_USED(mpi_comm)
+         MARK_USED(mpi_comm)
+         res%rt = gauxc_device_runtime_environment_new( &
+                  status%status, device_runtime_fill_fraction)
 #endif
+         GAUXC_RETURN_IF_ERROR(status)
+         res%owns_rt = .TRUE.
+#else
+         MARK_USED(device_runtime_fill_fraction)
+         CPABORT("GauXC was built without device runtime support")
+#endif
+      ELSE
+#if defined(GAUXC_HAS_MPI) && defined(__parallel)
+         IF (PRESENT(mpi_comm)) THEN
+            ! Reuse the global runtime when the requested communicator matches
+            ! the communicator used during gauxc_init.
+            IF (.NOT. rt_has_mpi_comm .OR. mpi_comm /= rt_mpi_comm) THEN
+               res%rt = gauxc_runtime_environment_new(status%status, mpi_comm)
+               GAUXC_RETURN_IF_ERROR(status)
+               res%owns_rt = .TRUE.
+            END IF
+         END IF
+#else
+         MARK_USED(mpi_comm)
+#endif
+      END IF
 
       res%grid = gauxc_molgrid_new_default( &
                  status%status, &
@@ -563,6 +626,7 @@ CONTAINS
 #else
       MARK_USED(basis)
       MARK_USED(batch_size)
+      MARK_USED(device_runtime_fill_fraction)
       MARK_USED(grid_type)
       MARK_USED(lb_exec_space)
       MARK_USED(mpi_comm)

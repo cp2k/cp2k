@@ -69,11 +69,14 @@ MODULE torch_api
    END INTERFACE torch_model_get_attr
 
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
-   PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_grad
+   PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
+   PUBLIC :: torch_tensor_grad, torch_tensor_to_device_leaf
+   PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
    PUBLIC :: torch_dict_type, torch_dict_create, torch_dict_insert, torch_dict_get, torch_dict_release
    PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
+   PUBLIC :: torch_model_forward_mol_tensor
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
-   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze
+   PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze, torch_use_cuda
 
 CONTAINS
 
@@ -219,6 +222,77 @@ CONTAINS
    END SUBROUTINE torch_tensor_backward
 
 ! **************************************************************************************************
+!> \brief Runs autograd on a scalar Torch tensor.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_backward_scalar(tensor)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_backward_scalar(tensor) &
+            BIND(C, name="torch_c_tensor_backward_scalar")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+         END SUBROUTINE torch_c_tensor_backward_scalar
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CALL torch_c_tensor_backward_scalar(tensor=tensor%c_ptr)
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+#endif
+   END SUBROUTINE torch_tensor_backward_scalar
+
+! **************************************************************************************************
+!> \brief Moves a tensor to the active Torch device and makes it an autograd leaf.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_to_device_leaf(tensor, requires_grad)
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_to_device_leaf(tensor, req_grad) &
+            BIND(C, name="torch_c_tensor_to_device_leaf")
+            IMPORT :: C_BOOL, C_PTR
+            TYPE(C_PTR)                                  :: tensor
+            LOGICAL(kind=C_BOOL), VALUE                  :: req_grad
+         END SUBROUTINE torch_c_tensor_to_device_leaf
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CALL torch_c_tensor_to_device_leaf(tensor=tensor%c_ptr, &
+                                         req_grad=LOGICAL(requires_grad, C_BOOL))
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(requires_grad)
+#endif
+   END SUBROUTINE torch_tensor_to_device_leaf
+
+! **************************************************************************************************
+!> \brief Select whether Torch wrappers should use CUDA when available.
+! **************************************************************************************************
+   SUBROUTINE torch_use_cuda(use_cuda)
+      LOGICAL, INTENT(IN)                                :: use_cuda
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_use_cuda(use_cuda) BIND(C, name="torch_c_use_cuda")
+            IMPORT :: C_BOOL
+            LOGICAL(kind=C_BOOL), VALUE                  :: use_cuda
+         END SUBROUTINE torch_c_use_cuda
+      END INTERFACE
+
+      CALL torch_c_use_cuda(use_cuda=LOGICAL(use_cuda, C_BOOL))
+#else
+      MARK_USED(use_cuda)
+#endif
+   END SUBROUTINE torch_use_cuda
+
+! **************************************************************************************************
 !> \brief Returns the gradient of a Torch tensor which was computed by autograd.
 !> \author Ole Schuett
 ! **************************************************************************************************
@@ -246,6 +320,63 @@ CONTAINS
       MARK_USED(grad)
 #endif
    END SUBROUTINE torch_tensor_grad
+
+! **************************************************************************************************
+!> \brief Returns the weighted sum of two Torch tensors.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_weighted_sum(values, weights, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: values, weights
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_weighted_sum(values, weights, result) &
+            BIND(C, name="torch_c_tensor_weighted_sum")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                           :: values
+            TYPE(C_PTR), VALUE                           :: weights
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_weighted_sum
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(values%c_ptr))
+      CPASSERT(C_ASSOCIATED(weights%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CALL torch_c_tensor_weighted_sum(values=values%c_ptr, weights=weights%c_ptr, result=result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(values)
+      MARK_USED(weights)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_weighted_sum
+
+! **************************************************************************************************
+!> \brief Returns a scalar double value from a Torch tensor.
+! **************************************************************************************************
+   FUNCTION torch_tensor_item_double(tensor) RESULT(value)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      REAL(KIND=dp)                                      :: value
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         FUNCTION torch_c_tensor_item_double(tensor) RESULT(value) &
+            BIND(C, name="torch_c_tensor_item_double")
+            IMPORT :: C_DOUBLE, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            REAL(KIND=C_DOUBLE)                          :: value
+         END FUNCTION torch_c_tensor_item_double
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      value = torch_c_tensor_item_double(tensor=tensor%c_ptr)
+#else
+      value = 0.0_dp
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+#endif
+   END FUNCTION torch_tensor_item_double
 
 ! **************************************************************************************************
 !> \brief Releases a Torch tensor and all its ressources.
@@ -452,6 +583,49 @@ CONTAINS
       MARK_USED(outputs)
 #endif
    END SUBROUTINE torch_model_forward
+
+! **************************************************************************************************
+!> \brief Evaluates a TorchScript model method expecting keyword argument "mol".
+! **************************************************************************************************
+   SUBROUTINE torch_model_forward_mol_tensor(model, method_name, inputs, output)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+      CHARACTER(len=*), INTENT(IN)                       :: method_name
+      TYPE(torch_dict_type), INTENT(IN)                  :: inputs
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: output
+
+#if defined(__LIBTORCH)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_forward_mol_tensor'
+      INTEGER                                            :: handle
+
+      INTERFACE
+         SUBROUTINE torch_c_model_forward_mol_tensor(model, method_name, inputs, output) &
+            BIND(C, name="torch_c_model_forward_mol_tensor")
+            IMPORT :: C_CHAR, C_PTR
+            TYPE(C_PTR), VALUE                           :: model
+            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: method_name
+            TYPE(C_PTR), VALUE                           :: inputs
+            TYPE(C_PTR)                                  :: output
+         END SUBROUTINE torch_c_model_forward_mol_tensor
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CPASSERT(C_ASSOCIATED(inputs%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(output%c_ptr))
+      CALL torch_c_model_forward_mol_tensor(model=model%c_ptr, &
+                                            method_name=TRIM(method_name)//C_NULL_CHAR, &
+                                            inputs=inputs%c_ptr, &
+                                            output=output%c_ptr)
+      CPASSERT(C_ASSOCIATED(output%c_ptr))
+      CALL timestop(handle)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+      MARK_USED(method_name)
+      MARK_USED(inputs)
+      MARK_USED(output)
+#endif
+   END SUBROUTINE torch_model_forward_mol_tensor
 
 ! **************************************************************************************************
 !> \brief Releases a Torch model and all its ressources.

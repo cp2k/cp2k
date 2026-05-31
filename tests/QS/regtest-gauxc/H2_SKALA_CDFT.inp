@@ -37,7 +37,7 @@
         &END BECKE_CONSTRAINT
         &OUTER_SCF
           EPS_SCF 5.0E-3
-          MAX_SCF 10
+          MAX_SCF 1
           OPTIMIZER DIIS
           TYPE CDFT_CONSTRAINT
         &END OUTER_SCF
@@ -45,13 +45,14 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-      MAX_SCF 40
+      IGNORE_CONVERGENCE_FAILURE T
+      MAX_SCF 1
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &OUTER_SCF
         EPS_SCF 1.0E-5
-        MAX_SCF 2
+        MAX_SCF 1
       &END OUTER_SCF
     &END SCF
     &XC
@@ -60,6 +61,7 @@
           FUNCTIONAL PBE
           GRID FINE
           MODEL SKALA
+          PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC
       &END XC_FUNCTIONAL

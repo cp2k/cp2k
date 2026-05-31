@@ -1300,8 +1300,11 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAUXC", &
-                          description="Use exchange-correlation functionals provided by GauXC", &
-                          n_keywords=13, n_subsections=0, repeats=.FALSE.)
+                          description="Use exchange-correlation functionals provided by GauXC. "// &
+                          "The current CP2K bridge uses GauXC's molecular quadrature. Periodic inputs "// &
+                          "are limited to isolated validation cells and are not compact periodic "// &
+                          "material calculations.", &
+                          n_keywords=20, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1375,6 +1378,65 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DEVICE_RUNTIME_FILL_FRACTION", &
+                          description="Fraction of currently available GPU memory preallocated by "// &
+                          "a GauXC device runtime. Lower values leave more memory for OneDFT/SKALA "// &
+                          "Torch inference; this keyword is used only with LB_EXECUTION_SPACE DEVICE.", &
+                          usage="DEVICE_RUNTIME_FILL_FRACTION 0.1", &
+                          default_r_val=0.1_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ONEDFT_ATOM_CHUNK_SIZE", &
+                          description="Atom chunk size for GauXC OneDFT/SKALA Torch inference. "// &
+                          "A positive value evaluates the Torch model atom block by atom block; "// &
+                          "zero disables chunking; the default leaves GauXC's model-specific policy "// &
+                          "or the GAUXC_ONEDFT_ATOM_CHUNK_SIZE environment variable in control.", &
+                          usage="ONEDFT_ATOM_CHUNK_SIZE 3", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_REFERENCE", &
+                          description="Explicitly opt into the limited isolated-cell GauXC reference "// &
+                          "path for periodic CP2K inputs. This path is restricted to Gamma-only, "// &
+                          "single-image METHOD GPW calculations with GTH pseudopotentials and uses "// &
+                          "GauXC's molecular quadrature; compact periodic materials require a "// &
+                          "dedicated periodic GauXC interface.", &
+                          usage="PERIODIC_REFERENCE T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID", &
+                          description="Experimental CP2K-native GPW real-space-grid path for SKALA "// &
+                          "TorchScript models. This bypasses GauXC molecular quadrature and is limited "// &
+                          "to energy/VXC evaluations with FUNCTIONAL PBE and a single GAUXC functional. "// &
+                          "MPI runs collect a global atom-partitioned feature block on each rank before "// &
+                          "the Torch model is evaluated. Nuclear gradients, stress, GAPW, ROKS, ADMM, "// &
+                          "NLCC pseudopotentials, multiple images, and k-points are not implemented.", &
+                          usage="NATIVE_GRID T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_USE_CUDA", &
+                          description="Evaluate the experimental CP2K-native SKALA GPW TorchScript "// &
+                          "model on CUDA when libtorch CUDA support is available. This requires a "// &
+                          "CUDA-compatible SKALA model export; the portable default uses CPU tensors.", &
+                          usage="NATIVE_GRID_USE_CUDA T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_DIAGNOSTICS", &
+                          description="Print diagnostic integrals of the CP2K-native SKALA GPW feature "// &
+                          "block, including electron count, spin moment, and summed grid weights.", &
+                          usage="NATIVE_GRID_DIAGNOSTICS T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULAR_VIRIAL", &
                           description="Print a molecular XC virial diagnostic computed from GauXC "// &
                           "nuclear gradients. This is not an analytical periodic stress tensor.", &
@@ -1416,6 +1478,21 @@ CONTAINS
                           enum_i_vals=[1, 2], &
                           enum_desc=s2a("Run on host (default)", &
                                         "Run on device"), &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SKALA_RUNTIME", &
+                          description="MPI communicator policy for GauXC OneDFT/SKALA. AUTO uses "// &
+                          "the force-evaluation communicator for closed-shell calculations and a "// &
+                          "rank-local replicated runtime for open-shell calculations. MPI forces the "// &
+                          "force-evaluation communicator. SELF forces the previous replicated mode.", &
+                          usage="SKALA_RUNTIME AUTO", &
+                          enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
+                          enum_i_vals=[1, 2, 3], &
+                          enum_desc=s2a("Closed-shell MPI, open-shell replicated (default)", &
+                                        "Use the force-evaluation MPI communicator", &
+                                        "Use rank-local replicated GauXC runtimes"), &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

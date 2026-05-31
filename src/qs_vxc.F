@@ -28,6 +28,7 @@ MODULE qs_vxc
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -46,6 +47,8 @@ MODULE qs_vxc
                                               qs_ks_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE skala_gpw_functional,            ONLY: skala_gpw_eval,&
+                                              xc_section_uses_native_skala_grid
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: calc_xc_density,&
                                               xc_exc_calc,&
@@ -82,6 +85,7 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param adiabatic_rescale_factor ...
 !> \param pw_env_external    external plane wave environment
+!> \param native_skala_atom_force ...
 !> \par History
 !>      - 05.2002 modified to use the mp_allgather function each pe
 !>        computes only part of the grid and this is broadcasted to all
@@ -94,7 +98,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_vxc_create(ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc, &
                             just_energy, edisp, dispersion_env, adiabatic_rescale_factor, &
-                            pw_env_external)
+                            pw_env_external, native_skala_atom_force)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -106,13 +110,15 @@ CONTAINS
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: adiabatic_rescale_factor
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: native_skala_atom_force
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_vxc_create'
 
       INTEGER                                            :: handle, ispin, mspin, myfun, &
                                                             nelec_spin(2), vdw
-      LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, rho_g_valid, &
-         sic_scaling_b_zero, tau_g_valid, tau_r_valid, uf_grid, vdW_nl
+      LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, native_skala_grid, &
+         rho_g_valid, sic_scaling_b_zero, tau_g_valid, tau_r_valid, uf_grid, vdW_nl
       REAL(KIND=dp)                                      :: exc_m, factor, &
                                                             my_adiabatic_rescale_factor, &
                                                             my_scaling, nelec_s_inv
@@ -120,6 +126,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rho_m_gspace, rho_struct_g, &
                                                             tau_struct_g
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_use, &
@@ -141,7 +148,7 @@ CONTAINS
                tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
                rho_m_gspace, rho_nlcc, rho_nlcc_g, rho_nlcc_g_use, rho_nlcc_g_xc, &
                rho_nlcc_use, rho_nlcc_xc, rho_struct_r, rho_struct_g, tau_struct_g, tau_struct_r, &
-               weights_use, weights_xc)
+               weights_use, weights_xc, particle_set)
 
       exc = 0.0_dp
       my_just_energy = .FALSE.
@@ -157,6 +164,7 @@ CONTAINS
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       cell=cell, &
+                      particle_set=particle_set, &
                       xcint_weights=weights, &
                       virial=virial, &
                       rho_nlcc=rho_nlcc, &
@@ -192,6 +200,12 @@ CONTAINS
          vdW_nl = .FALSE.
       END IF
       IF (PRESENT(edisp)) edisp = 0.0_dp
+      native_skala_grid = xc_section_uses_native_skala_grid(xc_section)
+      IF (native_skala_grid .AND. ASSOCIATED(rho_nlcc_use)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Native SKALA grid evaluation with NLCC pseudopotentials is not implemented. "// &
+                       "The frozen core density would need a SKALA-consistent feature definition.")
+      END IF
 
       IF (myfun /= xc_none .OR. vdW_nl) THEN
 
@@ -322,7 +336,14 @@ CONTAINS
          ! here the rho_r, rho_g, tau is what it should be
          ! we get back the right my_vxc_rho and my_vxc_tau as required
          !
-         IF (my_just_energy) THEN
+         IF (native_skala_grid) THEN
+            CALL skala_gpw_eval(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, exc=exc, &
+                                rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
+                                weights=weights_use, pw_pool=xc_pw_pool, &
+                                particle_set=particle_set, cell=cell, &
+                                compute_virial=compute_virial, virial_xc=virial%pv_xc, &
+                                just_energy=my_just_energy, atom_force=native_skala_atom_force)
+         ELSE IF (my_just_energy) THEN
             exc = xc_exc_calc(rho_r=rho_r, tau=tau, &
                               rho_g=rho_g, xc_section=xc_section, &
                               weights=weights_use, pw_pool=xc_pw_pool)
