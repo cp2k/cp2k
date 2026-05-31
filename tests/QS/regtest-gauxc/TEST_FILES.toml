@@ -36,6 +36,10 @@
                                            {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999584},
                                            {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
                                            {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
+"AR4_NATIVE_SKALA_GPW_ATOM_CHUNKS.inp" = [{matcher="E_total", tol=5e-6, ref=-84.344781213609991},
+                                          {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999584},
+                                          {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},
+                                          {matcher="SKALA_GPW_feature_weight_sum", tol=1e-8, ref=1004.67180773}]
 "AR4_NATIVE_SKALA_GPW_WRAPPED.inp" = [{matcher="E_total", tol=5e-6, ref=-84.344779494109700},
                                       {matcher="SKALA_GPW_feature_electrons", tol=1e-8, ref=31.9999999584},
                                       {matcher="SKALA_GPW_feature_spin_moment", tol=1e-12, ref=0.0},

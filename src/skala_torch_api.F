@@ -51,17 +51,16 @@ CONTAINS
       CHARACTER(:), ALLOCATABLE                          :: features_json, protocol_string
       INTEGER                                            :: ios
 
+      CALL torch_model_load(model%torch_model, filename)
       protocol_string = torch_model_read_metadata(filename, "protocol_version")
+      features_json = torch_model_read_metadata(filename, "features")
       READ (protocol_string, *, IOSTAT=ios) model%protocol_version
       IF (ios /= 0) CPABORT("Could not parse SKALA TorchScript protocol_version metadata")
       IF (model%protocol_version /= 2) THEN
          CPABORT("Unsupported SKALA TorchScript protocol version")
       END IF
 
-      features_json = torch_model_read_metadata(filename, "features")
       CALL parse_feature_list(features_json, model%features)
-
-      CALL torch_model_load(model%torch_model, filename)
 
    END SUBROUTINE skala_torch_model_load
 

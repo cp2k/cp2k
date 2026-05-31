@@ -166,6 +166,15 @@ integrator.
 - `NATIVE_GRID_USE_CUDA T` evaluates the experimental CP2K-native SKALA Torch model on CUDA if the
   linked libtorch provides CUDA support. This is an explicit opt-in because CUDA-exported SKALA
   models can create internal ragged-index tensors on CUDA.
+- `NATIVE_GRID_CUDA_DEVICE` controls the visible CUDA device used by the native-grid Torch path. The
+  default value `0` preserves the previous behavior of using logical `cuda:0`. A negative value maps
+  the MPI-local rank to a visible CUDA device, so multi-rank jobs can use multiple logical CUDA
+  devices. The Torch wrapper loads TorchScript models through CPU and then moves them to the
+  selected CUDA device, and guards Torch calls with that device so rank-local model internals and
+  input tensors stay on the same GPU. Some CUDA-exported TorchScript models still embed `cuda:0`
+  graph constants; those exports need per-rank `CUDA_VISIBLE_DEVICES` set before CP2K starts. When
+  CUDA is enabled the native-grid diagnostic output also prints the selected logical and visible
+  device for each real-space-grid rank.
 - Molecular CDFT and mixed CDFT-CI energy calculations can be used with the GauXC matrix path. SKALA
   CDFT coverage is currently limited to smoke tests of the energy and constraint-potential path.
 - Response/kernel properties requiring higher XC derivatives are not supported by the GauXC path and
