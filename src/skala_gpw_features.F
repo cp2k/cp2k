@@ -32,8 +32,8 @@ MODULE skala_gpw_features
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'skala_gpw_features'
    REAL(KIND=dp), PARAMETER, PRIVATE    :: layout_tol = 1.0E-12_dp
-   INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nstatic_per_point = 4, &
-                                           ngrad_per_point = 10
+   INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nrks_dynamic_per_point = 5, &
+                                           nstatic_per_point = 4, ngrad_per_point = 10
 
    PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_feature_build, &
              skala_gpw_feature_build_atom_subchunk, skala_gpw_feature_release, &
@@ -51,11 +51,7 @@ MODULE skala_gpw_features
                                                             chunk_feature_counts, chunk_feature_displs, &
                                                             chunk_grad_counts, chunk_grad_displs, &
                                                             feature_counts, feature_displs, &
-                                                            global_to_feature, route_dynamic_recv_counts, &
-                                                            route_dynamic_recv_displs, &
-                                                            route_dynamic_send_counts, &
-                                                            route_dynamic_send_displs, &
-                                                            route_grad_return_recv_counts, &
+                                                            global_to_feature, route_grad_return_recv_counts, &
                                                             route_grad_return_recv_displs, &
                                                             route_grad_return_send_counts, &
                                                             route_grad_return_send_displs, &
@@ -187,11 +183,12 @@ CONTAINS
                                                             use_atom_chunks, route_atom_chunks
 
       INTEGER                                            :: handle, i, ipt, ispin, j, k, local_row, &
-                                                            nflat, nflat_local, nspins, &
-                                                            phase_handle, real_base, row
+                                                            ndynamic_local_per_point, nflat, &
+                                                            nflat_local, nspins, phase_handle, &
+                                                            real_base, row
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL :: can_use_atom_chunks, my_requires_coordinate_grad, my_requires_grad, &
-         my_route_atom_chunks, my_use_atom_chunks
+      LOGICAL :: can_use_atom_chunks, collapse_spin_dynamics, my_requires_coordinate_grad, &
+         my_requires_grad, my_route_atom_chunks, my_use_atom_chunks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: global_dynamic, local_dynamic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, tau_a, tau_b, tau_total
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drhoa, drhob
@@ -229,7 +226,11 @@ CONTAINS
       nflat = cached_layout%nflat
       can_use_atom_chunks = my_use_atom_chunks .AND. cached_layout%nproc > 1 .AND. &
                             cached_layout%chunk_feature_count > 0
-      ALLOCATE (local_dynamic(ndynamic_per_point*nflat_local))
+      collapse_spin_dynamics = (nspins == 1 .AND. can_use_atom_chunks .AND. &
+                                my_route_atom_chunks)
+      ndynamic_local_per_point = ndynamic_per_point
+      IF (collapse_spin_dynamics) ndynamic_local_per_point = nrks_dynamic_per_point
+      ALLOCATE (local_dynamic(ndynamic_local_per_point*nflat_local))
       local_dynamic = 0.0_dp
 
       CALL timeset("skala_gpw_pack_local", phase_handle)
@@ -245,17 +246,28 @@ CONTAINS
          DO j = bo(1, 2), bo(2, 2)
             DO i = bo(1, 1), bo(2, 1)
                local_row = local_row + 1
-               real_base = ndynamic_per_point*(local_row - 1)
+               real_base = ndynamic_local_per_point*(local_row - 1)
 
                IF (nspins == 1) THEN
-                  local_dynamic(real_base + 1) = 0.5_dp*rho(i, j, k)
-                  local_dynamic(real_base + 2) = 0.5_dp*rho(i, j, k)
-                  DO ispin = 1, 2
-                     local_dynamic(real_base + 2 + 3*(ispin - 1) + 1) = 0.5_dp*drho(1)%array(i, j, k)
-                     local_dynamic(real_base + 2 + 3*(ispin - 1) + 2) = 0.5_dp*drho(2)%array(i, j, k)
-                     local_dynamic(real_base + 2 + 3*(ispin - 1) + 3) = 0.5_dp*drho(3)%array(i, j, k)
-                     local_dynamic(real_base + 8 + ispin) = 0.5_dp*tau_total(i, j, k)
-                  END DO
+                  IF (collapse_spin_dynamics) THEN
+                     local_dynamic(real_base + 1) = 0.5_dp*rho(i, j, k)
+                     local_dynamic(real_base + 2) = 0.5_dp*drho(1)%array(i, j, k)
+                     local_dynamic(real_base + 3) = 0.5_dp*drho(2)%array(i, j, k)
+                     local_dynamic(real_base + 4) = 0.5_dp*drho(3)%array(i, j, k)
+                     local_dynamic(real_base + 5) = 0.5_dp*tau_total(i, j, k)
+                  ELSE
+                     local_dynamic(real_base + 1) = 0.5_dp*rho(i, j, k)
+                     local_dynamic(real_base + 2) = 0.5_dp*rho(i, j, k)
+                     DO ispin = 1, 2
+                        local_dynamic(real_base + 2 + 3*(ispin - 1) + 1) = &
+                           0.5_dp*drho(1)%array(i, j, k)
+                        local_dynamic(real_base + 2 + 3*(ispin - 1) + 2) = &
+                           0.5_dp*drho(2)%array(i, j, k)
+                        local_dynamic(real_base + 2 + 3*(ispin - 1) + 3) = &
+                           0.5_dp*drho(3)%array(i, j, k)
+                        local_dynamic(real_base + 8 + ispin) = 0.5_dp*tau_total(i, j, k)
+                     END DO
+                  END IF
                ELSE
                   local_dynamic(real_base + 1) = rhoa(i, j, k)
                   local_dynamic(real_base + 2) = rhob(i, j, k)
@@ -279,7 +291,8 @@ CONTAINS
 
       IF (can_use_atom_chunks .AND. my_route_atom_chunks) THEN
          CALL timeset("skala_gpw_route_dyn", phase_handle)
-         CALL route_atom_chunk_dynamics(features, local_dynamic, pw_grid%para%group)
+         CALL route_atom_chunk_dynamics(features, local_dynamic, pw_grid%para%group, &
+                                        collapse_spin_dynamics)
          features%uses_atom_chunk_routing = .TRUE.
          features%uses_atom_chunks = .TRUE.
          CALL timestop(phase_handle)
@@ -563,10 +576,6 @@ CONTAINS
                 cached_layout%chunk_grad_counts(nproc), cached_layout%chunk_grad_displs(nproc), &
                 cached_layout%feature_counts(nproc), cached_layout%feature_displs(nproc), &
                 cached_layout%dynamic_counts(nproc), cached_layout%dynamic_displs(nproc), &
-                cached_layout%route_dynamic_recv_counts(nproc), &
-                cached_layout%route_dynamic_recv_displs(nproc), &
-                cached_layout%route_dynamic_send_counts(nproc), &
-                cached_layout%route_dynamic_send_displs(nproc), &
                 cached_layout%route_grad_return_recv_counts(nproc), &
                 cached_layout%route_grad_return_recv_displs(nproc), &
                 cached_layout%route_grad_return_send_counts(nproc), &
@@ -1021,10 +1030,6 @@ CONTAINS
          cache%chunk_return_positions(chunk_row) = point_pos
       END DO
 
-      cache%route_dynamic_send_counts(:) = ndynamic_per_point*cache%route_point_send_counts
-      cache%route_dynamic_send_displs(:) = ndynamic_per_point*cache%route_point_send_displs
-      cache%route_dynamic_recv_counts(:) = ndynamic_per_point*cache%route_point_recv_counts
-      cache%route_dynamic_recv_displs(:) = ndynamic_per_point*cache%route_point_recv_displs
       cache%route_grad_return_send_counts(:) = ngrad_per_point*cache%route_point_recv_counts
       cache%route_grad_return_send_displs(:) = ngrad_per_point*cache%route_point_recv_displs
       cache%route_grad_return_recv_counts(:) = ngrad_per_point*cache%route_point_send_counts
@@ -1080,16 +1085,20 @@ CONTAINS
 !> \param features ...
 !> \param local_dynamic ...
 !> \param group ...
+!> \param collapse_spin_dynamics ...
 ! **************************************************************************************************
-   SUBROUTINE route_atom_chunk_dynamics(features, local_dynamic, group)
+   SUBROUTINE route_atom_chunk_dynamics(features, local_dynamic, group, collapse_spin_dynamics)
       TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: local_dynamic
 
       CLASS(mp_comm_type), INTENT(IN)                    :: group
+      LOGICAL, INTENT(IN)                                :: collapse_spin_dynamics
 
       INTEGER                                            :: chunk_row, dest, dyn_base, local_row, &
-                                                            nrecv, nsend, point_pos, src_base
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor
+                                                            ndynamic_route_per_point, nrecv, nsend, &
+                                                            point_pos, src_base
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, recv_counts, recv_displs, &
+                                                            send_counts, send_displs
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_dynamic, send_dynamic
 
       CPASSERT(cached_layout%chunk_feature_count > 0)
@@ -1097,25 +1106,31 @@ CONTAINS
       nrecv = SUM(cached_layout%route_point_recv_counts)
       CPASSERT(nsend == cached_layout%nflat_local)
       CPASSERT(nrecv == cached_layout%chunk_feature_count)
+      ndynamic_route_per_point = ndynamic_per_point
+      IF (collapse_spin_dynamics) ndynamic_route_per_point = nrks_dynamic_per_point
 
-      ALLOCATE (send_dynamic(ndynamic_per_point*nsend), &
-                recv_dynamic(ndynamic_per_point*nrecv), &
-                cursor(cached_layout%nproc))
+      ALLOCATE (send_dynamic(ndynamic_route_per_point*nsend), &
+                recv_dynamic(ndynamic_route_per_point*nrecv), &
+                cursor(cached_layout%nproc), send_counts(cached_layout%nproc), &
+                send_displs(cached_layout%nproc), recv_counts(cached_layout%nproc), &
+                recv_displs(cached_layout%nproc))
+      send_counts(:) = ndynamic_route_per_point*cached_layout%route_point_send_counts
+      send_displs(:) = ndynamic_route_per_point*cached_layout%route_point_send_displs
+      recv_counts(:) = ndynamic_route_per_point*cached_layout%route_point_recv_counts
+      recv_displs(:) = ndynamic_route_per_point*cached_layout%route_point_recv_displs
       cursor(:) = cached_layout%route_point_send_displs + 1
       DO local_row = 1, nsend
          dest = cached_layout%route_local_dest(local_row)
          point_pos = cursor(dest)
          cursor(dest) = cursor(dest) + 1
-         dyn_base = ndynamic_per_point*(point_pos - 1)
-         src_base = ndynamic_per_point*(local_row - 1)
-         send_dynamic(dyn_base + 1:dyn_base + ndynamic_per_point) = &
-            local_dynamic(src_base + 1:src_base + ndynamic_per_point)
+         dyn_base = ndynamic_route_per_point*(point_pos - 1)
+         src_base = ndynamic_route_per_point*(local_row - 1)
+         send_dynamic(dyn_base + 1:dyn_base + ndynamic_route_per_point) = &
+            local_dynamic(src_base + 1:src_base + ndynamic_route_per_point)
       END DO
 
-      CALL group%alltoall(send_dynamic, cached_layout%route_dynamic_send_counts, &
-                          cached_layout%route_dynamic_send_displs, recv_dynamic, &
-                          cached_layout%route_dynamic_recv_counts, &
-                          cached_layout%route_dynamic_recv_displs)
+      CALL group%alltoall(send_dynamic, send_counts, send_displs, recv_dynamic, recv_counts, &
+                          recv_displs)
 
       ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
                 features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
@@ -1126,19 +1141,28 @@ CONTAINS
       DO chunk_row = 1, cached_layout%chunk_feature_count
          point_pos = cached_layout%chunk_return_positions(chunk_row)
          CPASSERT(point_pos >= 1 .AND. point_pos <= cached_layout%chunk_feature_count)
-         dyn_base = ndynamic_per_point*(point_pos - 1)
-         features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
-         features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
-         features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
-         features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
-         features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
-         features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
-         features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
-         features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
+         dyn_base = ndynamic_route_per_point*(point_pos - 1)
+         IF (collapse_spin_dynamics) THEN
+            features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1)
+            features%chunk_grad(chunk_row, 1, :) = recv_dynamic(dyn_base + 2)
+            features%chunk_grad(chunk_row, 2, :) = recv_dynamic(dyn_base + 3)
+            features%chunk_grad(chunk_row, 3, :) = recv_dynamic(dyn_base + 4)
+            features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 5)
+         ELSE
+            features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
+            features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
+            features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 4)
+            features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 5)
+            features%chunk_grad(chunk_row, 1, 2) = recv_dynamic(dyn_base + 6)
+            features%chunk_grad(chunk_row, 2, 2) = recv_dynamic(dyn_base + 7)
+            features%chunk_grad(chunk_row, 3, 2) = recv_dynamic(dyn_base + 8)
+            features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 9:dyn_base + 10)
+         END IF
       END DO
       CPASSERT(ALL(features%chunk_return_positions > 0))
 
-      DEALLOCATE (cursor, recv_dynamic, send_dynamic)
+      DEALLOCATE (cursor, recv_counts, recv_displs, recv_dynamic, send_counts, send_displs, &
+                  send_dynamic)
 
    END SUBROUTINE route_atom_chunk_dynamics
 
@@ -1247,10 +1271,6 @@ CONTAINS
       IF (ALLOCATED(cache%chunk_feature_displs)) DEALLOCATE (cache%chunk_feature_displs)
       IF (ALLOCATED(cache%chunk_grad_counts)) DEALLOCATE (cache%chunk_grad_counts)
       IF (ALLOCATED(cache%chunk_grad_displs)) DEALLOCATE (cache%chunk_grad_displs)
-      IF (ALLOCATED(cache%route_dynamic_recv_counts)) DEALLOCATE (cache%route_dynamic_recv_counts)
-      IF (ALLOCATED(cache%route_dynamic_recv_displs)) DEALLOCATE (cache%route_dynamic_recv_displs)
-      IF (ALLOCATED(cache%route_dynamic_send_counts)) DEALLOCATE (cache%route_dynamic_send_counts)
-      IF (ALLOCATED(cache%route_dynamic_send_displs)) DEALLOCATE (cache%route_dynamic_send_displs)
       IF (ALLOCATED(cache%route_grad_return_recv_counts)) &
          DEALLOCATE (cache%route_grad_return_recv_counts)
       IF (ALLOCATED(cache%route_grad_return_recv_displs)) &
