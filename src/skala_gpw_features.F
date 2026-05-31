@@ -35,7 +35,9 @@ MODULE skala_gpw_features
    INTEGER, PARAMETER, PRIVATE          :: ndynamic_per_point = 10, nstatic_per_point = 4, &
                                            ngrad_per_point = 10
 
-   PUBLIC :: skala_gpw_feature_type, skala_gpw_feature_build, skala_gpw_feature_release
+   PUBLIC :: skala_gpw_atom_subchunk_count, skala_gpw_feature_build, &
+             skala_gpw_feature_build_atom_subchunk, skala_gpw_feature_release, &
+             skala_gpw_feature_type
 
    TYPE skala_gpw_layout_cache_type
       INTEGER                                            :: chunk_atom_begin = 1, chunk_atom_end = 0, &
@@ -1390,6 +1392,217 @@ CONTAINS
       features%uses_atom_chunk_routing = .FALSE.
 
    END SUBROUTINE skala_gpw_feature_release
+
+! **************************************************************************************************
+!> \brief Return how many atom-contiguous subchunks the cached rank chunk needs.
+!> \param max_rows ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION skala_gpw_atom_subchunk_count(max_rows) RESULT(nsubchunks)
+      INTEGER, INTENT(IN)                                :: max_rows
+      INTEGER                                            :: nsubchunks
+
+      INTEGER                                            :: atom_rows, iatom, rows
+
+      nsubchunks = 1
+      IF (max_rows <= 0) RETURN
+      IF (.NOT. cached_layout%active) RETURN
+      IF (cached_layout%chunk_natom <= 0) RETURN
+
+      nsubchunks = 0
+      rows = 0
+      DO iatom = 1, cached_layout%chunk_natom
+         atom_rows = INT(cached_layout%chunk_atomic_grid_sizes(iatom))
+         IF (rows > 0 .AND. rows + atom_rows > max_rows) THEN
+            nsubchunks = nsubchunks + 1
+            rows = 0
+         END IF
+         rows = rows + atom_rows
+      END DO
+      IF (rows > 0) nsubchunks = nsubchunks + 1
+      nsubchunks = MAX(1, nsubchunks)
+
+   END FUNCTION skala_gpw_atom_subchunk_count
+
+! **************************************************************************************************
+!> \brief Build an atom-contiguous subchunk feature bundle from a rank-local atom chunk.
+!> \param parent ...
+!> \param features ...
+!> \param subchunk_index ...
+!> \param max_rows ...
+!> \param requires_grad ...
+! **************************************************************************************************
+   SUBROUTINE skala_gpw_feature_build_atom_subchunk(parent, features, subchunk_index, &
+                                                    max_rows, requires_grad)
+      TYPE(skala_gpw_feature_type), INTENT(IN)           :: parent
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      INTEGER, INTENT(IN)                                :: subchunk_index, max_rows
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+      INTEGER                                            :: atom_begin, atom_count, atom_end, &
+                                                            max_grid_size, row_begin, row_count, &
+                                                            row_end
+
+      CALL skala_gpw_feature_release(features)
+      CPASSERT(parent%uses_atom_chunks)
+      CALL atom_subchunk_bounds(subchunk_index, max_rows, atom_begin, atom_end, &
+                                row_begin, row_end)
+      atom_count = atom_end - atom_begin + 1
+      row_count = row_end - row_begin + 1
+      CPASSERT(atom_count > 0)
+      CPASSERT(row_count > 0)
+      max_grid_size = MAXVAL(INT(cached_layout%chunk_atomic_grid_sizes(atom_begin:atom_end)))
+
+      ALLOCATE (features%chunk_density(row_count, 2), &
+                features%chunk_grad(row_count, 3, 2), &
+                features%chunk_kin(row_count, 2), &
+                features%chunk_return_positions(row_count), &
+                features%grid_coords(3, row_count), &
+                features%grid_weights(row_count), &
+                features%atomic_grid_weights(row_count), &
+                features%atomic_grid_sizes(atom_count), &
+                features%coarse_0_atomic_coords(3, atom_count), &
+                features%atomic_grid_size_bound_shape(0, max_grid_size))
+
+      features%chunk_density(:, :) = parent%chunk_density(row_begin:row_end, :)
+      features%chunk_grad(:, :, :) = parent%chunk_grad(row_begin:row_end, :, :)
+      features%chunk_kin(:, :) = parent%chunk_kin(row_begin:row_end, :)
+      features%chunk_return_positions(:) = parent%chunk_return_positions(row_begin:row_end)
+      features%grid_coords(:, :) = cached_layout%chunk_grid_coords(:, row_begin:row_end)
+      features%grid_weights(:) = cached_layout%chunk_grid_weights(row_begin:row_end)
+      features%atomic_grid_weights(:) = cached_layout%chunk_atomic_grid_weights(row_begin:row_end)
+      features%atomic_grid_sizes(:) = cached_layout%chunk_atomic_grid_sizes(atom_begin:atom_end)
+      features%coarse_0_atomic_coords(:, :) = &
+         cached_layout%chunk_coarse_0_atomic_coords(:, atom_begin:atom_end)
+      features%atomic_grid_size_bound_shape = 0_int_8
+
+      features%chunk_feature_count = row_count
+      features%nflat = parent%nflat
+      features%nflat_local = parent%nflat_local
+      features%grid_weight_sum = SUM(features%grid_weights)
+      features%uses_atom_chunks = .TRUE.
+      features%uses_atom_chunk_routing = parent%uses_atom_chunk_routing
+      CALL add_owned_feature_tensors(features, requires_grad)
+      features%active = .TRUE.
+
+   END SUBROUTINE skala_gpw_feature_build_atom_subchunk
+
+! **************************************************************************************************
+!> \brief Return atom and row bounds for an atom-contiguous rank-local subchunk.
+!> \param subchunk_index ...
+!> \param max_rows ...
+!> \param atom_begin ...
+!> \param atom_end ...
+!> \param row_begin ...
+!> \param row_end ...
+! **************************************************************************************************
+   SUBROUTINE atom_subchunk_bounds(subchunk_index, max_rows, atom_begin, atom_end, &
+                                   row_begin, row_end)
+      INTEGER, INTENT(IN)                                :: subchunk_index, max_rows
+      INTEGER, INTENT(OUT)                               :: atom_begin, atom_end, row_begin, row_end
+
+      INTEGER                                            :: atom_rows, current_subchunk, iatom, &
+                                                            row_cursor, rows
+
+      CPASSERT(subchunk_index > 0)
+      CPASSERT(max_rows > 0)
+      CPASSERT(cached_layout%chunk_natom > 0)
+
+      atom_begin = 1
+      atom_end = 0
+      row_begin = 1
+      row_end = 0
+      current_subchunk = 1
+      row_cursor = 1
+      rows = 0
+      DO iatom = 1, cached_layout%chunk_natom
+         atom_rows = INT(cached_layout%chunk_atomic_grid_sizes(iatom))
+         IF (rows > 0 .AND. rows + atom_rows > max_rows) THEN
+            IF (current_subchunk == subchunk_index) THEN
+               atom_end = iatom - 1
+               row_end = row_cursor - 1
+               RETURN
+            END IF
+            current_subchunk = current_subchunk + 1
+            atom_begin = iatom
+            row_begin = row_cursor
+            rows = 0
+         END IF
+         rows = rows + atom_rows
+         row_cursor = row_cursor + atom_rows
+      END DO
+
+      IF (current_subchunk == subchunk_index) THEN
+         atom_end = cached_layout%chunk_natom
+         row_end = row_cursor - 1
+         RETURN
+      END IF
+
+      CPABORT("Requested native SKALA atom subchunk does not exist.")
+
+   END SUBROUTINE atom_subchunk_bounds
+
+! **************************************************************************************************
+!> \brief Insert owned subchunk arrays into a Torch dictionary.
+!> \param features ...
+!> \param requires_grad ...
+! **************************************************************************************************
+   SUBROUTINE add_owned_feature_tensors(features, requires_grad)
+      TYPE(skala_gpw_feature_type), INTENT(INOUT)        :: features
+      LOGICAL, INTENT(IN)                                :: requires_grad
+
+      CPASSERT(ALLOCATED(features%chunk_density))
+      CPASSERT(ALLOCATED(features%chunk_grad))
+      CPASSERT(ALLOCATED(features%chunk_kin))
+      CPASSERT(ALLOCATED(features%grid_coords))
+      CPASSERT(ALLOCATED(features%grid_weights))
+      CPASSERT(ALLOCATED(features%atomic_grid_weights))
+      CPASSERT(ALLOCATED(features%atomic_grid_sizes))
+      CPASSERT(ALLOCATED(features%atomic_grid_size_bound_shape))
+      CPASSERT(ALLOCATED(features%coarse_0_atomic_coords))
+
+      features%owns_coordinate_tensor = .FALSE.
+      features%owns_dynamic_tensors = .TRUE.
+      features%owns_inputs = .TRUE.
+      features%owns_static_tensors = .TRUE.
+
+      CALL torch_tensor_from_array(features%grid_coords_t, features%grid_coords)
+      CALL torch_tensor_to_device_leaf(features%grid_coords_t, .FALSE.)
+      CALL torch_tensor_from_array(features%grid_weights_t, features%grid_weights)
+      CALL torch_tensor_to_device_leaf(features%grid_weights_t, .FALSE.)
+      CALL torch_tensor_from_array(features%atomic_grid_weights_t, features%atomic_grid_weights)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_weights_t, .FALSE.)
+      CALL torch_tensor_from_array(features%atomic_grid_sizes_t, features%atomic_grid_sizes)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_sizes_t, .FALSE.)
+      CALL torch_tensor_from_array(features%coarse_0_atomic_coords_t, &
+                                   features%coarse_0_atomic_coords)
+      CALL torch_tensor_to_device_leaf(features%coarse_0_atomic_coords_t, .FALSE.)
+      CALL torch_tensor_from_array(features%atomic_grid_size_bound_shape_t, &
+                                   features%atomic_grid_size_bound_shape)
+      CALL torch_tensor_to_device_leaf(features%atomic_grid_size_bound_shape_t, .FALSE.)
+      CALL torch_tensor_from_array(features%density_t, features%chunk_density)
+      CALL torch_tensor_to_device_leaf(features%density_t, requires_grad)
+      CALL torch_tensor_from_array(features%grad_t, features%chunk_grad)
+      CALL torch_tensor_to_device_leaf(features%grad_t, requires_grad)
+      CALL torch_tensor_from_array(features%kin_t, features%chunk_kin)
+      CALL torch_tensor_to_device_leaf(features%kin_t, requires_grad)
+
+      CALL torch_dict_create(features%inputs)
+      CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
+      CALL torch_dict_insert(features%inputs, "grid_weights", features%grid_weights_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_weights", &
+                             features%atomic_grid_weights_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_sizes", &
+                             features%atomic_grid_sizes_t)
+      CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
+                             features%atomic_grid_size_bound_shape_t)
+      CALL torch_dict_insert(features%inputs, "density", features%density_t)
+      CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
+      CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
+      CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
+                             features%coarse_0_atomic_coords_t)
+
+   END SUBROUTINE add_owned_feature_tensors
 
 ! **************************************************************************************************
 !> \brief Insert all SKALA feature tensors into the Torch dictionary.
