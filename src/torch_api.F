@@ -74,7 +74,8 @@ MODULE torch_api
       MODULE PROCEDURE torch_model_get_attr_strlist
    END INTERFACE torch_model_get_attr
 
-   PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_narrow, torch_tensor_release
+   PUBLIC :: torch_tensor_type, torch_tensor_expand_dim, torch_tensor_from_array, &
+             torch_tensor_narrow, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
    PUBLIC :: torch_tensor_grad
@@ -248,6 +249,43 @@ CONTAINS
       END SUBROUTINE torch_tensor_reset_from_array_double_${ndims}$d
 
    #:endfor
+
+! **************************************************************************************************
+!> \brief Creates an expanded tensor view along one singleton dimension.
+! **************************************************************************************************
+   SUBROUTINE torch_tensor_expand_dim(tensor, dim, size, result)
+      TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+      INTEGER, INTENT(IN)                                :: dim, size
+      TYPE(torch_tensor_type), INTENT(INOUT)             :: result
+
+#if defined(__LIBTORCH)
+      INTERFACE
+         SUBROUTINE torch_c_tensor_expand_dim(tensor, dim, size, result) &
+            BIND(C, name="torch_c_tensor_expand_dim")
+            IMPORT :: C_INT64_T, C_PTR
+            TYPE(C_PTR), VALUE                           :: tensor
+            INTEGER(kind=C_INT64_T), VALUE               :: dim, size
+            TYPE(C_PTR)                                  :: result
+         END SUBROUTINE torch_c_tensor_expand_dim
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+      CPASSERT(.NOT. C_ASSOCIATED(result%c_ptr))
+      CPASSERT(dim >= 0)
+      CPASSERT(size >= 0)
+      CALL torch_c_tensor_expand_dim(tensor=tensor%c_ptr, &
+                                     dim=INT(dim, C_INT64_T), &
+                                     size=INT(size, C_INT64_T), &
+                                     result=result%c_ptr)
+      CPASSERT(C_ASSOCIATED(result%c_ptr))
+#else
+      CPABORT("CP2K compiled without the Torch library.")
+      MARK_USED(tensor)
+      MARK_USED(dim)
+      MARK_USED(size)
+      MARK_USED(result)
+#endif
+   END SUBROUTINE torch_tensor_expand_dim
 
 ! **************************************************************************************************
 !> \brief Creates a view of a contiguous tensor slice.

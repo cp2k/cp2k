@@ -20,8 +20,9 @@ MODULE skala_gpw_features
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE torch_api,                       ONLY: &
         torch_dict_clone, torch_dict_create, torch_dict_insert, torch_dict_release, &
-        torch_dict_type, torch_tensor_from_array, torch_tensor_narrow, torch_tensor_release, &
-        torch_tensor_reset_from_array, torch_tensor_to_device_leaf, torch_tensor_type
+        torch_dict_type, torch_tensor_expand_dim, torch_tensor_from_array, torch_tensor_narrow, &
+        torch_tensor_release, torch_tensor_reset_from_array, torch_tensor_to_device_leaf, &
+        torch_tensor_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
 #include "./base/base_uses.f90"
@@ -79,11 +80,14 @@ MODULE skala_gpw_features
       TYPE(torch_tensor_type)                            :: chunk_atomic_grid_weights_t
       TYPE(torch_tensor_type)                            :: chunk_coarse_0_atomic_coords_t
       TYPE(torch_tensor_type)                            :: chunk_density_t
+      TYPE(torch_tensor_type)                            :: chunk_density_input_t
       TYPE(torch_tensor_type)                            :: chunk_feature_indices_t
       TYPE(torch_tensor_type)                            :: chunk_grad_t
+      TYPE(torch_tensor_type)                            :: chunk_grad_input_t
       TYPE(torch_tensor_type)                            :: chunk_grid_coords_t
       TYPE(torch_tensor_type)                            :: chunk_grid_weights_t
       TYPE(torch_tensor_type)                            :: chunk_kin_t
+      TYPE(torch_tensor_type)                            :: chunk_kin_input_t
       TYPE(torch_tensor_type)                            :: coarse_0_atomic_coords_t
       TYPE(torch_tensor_type)                            :: density_t
       TYPE(torch_tensor_type)                            :: grid_coords_t
@@ -100,8 +104,10 @@ MODULE skala_gpw_features
                                                             chunk_grid_coords, coarse_0_atomic_coords, &
                                                             grid_coords
       LOGICAL                                            :: active = .FALSE., has_weights = .FALSE., &
+                                                            chunk_dynamic_input_views_active = .FALSE., &
                                                             chunk_dynamic_tensors_active = .FALSE., &
                                                             chunk_inputs_active = .FALSE., &
+                                                            chunk_inputs_use_collapsed_rks = .FALSE., &
                                                             chunk_static_tensors_active = .FALSE., &
                                                             dynamic_tensors_active = .FALSE., &
                                                             inputs_active = .FALSE., &
@@ -116,10 +122,13 @@ MODULE skala_gpw_features
       TYPE(torch_tensor_type)                           :: atomic_grid_sizes_t
       TYPE(torch_tensor_type)                           :: atomic_grid_weights_t
       TYPE(torch_tensor_type)                           :: coarse_0_atomic_coords_t
+      TYPE(torch_tensor_type)                           :: density_input_t
       TYPE(torch_tensor_type)                           :: density_t
       TYPE(torch_tensor_type)                           :: grad_t
+      TYPE(torch_tensor_type)                           :: grad_input_t
       TYPE(torch_tensor_type)                           :: grid_coords_t
       TYPE(torch_tensor_type)                           :: grid_weights_t
+      TYPE(torch_tensor_type)                           :: kin_input_t
       TYPE(torch_tensor_type)                           :: kin_t
       TYPE(torch_tensor_type)                           :: local_feature_indices_t
       INTEGER, ALLOCATABLE, DIMENSION(:)                :: chunk_grad_counts, chunk_grad_displs, &
@@ -149,7 +158,8 @@ MODULE skala_gpw_features
                                                             owns_inputs = .TRUE., &
                                                             owns_static_tensors = .TRUE., &
                                                             uses_atom_chunk_routing = .FALSE., &
-                                                            uses_atom_chunks = .FALSE.
+                                                            uses_atom_chunks = .FALSE., &
+                                                            uses_collapsed_rks_dynamic = .FALSE.
    END TYPE skala_gpw_feature_type
 
    TYPE(skala_gpw_layout_cache_type), SAVE               :: cached_layout
@@ -328,12 +338,18 @@ CONTAINS
 
       CALL timeset("skala_gpw_feature_sums", phase_handle)
       IF (features%uses_atom_chunks) THEN
-         features%electron_count = SUM((features%chunk_density(:, 1) + &
+         IF (features%uses_collapsed_rks_dynamic) THEN
+            features%electron_count = SUM(2.0_dp*features%chunk_density(:, 1)* &
+                                          cached_layout%chunk_grid_weights)
+            features%spin_moment = 0.0_dp
+         ELSE
+            features%electron_count = SUM((features%chunk_density(:, 1) + &
+                                           features%chunk_density(:, 2))* &
+                                          cached_layout%chunk_grid_weights)
+            features%spin_moment = SUM((features%chunk_density(:, 1) - &
                                         features%chunk_density(:, 2))* &
                                        cached_layout%chunk_grid_weights)
-         features%spin_moment = SUM((features%chunk_density(:, 1) - &
-                                     features%chunk_density(:, 2))* &
-                                    cached_layout%chunk_grid_weights)
+         END IF
          CALL pw_grid%para%group%sum(features%electron_count)
          CALL pw_grid%para%group%sum(features%spin_moment)
       ELSE
@@ -1132,10 +1148,18 @@ CONTAINS
       CALL group%alltoall(send_dynamic, send_counts, send_displs, recv_dynamic, recv_counts, &
                           recv_displs)
 
-      ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
-                features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
-                features%chunk_kin(cached_layout%chunk_feature_count, 2), &
-                features%chunk_return_positions(cached_layout%chunk_feature_count))
+      IF (collapse_spin_dynamics) THEN
+         ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 1), &
+                   features%chunk_grad(cached_layout%chunk_feature_count, 3, 1), &
+                   features%chunk_kin(cached_layout%chunk_feature_count, 1), &
+                   features%chunk_return_positions(cached_layout%chunk_feature_count))
+         features%uses_collapsed_rks_dynamic = .TRUE.
+      ELSE
+         ALLOCATE (features%chunk_density(cached_layout%chunk_feature_count, 2), &
+                   features%chunk_grad(cached_layout%chunk_feature_count, 3, 2), &
+                   features%chunk_kin(cached_layout%chunk_feature_count, 2), &
+                   features%chunk_return_positions(cached_layout%chunk_feature_count))
+      END IF
       features%chunk_return_positions(:) = cached_layout%chunk_return_positions
 
       DO chunk_row = 1, cached_layout%chunk_feature_count
@@ -1143,11 +1167,11 @@ CONTAINS
          CPASSERT(point_pos >= 1 .AND. point_pos <= cached_layout%chunk_feature_count)
          dyn_base = ndynamic_route_per_point*(point_pos - 1)
          IF (collapse_spin_dynamics) THEN
-            features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1)
-            features%chunk_grad(chunk_row, 1, :) = recv_dynamic(dyn_base + 2)
-            features%chunk_grad(chunk_row, 2, :) = recv_dynamic(dyn_base + 3)
-            features%chunk_grad(chunk_row, 3, :) = recv_dynamic(dyn_base + 4)
-            features%chunk_kin(chunk_row, :) = recv_dynamic(dyn_base + 5)
+            features%chunk_density(chunk_row, 1) = recv_dynamic(dyn_base + 1)
+            features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 2)
+            features%chunk_grad(chunk_row, 2, 1) = recv_dynamic(dyn_base + 3)
+            features%chunk_grad(chunk_row, 3, 1) = recv_dynamic(dyn_base + 4)
+            features%chunk_kin(chunk_row, 1) = recv_dynamic(dyn_base + 5)
          ELSE
             features%chunk_density(chunk_row, :) = recv_dynamic(dyn_base + 1:dyn_base + 2)
             features%chunk_grad(chunk_row, 1, 1) = recv_dynamic(dyn_base + 3)
@@ -1237,6 +1261,12 @@ CONTAINS
       END IF
 
       IF (cache%chunk_dynamic_tensors_active) THEN
+         IF (cache%chunk_dynamic_input_views_active) THEN
+            CALL torch_tensor_release(cache%chunk_density_input_t)
+            CALL torch_tensor_release(cache%chunk_grad_input_t)
+            CALL torch_tensor_release(cache%chunk_kin_input_t)
+            cache%chunk_dynamic_input_views_active = .FALSE.
+         END IF
          CALL torch_tensor_release(cache%chunk_density_t)
          CALL torch_tensor_release(cache%chunk_grad_t)
          CALL torch_tensor_release(cache%chunk_kin_t)
@@ -1331,7 +1361,9 @@ CONTAINS
       cache%active = .FALSE.
       cache%has_weights = .FALSE.
       cache%chunk_dynamic_tensors_active = .FALSE.
+      cache%chunk_dynamic_input_views_active = .FALSE.
       cache%chunk_inputs_active = .FALSE.
+      cache%chunk_inputs_use_collapsed_rks = .FALSE.
       cache%chunk_static_tensors_active = .FALSE.
       cache%dynamic_tensors_active = .FALSE.
       cache%inputs_active = .FALSE.
@@ -1348,6 +1380,11 @@ CONTAINS
 
       IF (features%active) THEN
          IF (features%owns_dynamic_tensors) THEN
+            IF (features%uses_collapsed_rks_dynamic) THEN
+               CALL torch_tensor_release(features%density_input_t)
+               CALL torch_tensor_release(features%grad_input_t)
+               CALL torch_tensor_release(features%kin_input_t)
+            END IF
             CALL torch_tensor_release(features%density_t)
             CALL torch_tensor_release(features%grad_t)
             CALL torch_tensor_release(features%kin_t)
@@ -1370,6 +1407,7 @@ CONTAINS
          features%owns_static_tensors = .TRUE.
          features%uses_atom_chunk_routing = .FALSE.
          features%uses_atom_chunks = .FALSE.
+         features%uses_collapsed_rks_dynamic = .FALSE.
       END IF
 
       IF (ALLOCATED(features%chunk_density)) DEALLOCATE (features%chunk_density)
@@ -1410,6 +1448,7 @@ CONTAINS
       features%nflat = 0
       features%nflat_local = 0
       features%uses_atom_chunk_routing = .FALSE.
+      features%uses_collapsed_rks_dynamic = .FALSE.
 
    END SUBROUTINE skala_gpw_feature_release
 
@@ -1568,6 +1607,7 @@ CONTAINS
       features%owns_dynamic_tensors = .TRUE.
       features%owns_inputs = .TRUE.
       features%owns_static_tensors = .TRUE.
+      features%uses_collapsed_rks_dynamic = parent%uses_collapsed_rks_dynamic
 
       CALL torch_tensor_narrow(cached_layout%chunk_grid_coords_t, 0, row_begin - 1, &
                                row_count, features%grid_coords_t)
@@ -1586,6 +1626,11 @@ CONTAINS
                                features%density_t)
       CALL torch_tensor_narrow(parent%grad_t, 2, row_begin - 1, row_count, features%grad_t)
       CALL torch_tensor_narrow(parent%kin_t, 1, row_begin - 1, row_count, features%kin_t)
+      IF (features%uses_collapsed_rks_dynamic) THEN
+         CALL torch_tensor_expand_dim(features%density_t, 0, 2, features%density_input_t)
+         CALL torch_tensor_expand_dim(features%grad_t, 0, 2, features%grad_input_t)
+         CALL torch_tensor_expand_dim(features%kin_t, 0, 2, features%kin_input_t)
+      END IF
 
       CALL torch_dict_create(features%inputs)
       CALL torch_dict_insert(features%inputs, "grid_coords", features%grid_coords_t)
@@ -1596,9 +1641,15 @@ CONTAINS
                              features%atomic_grid_sizes_t)
       CALL torch_dict_insert(features%inputs, "atomic_grid_size_bound_shape", &
                              features%atomic_grid_size_bound_shape_t)
-      CALL torch_dict_insert(features%inputs, "density", features%density_t)
-      CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
-      CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
+      IF (features%uses_collapsed_rks_dynamic) THEN
+         CALL torch_dict_insert(features%inputs, "density", features%density_input_t)
+         CALL torch_dict_insert(features%inputs, "grad", features%grad_input_t)
+         CALL torch_dict_insert(features%inputs, "kin", features%kin_input_t)
+      ELSE
+         CALL torch_dict_insert(features%inputs, "density", features%density_t)
+         CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
+         CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
+      END IF
       CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
                              features%coarse_0_atomic_coords_t)
 
@@ -1694,6 +1745,20 @@ CONTAINS
             cached_layout%chunk_atomic_grid_size_bound_shape_t
          features%local_feature_indices_t = cached_layout%chunk_feature_indices_t
 
+         IF (cached_layout%chunk_inputs_active .AND. &
+             (cached_layout%chunk_inputs_use_collapsed_rks .NEQV. &
+              features%uses_collapsed_rks_dynamic)) THEN
+            CALL torch_dict_release(cached_layout%chunk_inputs)
+            cached_layout%chunk_inputs_active = .FALSE.
+         END IF
+         IF (.NOT. features%uses_collapsed_rks_dynamic .AND. &
+             cached_layout%chunk_dynamic_input_views_active) THEN
+            CALL torch_tensor_release(cached_layout%chunk_density_input_t)
+            CALL torch_tensor_release(cached_layout%chunk_grad_input_t)
+            CALL torch_tensor_release(cached_layout%chunk_kin_input_t)
+            cached_layout%chunk_dynamic_input_views_active = .FALSE.
+         END IF
+
          CALL torch_tensor_reset_from_array(cached_layout%chunk_density_t, &
                                             features%chunk_density, requires_grad=requires_grad)
          features%density_t = cached_layout%chunk_density_t
@@ -1705,16 +1770,42 @@ CONTAINS
          features%kin_t = cached_layout%chunk_kin_t
          cached_layout%chunk_dynamic_tensors_active = .TRUE.
 
+         IF (features%uses_collapsed_rks_dynamic .AND. &
+             .NOT. cached_layout%chunk_dynamic_input_views_active) THEN
+            CALL torch_tensor_expand_dim(cached_layout%chunk_density_t, 0, 2, &
+                                         cached_layout%chunk_density_input_t)
+            CALL torch_tensor_expand_dim(cached_layout%chunk_grad_t, 0, 2, &
+                                         cached_layout%chunk_grad_input_t)
+            CALL torch_tensor_expand_dim(cached_layout%chunk_kin_t, 0, 2, &
+                                         cached_layout%chunk_kin_input_t)
+            cached_layout%chunk_dynamic_input_views_active = .TRUE.
+         END IF
+         IF (features%uses_collapsed_rks_dynamic) THEN
+            features%density_input_t = cached_layout%chunk_density_input_t
+            features%grad_input_t = cached_layout%chunk_grad_input_t
+            features%kin_input_t = cached_layout%chunk_kin_input_t
+         END IF
+
          IF (.NOT. cached_layout%chunk_inputs_active) THEN
             CALL torch_dict_clone(cached_layout%chunk_static_inputs, cached_layout%chunk_inputs)
-            CALL torch_dict_insert(cached_layout%chunk_inputs, "density", &
-                                   cached_layout%chunk_density_t)
-            CALL torch_dict_insert(cached_layout%chunk_inputs, "grad", &
-                                   cached_layout%chunk_grad_t)
-            CALL torch_dict_insert(cached_layout%chunk_inputs, "kin", &
-                                   cached_layout%chunk_kin_t)
+            IF (features%uses_collapsed_rks_dynamic) THEN
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "density", &
+                                      features%density_input_t)
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "grad", &
+                                      features%grad_input_t)
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "kin", &
+                                      features%kin_input_t)
+            ELSE
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "density", &
+                                      cached_layout%chunk_density_t)
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "grad", &
+                                      cached_layout%chunk_grad_t)
+               CALL torch_dict_insert(cached_layout%chunk_inputs, "kin", &
+                                      cached_layout%chunk_kin_t)
+            END IF
             CALL torch_dict_insert(cached_layout%chunk_inputs, "coarse_0_atomic_coords", &
                                    cached_layout%chunk_coarse_0_atomic_coords_t)
+            cached_layout%chunk_inputs_use_collapsed_rks = features%uses_collapsed_rks_dynamic
             cached_layout%chunk_inputs_active = .TRUE.
          END IF
          features%inputs = cached_layout%chunk_inputs
