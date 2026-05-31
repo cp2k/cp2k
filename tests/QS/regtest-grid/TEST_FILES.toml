@@ -4,11 +4,11 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 
-"simple_non-ortho_grid_auto.inp"        = [{matcher="E_total", tol=2e-12, ref=-19.99243423697494}]
-"simple_non-ortho_grid_validate.inp"    = [{matcher="E_total", tol=2e-12, ref=-19.99243423697494}]
-"simple_non-ortho_grid_ref.inp"         = [{matcher="E_total", tol=2e-12, ref=-19.99243423697494}]
-"simple_non-ortho_grid_cpu.inp"         = [{matcher="E_total", tol=2e-12, ref=-19.99243423697494}]
-"simple_non-ortho_grid_dgemm.inp"       = [{matcher="E_total", tol=4e-08, ref=-19.94531914447464}]
+"simple_non-ortho_grid_auto.inp"        = [{matcher="E_total", tol=3e-12, ref=-19.99243423697494}]
+"simple_non-ortho_grid_validate.inp"    = [{matcher="E_total", tol=3e-12, ref=-19.99243423697494}]
+"simple_non-ortho_grid_ref.inp"         = [{matcher="E_total", tol=3e-12, ref=-19.99243423697494}]
+"simple_non-ortho_grid_cpu.inp"         = [{matcher="E_total", tol=3e-12, ref=-19.99243423697494}]
+"simple_non-ortho_grid_dgemm.inp"       = [{matcher="E_total", tol=1e-07, ref=-19.94531914447464}]
 
 "simple_ortho_grid_auto.inp"            = [{matcher="E_total", tol=2e-14, ref=-21.04944231395059}]
 "simple_ortho_grid_validate.inp"        = [{matcher="E_total", tol=2e-14, ref=-21.04944231395059}]

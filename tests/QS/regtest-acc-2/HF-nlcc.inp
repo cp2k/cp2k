@@ -32,16 +32,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-7
-      MAX_SCF 8
+      MAX_SCF 60
       SCF_GUESS atomic
-      &OT
-        MINIMIZER DIIS
-        PRECONDITIONER FULL_ALL
-      &END OT
-      &OUTER_SCF
-        EPS_SCF 1.0E-7
-        MAX_SCF 8
-      &END OUTER_SCF
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
