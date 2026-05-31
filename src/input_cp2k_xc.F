@@ -1437,7 +1437,7 @@ CONTAINS
                           "maps the MPI-local rank to one of the CUDA devices visible to the process; "// &
                           "a non-negative value selects that visible CUDA device explicitly.", &
                           usage="NATIVE_GRID_CUDA_DEVICE -1", &
-                          default_i_val=0)
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

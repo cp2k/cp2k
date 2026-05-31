@@ -20,8 +20,7 @@ MODULE skala_gpw_functional
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
-   USE offload_api,                     ONLY: offload_get_device_count,&
-                                              offload_set_chosen_device
+   USE offload_api,                     ONLY: offload_set_chosen_device
    USE particle_types,                  ONLY: particle_type
    USE pw_methods,                      ONLY: pw_scale,&
                                               pw_zero
@@ -36,7 +35,8 @@ MODULE skala_gpw_functional
                                               skala_torch_model_release,&
                                               skala_torch_model_type
    USE string_utilities,                ONLY: uppercase
-   USE torch_api,                       ONLY: torch_cuda_is_available,&
+   USE torch_api,                       ONLY: torch_cuda_device_count,&
+                                              torch_cuda_is_available,&
                                               torch_tensor_backward_scalar,&
                                               torch_tensor_data_ptr,&
                                               torch_tensor_grad,&
@@ -733,7 +733,7 @@ CONTAINS
       IF (.NOT. torch_cuda_is_available()) THEN
          cuda_device_count = 0
       ELSE
-         cuda_device_count = offload_get_device_count()
+         cuda_device_count = torch_cuda_device_count()
       END IF
       IF (cuda_device_count > 0) THEN
          IF (requested_device < 0) THEN
@@ -745,7 +745,7 @@ CONTAINS
       IF (selected_device >= cuda_device_count) THEN
          CALL cp_abort(__LOCATION__, &
                        "GAUXC%NATIVE_GRID_CUDA_DEVICE selects a CUDA device outside the visible "// &
-                       "CP2K offload device range.")
+                       "Torch CUDA device range.")
       END IF
       IF (selected_device >= 0) CALL offload_set_chosen_device(selected_device)
 
@@ -765,7 +765,7 @@ CONTAINS
             "of", cuda_device_count, "requested", requested_device
       ELSE
          WRITE (UNIT=iw, FMT="(/,T2,A)") &
-            "SKALA_GPW| Native grid Torch CUDA requested, but no CP2K offload device is visible"
+            "SKALA_GPW| Native grid Torch CUDA requested, but no Torch CUDA device is visible"
       END IF
       WRITE (UNIT=iw, FMT="(T2,A)", ADVANCE="NO") &
          "SKALA_GPW| Native grid Torch CUDA rank devices"

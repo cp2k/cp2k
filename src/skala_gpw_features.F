@@ -72,7 +72,9 @@ MODULE skala_gpw_features
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: local_feature_indices
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: atomic_grid_size_bound_shape, &
                                                             chunk_atomic_grid_size_bound_shape
+      TYPE(torch_dict_type)                              :: chunk_inputs
       TYPE(torch_dict_type)                              :: chunk_static_inputs
+      TYPE(torch_dict_type)                              :: inputs
       TYPE(torch_dict_type)                              :: static_inputs
       TYPE(torch_tensor_type)                            :: atomic_grid_size_bound_shape_t
       TYPE(torch_tensor_type)                            :: atomic_grid_sizes_t
@@ -104,8 +106,10 @@ MODULE skala_gpw_features
                                                             grid_coords
       LOGICAL                                            :: active = .FALSE., has_weights = .FALSE., &
                                                             chunk_dynamic_tensors_active = .FALSE., &
+                                                            chunk_inputs_active = .FALSE., &
                                                             chunk_static_tensors_active = .FALSE., &
                                                             dynamic_tensors_active = .FALSE., &
+                                                            inputs_active = .FALSE., &
                                                             static_tensors_active = .FALSE.
    END TYPE skala_gpw_layout_cache_type
 
@@ -148,6 +152,7 @@ MODULE skala_gpw_features
                                                             spin_moment = 0.0_dp
       LOGICAL                                            :: active = .FALSE., owns_coordinate_tensor = .FALSE., &
                                                             owns_dynamic_tensors = .TRUE., &
+                                                            owns_inputs = .TRUE., &
                                                             owns_static_tensors = .TRUE., &
                                                             uses_atom_chunk_routing = .FALSE., &
                                                             uses_atom_chunks = .FALSE.
@@ -829,45 +834,49 @@ CONTAINS
                                                             chunk_feature_counts, &
                                                             chunk_feature_displs
 
-      INTEGER :: atoms_left, count, displ, end_atom, max_end_atom, natom, next_atom, next_count, &
-         pe, ranks_left, target_count, total_left
+      INTEGER :: best_limit, count, displ, end_atom, lower_limit, max_end_atom, midpoint, natom, &
+         next_atom, next_count, pe, ranks_left, target_chunks, total_count, upper_limit
 
       natom = SIZE(atomic_grid_sizes)
       chunk_atom_begin = natom + 1
       chunk_atom_end = natom
       chunk_feature_counts = 0
       chunk_feature_displs = 0
+      IF (natom == 0) RETURN
+
+      target_chunks = MIN(nproc, natom)
+      total_count = atom_offset(natom + 1) - 1
+      lower_limit = MAXVAL(INT(atomic_grid_sizes))
+      lower_limit = MAX(lower_limit, (total_count + target_chunks - 1)/target_chunks)
+      upper_limit = total_count
+      best_limit = upper_limit
+      DO WHILE (lower_limit <= upper_limit)
+         midpoint = (lower_limit + upper_limit)/2
+         IF (atom_chunks_fit_limit(atomic_grid_sizes, midpoint, target_chunks)) THEN
+            best_limit = midpoint
+            upper_limit = midpoint - 1
+         ELSE
+            lower_limit = midpoint + 1
+         END IF
+      END DO
 
       displ = 0
       next_atom = 1
       DO pe = 1, nproc
          chunk_feature_displs(pe) = displ
-         IF (next_atom > natom) CYCLE
+         IF (pe > target_chunks .OR. next_atom > natom) CYCLE
 
-         ranks_left = nproc - pe + 1
-         atoms_left = natom - next_atom + 1
+         ranks_left = target_chunks - pe + 1
          chunk_atom_begin(pe) = next_atom
-         IF (ranks_left >= atoms_left) THEN
-            end_atom = next_atom
-         ELSE
-            max_end_atom = natom - ranks_left + 1
-            total_left = atom_offset(natom + 1) - atom_offset(next_atom)
-            target_count = MAX(1, NINT(REAL(total_left, KIND=dp)/REAL(ranks_left, KIND=dp)))
-            end_atom = next_atom
-            count = INT(atomic_grid_sizes(end_atom))
-            DO WHILE (end_atom < max_end_atom)
-               next_count = count + INT(atomic_grid_sizes(end_atom + 1))
-               IF (count >= target_count .AND. &
-                   ABS(count - target_count) <= ABS(next_count - target_count)) EXIT
-               IF (count < target_count .OR. &
-                   ABS(next_count - target_count) < ABS(count - target_count)) THEN
-                  end_atom = end_atom + 1
-                  count = next_count
-               ELSE
-                  EXIT
-               END IF
-            END DO
-         END IF
+         max_end_atom = natom - ranks_left + 1
+         end_atom = next_atom
+         count = INT(atomic_grid_sizes(end_atom))
+         DO WHILE (end_atom < max_end_atom)
+            next_count = count + INT(atomic_grid_sizes(end_atom + 1))
+            IF (next_count > best_limit) EXIT
+            end_atom = end_atom + 1
+            count = next_count
+         END DO
 
          chunk_atom_end(pe) = end_atom
          chunk_feature_counts(pe) = atom_offset(end_atom + 1) - atom_offset(next_atom)
@@ -878,6 +887,42 @@ CONTAINS
       CPASSERT(displ == atom_offset(natom + 1) - 1)
 
    END SUBROUTINE build_atom_chunks
+
+! **************************************************************************************************
+!> \brief Check if contiguous atom chunks can stay below a feature-count limit.
+!> \param atomic_grid_sizes ...
+!> \param limit ...
+!> \param nchunks ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION atom_chunks_fit_limit(atomic_grid_sizes, limit, nchunks) RESULT(fits)
+      INTEGER(KIND=int_8), DIMENSION(:), INTENT(IN)      :: atomic_grid_sizes
+      INTEGER, INTENT(IN)                                :: limit, nchunks
+      LOGICAL                                            :: fits
+
+      INTEGER                                            :: atom_count, chunk_count, iatom, used_chunks
+
+      fits = .FALSE.
+      IF (SIZE(atomic_grid_sizes) == 0) THEN
+         fits = .TRUE.
+         RETURN
+      END IF
+
+      used_chunks = 1
+      chunk_count = 0
+      DO iatom = 1, SIZE(atomic_grid_sizes)
+         atom_count = INT(atomic_grid_sizes(iatom))
+         IF (atom_count > limit) RETURN
+         IF (chunk_count + atom_count > limit) THEN
+            used_chunks = used_chunks + 1
+            chunk_count = atom_count
+         ELSE
+            chunk_count = chunk_count + atom_count
+         END IF
+      END DO
+      fits = used_chunks <= nchunks
+
+   END FUNCTION atom_chunks_fit_limit
 
 ! **************************************************************************************************
 !> \brief Return the MPI rank owning an atom-ordered feature row.
@@ -1165,6 +1210,16 @@ CONTAINS
    SUBROUTINE release_layout_cache(cache)
       TYPE(skala_gpw_layout_cache_type), INTENT(INOUT)   :: cache
 
+      IF (cache%inputs_active) THEN
+         CALL torch_dict_release(cache%inputs)
+         cache%inputs_active = .FALSE.
+      END IF
+
+      IF (cache%chunk_inputs_active) THEN
+         CALL torch_dict_release(cache%chunk_inputs)
+         cache%chunk_inputs_active = .FALSE.
+      END IF
+
       IF (cache%dynamic_tensors_active) THEN
          CALL torch_tensor_release(cache%density_t)
          CALL torch_tensor_release(cache%grad_t)
@@ -1274,8 +1329,10 @@ CONTAINS
       cache%active = .FALSE.
       cache%has_weights = .FALSE.
       cache%chunk_dynamic_tensors_active = .FALSE.
+      cache%chunk_inputs_active = .FALSE.
       cache%chunk_static_tensors_active = .FALSE.
       cache%dynamic_tensors_active = .FALSE.
+      cache%inputs_active = .FALSE.
       cache%static_tensors_active = .FALSE.
 
    END SUBROUTINE release_layout_cache
@@ -1303,10 +1360,11 @@ CONTAINS
          IF (features%owns_static_tensors .OR. features%owns_coordinate_tensor) THEN
             CALL torch_tensor_release(features%coarse_0_atomic_coords_t)
          END IF
-         CALL torch_dict_release(features%inputs)
+         IF (features%owns_inputs) CALL torch_dict_release(features%inputs)
          features%active = .FALSE.
          features%owns_coordinate_tensor = .FALSE.
          features%owns_dynamic_tensors = .TRUE.
+         features%owns_inputs = .TRUE.
          features%owns_static_tensors = .TRUE.
          features%uses_atom_chunk_routing = .FALSE.
          features%uses_atom_chunks = .FALSE.
@@ -1372,9 +1430,9 @@ CONTAINS
       features%owns_static_tensors = .FALSE.
       features%owns_coordinate_tensor = .FALSE.
       features%owns_dynamic_tensors = .FALSE.
+      features%owns_inputs = .TRUE.
       IF (use_atom_chunks) THEN
          CPASSERT(cached_layout%chunk_static_tensors_active)
-         CALL torch_dict_clone(cached_layout%chunk_static_inputs, features%inputs)
          features%grid_coords_t = cached_layout%chunk_grid_coords_t
          features%grid_weights_t = cached_layout%chunk_grid_weights_t
          features%atomic_grid_weights_t = cached_layout%chunk_atomic_grid_weights_t
@@ -1386,18 +1444,30 @@ CONTAINS
          CALL torch_tensor_reset_from_array(cached_layout%chunk_density_t, &
                                             features%chunk_density, requires_grad=requires_grad)
          features%density_t = cached_layout%chunk_density_t
-         CALL torch_dict_insert(features%inputs, "density", features%density_t)
          CALL torch_tensor_reset_from_array(cached_layout%chunk_grad_t, features%chunk_grad, &
                                             requires_grad=requires_grad)
          features%grad_t = cached_layout%chunk_grad_t
-         CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
          CALL torch_tensor_reset_from_array(cached_layout%chunk_kin_t, features%chunk_kin, &
                                             requires_grad=requires_grad)
          features%kin_t = cached_layout%chunk_kin_t
-         CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
          cached_layout%chunk_dynamic_tensors_active = .TRUE.
+
+         IF (.NOT. cached_layout%chunk_inputs_active) THEN
+            CALL torch_dict_clone(cached_layout%chunk_static_inputs, cached_layout%chunk_inputs)
+            CALL torch_dict_insert(cached_layout%chunk_inputs, "density", &
+                                   cached_layout%chunk_density_t)
+            CALL torch_dict_insert(cached_layout%chunk_inputs, "grad", &
+                                   cached_layout%chunk_grad_t)
+            CALL torch_dict_insert(cached_layout%chunk_inputs, "kin", &
+                                   cached_layout%chunk_kin_t)
+            CALL torch_dict_insert(cached_layout%chunk_inputs, "coarse_0_atomic_coords", &
+                                   cached_layout%chunk_coarse_0_atomic_coords_t)
+            cached_layout%chunk_inputs_active = .TRUE.
+         END IF
+         features%inputs = cached_layout%chunk_inputs
+         features%owns_inputs = .FALSE.
+         features%coarse_0_atomic_coords_t = cached_layout%chunk_coarse_0_atomic_coords_t
       ELSE
-         CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
          features%grid_coords_t = cached_layout%grid_coords_t
          features%grid_weights_t = cached_layout%grid_weights_t
          features%atomic_grid_weights_t = cached_layout%atomic_grid_weights_t
@@ -1408,16 +1478,33 @@ CONTAINS
          CALL torch_tensor_reset_from_array(cached_layout%density_t, features%density, &
                                             requires_grad=requires_grad)
          features%density_t = cached_layout%density_t
-         CALL torch_dict_insert(features%inputs, "density", features%density_t)
          CALL torch_tensor_reset_from_array(cached_layout%grad_t, features%grad, &
                                             requires_grad=requires_grad)
          features%grad_t = cached_layout%grad_t
-         CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
          CALL torch_tensor_reset_from_array(cached_layout%kin_t, features%kin, &
                                             requires_grad=requires_grad)
          features%kin_t = cached_layout%kin_t
-         CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
          cached_layout%dynamic_tensors_active = .TRUE.
+
+         IF (requires_coordinate_grad) THEN
+            CALL torch_dict_clone(cached_layout%static_inputs, features%inputs)
+            CALL torch_dict_insert(features%inputs, "density", features%density_t)
+            CALL torch_dict_insert(features%inputs, "grad", features%grad_t)
+            CALL torch_dict_insert(features%inputs, "kin", features%kin_t)
+         ELSE
+            IF (.NOT. cached_layout%inputs_active) THEN
+               CALL torch_dict_clone(cached_layout%static_inputs, cached_layout%inputs)
+               CALL torch_dict_insert(cached_layout%inputs, "density", cached_layout%density_t)
+               CALL torch_dict_insert(cached_layout%inputs, "grad", cached_layout%grad_t)
+               CALL torch_dict_insert(cached_layout%inputs, "kin", cached_layout%kin_t)
+               CALL torch_dict_insert(cached_layout%inputs, "coarse_0_atomic_coords", &
+                                      cached_layout%coarse_0_atomic_coords_t)
+               cached_layout%inputs_active = .TRUE.
+            END IF
+            features%inputs = cached_layout%inputs
+            features%owns_inputs = .FALSE.
+            features%coarse_0_atomic_coords_t = cached_layout%coarse_0_atomic_coords_t
+         END IF
       END IF
 
       IF (requires_coordinate_grad) THEN
@@ -1428,16 +1515,6 @@ CONTAINS
          CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
                                 features%coarse_0_atomic_coords_t)
          features%owns_coordinate_tensor = .TRUE.
-      ELSE
-         IF (use_atom_chunks) THEN
-            features%coarse_0_atomic_coords_t = cached_layout%chunk_coarse_0_atomic_coords_t
-            CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
-                                   cached_layout%chunk_coarse_0_atomic_coords_t)
-         ELSE
-            features%coarse_0_atomic_coords_t = cached_layout%coarse_0_atomic_coords_t
-            CALL torch_dict_insert(features%inputs, "coarse_0_atomic_coords", &
-                                   cached_layout%coarse_0_atomic_coords_t)
-         END IF
       END IF
 
    END SUBROUTINE add_feature_tensors
