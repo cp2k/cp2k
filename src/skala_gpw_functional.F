@@ -428,7 +428,6 @@ CONTAINS
       CPASSERT(SIZE(chunk_kin_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
 
-      TARGET = 0.0_dp
       DO irow = 1, features%chunk_feature_count
          IF (route_to_return_positions) THEN
             point_pos = features%chunk_return_positions(irow)
@@ -530,9 +529,6 @@ CONTAINS
          CALL timeset("skala_gpw_grad_route_scatter", phase_handle)
          ALLOCATE (density_grad(nflat_local, 2), grad_grad(nflat_local, 3, 2), &
                    kin_grad(nflat_local, 2))
-         density_grad = 0.0_dp
-         grad_grad = 0.0_dp
-         kin_grad = 0.0_dp
          DO point_pos = 1, nflat_local
             local_row = features%route_send_local_rows(point_pos)
             CPASSERT(local_row >= 1 .AND. local_row <= nflat_local)
@@ -691,7 +687,8 @@ CONTAINS
       TYPE(skala_gpw_feature_type), INTENT(IN)           :: features
       LOGICAL, INTENT(IN)                                :: print_active
 
-      INTEGER                                            :: iw
+      INTEGER                                            :: chunk_rows_max, chunk_rows_min, iw
+      REAL(KIND=dp)                                      :: chunk_imbalance
 
       IF (.NOT. print_active) RETURN
 
@@ -706,6 +703,14 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,A,1X,I0,1X,A,1X,I0)") &
             "SKALA_GPW| Native grid atom chunk rows", features%chunk_feature_count, &
             "of", features%nflat
+         IF (ALLOCATED(features%chunk_grad_counts)) THEN
+            chunk_rows_min = MINVAL(features%chunk_grad_counts)/ngrad_per_point
+            chunk_rows_max = MAXVAL(features%chunk_grad_counts)/ngrad_per_point
+            chunk_imbalance = REAL(chunk_rows_max, KIND=dp)/REAL(MAX(1, chunk_rows_min), KIND=dp)
+            WRITE (UNIT=iw, FMT="(T2,A,1X,I0,1X,A,1X,I0,1X,A,1X,ES12.5)") &
+               "SKALA_GPW| Native grid atom chunk row range", chunk_rows_min, &
+               "to", chunk_rows_max, "imbalance", chunk_imbalance
+         END IF
       END IF
 
    END SUBROUTINE print_native_grid_diagnostics
