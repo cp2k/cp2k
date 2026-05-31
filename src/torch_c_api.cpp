@@ -19,6 +19,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
@@ -220,6 +221,23 @@ void torch_c_tensor_reset_from_array_double(torch_c_tensor_t **tensor,
                                             const int64_t sizes[],
                                             double source[]) {
   reset_tensor_from_array_double(tensor, req_grad, ndims, sizes, source);
+}
+
+/*******************************************************************************
+ * \brief Creates an expanded tensor view along one singleton dimension.
+ ******************************************************************************/
+void torch_c_tensor_expand_dim(const torch_c_tensor_t *tensor,
+                               const int64_t dim, const int64_t size,
+                               torch_c_tensor_t **result) {
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  assert(*result == NULL);
+  assert(dim >= 0);
+  assert(dim < tensor->dim());
+  std::vector<int64_t> sizes(tensor->sizes().begin(), tensor->sizes().end());
+  assert(sizes[dim] == 1);
+  sizes[dim] = size;
+  *result = new torch_c_tensor_t(tensor->expand(sizes));
 }
 
 /*******************************************************************************

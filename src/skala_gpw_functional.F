@@ -592,12 +592,19 @@ CONTAINS
       target_points = SIZE(TARGET)/ngrad_buffer_per_point
       CPASSERT(target_points >= features%chunk_feature_count)
       CPASSERT(SIZE(chunk_density_grad, 1) == features%chunk_feature_count)
-      CPASSERT(SIZE(chunk_density_grad, 2) == 2)
       CPASSERT(SIZE(chunk_grad_grad, 1) == features%chunk_feature_count)
       CPASSERT(SIZE(chunk_grad_grad, 2) == 3)
-      CPASSERT(SIZE(chunk_grad_grad, 3) == 2)
       CPASSERT(SIZE(chunk_kin_grad, 1) == features%chunk_feature_count)
-      CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
+      IF (features%uses_collapsed_rks_dynamic) THEN
+         CPASSERT(my_collapse_spin_grads)
+         CPASSERT(SIZE(chunk_density_grad, 2) == 1)
+         CPASSERT(SIZE(chunk_grad_grad, 3) == 1)
+         CPASSERT(SIZE(chunk_kin_grad, 2) == 1)
+      ELSE
+         CPASSERT(SIZE(chunk_density_grad, 2) == 2)
+         CPASSERT(SIZE(chunk_grad_grad, 3) == 2)
+         CPASSERT(SIZE(chunk_kin_grad, 2) == 2)
+      END IF
 
       DO irow = 1, features%chunk_feature_count
          IF (route_to_return_positions) THEN
@@ -608,15 +615,23 @@ CONTAINS
          END IF
          base = ngrad_buffer_per_point*(point_pos - 1)
          IF (my_collapse_spin_grads) THEN
-            TARGET(base + 1) = 0.5_dp*(chunk_density_grad(irow, 1) + &
-                                       chunk_density_grad(irow, 2))
-            TARGET(base + 2) = 0.5_dp*(chunk_grad_grad(irow, 1, 1) + &
-                                       chunk_grad_grad(irow, 1, 2))
-            TARGET(base + 3) = 0.5_dp*(chunk_grad_grad(irow, 2, 1) + &
-                                       chunk_grad_grad(irow, 2, 2))
-            TARGET(base + 4) = 0.5_dp*(chunk_grad_grad(irow, 3, 1) + &
-                                       chunk_grad_grad(irow, 3, 2))
-            TARGET(base + 5) = 0.5_dp*(chunk_kin_grad(irow, 1) + chunk_kin_grad(irow, 2))
+            IF (features%uses_collapsed_rks_dynamic) THEN
+               TARGET(base + 1) = 0.5_dp*chunk_density_grad(irow, 1)
+               TARGET(base + 2) = 0.5_dp*chunk_grad_grad(irow, 1, 1)
+               TARGET(base + 3) = 0.5_dp*chunk_grad_grad(irow, 2, 1)
+               TARGET(base + 4) = 0.5_dp*chunk_grad_grad(irow, 3, 1)
+               TARGET(base + 5) = 0.5_dp*chunk_kin_grad(irow, 1)
+            ELSE
+               TARGET(base + 1) = 0.5_dp*(chunk_density_grad(irow, 1) + &
+                                          chunk_density_grad(irow, 2))
+               TARGET(base + 2) = 0.5_dp*(chunk_grad_grad(irow, 1, 1) + &
+                                          chunk_grad_grad(irow, 1, 2))
+               TARGET(base + 3) = 0.5_dp*(chunk_grad_grad(irow, 2, 1) + &
+                                          chunk_grad_grad(irow, 2, 2))
+               TARGET(base + 4) = 0.5_dp*(chunk_grad_grad(irow, 3, 1) + &
+                                          chunk_grad_grad(irow, 3, 2))
+               TARGET(base + 5) = 0.5_dp*(chunk_kin_grad(irow, 1) + chunk_kin_grad(irow, 2))
+            END IF
          ELSE
             TARGET(base + 1:base + 2) = chunk_density_grad(irow, :)
             TARGET(base + 3) = chunk_grad_grad(irow, 1, 1)
@@ -682,8 +697,12 @@ CONTAINS
          INTENT(OUT)                                     :: grad_grad
 
       INTEGER                                            :: base, i, j, k, local_row, &
-                                                            nflat_local, phase_handle, &
-                                                            point_pos, row
+                                                            nflat_local, nroute_grad_per_point, &
+                                                            phase_handle, point_pos, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: route_grad_return_recv_counts, &
+                                                            route_grad_return_recv_displs, &
+                                                            route_grad_return_send_counts, &
+                                                            route_grad_return_send_displs
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chunk_grad_buffer, global_grad_buffer, &
                                                             recv_grad_buffer, send_grad_buffer
 
@@ -695,18 +714,33 @@ CONTAINS
          CPASSERT(SUM(features%route_point_recv_counts) == features%chunk_feature_count)
          CPASSERT(SUM(features%route_point_send_counts) == nflat_local)
 
-         ALLOCATE (send_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
-                   recv_grad_buffer(ngrad_per_point*nflat_local))
+         nroute_grad_per_point = ngrad_per_point
+         IF (features%uses_collapsed_rks_dynamic) &
+            nroute_grad_per_point = ncollapsed_grad_per_point
+         ALLOCATE (send_grad_buffer(nroute_grad_per_point*features%chunk_feature_count), &
+                   recv_grad_buffer(nroute_grad_per_point*nflat_local), &
+                   route_grad_return_send_counts(SIZE(features%route_point_recv_counts)), &
+                   route_grad_return_send_displs(SIZE(features%route_point_recv_displs)), &
+                   route_grad_return_recv_counts(SIZE(features%route_point_send_counts)), &
+                   route_grad_return_recv_displs(SIZE(features%route_point_send_displs)))
+         route_grad_return_send_counts(:) = &
+            nroute_grad_per_point*features%route_point_recv_counts
+         route_grad_return_send_displs(:) = &
+            nroute_grad_per_point*features%route_point_recv_displs
+         route_grad_return_recv_counts(:) = &
+            nroute_grad_per_point*features%route_point_send_counts
+         route_grad_return_recv_displs(:) = &
+            nroute_grad_per_point*features%route_point_send_displs
 
          CALL timeset("skala_gpw_grad_torch_pack", phase_handle)
-         CALL pack_atom_chunk_grads(features, send_grad_buffer, .TRUE.)
+         CALL pack_atom_chunk_grads(features, send_grad_buffer, .TRUE., &
+                                    features%uses_collapsed_rks_dynamic)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_grad_route_comm", phase_handle)
-         CALL group%alltoall(send_grad_buffer, features%route_grad_return_send_counts, &
-                             features%route_grad_return_send_displs, recv_grad_buffer, &
-                             features%route_grad_return_recv_counts, &
-                             features%route_grad_return_recv_displs)
+         CALL group%alltoall(send_grad_buffer, route_grad_return_send_counts, &
+                             route_grad_return_send_displs, recv_grad_buffer, &
+                             route_grad_return_recv_counts, route_grad_return_recv_displs)
          CALL timestop(phase_handle)
 
          CALL timeset("skala_gpw_grad_route_scatter", phase_handle)
@@ -715,19 +749,29 @@ CONTAINS
          DO point_pos = 1, nflat_local
             local_row = features%route_send_local_rows(point_pos)
             CPASSERT(local_row >= 1 .AND. local_row <= nflat_local)
-            base = ngrad_per_point*(point_pos - 1)
-            density_grad(local_row, :) = recv_grad_buffer(base + 1:base + 2)
-            grad_grad(local_row, 1, 1) = recv_grad_buffer(base + 3)
-            grad_grad(local_row, 2, 1) = recv_grad_buffer(base + 4)
-            grad_grad(local_row, 3, 1) = recv_grad_buffer(base + 5)
-            grad_grad(local_row, 1, 2) = recv_grad_buffer(base + 6)
-            grad_grad(local_row, 2, 2) = recv_grad_buffer(base + 7)
-            grad_grad(local_row, 3, 2) = recv_grad_buffer(base + 8)
-            kin_grad(local_row, :) = recv_grad_buffer(base + 9:base + 10)
+            base = nroute_grad_per_point*(point_pos - 1)
+            IF (features%uses_collapsed_rks_dynamic) THEN
+               density_grad(local_row, :) = recv_grad_buffer(base + 1)
+               grad_grad(local_row, 1, :) = recv_grad_buffer(base + 2)
+               grad_grad(local_row, 2, :) = recv_grad_buffer(base + 3)
+               grad_grad(local_row, 3, :) = recv_grad_buffer(base + 4)
+               kin_grad(local_row, :) = recv_grad_buffer(base + 5)
+            ELSE
+               density_grad(local_row, :) = recv_grad_buffer(base + 1:base + 2)
+               grad_grad(local_row, 1, 1) = recv_grad_buffer(base + 3)
+               grad_grad(local_row, 2, 1) = recv_grad_buffer(base + 4)
+               grad_grad(local_row, 3, 1) = recv_grad_buffer(base + 5)
+               grad_grad(local_row, 1, 2) = recv_grad_buffer(base + 6)
+               grad_grad(local_row, 2, 2) = recv_grad_buffer(base + 7)
+               grad_grad(local_row, 3, 2) = recv_grad_buffer(base + 8)
+               kin_grad(local_row, :) = recv_grad_buffer(base + 9:base + 10)
+            END IF
          END DO
          CALL timestop(phase_handle)
 
-         DEALLOCATE (recv_grad_buffer, send_grad_buffer)
+         DEALLOCATE (recv_grad_buffer, route_grad_return_recv_counts, &
+                     route_grad_return_recv_displs, route_grad_return_send_counts, &
+                     route_grad_return_send_displs, send_grad_buffer)
       ELSE
          ALLOCATE (chunk_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    global_grad_buffer(ngrad_per_point*features%nflat))
