@@ -72,12 +72,18 @@ static bool can_load_directly_to_device(const torch::Device &device) {
          torch::cuda::device_count() == 1;
 }
 
-static torch::jit::Module load_module_for_device(const char *filename,
-                                                 const torch::Device &device) {
+static torch::jit::Module load_module_for_device(
+    const char *filename, const torch::Device &device,
+    std::unordered_map<std::string, std::string> *extra_files = nullptr) {
   if (can_load_directly_to_device(device)) {
+    if (extra_files != nullptr) {
+      return torch::jit::load(filename, device, *extra_files);
+    }
     return torch::jit::load(filename, device);
   }
-  auto model = torch::jit::load(filename, torch::kCPU);
+  auto model = (extra_files != nullptr)
+                   ? torch::jit::load(filename, torch::kCPU, *extra_files)
+                   : torch::jit::load(filename, torch::kCPU);
   model.to(device);
   return model;
 }
@@ -397,6 +403,28 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
   *model = load_module_for_device(filename, device);
   model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
   *model_out = model;
+}
+
+/*******************************************************************************
+ * \brief Loads a Torch model and reads two metadata entries.
+ ******************************************************************************/
+void torch_c_model_load_with_metadata(torch_c_model_t **model_out,
+                                      const char *filename, const char *key1,
+                                      const char *key2, char **content1,
+                                      int *length1, char **content2,
+                                      int *length2) {
+  assert(*model_out == NULL);
+  c10::OptionalDeviceGuard guard;
+  const auto device = get_device_with_guard(guard);
+  std::unordered_map<std::string, std::string> extra_files = {{key1, ""},
+                                                              {key2, ""}};
+  set_jit_fusion_strategy();
+  torch::jit::Module *model = new torch::jit::Module();
+  *model = load_module_for_device(filename, device, &extra_files);
+  model->eval(); // Set to evaluation mode to disable gradients, drop-out, etc.
+  *model_out = model;
+  copy_string_to_c_buffer(extra_files[key1], content1, length1);
+  copy_string_to_c_buffer(extra_files[key2], content2, length2);
 }
 
 /*******************************************************************************
