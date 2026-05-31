@@ -231,8 +231,8 @@ void torch_c_tensor_narrow(const torch_c_tensor_t *tensor, const int64_t dim,
   assert(length >= 0);
   assert(dim < tensor->ndimension());
   assert(start_index + length <= tensor->size(dim));
-  *result = new torch_c_tensor_t(
-      tensor->narrow(dim, start_index, length).to(device).detach());
+  *result =
+      new torch_c_tensor_t(tensor->narrow(dim, start_index, length).to(device));
 }
 
 /*******************************************************************************
