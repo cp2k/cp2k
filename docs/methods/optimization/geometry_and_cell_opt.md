@@ -298,15 +298,20 @@ has its own extra pair of criteria named
 [WANTED_REL_F_ERROR](#CP2K_INPUT.MOTION.GEO_OPT.LBFGS.WANTED_REL_F_ERROR) which may override the
 aforementioned general ones. It is possible to see an optimization task with the `LBFGS` optimizer
 finish with the message below, even when one or more of the general criteria have not been met yet;
-try restarting the optimization task with tightened criteria or alternative optimizers until
-satisfactory convergence.
+as is suggested, try restarting the optimization task with tightened criteria or alternative
+optimizers until satisfactory convergence.
 
 ```none
- ***********************************************
- * Specific L-BFGS convergence criteria         
- * WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  
- * satisfied .... run CONVERGED!                
- ***********************************************
+ ************************************************
+ * Specific L-BFGS convergence criteria         *
+ * WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  *
+ * satisfied .... run CONVERGED!                *
+ *                    * * *                     *
+ * General convergence criteria on stepsize and *
+ * gradients may or may not have been satisfied *
+ * yet; if unsatisfactory, try tightening the   *
+ * L-BFGS convergence criteria and restart run. *
+ ************************************************
 ```
 
 The `LBFGS` optimizer has its own [PRINT_LEVEL](#CP2K_INPUT.MOTION.GEO_OPT.LBFGS.PRINT_LEVEL) which

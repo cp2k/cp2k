@@ -468,6 +468,8 @@ CONTAINS
       IF (optimizer%status >= 4) THEN
          CPWARN("status>=4, trying to restart")
          optimizer%status = 0
+         dataunit = cp_print_key_unit_nr(logger, geo_section, &
+                                         "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
          IF (is_master) THEN
             optimizer%task = 'START'
             CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
@@ -477,11 +479,15 @@ CONTAINS
                         optimizer%wanted_projected_gradient, optimizer%work_array, &
                         optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                         optimizer%csave, optimizer%lsave, optimizer%isave, &
-                        optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                        optimizer%dsave, optimizer%trust_radius, spgr=spgr, iwunit=dataunit)
          END IF
+         CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
       END IF
 
       DO
+         dataunit = cp_print_key_unit_nr(logger, geo_section, &
+                                         "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
          ifMaster: IF (is_master) THEN
             IF (optimizer%task(1:7) == 'RESTART') THEN
                ! restart the optimizer
@@ -499,7 +505,7 @@ CONTAINS
                            optimizer%wanted_projected_gradient, optimizer%work_array, &
                            optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                            optimizer%csave, optimizer%lsave, optimizer%isave, &
-                           optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                           optimizer%dsave, optimizer%trust_radius, spgr=spgr, iwunit=dataunit)
                IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -516,7 +522,7 @@ CONTAINS
                               optimizer%wanted_projected_gradient, optimizer%work_array, &
                               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                               optimizer%csave, optimizer%lsave, optimizer%isave, &
-                              optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                              optimizer%dsave, optimizer%trust_radius, spgr=spgr, iwunit=dataunit)
                ELSE
                   optimizer%status = 1
                END IF
@@ -535,7 +541,7 @@ CONTAINS
                               optimizer%wanted_projected_gradient, optimizer%work_array, &
                               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                               optimizer%csave, optimizer%lsave, optimizer%isave, &
-                              optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                              optimizer%dsave, optimizer%trust_radius, spgr=spgr, iwunit=dataunit)
                   IF (keep_space_group) THEN
                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -559,6 +565,8 @@ CONTAINS
                CPWARN("unknown task '"//optimizer%task//"'")
             END IF
          END IF ifMaster
+         CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
+                                           "PRINT%PROGRAM_RUN_INFO")
          CALL optimizer%para_env%bcast(optimizer%status, optimizer%master)
          ! Dump info
          IF (optimizer%status == 3) THEN
@@ -578,6 +586,8 @@ CONTAINS
                             final_evaluation=.FALSE., &
                             master=optimizer%master, para_env=optimizer%para_env)
             ! do not use keywords?
+            dataunit = cp_print_key_unit_nr(logger, geo_section, &
+                                            "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
             IF (is_master) THEN
                ! applies rotation matrices to coordinates and forces
                IF (keep_space_group) THEN
@@ -591,12 +601,14 @@ CONTAINS
                            optimizer%wanted_projected_gradient, optimizer%work_array, &
                            optimizer%i_work_array, optimizer%task, optimizer%print_every, &
                            optimizer%csave, optimizer%lsave, optimizer%isave, &
-                           optimizer%dsave, optimizer%trust_radius, spgr=spgr)
+                           optimizer%dsave, optimizer%trust_radius, spgr=spgr, iwunit=dataunit)
                IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                END IF
             END IF
+            CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
+                                              "PRINT%PROGRAM_RUN_INFO")
             CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
          CASE (2)
             !op=2 begin new iter
@@ -633,11 +645,16 @@ CONTAINS
                                             "PRINT%PROGRAM_RUN_INFO", extension=".geoLog")
             IF (dataunit > 0) THEN
                WRITE (dataunit, '(T2,A)') ""
-               WRITE (dataunit, '(T2,A)') "***********************************************"
-               WRITE (dataunit, '(T2,A)') "* Specific L-BFGS convergence criteria         "
-               WRITE (dataunit, '(T2,A)') "* WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  "
-               WRITE (dataunit, '(T2,A)') "* satisfied .... run CONVERGED!                "
-               WRITE (dataunit, '(T2,A)') "***********************************************"
+               WRITE (dataunit, '(T2,A)') "************************************************"
+               WRITE (dataunit, '(T2,A)') "* Specific L-BFGS convergence criteria         *"
+               WRITE (dataunit, '(T2,A)') "* WANTED_PROJ_GRADIENT and WANTED_REL_F_ERROR  *"
+               WRITE (dataunit, '(T2,A)') "* satisfied .... run CONVERGED!                *"
+               WRITE (dataunit, '(T2,A)') "*                    * * *                     *"
+               WRITE (dataunit, '(T2,A)') "* General convergence criteria on stepsize and *"
+               WRITE (dataunit, '(T2,A)') "* gradients may or may not have been satisfied *"
+               WRITE (dataunit, '(T2,A)') "* yet; if unsatisfactory, try tightening the   *"
+               WRITE (dataunit, '(T2,A)') "* L-BFGS convergence criteria and restart run. *"
+               WRITE (dataunit, '(T2,A)') "************************************************"
                WRITE (dataunit, '(T2,A)') ""
             END IF
             CALL cp_print_key_finished_output(dataunit, logger, geo_section, &
