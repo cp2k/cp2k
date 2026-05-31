@@ -1443,18 +1443,17 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNKS", &
                           description="Split the experimental CP2K-native SKALA GPW TorchScript "// &
                           "evaluation into contiguous atom blocks across MPI ranks. Each rank evaluates "// &
-                          "only its atom block and then gathers the feature gradients needed to fill the "// &
-                          "local CP2K real-space VXC arrays. This is intended for multi-GPU experiments.", &
+                          "only its atom block. Dynamic feature rows and VXC gradients are routed "// &
+                          "between their local grid and atom-block owner ranks. This is intended for "// &
+                          "multi-GPU experiments.", &
                           usage="NATIVE_GRID_ATOM_CHUNKS T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NATIVE_GRID_ATOM_CHUNK_ROUTING", &
-                          description="Use point-to-point owner routing for experimental CP2K-native "// &
-                          "SKALA GPW atom chunks. Dynamic feature rows are sent only to their atom-block "// &
-                          "owner rank and VXC gradients are routed back to the local grid owners. This "// &
-                          "implies NATIVE_GRID_ATOM_CHUNKS and is intended for routing experiments.", &
+                          description="Compatibility alias for the routed experimental CP2K-native "// &
+                          "SKALA GPW atom chunks. This implies NATIVE_GRID_ATOM_CHUNKS.", &
                           usage="NATIVE_GRID_ATOM_CHUNK_ROUTING T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

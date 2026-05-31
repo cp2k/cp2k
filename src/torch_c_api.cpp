@@ -250,6 +250,23 @@ static void grad_select_to_array_double(const torch_c_tensor_t *tensor,
   std::memcpy(target, selected.data_ptr<double>(), selected.nbytes());
 }
 
+static void grad_to_array_double(const torch_c_tensor_t *tensor,
+                                 const int ndims, const int64_t sizes[],
+                                 double target[]) {
+  c10::OptionalDeviceGuard guard;
+  get_device_with_guard(guard);
+  const torch::Tensor grad = tensor->grad();
+  assert(grad.defined());
+  assert(grad.scalar_type() == torch::kFloat64);
+
+  const auto selected = grad.cpu().contiguous();
+  assert(selected.ndimension() == ndims);
+  for (int i = 0; i < ndims; i++) {
+    assert(selected.size(i) == sizes[i]);
+  }
+  std::memcpy(target, selected.data_ptr<double>(), selected.nbytes());
+}
+
 /*******************************************************************************
  * \brief Internal helper for getting the data_ptr and sizes of a Torch tensor.
  * \author Ole Schuett
@@ -335,6 +352,15 @@ void torch_c_tensor_grad_select_to_array_double(const torch_c_tensor_t *tensor,
                                                 const int64_t sizes[],
                                                 double target[]) {
   grad_select_to_array_double(tensor, indices, ndims, sizes, target);
+}
+
+/*******************************************************************************
+ * \brief Copies a double tensor's gradient to a host array.
+ ******************************************************************************/
+void torch_c_tensor_grad_to_array_double(const torch_c_tensor_t *tensor,
+                                         const int ndims, const int64_t sizes[],
+                                         double target[]) {
+  grad_to_array_double(tensor, ndims, sizes, target);
 }
 
 /*******************************************************************************

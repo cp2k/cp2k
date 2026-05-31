@@ -63,6 +63,12 @@ MODULE torch_api
       #:endfor
    END INTERFACE torch_tensor_grad_select_to_array
 
+   INTERFACE torch_tensor_grad_to_array
+      #:for ndims  in range(1, max_dim+1)
+         MODULE PROCEDURE torch_tensor_grad_to_array_double_${ndims}$d
+      #:endfor
+   END INTERFACE torch_tensor_grad_to_array
+
    INTERFACE torch_tensor_data_ptr
       #:for ndims  in range(1, max_dim+1)
          MODULE PROCEDURE torch_tensor_data_ptr_int32_${ndims}$d
@@ -83,7 +89,8 @@ MODULE torch_api
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_release
    PUBLIC :: torch_tensor_reset_from_array
    PUBLIC :: torch_tensor_data_ptr, torch_tensor_backward, torch_tensor_backward_scalar
-   PUBLIC :: torch_tensor_grad, torch_tensor_grad_select_to_array, torch_tensor_to_device_leaf
+   PUBLIC :: torch_tensor_grad, torch_tensor_grad_select_to_array, torch_tensor_grad_to_array
+   PUBLIC :: torch_tensor_to_device_leaf
    PUBLIC :: torch_tensor_item_double, torch_tensor_weighted_sum
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
    PUBLIC :: torch_dict_get, torch_dict_release
@@ -300,6 +307,49 @@ CONTAINS
          MARK_USED(target)
 #endif
       END SUBROUTINE torch_tensor_grad_select_to_array_double_${ndims}$d
+
+   #:endfor
+
+   #:for ndims in range(1, max_dim+1)
+
+! **************************************************************************************************
+!> \brief Copies a device tensor's gradient to a host array.
+! **************************************************************************************************
+      SUBROUTINE torch_tensor_grad_to_array_double_${ndims}$d(tensor, target)
+         TYPE(torch_tensor_type), INTENT(IN)                :: tensor
+         #:set arraydims = ", ".join(":" for i in range(ndims))
+         REAL(dp), DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(INOUT) :: target
+
+#if defined(__LIBTORCH)
+         INTEGER(kind=int_8), DIMENSION(${ndims}$)          :: sizes_c
+
+         INTERFACE
+            SUBROUTINE torch_c_tensor_grad_to_array_double(tensor, ndims, sizes, target) &
+               BIND(C, name="torch_c_tensor_grad_to_array_double")
+               IMPORT :: C_PTR, C_INT, C_INT64_T, C_DOUBLE
+               TYPE(C_PTR), VALUE                           :: tensor
+               INTEGER(kind=C_INT), VALUE                   :: ndims
+               INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes
+               REAL(kind=C_DOUBLE), DIMENSION(*)            :: target
+            END SUBROUTINE torch_c_tensor_grad_to_array_double
+         END INTERFACE
+
+         CPASSERT(C_ASSOCIATED(tensor%c_ptr))
+         CPASSERT(ALLOCATED(target))
+         #:for axis in range(ndims)
+            sizes_c(${axis + 1}$) = SIZE(target, ${ndims - axis}$) ! C arrays are stored row-major.
+         #:endfor
+
+         CALL torch_c_tensor_grad_to_array_double(tensor=tensor%c_ptr, &
+                                                  ndims=${ndims}$, &
+                                                  sizes=sizes_c, &
+                                                  target=target)
+#else
+         CPABORT("CP2K compiled without the Torch library.")
+         MARK_USED(tensor)
+         MARK_USED(target)
+#endif
+      END SUBROUTINE torch_tensor_grad_to_array_double_${ndims}$d
 
    #:endfor
 

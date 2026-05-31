@@ -37,7 +37,8 @@ MODULE skala_gpw_functional
    USE torch_api,                       ONLY: &
         torch_cuda_device_count, torch_cuda_select_device, torch_cuda_visible_device, &
         torch_tensor_backward_scalar, torch_tensor_data_ptr, torch_tensor_grad, &
-        torch_tensor_grad_select_to_array, torch_tensor_release, torch_tensor_type, torch_use_cuda
+        torch_tensor_grad_select_to_array, torch_tensor_grad_to_array, torch_tensor_release, &
+        torch_tensor_type, torch_use_cuda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_release,&
@@ -227,6 +228,7 @@ CONTAINS
                                 l_val=native_grid_atom_chunks)
       CALL section_vals_val_get(gauxc_section, "NATIVE_GRID_ATOM_CHUNK_ROUTING", &
                                 l_val=native_grid_atom_chunk_routing)
+      native_grid_atom_chunk_routing = native_grid_atom_chunk_routing .OR. native_grid_atom_chunks
       native_grid_atom_chunks = native_grid_atom_chunks .OR. native_grid_atom_chunk_routing
       IF (native_grid_atom_chunks .AND. needs_atom_force) THEN
          CALL cp_abort(__LOCATION__, &
@@ -362,11 +364,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: grad_grad
 
-      INTEGER                                            :: base, dest, i, irow, j, k, local_row, &
-                                                            nflat_local, pe, point_pos, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, grad_recv_counts, &
-                                                            grad_recv_displs, grad_send_counts, &
-                                                            grad_send_displs, recv_meta, send_meta
+      INTEGER                                            :: base, i, irow, j, k, local_row, &
+                                                            nflat_local, phase_handle, &
+                                                            point_pos, row
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: chunk_grad_buffer, global_grad_buffer, &
                                                             recv_grad_buffer, send_grad_buffer
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chunk_density_grad, chunk_kin_grad
@@ -375,47 +375,27 @@ CONTAINS
       CPASSERT(features%uses_atom_chunks)
       CPASSERT(features%chunk_feature_count > 0)
 
+      CALL timeset("skala_gpw_grad_torch", phase_handle)
       ALLOCATE (chunk_density_grad(features%chunk_feature_count, 2), &
                 chunk_grad_grad(features%chunk_feature_count, 3, 2), &
                 chunk_kin_grad(features%chunk_feature_count, 2))
-      CALL torch_tensor_grad_select_to_array(features%density_t, &
-                                             features%local_feature_indices_t, &
-                                             chunk_density_grad)
-      CALL torch_tensor_grad_select_to_array(features%grad_t, &
-                                             features%local_feature_indices_t, &
-                                             chunk_grad_grad)
-      CALL torch_tensor_grad_select_to_array(features%kin_t, &
-                                             features%local_feature_indices_t, &
-                                             chunk_kin_grad)
+      CALL torch_tensor_grad_to_array(features%density_t, chunk_density_grad)
+      CALL torch_tensor_grad_to_array(features%grad_t, chunk_grad_grad)
+      CALL torch_tensor_grad_to_array(features%kin_t, chunk_kin_grad)
+      CALL timestop(phase_handle)
 
       nflat_local = features%nflat_local
       IF (features%uses_atom_chunk_routing) THEN
          CPASSERT(SUM(features%route_point_recv_counts) == features%chunk_feature_count)
          CPASSERT(SUM(features%route_point_send_counts) == nflat_local)
 
-         ALLOCATE (grad_send_counts(SIZE(features%route_point_recv_counts)), &
-                   grad_send_displs(SIZE(features%route_point_recv_displs)), &
-                   grad_recv_counts(SIZE(features%route_point_send_counts)), &
-                   grad_recv_displs(SIZE(features%route_point_send_displs)), &
-                   cursor(SIZE(features%route_point_recv_counts)))
-         grad_send_counts = ngrad_per_point*features%route_point_recv_counts
-         grad_send_displs = ngrad_per_point*features%route_point_recv_displs
-         grad_recv_counts = ngrad_per_point*features%route_point_send_counts
-         grad_recv_displs = ngrad_per_point*features%route_point_send_displs
-
-         ALLOCATE (send_meta(features%chunk_feature_count), &
-                   recv_meta(nflat_local), &
-                   send_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
+         CALL timeset("skala_gpw_grad_route_pack", phase_handle)
+         ALLOCATE (send_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    recv_grad_buffer(ngrad_per_point*nflat_local))
-         send_meta = 0
          send_grad_buffer = 0.0_dp
-         cursor = features%route_point_recv_displs + 1
          DO irow = 1, features%chunk_feature_count
-            dest = features%chunk_return_ranks(irow)
-            CPASSERT(dest >= 1 .AND. dest <= SIZE(cursor))
-            point_pos = cursor(dest)
-            cursor(dest) = cursor(dest) + 1
-            send_meta(point_pos) = features%chunk_return_rows(irow)
+            point_pos = features%chunk_return_positions(irow)
+            CPASSERT(point_pos >= 1 .AND. point_pos <= features%chunk_feature_count)
             base = ngrad_per_point*(point_pos - 1)
             send_grad_buffer(base + 1:base + 2) = chunk_density_grad(irow, :)
             send_grad_buffer(base + 3) = chunk_grad_grad(irow, 1, 1)
@@ -426,38 +406,39 @@ CONTAINS
             send_grad_buffer(base + 8) = chunk_grad_grad(irow, 3, 2)
             send_grad_buffer(base + 9:base + 10) = chunk_kin_grad(irow, :)
          END DO
-         CALL group%alltoall(send_meta, features%route_point_recv_counts, &
-                             features%route_point_recv_displs, recv_meta, &
-                             features%route_point_send_counts, &
-                             features%route_point_send_displs)
-         CALL group%alltoall(send_grad_buffer, grad_send_counts, grad_send_displs, &
-                             recv_grad_buffer, grad_recv_counts, grad_recv_displs)
+         CALL timestop(phase_handle)
 
+         CALL timeset("skala_gpw_grad_route_comm", phase_handle)
+         CALL group%alltoall(send_grad_buffer, features%route_grad_return_send_counts, &
+                             features%route_grad_return_send_displs, recv_grad_buffer, &
+                             features%route_grad_return_recv_counts, &
+                             features%route_grad_return_recv_displs)
+         CALL timestop(phase_handle)
+
+         CALL timeset("skala_gpw_grad_route_scatter", phase_handle)
          ALLOCATE (density_grad(nflat_local, 2), grad_grad(nflat_local, 3, 2), &
                    kin_grad(nflat_local, 2))
          density_grad = 0.0_dp
          grad_grad = 0.0_dp
          kin_grad = 0.0_dp
-         DO pe = 1, SIZE(features%route_point_send_counts)
-            DO irow = 1, features%route_point_send_counts(pe)
-               point_pos = features%route_point_send_displs(pe) + irow
-               local_row = recv_meta(point_pos)
-               CPASSERT(local_row >= 1 .AND. local_row <= nflat_local)
-               base = ngrad_per_point*(point_pos - 1)
-               density_grad(local_row, :) = recv_grad_buffer(base + 1:base + 2)
-               grad_grad(local_row, 1, 1) = recv_grad_buffer(base + 3)
-               grad_grad(local_row, 2, 1) = recv_grad_buffer(base + 4)
-               grad_grad(local_row, 3, 1) = recv_grad_buffer(base + 5)
-               grad_grad(local_row, 1, 2) = recv_grad_buffer(base + 6)
-               grad_grad(local_row, 2, 2) = recv_grad_buffer(base + 7)
-               grad_grad(local_row, 3, 2) = recv_grad_buffer(base + 8)
-               kin_grad(local_row, :) = recv_grad_buffer(base + 9:base + 10)
-            END DO
+         DO point_pos = 1, nflat_local
+            local_row = features%route_send_local_rows(point_pos)
+            CPASSERT(local_row >= 1 .AND. local_row <= nflat_local)
+            base = ngrad_per_point*(point_pos - 1)
+            density_grad(local_row, :) = recv_grad_buffer(base + 1:base + 2)
+            grad_grad(local_row, 1, 1) = recv_grad_buffer(base + 3)
+            grad_grad(local_row, 2, 1) = recv_grad_buffer(base + 4)
+            grad_grad(local_row, 3, 1) = recv_grad_buffer(base + 5)
+            grad_grad(local_row, 1, 2) = recv_grad_buffer(base + 6)
+            grad_grad(local_row, 2, 2) = recv_grad_buffer(base + 7)
+            grad_grad(local_row, 3, 2) = recv_grad_buffer(base + 8)
+            kin_grad(local_row, :) = recv_grad_buffer(base + 9:base + 10)
          END DO
+         CALL timestop(phase_handle)
 
-         DEALLOCATE (cursor, grad_recv_counts, grad_recv_displs, grad_send_counts, &
-                     grad_send_displs, recv_grad_buffer, recv_meta, send_grad_buffer, send_meta)
+         DEALLOCATE (recv_grad_buffer, send_grad_buffer)
       ELSE
+         CALL timeset("skala_gpw_grad_pack", phase_handle)
          ALLOCATE (chunk_grad_buffer(ngrad_per_point*features%chunk_feature_count), &
                    global_grad_buffer(ngrad_per_point*features%nflat))
          chunk_grad_buffer = 0.0_dp
@@ -472,9 +453,14 @@ CONTAINS
             chunk_grad_buffer(base + 8) = chunk_grad_grad(irow, 3, 2)
             chunk_grad_buffer(base + 9:base + 10) = chunk_kin_grad(irow, :)
          END DO
+         CALL timestop(phase_handle)
+
+         CALL timeset("skala_gpw_grad_allgatherv", phase_handle)
          CALL group%allgatherv(chunk_grad_buffer, global_grad_buffer, &
                                features%chunk_grad_counts, features%chunk_grad_displs)
+         CALL timestop(phase_handle)
 
+         CALL timeset("skala_gpw_grad_scatter", phase_handle)
          ALLOCATE (density_grad(nflat_local, 2), grad_grad(nflat_local, 3, 2), &
                    kin_grad(nflat_local, 2))
          local_row = 0
@@ -496,10 +482,13 @@ CONTAINS
                END DO
             END DO
          END DO
+         CALL timestop(phase_handle)
          DEALLOCATE (chunk_grad_buffer, global_grad_buffer)
       END IF
 
+      CALL timeset("skala_gpw_grad_tmp_release", phase_handle)
       DEALLOCATE (chunk_density_grad, chunk_grad_grad, chunk_kin_grad)
+      CALL timestop(phase_handle)
 
    END SUBROUTINE fetch_and_gather_atom_chunk_grads
 
