@@ -19,7 +19,6 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
@@ -417,7 +416,7 @@ void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
 }
 
 /*******************************************************************************
- * \brief Evaluates a TorchScript model method expecting keyword argument "mol".
+ * \brief Evaluates a TorchScript model method expecting argument "mol".
  ******************************************************************************/
 void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
                                       const char *method_name,
@@ -426,11 +425,9 @@ void torch_c_model_forward_mol_tensor(torch_c_model_t *model,
 
   c10::OptionalDeviceGuard guard;
   get_device_with_guard(guard);
-  std::vector<c10::IValue> args;
-  std::unordered_map<std::string, c10::IValue> kwargs;
-  kwargs["mol"] = *inputs;
+  assert(*output == NULL);
   *output = new torch_c_tensor_t(
-      model->get_method(method_name)(args, kwargs).toTensor());
+      model->get_method(method_name)({*inputs}).toTensor());
 }
 
 /*******************************************************************************
