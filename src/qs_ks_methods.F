@@ -644,6 +644,11 @@ CONTAINS
                IF (gapw) THEN
                   CPABORT(native_skala_gapw_msg)
                END IF
+               IF (ASSOCIATED(rho_nlcc)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Native SKALA grid evaluation with NLCC pseudopotentials is not implemented. "// &
+                                "The frozen core density would need a SKALA-consistent feature definition.")
+               END IF
                IF (nimages /= 1) THEN
                   CPABORT("Native SKALA grid evaluation supports single-image calculations only.")
                END IF
