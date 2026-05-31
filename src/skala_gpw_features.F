@@ -900,7 +900,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: limit, nchunks
       LOGICAL                                            :: fits
 
-      INTEGER                                            :: atom_count, chunk_count, iatom, used_chunks
+      INTEGER                                            :: atom_count, chunk_count, iatom, &
+                                                            used_chunks
 
       fits = .FALSE.
       IF (SIZE(atomic_grid_sizes) == 0) THEN
@@ -1089,8 +1090,6 @@ CONTAINS
       ALLOCATE (send_meta(2*nsend), send_dynamic(ndynamic_per_point*nsend), &
                 recv_meta(2*nrecv), recv_dynamic(ndynamic_per_point*nrecv), &
                 cursor(cached_layout%nproc))
-      send_meta = 0
-      send_dynamic = 0.0_dp
       cursor(:) = cached_layout%route_point_send_displs + 1
       DO local_row = 1, nsend
          dest = cached_layout%route_local_dest(local_row)
@@ -1120,9 +1119,6 @@ CONTAINS
                 features%chunk_return_positions(cached_layout%chunk_feature_count), &
                 features%chunk_return_ranks(cached_layout%chunk_feature_count), &
                 features%chunk_return_rows(cached_layout%chunk_feature_count))
-      features%chunk_density = 0.0_dp
-      features%chunk_grad = 0.0_dp
-      features%chunk_kin = 0.0_dp
       features%chunk_return_positions = 0
       features%chunk_return_ranks = 0
       features%chunk_return_rows = 0
