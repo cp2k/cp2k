@@ -18,6 +18,8 @@ MODULE skala_torch_api
                                               torch_model_release,&
                                               torch_model_type,&
                                               torch_tensor_item_double,&
+                                              torch_tensor_release,&
+                                              torch_tensor_weighted_sum,&
                                               torch_tensor_type
 #include "./base/base_uses.f90"
 
@@ -153,9 +155,12 @@ CONTAINS
       TYPE(torch_tensor_type), INTENT(INOUT)             :: exc_tensor
       REAL(KIND=dp), INTENT(OUT)                         :: exc
 
-      CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc", inputs, exc_tensor)
+      TYPE(torch_tensor_type)                             :: exc_density
+
+      CALL torch_model_forward_mol_tensor(model%torch_model, "get_exc_density", inputs, exc_density)
+      CALL torch_tensor_weighted_sum(exc_density, grid_weights, exc_tensor)
+      CALL torch_tensor_release(exc_density)
       exc = torch_tensor_item_double(exc_tensor)
-      MARK_USED(grid_weights)
 
    END SUBROUTINE skala_torch_model_get_exc
 
