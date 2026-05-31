@@ -83,7 +83,7 @@ MODULE torch_api
    PUBLIC :: torch_dict_type, torch_dict_clone, torch_dict_create, torch_dict_insert
    PUBLIC :: torch_dict_get, torch_dict_release
    PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
-   PUBLIC :: torch_model_forward_mol_tensor
+   PUBLIC :: torch_model_forward_mol_tensor, torch_model_load_with_metadata
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_device_count, torch_cuda_is_available
    PUBLIC :: torch_allow_tf32, torch_model_freeze, torch_use_cuda
@@ -675,6 +675,58 @@ CONTAINS
       MARK_USED(filename)
 #endif
    END SUBROUTINE torch_model_load
+
+! **************************************************************************************************
+!> \brief Loads a Torch model and reads two metadata entries.
+! **************************************************************************************************
+   SUBROUTINE torch_model_load_with_metadata(model, filename, key1, value1, key2, value2)
+      TYPE(torch_model_type), INTENT(INOUT)              :: model
+      CHARACTER(len=*), INTENT(IN)                       :: filename, key1, key2
+      CHARACTER(:), ALLOCATABLE, INTENT(OUT)             :: value1, value2
+
+#if defined(__LIBTORCH)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_load_with_metadata'
+      INTEGER                                            :: handle, length1, length2
+      TYPE(C_PTR)                                        :: content1_c, content2_c
+
+      INTERFACE
+         SUBROUTINE torch_c_model_load_with_metadata(model, filename, key1, key2, &
+                                                     content1, length1, content2, length2) &
+            BIND(C, name="torch_c_model_load_with_metadata")
+            IMPORT :: C_CHAR, C_INT, C_PTR
+            TYPE(C_PTR)                                  :: model
+            CHARACTER(kind=C_CHAR), DIMENSION(*)         :: filename, key1, key2
+            TYPE(C_PTR)                                  :: content1, content2
+            INTEGER(kind=C_INT)                          :: length1, length2
+         END SUBROUTINE torch_c_model_load_with_metadata
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+      CPASSERT(.NOT. C_ASSOCIATED(model%c_ptr))
+      content1_c = C_NULL_PTR
+      content2_c = C_NULL_PTR
+      length1 = -1
+      length2 = -1
+      CALL torch_c_model_load_with_metadata(model=model%c_ptr, &
+                                            filename=TRIM(filename)//C_NULL_CHAR, &
+                                            key1=TRIM(key1)//C_NULL_CHAR, &
+                                            key2=TRIM(key2)//C_NULL_CHAR, &
+                                            content1=content1_c, length1=length1, &
+                                            content2=content2_c, length2=length2)
+      CPASSERT(C_ASSOCIATED(model%c_ptr))
+      CALL c_string_to_allocatable(content1_c, length1, value1)
+      CALL c_string_to_allocatable(content2_c, length2, value2)
+      CALL timestop(handle)
+#else
+      CPABORT("CP2K was compiled without Torch library.")
+      MARK_USED(model)
+      MARK_USED(filename)
+      MARK_USED(key1)
+      MARK_USED(value1)
+      MARK_USED(key2)
+      MARK_USED(value2)
+#endif
+   END SUBROUTINE torch_model_load_with_metadata
 
 ! **************************************************************************************************
 !> \brief Evaluates the given Torch model.
