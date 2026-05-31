@@ -123,7 +123,7 @@ spack:
     - "libxc@7.0.0"
     - "libxsmm@1.17-cp2k"
     - "openblas@0.3.33"
-    - "pace@2025.12.4"
+    - "pace@2025.12.4.1"
     - "py-torch@2.12.0"
     - "spglib@2.7.0"
     - "tblite@0.6.0"

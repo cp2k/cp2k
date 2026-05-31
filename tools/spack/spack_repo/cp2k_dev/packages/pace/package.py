@@ -29,34 +29,24 @@ class Pace(CMakePackage):
 
     license("GPL-2.0-or-later", checked_by="hjjvandam")
     version("main", branch="main")
+    version("2025.12.4.1", tag="v.2025.12.4.p1", commit="5844770144643f872db8aa06df02d64192a8160f")
     version("2025.12.4", tag="v.2025.12.4", commit="8d0483447e94d17e01cbc1826a88cae1d8c3aab6")
     version(
         "2023.11.25.2", tag="v.2023.11.25.fix2", commit="e60e850359b918ca93a5e9329548a58d31f4b12b"
     )
 
     variant("pic", default=True, description="Build position independent code")
-    variant("shared", default=False, description="Build shared libraries (otherwise static)")
 
     depends_on("cmake@3.10:", type="build")
     depends_on("cxx", type="build")
 
     # Build always with the yaml-cpp and cnpy version included in pace
-    depends_on("yaml-cpp")
-    depends_on("cnpy")
+    # depends_on("yaml-cpp")
+    # depends_on("cnpy")
 
     def cmake_args(self):
-        args = [
-            self.define_from_variant("BUILD_SHARED_LIBS", "shared"),
+        return [
             self.define_from_variant("CMAKE_POSITION_INDEPENDENT_CODE", "pic"),
+            self.define("CMAKE_DISABLE_FIND_PACKAGE_yaml-cpp", True),
+            self.define("CMAKE_DISABLE_FIND_PACKAGE_cnpy", True),
         ]
-        return args
-
-    def install(self, spec, prefix):
-        src = self.stage.source_path
-        install_tree(join_path(src, "ML-PACE/ace"), join_path(prefix.include, "ace"))
-        install_tree(
-            join_path(src, "ML-PACE/ace-evaluator"), join_path(prefix.include, "ace-evaluator")
-        )
-        install_tree(join_path(src, "yaml-cpp/include"), prefix.include)
-        mkdirp(prefix.lib)
-        install(join_path(self.build_directory, "libpace.a"), prefix.lib)
